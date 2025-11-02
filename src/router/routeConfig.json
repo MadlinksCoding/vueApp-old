@@ -606,6 +606,15 @@
     "componentPath": "@/templates/profileshafay/ProfileWrapper.vue",
     "preLoadSections": []
   },
+   {
+    "slug": "/profile_abdullah",
+    "section": "profile",
+    "requiresAuth": false,
+    "enabled": true,
+    "supportedRoles": ["any"],
+    "componentPath": "@/templates/profileAbdullah/Profile.vue",
+    "preLoadSections": []
+  },
   {
     "slug": "/discover",
     "section": "discover",

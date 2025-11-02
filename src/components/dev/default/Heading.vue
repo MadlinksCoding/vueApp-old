@@ -85,6 +85,9 @@ const themeClasses: Record<string, Record<string, string>> = {
   formHeading: {
     h4: "text-base font-[600] font-semibold leading-[24px] text-[#344054]",
   },
+  profileFeed:{
+    h2:"text-xl leading-normal font-medium text-white drop-shadow-[0px_0px_10px_-34px_#0000001A]"
+  }
 };
 
 const headingConfig = computed(() => ({

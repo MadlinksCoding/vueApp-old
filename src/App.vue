@@ -92,7 +92,7 @@ onMounted(() => {
   <router-view />
 
   <!-- 🔒 Container where DependencyGate mounts -->
-  <div id="my-gate" style="margin-top: 1rem;"></div>
+  <!-- <div id="my-gate" style="margin-top: 1rem;"></div> -->
 </template>
 
 <style scoped>

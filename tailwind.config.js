@@ -206,12 +206,10 @@ export default {
           DEFAULT: "#ffffff",
           dark: "#e8e6e3",
         },
-
         handle: {
           light: "#d0d5dd",
           dark: "#cecac4",
         },
-
         border: {
           DEFAULT: "#DEE5EC",
           tab: {
@@ -252,12 +250,10 @@ export default {
           },
           icon: "#98A2B3",
         },
-
         errorBorder: {
           DEFAULT: "#ff4405",
           dark: "#b12d00",
         },
-
         background: {
           light: {
             DEFAULT: "rgba(255, 255, 255, 0.2)",
@@ -366,7 +362,6 @@ export default {
             dark: "#f37266",
           },
         },
-
         buttonPrimary: {
           DEFAULT: "#ff0066",
           dark: "#cc0052",
@@ -383,7 +378,6 @@ export default {
           DEFAULT: "#ffffff",
           dark: "#303436",
         },
-
         // Checkbox colors
         checkbox: {
           DEFAULT: "deeppink",
@@ -393,7 +387,6 @@ export default {
           DEFAULT: "#D0D5DD",
           dark: "#3b4043",
         },
-
         // Dropdown colors
         dropdown: {
           DEFAULT: "#ffffff",
@@ -435,6 +428,14 @@ export default {
             light: "rgba(255,255,255,0.5)",
             lighter: "rgba(255,255,255,0.3)",
             warning: "rgba(255,68,5,0.1)",
+          },
+        },
+        light: {
+          text: {
+            quaternary: '#667085',
+          },
+          bg: {
+            section: 'hsla(0, 0%, 100%, 0.4)',
           },
         },
         fce40d: "#fce40d",
@@ -487,12 +488,33 @@ export default {
             left: "0",
           },
         },
+        slideFromLeft: {
+          '0%': {
+            transform: 'translateX(0%)'
+          },
+          '100%': {
+            transform: 'translateX(78%)'
+          }
+        },
+        slideFromRight: {
+          '0%': {
+            transform: 'translateX(78%)'
+          },
+          '60%': {
+            transform: 'translateX(21%)'
+          },
+          '100%': {
+            transform: 'translateX(19%)'
+          }
+        }
       },
       animation: {
         bouncedown: "bouncedown 0.1s ease forwards",
-        bouncup: "bouncup 0.1s ease forwards",
+        bouncup: "bouncup 0.5s ease forwards",
+        slidefromleft: 'slideFromLeft 0s ease forwards',
+        slidefromright: 'slideFromRight 0.5s ease-in forwards'
       },
-       gridTemplateColumns: {
+      gridTemplateColumns: {
         '5': 'repeat(5, minmax(0, 1fr))',
         '6': 'repeat(6, minmax(0, 1fr))',
       }
