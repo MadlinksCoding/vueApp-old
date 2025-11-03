@@ -76,11 +76,11 @@ defineProps({
   hoverBg: { type: String, required: true },
   likeIcon: {
     type: String,
-    default: "https://i.ibb.co.com/mCxSfzSP/not-liked.webp",
+    default: "@/assets/images/icons/not-liked.webp",
   },
   commentIcon: {
     type: String,
-    default: "https://i.ibb.co.com/Vp5cpM04/message-text-square-02.webp",
+    default: "@/assets/images/icons/message-text-square-02.webp",
   },
 });
 </script>

@@ -429,6 +429,7 @@
                   <!-- logo-section -->
                   <div class="opacity-50 sm:opacity-100">
                     <a href="#" class="hidden opacity-70 leading-[0] xl:block">
+                       <!-- // disini -->
                       <img
                         data-src="/images/website-logo.webp"
                         alt="our-website-logo-full"
@@ -438,10 +439,10 @@
 
                     <a href="#" class="flex leading-[0] xl:hidden">
                       <img
-                        data-src="/images/our-website-full-white-logo.webp"
+                        src="/images/our-website-full-white-logo.webp"
                         alt="our-website-full-white-logo"
                         class="lazyload -7 h-7"
-                      />
+                      />  
                     </a>
                   </div>
                 </div>
@@ -970,11 +971,7 @@
                         class="lazyload w-6 h-6 aspect-square"
                       />
                     </span>
-
-                    <span
-                      class="flex justify-center text-sm font-semibold text-black [background:linear-gradient(90deg,#F06_0%,#FF4A92_100%)] pl-3 pr-1.5 py-0.5 rounded backdrop-blur-[10px]"
-                      >29% off</span
-                    >
+                   
                   </div>
 
                   <!-- tier-price -->
@@ -1205,8 +1202,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
 
                 <FeedPollCard
@@ -1228,8 +1225,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
               </div>
             </section>
@@ -1264,8 +1261,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
 
                 <FeedPollCard
@@ -1287,8 +1284,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
               </div>
             </section>
@@ -1299,7 +1296,7 @@
             class="fixed bottom-6 right-2 md:right-6 w-12 h-12 md:w-24 md:h-24 hidden justify-center items-center rounded-full p-2 bg-[#07F468]"
           >
             <img
-              src="https://i.ibb.co.com/tM3JgkG2/file-plus-02.webp"
+              src="@/assets/images/icons/file-plus-02.webp"
               alt="file-plus-02"
               class="w-8 h-8 md:w-14 md:h-14"
             />
@@ -1371,7 +1368,7 @@
                   class="flex gap-1 w-8 h-8 whitespace-nowrap text-base text-white"
                 >
                   <img
-                    src="https://i.ibb.co.com/mKdm9ZK/chevron-down.webp"
+                    src="@/assets/images/icons/chevron-down.webp"
                     alt="chevron-down"
                     class="w-auto h-8"
                   />
@@ -1409,7 +1406,7 @@
                   class="flex gap-1 w-8 h-8 whitespace-nowrap text-base text-white"
                 >
                   <img
-                    src="https://i.ibb.co.com/mKdm9ZK/chevron-down.webp"
+                    src="@/assets/images/icons/chevron-down.webp"
                     alt="chevron-down"
                     class="w-auto h-8"
                   />
@@ -1429,7 +1426,7 @@
           >
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
               <MerchCard
-                bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
+                bgImage="@/assets/images/backgroundSlides/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
                 currency="USD"
                 price="$25"
@@ -1440,7 +1437,7 @@
               />
 
               <MerchCard
-                bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
+                bgImage="@/assets/images/backgroundSlides/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
                 currency="USD"
                 price="$25"
@@ -1467,10 +1464,14 @@ import { ref, onMounted, onUnmounted } from "vue";
 import PlayMediaCards from "@/components/ui/card/dashboard/PlayMediaCards.vue";
 import MerchCard from "@/components/ui/card/dashboard/MerchCard.vue";
 
+// Asset Path
+import checkoutHeader from '@/assets/images/backgroundSlides/checkout-header.webp'
+import sampleBg from '@/assets/images/backgroundSlides/sample-bg-image-compressed.webp'
+
 // --- MEDIA LIST DATA ---
 const myMediaData = ref([
   {
-    image: "https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp",
+    image: "@/assets/images/backgroundSlides/profile-slidein-bg.webp",
     alt: "Video 1",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1481,7 +1482,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp",
+    image: "@/assets/images/backgroundSlides/sample-bg-image.webp",
     alt: "Video 2",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1492,7 +1493,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/jPw7ChWb/auth-bg.webp",
+    image: "@/assets/images/backgroundSlides/auth-bg.webp",
     alt: "Video 3",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1503,7 +1504,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp",
+    image: "@/assets/images/backgroundSlides/profile-slidein-bg.webp",
     alt: "Video 4",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1514,7 +1515,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp",
+    image: "@/assets/images/backgroundSlides/sample-bg-image.webp",
     alt: "Video 5",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1525,7 +1526,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/jPw7ChWb/auth-bg.webp",
+    image: "@/assets/images/backgroundSlides/auth-bg.webp",
     alt: "Video 6",
     duration: "14:09",
     timeAgo: "2h ago",
