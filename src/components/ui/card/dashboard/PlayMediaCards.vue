@@ -33,7 +33,7 @@
           class="inline-flex justify-center items-center gap-[0.188rem] absolute top-1 left-1 px-1 py-0.5 rounded bg-[rgba(24,34,48,0.50)] dark:bg-[rgba(31,44,63,0.50)] drop-shadow-[0_0_0.313rem_rgba(0,0,0,1)] z-[99999]"
         >
           <img
-            src="https://i.ibb.co.com/wN978Hjm/video.webp"
+            src="@/assets/images/icons/video.webp"
             alt="video"
             class="w-4 h-4"
           />
@@ -59,7 +59,7 @@
               class="flex justify-center items-center gap-[0.188rem] drop-shadow-[0_0_0.313rem_rgba(0,0,0,1)]"
             >
               <img
-                src="https://i.ibb.co.com/7tbwzFsQ/heart.webp"
+                src="@/assets/images/icons/heart.webp"
                 alt="heart"
                 class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
               />
@@ -72,7 +72,7 @@
               class="flex justify-center items-center gap-[0.1875rem] drop-shadow-[0_0_.313rem_#000]"
             >
               <img
-                src="https://i.ibb.co.com/Kjv16vLZ/eye.webp"
+                src="@/assets/images/icons/eye.webp"
                 alt="eye"
                 class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
               />
