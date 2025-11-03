@@ -12,7 +12,7 @@
             >
               <img
                 class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                src="@/assets/images/backgroundSlides/profile-slidein-bg.webp"
                 alt="profile-slidein-bg"
               />
             </li>
@@ -23,7 +23,7 @@
             >
               <img
                 class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                src="@/assets/images/backgroundSlides/sample-bg-image.webp"
                 alt="sample-bg-image"
               />
             </li>
@@ -34,7 +34,7 @@
             >
               <img
                 class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                src="@/assets/images/backgroundSlides/auth-bg.webp"
                 alt="auth-bg"
               />
             </li>
@@ -143,12 +143,12 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                src="@/assets/images/icons/token.webp"
                 alt="token"
                 class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/KxrkW4qX/token-hover.webp"
+                src="@/assets/images/icons/token-hover.webp"
                 alt="token-hover"
                 class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
@@ -163,17 +163,17 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/5g6w4qKc/call.webp"
+                src="@/assets/images/icons/call.webp"
                 alt="call"
                 class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/hFPk53Zd/call-hover.webp"
+                src="@/assets/images/icons/call-hover.webp"
                 alt="call-hover"
                 class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                src="@/assets/images/icons/online-dot.webp"
                 alt="online-dot"
                 class="absolute w-[18%] top-0 right-[3px] duration-500"
               />
@@ -188,17 +188,17 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/60Hy8yr2/message.webp"
+                src="@/assets/images/icons/message.webp"
                 alt="message"
                 class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/YG3j1Fk/message-hover.webp"
+                src="@/assets/images/icons/message-hover.webp"
                 alt="message-hover"
                 class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                src="@/assets/images/icons/online-dot.webp"
                 alt="online-dot"
                 class="absolute w-[18%] top-0 right-[3px] duration-500"
               />
@@ -221,7 +221,7 @@
                     @sukii19
                   </div>
                   <img
-                    src="https://i.ibb.co.com/j9XKPcfK/verified-green.webp"
+                    src="@/assets/images/icons/verified-green.webp"
                     alt="verified-green"
                     class="w-4 h-4"
                   />
@@ -234,7 +234,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/MDRt49c6/add-normal.webp"
+                    src="@/assets/images/icons/add-normal.webp"
                     alt="add-normal"
                     class="w-4 h-4"
                   />
@@ -244,7 +244,7 @@
                   class="hidden justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] active [.active]:bg-[#e9e5d3bf] max-[580px]:[.active]:bg-black/75 max-[580px]:[.active]:shadow-[0_0_10px_0_rgba(7,244,104,0.30),0_0_10px_0_rgba(7,244,104,0.10)] max-[580px]:[.active]:backdrop-blur-[25px] max-[580px]:[.active]:text-[#07F468] max-[580px]:[.active]:border-transparent cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/cS65c7gh/add-active.webp"
+                    src="@/assets/images/icons/add-active.webp"
                     alt="add-active"
                     class="w-4 h-4"
                   />
@@ -254,7 +254,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/2wTKJq2/like-normal.webp"
+                    src="@/assets/images/icons/like-normal.webp"
                     alt="like-normal"
                     class="w-4 h-4"
                   />
@@ -264,7 +264,7 @@
                   class="hidden justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] active [.active]:bg-black/75 max-[580px]:[.active]:bg-black/75 max-[580px]:[.active]:shadow-[0_0_10px_0_rgba(7,244,104,0.30),0_0_10px_0_rgba(7,244,104,0.10)] max-[580px]:[.active]:backdrop-blur-[25px] max-[580px]:[.active]:text-[#07F468] max-[580px]:[.active]:border-transparent cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/9HMStmgF/like-active.webp"
+                    src="@/assets/images/icons/like-active.webp"
                     alt="like-active"
                     class="w-4 h-4"
                   />
@@ -275,7 +275,7 @@
                     class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      src="@/assets/images/icons/3-dot.webp"
                       alt="3-dot"
                       class="w-4 h-4"
                     />
@@ -290,7 +290,7 @@
               class="flex flex-col justify-center items-center cursor-pointer"
             >
               <img
-                src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                src="@/assets/images/backgroundSlides/featured-media-bg.webp"
                 alt="featured-media-bg"
                 class="w-[2.813rem] h-[2.813rem] rounded-[12.5rem] object-cover"
               />
@@ -304,7 +304,7 @@
         <!-- back-button -->
         <div class="flex justify-center items-center w-10 h-10">
           <img
-            src="https://i.ibb.co.com/kgddCh1j/chevron-left.webp"
+            src="@/assets/images/icons/chevron-left.webp"
             alt="chevron-left"
             class="w-6 h-6"
           />
@@ -319,7 +319,7 @@
               <!-- avatar -->
               <div class="w-full h-full rounded-full">
                 <img
-                  src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                  src="@/assets/images/backgroundSlides/featured-media-bg.webp"
                   alt="featured-media-bg"
                   class="w-full h-full rounded-full object-cover"
                 />
@@ -338,7 +338,7 @@
                 </div>
                 <div class="flex justify-center items-center w-2.5 h-2.5">
                   <img
-                    src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                    src="@/assets/images/icons/svgviewer-png-output-22.webp"
                     alt="verified-tick"
                     class="w-full h-full object-cover"
                   />
@@ -351,7 +351,7 @@
                 <div class="flex items-center gap-1">
                   <div class="flex justify-center items-center">
                     <img
-                      src="https://i.ibb.co.com/V0yqgLxY/eye.webp"
+                      src="@/assets/images/icons/eye.webp"
                       alt="eye"
                       class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
                     />
@@ -363,7 +363,7 @@
                 <div class="flex items-center gap-1">
                   <div class="flex justify-center items-center">
                     <img
-                      src="https://i.ibb.co.com/2wTKJq2/like-normal.webp"
+                      src="@/assets/images/icons/like-normal.webp"
                       alt="like-normal"
                       class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
                     />
@@ -376,7 +376,7 @@
             <!-- action -->
             <div class="flex justify-center items-center w-5 h-5">
               <img
-                src="https://i.ibb.co.com/GvZDsx6D/3-dots-horizontal.webp"
+                src="@/assets/images/icons/3-dots-horizontal.webp"
                 alt="3-dots-horizontal"
                 class="w-full"
               />
@@ -389,7 +389,7 @@
           <!-- avatar -->
           <div class="w-9 h-9 rounded-full">
             <img
-              src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+              src="@/assets/images/backgroundSlides/featured-media-bg.webp"
               alt="featured-media-bg"
               class="w-full h-full rounded-full object-cover"
             />
@@ -429,8 +429,9 @@
                   <!-- logo-section -->
                   <div class="opacity-50 sm:opacity-100">
                     <a href="#" class="hidden opacity-70 leading-[0] xl:block">
+                       <!-- // disini -->
                       <img
-                        src="https://i.ibb.co.com/27Gt3hwK/website-logo.webp"
+                        src="@/assets/images/icons/website-logo.webp"
                         alt="our-website-logo-full"
                         class="w-[8.9375rem] h-[2.375rem]"
                       />
@@ -438,7 +439,7 @@
 
                     <a href="#" class="flex leading-[0] xl:hidden">
                       <img
-                        src="https://i.ibb.co.com/gZsWNR4Q/our-website-full-white-logo.webp"
+                        src="@/assets/images/icons/our-website-full-white-logo.webp"
                         alt="our-website-full-white-logo"
                         class="w-7 h-7"
                       />
@@ -465,7 +466,7 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/0wRg4N7/cart-1.webp"
+                          src="@/assets/images/icons/cart-1.webp"
                           alt="cart-1"
                           class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
@@ -482,7 +483,7 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/f7MgMrs/bell-1.webp"
+                          src="@/assets/images/icons/bell-1.webp"
                           alt="bell-1"
                           class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
@@ -499,7 +500,7 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/zhwwszjh/globe-1.webp"
+                          src="@/assets/images/icons/globe-1.webp"
                           alt="globe-1"
                           class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
@@ -518,7 +519,7 @@
                       class="bg-grey w-9 h-9 aspect-square rounded-[25%_75%_50%_51%_/_45%_65%_36%_55%] relative overflow-hidden"
                     >
                       <img
-                        src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                        src="@/assets/images/backgroundSlides/featured-media-bg.webp"
                         alt="featured-media-bg"
                         class="w-full h-full absolute top-0 left-0 object-cover"
                       />
@@ -549,7 +550,7 @@
                     @sukii19
                   </div>
                   <img
-                    src="https://i.ibb.co.com/j9XKPcfK/verified-green.webp"
+                    src="@/assets/images/icons/verified-green.webp"
                     alt="verified-green"
                     class="w-4 h-4"
                   />
@@ -582,7 +583,7 @@
             <!-- creator-avatar-container -->
             <div class="flex flex-col justify-center items-center">
               <img
-                src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                src="@/assets/images/backgroundSlides/featured-media-bg.webp"
                 alt="featured-media-bg"
                 class="w-16 h-16 rounded-full object-cover"
               />
@@ -600,7 +601,7 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                src="@/assets/images/icons/token.webp"
                 alt="tip-token"
                 class="w-12 sm:w-15 md:w-[5.25rem]"
               />
@@ -611,12 +612,12 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/5g6w4qKc/call.webp"
+                src="@/assets/images/icons/call.webp"
                 alt="call"
                 class="w-12 sm:w-15 md:w-[5.25rem]"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                src="@/assets/images/icons/online-dot.webp"
                 alt="online-dot"
                 class="absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
               />
@@ -627,12 +628,12 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/60Hy8yr2/message.webp"
+                src="@/assets/images/icons/message.webp"
                 alt="message"
                 class="w-12 sm:w-15 md:w-[5.25rem]"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                src="@/assets/images/icons/online-dot.webp"
                 alt="online-dot"
                 class="absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
               />
@@ -655,7 +656,7 @@
                 Sukii19
                 <div class="flex w-3.5 h-3.5 md:hidden">
                   <img
-                    src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                    src="@/assets/images/icons/svgviewer-png-output-22.webp"
                     alt="verified-tick"
                     class="w-3.5 h-3.5"
                   />
@@ -671,7 +672,7 @@
                     class="bg-[#2970FF] w-16 h-16 aspect-square rounded-[25%_75%_50%_51%_/_45%_65%_36%_55%] relative overflow-hidden"
                   >
                     <img
-                      src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                      src="@/assets/images/backgroundSlides/featured-media-bg.webp"
                       alt="featured-media-bg"
                       class="w-full h-full absolute top-0 left-0 object-cover"
                     />
@@ -691,7 +692,7 @@
                   Sukii19
                   <div class="flex w-3.5 h-3.5 md:hidden">
                     <img
-                      src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                      src="@/assets/images/icons/svgviewer-png-output-22.webp"
                       alt="verified-tick"
                       class="w-3.5 h-3.5"
                     />
@@ -703,7 +704,7 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/gZfGQhSp/profile.webp"
+                        src="@/assets/images/icons/profile.webp"
                         alt="profile"
                         class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
@@ -714,7 +715,7 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                        src="@/assets/images/icons/heart.webp"
                         alt="heart"
                         class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
@@ -725,7 +726,7 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/8LGTj3jC/logo.webp"
+                        src="@/assets/images/icons/logo.webp"
                         alt="logo"
                         class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
@@ -768,7 +769,7 @@
                       class="absolute top-1/2 left-0 -translate-y-1/2 z-[1]"
                     >
                       <img
-                        src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                        src="@/assets/images/icons/token.webp"
                         alt="token"
                         class="w-12 h-12"
                       />
@@ -785,7 +786,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                    src="@/assets/images/icons/heart.webp"
                     alt="heart"
                     class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
@@ -795,7 +796,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/21KzYNJ8/link.webp"
+                    src="@/assets/images/icons/link.webp"
                     alt="link"
                     class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
@@ -806,7 +807,7 @@
                     class="flex justify-center items-center w-8 h-8 rounded-full [transition:all_0.3s_ease-in-out] md:w-12 h-12"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      src="@/assets/images/icons/3-dot.webp"
                       alt="3-dot"
                       class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                     />
@@ -839,7 +840,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                    src="@/assets/images/icons/heart.webp"
                     alt="heart"
                     class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
@@ -849,7 +850,7 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/21KzYNJ8/link.webp"
+                    src="@/assets/images/icons/link.webp"
                     alt="link"
                     class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
@@ -860,7 +861,7 @@
                     class="flex justify-center items-center w-8 h-8 rounded-full [transition:all_0.3s_ease-in-out] md:w-12 h-12"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      src="@/assets/images/icons/3-dot.webp"
                       alt="3-dot"
                       class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                     />
@@ -890,12 +891,12 @@
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp');
+                        background-image: url('@/assets/images/backgroundSlides/profile-slidein-bg.webp');
                       "
                     >
                       <img
                         class="hidden"
-                        src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                        src="@/assets/images/backgroundSlides/profile-slidein-bg.webp"
                         alt="profile-slidein-bg"
                       />
                     </li>
@@ -903,12 +904,12 @@
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp');
+                        background-image: url('@/assets/images/backgroundSlides/sample-bg-image.webp');
                       "
                     >
                       <img
                         class="hidden"
-                        src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                        src="@/assets/images/backgroundSlides/profile-slidein-bg.webp"
                         alt="sample-bg-image"
                       />
                     </li>
@@ -916,12 +917,12 @@
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/jPw7ChWb/auth-bg.webp');
+                        background-image: url('@/assets/images/backgroundSlides/auth-bg.webp');
                       "
                     >
                       <img
                         class="hidden"
-                        src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                        src="@/assets/images/backgroundSlides/auth-bg.webp"
                         alt="auth-bg"
                       />
                     </li>
@@ -944,12 +945,12 @@
                   >
                     <span class="w-[6.875rem] h-[6.25rem] block relative">
                       <img
-                        src="https://i.ibb.co.com/99P9hHTv/subscriber-btn-img.webp"
-                        alt="subscriber-btn-img"
-                        class="absolute bottom-0 left-0 opacity-100 [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncedown"
+                      src="@/assets/images/icons/subscriber-btn-img.webp"
+                      alt="subscriber-btn-img"
+                      class="absolute bottom-0 left-0 opacity-100 [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncedown"
                       />
                       <img
-                        src="https://i.ibb.co.com/276TkNhV/subscriber-btn-hover-img.webp"
+                        src="@/assets/images/icons/subscriber-btn-hover-img.webp"
                         alt="subscriber-btn-hover-img"
                         class="absolute bottom-0 left-0 opacity-0 w-[3.75rem] [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncup"
                       />
@@ -965,7 +966,7 @@
                         class="absolute top-1 w-[0.8125rem] h-3 shadow-[3px_0_4px_0_rgba(0,0,0,0.25)] z-[-3] text-black"
                       ></span>
                       <img
-                        src="https://i.ibb.co.com/m5WBnbQ7/hot-offer.webp"
+                        src="@/assets/images/icons/hot-offer.webp"
                         alt="hot-offer"
                         class="w-6 h-6 aspect-square"
                       />
@@ -1006,7 +1007,7 @@
                       class="absolute h-20 left-[-1.65625rem] sm:left-[-1.625rem]"
                     >
                       <img
-                        src="https://i.ibb.co.com/DHJWhq4f/subscriber-button-shape.webp"
+                        src="@/assets/images/icons/subscriber-button-shape.webp"
                         alt="subscriber-button-shape"
                         class="w-[1.75rem] h-full"
                       />
@@ -1121,12 +1122,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp');
+                      background-image: url('@/assets/images/backgroundSlides/profile-slidein-bg.webp');
                     "
                   >
                     <img
                       class="hidden"
-                      src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                      src="@/assets/images/backgroundSlides/profile-slidein-bg.webp"
                       alt="profile-slidein-bg"
                     />
                   </li>
@@ -1134,12 +1135,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp');
+                      background-image: url('@/assets/images/backgroundSlides/sample-bg-image.webp');
                     "
                   >
                     <img
                       class="hidden"
-                      src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                      src="@/assets/images/backgroundSlides/sample-bg-image.webp"
                       alt="sample-bg-image"
                     />
                   </li>
@@ -1147,12 +1148,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/jPw7ChWb/auth-bg.webp');
+                      background-image: url('@/assets/images/backgroundSlides/auth-bg.webp');
                     "
                   >
                     <img
                       class="hidden"
-                      src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                      src="@/assets/images/backgroundSlides/auth-bg.webp"
                       alt="auth-bg"
                     />
                   </li>
@@ -1210,8 +1211,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
 
                 <!-- feed-item (poll) -->
@@ -1235,8 +1236,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
               </div>
             </section>
@@ -1276,8 +1277,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
 
                 <!-- feed-item (poll) -->
@@ -1301,8 +1302,8 @@
                   description="Jenny is back! Tonight I will eat mostly fruits. -> 8pm EST time 👅!"
                   :likes="205"
                   :comments="16"
-                  bgImage="https://i.ibb.co.com/9mnXybFf/checkout-header.webp"
-                  hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
+                  :bgImage="checkoutHeader"
+                  :hoverBg="sampleBg"
                 />
               </div>
             </section>
@@ -1313,7 +1314,7 @@
             class="fixed bottom-6 right-2 md:right-6 w-12 h-12 md:w-24 md:h-24 hidden justify-center items-center rounded-full p-2 bg-[#07F468]"
           >
             <img
-              src="https://i.ibb.co.com/tM3JgkG2/file-plus-02.webp"
+              src="@/assets/images/icons/file-plus-02.webp"
               alt="file-plus-02"
               class="w-8 h-8 md:w-14 md:h-14"
             />
@@ -1399,7 +1400,7 @@
                   class="flex gap-1 w-8 h-8 whitespace-nowrap text-base text-white"
                 >
                   <img
-                    src="https://i.ibb.co.com/mKdm9ZK/chevron-down.webp"
+                    src="@/assets/images/icons/chevron-down.webp"
                     alt="chevron-down"
                     class="w-auto h-8"
                   />
@@ -1446,7 +1447,7 @@
                   class="flex gap-1 w-8 h-8 whitespace-nowrap text-base text-white"
                 >
                   <img
-                    src="https://i.ibb.co.com/mKdm9ZK/chevron-down.webp"
+                    src="@/assets/images/icons/chevron-down.webp"
                     alt="chevron-down"
                     class="w-auto h-8"
                   />
@@ -1468,7 +1469,7 @@
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
               <!-- merch-thumb (normal) -->
               <MerchCard
-                bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
+                bgImage="@/assets/images/backgroundSlides/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
                 currency="USD"
                 price="$25"
@@ -1480,7 +1481,7 @@
 
               <!-- merch-thumb (pro) -->
               <MerchCard
-                bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
+                bgImage="@/assets/images/backgroundSlides/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
                 currency="USD"
                 price="$25"
@@ -1506,10 +1507,14 @@ import { ref, onMounted, onUnmounted } from "vue";
 import PlayMediaCards from "@/components/ui/card/dashboard/PlayMediaCards.vue";
 import MerchCard from "@/components/ui/card/dashboard/MerchCard.vue";
 
+// Asset Path
+import checkoutHeader from '@/assets/images/backgroundSlides/checkout-header.webp'
+import sampleBg from '@/assets/images/backgroundSlides/sample-bg-image-compressed.webp'
+
 // --- MEDIA LIST DATA ---
 const myMediaData = ref([
   {
-    image: "https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp",
+    image: "@/assets/images/backgroundSlides/profile-slidein-bg.webp",
     alt: "Video 1",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1520,7 +1525,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp",
+    image: "@/assets/images/backgroundSlides/sample-bg-image.webp",
     alt: "Video 2",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1531,7 +1536,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/jPw7ChWb/auth-bg.webp",
+    image: "@/assets/images/backgroundSlides/auth-bg.webp",
     alt: "Video 3",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1542,7 +1547,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp",
+    image: "@/assets/images/backgroundSlides/profile-slidein-bg.webp",
     alt: "Video 4",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1553,7 +1558,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp",
+    image: "@/assets/images/backgroundSlides/sample-bg-image.webp",
     alt: "Video 5",
     duration: "14:09",
     timeAgo: "2h ago",
@@ -1564,7 +1569,7 @@ const myMediaData = ref([
     title: "Building successful teams through collaboration",
   },
   {
-    image: "https://i.ibb.co.com/jPw7ChWb/auth-bg.webp",
+    image: "@/assets/images/backgroundSlides/auth-bg.webp",
     alt: "Video 6",
     duration: "14:09",
     timeAgo: "2h ago",
