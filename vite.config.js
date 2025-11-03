@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: true,
+      cssCodeSplit: false,
       assetsInlineLimit: 0,
       rollupOptions: {
         output: {

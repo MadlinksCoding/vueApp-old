@@ -938,6 +938,22 @@
       </section>
     </div>
   </div>
+
+   <!-- Footer Test Routes -->
+      <footer
+        style="padding: 1rem; background: #eee; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 2rem;"
+      >
+        <h4 style="width: 100%; margin: 0 0 0.5rem 0;">All Routes</h4>
+  
+        <router-link
+          v-for="route in routesConfig"
+          :key="route.slug"
+          :to="route.slug"
+          style="padding: 0.5rem 1rem; background: #007bff; color: #fff; border-radius: 4px; text-decoration: none;"
+        >
+          {{ route.slug }}
+        </router-link>
+      </footer>
 </template>
 
 <script setup>
@@ -976,6 +992,7 @@ import Checkbox from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import Radio from "@/components/ui/form/radio/dashboard/RadioGroup.vue";
 import DefaultDahboardDrowpdown from "../ui/popup/dropdown/dashboard/DefaultDahboardDrowpdown.vue";
 import CustomeThemeSelect from "../ui/popup/dropdown/dashboard/customThemeSelect/CustomeThemeSelect.vue";
+import routesConfig from "@/router/routeConfig.json";
 
 
 // Basic refs

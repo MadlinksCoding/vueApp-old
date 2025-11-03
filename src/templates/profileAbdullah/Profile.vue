@@ -11,8 +11,8 @@
               class="splide__slide w-full before:content-[''] before:block before:w-full before:absolute before:h-full before:top-0 before:left-0 before:z-[2] max-[580px]:before:[background:transparent] before:[background:linear-gradient(180deg,rgba(0,0,0,0.03)_-0.17%,rgba(0,0,0,0.15)_100%)]"
             >
               <img
-                class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                class="lazyload w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
+                data-src="/images/slide-1.webp"
                 alt="profile-slidein-bg"
               />
             </li>
@@ -22,8 +22,8 @@
               class="splide__slide w-full before:content-[''] before:block before:w-full before:absolute before:h-full before:top-0 before:left-0 before:z-[2] max-[580px]:before:[background:transparent] before:[background:linear-gradient(180deg,rgba(0,0,0,0.03)_-0.17%,rgba(0,0,0,0.15)_100%)]"
             >
               <img
-                class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                class="lazyload w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
+                data-src="/images/slide-2.webp"
                 alt="sample-bg-image"
               />
             </li>
@@ -33,8 +33,8 @@
               class="splide__slide w-full before:content-[''] before:block before:w-full before:absolute before:h-full before:top-0 before:left-0 before:z-[2] max-[580px]:before:[background:transparent] before:[background:linear-gradient(180deg,rgba(0,0,0,0.03)_-0.17%,rgba(0,0,0,0.15)_100%)]"
             >
               <img
-                class="w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
-                src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                class="lazyload w-full h-full object-cover object-center ml-[-5%] [will-change:filter] pointer-events-none [filter:blur(var(--blur))] [-mt:var(--blur)] [height:calc(100%_+_var(--blur))]"
+                data-src="/images/slide-3.webp"
                 alt="auth-bg"
               />
             </li>
@@ -143,14 +143,14 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                data-src="/images/token.webp"
                 alt="token"
-                class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/KxrkW4qX/token-hover.webp"
+                data-src="/images/token.webp"
                 alt="token-hover"
-                class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
             </span>
           </div>
@@ -163,19 +163,19 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/5g6w4qKc/call.webp"
+                data-src="/images/call.webp"
                 alt="call"
-                class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/hFPk53Zd/call-hover.webp"
+                data-src="/images/call-hover.webp"
                 alt="call-hover"
-                class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                data-src="/images/online-dot.webp"
                 alt="online-dot"
-                class="absolute w-[18%] top-0 right-[3px] duration-500"
+                class="lazyload absolute w-[18%] top-0 right-[3px] duration-500"
               />
             </span>
           </div>
@@ -188,19 +188,19 @@
               class="absolute top-0 left-0 block w-[3.75rem] h-[3.75rem] group/icon"
             >
               <img
-                src="https://i.ibb.co.com/60Hy8yr2/message.webp"
+                data-src="/images/message.webp"
                 alt="message"
-                class="absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 group-hover/icon:opacity-0"
               />
               <img
-                src="https://i.ibb.co.com/YG3j1Fk/message-hover.webp"
+                data-src="/images/message-hover.webp"
                 alt="message-hover"
-                class="absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
+                class="lazyload absolute top-0 left-0 transition-all duration-200 opacity-0 duration-[0.4s] group-hover/icon:opacity-100 group-hover/icon:scale-110"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                data-src="/images/online-dot.webp"
                 alt="online-dot"
-                class="absolute w-[18%] top-0 right-[3px] duration-500"
+                class="lazyload absolute w-[18%] top-0 right-[3px] duration-500"
               />
             </span>
           </div>
@@ -221,9 +221,9 @@
                     @sukii19
                   </div>
                   <img
-                    src="https://i.ibb.co.com/j9XKPcfK/verified-green.webp"
+                    data-src="/images/verified-green.webp"
                     alt="verified-green"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </div>
               </div>
@@ -234,9 +234,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/MDRt49c6/add-normal.webp"
+                    data-src="/images/add-normal.webp"
                     alt="add-normal"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </span>
 
@@ -244,9 +244,9 @@
                   class="hidden justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] active [.active]:bg-[#e9e5d3bf] max-[580px]:[.active]:bg-black/75 max-[580px]:[.active]:shadow-[0_0_10px_0_rgba(7,244,104,0.30),0_0_10px_0_rgba(7,244,104,0.10)] max-[580px]:[.active]:backdrop-blur-[25px] max-[580px]:[.active]:text-[#07F468] max-[580px]:[.active]:border-transparent cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/cS65c7gh/add-active.webp"
+                    data-src="/images/add-active.webp"
                     alt="add-active"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </span>
 
@@ -254,9 +254,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/2wTKJq2/like-normal.webp"
+                    data-src="/images/like-normal.webp"
                     alt="like-normal"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </span>
 
@@ -264,9 +264,9 @@
                   class="hidden justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] active [.active]:bg-black/75 max-[580px]:[.active]:bg-black/75 max-[580px]:[.active]:shadow-[0_0_10px_0_rgba(7,244,104,0.30),0_0_10px_0_rgba(7,244,104,0.10)] max-[580px]:[.active]:backdrop-blur-[25px] max-[580px]:[.active]:text-[#07F468] max-[580px]:[.active]:border-transparent cursor-pointer"
                 >
                   <img
-                    src="https://i.ibb.co.com/9HMStmgF/like-active.webp"
+                    data-src="/images/like-active.webp"
                     alt="like-active"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </span>
 
@@ -275,9 +275,9 @@
                     class="flex justify-center items-center w-8 h-8 bg-[#e9e5d30d] [transition:all_0.3s_ease-in-out] rounded-full border border-[#e9e5d340] cursor-pointer"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      data-src="/images/3-dot.webp"
                       alt="3-dot"
-                      class="w-4 h-4"
+                      class="lazyload w-4 h-4"
                     />
                   </span>
 
@@ -290,9 +290,9 @@
               class="flex flex-col justify-center items-center cursor-pointer"
             >
               <img
-                src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                data-src="/images/featured-media-bg.webp"
                 alt="featured-media-bg"
-                class="w-[2.813rem] h-[2.813rem] rounded-[12.5rem] object-cover"
+                class="lazyload w-[2.813rem] h-[2.813rem] rounded-[12.5rem] object-cover"
               />
             </div>
           </div>
@@ -304,9 +304,9 @@
         <!-- back-button -->
         <div class="flex justify-center items-center w-10 h-10">
           <img
-            src="https://i.ibb.co.com/kgddCh1j/chevron-left.webp"
+            data-src="/images/chevron-left.webp"
             alt="chevron-left"
-            class="w-6 h-6"
+            class="lazyload w-6 h-6"
           />
         </div>
 
@@ -319,9 +319,9 @@
               <!-- avatar -->
               <div class="w-full h-full rounded-full">
                 <img
-                  src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                  data-src="/images/featured-media-bg.webp"
                   alt="featured-media-bg"
-                  class="w-full h-full rounded-full object-cover"
+                  class="lazyload w-full h-full rounded-full object-cover"
                 />
               </div>
               <!-- Online-user-signal -->
@@ -338,9 +338,9 @@
                 </div>
                 <div class="flex justify-center items-center w-2.5 h-2.5">
                   <img
-                    src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                    data-src="/images/svgviewer-png-output-22.webp"
                     alt="verified-tick"
-                    class="w-full h-full object-cover"
+                    class="lazyload w-full h-full object-cover"
                   />
                 </div>
               </div>
@@ -351,9 +351,9 @@
                 <div class="flex items-center gap-1">
                   <div class="flex justify-center items-center">
                     <img
-                      src="https://i.ibb.co.com/V0yqgLxY/eye.webp"
+                      data-src="/images/eye.webp"
                       alt="eye"
-                      class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
+                      class="lazyload w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
                     />
                   </div>
                   <span class="text-xs leading-normal text-[#667085]">18</span>
@@ -363,9 +363,9 @@
                 <div class="flex items-center gap-1">
                   <div class="flex justify-center items-center">
                     <img
-                      src="https://i.ibb.co.com/2wTKJq2/like-normal.webp"
+                      data-src="/images/like-normal.webp"
                       alt="like-normal"
-                      class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
+                      class="lazyload w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(12%)_saturate(707%)_hue-rotate(183deg)_brightness(92%)_contrast(88%)]"
                     />
                   </div>
                   <span class="text-xs leading-normal text-[#667085]">5</span>
@@ -376,9 +376,9 @@
             <!-- action -->
             <div class="flex justify-center items-center w-5 h-5">
               <img
-                src="https://i.ibb.co.com/GvZDsx6D/3-dots-horizontal.webp"
+                data-src="/images/3-dots-horizontal.webp"
                 alt="3-dots-horizontal"
-                class="w-full"
+                class="lazyload w-full"
               />
             </div>
           </div>
@@ -389,9 +389,9 @@
           <!-- avatar -->
           <div class="w-9 h-9 rounded-full">
             <img
-              src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+              data-src="/images/featured-media-bg.webp"
               alt="featured-media-bg"
-              class="w-full h-full rounded-full object-cover"
+              class="lazyload w-full h-full rounded-full object-cover"
             />
           </div>
           <!-- Online-user-signal -->
@@ -430,17 +430,17 @@
                   <div class="opacity-50 sm:opacity-100">
                     <a href="#" class="hidden opacity-70 leading-[0] xl:block">
                       <img
-                        src="https://i.ibb.co.com/27Gt3hwK/website-logo.webp"
+                        data-src="/images/website-logo.webp"
                         alt="our-website-logo-full"
-                        class="w-[8.9375rem] h-[2.375rem]"
+                        class="lazyload w-[8.9375rem] h-[2.375rem]"
                       />
                     </a>
 
                     <a href="#" class="flex leading-[0] xl:hidden">
                       <img
-                        src="https://i.ibb.co.com/gZsWNR4Q/our-website-full-white-logo.webp"
+                        data-src="/images/our-website-full-white-logo.webp"
                         alt="our-website-full-white-logo"
-                        class="w-7 h-7"
+                        class="lazyload -7 h-7"
                       />
                     </a>
                   </div>
@@ -465,9 +465,9 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/0wRg4N7/cart-1.webp"
+                          data-src="/images/cart-1.webp"
                           alt="cart-1"
-                          class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
+                          class="lazyload w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
                       </span>
 
@@ -482,9 +482,9 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/f7MgMrs/bell-1.webp"
+                          data-src="/images/bell-1.webp"
                           alt="bell-1"
-                          class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
+                          class="lazyload w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
                       </span>
 
@@ -499,9 +499,9 @@
                         class="flex justify-center items-center w-10 h-10 relative"
                       >
                         <img
-                          src="https://i.ibb.co.com/zhwwszjh/globe-1.webp"
+                          data-src="/images/globe-1.webp"
                           alt="globe-1"
-                          class="w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
+                          class="lazyload w-[1.8rem] h-[1.8rem] [filter:brightness(100)_saturate(0)]"
                         />
                       </span>
 
@@ -518,9 +518,9 @@
                       class="bg-grey w-9 h-9 aspect-square rounded-[25%_75%_50%_51%_/_45%_65%_36%_55%] relative overflow-hidden"
                     >
                       <img
-                        src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                        data-src="/images/featured-media-bg.webp"
                         alt="featured-media-bg"
-                        class="w-full h-full absolute top-0 left-0 object-cover"
+                        class="lazyload w-full h-full absolute top-0 left-0 object-cover"
                       />
                     </div>
 
@@ -549,9 +549,9 @@
                     @sukii19
                   </div>
                   <img
-                    src="https://i.ibb.co.com/j9XKPcfK/verified-green.webp"
+                    data-src="/images/verified-green.webp"
                     alt="verified-green"
-                    class="w-4 h-4"
+                    class="lazyload w-4 h-4"
                   />
                 </div>
               </div>
@@ -582,9 +582,9 @@
             <!-- creator-avatar-container -->
             <div class="flex flex-col justify-center items-center">
               <img
-                src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                data-src="/images/featured-media-bg.webp"
                 alt="featured-media-bg"
-                class="w-16 h-16 rounded-full object-cover"
+                class="lazyload w-16 h-16 rounded-full object-cover"
               />
             </div>
           </div>
@@ -600,9 +600,9 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                data-src="/images/token.webp"
                 alt="tip-token"
-                class="w-12 sm:w-15 md:w-[5.25rem]"
+                class="lazyload w-12 sm:w-15 md:w-[5.25rem]"
               />
             </div>
 
@@ -611,14 +611,14 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/5g6w4qKc/call.webp"
+                data-src="/images/call.webp"
                 alt="call"
-                class="w-12 sm:w-15 md:w-[5.25rem]"
+                class="lazyload w-12 sm:w-15 md:w-[5.25rem]"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                data-src="/images/online-dot.webp"
                 alt="online-dot"
-                class="absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
+                class="lazyload absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
               />
             </div>
 
@@ -627,14 +627,14 @@
             >
               <!--group animate-slidefromleft hover:animate-slidefromright-->
               <img
-                src="https://i.ibb.co.com/60Hy8yr2/message.webp"
+                data-src="/images/message.webp"
                 alt="message"
-                class="w-12 sm:w-15 md:w-[5.25rem]"
+                class="lazyload w-12 sm:w-15 md:w-[5.25rem]"
               />
               <img
-                src="https://i.ibb.co.com/VcxyxB2y/online-dot.webp"
+                data-src="/images/online-dot.webp"
                 alt="online-dot"
-                class="absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
+                class="lazyload absolute top-1 right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 md:hidden"
               />
             </div>
           </div>
@@ -655,9 +655,9 @@
                 Sukii19
                 <div class="flex w-3.5 h-3.5 md:hidden">
                   <img
-                    src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                    data-src="/images/svgviewer-png-output-22.webp"
                     alt="verified-tick"
-                    class="w-3.5 h-3.5"
+                    class="lazyload w-3.5 h-3.5"
                   />
                 </div>
               </h1>
@@ -671,9 +671,9 @@
                     class="bg-[#2970FF] w-16 h-16 aspect-square rounded-[25%_75%_50%_51%_/_45%_65%_36%_55%] relative overflow-hidden"
                   >
                     <img
-                      src="https://i.ibb.co.com/jk1F8MqJ/featured-media-bg.webp"
+                      data-src="/images/featured-media-bg.webp"
                       alt="featured-media-bg"
-                      class="w-full h-full absolute top-0 left-0 object-cover"
+                      class="lazyload w-full h-full absolute top-0 left-0 object-cover"
                     />
                   </div>
 
@@ -691,9 +691,9 @@
                   Sukii19
                   <div class="flex w-3.5 h-3.5 md:hidden">
                     <img
-                      src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
+                      data-src="/images/svgviewer-png-output-22.webp"
                       alt="verified-tick"
-                      class="w-3.5 h-3.5"
+                      class="lazyload w-3.5 h-3.5"
                     />
                   </div>
                 </h1>
@@ -703,9 +703,9 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/gZfGQhSp/profile.webp"
+                        data-src="/images/profile.webp"
                         alt="profile"
-                        class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
+                        class="lazyload w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
                     </span>
                     <span class="text-sm font-light text-[#EAECF0]">35</span>
@@ -714,9 +714,9 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                        data-src="/images/heart.webp"
                         alt="heart"
-                        class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
+                        class="lazyload w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
                     </span>
                     <span class="text-sm font-light text-[#EAECF0]">14</span>
@@ -725,9 +725,9 @@
                   <div class="flex items-center gap-1">
                     <span class="flex items-center">
                       <img
-                        src="https://i.ibb.co.com/8LGTj3jC/logo.webp"
+                        data-src="/images/logo.webp"
                         alt="logo"
-                        class="w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
+                        class="lazyload w-3.5 h-3.5 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)]"
                       />
                     </span>
                     <span class="text-sm font-light text-[#EAECF0]">2</span>
@@ -768,9 +768,9 @@
                       class="absolute top-1/2 left-0 -translate-y-1/2 z-[1]"
                     >
                       <img
-                        src="https://i.ibb.co.com/DfbNLYFj/token.webp"
+                        data-src="/images/token.webp"
                         alt="token"
-                        class="w-12 h-12"
+                        class="lazyload w-12 h-12"
                       />
                     </span>
 
@@ -785,9 +785,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                    data-src="/images/heart.webp"
                     alt="heart"
-                    class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                    class="lazyload w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
                 </span>
 
@@ -795,9 +795,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/21KzYNJ8/link.webp"
+                    data-src="/images/link.webp"
                     alt="link"
-                    class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                    class="lazyload w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
                 </span>
 
@@ -806,9 +806,9 @@
                     class="flex justify-center items-center w-8 h-8 rounded-full [transition:all_0.3s_ease-in-out] md:w-12 h-12"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      data-src="/images/3-dot.webp"
                       alt="3-dot"
-                      class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                      class="lazyload w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                     />
                   </span>
                 </div>
@@ -839,9 +839,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/vCFQPp7N/heart.webp"
+                    data-src="/images/heart.webp"
                     alt="heart"
-                    class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                    class="lazyload w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
                 </span>
 
@@ -849,9 +849,9 @@
                   class="flex justify-center items-center w-8 h-8 bg-black/10 border border-[#e9e5d380] rounded-full [transition:all_0.3s_ease-in-out] cursor-pointer md:w-12 md:h-12"
                 >
                   <img
-                    src="https://i.ibb.co.com/21KzYNJ8/link.webp"
+                    data-src="/images/link.webp"
                     alt="link"
-                    class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                    class="lazyload w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                   />
                 </span>
 
@@ -860,9 +860,9 @@
                     class="flex justify-center items-center w-8 h-8 rounded-full [transition:all_0.3s_ease-in-out] md:w-12 h-12"
                   >
                     <img
-                      src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp"
+                      data-src="/images/3-dot.webp"
                       alt="3-dot"
-                      class="w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
+                      class="lazyload w-4 h-4 md:w-6 md:h-6 [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(12%)_saturate(222%)_hue-rotate(12deg)_brightness(105%)_contrast(97%)]"
                     />
                   </span>
                 </div>
@@ -890,25 +890,25 @@
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp');
+                        background-image: url('/images/slide-1.webp');
                       "
                     >
                       <img
-                        class="hidden"
-                        src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                        class="lazyload hidden"
+                        data-src="/images/slide-1.webp"
                         alt="profile-slidein-bg"
                       />
                     </li>
-
+                    
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp');
+                        background-image: url('/images/slide-2.webp');
                       "
                     >
                       <img
-                        class="hidden"
-                        src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                        class="lazyload hidden"
+                        data-src="/images/slide-2.webp"
                         alt="sample-bg-image"
                       />
                     </li>
@@ -916,12 +916,12 @@
                     <li
                       class="splide__slide flex flex-col items-start gap-4 z-[-2] border-l-4 border-r-4 border-transparent bg-center bg-cover bg-no-repeat max-[580px]:rounded-sm opacity-50 max-[580px]:!border-none is-active [&.is-active]:opacity-100"
                       style="
-                        background-image: url('https://i.ibb.co.com/jPw7ChWb/auth-bg.webp');
+                        background-image: url('/images/slide-3.webp');
                       "
                     >
                       <img
-                        class="hidden"
-                        src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                        class="lazyload hidden"
+                        data-src="/images/slide-3.webp"
                         alt="auth-bg"
                       />
                     </li>
@@ -944,14 +944,14 @@
                   >
                     <span class="w-[6.875rem] h-[6.25rem] block relative">
                       <img
-                        src="https://i.ibb.co.com/99P9hHTv/subscriber-btn-img.webp"
+                        data-src="/images/subscriber-btn-img.webp"
                         alt="subscriber-btn-img"
-                        class="absolute bottom-0 left-0 opacity-100 [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncedown"
+                        class="lazyload absolute bottom-0 left-0 opacity-100 [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncedown"
                       />
                       <img
-                        src="https://i.ibb.co.com/276TkNhV/subscriber-btn-hover-img.webp"
+                        data-src="/images/subscriber-btn-hover-img.webp"
                         alt="subscriber-btn-hover-img"
-                        class="absolute bottom-0 left-0 opacity-0 w-[3.75rem] [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncup"
+                        class="lazyload absolute bottom-0 left-0 opacity-0 w-[3.75rem] [transition:all_0.5s_ease-in-out] transition-all duration-500 ease-in-out group-hover/button:animate-bouncup"
                       />
                     </span>
                   </span>
@@ -965,9 +965,9 @@
                         class="absolute top-1 w-[0.8125rem] h-3 shadow-[3px_0_4px_0_rgba(0,0,0,0.25)] z-[-3] text-black"
                       ></span>
                       <img
-                        src="https://i.ibb.co.com/m5WBnbQ7/hot-offer.webp"
+                        data-src="/images/hot-offer.webp"
                         alt="hot-offer"
-                        class="w-6 h-6 aspect-square"
+                        class="lazyload w-6 h-6 aspect-square"
                       />
                     </span>
 
@@ -1006,9 +1006,9 @@
                       class="absolute h-20 left-[-1.65625rem] sm:left-[-1.625rem]"
                     >
                       <img
-                        src="https://i.ibb.co.com/DHJWhq4f/subscriber-button-shape.webp"
+                        data-src="/images/subscriber-button-shape.webp"
                         alt="subscriber-button-shape"
-                        class="w-[1.75rem] h-full"
+                        class="lazyload w-[1.75rem] h-full"
                       />
                     </div>
 
@@ -1121,12 +1121,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp');
+                      background-image: url('/images/slide-1.webp');
                     "
                   >
                     <img
-                      class="hidden"
-                      src="https://i.ibb.co.com/F4cf3W53/profile-slidein-bg.webp"
+                      class="lazyload hidden"
+                      data-src="/images/slide-1.webp"
                       alt="profile-slidein-bg"
                     />
                   </li>
@@ -1134,12 +1134,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp');
+                      background-image: url('/images/slide-2.webp');
                     "
                   >
                     <img
-                      class="hidden"
-                      src="https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp"
+                      class="lazyload hidden"
+                      data-src="/images/slide-2.webp"
                       alt="sample-bg-image"
                     />
                   </li>
@@ -1147,12 +1147,12 @@
                   <li
                     class="splide__slide flex flex-col items-start gap-4 relative opacity-50 p-4 bg-cover bg-center bg-no-repeat [transform:scaleY(70%)] z-[-2] [&.is-prev]:flex [&.is-prev]:[transform:scaleY(90%)] [&.is-prev]:z-[-1] [&.is-next]:flex [&.is-next]:[transform:scaleY(90%)] [&.is-next]:z-[-1] [&.is-active]:flex [&.is-active]:!w-[40%] [&.is-active]:[transform:scale(100%,100%)] [&.is-active]:rounded [&.is-active]:opacity-100 [&.is-active]:z-[1] cursor-pointer"
                     style="
-                      background-image: url('https://i.ibb.co.com/jPw7ChWb/auth-bg.webp');
+                      background-image: url('/images/slide-3.webp');
                     "
                   >
                     <img
-                      class="hidden"
-                      src="https://i.ibb.co.com/jPw7ChWb/auth-bg.webp"
+                      class="lazyload hidden"
+                      data-src="/images/slide-3.webp"
                       alt="auth-bg"
                     />
                   </li>
@@ -1168,28 +1168,24 @@
         class="flex flex-col items-stretch max-[580px]:bg-black/25 opacity-100 md:overflow-hidden xl:overflow-auto"
       >
         <!-- feed-tab-content -->
-        <div
+        <!-- <div
           class="tab-content active relative flex-1 min-h-[100svh] lg:bg-black/50"
           id="feed-content"
         >
           <div
             class="flex flex-col gap-6 px-2 py-4 bg-black/50 backdrop-blur-[400px] sm:p-4 md:gap-9 lg:flex-grow lg:mx-auto lg:px-12 lg:py-6 lg:bg-transparent"
           >
-            <!-- march 2024 section -->
             <section
               class="relative flex flex-col gap-2 lg:flex-row lg:gap-0 lg:w-[calc(100%-9rem)] lg:mx-auto"
             >
-              <!-- title-section -->
               <div>
                 <Heading text="MARCH" tag="h2" theme="profileFeed" />
                 <Heading text="2024" tag="h2" theme="profileFeed" />
               </div>
 
-              <!-- feed-item-container -->
               <div
                 class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:max-w-[62.9375rem]"
               >
-                <!-- feed-item (poll) -->
                 <FeedPollCard
                   day="31"
                   suffix="st"
@@ -1203,7 +1199,6 @@
                   timeLeft="24 hours left to vote"
                 />
 
-                <!-- feed-item (media) -->
                 <FeedMediaCard
                   day="31"
                   suffix="st"
@@ -1214,7 +1209,6 @@
                   hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
                 />
 
-                <!-- feed-item (poll) -->
                 <FeedPollCard
                   day="31"
                   suffix="st"
@@ -1228,7 +1222,6 @@
                   timeLeft="24 hours left to vote"
                 />
 
-                <!-- feed-item (media) -->
                 <FeedMediaCard
                   day="31"
                   suffix="st"
@@ -1241,21 +1234,17 @@
               </div>
             </section>
 
-            <!-- february 2024 section -->
             <section
               class="relative flex flex-col gap-2 lg:flex-row lg:gap-0 lg:w-[calc(100%-9rem)] lg:mx-auto"
             >
-              <!-- title-section -->
               <div>
                 <Heading text="FEBRUARY" tag="h2" theme="profileFeed" />
                 <Heading text="2024" tag="h2" theme="profileFeed" />
               </div>
 
-              <!-- feed-item-container -->
               <div
                 class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:max-w-[62.9375rem]"
               >
-                <!-- feed-item (poll) -->
                 <FeedPollCard
                   day="31"
                   suffix="st"
@@ -1269,7 +1258,6 @@
                   timeLeft="24 hours left to vote"
                 />
 
-                <!-- feed-item (media) -->
                 <FeedMediaCard
                   day="31"
                   suffix="st"
@@ -1280,7 +1268,6 @@
                   hoverBg="https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp"
                 />
 
-                <!-- feed-item (poll) -->
                 <FeedPollCard
                   day="31"
                   suffix="st"
@@ -1294,7 +1281,6 @@
                   timeLeft="24 hours left to vote"
                 />
 
-                <!-- feed-item (media) -->
                 <FeedMediaCard
                   day="31"
                   suffix="st"
@@ -1318,20 +1304,17 @@
               class="w-8 h-8 md:w-14 md:h-14"
             />
           </button>
-        </div>
+        </div> -->
 
         <!-- media-tab-content -->
-        <div
+        <!-- <div
           class="tab-content hidden relative flex-1 min-h-[65.25rem] pt-20 md:pt-32"
           id="media-content"
         >
-          <!-- pay-per-view-section -->
           <section class="mb-8">
-            <!-- title-section -->
             <div
               class="flex justify-between items-center px-2 md:px-4 xl:px-12"
             >
-              <!-- title-section__left -->
               <div class="flex gap-3.5 mb-4 xl:mb-6">
                 <h2
                   class="text-xl leading-normal font-medium text-[#e9e5d3] pl-4 border-l border-[#e9e5d3]"
@@ -1349,23 +1332,17 @@
                 </div>
               </div>
 
-              <!-- title-section__right -->
-              <!-- add splide-arrows-here -->
             </div>
 
-            <!-- Video Category Slider Slide Items -->
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
               <PlayMediaCards :mediaList="myMediaData" />
             </div>
           </section>
 
-          <!-- subscription-section -->
           <section class="mb-8">
-            <!-- title-section -->
             <div
               class="flex justify-between items-center px-2 md:px-4 xl:px-12"
             >
-              <!-- title-section__left -->
               <div class="flex gap-3.5 mb-4 xl:mb-6">
                 <h2
                   class="text-xl leading-normal font-medium text-[#e9e5d3] pl-4 border-l border-[#e9e5d3]"
@@ -1382,17 +1359,12 @@
                   >
                 </div>
               </div>
-
-              <!-- title-section__right -->
-              <!-- add splide-arrows-here -->
             </div>
 
-            <!-- Video Category Slider Slide Items -->
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
               <PlayMediaCards :mediaList="myMediaData" />
             </div>
 
-            <!-- arrow-section -->
             <div class="flex justify-center cursor-pointer">
               <div class="flex justify-center pt-5">
                 <span
@@ -1408,13 +1380,10 @@
             </div>
           </section>
 
-          <!-- featured-section -->
           <section class="mb-8">
-            <!-- title-section -->
             <div
               class="flex justify-between items-center px-2 md:px-4 xl:px-12"
             >
-              <!-- title-section__left -->
               <div class="flex gap-3.5 mb-4 xl:mb-6">
                 <h2
                   class="text-xl leading-normal font-medium text-[#e9e5d3] pl-4 border-l border-[#e9e5d3]"
@@ -1426,20 +1395,14 @@
                   <span class="text-sm font-medium text-[#07F468]"
                     >View All</span
                   >
-                  <!-- <span class="text-sm leading-normal text-[#07F468] self-start">15</span> -->
                 </div>
               </div>
-
-              <!-- title-section__right -->
-              <!-- add splide-arrows-here -->
             </div>
 
-            <!-- Video Category Slider Slide Items -->
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
               <PlayMediaCards :mediaList="myMediaData" />
             </div>
 
-            <!-- arrow-section -->
             <div class="flex justify-center cursor-pointer">
               <div class="flex justify-center pt-5">
                 <span
@@ -1454,19 +1417,17 @@
               </div>
             </div>
           </section>
-        </div>
+        </div> -->
 
         <!-- merch-tab-content -->
-        <div
+        <!-- <div
           class="tab-content hidden relative flex-1 min-h-[100svh]"
           id="merch-content"
         >
           <div
             class="flex flex-col gap-6 px-2 py-4 bg-black/50 backdrop-blur-[400px] sm:p-4 md:gap-9 lg:flex-grow lg:mx-auto lg:px-12 lg:py-6"
           >
-            <!-- items-container -->
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-              <!-- merch-thumb (normal) -->
               <MerchCard
                 bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
@@ -1478,7 +1439,6 @@
                 overlayHoverBg="linear-gradient(0deg, rgba(255,255,255,0.9) -3.06%, rgba(255,255,255,0) 144.5%), linear-gradient(0deg, rgba(0,0,0,0.25), rgba(0,0,0,0.25))"
               />
 
-              <!-- merch-thumb (pro) -->
               <MerchCard
                 bgImage="https://i.ibb.co.com/2Yg9hKBv/checkout-header.webp"
                 title="My top (washed) Get Jenny’s favourite Mangoes!"
@@ -1492,7 +1452,8 @@
               />
             </div>
           </div>
-        </div>
+        </div> -->
+      
       </div>
     </section>
   </div>

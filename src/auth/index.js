@@ -13,6 +13,7 @@ export function useAuth() {
   }
   const logout = () => {
     state.isAuthenticated = false
+    
     state.user = null
   }
   return {
