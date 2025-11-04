@@ -19,45 +19,17 @@
   {
     "slug": "/dashboard",
     "section": "dashboard-global",
-    "redirectIfLoggedIn": "",
-    "requiresAuth": true,
+    "requiresAuth": false,
     "enabled": true,
-    "supportedRoles": ["all"],
-    "redirectIfNotAuth": "/log-in",
-    "componentPath": "@/templates/dashboard/page/role/Dashboard.vue",
-    "dependencies": {
-      "roles": {
-        "creator": {
-          "onboardingPassed": {
-            "required": true,
-            "fallbackSlug": "/sign-up/onboarding"
-          },
-          "kycPassed": {
-            "required": true,
-            "fallbackSlug": "/sign-up/onboarding/kyc"
-          }
-        },
-        "vendor": {
-          "onboardingPassed": {
-            "required": true,
-            "fallbackSlug": "/sign-up/onboarding"
-          }
-        },
-        "agent": {
-          "onboardingPassed": {
-            "required": true,
-            "fallbackSlug": "/sign-up/onboarding"
-          }
-        }
-      }
-    }
+    "supportedRoles": [],
+    "componentPath": "@/templates/dashboard/page/role/Dashboard.vue"
   },
   {
     "slug": "/log-in",
     "section": "auth",
     "requiresAuth": false,
     "enabled": true,
-    "redirectIfLoggedIn": "",
+    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthLogIn.vue",
     "preLoadSections": ["dashboard", "shop"]
@@ -65,7 +37,7 @@
   {
     "slug": "/lost-password",
     "section": "auth",
-    "redirectIfLoggedIn": "",
+    "redirectIfLoggedIn": "/dashboard",
     "requiresAuth": false,
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthLostPassword.vue",
@@ -75,7 +47,7 @@
     "slug": "/reset-password",
     "section": "auth",
     "requiresAuth": false,
-    "redirectIfLoggedIn": "",
+    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthResetPassword.vue",
     "preLoadSections": ["dashboard"]
@@ -85,7 +57,7 @@
     "section": "auth",
     "requiresAuth": false,
     "enabled": true,
-    "redirectIfLoggedIn": "",
+    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthSignUp.vue",
     "preLoadSections": ["dashboard"]
@@ -241,7 +213,7 @@
       "creator": "dashboard-creator"
     },
     "inheritConfigFromParent": true,
-    "supportedRoles": ["creator"],
+    
     "componentPath": "@/templates/dashboard/page/creator/DashboardOverviewCreator.vue"
   },
   {
@@ -465,7 +437,6 @@
     "section": "auth",
     "requiresAuth": false,
     "redirectIfNotAuth": "/log-in",
-    "supportedRoles": ["creator"],
     "componentPath": "@/templates/auth/page/creator/AuthSignUpOnboardingCreator.vue",
     "preLoadSections": ["dashboard"],
     "dependencies": {
@@ -485,7 +456,6 @@
     "section": "auth",
     "requiresAuth": false,
     "redirectIfNotAuth": "/log-in",
-    "supportedRoles": ["creator"],
     "componentPath": "@/templates/auth/page/creator/AuthSignUpOnboardingKycCreator.vue",
     "preLoadSections": ["dashboard"],
     "dependencies": {
@@ -560,7 +530,7 @@
       }
     }
   },
-
+  
   {
     "slug": "/about",
     "section": "about",
@@ -580,7 +550,7 @@
     "preLoadSections": ["dashboard"]
   },
   {
-    "slug": "/profile-muhammad",
+    "slug": "/profile",
     "section": "profile",
     "requiresAuth": false,
     "enabled": true,
@@ -647,30 +617,23 @@
     "slug": "/dev",
     "requiresAuth": false,
     "section": "dev",
-    "supportedRoles": ["all"],
     "enabled": true,
-  "componentPath": "@/components/dev/DemoPage.vue",
-    "dependencies": {
-      "onboardingRequired": {
-        "fallbackSlug": "/onboarding"
-      }
-    }
+  "componentPath": "@/components/dev/DemoPage.vue"
   },
-   
-  {
-    "slug": "/dev",
+   {
+    "slug": "/dashboard/referralsContentFan",
     "requiresAuth": false,
     "section": "dev",
-    "supportedRoles": ["all"],
     "enabled": true,
-  "componentPath": "@/components/dev/DemoPage.vue",
-    "dependencies": {
-      "onboardingRequired": {
-        "fallbackSlug": "/onboarding"
-      }
-    }
+  "componentPath": "@/templates/dashboard/page/fan/DashboardReferralsContentFan.vue"
   },
-
+  {
+    "slug": "/",
+    "redirect": "/log-in",
+    "section": "auth",
+    "preLoadSections": []
+  },
+  
   {
     "slug": "/:pathMatch(.*)*",
     "redirect": "/404"

@@ -1,110 +1,50 @@
 <script setup>
-// 🧩 Import necessary modules and functions
-import { useAuthStore } from "@/stores/useAuthStore";
-import LocaleSwitcher from "@/components/LocaleSwitcher.vue";
+import { ref, onMounted } from "vue";
 import routesConfig from "@/router/routeConfig.json";
-import { onMounted, ref } from "vue";
-import { 
-  assetsConfigReady, 
-  getAsset, 
-  clearAssetCache,  
-  debugAssets
-} from "@/utils/assetLibraryHandler";
 
-// 🧠 Initialize auth store and reactive test array
-const auth = useAuthStore();
-const assetTests = ref([]); // holds the result of each asset test
+const routes = ref([]);
 
-// 🚀 Runs when the component is mounted
 onMounted(() => {
-  console.log("=== ASSETS TEST START ===");
-
-  // 🧹 Clear previous cache to force fresh asset load
-  clearAssetCache();
-
-  // ✅ Check if assets configuration is ready
-  console.log("[TEST] assetsConfigReady:", assetsConfigReady());
-
-  // 🧪 Define list of test assets
-  const testCases = [
-    { name: "logo", type: "icon" },
-    { name: "test-image", type: "icon" },
-    { name: "test-larger-image", type: "icon" },
-    { name: "test-style", type: "link" }
-  ];
-
-  // 🔍 Loop through each test asset and get its resolved path
-  testCases.forEach(test => {
-    const result = getAsset(test.name, test.type); // resolve asset URL
-
-    // Push result into the reactive array
-    assetTests.value.push({
-      name: test.name,
-      type: test.type,
-      result: result,
-      success: !!result
-    });
-
-    // Log the result for debugging
-    console.log(`[TEST] getAsset('${test.name}','${test.type}'):`, result);
-  });
-
-  // 🧩 Show detailed debug info for assets
-  debugAssets();
-
-  console.log("=== ASSETS TEST END ===");
-
-  // ⚙️ Test DependencyGate (optional)
-  if (window.createDependencyGate) {
-    window.createDependencyGate({
-      // Target container element
-      el: document.getElementById("my-gate"),
-      config: {
-        // Wait for assets and API to be ready
-        waitFor: ["assets", "apiLoaded"],
-
-        // Asset dependencies to preload
-        assets: {
-          flag: "test",
-          items: [
-            { name: "test-style", url: "/css/test-style.css", type: "css", priority: "critical" },
-            { name: "test-image", url: "/images/test-image.jpg", type: "image" },
-            { name: "test-larger-size-image", url: "/images/larger-size-image.jpg", type: "image" },
-          ],
-        },
-
-        // Simulate waiting for an API-ready event
-        apiLoaded: { event: "api-ready", timeoutMs: 3000 },
-      },
-
-      // ✅ What to render when everything is ready
-      renderWhenReady: () => window.Vue.h("div", "✅ All dependencies ready!"),
-    });
-  } else {
-    // 🚨 If DependencyGate is missing, log a warning
-    console.warn("❌ DependencyGate not found on window");
-  }
+  // Filter out redirect-only routes or undefined slugs
+  routes.value = routesConfig.filter(
+    (r) => r.slug && !r.redirect && r.enabled !== false
+  );
 });
 </script>
 
 <template>
-  <!-- 🧭 Main app content rendered via router -->
-  <router-view />
+  <div class="min-h-screen flex flex-col">
+    <!-- Main content -->
+    <main class="flex-1">
+      <router-view />
+    </main>
 
-  <!-- 🔒 Container where DependencyGate mounts -->
-  <!-- <div id="my-gate" style="margin-top: 1rem;"></div> -->
+    <!-- Footer with routes -->
+    <footer class="bg-gray-900 text-gray-300 text-sm py-8 mt-8 border-t border-gray-700">
+      <div class="container mx-auto px-4">
+        <h2 class="text-gray-100 text-lg font-semibold mb-4">📄 All Routes</h2>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          <div
+            v-for="route in routes"
+            :key="route.slug"
+            class="truncate hover:text-white transition"
+          >
+            <router-link
+              :to="route.slug"
+              class="hover:underline"
+            >
+              {{ route.slug }}
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
 </template>
 
 <style scoped>
-/* 🎨 Simple navigation layout */
-nav {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* 💡 Hover effect for buttons */
-button:hover {
-  background-color: #0056b3;
+footer {
+  font-family: 'Inter', sans-serif;
 }
 </style>
