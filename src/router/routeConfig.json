@@ -612,7 +612,7 @@
     "requiresAuth": false,
     "enabled": true,
     "supportedRoles": ["any"],
-    "componentPath": "@/templates/profileAbdullah/Profile.vue",
+    "componentPath": "@/templates/profileAbdullah/ProfileWrapper.vue",
     "preLoadSections": []
   },
   {

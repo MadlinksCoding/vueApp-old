@@ -43,7 +43,7 @@
             >
             <img
               v-if="option.checked"
-              src="@/assets/images/icons/check-circle-broken.webp"
+              src="/images/check-circle-broken.webp"
               alt="check-circle-broken"
               class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(70%)_sepia(47%)_saturate(1521%)_hue-rotate(87deg)_brightness(100%)_contrast(98%)]"
             />
@@ -69,7 +69,7 @@
       <div class="flex items-center gap-[0.3125rem] shrink-0 h-6">
         <div class="flex items-center gap-1 min-w-[5.5rem]">
           <img
-            src="@/assets/images/icons/dashboard.webp"
+            src="/images/dashboard.webp"
             alt="dashboard"
             class="w-6 h-6 group-hover:[filter:brightness(0)_saturate(100%)_invert(70%)_sepia(47%)_saturate(1521%)_hue-rotate(87deg)_brightness(100%)_contrast(98%)]"
           />
