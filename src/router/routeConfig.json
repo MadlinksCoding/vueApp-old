@@ -620,6 +620,13 @@
     "enabled": true,
   "componentPath": "@/components/dev/DemoPage.vue"
   },
+  {
+    "slug": "/newDemoPage",
+    "requiresAuth": false,
+    "section": "Demo",
+    "enabled": true,
+  "componentPath": "@/templates/newDemoComponents/NewDemoComponents.vue"
+  },
    {
     "slug": "/dashboard/referralsContentFan",
     "requiresAuth": false,

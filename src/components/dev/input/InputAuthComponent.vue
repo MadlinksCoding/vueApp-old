@@ -8,7 +8,7 @@
       <label
         v-if="showLabel"
         v-bind="resolvedAttrs.labelAttrs"
-        class="text-[#ffffff]"
+         :class="labelClass"
       >
         {{ labelText }}
       </label>
@@ -143,6 +143,10 @@ const props = defineProps({
   autocomplete: String,
 
   showLabel: Boolean,
+  labelClass: {
+    type: String,
+    default: "text-[#ffffff]",
+  },
   labelText: { type: String, default: "Label" },
   requiredDisplay: {
     type: [String, Array],

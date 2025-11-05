@@ -87,7 +87,15 @@ const themeClasses: Record<string, Record<string, string>> = {
   },
   profileFeed:{
     h2:"text-xl leading-normal font-medium text-white drop-shadow-[0px_0px_10px_-34px_#0000001A]"
-  }
+  },
+   demoHeadings: {
+    h1: "text-3xl font-bold ",
+    h2: "text-2xl font-semibold",
+    h3: "text-xl font-medium",
+    h4: "text-lg font-medium",
+    h5: "text-base font-normal",
+    h6: "text-sm font-normal",
+  },
 };
 
 const headingConfig = computed(() => ({
