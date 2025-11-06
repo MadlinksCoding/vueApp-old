@@ -696,4 +696,5 @@ const rightConfig = {
 <br>
     <CustomeThemeSelect />
   </div>
+
 </template>

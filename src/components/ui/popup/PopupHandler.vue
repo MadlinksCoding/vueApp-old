@@ -248,8 +248,8 @@ const containerClassList = computed(() => {
 const contentClassList = computed(() => {
   // Provide a minimal default for white bg and shadow; caller can override via slot classes if desired
   const base = [
-    // 'bg-white',
-    // 'shadow-xl',
+    'h-full',
+    'w-full'
   ];
   
   // Add border radius only for popups, not slide-ins
