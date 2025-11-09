@@ -20,7 +20,7 @@ onMounted(() => {
     </main>
 
     <!-- Footer with routes -->
-    <footer class="bg-gray-900 text-gray-300 text-sm py-8 mt-8 border-t border-gray-700">
+    <!-- <footer class="bg-gray-900 text-gray-300 text-sm py-8 mt-8 border-t border-gray-700">
       <div class="container mx-auto px-4">
         <h2 class="text-gray-100 text-lg font-semibold mb-4">📄 All Routes</h2>
 
@@ -39,7 +39,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-    </footer>
+    </footer> -->
   </div>
 </template>
 

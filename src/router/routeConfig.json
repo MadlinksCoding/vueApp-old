@@ -586,6 +586,24 @@
     "preLoadSections": []
   },
   {
+    "slug": "/profile_abdullah",
+    "section": "profile",
+    "requiresAuth": false,
+    "enabled": true,
+    "supportedRoles": ["any"],
+    "componentPath": "@/templates/profileAbdullah/ProfileWrapper.vue",
+    "preLoadSections": []
+  },
+   {
+    "slug": "/fan",
+    "section": "fan",
+    "requiresAuth": false,
+    "enabled": true,
+    "supportedRoles": ["any"],
+    "componentPath": "@/templates/fan/Fan.vue",
+    "preLoadSections": []
+  },
+  {
     "slug": "/discover",
     "section": "discover",
     "requiresAuth": false,

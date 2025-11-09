@@ -10,6 +10,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { authHandler } from "@/services/authHandler";
 import { useSectionsStore } from "./stores/sectionStore";
 import { createCacheJanitor } from "./plugins/cacheJanitor";
+import { Splide, SplideSlide } from '@splidejs/vue-splide';
+import '@splidejs/vue-splide/css'; // Default CSS import
 
 async function initializeApp() {
   const app = createApp(App);
@@ -90,7 +92,8 @@ async function initializeApp() {
 
   // Setup Cache Janitor (cleanup every 30 seconds)
   app.use(createCacheJanitor(30_000))
-  
+  app.component('Splide', Splide);
+app.component('SplideSlide', SplideSlide);
   app.mount("#app");
 
 }
