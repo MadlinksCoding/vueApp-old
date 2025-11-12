@@ -1,7 +1,7 @@
 <template>
   <DashboardWrapperTwoColContainer>
 
-    <BookingForm />
+    <!-- <BookingForm /> -->
 
 <!-- 
     <Cookies />
@@ -60,6 +60,8 @@
     <LoadingTest />
     <PageDataTest /> -->
 
+    <Cart/>
+
 
   </DashboardWrapperTwoColContainer>
 </template>
@@ -69,6 +71,7 @@ import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWra
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import LoadingTest from "@/components/LoadingTest.vue";
 import Cookies from "@/components/ui/badge/dashboard/Cookies.vue";
+import Cart from "@/components/ui/Cart.vue";
 import BookingForm from "@/components/ui/form/BookingForm.vue";
 import OrderReceived from "@/components/ui/table/dashboard/OrderReceived.vue";
 </script>

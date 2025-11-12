@@ -652,6 +652,13 @@
     "enabled": true,
   "componentPath": "@/components/popupDemoTest/PopupTests.vue"
   },
+  {
+    "slug": "/tableTestDemos",
+    "requiresAuth": false,
+    "section": "Demo",
+    "enabled": true,
+  "componentPath": "@/components/tableDemoTest/TableDemo.vue"
+  },
    {
     "slug": "/dashboard/referralsContentFan",
     "requiresAuth": false,
