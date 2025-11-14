@@ -667,6 +667,30 @@
   "componentPath": "@/templates/dashboard/page/fan/DashboardReferralsContentFan.vue"
   },
   {
+    "slug": "/rental",
+  "componentPath": "@/components/examples/RentalApplicationForm.vue"
+  },
+  {
+    "slug": "/five-step",
+  "componentPath": "@/components/examples/FiveStepApplicationExample.vue"
+  },
+  {
+    "slug": "/nested-tabs",
+  "componentPath": "@/components/examples/NestedTabsAccordionsExample.vue"
+  },
+    {
+    "slug": "/media-uploader",
+  "componentPath": "@/components/examples/MediaUploaderWithHydrationExample.vue"
+  },
+    {
+    "slug": "/checkout",
+  "componentPath": "@/components/examples/CheckoutFlowExample.vue"
+  },
+    {
+    "slug": "/template",
+  "componentPath": "@/components/examples/NewFlowTemplateExample.vue"
+  },
+  {
     "slug": "/",
     "redirect": "/log-in",
     "section": "auth",

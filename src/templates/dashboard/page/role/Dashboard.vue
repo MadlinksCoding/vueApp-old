@@ -61,7 +61,7 @@
     <PageDataTest /> -->
 
     <Cart/>
-
+    <!-- <OrderReceived /> -->
 
   </DashboardWrapperTwoColContainer>
 </template>

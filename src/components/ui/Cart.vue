@@ -1,5 +1,5 @@
 <template>
-    <div class="fixed top-0 left-0 block w-screen h-screen md:absolute md:top-[4.5rem] md:left-[unset] md:right-4 md:w-[26.875rem] md:max-h-[45.625rem]">
+    <div class=" h-screen md:w-[26.875rem] md:max-h-[45.625rem]">
         <div class="flex flex-col h-full [background:linear-gradient(180deg,rgba(255,255,255,0.20)_-4.5%,rgba(255,255,255,0.00)_11.18%),rgba(0,0,0,0.70)] backdrop-blur-[25px] md:shadow-[0px_4px_4px_0px_#00000040]">
             
             <!-- back-button (for-mobile) -->
@@ -158,6 +158,7 @@
 import { reactive, computed, onMounted, onUnmounted } from 'vue';
 import { CartHandler } from '@/composables/cartHandler.js'; // Adjust path as needed
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
+import { preloadIcons } from '@/utils/preload';
 
 // Reactive store
 const store = reactive({
@@ -199,6 +200,12 @@ const handleCheckout = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+    preloadIcons([
+    "https://i.ibb.co.com/LXwdW794/minus-circle.webp",
+    "https://i.ibb.co.com/3YVrnBJz/trash-bin.webp",
+    "https://i.ibb.co.com/VYqPvctj/plus-circle.webp"
+  ]);
+
   cartHandler = new CartHandler(store);
   
   // Log console commands

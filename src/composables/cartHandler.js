@@ -28,7 +28,7 @@ export class CartHandler {
         originalPrice: item.originalPrice,
         shipping: item.shipping ?? 0,
         seller: item.seller ?? 'Princess Carrot Pop',
-        image: item.image ?? 'https://i.ibb.co.com/70sHrpv/featured-media-bg.webp',
+        image: item.image ?? '/images/featured-media-bg.webp',
         promoCodes: item.promoCodes ?? []
       });
     }
