@@ -690,6 +690,10 @@
     "slug": "/template",
   "componentPath": "@/components/examples/NewFlowTemplateExample.vue"
   },
+    {
+    "slug": "/MediaUploader",
+  "componentPath": "@/components/ui/global/media/uploader/MediaUploader.vue"
+  },
   {
     "slug": "/",
     "redirect": "/log-in",
