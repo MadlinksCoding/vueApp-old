@@ -4,9 +4,18 @@
       {{ label }}
     </label>
     <div class="space-y-2">
-      <Radio v-for="option in options" :key="option.value" :model-value="modelValue" :value="option.value" :name="name"
-        :label="option.label" :id="`${name}-${option.value}`" :version="version"
-        @update:model-value="$emit('update:modelValue', $event)" />
+     <Radio
+  v-for="option in options"
+  :key="option.value"
+  :model-value="modelValue"
+  :value="option.value"
+  :name="name"
+  :label="option.label"
+  :id="`${name}-${option.value}`"
+  :version="version"
+  :radio-label-class="radioLabelClass"
+  @update:model-value="$emit('update:modelValue', $event)"
+/>
     </div>
   </div>
 </template>
@@ -25,6 +34,7 @@ const props = defineProps<{
   label?: string
   options: RadioOption[]
   version: string
+  radioLabelClass?: string
 }>()
 
 defineEmits<{

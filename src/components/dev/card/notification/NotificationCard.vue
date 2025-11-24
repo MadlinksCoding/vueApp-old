@@ -2,7 +2,7 @@
   <transition name="fade" mode="out-in">
     <div
       v-if="isOpen"
-      class="w-full border-b border-[#E5E7EB] dark:border-dark-dash-border flex relative"
+      class="w-full border-b border-[#E5E7EB] flex relative"
     >
       <!-- Left border color -->
       <div
@@ -65,7 +65,7 @@
               <div class="flex justify-between items-center pt-1 pr-1">
                 <span
                   v-if="title"
-                  class="toast-heading text-sm font-semibold"
+                  class="toast-heading text-sm"
                   :class="variantConfig.titleTextClass"
                   >{{ title }}</span
                 >
@@ -75,7 +75,7 @@
             <div class="flex justify-between items-center gap-4">
               <span
                 v-if="description"
-                class="text-sm flex-1 [text-shadow:0_0_10px_rgba(0,0,0,0.10)] dark:[text-shadow:0_0_10px_rgba(255,255,255,0.10)] text-[#0F172A] dark:text-dark-dash-text pr-5"
+                class="text-sm flex-1 [text-shadow:0_0_10px_rgba(0,0,0,0.10)] text-[#0F172A] pr-5"
                 >{{ description }}</span
               >
               <slot />
@@ -148,11 +148,11 @@ const showIconComputed = computed(() => props.showIcon !== false);
 
 const palettes = {
   notice: {
-    left: "bg-[#22CCEE] dark:bg-[#22CCEE]",
+    left: "bg-[#22CCEE]",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#22CCEE] dark:text-[#22CCEE]",
-    link: "text-[#22CCEE] dark:text-[#22CCEE]",
-    iconBg: "bg-[rgba(34,204,238,0.15)] dark:bg-[rgba(34,204,238,0.15)]",
+    title: "text-[#000000] ",
+    link: "text-[#22CCEE] ",
+    iconBg: "bg-[rgba(34,204,238,0.15)]",
     iconStroke: "stroke-[#22CCEE] text-[#22CCEE]",
   },
   alert: {
@@ -173,27 +173,27 @@ const palettes = {
     // stroke-[#07f468]
   },
   error: {
-    left: "bg-[#FF4405] dark:bg-[#FF4405]",
+    left: "bg-[#FF4405] ",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.12)_0,rgba(255,68,5,0.12)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#FF4405] dark:text-[#FF4405]",
-    link: "text-[#FF4405] dark:text-[#FF4405]",
+    title: "text-[#FF4405] ",
+    link: "text-[#FF4405] ",
     iconBg: "bg-[rgba(255,68,5,0.12)]",
     iconStroke: "stroke-[#FF4405] text-[#FF4405]",
   },
   warning: {
-    left: "bg-[#FF4405] dark:bg-[#FF4405]",
+    left: "bg-[#FF4405] ",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.10)_0,rgba(255,68,5,0.10)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#FF4405] dark:text-[#FF4405]",
-    link: "text-[#FF4405] dark:text-[#FF4405]",
+    title: "text-[#FF4405] ",
+    link: "text-[#FF4405] ",
     iconBg: "bg-[rgba(255,68,5,0.10)]",
     iconStroke: " text-[#FF4405]",
     // stroke-[#FF4405]
   },
   info: {
-    left: "bg-[#3B82F6] dark:bg-[#3B82F6]",
+    left: "bg-[#3B82F6]",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(59,130,246,0.12)_0,rgba(59,130,246,0.12)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#3B82F6] dark:text-[#3B82F6]",
-    link: "text-[#3B82F6] dark:text-[#3B82F6]",
+    title: "text-[#3B82F6]",
+    link: "text-[#3B82F6]",
     iconBg: "bg-[rgba(59,130,246,0.12)]",
     iconStroke: "stroke-[#3B82F6] text-[#3B82F6]",
   },

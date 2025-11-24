@@ -3,7 +3,7 @@
 
     <!-- <BookingForm /> -->
 
-<!-- 
+
     <Cookies />
 
     <ButtonComponent text="Cancel" variant="hoverBgWhite" size="lg" />
@@ -55,12 +55,12 @@
       btnHoverText="#07f468"
     />
 
-    <OrderReceived />
+    <!-- <OrderReceived /> -->
 
-    <LoadingTest />
-    <PageDataTest /> -->
+    <!-- <LoadingTest /> -->
+    <!-- <PageDataTest />  -->
 
-    <Cart/>
+    <!-- <Cart/> -->
     <!-- <OrderReceived /> -->
 
   </DashboardWrapperTwoColContainer>

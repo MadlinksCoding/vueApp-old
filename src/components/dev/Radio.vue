@@ -9,8 +9,13 @@
         :checked="modelValue === value"
         @change="$emit('update:modelValue', value)"
         v-bind="resolvedAttrs.inputAttrs"
+        class="hidden peer"
       />
-      <label v-if="label" :for="id" v-bind="resolvedAttrs.labelAttrs">
+      <label
+        v-if="label"
+        :for="id"
+        :class="[resolvedAttrs.labelAttrs.class, radioLabelClass]"
+      >
         {{ label }}
       </label>
     </div>
@@ -27,7 +32,7 @@ const props = defineProps<{
   name: string;
   label?: string;
   id?: string;
-
+  radioLabelClass?: string;
   version: string;
   addId?: string;
   removeId?: boolean;
@@ -89,8 +94,9 @@ const inputConfig = {
   },
 };
 
-
-const resolvedAttrs = computed(() => resolveAllConfigs(inputConfig, props.version, props));
+const resolvedAttrs = computed(() =>
+  resolveAllConfigs(inputConfig, props.version, props)
+);
 
 defineEmits<{
   "update:modelValue": [value: string | number];

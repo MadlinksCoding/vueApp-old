@@ -60,7 +60,7 @@ const props = defineProps({
   btnHoverBg: { type: String, default: "black" },
   btnText: { type: String, default: "black" },
   btnHoverText: { type: String, default: "#07f468" },
-
+customClass: { type: String, default: "" },
   addId: String,
   removeId: Boolean,
   addClass: String,
@@ -105,7 +105,7 @@ bgGreen:
 // Tailwind size classes
 const sizeClasses = {
   sm: "px-2 py-1 text-sm",
-  md: "px-4 py-2 text-base",
+  md: "",
   lg: "px-6 py-3 text-lg",
 };
 
@@ -123,9 +123,11 @@ const buttonConfig = {
     },
   ],
   elm: {
-    addClass: `${themeClasses[props.variant] || themeClasses.primary} ${
-      sizeClasses[props.size] || sizeClasses.md
-    }`,
+    addClass: `
+  ${themeClasses[props.variant] || themeClasses.primary}
+  ${sizeClasses[props.size] || sizeClasses.md}
+  ${props.customClass || ""}
+`,
     addAttributes: {
       type: props.type,
       role: "button",

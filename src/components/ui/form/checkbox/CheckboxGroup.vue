@@ -1,6 +1,6 @@
 <template>
   <label
-    class="flex items-center gap-2 cursor-pointer"
+    class="flex gap-2 cursor-pointer"
     :class="wrapperClass"
   >
     <input

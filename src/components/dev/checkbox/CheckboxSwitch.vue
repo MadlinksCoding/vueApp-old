@@ -14,7 +14,7 @@
                 <input
                   type="checkbox"
                   class="opacity-0 w-0 h-0 peer"
-                  id="dash-toggle-switch"
+                  :id="id"  
                 />
                 <span
                    class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 
@@ -27,7 +27,7 @@
                 ></span>
               </label>
               <label
-                for="dash-toggle-switch"
+                :for="id"
                 class="text-base font-medium text-dash-gray-900 dark:text-dark-dash-text cursor-pointer"
                 >{{label}}</label
               >
