@@ -158,7 +158,7 @@ const palettes = {
   alert: {
     left: "bg-[#FDB022]",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#FDB022] ",
+    title: "text-[#B54708] ",
     link: "text-[#FDB022]",
     iconBg: "bg-[rgba(253,176,34,0.15)]",
     iconStroke: "stroke-[#FDB022] text-[#FDB022]",

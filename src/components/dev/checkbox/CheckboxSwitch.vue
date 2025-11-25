@@ -28,7 +28,7 @@
               </label>
               <label
                 :for="id"
-                class="text-base font-medium text-dash-gray-900 dark:text-dark-dash-text cursor-pointer"
+                class="text-sm sm:text-base font-medium text-dash-gray-900 cursor-pointer"
                 >{{label}}</label
               >
             </div>

@@ -1,8 +1,8 @@
 <template>
-  <div class="px-[24px] py-[14px] relative">
+  <div class="relative md:py-[16px] md:px-[10px] lg:px-[24px]">
     <div
       @click="uploader.goToStep(1, { intent: 'user' })"
-      class="flex gap-2 items-center cursor-pointer"
+      class="flex gap-2 items-center cursor-pointer py-[16px]"
     >
       <img src="/images/backIcon.png" alt="" srcset="" />
       <button
@@ -13,19 +13,12 @@
     </div>
 
     <div class="mb-4 mt-2">
-      <h4
-        class="text-[#667085] text-sm font-[700] leading-normal not-italic py-[8px]"
-      >
-        Subscription Settings
-      </h4>
-
-      <div class="flex justify-between items-center">
-        <div>
-          <CheckboxSwitch
-            label="Link this media to subscription plan"
-            id="show-preview-toggle"
-          />
-        </div>
+      <div class="flex justify-between items-center mb-2">
+        <h4
+          class="text-[#667085] text-sm font-[700] leading-normal not-italic py-[8px]"
+        >
+          Subscription Settings
+        </h4>
 
         <ButtonComponent
           text="Add Tier"
@@ -44,7 +37,14 @@
         />
       </div>
 
-      <div class="flex gap-6 mt-4">
+        <div>
+          <CheckboxSwitch
+            label="Link this media to subscription plan"
+            id="show-preview-toggle"
+          />
+        </div>
+
+      <div class="md:flex md:gap-6 gap-2 mt-4">
         <!-- Column 1 -->
         <div class="flex flex-col gap-2">
           <CheckboxGroup
@@ -52,7 +52,7 @@
             :key="index"
             :label="item.label"
             checkboxClass="appearance-none bg-white border border-gray-300 rounded-[4px] w-4 h-4 cursor-pointer checked:bg-success checked:border-success checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border"
-            labelClass="text-[14px] text-[#0C111D] font-[400] cursor-pointer truncate whitespace-nowrap overflow-hidden max-w-[400px]"
+            labelClass="text-[14px] text-[#0C111D] font-[400] cursor-pointer truncate whitespace-nowrap overflow-hidden md:max-w-[270px] lg:max-w-[400px] max-w-[250px]"
             wrapperClass="flex items-center"
           />
         </div>
@@ -64,7 +64,7 @@
             :key="index"
             :label="item.label"
             checkboxClass="appearance-none bg-white border border-gray-300 rounded-[4px] w-4 h-4 cursor-pointer checked:bg-success checked:border-success checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border"
-            labelClass="text-[14px] text-[#0C111D] font-[400] cursor-pointer truncate whitespace-nowrap overflow-hidden max-w-[300px]"
+            labelClass="text-[14px] text-[#0C111D] font-[400] cursor-pointer truncate whitespace-nowrap overflow-hidden md:max-w-[270px] lg:max-w-[400px] max-w-[250px]"
             wrapperClass="flex items-center"
           />
         </div>
@@ -82,7 +82,7 @@
         id="show-preview-toggle"
       />
 
-      <div class="flex justify-between items-center mt-4 gap-4">
+      <div class=" md:flex md:justify-between md:items-center mt-4 gap-4">
         <div class="flex-1">
           <InputComponentDashbaord
             id="input_f"
@@ -134,7 +134,7 @@
 
     <!-- next Navigation -->
     <div
-      class="absolute bottom-0 right-0"
+      class="flex justify-end md:mt-0 mt-4"
       @click="uploader.goToStep(3, { intent: 'user' })"
     >
       <ButtonComponent

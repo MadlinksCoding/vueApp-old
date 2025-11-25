@@ -1,5 +1,5 @@
 <template>
-  <div class="px-[24px] py-[14px] relative">
+  <div class="relative md:py-[16px] md:px-[10px] lg:px-[24px]">
     <div class="mb-[50px]">
       <div
         @click="uploader.goToStep(3, { intent: 'user' })"
@@ -22,7 +22,7 @@
       <!-- Substep Tabs -->
       <!-- Tabs -->
       <div
-        class="[scrollbar-width: none] border border-border-light flex-row items-stretch overflow-x-auto whitespace-nowrap rounded-[0.313rem] bg-secondary-bg hidden md:flex lg:flex xl:flex"
+        class="[scrollbar-width: none] border border-border-light flex-row items-stretch overflow-x-auto whitespace-nowrap rounded-[0.313rem] bg-secondary-bg hidden md:flex"
       >
         <button
           @click="
@@ -52,6 +52,45 @@
 
           Schedule a publish time
         </button>
+      </div>
+
+      <!-- Mobile Dropdown -->
+      <div
+        class="md:hidden border border-border-light rounded-md bg-secondary-bg"
+      >
+        <!-- Selected Heading -->
+        <div
+          @click="showPublishDropdown = !showPublishDropdown"
+          class="px-4 py-2 text-xs sm:text-[16px] border-b border-border-light cursor-pointer flex justify-center items-center gap-2 bg-dark-text text-white"
+        >
+          <span>{{ getPublishLabel(uploader.substep) }}</span>
+          <img src="/images/chevron-down.webp" class="w-3 h-3" alt="" />
+        </div>
+
+        <!-- Dropdown List -->
+        <div v-if="showPublishDropdown" class="flex flex-col">
+          <div
+            @click="
+              uploader.goToSubstep('publishImmediately', { intent: 'user' });
+              showPublishDropdown = false;
+            "
+            class="px-4 py-2 text-xs sm:text-[16px] flex items-center gap-2 border-b border-border-light cursor-pointer text-secondary-text"
+          >
+            <img src="/images/publish-icon.png" class="w-4 h-4" alt="" />
+            Publish immediately after approval
+          </div>
+
+          <div
+            @click="
+              uploader.goToSubstep('schedulePublish', { intent: 'user' });
+              showPublishDropdown = false;
+            "
+            class="px-4 py-2 text-xs sm:text-[16px] flex items-center gap-2 border-b border-border-light cursor-pointer text-secondary-text"
+          >
+            <img src="/images/schedule-icon.png" class="w-4 h-4" alt="" />
+            Schedule a publish time
+          </div>
+        </div>
       </div>
 
       <!-- Substep: Publish Immediately -->
@@ -106,23 +145,27 @@
               </div>
             </div>
 
-            <div>
+            <div class="hidden md:flex">
               <PostPreview />
             </div>
           </div>
 
-          <div class="flex justify-between gap-4 mt-4">
-            <ThumbnailUploader
-              subtitle="or drag and drop thumbnail image"
-              fileInfo="SVG, PNG, JPG or GIF (max. 800x400px)"
-            />
-            <ThumbnailUploader
-              subtitle="or drag and drop trailer file"
-              fileInfo="MP3, MP4, AVI, QUICKTIME, X-MATROSKA, X-MS-WMV, WEBM, OGG. (Max. 2000MB)"
-            />
+          <div class="md:flex justify-between gap-4 mt-4">
+            <div class="w-full">
+              <ThumbnailUploader
+                subtitle="or drag and drop thumbnail image"
+                fileInfo="SVG, PNG, JPG or GIF (max. 800x400px)"
+              />
+            </div>
+            <div class="w-full mt-2 md:mt-0">
+              <ThumbnailUploader
+                subtitle="or drag and drop trailer file"
+                fileInfo="MP3, MP4, AVI, QUICKTIME, X-MATROSKA, X-MS-WMV, WEBM, OGG. (Max. 2000MB)"
+              />
+            </div>
           </div>
 
-          <div class="flex justify-between gap-4 mt-4">
+          <div class="md:flex justify-between gap-4 mt-4">
             <UploadThumbnailPreview
               bgImage="/images/slide-2.webp"
               deleteIcon="/images/delete.png"
@@ -140,6 +183,10 @@
               :showLabel="true"
               labelText="Trailer"
             />
+          </div>
+
+          <div class="md:hidden mt-2">
+            <PostPreview />
           </div>
 
           <div class="my-4">
@@ -197,7 +244,7 @@
             />
           </div>
 
-          <div class="w-[380px] ml-6">
+          <div class="sm:w-[380px] ml-6">
             <InputDefaultComponent
               id="input_5"
               type="number"
@@ -231,7 +278,7 @@
 
     <!-- next Navigation -->
     <div
-      class="absolute bottom-0 right-0"
+      class="flex justify-end md:mt-0 mt-4"
       @click="uploader.goToStep(5, { intent: 'user' })"
     >
       <ButtonComponent
@@ -252,11 +299,12 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref } from "vue";
+
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import PublishDatePicker from "./HelperComponents/PublishDatePicker.vue";
-import { ref } from "vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
@@ -267,42 +315,36 @@ import InputDefaultComponent from "@/components/dev/input/InputDefaultComponent.
 import ThumbnailUploader from "./HelperComponents/ThumbnailUploader.vue";
 import UploadThumbnailPreview from "./HelperComponents/UploadThumbnailPreview.vue";
 
-export default {
-  name: "MediaUploaderStepPublishAndSharing",
-  props: {
-    uploader: {
-      type: Object,
-      required: true,
-    },
+// Props
+const props = defineProps({
+  uploader: {
+    type: Object,
+    required: true,
   },
-  components: {
-    CheckboxSwitch,
-    NotificationCard,
-    PublishDatePicker,
-    CheckboxGroup,
-    ButtonComponent,
-    BaseInput,
-    RadioGroup,
-    PostPreview,
-    Paragraph,
-    InputDefaultComponent,
-    ThumbnailUploader,
-    UploadThumbnailPreview,
-  },
-  setup() {
-    const transferType = ref("");
-    const publishDate = ref("");
+});
 
-    const transferTypeOptions = [
-      { value: "choice-a", label: "Use original thumbnail and preview" },
-      { value: "choice-b", label: "Upload a different thumbnail and preview" },
-      { value: "choice-c", label: "Do not attach thumbnail and preview" },
-    ];
+// --- Mobile dropdown state ---
+const showPublishDropdown = ref(false);
 
-    return {
-      transferType,
-      transferTypeOptions,
-    };
-  },
-};
+// --- Dropdown Label Function ---
+function getPublishLabel(step) {
+  switch (step) {
+    case "publishImmediately":
+      return "Publish immediately after approval";
+    case "schedulePublish":
+      return "Schedule a publish time";
+    default:
+      return "Select an option";
+  }
+}
+
+// --- Existing Fields ---
+const transferType = ref("");
+const publishDate = ref("");
+
+const transferTypeOptions = [
+  { value: "choice-a", label: "Use original thumbnail and preview" },
+  { value: "choice-b", label: "Upload a different thumbnail and preview" },
+  { value: "choice-c", label: "Do not attach thumbnail and preview" },
+];
 </script>

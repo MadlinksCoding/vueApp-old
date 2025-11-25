@@ -1,8 +1,8 @@
 <template>
-  <div class="px-[24px] py-[14px] relative">
+  <div class="relative md:py-[16px] md:px-[10px] lg:px-[24px]">
     <div
       @click="uploader.goToStep(2, { intent: 'user' })"
-      class="flex gap-2 items-center cursor-pointer"
+      class="flex gap-2 items-center py-[16px]"
     >
       <img src="/images/backIcon.png" alt="" srcset="" />
       <button
@@ -58,7 +58,7 @@
 
     <!-- next Navigation -->
     <div
-      class="absolute bottom-0 right-0"
+      class="flex justify-end md:mt-0 mt-4"
       @click="uploader.goToStep(4, { intent: 'user' })"
     >
       <ButtonComponent

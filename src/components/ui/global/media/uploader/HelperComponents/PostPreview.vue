@@ -1,7 +1,7 @@
 <template>
   <!-- post preview -->
   <div class="flex flex-col w-[17.625rem] gap-2">
-    <span class="text-[0.75rem] leading-[1.125rem] text-right text-[#667085]"
+    <span class="text-[0.75rem] leading-[1.125rem] text-[#667085]"
       >POST PREVIEW</span
     >
 

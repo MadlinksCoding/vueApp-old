@@ -95,7 +95,7 @@ const themeClasses = {
   greyBg:
     "flex items-center justify-center text-[#98a2b3] uppercase font-medium break-words gap-2 leading-7 text-[1.125rem] min-w-[5.3125rem] px-2 py-1 bg-[rgba(52,64,84,0.05)] border-0",
   polygonLeft:
-    "w-max group flex items-center justify-center gap-[0.625rem] py-1 pl-[1.4rem] pr-2 bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--btn-text)] hover:text-[var(--btn-hover-text)] text-lg leading-7 font-medium uppercase transition-colors duration-200 relative cursor-pointer [clip-path:polygon(8%_0,100%_0,105%_105%,0_105%)]",
+    "w-max group flex items-center justify-center gap-[0.625rem] py-1 pl-[1.4rem] pr-2 bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--btn-text)] hover:text-[var(--btn-hover-text)] text-sm sm:text-lg  leading-7 font-medium uppercase transition-colors duration-200 relative cursor-pointer [clip-path:polygon(8%_0,100%_0,105%_105%,0_105%)]",
  polygonRight:
     "w-max group flex items-center justify-center gap-[0.625rem] py-1 pr-[1.4rem] pl-2 bg-black hover:bg-[#07f468] text-[#fff] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-black relative cursor-pointer [clip-path:polygon(0_0,92%_0,100%_105%,0_105%)]",
 bgGreen:

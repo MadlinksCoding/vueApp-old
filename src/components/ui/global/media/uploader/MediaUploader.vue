@@ -1,7 +1,7 @@
 <template>
   <DashboardWrapperTwoColContainer>
-    <div class=" flex justify-between">
-      <div class="flex-[00.5] bg-submenu-bg px-4 py-2 shadow-md backdrop-blur-lg hidden md:flex">
+    <div class=" ">
+      <div class="flex-[00.5] bg-submenu-bg px-4 py-2 shadow-md backdrop-blur-lg hidden">
         Media
       </div>
 
@@ -9,7 +9,7 @@
         class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
         <!-- head -->
-        <div class="flex justify-between items-center px-[24px] py-[16px]">
+        <div class="flex justify-between items-center px-[5px] py-[16px]">
           <h3 class="text-sm font-semibold leading-5 text-primary-text">
             Upload Media
           </h3>
@@ -21,10 +21,10 @@
         </div>
         <!-- Step Header Navigation -->
         <div
-          class="flex flex-row gap-2 sm:justify-between items-center self-stretch overflow-x-auto list-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          class="flex flex-row gap-2 justify-between items-center self-stretch overflow-x-auto list-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           <button
-            class="text-xs font-normal leading-[1.125rem] flex  md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
+            class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5 md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="
               uploader.step === 1
                 ? 'border-b-2 border-black text-black'
@@ -36,7 +36,7 @@
           </button>
 
           <button
-            class="text-xs font-normal leading-[1.125rem] flex  md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
+            class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5 md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="
               uploader.step === 2
                 ? 'border-b-2 border-black text-black'
@@ -48,7 +48,7 @@
           </button>
 
           <button
-            class="text-xs font-normal leading-[1.125rem] flex  md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
+            class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5 md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="
               uploader.step === 3
                 ? 'border-b-2 border-black text-black'
@@ -60,7 +60,7 @@
           </button>
 
           <button
-            class="text-xs font-normal leading-[1.125rem] flex  md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
+            class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="
               uploader.step === 4
                 ? 'border-b-2 border-black text-black'
@@ -72,7 +72,7 @@
           </button>
 
           <button
-            class="text-xs font-normal leading-[1.125rem] flex  md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
+            class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5  md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="
               uploader.step === 5
                 ? 'border-b-2 border-black text-black'

@@ -7,11 +7,11 @@
       type="checkbox"
       :checked="modelValue"
       :disabled="disabled"
-      class="w-4 h-4"
+      class="w-4 h-4 flex-shrink-0"
       :class="checkboxClass"
       @change="emit('update:modelValue', $event.target.checked)"
     />
-    <span class="text-sm" :class="labelClass">
+    <span class="" :class="labelClass">
       {{ label }}
     </span>
   </label>

@@ -17,14 +17,14 @@
 
     <!--desktop Substep Tabs -->
     <div
-      class="border border-border-light justify-between flex-row items-stretch overflow-x-auto rounded-[0.313rem] bg-secondary-bg hidden md:flex"
+      class="border border-border-light w-full flex-row items-stretch overflow-x-auto rounded-[0.313rem] bg-secondary-bg hidden md:flex"
       style="scrollbar-width: none; -ms-overflow-style: none"
     >
       <!-- Tab 1 -->
       <div
         @click="uploader.goToSubstep('chooseScreenshot', { intent: 'user' })"
         :class="[
-          'border-r flex flex-shrink-0 min-w-fit items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
+          'border-r flex flex-1 flex-shrink-0 min-w-fit items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
           uploader.substep === 'chooseScreenshot'
             ? 'bg-dark-text text-white'
             : '',
@@ -47,7 +47,7 @@
       <div
         @click="uploader.goToSubstep('usePlaceholder', { intent: 'user' })"
         :class="[
-          'flex flex-shrink-0 min-w-fit border-r items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
+          'flex flex-shrink-0 flex-1 min-w-fit border-r items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
           uploader.substep === 'usePlaceholder'
             ? 'bg-dark-text text-white'
             : 'text-secondary-text',
@@ -66,7 +66,7 @@
       <div
         @click="uploader.goToSubstep('uploadThumbnail', { intent: 'user' })"
         :class="[
-          'flex flex-shrink-0 min-w-fit border-r items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
+          'flex flex-shrink-0 flex-1 min-w-fit border-r items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
           uploader.substep === 'uploadThumbnail'
             ? 'bg-dark-text text-white'
             : 'text-secondary-text',
@@ -258,7 +258,13 @@
               subtitle="or drag and drop video file here"
               fileInfo="MP4, AVI, QUICKTIME, X-MATROSKA, X-MS-WMV, WEBM, OGG, JPEG, PNG. (Max. 2000MB)"
             />
-            <div class="mt-4">
+            <div class="mt-4 flex flex-col gap-2">
+              <NotificationCard
+                variant="alert"
+                :showIcon="false"
+                title="Your media will be under review because you have uploaded a new trailer."
+                description=""
+              />
               <UploadYourOwnTrailer />
             </div>
           </div>
@@ -324,6 +330,7 @@ import SystemGeneratedImage from "./HelperComponents/SystemGeneratedImage.vue";
 import UploadYourOwnTrailer from "./HelperComponents/UploadYourOwnTrailer.vue";
 
 import { ref } from "vue";
+import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 
 // Props
 const props = defineProps({
