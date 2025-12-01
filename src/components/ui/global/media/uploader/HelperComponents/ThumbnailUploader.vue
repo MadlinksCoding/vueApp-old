@@ -2,7 +2,6 @@
   <div
     data-media-upload
     class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-2 h-[12.1875rem] flex flex-col items-center justify-center hover:border-dark-text hover:bg-black/10 group"
-    @click="$emit('click')"
   >
     <div
       data-media-upload-input-wrap
@@ -15,14 +14,14 @@
           <input
             type="file"
             class="appearance-none z-[5] opacity-0 absolute w-full h-full cursor-pointer"
-            @change="$emit('file-selected', $event.target.files[0])"
+            @change="handleFileChange" 
+            accept="image/png, image/jpeg"
           />
           <span
             data-media-upload-icon-container
             class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-success rounded-lg h-10 w-10 flex justify-center items-center group-hover:bg-black"
           >
             <slot name="icon">
-              <!-- Default upload icon -->
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="20"
@@ -51,6 +50,10 @@
         </h4>
       </div>
 
+      <div v-if="fileName">
+         <p class="text-success text-xs text-center font-semibold mt-2">Selected: {{ fileName }}</p>
+      </div>
+
       <div>
         <p class="text-dark-gray text-xs leading-[1.125rem] text-center mb-0">
           {{ fileInfo }}
@@ -60,22 +63,48 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "FileUploadPlaceholder",
-  props: {
-    title: {
-      type: String,
-      default: "Click to upload",
-    },
-    subtitle: {
-      type: String,
-      default: "or drag and drop image file here",
-    },
-    fileInfo: {
-      type: String,
-      default: "PNG or JPG (max. 10MB)",
-    },
+<script setup>
+import { computed } from "vue";
+
+const props = defineProps({
+  uploader: {
+    type: Object,
+    required: true,
   },
+  title: {
+    type: String,
+    default: "Click to upload",
+  },
+  subtitle: {
+    type: String,
+    default: "or drag and drop image file here",
+  },
+  fileInfo: {
+    type: String,
+    default: "PNG or JPG (max. 10MB)",
+  },
+});
+
+// Computed property to show uploaded filename from state
+const fileName = computed(() => {
+  const file = props.uploader.state.uploadedThumbnailFile;
+  return file ? file.name : null;
+});
+
+// File Handling Logic
+const handleFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    console.log("File Selected:", file.name);
+
+    props.uploader.setState("uploadedThumbnailFile", { 
+        name: file.name, 
+        size: file.size, 
+        type: file.type 
+    }, { reason: "user:uploadThumbnail" });
+
+    const objectUrl = URL.createObjectURL(file);
+    props.uploader.setState("thumbnailUrl", objectUrl, { reason: "user:uploadThumbnailPreview" });
+  }
 };
 </script>

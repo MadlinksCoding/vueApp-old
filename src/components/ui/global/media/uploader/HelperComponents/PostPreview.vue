@@ -13,7 +13,7 @@
           alt="svgviewer-png-output-17"
           class="w-6 min-w-[1.5rem] rounded-full"
         />
-      </div>z
+      </div>
 
       <!-- user-content -->
       <div class="flex flex-col flex-[1_0_0] gap-1">

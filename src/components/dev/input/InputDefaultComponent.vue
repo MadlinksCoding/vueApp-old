@@ -4,83 +4,41 @@
       <label v-if="showLabel" v-bind="resolvedAttrs.labelAttrs">
         {{ labelText }}
       </label>
-      <span v-if="isOptional" class="text-xs italic text-slate-500"
-        >Optional</span
-      >
+      <span v-if="isOptional" class="text-xs italic text-slate-500">Optional</span>
       <span v-if="requiredDisplay === '*'" class="text-red-500">*</span>
-      <span
-        v-else-if="requiredDisplay === 'italic-text'"
-        class="text-[0.625rem] leading-6 text-right italic"
-      >
+      <span v-else-if="requiredDisplay === 'italic-text'" class="text-[0.625rem] leading-6 text-right italic">
         Required
       </span>
     </div>
-    <div
-      v-bind="resolvedAttrs.wrapperAttrs.wrapper3"
-      class="relative"
-      v-for="item in inputItems"
-      :key="item.id"
-    >
-      <component
-        v-if="leftIcon && type !== 'checkbox' && type !== 'radio'"
-        :is="leftIcon"
-        class="w-4 h-4"
-      />
+    <div v-bind="resolvedAttrs.wrapperAttrs.wrapper3" class="relative" v-for="item in inputItems" :key="item.id">
+      <component v-if="leftIcon && type !== 'checkbox' && type !== 'radio'" :is="leftIcon" class="w-4 h-4" />
 
-      <span
-        :class="leftSpanClass"
-        v-if="leftSpan"
-        class="text-sm font-semibold"
-        >{{ leftSpanText }}</span
-      >
+      <span :class="leftSpanClass" v-if="leftSpan" class="text-sm font-semibold">{{ leftSpanText }}</span>
 
-      <input
-        v-bind="resolvedAttrs.inputAttrs"
-        :id="item.id"
-        :type="type"
-        :value="item.value"
-        v-if="type !== 'textarea'"
-        :checked="modelValue === item.value"
-        @change="$emit('update:modelValue', item.value)"
-      />
+      <input v-bind="resolvedAttrs.inputAttrs" :id="item.id" :type="type" :value="modelValue" v-if="type !== 'textarea'"
+        @input="(e) => $emit('update:modelValue', type === 'number' ? Number(e.target.value) : e.target.value)" />
 
       <div class="w-full" v-if="type === 'textarea' && !richTextEditor">
-        <textarea
-          id="textarea"
-          @input="$emit('update:modelValue', $event.target.value)"
+        <textarea id="textarea" @input="$emit('update:modelValue', $event.target.value)"
           class="w-full text-sm border-none focus:outline-none bg-transparent placeholder-text min-h-[5.5rem]"
-          placeholder="Enter multiline text"
-        ></textarea>
+          placeholder="Enter multiline text"></textarea>
       </div>
 
       <div class="" v-if="type === 'textarea' && richTextEditor">
-        <QuillEditor
-          theme="snow"
-          @input="$emit('update:modelValue', $event.target.value)"
-          class="w-full text-sm border-none focus:outline-none bg-transparent placeholder-text min-h-[5.5rem]"
-        />
+        <QuillEditor theme="snow" @input="$emit('update:modelValue', $event.target.value)"
+          class="w-full text-sm border-none focus:outline-none bg-transparent placeholder-text min-h-[5.5rem]" />
       </div>
 
-      <label
-        v-if="['radio', 'checkbox'].includes(type)"
-        :for="item.id"
-        v-bind="resolvedAttrs.labelAttrs"
-      >
-        <span
-          v-if="type === 'checkbox'"
-          :class="
-            item.badge
-              ? 'text-sm cursor-pointer flex items-baseline  '
-              : 'text-sm cursor-pointer '
-          "
-        >
+      <label v-if="['radio', 'checkbox'].includes(type)" :for="item.id" v-bind="resolvedAttrs.labelAttrs">
+        <span v-if="type === 'checkbox'" :class="item.badge
+            ? 'text-sm cursor-pointer flex items-baseline  '
+            : 'text-sm cursor-pointer '
+          ">
           <span>
             {{ item.label }}
           </span>
-          <div
-            v-if="item.badge"
-            class="h-[1.125rem] flex justify-center items-center px-1.5 rounded-tag bg-published ml-2"
-          >
+          <div v-if="item.badge"
+            class="h-[1.125rem] flex justify-center items-center px-1.5 rounded-tag bg-published ml-2">
             <span class="text-xs font-medium">{{ item.badgeText }}</span>
           </div>
         </span>
@@ -89,24 +47,12 @@
         </span>
       </label>
 
-      <span
-        v-if="rightSpan"
-        :class="rightSpanClass"
-        class="text-sm whitespace-nowrap"
-        >{{ rightSpanText }}</span
-      >
+      <span v-if="rightSpan" :class="rightSpanClass" class="text-sm whitespace-nowrap">{{ rightSpanText }}</span>
 
-      <component
-        v-if="rightIcon && type !== 'checkbox' && type !== 'radio'"
-        :is="rightIcon"
-        class="w-4 h-4 cursor-pointer"
-      />
+      <component v-if="rightIcon && type !== 'checkbox' && type !== 'radio'" :is="rightIcon"
+        class="w-4 h-4 cursor-pointer" />
     </div>
-    <p
-      v-if="description"
-      v-bind="resolvedAttrs.descriptionAttrs"
-      class="text-xs text-slate-500"
-    >
+    <p v-if="description" v-bind="resolvedAttrs.descriptionAttrs" class="text-xs text-slate-500">
       {{ description }}
     </p>
   </div>
@@ -161,8 +107,8 @@ const inputConfig = {
         props.type === "checkbox"
           ? "flex flex-col gap-1.5"
           : props.type === "radio"
-          ? "flex flex-col gap-[0.375rem] flex-1 self-stretch"
-          : "flex flex-col gap-1.5",
+            ? "flex flex-col gap-[0.375rem] flex-1 self-stretch"
+            : "flex flex-col gap-1.5",
       addAttributes: { "data-wrapper": "wrapper1" },
     },
     {
@@ -171,10 +117,10 @@ const inputConfig = {
         props.type === "checkbox"
           ? "flex flex-col gap-4"
           : props.type === "radio"
-          ? "flex flex-col gap-2"
-          : props.isOptional
-          ? "flex justify-between items-center"
-          : "flex gap-2",
+            ? "flex flex-col gap-2"
+            : props.isOptional
+              ? "flex justify-between items-center"
+              : "flex gap-2",
       addAttributes: { "data-wrapper": "wrapper2" },
     },
     {
@@ -183,10 +129,10 @@ const inputConfig = {
         props.type === "checkbox"
           ? "flex items-start gap-2"
           : props.type === "radio"
-          ? "flex items-center gap-2 relative"
-          : props.richTextEditor
-          ? "border-b border-border rounded-input bg-white "
-          : "flex items-center px-3.5 py-2.5 border-b border-border rounded-input gap-2 focus-within:ring-3 focus-within:ring-primary/20 bg-white ",
+            ? "flex items-center gap-2 relative"
+            : props.richTextEditor
+              ? "border-b border-border rounded-input bg-white "
+              : "flex items-center px-3.5 py-2.5 border-b border-border rounded-input gap-2 focus-within:ring-3 focus-within:ring-primary/20 bg-white ",
       addAttributes: { "data-wrapper": "wrapper3" },
     },
   ],
@@ -195,8 +141,8 @@ const inputConfig = {
       props.type === "checkbox"
         ? "w-4 min-w-4 h-4 cursor-pointer accent-primary"
         : props.type === "radio"
-        ? "relative pl-8 cursor-pointer text-[0.938rem] font-medium leading-6 text-gray-900 "
-        : "flex-1 text-sm border-none focus:outline-none bg-transparent  placeholder-text" +
+          ? "relative pl-8 cursor-pointer text-[0.938rem] font-medium leading-6 text-gray-900 "
+          : "flex-1 text-sm border-none focus:outline-none bg-transparent  placeholder-text" +
           (props.leftIcon ? "pl-10" : "pl-3") +
           " " +
           (props.rightIcon ? "pr-10" : "pr-3"),
@@ -210,8 +156,8 @@ const inputConfig = {
         props.type === "checkbox"
           ? "block text-sm font-medium "
           : props.type === "radio"
-          ? "block text-sm font-medium text-gray-700"
-          : "block text-sm font-medium ",
+            ? "block text-sm font-medium text-gray-700"
+            : "block text-sm font-medium ",
       addAttributes: {
         for: "input-id",
       },

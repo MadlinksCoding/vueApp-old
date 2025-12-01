@@ -2,15 +2,15 @@
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
       <input
-        :id="id"
-        type="radio"
-        :name="name"
-        :value="value"
-        :checked="modelValue === value"
-        @change="$emit('update:modelValue', value)"
-        v-bind="resolvedAttrs.inputAttrs"
-        class="hidden peer"
-      />
+  :id="id"
+  type="radio"
+  :name="name"
+  :value="value"
+  :checked="modelValue === value"
+  @change="$emit('update:modelValue', value)"
+  class="hidden peer"
+  :class="resolvedAttrs.inputAttrs.class"
+/>
       <label
         v-if="label"
         :for="id"

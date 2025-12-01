@@ -2,7 +2,7 @@
   <div class="relative md:py-[16px] md:px-[10px] lg:px-[24px]">
     <div
       @click="uploader.goToStep(2, { intent: 'user' })"
-      class="flex gap-2 items-center py-[16px]"
+      class="flex gap-2 items-center py-[16px] cursor-pointer"
     >
       <img src="/images/backIcon.png" alt="" srcset="" />
       <button
@@ -13,8 +13,10 @@
     </div>
 
     <div class="flex flex-col gap-6 mt-4 mb-[50px]">
+      
       <BaseInput
         type="text"
+        v-model="titleModel" 
         placeholder="Video Title (Optional)"
         inputClass="bg-white/50 w-full px-3 py-3 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
       />
@@ -23,13 +25,12 @@
         id="input_g"
         type="textarea"
         show-label
-        v-model="name"
+        v-model="descriptionModel"
         textAreaRows="3"
         label-text=""
         placeholder="Description (Optional)"
         description="0/200 characters"
       />
-     
 
       <ReusableSearchInput
         title="Tags"
@@ -38,25 +39,25 @@
         type="tags"
         :results="tagsList"
         :history-tags="historyTags"
-        v-model="selectedTags"
+        v-model="tagsModel"
         :max-items="10"
         :show-language-icon="true"
         @search="handleTagSearch"
         @manage-tags="openManageTags"
       />
+
       <ReusableSearchInput
         title="Co-performer"
         subtitle="If this media includes other performers, please tag them below."
         placeholder="Jelly"
         type="performer"
         :results="performersList"
-        v-model="selectedPerformers"
+        v-model="performersModel"
         :max-items="5"
         @search="handlePerformerSearch"
       />
     </div>
 
-    <!-- next Navigation -->
     <div
       class="flex justify-end md:mt-0 mt-4"
       @click="uploader.goToStep(4, { intent: 'user' })"
@@ -80,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue"; // 'computed' import karna zaroori hai
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
@@ -88,15 +89,55 @@ import InputComponentDashbaord from "../../../../../components/dev/input/InputCo
 import ReusableSearchInput from "./HelperComponents/ReusableSearchInput.vue";
 
 // Props
-defineProps({
+const props = defineProps({
   uploader: {
     type: Object,
     required: true,
   },
 });
 
-// TAGS
-const selectedTags = ref([]);
+// ==========================================
+// STATE CONNECTIONS (Magic Yahan Hai)
+// ==========================================
+
+// 1. Title Connection
+const titleModel = computed({
+  get: () => props.uploader.state.mediaTitle || "", // State se read karo
+  set: (val) => {
+    // State me write karo
+    props.uploader.setState("mediaTitle", val, { reason: "user:mediaTitle" });
+  },
+});
+
+// 2. Description Connection
+const descriptionModel = computed({
+  get: () => props.uploader.state.description || "",
+  set: (val) => {
+    props.uploader.setState("description", val, { reason: "user:description" });
+  },
+});
+
+// 3. Tags Connection
+const tagsModel = computed({
+  get: () => props.uploader.state.tags || [],
+  set: (val) => {
+    // Note: Depends on what ReusableSearchInput returns (array of objects or strings)
+    props.uploader.setState("tags", val, { reason: "user:tags" });
+  },
+});
+
+// 4. Performers Connection
+const performersModel = computed({
+  get: () => props.uploader.state.coPerformerIds || [],
+  set: (val) => {
+    props.uploader.setState("coPerformerIds", val, { reason: "user:performers" });
+  },
+});
+
+
+// ==========================================
+// DATA FOR DROPDOWNS (Static Data)
+// ==========================================
 
 // History tags (recently used)
 const historyTags = ref([
@@ -126,9 +167,6 @@ const handleTagSearch = (query) => {
 const openManageTags = () => {
   console.log("Open manage tags modal");
 };
-
-// PERFORMERS
-const selectedPerformers = ref([]);
 
 const performersList = ref([
   {

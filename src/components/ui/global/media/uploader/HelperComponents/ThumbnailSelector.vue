@@ -1,38 +1,45 @@
 <template>
   <div class="flex flex-wrap items-start justify-start gap-1">
-    <div
-      v-for="(thumb, index) in thumbnails"
+    <button
+      v-for="(thumb, index) in visibleThumbnails"
       :key="index"
-      class="relative w-[6.2rem] cursor-pointer rounded"
+      class="relative w-[6.2rem] rounded overflow-hidden focus:outline-none"
+      @click="$emit('update:selectedIndex', index)"
     >
-      <input
-        type="radio"
-        class="thumbnail-radio absolute left-0 top-0 z-[5] m-1 h-full w-full opacity-0 cursor-pointer peer"
-        :checked="index === selectedIndex"
-        @change="$emit('update:selectedIndex', index)"
+      <img
+        v-if="shouldLoadThumbnail(index)"
+        :src="thumb"
+        class="h-[3.6125rem] w-[6.3rem] object-cover rounded-sm"
+        :class="index === selectedIndex ? 'opacity-100' : 'opacity-50'"
+        loading="lazy"
+        decoding="async"
       />
-      <div class="overflow-hidden rounded flex items-center justify-center w-auto h-auto">
-        <div
-          class="img-item h-[3.6125rem] w-[6.3rem] bg-cover bg-center bg-no-repeat rounded-sm"
-          :class="{'opacity-100': index === selectedIndex, 'opacity-50': index !== selectedIndex}"
-          :style="{ backgroundImage: `url(${thumb})` }"
-        ></div>
-      </div>
-    </div>
+      <div v-else class="h-[3.6125rem] w-[6.3rem] bg-gray-200 rounded-sm"></div>
+    </button>
   </div>
 </template>
 
 <script setup>
-defineProps({
-  thumbnails: {
-    type: Array,
-    required: true
-  },
-  selectedIndex: {
-    type: Number,
-    default: 0
-  }
+import { ref, computed, onMounted } from 'vue';
+
+const props = defineProps({
+  thumbnails: Array,
+  selectedIndex: Number,
 });
 
 defineEmits(['update:selectedIndex']);
+
+const loadedCount = ref(3); 
+
+const visibleThumbnails = computed(() => props.thumbnails);
+
+const shouldLoadThumbnail = (index) => {
+  return index < loadedCount.value;
+};
+
+onMounted(() => {
+  setTimeout(() => {
+    loadedCount.value = props.thumbnails.length;
+  }, 500);
+});
 </script>
