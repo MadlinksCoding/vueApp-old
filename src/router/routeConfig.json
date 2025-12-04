@@ -653,6 +653,18 @@
   "componentPath": "@/components/popupDemoTest/PopupTests.vue"
   },
   {
+    "slug": "/my-media-creator",
+    "requiresAuth": false,
+    "section": "Demo",
+    "enabled": true,
+  "componentPath": "@/templates/mediaCreator/myMediaCreator.vue"
+  },
+  {
+    "slug": "/404-page-not-found",
+    "requiresAuth": false,
+  "componentPath": "@/templates/notFound/NotFound.vue"
+  },
+  {
     "slug": "/tableTestDemos",
     "requiresAuth": false,
     "section": "Demo",

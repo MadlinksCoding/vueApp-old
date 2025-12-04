@@ -1,25 +1,12 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
-      <button
-        :type="type"
-        v-bind="resolvedAttrs.inputAttrs"
-        :disabled="disabled"
-        @click="handleClick"
-      >
-        <img
-          v-if="leftIcon"
-          :src="leftIcon"
-          :class="`mr-2 inline-block ${leftIconClass}`"
-        />
+      <button :type="type" v-bind="resolvedAttrs.inputAttrs" :disabled="disabled" @click="handleClick">
+        <img v-if="leftIcon" :src="leftIcon" :class="` inline-block ${leftIconClass}`" />
 
         <span>{{ text }}</span>
 
-        <img
-          v-if="rightIcon"
-          :src="rightIcon"
-          :class="`mr-2 inline-block ${rightIconClass}`"
-        />
+        <img v-if="rightIcon" :src="rightIcon" :class="` inline-block ${rightIconClass}`" />
       </button>
     </div>
   </div>
@@ -56,11 +43,11 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   type: { type: String, default: "button" },
 
-   btnBg: { type: String, default: "#07f468" },
+  btnBg: { type: String, default: "#07f468" },
   btnHoverBg: { type: String, default: "black" },
   btnText: { type: String, default: "black" },
   btnHoverText: { type: String, default: "#07f468" },
-customClass: { type: String, default: "" },
+  customClass: { type: String, default: "" },
   addId: String,
   removeId: Boolean,
   addClass: String,
@@ -96,10 +83,11 @@ const themeClasses = {
     "flex items-center justify-center text-[#98a2b3] uppercase font-medium break-words gap-2 leading-7 text-[1.125rem] min-w-[5.3125rem] px-2 py-1 bg-[rgba(52,64,84,0.05)] border-0",
   polygonLeft:
     "w-max group flex items-center justify-center gap-[0.625rem] py-1 pl-[1.4rem] pr-2 bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--btn-text)] hover:text-[var(--btn-hover-text)] text-sm sm:text-lg  leading-7 font-medium uppercase transition-colors duration-200 relative cursor-pointer [clip-path:polygon(8%_0,100%_0,105%_105%,0_105%)]",
- polygonRight:
+  polygonRight:
     "w-max group flex items-center justify-center gap-[0.625rem] py-1 pr-[1.4rem] pl-2 bg-black hover:bg-[#07f468] text-[#fff] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-black relative cursor-pointer [clip-path:polygon(0_0,92%_0,100%_105%,0_105%)]",
-bgGreen:
+  bgGreen:
     "group flex items-center justify-center gap-2.5 py-6 pr-[1.4rem] bg-[#07f468] hover:bg-black text-[#000] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-[#07f468] relative cursor-pointer ",
+mediaBtn: "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]"
 };
 
 // Tailwind size classes
@@ -131,7 +119,7 @@ const buttonConfig = {
     addAttributes: {
       type: props.type,
       role: "button",
-        style: `
+      style: `
       --btn-bg: ${props.btnBg};
       --btn-hover-bg: ${props.btnHoverBg};
       --btn-text: ${props.btnText};
