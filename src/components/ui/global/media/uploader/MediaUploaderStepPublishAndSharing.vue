@@ -50,6 +50,7 @@
         </div>
       </div>
 
+      <!-- substep 1 -->
       <div v-if="uploader.substep === 'publishImmediately'">
         <div class="text-[#303437] text-[14px] mt-4 mb-6">
           We will publish the media according to your subscription and Pay to view preference. It will usually take 2
@@ -123,7 +124,7 @@
           </div>
         </div>
       </div>
-
+      <!-- substep 2 -->
       <div v-else-if="uploader.substep === 'schedulePublish'">
 
         <PublishDatePicker v-model="scheduleDateModel" label="Set date and time for publishing:"

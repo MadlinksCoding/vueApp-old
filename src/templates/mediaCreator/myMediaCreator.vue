@@ -17,7 +17,11 @@
                 <!-- tab-button-wrapper -->
                 <div class="flex items-center gap-4 md:py-2 lg:py-0">
                     <!-- view-type tab-button-container -->
-                    <div
+
+                    <div v-if="loading"
+                        class="hidden md:flex w-[6.5rem] h-10 rounded-md bg-[#E6E6E6] animate-skeleton-loading">
+                    </div>
+                    <div v-else
                         class="hidden md:flex bg-[#F9FAFB80] border border-[#D0D5DD] rounded-[0.3125rem] overflow-hidden">
 
                         <button @click="viewMode = 'grid'" :class="{ 'active': viewMode === 'grid' }"
@@ -34,7 +38,11 @@
                     </div>
 
                     <!-- media-type tab-button-container -->
-                    <MyMediaTabs v-model="currentTab" :tabs="tabList" />
+                    <div v-if="loading"
+                        class="w-full flex items-start h-10 rounded-md bg-[#E6E6E6] animate-skeleton-loading md:w-[20.125rem]">
+                    </div>
+
+                    <MyMediaTabs v-else v-model="currentTab" :tabs="tabList" />
                 </div>
 
                 <!-- filter-wrapper -->
@@ -76,655 +84,24 @@
                         <!-- thumbnail-container -->
                         <div
                             class="grid grid-cols-2 gap-1 group-[.table-view]:w-max group-[.table-view]:grid-cols-1 group-[.table-view]:gap-0 md:grid-cols-3 md:gap-2 lg:grid-cols-4 xl:gap-4">
-                            <div v-for="i in 5" :key="i">
-                                <MyMediaCard />
-                            </div>
-                        </div>
+                            <template v-if="loading">
+                                <div v-for="n in 8" :key="n">
+                                    <div
+                                        class="w-full relative aspect-video rounded-md bg-[#E6E6E6] animate-skeleton-loading cursor-pointer group-[.table-view]:w-[11.11125rem] group-[.table-view]:h-[6.25rem] lg:group-[.table-view]:w-[12.5rem] lg:group-[.table-view]:h-[7.03125rem] xl:group-[.table-view]:w-[14.22rem] xl:group-[.table-view]:h-32">
+                                    </div>
+                                </div>
+                            </template>
 
+                            <template v-else>
+                                <div v-for="item in items" :key="item.id">
+                                    <MyMediaCard :videoSrc="item.videoSrc" />
+                                </div>
+                            </template>
+                        </div>
                     </div>
 
                     <!-- table-wrapper -->
-                    <div
-                        class="hidden w-max flex-col flex-grow group-[.table-view]:flex overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
-                        <!-- table-header-container -->
-                        <div class="flex w-full">
-                            <!-- table-header info -->
-                            <div class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[18.75rem]">
-
-                            </div>
-                            <!-- table-header Status -->
-                            <div class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[8.25rem]">
-                                <span class="text-sm text-[#667085] whitespace-nowrap">Status</span>
-                            </div>
-                            <!-- table-header P2V -->
-                            <div
-                                class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[7.1875rem] xl:min-w-[7.0625rem]">
-                                <span class="text-sm text-[#667085] whitespace-nowrap">P2V</span>
-                            </div>
-                            <!-- table-header Tiers -->
-                            <div class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[10.75rem]">
-                                <span class="text-sm text-[#667085] whitespace-nowrap">Tiers</span>
-                            </div>
-                            <!-- table-header Appear on -->
-                            <div
-                                class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[8.4375rem] xl:min-w-[9.9375rem]">
-                                <span class="text-sm text-[#667085] whitespace-nowrap">Appear on</span>
-                            </div>
-                            <!-- table-header Upload Date -->
-                            <div
-                                class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[7.8125rem] xl:min-w-[9.4025rem]">
-                                <span class="text-sm text-[#667085] whitespace-nowrap">Upload Date</span>
-                            </div>
-                            <!-- table-header actions -->
-                            <div class="flex items-center gap-2.5 h-[2.625rem] p-2.5  min-w-[6rem] flex-grow">
-
-                            </div>
-                        </div>
-
-                        <!-- table-rows-container -->
-                        <div
-                            class="flex flex-col w-max border-t border-[#667085] xl:w-full [&>*:nth-child(odd)]:bg-[#F2F4F780]">
-                            <!-- row -->
-                            <div class="flex w-full">
-                                <!-- info -->
-                                <div
-                                    class="flex justify-center items-center px-3 py-2 w-[18.75rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="w-full flex flex-col gap-0.5">
-                                        <h3 class="text-xs leading-normal font-semibold line-clamp-3 text-[#0C111D]">
-                                            Record
-                                            breaking fried chicken eating ! See my attempt to break world’s record!
-                                            Watch
-                                            now!</h3>
-
-                                        <div class="flex items-center gap-2">
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Chicken</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Eating</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <span class="text-xs leading-normal font-medium text-[#344054]">+3</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div
-                                    class="flex justify-center items-center min-w-[8.25rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="p-1">
-                                        <!-- published-tag-section -->
-                                        <div class="flex">
-                                            <span
-                                                class="flex justify-center items-center p-1 gap-2 backdrop-blur-[10px] bg-[#07f468]">
-                                                <img src="https://i.ibb.co.com/bMFQRqBP/upload.webp" alt="upload"
-                                                    class="w-4 h-4" />
-                                            </span>
-                                            <span
-                                                class="text-[#07f468] text-xs font-medium leading-[1.125rem] flex justify-center items-center gap-2 px-[.375rem] py-[0.188rem] bg-black">Published</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- P2V -->
-                                <div
-                                    class="flex items-center min-w-[7.1875rem] h-[6.25rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-xs leading-normal font-semibold truncate text-[#0C111D]">USD$
-                                        24.99</span>
-                                </div>
-
-                                <!-- Tiers -->
-                                <div
-                                    class="flex items-center min-w-[10.75rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:min-w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Appear on -->
-                                <div
-                                    class="flex items-center min-w-[8.4375rem] xl:min-w-[9.9375rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[6.9375rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Profile page</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Upload date -->
-                                <div
-                                    class="flex items-center min-w-[7.8125rem] xl:min-w-[9.4025rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-[0.77875rem] leading-[1.125rem] text-[#475467]">22 Jan 2022</span>
-                                </div>
-
-                                <!-- Action -->
-                                <div
-                                    class="flex items-center min-w-[6rem] flex-grow px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/BV4pbgNr/pencil-01.webp" alt="edit"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/Q7jRP6S5/dots-vertical.webp" alt="settings"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- row -->
-                            <div class="flex w-full">
-                                <!-- info -->
-                                <div
-                                    class="flex justify-center items-center px-3 py-2 w-[18.75rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="w-full flex flex-col gap-0.5">
-                                        <h3 class="text-xs leading-normal font-semibold line-clamp-3 text-[#0C111D]">
-                                            Record
-                                            breaking fried chicken eating ! See my attempt to break world’s record!
-                                            Watch
-                                            now!</h3>
-
-                                        <div class="flex items-center gap-2">
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Chicken</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Eating</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <span class="text-xs leading-normal font-medium text-[#344054]">+3</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div
-                                    class="flex justify-center items-center min-w-[8.25rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="p-1">
-                                        <!-- published-tag-section -->
-                                        <div class="flex">
-                                            <span
-                                                class="flex justify-center items-center p-1 gap-2 backdrop-blur-[10px] bg-[#07f468]">
-                                                <img src="https://i.ibb.co.com/bMFQRqBP/upload.webp" alt="upload"
-                                                    class="w-4 h-4" />
-                                            </span>
-                                            <span
-                                                class="text-[#07f468] text-xs font-medium leading-[1.125rem] flex justify-center items-center gap-2 px-[.375rem] py-[0.188rem] bg-black">Published</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- P2V -->
-                                <div
-                                    class="flex items-center min-w-[7.1875rem] h-[6.25rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-xs leading-normal font-semibold truncate text-[#0C111D]">USD$
-                                        24.99</span>
-                                </div>
-
-                                <!-- Tiers -->
-                                <div
-                                    class="flex items-center min-w-[10.75rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:min-w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Appear on -->
-                                <div
-                                    class="flex items-center min-w-[8.4375rem] xl:min-w-[9.9375rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[6.9375rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Profile page</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Upload date -->
-                                <div
-                                    class="flex items-center min-w-[7.8125rem] xl:min-w-[9.4025rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-[0.77875rem] leading-[1.125rem] text-[#475467]">22 Jan 2022</span>
-                                </div>
-
-                                <!-- Action -->
-                                <div
-                                    class="flex items-center min-w-[6rem] flex-grow px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/BV4pbgNr/pencil-01.webp" alt="edit"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/Q7jRP6S5/dots-vertical.webp" alt="settings"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- row -->
-                            <div class="flex w-full">
-                                <!-- info -->
-                                <div
-                                    class="flex justify-center items-center px-3 py-2 w-[18.75rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="w-full flex flex-col gap-0.5">
-                                        <h3 class="text-xs leading-normal font-semibold line-clamp-3 text-[#0C111D]">
-                                            Record
-                                            breaking fried chicken eating ! See my attempt to break world’s record!
-                                            Watch
-                                            now!</h3>
-
-                                        <div class="flex items-center gap-2">
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Chicken</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Eating</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <span class="text-xs leading-normal font-medium text-[#344054]">+3</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div
-                                    class="flex justify-center items-center min-w-[8.25rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="p-1">
-                                        <!-- published-tag-section -->
-                                        <div class="flex">
-                                            <span
-                                                class="flex justify-center items-center p-1 gap-2 backdrop-blur-[10px] bg-[#07f468]">
-                                                <img src="https://i.ibb.co.com/bMFQRqBP/upload.webp" alt="upload"
-                                                    class="w-4 h-4" />
-                                            </span>
-                                            <span
-                                                class="text-[#07f468] text-xs font-medium leading-[1.125rem] flex justify-center items-center gap-2 px-[.375rem] py-[0.188rem] bg-black">Published</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- P2V -->
-                                <div
-                                    class="flex items-center min-w-[7.1875rem] h-[6.25rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-xs leading-normal font-semibold truncate text-[#0C111D]">USD$
-                                        24.99</span>
-                                </div>
-
-                                <!-- Tiers -->
-                                <div
-                                    class="flex items-center min-w-[10.75rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:min-w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Appear on -->
-                                <div
-                                    class="flex items-center min-w-[8.4375rem] xl:min-w-[9.9375rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[6.9375rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Profile page</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Upload date -->
-                                <div
-                                    class="flex items-center min-w-[7.8125rem] xl:min-w-[9.4025rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-[0.77875rem] leading-[1.125rem] text-[#475467]">22 Jan 2022</span>
-                                </div>
-
-                                <!-- Action -->
-                                <div
-                                    class="flex items-center min-w-[6rem] flex-grow px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/BV4pbgNr/pencil-01.webp" alt="edit"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/Q7jRP6S5/dots-vertical.webp" alt="settings"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- row -->
-                            <div class="flex w-full">
-                                <!-- info -->
-                                <div
-                                    class="flex justify-center items-center px-3 py-2 w-[18.75rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="w-full flex flex-col gap-0.5">
-                                        <h3 class="text-xs leading-normal font-semibold line-clamp-3 text-[#0C111D]">
-                                            Record
-                                            breaking fried chicken eating ! See my attempt to break world’s record!
-                                            Watch
-                                            now!</h3>
-
-                                        <div class="flex items-center gap-2">
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Chicken</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Eating</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <span class="text-xs leading-normal font-medium text-[#344054]">+3</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div
-                                    class="flex justify-center items-center min-w-[8.25rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="p-1">
-                                        <!-- published-tag-section -->
-                                        <div class="flex">
-                                            <span
-                                                class="flex justify-center items-center p-1 gap-2 backdrop-blur-[10px] bg-[#07f468]">
-                                                <img src="https://i.ibb.co.com/bMFQRqBP/upload.webp" alt="upload"
-                                                    class="w-4 h-4" />
-                                            </span>
-                                            <span
-                                                class="text-[#07f468] text-xs font-medium leading-[1.125rem] flex justify-center items-center gap-2 px-[.375rem] py-[0.188rem] bg-black">Published</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- P2V -->
-                                <div
-                                    class="flex items-center min-w-[7.1875rem] h-[6.25rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-xs leading-normal font-semibold truncate text-[#0C111D]">USD$
-                                        24.99</span>
-                                </div>
-
-                                <!-- Tiers -->
-                                <div
-                                    class="flex items-center min-w-[10.75rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:min-w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Appear on -->
-                                <div
-                                    class="flex items-center min-w-[8.4375rem] xl:min-w-[9.9375rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[6.9375rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Profile page</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Upload date -->
-                                <div
-                                    class="flex items-center min-w-[7.8125rem] xl:min-w-[9.4025rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-[0.77875rem] leading-[1.125rem] text-[#475467]">22 Jan 2022</span>
-                                </div>
-
-                                <!-- Action -->
-                                <div
-                                    class="flex items-center min-w-[6rem] flex-grow px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/BV4pbgNr/pencil-01.webp" alt="edit"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/Q7jRP6S5/dots-vertical.webp" alt="settings"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- row -->
-                            <div class="flex w-full">
-                                <!-- info -->
-                                <div
-                                    class="flex justify-center items-center px-3 py-2 w-[18.75rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="w-full flex flex-col gap-0.5">
-                                        <h3 class="text-xs leading-normal font-semibold line-clamp-3 text-[#0C111D]">
-                                            Record
-                                            breaking fried chicken eating ! See my attempt to break world’s record!
-                                            Watch
-                                            now!</h3>
-
-                                        <div class="flex items-center gap-2">
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Chicken</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Eating</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <!-- label -->
-                                            <div class="flex justify-center items-center px-1.5 py-1 bg-white">
-                                                <span
-                                                    class="text-xs leading-normal font-medium text-[#344054]">Drinking</span>
-                                            </div>
-
-                                            <span class="text-xs leading-normal font-medium text-[#344054]">+3</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div
-                                    class="flex justify-center items-center min-w-[8.25rem] h-[6.25rem] lg:h-[7.03125rem] xl:h-32">
-                                    <div class="p-1">
-                                        <!-- published-tag-section -->
-                                        <div class="flex">
-                                            <span
-                                                class="flex justify-center items-center p-1 gap-2 backdrop-blur-[10px] bg-[#07f468]">
-                                                <img src="https://i.ibb.co.com/bMFQRqBP/upload.webp" alt="upload"
-                                                    class="w-4 h-4" />
-                                            </span>
-                                            <span
-                                                class="text-[#07f468] text-xs font-medium leading-[1.125rem] flex justify-center items-center gap-2 px-[.375rem] py-[0.188rem] bg-black">Published</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- P2V -->
-                                <div
-                                    class="flex items-center min-w-[7.1875rem] h-[6.25rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-xs leading-normal font-semibold truncate text-[#0C111D]">USD$
-                                        24.99</span>
-                                </div>
-
-                                <!-- Tiers -->
-                                <div
-                                    class="flex items-center min-w-[10.75rem] px-3 py-2 overflow-hidden lg:h-[7.03125rem] xl:min-w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Featured library of something great</li>
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[9.25rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Full library of extremely great things</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Appear on -->
-                                <div
-                                    class="flex items-center min-w-[8.4375rem] xl:min-w-[9.9375rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <ul class="flex flex-col gap-0.5 overflow-hidden">
-                                        <li
-                                            class="pl-5 text-xs leading-normal font-semibold truncate max-w-[6.9375rem] xl:max-w-[unset] text-[#0C111D] relative before:content-[''] before:absolute before:w-1 before:h-1 before:bg-[#0C111D] before:rounded-full before:left-2 before:top-1/2 before:-translate-y-1/2">
-                                            Profile page</li>
-                                    </ul>
-                                </div>
-
-                                <!-- Upload date -->
-                                <div
-                                    class="flex items-center min-w-[7.8125rem] xl:min-w-[9.4025rem] px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <span class="text-[0.77875rem] leading-[1.125rem] text-[#475467]">22 Jan 2022</span>
-                                </div>
-
-                                <!-- Action -->
-                                <div
-                                    class="flex items-center min-w-[6rem] flex-grow px-3 py-2 lg:h-[7.03125rem] xl:w-[7.0625rem] xl:h-32">
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/BV4pbgNr/pencil-01.webp" alt="edit"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-
-                                    <div class="flex justify-center items-center px-3 py-2">
-                                        <div class="w-6 h-6 flex justify-center items-center cursor-pointer">
-                                            <img src="https://i.ibb.co.com/Q7jRP6S5/dots-vertical.webp" alt="settings"
-                                                class="w-4 h-4">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <MediaTableView />
                 </div>
             </div>
         </div>
@@ -733,12 +110,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import MyMediaCard from './MyMediaCard.vue';
+import MediaTableView from './MediaTableView.vue';
 import MyMediaTabs from './MyMediaTabs.vue';
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
 
-// 1. State banayein (Default 'grid' rakha hai)
 const viewMode = ref('grid');
 const currentTab = ref('all');
 
@@ -749,4 +126,30 @@ const tabList = [
     { label: 'Not Published', value: 'not_published', count: 0 },
     { label: 'Reviewing', value: 'reviewing', count: 1 },
 ];
+
+const items = ref([]);
+const loading = ref(true);
+
+const fetchVideos = async () => {
+    try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const response = await fetch('/data/mockTableData.json');
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        items.value = data;
+
+    } catch (error) {
+        console.error("Error fetching video data:", error);
+    } finally {
+        loading.value = false;
+    }
+};
+
+onMounted(() => {
+    fetchVideos();
+});
 </script>

@@ -22,11 +22,9 @@ const props = defineProps({
   },
 });
 
-// 👇 Ab hum dynamic key access kar rahe hain
 const showPreviewModel = computed({
   get: () => props.uploader.state[props.stateKey] || false,
   set: (val) => {
-    // State key dynamic hai (jo prop se aayi hai)
     props.uploader.setState(props.stateKey, val, { reason: `user:toggle:${props.stateKey}` });
   }
 });

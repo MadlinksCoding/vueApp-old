@@ -575,7 +575,12 @@ export default {
           '10%': { left: '0%', right: '75%', width: '25%' },
           '90%': { right: '0%', left: '75%', width: '25%' },
           '100%': { right: '0%', left: '100%', width: '25%' }
-        }
+        },
+        skeletonLoading: {
+                        '0%': { backgroundColor: 'rgba(173,173,173,1)' },
+                        '50%': { backgroundColor: 'rgba(173,173,173,0.7)' },
+                        '100%': { backgroundColor: 'rgba(173,173,173,1)' },
+                    },
       },
       animation: {
         bouncedown: "bouncedown 0.1s ease forwards",
@@ -583,6 +588,7 @@ export default {
         slidefromleft: 'slideFromLeft 0s ease forwards',
         slidefromright: 'slideFromRight 0.5s ease-in forwards',
         borealisBar: 'borealisBar 2s linear infinite',
+        'skeleton-loading': 'skeletonLoading 1.3s ease infinite',
       },
       gridTemplateColumns: {
         '5': 'repeat(5, minmax(0, 1fr))',

@@ -659,6 +659,13 @@
     "enabled": true,
   "componentPath": "@/templates/mediaCreator/myMediaCreator.vue"
   },
+   {
+    "slug": "/media-placeholder",
+    "requiresAuth": false,
+    "section": "Demo",
+    "enabled": true,
+  "componentPath": "@/templates/mediaCreator/MediaPlaceholder.vue"
+  },
   {
     "slug": "/404-page-not-found",
     "requiresAuth": false,

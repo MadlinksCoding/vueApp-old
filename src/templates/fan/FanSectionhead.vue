@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex justify-between items-end gap-2.5 w-full px-2 md:px-4 xl:px-10"
+    class="flex justify-between items-end gap-2.5 w-full"
   >
     <!-- Left Content -->
     <div class="flex flex-col gap-2 flex-grow">
