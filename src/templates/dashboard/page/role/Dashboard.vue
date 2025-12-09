@@ -4,30 +4,14 @@
     <!-- <BookingForm /> -->
 
 
-    <Cookies />
+    <!-- <Cookies /> -->
 
-    <ButtonComponent text="Cancel" variant="hoverBgWhite" size="lg" />
+    <!-- <ButtonComponent text="Cancel" variant="hoverBgWhite" size="lg" /> -->
 
-    <br />
+    <!-- <ButtonComponent text="Save" variant="greyBg" size="lg" /> -->
 
-    <ButtonComponent text="Save" variant="greyBg" size="lg" />
 
-    <br />
-
-    <ButtonComponent
-      text="Add Tier"
-      variant="polygonLeft"
-      :leftIcon="'https://i.ibb.co/N2xH2QVV/svgviewer-png-output-13.webp'"
-      :leftIconClass="`
-  w-6 h-6 transition duration-200
-  filter brightness-0
-  group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]
-`"
-    />
-
-    <br />
-
-    <ButtonComponent
+    <!-- <ButtonComponent
       text="Save"
       variant="polygonRight"
       :leftIcon="'https://i.ibb.co/Sw3WhF1p/svgviewer-png-output-9.webp'"
@@ -36,11 +20,10 @@
   filter brightness-0 invert
   group-hover:[filter:brightness(0)_saturate(100%)_invert(0%)_sepia(96%)_saturate(7494%)_hue-rotate(96deg)_brightness(112%)_contrast(97%)]
 `"
-    />
+    /> -->
 
-    <br />
 
-    <ButtonComponent
+    <!-- <ButtonComponent
       text="Next"
       variant="polygonLeft"
       :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'"
@@ -53,7 +36,7 @@
       btnHoverBg="black"
       btnText="black"
       btnHoverText="#07f468"
-    />
+    /> -->
 
     <!-- <OrderReceived /> -->
 
@@ -62,6 +45,56 @@
 
     <!-- <Cart/> -->
     <!-- <OrderReceived /> -->
+
+    
+    <ButtonComponent
+      text="View All Popup"
+      variant="mediaBtn"
+      @click="isViewAllPopupOpen = true"
+    />
+
+    <br>
+
+     <ButtonComponent
+      text="Profle media details popup"
+      variant="mediaBtn"
+      @click="profileMediaDetailsPopupOpen = true"
+    />
+
+    <br>
+    
+     <ButtonComponent
+      text="Avatar upload popup"
+      variant="mediaBtn"
+      @click="avatarPopupOpen = true"
+    />
+
+    <ProfileViewAllPopup
+      v-model="isViewAllPopupOpen"
+      @update:modelValue="
+        (val) => {
+          isViewAllPopupOpen = val;
+        }
+      "
+    />
+
+     <ProfileMediaDetailsPopup
+      v-model="profileMediaDetailsPopupOpen"
+      @update:modelValue="
+        (val) => {
+          profileMediaDetailsPopupOpen = val;
+        }
+      "
+    />
+
+    <AvatarUploadPopup
+      v-model="avatarPopupOpen"
+      @update:modelValue="
+        (val) => {
+          avatarPopupOpen = val;
+        }
+      "
+    />
 
   </DashboardWrapperTwoColContainer>
 </template>
@@ -74,4 +107,13 @@ import Cookies from "@/components/ui/badge/dashboard/Cookies.vue";
 import Cart from "@/components/ui/Cart.vue";
 import BookingForm from "@/components/ui/form/BookingForm.vue";
 import OrderReceived from "@/components/ui/table/dashboard/OrderReceived.vue";
+import ProfileViewAllPopup from "@/components/ui/popup/ProfileViewAllPopup.vue";
+import ProfileMediaDetailsPopup from "@/components/ui/popup/ProfileMediaDetailsPopup.vue";
+import AvatarUploadPopup from "@/components/ui/popup/AvatarUploadPopup.vue";
+import { ref } from "vue";
+
+const isViewAllPopupOpen = ref(false);
+const profileMediaDetailsPopupOpen = ref(false);
+const avatarPopupOpen = ref(false);
+
 </script>

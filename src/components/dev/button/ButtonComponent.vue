@@ -1,12 +1,25 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
-      <button :type="type" v-bind="resolvedAttrs.inputAttrs" :disabled="disabled" @click="handleClick">
-        <img v-if="leftIcon" :src="leftIcon" :class="` inline-block ${leftIconClass}`" />
+      <button
+        :type="type"
+        v-bind="resolvedAttrs.inputAttrs"
+        :disabled="disabled"
+        @click="handleClick"
+      >
+        <img
+          v-if="leftIcon"
+          :src="leftIcon"
+          :class="` inline-block ${leftIconClass}`"
+        />
 
         <span>{{ text }}</span>
 
-        <img v-if="rightIcon" :src="rightIcon" :class="` inline-block ${rightIconClass}`" />
+        <img
+          v-if="rightIcon"
+          :src="rightIcon"
+          :class="` inline-block ${rightIconClass}`"
+        />
       </button>
     </div>
   </div>
@@ -87,7 +100,10 @@ const themeClasses = {
     "w-max group flex items-center justify-center gap-[0.625rem] py-1 pr-[1.4rem] pl-2 bg-black hover:bg-[#07f468] text-[#fff] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-black relative cursor-pointer [clip-path:polygon(0_0,92%_0,100%_105%,0_105%)]",
   bgGreen:
     "group flex items-center justify-center gap-2.5 py-6 pr-[1.4rem] bg-[#07f468] hover:bg-black text-[#000] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-[#07f468] relative cursor-pointer ",
-mediaBtn: "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]"
+  mediaBtn:
+    "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]",
+  profileMediaBtn:
+    "flex justify-center items-center gap-2.5 h-11 p-2.5 rounded-[3.125rem] text-sm leading-6 text-[#07F468] bg-black/90 cursor-pointer",
 };
 
 // Tailwind size classes
