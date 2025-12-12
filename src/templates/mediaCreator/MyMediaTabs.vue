@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full flex items-start bg-[#F9FAFB66] border border-[#D0D5DD] rounded-[0.3125rem] overflow-hidden md:w-max">
+  <div class="w-full flex items-start bg-[#F9FAFB66] border border-[#D0D5DD] rounded-[0.3125rem]  md:w-max">
     
     <button 
       v-for="tab in tabs" 

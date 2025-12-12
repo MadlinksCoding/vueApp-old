@@ -64,9 +64,106 @@ const showMobileClass  = computed(() => `${bp.value}:hidden block`)
 const hasScrollArea = computed(() => props.innerScroll && !!props.maxHeight)
 const bodyStyle = computed(() => (props.innerScroll && props.maxHeight) ? { maxHeight: props.maxHeight, overflowY: 'auto' } : {})
 const mobileBodyStyle = computed(() => (props.mobileInnerScroll) ? { maxHeight: props.mobileMaxHeight || '70vh', overflowY: 'auto' } : {})
-const alignClass = (a) => a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'
-const hiddenAtClasses = (arr) => Array.isArray(arr) && arr.length ? arr.map(bp => `${bp}:hidden`).join(' ') : ''
-const colClass = (col) => [ col.basis || 'basis-1/3', col.grow ? 'grow' : 'grow-0', 'shrink-0', alignClass(col.align || props.alignDefault), hiddenAtClasses(col.hiddenAt) ].join(' ')
+
+/* ✅ FIXED ALIGNMENT LOGIC (Supports sm, md, lg, xl & default) */
+const alignClass = (a) => {
+  // Helper to convert 'left/right/center' to tailwind class
+  const getAlign = (dir) => dir === 'center' ? 'text-center' : dir === 'right' ? 'text-right' : 'text-left'
+
+  // Case 1: Simple String ('center') -> Sab screens par apply hoga
+  if (typeof a === 'string') {
+    return getAlign(a)
+  }
+  
+  // Case 2: Object ({ default: 'left', sm: 'right' })
+  if (typeof a === 'object' && a !== null) {
+    let classes = []
+
+    // 1. Base / Default (Mobile XS view)
+    // Agar user ne 'default' ya 'xs' diya hai toh wo use karo, warna default 'text-left' rahega
+    if (a.default || a.xs) {
+      classes.push(getAlign(a.default || a.xs))
+    } else {
+      classes.push('text-left') // Fallback base style
+    }
+
+    // 2. Breakpoints (sm, md, lg, xl) - Ab 'sm' bhi include hai
+    if (a.sm) classes.push(`sm:${getAlign(a.sm)}`)
+    if (a.md) classes.push(`md:${getAlign(a.md)}`)
+    if (a.lg) classes.push(`lg:${getAlign(a.lg)}`)
+    if (a.xl) classes.push(`xl:${getAlign(a.xl)}`)
+
+    return classes.join(' ')
+  }
+  
+  return 'text-left' // Fallback
+}
+
+/* ✅ ✅ MAIN FIX: HIDDEN LOGIC */
+const hiddenAtClasses = (arr) => {
+  if (!Array.isArray(arr) || !arr.length) return ''
+
+  // Logic: Agar user ne kaha 'xs' (Mobile) pe chupao, toh hum 'hidden' class lagayenge.
+  // Lekin 'hidden' class sab kuch chupa degi, isliye humein batana padega ke wapis kab dikhana hai.
+
+  // Scenario 1: Hide on Mobile AND Tablet (xs, sm) -> Show on Desktop (md)
+  if (arr.includes('xs') && arr.includes('sm')) {
+    return 'hidden md:block' 
+  }
+
+  // Scenario 2: Hide ONLY on Mobile (xs) -> Show on Tablet (sm)
+  if (arr.includes('xs')) {
+    return 'hidden sm:block'
+  }
+
+  // Scenario 3: Hide on Tablet (sm) -> Show on Desktop (md)
+  // Note: Mobile pe visible rahega kyunke sm:hidden sirf sm se start hota hai
+  if (arr.includes('sm')) {
+    return 'sm:hidden md:block'
+  }
+
+  // Standard fallback for lg, xl etc.
+  return arr.map(bp => `${bp}:hidden`).join(' ')
+}
+
+// ... (Existing imports and props)
+
+/* ✅ NEW: RESPONSIVE BASIS LOGIC */
+const getBasisClass = (basis) => {
+  // Case 1: Agar string hai (Purana tareeqa), wapis bhej do
+  if (typeof basis === 'string') return basis;
+
+  // Case 2: Agar Object hai ({ default: '...', md: '...' })
+  if (typeof basis === 'object' && basis !== null) {
+    let classes = [];
+    
+    // 1. Mobile / Default (xs se start hoga)
+    if (basis.default) classes.push(basis.default);
+
+    // 2. Breakpoints (sm, md, lg, xl)
+    // Helper function taake agar user "basis-1/4" de toh hum "md:basis-1/4" bana dein
+    const addPrefix = (bp, val) => val.includes(':') ? val : `${bp}:${val}`;
+
+    if (basis.sm) classes.push(addPrefix('sm', basis.sm));
+    if (basis.md) classes.push(addPrefix('md', basis.md));
+    if (basis.lg) classes.push(addPrefix('lg', basis.lg));
+    if (basis.xl) classes.push(addPrefix('xl', basis.xl));
+
+    return classes.join(' ');
+  }
+
+  // Fallback agar kuch na ho
+  return 'basis-1/3'; 
+}
+
+const colClass = (col) => [ 
+  getBasisClass(col.basis),
+  col.grow ? 'grow' : 'grow-0', 
+  'shrink-0', 
+  alignClass(col.align || props.alignDefault), 
+  hiddenAtClasses(col.hiddenAt) 
+].join(' ')
+
 
 /* SCROLL LOGIC */
 function toPx(raw, el) {
@@ -157,9 +254,9 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
                        </div>
                        <div class="flex flex-col justify-center items-start flex-1 min-h-[4.5rem] p-2 md:p-3 overflow-hidden">
                           <span class="truncate text-xs font-semibold text-zinc-900 w-full">{{ row[col.key] }}</span>
-                          <div class="flex items-center justify-between w-full mt-0.5">
-                             <span class="truncate text-xs text-zinc-500">{{ getVal(row, col.config?.subtextKey) }}</span>
-                             <span v-if="col.config?.mobileRightKey" class="md:hidden text-xs text-zinc-400 whitespace-nowrap ml-2">{{ getVal(row, col.config.mobileRightKey) }}</span>
+                          <div class="flex items-center w-full mt-0.5">
+                             <span class=" text-xs text-[#344054]">{{ getVal(row, col.config?.subtextKey) }}</span>
+                             <span v-if="col.config?.mobileRightKey" class="md:hidden truncate text-xs text-[#667085] whitespace-nowrap ml-2">{{ getVal(row, col.config.mobileRightKey) }}</span>
                           </div>
                           <div v-if="col.config?.mobileBottomUserKey" class="md:hidden flex items-center gap-1.5 mt-1.5">
                               <img :src="getVal(row, col.config.mobileBottomUserKey)" class="w-4 h-4 rounded-full"/>
@@ -168,20 +265,20 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
                        </div>
                     </div>
 
-                    <div v-else-if="col.type === 'user'" class="flex items-center gap-[2px] p-2.5 h-full">
+                    <div v-else-if="col.type === 'user'" class="flex items-center gap-[6px] p-2.5 h-full">
                        <img v-if="col.config?.avatarKey" :src="getVal(row, col.config.avatarKey)" class="w-5 h-5 rounded-full object-cover shrink-0" />
                        <span class="truncate text-xs text-zinc-600">{{ row[col.key] }}</span>
                     </div>
 
                     <div v-else-if="col.type === 'status'" class="flex items-center p-2.5 h-full">
                        <div class="flex items-start">
-                          <span class="flex justify-center items-center backdrop-blur-[10px]"
+                          <span class="flex justify-center items-center backdrop-blur-[10px] rounded mr-1.5"
                                 :class="col.config?.styles?.[row[col.key]]?.iconBg || 'bg-gray-100'">
                              <img v-if="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon"
                                   :src="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon" 
                                   class="w-4 h-4 object-contain"/>
                           </span>
-                          <span class="flex justify-center items-center text-xs font-medium backdrop-blur-[10px] whitespace-nowrap"
+                          <span class="flex justify-center items-center text-xs font-medium backdrop-blur-[10px] whitespace-nowrap rounded"
                                 :class="col.config?.styles?.[row[col.key]]?.textClass || 'text-gray-800'">
                              {{ row[col.key] }}
                           </span>

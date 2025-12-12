@@ -21,9 +21,11 @@ const tabList = [
     <div class="flex flex-col gap-[16px] backdrop-blur-[1px]">
       <div class="p-2 flex flex-col gap-[24px]">
         <Heading text="Orders Received" tag="h1" theme="orderHeading" />
-        <div class="flex justify-between items-center">
-        <div class="flex items-center gap-4">
-          <MyMediaTabs v-model="currentTab" :tabs="tabList" />
+        <div class="flex flex-col gap-2 lg:flex-row">
+          
+            <MyMediaTabs v-model="currentTab" :tabs="tabList" />
+
+          <div class="flex justify-between items-center w-full">
           <div class="py-2 px-3">
             <!-- input-container -->
             <div class="flex items-center gap-1.5 relative">
@@ -39,12 +41,12 @@ const tabList = [
               />
             </div>
           </div>
-        </div>
 
-        <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2">
           <Label class="text-[#344054] text-[14px] font-400">Order Type</Label>
           <img src="/images/dropdownIcon.png" alt="">
         </div>
+          </div>
         </div>
       </div>
       <div v-if="currentTab === 'progress'">

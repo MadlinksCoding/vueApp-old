@@ -91,7 +91,7 @@ const columns = [
   { key: "from", label: "From", basis: "basis-1/6" },
   { key: "status", label: "Status", basis: "basis-1/6" },
   { key: "date", label: "Date", basis: "basis-1/6" },
-  { key: "total", label: "Total", basis: "basis-1/5", align: "center" }, // ✅ yahan
+  { key: "total", label: "Total", basis: "basis-1/5", align: "center" },
 ];
 
 // Custom theme - minimal borders like original

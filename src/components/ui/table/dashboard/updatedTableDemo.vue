@@ -157,7 +157,11 @@ const columns = [
   {
     key: "type",
     label: "Order#",
-    basis: "basis-1/5",
+    basis: {
+      default: "basis-1/2",
+      md: "md:basis-1/4",      
+      lg: "lg:basis-1/4"
+    },
     type: "rich-icon",
     config: {
       iconKey: "icon",
@@ -190,18 +194,27 @@ const columns = [
     basis: "basis-1/6",
     hiddenAt: ["xs", "sm"],
   },
-  {
-    key: "total",
-    label: "Total",
-    basis: "basis-1/6",
-    align: "left",
-    hiddenAt: ["xs", "sm"],
+ {
+  key: "total",
+  label: "Total",
+  basis: {
+      default: "basis-1/2",
+      md: "md:basis-1/4",      
+      lg: "lg:basis-1/4"
+    },
+  align: { 
+    // "default" ka matlab hai 0px se start karo (yani Mobile XS se)
+    default: 'right', 
+    
+    // "lg" ka matlab hai Large screen se change kar do
+    md: 'left' 
   },
+},
 ];
 
 const theme = {
-  container: "relative  overflow-hidden",
-  header: "border-b border-zinc-200",
+  container: "relative overflow-hidden",
+  header: "border-b border-zinc-200 bg-[#F9FAFBE5]",
   headerRow: "flex items-center ",
   headerCell: "px-3 py-3 text-xs font-[400] text-[#667085] tracking-wider",
   row: "flex items-center border-b border-zinc-100 odd:bg-[#ebe3eb] even:bg-[#efebf2] transition-colors cursor-pointer last:border-0",
@@ -225,9 +238,11 @@ function loadMore() {
       :rows="state.rows"
       row-key="id"
       :theme="theme"
-      :inner-scroll="false"
+      :inner-scroll="true"
       desktop-breakpoint="md"
       @load-more="loadMore"
+      max-height="30rem"
+      :sticky-header="true"
     />
   </div>
 </template>
