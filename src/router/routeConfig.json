@@ -718,6 +718,10 @@
   "componentPath": "@/templates/mediaCardsVariations/MediaCardsVariations.vue"
   },
   {
+    "slug": "/dashboard/orders/order-received",
+  "componentPath": "@/templates/dashboard/page/agent/DashboardOrdersReceived.vue"
+  },
+  {
     "slug": "/",
     "redirect": "/log-in",
     "section": "auth",

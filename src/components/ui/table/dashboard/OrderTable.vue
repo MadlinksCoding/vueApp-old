@@ -41,19 +41,19 @@ const columns = [
   { key: "from", label: "From", basis: "basis-1/6" },
   { key: "status", label: "Status", basis: "basis-1/6" },
   { key: "date", label: "Date", basis: "basis-1/6" },
-  { key: "total", label: "Total", basis: "basis-1/5", align: 'center' }, // ✅ yahan
+  { key: "total", label: "Total", basis: "basis-1/5", align: "center" }, // ✅ yahan
 ];
 
 // Custom theme - minimal borders like original
 const theme = {
-  container:'relative rounded-lg',
-  header:'text-text-quaternary border-b border-text-quaternary',
-  headerRow:'flex items-center',
-  headerCell:'px-2 py-2 text-sm font-poppins tracking-wide',
-  row:'flex items-center odd:bg-white even:bg-bg-row-odd cursor-pointer',
-  cell:'text-sm text-zinc-800',
-  footer:'p-3 text-center'
-}
+  container: "relative rounded-lg",
+  header: "text-text-quaternary border-b border-text-quaternary",
+  headerRow: "flex items-center",
+  headerCell: "px-2 py-2 text-sm font-poppins tracking-wide",
+  row: "flex items-center odd:bg-white even:bg-bg-row-odd cursor-pointer",
+  cell: "text-sm text-zinc-800",
+  footer: "p-3 text-center",
+};
 
 function loadMore() {
   if (state.loading || !state.hasMore) return;
@@ -138,9 +138,7 @@ function loadMore() {
 
       <!-- From column - CONTENT WIDTH -->
       <template #cell.from="{ row }">
-        <div
-          class="flex items-center min-h-[2.625rem] p-2.5"
-        >
+        <div class="flex items-center min-h-[2.625rem] p-2.5">
           <span class="flex items-center gap-[0.3125rem] self-stretch">
             <img
               :src="row.fromAvatar"
@@ -158,9 +156,7 @@ function loadMore() {
 
       <!-- Status column - CONTENT WIDTH -->
       <template #cell.status="{ row }">
-        <div
-          class="flex items-start min-h-[2.625rem] p-2.5"
-        >
+        <div class="flex items-start min-h-[2.625rem] p-2.5">
           <div class="flex items-start">
             <span
               class="flex justify-center items-center p-1 bg-bg-status-light backdrop-blur-[10px]"
@@ -172,7 +168,7 @@ function loadMore() {
               />
             </span>
             <span
-              class="flex justify-center items-center px-1.5 py-[0.188rem] gap-2 text-xs font-medium leading-[1.125rem] text-status-new  backdrop-blur-[10px] whitespace-nowrap"
+              class="flex justify-center items-center px-1.5 py-[0.188rem] gap-2 text-xs font-medium leading-[1.125rem] text-status-new backdrop-blur-[10px] whitespace-nowrap"
             >
               {{ row.status }}
             </span>
@@ -182,9 +178,7 @@ function loadMore() {
 
       <!-- Date column - CONTENT WIDTH -->
       <template #cell.date="{ row }">
-        <div
-          class="flex items-center min-h-[2.625rem] p-2.5"
-        >
+        <div class="flex items-center min-h-[2.625rem] p-2.5">
           <span class="truncate text-xs leading-[1.125rem] text-zinc-500">
             {{ row.date }}
           </span>
@@ -193,15 +187,14 @@ function loadMore() {
 
       <!-- Total column - PUSH TO RIGHT -->
       <template #cell.total="{ row }">
-  <div class="flex items-center min-h-[2.625rem] p-2.5">
-    <span
-      class="text-xs font-semibold leading-[1.125rem] text-zinc-900 whitespace-nowrap text-center ml-5 w-full"
-    >
-      {{ row.total }}
-    </span>
-  </div>
-</template>
-
+        <div class="flex items-center min-h-[2.625rem] p-2.5">
+          <span
+            class="text-xs font-semibold leading-[1.125rem] text-zinc-900 whitespace-nowrap text-center ml-5 w-full"
+          >
+            {{ row.total }}
+          </span>
+        </div>
+      </template>
     </FlexTable>
   </div>
 </template>

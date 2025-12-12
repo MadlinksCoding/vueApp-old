@@ -96,6 +96,9 @@ const themeClasses: Record<string, Record<string, string>> = {
     h5: "text-base font-normal",
     h6: "text-sm font-normal",
   },
+  orderHeading:{
+    h1:"text-[#475467] text-[30px] font-[500] "
+  }
 };
 
 const headingConfig = computed(() => ({
