@@ -55,11 +55,10 @@ const uploadCancelConfig = {
   offset: "0px",
   speed: "250ms",
   effect: "ease-in-out",
-  showOverlay: true, // IMPORTANT: Isko true karein taake peeche dim background aye
+  showOverlay: true, 
   closeOnOutside: true,
-  lockScroll: true, // Scroll lock true karein
+  lockScroll: true,
   escToClose: true,
-  // Width ko 'auto' rakhein taake content ke hisaab se adjust ho
   width: { default: "auto", "<480": "90%" },
   height: "auto",
   scrollable: false,

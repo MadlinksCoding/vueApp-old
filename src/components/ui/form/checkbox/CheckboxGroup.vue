@@ -9,7 +9,9 @@
       @change="$emit('update:modelValue', $event.target.checked)" 
     />
     <span class="" :class="labelClass">
-      {{ label }}
+      <slot>
+        {{ label }}
+      </slot>
     </span>
   </label>
 </template>
@@ -19,7 +21,7 @@ export default {
   name: "CheckboxGroup", // Name change karke CheckboxGroup rakh diya taake confusion na ho
   props: {
     modelValue: { type: Boolean, default: false },
-    label: { type: String, required: true },
+    label: { type: String, default: "" },
     disabled: { type: Boolean, default: false },
     checkboxClass: { type: String, default: "" },
     labelClass: { type: String, default: "" },

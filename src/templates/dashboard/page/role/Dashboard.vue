@@ -80,8 +80,30 @@
     />
 
     <br />
+
+    <ButtonComponent
+      text="Buy Now Login Popup"
+      variant="mediaBtn"
+      @click="buyNowLoginPopupOpen = true"
+    />
+    <br />
+
+    <ButtonComponent
+      text="Buy Now Not Login Popup"
+      variant="mediaBtn"
+      @click="buyNowNotLoginPopupOpen = true"
+    />
+    <br />
+    
+    <ButtonComponent
+    text="Cart Checkout Login Popup"
+    variant="mediaBtn"
+    @click="cartCheckoutLoginPopupOpen = true"
+    />
+    <br />
+
     <UploadingProgressBar
-     :progress="uploadPercentage" 
+      :progress="uploadPercentage"
       imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
       label="Uploading..."
     />
@@ -92,33 +114,21 @@
 
     <ProfileViewAllPopup
       v-model="isViewAllPopupOpen"
-      @update:modelValue="
-        (val) => {
-          isViewAllPopupOpen = val;
-        }
-      "
     />
 
     <ProfileMediaDetailsPopup
       v-model="profileMediaDetailsPopupOpen"
-      @update:modelValue="
-        (val) => {
-          profileMediaDetailsPopupOpen = val;
-        }
-      "
     />
 
     <AvatarUploadPopup
       v-model="avatarPopupOpen"
-      @update:modelValue="
-        (val) => {
-          avatarPopupOpen = val;
-        }
-      "
     />
 
     <ImageCropperModal v-model="imageCropPopupOpen" @save="handleImageSave" />
     <CancelUploadPopup v-model="cancelUploadPopupOpen" />
+    <BuyNowLoginPopup v-model="buyNowLoginPopupOpen" />
+    <BuyNowNotLoginPopup v-model="buyNowNotLoginPopupOpen" />
+    <CartCheckoutLoginPopup v-model="cartCheckoutLoginPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -138,12 +148,18 @@ import ImageCropperModal from "@/components/editProfilePageComponents/ImageCropp
 import AvatarMenu from "@/components/editProfilePageComponents/AvatarMenu.vue";
 import CancelUploadPopup from "@/components/editProfilePageComponents/CancelUploadPopup.vue";
 import UploadingProgressBar from "@/components/editProfilePageComponents/UploadingProgressBar.vue";
+import BuyNowLoginPopup from "@/components/checkout/buyNow/BuyNowLoginPopup.vue";
+import BuyNowNotLoginPopup from "@/components/checkout/buyNow/BuyNowNotLoginPopup.vue";
+import CartCheckoutLoginPopup from "@/components/checkout/cartCheckout/CartCheckoutLoginPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
 const avatarPopupOpen = ref(false);
 const imageCropPopupOpen = ref(false);
 const cancelUploadPopupOpen = ref(false);
+const buyNowLoginPopupOpen = ref(false);
+const buyNowNotLoginPopupOpen = ref(false);
+const cartCheckoutLoginPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
