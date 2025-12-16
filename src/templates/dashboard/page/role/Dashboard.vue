@@ -94,11 +94,39 @@
       @click="buyNowNotLoginPopupOpen = true"
     />
     <br />
-    
+
     <ButtonComponent
-    text="Cart Checkout Login Popup"
-    variant="mediaBtn"
-    @click="cartCheckoutLoginPopupOpen = true"
+      text="Cart Checkout Login Popup"
+      variant="mediaBtn"
+      @click="cartCheckoutLoginPopupOpen = true"
+    />
+    <br />
+
+    <ButtonComponent
+      text="Cart Checkout Not Login Popup"
+      variant="mediaBtn"
+      @click="cartCheckoutNotLoginPopupOpen = true"
+    />
+    <br />
+
+    <ButtonComponent
+      text="Subscribe Login Popup"
+      variant="mediaBtn"
+      @click="subscribeLoginPopupOpen = true"
+    />
+    <br />
+
+    <ButtonComponent
+      text="Subscribe Not Login Popup"
+      variant="mediaBtn"
+      @click="subscribeNotLoginPopupOpen = true"
+    />
+    <br />
+
+    <ButtonComponent
+      text="Subscribe update Login Popup"
+      variant="mediaBtn"
+      @click="subscribeUpdateLoginPopupOpen = true"
     />
     <br />
 
@@ -112,23 +140,21 @@
 
     <br />
 
-    <ProfileViewAllPopup
-      v-model="isViewAllPopupOpen"
-    />
+    <ProfileViewAllPopup v-model="isViewAllPopupOpen" />
 
-    <ProfileMediaDetailsPopup
-      v-model="profileMediaDetailsPopupOpen"
-    />
+    <ProfileMediaDetailsPopup v-model="profileMediaDetailsPopupOpen" />
 
-    <AvatarUploadPopup
-      v-model="avatarPopupOpen"
-    />
+    <AvatarUploadPopup v-model="avatarPopupOpen" />
 
     <ImageCropperModal v-model="imageCropPopupOpen" @save="handleImageSave" />
     <CancelUploadPopup v-model="cancelUploadPopupOpen" />
     <BuyNowLoginPopup v-model="buyNowLoginPopupOpen" />
     <BuyNowNotLoginPopup v-model="buyNowNotLoginPopupOpen" />
     <CartCheckoutLoginPopup v-model="cartCheckoutLoginPopupOpen" />
+    <CartCheckoutNotLoginPopup v-model="cartCheckoutNotLoginPopupOpen" />
+    <SubscribeLoginPopup v-model="subscribeLoginPopupOpen" />
+    <SubscribeNotLoginPopup v-model="subscribeNotLoginPopupOpen" />
+    <SubscribeUpdateLoginPopup v-model="subscribeUpdateLoginPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -151,6 +177,10 @@ import UploadingProgressBar from "@/components/editProfilePageComponents/Uploadi
 import BuyNowLoginPopup from "@/components/checkout/buyNow/BuyNowLoginPopup.vue";
 import BuyNowNotLoginPopup from "@/components/checkout/buyNow/BuyNowNotLoginPopup.vue";
 import CartCheckoutLoginPopup from "@/components/checkout/cartCheckout/CartCheckoutLoginPopup.vue";
+import CartCheckoutNotLoginPopup from "@/components/checkout/cartCheckout/CartCheckoutNotLoginPopup.vue";
+import SubscribeLoginPopup from "@/components/checkout/subscribe/SubscribeLoginPopup.vue";
+import SubscribeNotLoginPopup from "@/components/checkout/subscribe/SubscribeNotLoginPopup.vue";
+import SubscribeUpdateLoginPopup from "@/components/checkout/subscribe/SubscribeUpdateLoginPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -160,6 +190,10 @@ const cancelUploadPopupOpen = ref(false);
 const buyNowLoginPopupOpen = ref(false);
 const buyNowNotLoginPopupOpen = ref(false);
 const cartCheckoutLoginPopupOpen = ref(false);
+const cartCheckoutNotLoginPopupOpen = ref(false);
+const subscribeLoginPopupOpen = ref(false);
+const subscribeNotLoginPopupOpen = ref(false);
+const subscribeUpdateLoginPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);

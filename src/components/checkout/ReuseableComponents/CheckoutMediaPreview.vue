@@ -1,36 +1,38 @@
 <script setup>
 defineProps({
-  // Modal close karne ke liye
   modelValue: {
     type: Boolean,
-    default: true
+    default: true,
+  },
+  volumeImg: {
+    type: String,
+    default: "",
   },
   // Dynamic Background Image
   image: {
     type: String,
-    required: true
+    required: true,
   },
   // Creator Details
   creatorName: {
     type: String,
-    default: ''
+    default: "",
   },
   creatorHandle: {
     type: String,
-    default: ''
+    default: "",
   },
   isVerified: {
     type: Boolean,
-    default: false
+    default: false,
   },
-  // Optional Text (Agar khali chora to render nahi hoga)
   description: {
     type: String,
-    default: ''
-  }
+    default: "",
+  },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(["update:modelValue"]);
 </script>
 
 <template>
@@ -38,7 +40,6 @@ const emit = defineEmits(['update:modelValue']);
     class="flex flex-col justify-between aspect-[1.586/1] bg-cover bg-center relative before:absolute before:inset-0 before:content-[''] before:bg-[linear-gradient(180deg,rgba(0,0,0,0)_60%,rgba(0,0,0,0.45)_100%)] before:z-[1] md:aspect-[unset] md:w-1/2 md:h-screen sm:justify-end md:before:bg-[linear-gradient(180deg,rgba(0,0,0,0)_50%,rgba(0,0,0,0.5)_100%)]"
     :style="{ backgroundImage: `url(${image})` }"
   >
-    
     <div
       class="flex justify-between gap-1 px-2 py-1 mb-auto sm:p-4 md:[background:linear-gradient(180deg,rgba(0,0,0,0.5)_0%,rgba(0,0,0,0)_100%)] z-[2]"
     >
@@ -52,15 +53,12 @@ const emit = defineEmits(['update:modelValue']);
           class="w-6 h-6"
         />
       </div>
-
+      
       <div
+        v-if="volumeImg"
         class="w-10 h-10 flex justify-center items-center cursor-pointer md:opacity-70"
       >
-        <img
-          src="https://i.ibb.co.com/wrwKGMtw/volume-x.webp"
-          alt="volume-x"
-          class="w-6 h-6 md:w-8 md:h-8"
-        />
+        <img :src="volumeImg" alt="volume-x" class="w-6 h-6 md:w-8 md:h-8" />
       </div>
     </div>
 

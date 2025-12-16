@@ -7,6 +7,7 @@ import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import CheckoutMediaPreview from "../ReuseableComponents/CheckoutMediaPreview.vue";
 import CheckoutNotes from "../ReuseableComponents/CheckoutNotes.vue";
+import TotalAmountRow from "../ReuseableComponents/TotalAmountRow.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -84,6 +85,7 @@ const cartItems = [
           creatorName="Princess Carrot Pop"
           creatorHandle="@sammisjelly187"
           :isVerified="true"
+          volumeImg=""
         />
 
         <!-- form-container -->
@@ -270,65 +272,35 @@ const cartItems = [
           <!-- total-section (mobile) -->
           <div class="flex gap-6 md:hidden">
             <div class="flex flex-col gap-4 w-full">
-              <div class="flex gap-4 pt-2 border-t border-[#DEE5EC] w-full">
-                <div class="flex gap-4 border-t border-transparent w-full">
-                  <div class="flex justify-between items-end gap-1 w-full">
-                    <h3
-                      class="text-base font-semibold flex-grow text-[#F9FAFB]"
-                    >
-                      Total
-                    </h3>
-                    <h2
-                      class="text-2xl font-semibold align-middle text-[#07F468]"
-                    >
-                      USD$6.99
-                    </h2>
-                  </div>
-                </div>
-              </div>
+             <TotalAmountRow amount="USD$6.99" />
 
               <!-- checkbox-container -->
-              <div class="flex items-center gap-2">
-                <div class="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    name="terms-condition"
-                    id="terms-condition"
-                    class="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 mt-0.5 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
-                  />
-                  <label
-                    for="terms-condition"
-                    class="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
-                    >I agree to Our Website's
-                    <span
-                      class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
-                      >Terms and Condition</span
-                    >
-                    and
-                    <span
-                      class="text-sm leading-normal font-medium tracking-[0.0075rem] text-[#07F468] cursor-pointer"
-                      >Privacy Policy</span
-                    >.</label
-                  >
-                </div>
-              </div>
+              <CheckboxGroup
+                checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
+                labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
+                wrapperClass="flex items-center gap-2"
+              >
+                I agree to Our Website's
+                <a
+                  href=""
+                  class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
+                  >Terms and Condition</a
+                >
+                and
+                <a
+                  href=""
+                  class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
+                  >Privacy Policy</a
+                >.
+              </CheckboxGroup>
 
               <!-- button -->
-              <div class="w-full h-12">
-                <button
-                  class="flex justify-center items-center gap-2 w-full h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-[#07F468] px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-pointer group/button hover:bg-black"
-                >
-                  <span
-                    class="text-base leading-[1.875rem] font-semibold uppercase text-black group-hover/button:text-[#07F468]"
-                    >Proceed Payment</span
-                  >
-                  <img
-                    src="https://i.ibb.co.com/NdmC2BjP/arrow-right.webp"
-                    alt="arrow-right"
-                    class="w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(67%)_sepia(19%)_saturate(5664%)_hue-rotate(95deg)_brightness(112%)_contrast(94%)]"
-                  />
-                </button>
-              </div>
+              <ButtonComponent
+                text="Proceed Payment"
+                variant="checkoutProceedpayment"
+                :rightIcon="'https://i.ibb.co.com/NdmC2BjP/arrow-right.webp'"
+                :rightIconClass="`w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(67%)_sepia(19%)_saturate(5664%)_hue-rotate(95deg)_brightness(112%)_contrast(94%)]`"
+              />
             </div>
           </div>
         </div>

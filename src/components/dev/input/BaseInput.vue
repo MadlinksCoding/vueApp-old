@@ -1,5 +1,15 @@
 <template>
   <div :class="wrapperClass">
+
+    <!-- LABEL -->
+    <label
+      v-if="label"
+      :for="labelFor"
+      :class="labelClass"
+    >
+      {{ label }}
+    </label>
+
     <!-- TEXTAREA MODE -->
     <textarea
       v-if="type === 'textarea'"
@@ -7,7 +17,7 @@
       :class="inputClass"
       :value="modelValue"
       :maxlength="maxLength"
-      rows="1"
+      :rows="rows"
       @input="resizeTextarea"
       class="block w-full resize-none overflow-hidden placeholder:whitespace-normal min-h-[65px] leading-6"
     ></textarea>
@@ -42,6 +52,20 @@ export default {
       type: String,
       default: "",
     },
+    
+  /* 👇 LABEL PROPS */
+  label: {
+    type: String,
+    default: "",
+  },
+  labelFor: {
+    type: String,
+    default: "",
+  },
+  labelClass: {
+    type: String,
+    default: "",
+  },
     inputClass: {
       type: String,
       default:
@@ -63,6 +87,10 @@ export default {
       type: Number,
       default: null,
     },
+    rows: {
+    type: Number,
+    default: 1,
+  },
   },
 
   methods: {

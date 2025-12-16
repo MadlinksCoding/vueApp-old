@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue';
 
-// Props define kiye hain taake component reusable ho
 defineProps({
   title: {
     type: String,
@@ -13,7 +12,6 @@ defineProps({
   }
 });
 
-// Dropdown state (default true rakha hai taake pehle khula dikhe)
 const isOpen = ref(true);
 
 // Toggle function

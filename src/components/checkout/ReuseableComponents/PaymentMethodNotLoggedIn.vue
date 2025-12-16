@@ -1,3 +1,7 @@
+<script setup>
+import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
+</script>
+
 <template>
   <div>
     <div
@@ -8,23 +12,14 @@
       >
         <!-- checkbox-container -->
         <div class="flex justify-between items-center gap-[0.625rem]">
-          <div class="flex items-center gap-2">
-            <div class="flex justify-center items-center w-6 min-w-6 h-6">
-              <input
-                type="checkbox"
-                name="checkbox"
-                id="checkbox-dash-3"
-                checked
-                class="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 mr-1 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-black checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
-              />
-            </div>
-            <label
-              for="checkbox-dash-3"
-              class="text-xs sm:text-sm leading-normal sm:leading-normal ma-0 cursor-pointer text-[#98A2B3]"
-              >Save this card for faster checkout.</label
-            >
-          </div>
 
+          <CheckboxGroup
+            label="Save this card for faster checkout."
+            v-model="profilePageModel"
+            checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 mr-1 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-black checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
+            labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
+            wrapperClass="flex items-center"
+          />
           <img
             src="https://i.ibb.co.com/pr2VM4zR/svgviewer-png-output-32.png"
             alt="visa"

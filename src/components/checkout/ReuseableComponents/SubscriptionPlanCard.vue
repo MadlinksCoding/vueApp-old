@@ -13,7 +13,7 @@ const props = defineProps({
   },
   period: {
     type: String,
-    default: '/mo' // Default value '/mo' hai, change kr skte ho
+    default: '/mo'
   },
   
   // Images
@@ -36,6 +36,10 @@ const props = defineProps({
   footerText: {
     type: String,
     default: ''
+  },
+  footerColor:{
+    type: String,
+    default:'#FFCC01'
   }
 });
 
@@ -98,7 +102,7 @@ const cardStyle = computed(() => {
     <p 
       v-if="footerText" 
       class="text-xs leading-normal"
-      :style="{ color: accentColor }"
+      :style="{ color: footerColor }"
     >
       {{ footerText }}
     </p>

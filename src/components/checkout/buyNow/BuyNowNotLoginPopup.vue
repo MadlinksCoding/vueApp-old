@@ -8,6 +8,7 @@ import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import CheckoutMediaPreview from "../ReuseableComponents/CheckoutMediaPreview.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import SubscriptionPlanCard from "../ReuseableComponents/SubscriptionPlanCard.vue";
+import TotalAmountRow from "../ReuseableComponents/TotalAmountRow.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -169,22 +170,7 @@ const buyNowNotLoginConfig = {
           <!-- total-section -->
           <div class="flex gap-6">
             <div class="flex flex-col gap-4 w-full">
-              <div class="flex gap-4 pt-2 border-t border-[#DEE5EC] w-full">
-                <div class="flex gap-4 border-t border-transparent w-full">
-                  <div class="flex justify-between items-end gap-1 w-full">
-                    <h3
-                      class="text-base font-semibold flex-grow text-[#F9FAFB]"
-                    >
-                      Total
-                    </h3>
-                    <h2
-                      class="text-2xl font-semibold align-middle text-[#07F468]"
-                    >
-                      USD$6.99
-                    </h2>
-                  </div>
-                </div>
-              </div>
+              <TotalAmountRow amount="USD$6.99" />
 
               <!-- checkbox-container -->
               <CheckboxGroup
