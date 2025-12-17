@@ -42,6 +42,12 @@
     <!-- <Cart/> -->
     <!-- <OrderReceived /> -->
 
+    <DashProfileSettings/>
+
+    <br>
+    <br>
+    <br>
+
     <ButtonComponent
       text="View All Popup"
       variant="mediaBtn"
@@ -181,6 +187,7 @@ import CartCheckoutNotLoginPopup from "@/components/checkout/cartCheckout/CartCh
 import SubscribeLoginPopup from "@/components/checkout/subscribe/SubscribeLoginPopup.vue";
 import SubscribeNotLoginPopup from "@/components/checkout/subscribe/SubscribeNotLoginPopup.vue";
 import SubscribeUpdateLoginPopup from "@/components/checkout/subscribe/SubscribeUpdateLoginPopup.vue";
+import DashProfileSettings from "@/components/DashProfileSettings.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
