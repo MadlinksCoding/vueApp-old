@@ -6,7 +6,7 @@
   >
     <!-- popup-wrapper -->
     <div
-      class="h-full bg-black/90 font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+      class="h-full bg-black/90 font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] dark:bg-[#202324]"
     >
       <div class="flex flex-col gap-2">
         <!-- mobile-nav -->
@@ -160,25 +160,16 @@
                 <!-- pay-per-view -->
                 <div class="flex items-center gap-2">
                   <!-- toggle-switch -->
-                  <label class="relative inline-block w-9 h-5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      class="peer h-0 w-0 opacity-0"
-                      id="toggle-switch-1"
-                    />
-                    <span
-                      class="absolute inset-0 cursor-pointer rounded-xl bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#07F468]"
-                    ></span>
-                    <span
-                      class="absolute left-[0.125rem] top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-4"
-                    ></span>
-                  </label>
-
-                  <label
-                    for="toggle-switch-1"
-                    class="text-sm leading-6 text-white cursor-pointer"
-                    >Pay per view</label
-                  >
+                  <CheckboxSwitch
+                    label="Pay per view"
+                    id="show-payPerView"
+                    v-model="showPayPerViewModel"
+                    version="v1"
+                    track-class="absolute inset-0 cursor-pointer rounded-xl bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#07F468] dark:bg-[#444c5b80] dark:peer-checked:bg-[#06c454]"
+                    knob-class="absolute left-[0.125rem] top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-4 dark:bg-[#181a1b]"
+                    label-class="text-white text-sm leading-6 text-[400]"
+                    switchWrapperClass="w-9 h-5"
+                  />
 
                   <!-- item-count -->
                   <div class="flex w-4 h-6">
@@ -189,25 +180,16 @@
                 <!-- watch-now -->
                 <div class="flex items-center gap-2">
                   <!-- toggle-switch -->
-                  <label class="relative inline-block w-9 h-5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      class="peer h-0 w-0 opacity-0"
-                      id="toggle-switch-2"
-                    />
-                    <span
-                      class="absolute inset-0 cursor-pointer rounded-xl bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#07F468]"
-                    ></span>
-                    <span
-                      class="absolute left-[0.125rem] top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-4"
-                    ></span>
-                  </label>
-
-                  <label
-                    for="toggle-switch-2"
-                    class="text-sm leading-6 text-white cursor-pointer"
-                    >Watch now</label
-                  >
+                  <CheckboxSwitch
+                    label="Watch now"
+                    id="show-watchNow"
+                    v-model="showwatchNowModel"
+                    version="v1"
+                    track-class="absolute inset-0 cursor-pointer rounded-xl bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#07F468] dark:bg-[#444c5b80] dark:peer-checked:bg-[#06c454]"
+                    knob-class="absolute left-[0.125rem] top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-4 dark:bg-[#181a1b]"
+                    label-class="text-white text-sm leading-6 text-[400]"
+                    switchWrapperClass="w-9 h-5"
+                  />
 
                   <!-- item-count -->
                   <div class="flex w-4 h-6">
@@ -463,6 +445,7 @@ import PopupHandler from "./PopupHandler.vue";
 import { onMounted, onUnmounted, ref } from "vue";
 import ViewAllPopupMediaCard from "@/components/ui/card/dashboard/ViewAllPopupMediaCard.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
+import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 
 const props = defineProps({
   modelValue: {

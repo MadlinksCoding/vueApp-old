@@ -1,6 +1,6 @@
 <template>
   <div
-    class="sidebar-wrapper hidden md:flex sticky top-0 z-[3] h-screen flex w-max shadow-custom bg-[rgba(249,250,251,0.7)] backdrop-blur-xs [-ms-overflow-style:none] [scrollbar-width:none]"
+    class="sidebar-wrapper hidden md:flex sticky top-0 z-[3] h-screen flex w-max shadow-custom dark:bg-background-dark-app bg-[rgba(249,250,251,0.7)] backdrop-blur-xs [-ms-overflow-style:none] [scrollbar-width:none]"
   >
     <div
       class="sidebar-container transition-all duration-150 ease-in-out w-[5.625rem] gap-1.5 pt-3 pb-3 z-[5] relative flex flex-col items-center justify-start"
@@ -121,7 +121,12 @@
               class="w-5 h-5 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
             />
           </a>
+
+          
         </div>
+        <button class="dark:text-text" @click="toggleTheme">
+  {{ theme === 'dark' ? 'Light' : 'Dark' }}
+</button>
       </div>
     </div>
 
@@ -132,7 +137,7 @@
       :is-loading="false"
     >
       <div
-        class="w-full h-[100vh] flex flex-col items-start gap-4 overflow-hidden bg-submenu-bg px-4 py-2 shadow-md backdrop-blur-lg"
+        class="w-full h-[100vh] flex flex-col items-start gap-4 overflow-hidden bg-submenu-bg dark:bg-background-dark-cardBackground px-4 py-2 shadow-md backdrop-blur-lg"
       >
         <!-- submenu-header -->
         <div class="flex jusify-between gap-4 w-full mt-8">
@@ -143,7 +148,7 @@
               :alt="currentSubmenuTitle"
               class="w-5 h-5"
             />
-            <span class="text-sm font-semibold text-submenu-title-text">{{
+            <span class="text-sm font-semibold text-submenu-title-text dark:text-text">{{
               currentSubmenuTitle
             }}</span>
           </div>
@@ -186,8 +191,8 @@
               :class="[
                 'relative z-10 text-sm font-medium transition',
                 child.enabled
-                  ? 'text-submenu-item-text group-hover:text-submenu-item-hover-shadow'
-                  : 'text-gray-400',
+                  ? 'text-submenu-item-text dark:text-text group-hover:text-submenu-item-hover-shadow'
+                  : 'text-gray-400 dark:text-text',
               ]"
             >
               {{ child.title }}
@@ -245,7 +250,7 @@
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref,inject } from "vue";
 import { menuItems } from "../../assets/data/menuItems.js";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import AvatarProfilePopup from "@/components/ui/popup/AvatarProfilePopup.vue";
@@ -255,6 +260,16 @@ const router = useRouter();
 
 export default {
   name: "Sidebar",
+  
+  setup() {
+    const theme = inject("theme");           // ref("light" | "dark")
+    const toggleTheme = inject("toggleTheme"); // function
+
+    return {
+      theme,
+      toggleTheme,
+    };
+  },
   components: {
     PopupHandler,
     AvatarProfilePopup,
@@ -349,7 +364,7 @@ export default {
           alt="${item.title}"
           class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
+        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
       `;
       content.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active";
@@ -441,7 +456,7 @@ export default {
           alt="More"
           class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text ">More</span>
+        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text ">More</span>
       `;
       tempMore.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active ";
@@ -493,7 +508,7 @@ export default {
           alt="More"
           class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">More</span>
+        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">More</span>
       `;
       moreBtn.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active";
@@ -524,9 +539,9 @@ export default {
           <img
             src="${item.image}"
             alt="${item.title}"
-            class="w-6 h-6 transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+            class="w-6 h-6 transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)] dark:filter dark:invert"
           />
-          <span class=" text-sidebar-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
+          <span class=" text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
         `;
         o.className =
           "sidebar-menu-item block group transition-all duration-200 ease-in-out rounded-md flex-col items-center justify-center self-stretch w-[4.625rem] h-14 cursor-pointer p-2 whitespace-nowrap text-sm hover:bg-sidebar-active rounded transition-colors flex items-center";
@@ -565,7 +580,7 @@ export default {
           flyoutWrapper.style.pointerEvents = "auto";
 
           flyout.className = `
-            fixed bg-white shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] border border-gray-200 backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
+            fixed bg-white dark:bg-background-dark-cardBackground shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
             opacity-100 visible pointer-events-auto
             scale-100 translate-y-0
             transition-all duration-150 ease-in-out

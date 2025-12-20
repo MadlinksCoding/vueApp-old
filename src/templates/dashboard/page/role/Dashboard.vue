@@ -42,7 +42,7 @@
     <!-- <Cart/> -->
     <!-- <OrderReceived /> -->
 
-    <DashProfileSettings/>
+    <!-- <DashProfileSettings/> -->
 
     <br>
     <br>

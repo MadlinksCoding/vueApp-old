@@ -1,29 +1,43 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
-    <!-- Optional wrapper label -->
-    <label v-if="showWrapperLabel" class="block text-sm font-medium text-gray-900 dark:text-dark-text">
+    <label v-if="showWrapperLabel" class="block text-sm font-medium text-gray-900">
       {{ wrapperLabel }}
     </label>
 
-    <!-- Switch + label -->
     <div class="flex items-center gap-2">
-      <label class="relative inline-block w-8 h-4">
-       <input 
-          type="checkbox" 
-          class="opacity-0 w-0 h-0 peer" 
-          :id="id" 
-          :checked="modelValue" 
+      <label :class="['relative inline-block', switchWrapperClass || 'w-8 h-4']">
+        <input
+          type="checkbox"
+          class="peer h-0 w-0 opacity-0"
+          :id="id"
+          :checked="modelValue"
           @change="toggle"
         />
-        <span class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 
-             bg-[#98A2B3]  /* default bg when off */
-             rounded-[0.75rem]
-             transition-all duration-100 ease-in-out
-             peer-checked:bg-[#101828]"></span>
+        
         <span
-          class="absolute w-3 h-3 top-1/2 left-[0.125rem] bg-white dark:bg-dark-surface transition-all duration-100 ease-in-out rounded-full shadow-dash-toggle dark:shadow-dark-dash-toggle transform -translate-y-1/2 peer-checked:translate-x-[1rem]"></span>
+          :class="[
+            'absolute cursor-pointer transition-all duration-100 ease-in-out', // Structural Classes (Fixed)
+            trackClass || 'top-0 left-0 right-0 bottom-0 bg-[#98A2B3] rounded-[0.75rem] peer-checked:bg-[#101828]' // Default Visuals (Overridable)
+          ]"
+        ></span>
+
+        <span
+          :class="[
+            'absolute top-1/2 bg-white transition-all duration-100 ease-in-out transform -translate-y-1/2', // Structural Classes (Fixed)
+            knobClass || 'w-3 h-3 left-[0.125rem] rounded-full shadow-dash-toggle peer-checked:translate-x-[1rem]' // Default Visuals (Overridable)
+          ]"
+        ></span>
       </label>
-      <label :for="id" class="text-sm sm:text-base font-medium text-dash-gray-900 cursor-pointer">{{ label }}</label>
+
+      <label
+        :for="id"
+        :class="[
+          'cursor-pointer',
+          labelClass || 'text-sm sm:text-base font-medium  text-dash-gray-900',
+        ]"
+      >
+        {{ label }}
+      </label>
     </div>
   </div>
 </template>
@@ -39,6 +53,14 @@ const props = defineProps<{
   showWrapperLabel?: boolean;
   wrapperLabel?: string;
   version: string;
+  
+  // Styling Props
+  trackClass?: string;
+  knobClass?: string;
+  labelClass?: string;
+  switchWrapperClass?: string; // New prop agar wrapper size badalna ho
+  
+  // Standard props...
   addId?: string;
   removeId?: boolean;
   addClass?: string;
@@ -52,38 +74,21 @@ const emit = defineEmits<{
   "update:modelValue": [value: boolean];
 }>();
 
-// Toggle function
 const toggle = () => {
   emit("update:modelValue", !props.modelValue);
 };
 
-// Wrapper config
+// Wrapper config same as before
 const inputConfig = {
   wrappers: [
-    {
-      targetAttribute: "wrapper1",
-      addClass: "flex flex-col gap-[0.375rem] self-stretch",
-      addAttributes: { "data-wrapper": "wrapper1" },
-    },
-    {
-      targetAttribute: "wrapper2",
-      addClass: "flex items-center gap-2",
-      addAttributes: { "data-wrapper": "wrapper2" },
-    },
+    { targetAttribute: "wrapper1", addClass: "flex flex-col gap-[0.375rem] self-stretch", addAttributes: { "data-wrapper": "wrapper1" } },
+    { targetAttribute: "wrapper2", addClass: "flex items-center gap-2", addAttributes: { "data-wrapper": "wrapper2" } },
   ],
-  elm: {
-    addClass: "opacity-0 w-0 h-0 peer",
-  },
+  elm: { addClass: "opacity-0 w-0 h-0 peer" },
   additionalConfig: {
-    label: {
-      addClass: "text-base font-medium text-gray-900 dark:text-dark-text cursor-pointer",
-      addAttributes: { for: "input-id" },
-    },
+    label: { addClass: "text-base font-medium text-gray-900 cursor-pointer", addAttributes: { for: "input-id" } },
   },
 };
 
-// Resolve attributes
-const resolvedAttrs = computed(() =>
-  resolveAllConfigs(inputConfig, props.version, props)
-);
+const resolvedAttrs = computed(() => resolveAllConfigs(inputConfig, props.version, props));
 </script>

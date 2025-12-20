@@ -1,15 +1,46 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted,provide    } from "vue";
 import routesConfig from "@/router/routeConfig.json";
 
 const routes = ref([]);
+
+// 🔽 GLOBAL THEME STATE
+const theme = ref("light"); // "light" | "dark"
+
+
+// 🔽 APPLY THEME TO <html>
+const applyTheme = (value) => {
+  const root = document.documentElement;
+
+  if (value === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+
+  localStorage.setItem("theme", value);
+};
+
+// 🔽 TOGGLE FUNCTION (SIDEBAR USE KAREGA)
+const toggleTheme = () => {
+  theme.value = theme.value === "dark" ? "light" : "dark";
+  applyTheme(theme.value);
+};
 
 onMounted(() => {
   // Filter out redirect-only routes or undefined slugs
   routes.value = routesConfig.filter(
     (r) => r.slug && !r.redirect && r.enabled !== false
   );
+
+    const savedTheme = localStorage.getItem("theme");
+  theme.value = savedTheme === "dark" ? "dark" : "light";
+  applyTheme(theme.value);
 });
+
+// 🔽 PROVIDE TO WHOLE APP
+provide("theme", theme);
+provide("toggleTheme", toggleTheme);
 </script>
 
 <template>

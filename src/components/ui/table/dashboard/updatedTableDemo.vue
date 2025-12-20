@@ -214,11 +214,11 @@ const columns = [
 
 const theme = {
   container: "relative overflow-hidden",
-  header: "border-b border-zinc-200 bg-[#F9FAFBE5]",
+  header: "border-b border-zinc-200 dark:border-background-dark-app bg-[#F9FAFBE5] dark:bg-background-dark-cardBackground",
   headerRow: "flex items-center ",
-  headerCell: "px-3 py-3 text-xs font-[400] text-[#667085] tracking-wider",
-  row: "flex items-center border-b border-zinc-100 odd:bg-[#ebe3eb] even:bg-[#efebf2] transition-colors cursor-pointer last:border-0",
-  cell: "text-xs text-zinc-800 p-0",
+  headerCell: "px-3 py-3 text-xs font-[400] text-[#667085] tracking-wider dark:text-text",
+  row: "flex items-center border-b border-zinc-100 dark:border-background-dark-app odd:bg-[#ebe3eb] dark:odd:bg-background-dark-cardBackground even:bg-[#efebf2] dark:even:bg-background-dark-cardBackground transition-colors cursor-pointer last:border-0",
+  cell: "text-xs text-zinc-800 p-0 dark:text-text",
   footer: "p-3 text-center text-xs text-zinc-400",
 };
 

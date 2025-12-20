@@ -1,16 +1,16 @@
 <template>
-  <div class="w-full flex items-start bg-[#F9FAFB66] border border-[#D0D5DD] rounded-[0.3125rem]  md:w-max">
+  <div class="w-full flex items-start bg-[#F9FAFB66] dark:bg-background-dark-app border dark:border-background-dark-cardBackground border-[#D0D5DD] rounded-[0.3125rem]  md:w-max">
     
     <button 
       v-for="tab in tabs" 
       :key="tab.value"
       @click="$emit('update:modelValue', tab.value)"
       :class="[
-        'flex justify-center items-center gap-1 p-2 border-r border-[#D0D5DD] bg-transparent outline-none flex-1 cursor-pointer group md:h-10 md:gap-2 md:px-4',
-        modelValue === tab.value ? 'active bg-white' : ''
+        'flex justify-center items-center gap-1 p-2 border-r border-[#D0D5DD] dark:border-background-dark-cardBackground bg-transparent outline-none flex-1 cursor-pointer group md:h-10 md:gap-2 md:px-4',
+        modelValue === tab.value ? 'active bg-white dark:bg-background-dark-cardBackground' : ''
       ]"
     >
-      <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#98A2B3] group-[.active]:font-semibold group-[.active]:text-[#344054] md:text-sm">
+      <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#98A2B3] group-[.active]:font-semibold group-[.active]:text-[#344054] group-[.active]:dark:text-text-secondary-dark dark:text-text md:text-sm">
         {{ tab.label }}
       </span>
       

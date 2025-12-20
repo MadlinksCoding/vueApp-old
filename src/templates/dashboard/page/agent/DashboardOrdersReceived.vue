@@ -37,13 +37,13 @@ const tabList = [
               <input
                 type="text"
                 placeholder="Search..."
-                class="bg-transparent border-0 pl-7 outline-none text-base text-[#667085] placeholder-[#667085]"
+                class="bg-transparent border-0 pl-7 outline-none text-base text-[#667085] dark:text-text placeholder-[#667085] dark:placeholder:text-text"
               />
             </div>
           </div>
 
               <div class="flex items-center gap-2">
-          <Label class="text-[#344054] text-[14px] font-400">Order Type</Label>
+          <Label class="text-[#344054] text-[14px] font-400 dark:text-text">Order Type</Label>
           <img src="/images/dropdownIcon.png" alt="">
         </div>
           </div>

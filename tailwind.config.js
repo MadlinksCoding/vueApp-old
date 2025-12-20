@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
-    darkMode: "class",
     extend: {
       screens: {
         sm: "480px",
@@ -170,7 +170,7 @@ export default {
           DEFAULT: "#ffffff",
           secondary: {
             light: "#667085",
-            dark: "#9e9589",
+            dark: "#ffffff85",
           },
           tab: {
             light: "#344054",
@@ -264,6 +264,8 @@ export default {
             DEFAULT: "rgba(24, 26, 27, 0.2)",
             input: "rgba(0, 0, 0, 0.3)",
             inputHover: "rgba(0, 0, 0, 0.5)",
+            app: "#292929ff",
+            cardBackground:"#333333"
           },
           header: {
             light: "#eaecf0",

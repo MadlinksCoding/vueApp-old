@@ -20,7 +20,7 @@
         class="flex justify-between items-center w-full absolute left-1 top-1 z-[99999]"
       >
         <div
-          class="flex justify-center items-center gap-[0.188rem] px-1 py-0.5 rounded bg-[rgba(24,34,48,0.50)] drop-shadow-[0_0_20px_rgba(0,0,0,0.25)]"
+          class="flex justify-center items-center gap-[0.188rem] px-1 py-0.5 rounded bg-[rgba(24,34,48,0.50)] dark:bg-[rgba(31,44,63,0.50)] drop-shadow-[0_0_20px_rgba(0,0,0,0.25)]"
         >
           <img
             src="https://i.ibb.co.com/wN978Hjm/video.webp"
@@ -28,7 +28,7 @@
             class="w-4 h-4"
           />
           <span
-            class="text-xs text-white leading-normal tracking-[0.008rem]"
+            class="text-xs text-white leading-normal tracking-[0.008rem]  dark:text-[#e8e6e3]"
             >{{ duration }}</span
           >
         </div>
@@ -59,7 +59,7 @@
                 class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
               />
               <span
-                class="text-xs leading-normal font-medium text-white tracking-[0.0075rem]"
+                class="text-xs leading-normal font-medium text-white tracking-[0.0075rem] dark:text-[#e8e6e3]"
                 >{{ views }}</span
               >
             </span>
@@ -72,7 +72,7 @@
         class="flex justify-center items-center absolute left-0 bottom-0 z-[99999] bg-[#F093FB] h-[1.064rem] px-[0.4rem]"
       >
         <span
-          class="text-[0.58rem] leading-normal font-medium text-black"
+          class="text-[0.58rem] leading-normal font-medium text-black "
           >{{ discount }}</span
         >
       </div>
