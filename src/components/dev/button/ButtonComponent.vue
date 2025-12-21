@@ -103,7 +103,7 @@ const themeClasses = {
   mediaBtn:
     "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]",
   profileMediaBtn:
-    "flex justify-center items-center gap-2.5 h-11 p-2.5 rounded-[3.125rem] text-sm leading-6 text-[#07F468] bg-black/90 cursor-pointer",
+    "flex justify-center items-center h-11 p-2.5 rounded-[3.125rem] text-sm leading-6 text-[#07F468] bg-black/90 cursor-pointer dark:bg-background-dark-app",
     checkoutProceedpayment:
     "w-full flex justify-center items-center gap-2 w-full h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-[#07F468] px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-pointer group/button hover:bg-black text-base leading-[1.875rem] font-semibold uppercase text-black hover:text-[#07F468]",
     disableBtn:

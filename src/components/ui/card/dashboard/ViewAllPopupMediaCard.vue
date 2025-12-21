@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col gap-2 w-full">
     <div
-      class="w-full relative aspect-video after:content-[''] after:absolute after:inset-0 after:w-full after:h-full after:rounded-none after:bg-[linear-gradient(180deg,rgba(0,0,0,0.6)_-24.72%,rgba(0,0,0,0)_41.92%,rgba(0,0,0,0.6)_108.57%)] cursor-pointer"
+      class="w-full relative aspect-video after:content-[''] 
+      after:absolute after:inset-0 after:w-full after:h-full after:rounded-none 
+      after:bg-[linear-gradient(180deg,rgba(0,0,0,0.6)_-24.72%,rgba(0,0,0,0)_41.92%,rgba(0,0,0,0.6)_108.57%)] cursor-pointer"
     >
       <div
         class="w-full h-full bg-cover bg-center bg-no-repeat aspect-video overflow-hidden relative"

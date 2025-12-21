@@ -5,7 +5,7 @@
     :config="config"
   >
     <div
-      class="h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] bg-panel-light/70 backdrop-blur-[25px] md:w-[30rem] md:border-l md:border-panel-light-border"
+      class="h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] dark:bg-background-dark-popupBg bg-panel-light/70  backdrop-blur-[25px] md:w-[30rem] md:border-l md:border-panel-light-border md:dark:border-none"
     >
       <div
         class="h-screen w-full overflow-y-auto scroll-smooth flex flex-col items-start self-stretch [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -133,7 +133,7 @@
                 >
                   <input
                     type="text"
-                    class="flex-1 text-sm font-medium leading-6 bg-transparent outline-none border-none placeholder-black"
+                    class="flex-1 text-sm font-medium dark:text-text leading-6 bg-transparent outline-none border-none placeholder-black dark:placeholder:text-text"
                     placeholder="Write status here..."
                     value="Second update message....."
                   />
@@ -221,7 +221,7 @@
 
           <!-- Quick settings panel -->
           <div
-            class="relative z-[3] flex flex-col items-start self-stretch bg-background-light"
+            class="relative z-[3] flex flex-col items-start self-stretch bg-background-light dark:bg-background-dark-popupBg"
           >
             <!-- Control block -->
             <div
@@ -242,7 +242,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054]"
+                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
                   >
                     Video call status
                   </span>
@@ -263,7 +263,7 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none"
+                        class="text-sm font-medium uppercase leading-5 dark:text-text text-black pointer-events-none"
                       >
                         Offline
                       </span>
@@ -283,7 +283,7 @@
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-[#344054] placeholder:text-[#344054]"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-[#344054] placeholder:text-[#344054] dark:text-text"
                   placeholder="Write status here..."
                   value="I am all dressed up ready to eat some chicken 💋"
                 />
@@ -316,7 +316,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Repost status message to X
                   </span>
@@ -348,7 +348,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054]"
+                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
                   >
                     Audio call status
                   </span>
@@ -369,7 +369,7 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none"
+                        class="text-sm font-medium uppercase leading-5 text-black dark:text-text pointer-events-none"
                       >
                         Offline
                       </span>
@@ -389,7 +389,7 @@
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-[#344054] placeholder:text-[#344054]"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none dark:placeholder:text-text text-[#344054] placeholder:text-[#344054]"
                   placeholder="Away Message..."
                 />
                 <a
@@ -421,7 +421,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Repost status message to X
                   </span>
@@ -453,7 +453,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054]"
+                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
                   >
                     Chat status
                   </span>
@@ -474,7 +474,7 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none"
+                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none dark:text-text"
                       >
                         Offline
                       </span>
@@ -494,7 +494,7 @@
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-[#344054] placeholder:text-[#344054]"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none dark:text-text  text-[#344054] placeholder:text-[#344054]"
                   placeholder="Write status here..."
                   value="Can't type with my greasy fingers, call me instead 💋"
                 />
@@ -527,7 +527,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Repost status message to X
                   </span>
@@ -564,7 +564,7 @@
             <!-- Settings block -->
             <div class="flex flex-col items-start self-stretch gap-4">
               <p
-                class="text-xs leading-[1.125rem] text-[text-darker-light] self-stretch"
+                class="text-xs leading-[1.125rem] text-[text-darker-light] self-stretch dark:text-text"
               >
                 Repost your status and custom message automatically when you:
               </p>
@@ -587,7 +587,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Sign In
                   </span>
@@ -612,7 +612,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Log Out
                   </span>
@@ -637,7 +637,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Changes Statuses
                   </span>
@@ -661,7 +661,7 @@
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085]"
+                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
                   >
                     Change Custom Messages
                   </span>

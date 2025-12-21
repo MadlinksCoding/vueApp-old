@@ -265,7 +265,8 @@ export default {
             input: "rgba(0, 0, 0, 0.3)",
             inputHover: "rgba(0, 0, 0, 0.5)",
             app: "#292929ff",
-            cardBackground:"#333333"
+            cardBackground:"#333333",
+            popupBg:"#424242"
           },
           header: {
             light: "#eaecf0",

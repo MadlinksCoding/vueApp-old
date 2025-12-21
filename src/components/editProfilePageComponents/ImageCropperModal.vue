@@ -4,15 +4,13 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="imageCropConfig"
   >
-    <div
-      class="flex justify-center items-center w-full min-h-screen bg-[#EAECF0]"
-    >
+    
       <div
-        class="flex flex-col backdrop-blur-[50px] w-full bg-white/70 sm:max-w-[22.5rem]"
+        class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-popupBg overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full"
       >
         <div class="flex justify-between items-center p-4">
           <h1
-            class="text-xl leading-normal font-semibold opacity-70 text-[#344054]"
+            class="text-xl leading-normal font-semibold opacity-70 text-[#344054] dark:text-text"
           >
             Crop photo
           </h1>
@@ -20,7 +18,9 @@
             @click="closeModal"
             src="https://i.ibb.co.com/zWwvfc1B/close-btn.webp"
             alt="close-btn"
-            class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(67%)_sepia(24%)_saturate(201%)_hue-rotate(179deg)_brightness(94%)_contrast(83%)] cursor-pointer"
+            class="w-6 h-6
+            dark:[filter:brightness(0)_invert(100%)]
+             [filter:brightness(0)_saturate(100%)_invert(67%)_sepia(24%)_saturate(201%)_hue-rotate(179deg)_brightness(94%)_contrast(83%)] cursor-pointer"
           />
         </div>
 
@@ -29,7 +29,7 @@
         >
           <img
             :src="imageSrc"
-            class="w-full h-full object-cover blur-[5px] brightness-50 scale-110 pointer-events-none"
+            class="w-full h-full object-cover blur-[5px] brightness-50 scale-110 pointer-events-none "
           />
           <div
             :style="cropperStyle"
@@ -43,7 +43,7 @@
               @click="flipHorizontal = !flipHorizontal"
               src="https://i.ibb.co.com/p6ng40CG/reflect-01.webp"
               alt="reflect-horizontal"
-              class="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity"
+              class="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity dark:[filter:brightness(0)_invert(100%)]"
               :class="{
                 'opacity-50': !flipHorizontal,
                 'opacity-100': flipHorizontal,
@@ -53,7 +53,7 @@
               @click="flipVertical = !flipVertical"
               src="https://i.ibb.co.com/p6ng40CG/reflect-01.webp"
               alt="reflect-vertical"
-              class="w-6 h-6 cursor-pointer rotate-90 hover:opacity-80 transition-opacity"
+              class="w-6 h-6 cursor-pointer rotate-90 hover:opacity-80 transition-opacity dark:[filter:brightness(0)_invert(100%)]"
               :class="{
                 'opacity-50': !flipVertical,
                 'opacity-100': flipVertical,
@@ -64,7 +64,7 @@
           <div class="flex flex-col gap-6">
             <div class="flex flex-col gap-2">
               <h3
-                class="text-xs leading-normal font-medium text-[#0C111D] "
+                class="text-xs leading-normal font-medium text-[#0C111D] dark:text-text"
               >
                 Zoom
               </h3>
@@ -73,7 +73,7 @@
                   @click="adjustZoom(-5)"
                   src="https://i.ibb.co.com/8pcWQNK/zoom-out.webp"
                   alt="zoom-out"
-                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform"
+                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform dark:[filter:brightness(0)_invert(100%)]"
                 />
                 <div class="w-full">
                   <input
@@ -89,14 +89,14 @@
                   @click="adjustZoom(5)"
                   src="https://i.ibb.co.com/W1qpBxC/zoom-in.webp"
                   alt="zoom-in"
-                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform"
+                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform dark:[filter:brightness(0)_invert(100%)]"
                 />
               </div>
             </div>
 
             <div class="flex flex-col gap-2">
               <h3
-                class="text-xs leading-normal font-medium text-[#0C111D] "
+                class="text-xs leading-normal font-medium text-[#0C111D] dark:text-text"
               >
                 Rotate
               </h3>
@@ -105,7 +105,7 @@
                   @click="adjustRotate(-5)"
                   src="https://i.ibb.co.com/VYgmfd9T/refresh-ccw-01.webp"
                   alt="rotate-left"
-                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform"
+                  class="w-5 h-5 cursor-pointer hover:scale-110 transition-transform dark:[filter:brightness(0)_invert(100%)]"
                 />
                 <div class="w-full">
                   <input
@@ -121,7 +121,7 @@
                   @click="adjustRotate(5)"
                   src="https://i.ibb.co.com/VYgmfd9T/refresh-ccw-01.webp"
                   alt="rotate-right"
-                  class="w-5 h-5 cursor-pointer scale-x-[-1] hover:scale-x-[-1] hover:scale-y-[1.1] transition-transform"
+                  class="w-5 h-5 cursor-pointer scale-x-[-1] hover:scale-x-[-1] hover:scale-y-[1.1] transition-transform dark:[filter:brightness(0)_invert(100%)]"
                 />
               </div>
             </div>
@@ -133,7 +133,7 @@
             @click="closeModal"
             class="w-full h-10 flex justify-center items-center px-2 py-1 cursor-pointer hover:bg-gray-200 rounded transition-colors"
           >
-            <span class="text-lg font-medium text-[#0C111D] "
+            <span class="text-lg font-medium text-[#0C111D] dark:text-text"
               >CANCEL</span
             >
           </button>
@@ -149,7 +149,6 @@
           </button>
         </div>
       </div>
-    </div>
   </PopupHandler>
 </template>
 
@@ -236,7 +235,7 @@ const imageCropConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "90%", "<786": "100%" },
+  width: { default: "360px", "<786": "100%" },
   height: { default: "90%", "<786": "100%" },
   scrollable: true,
   closeSpeed: "250ms",

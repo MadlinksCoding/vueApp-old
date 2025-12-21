@@ -52,7 +52,7 @@
             <img
               src="https://i.ibb.co/ccpY1KKt/svgviewer-png-output-53.webp"
               alt="logout"
-              class="w-5 h-5 pointer-events-none transition-all duration-200 [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+              class="w-5 h-5 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
             />
           </div>
 
@@ -64,7 +64,7 @@
             <img
               src="https://i.ibb.co/v65qxNDc/svgviewer-png-output-38.webp"
               alt="notification"
-              class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+              class="w-6 h-6 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
             />
             <!-- status-indicator -->
             <div
@@ -106,27 +106,26 @@
             <img
               src="https://i.ibb.co/4Rjb4cQd/svgviewer-png-output-37.webp"
               alt="language"
-              class="w-5 h-5 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+              class="w-5 h-5 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
             />
           </a>
-
+          
           <!-- help -->
           <a
-            class="help-icon-container opacity-50 pointer-events-none flex items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover group"
+            class="help-icon-container flex items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover group"
             href=""
           >
             <img
               src="https://i.ibb.co/xSY4RGZp/svgviewer-png-output-52.webp"
               alt="help"
-              class="w-5 h-5 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+              class="w-5 h-5 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
             />
           </a>
-
-          
+        
         </div>
         <button class="dark:text-text" @click="toggleTheme">
-  {{ theme === 'dark' ? 'Light' : 'Dark' }}
-</button>
+          {{ theme === "dark" ? "Light" : "Dark" }}
+        </button>
       </div>
     </div>
 
@@ -148,9 +147,10 @@
               :alt="currentSubmenuTitle"
               class="w-5 h-5"
             />
-            <span class="text-sm font-semibold text-submenu-title-text dark:text-text">{{
-              currentSubmenuTitle
-            }}</span>
+            <span
+              class="text-sm font-semibold text-submenu-title-text dark:text-text"
+              >{{ currentSubmenuTitle }}</span
+            >
           </div>
 
           <!-- back-button -->
@@ -250,7 +250,7 @@
 </template>
 
 <script>
-import { ref,inject } from "vue";
+import { ref, inject } from "vue";
 import { menuItems } from "../../assets/data/menuItems.js";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import AvatarProfilePopup from "@/components/ui/popup/AvatarProfilePopup.vue";
@@ -260,9 +260,9 @@ const router = useRouter();
 
 export default {
   name: "Sidebar",
-  
+
   setup() {
-    const theme = inject("theme");           // ref("light" | "dark")
+    const theme = inject("theme"); // ref("light" | "dark")
     const toggleTheme = inject("toggleTheme"); // function
 
     return {
@@ -362,7 +362,7 @@ export default {
         <img
           src="${item.image}"
           alt="${item.title}"
-          class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+          class="w-6 h-6 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
         <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
       `;
@@ -506,7 +506,7 @@ export default {
         <img
           src="https://i.ibb.co/WvqB5S2p/svgviewer-png-output-57.webp"
           alt="More"
-          class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
+          class="w-6 h-6 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
         <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">More</span>
       `;
@@ -524,7 +524,7 @@ export default {
       const flyout = document.createElement("div");
       flyout.setAttribute("data-floating-panel", "");
       flyout.className = `
-        fixed bg-white shadow-lg rounded-md p-3 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] border border-gray-200 backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
+        fixed bg-white shadow-lg rounded-md p-3 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
         opacity-0 invisible pointer-events-none
         scale-0 translate-y-16
         transition-all duration-150 ease-in-out
@@ -539,14 +539,14 @@ export default {
           <img
             src="${item.image}"
             alt="${item.title}"
-            class="w-6 h-6 transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)] dark:filter dark:invert"
+            class="w-6 h-6 transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)] dark:filter dark:invert"
           />
           <span class=" text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
         `;
         o.className =
           "sidebar-menu-item block group transition-all duration-200 ease-in-out rounded-md flex-col items-center justify-center self-stretch w-[4.625rem] h-14 cursor-pointer p-2 whitespace-nowrap text-sm hover:bg-sidebar-active rounded transition-colors flex items-center";
         if (!item.enabled) {
-          o.className += " opacity-50 grayscale";
+          o.className += " opacity-50 grayscale hover:opacity-80";
         }
         o.addEventListener("click", () => this.handleMenuClick(item));
         flyout.appendChild(o);
@@ -580,7 +580,7 @@ export default {
           flyoutWrapper.style.pointerEvents = "auto";
 
           flyout.className = `
-            fixed bg-white dark:bg-background-dark-cardBackground shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
+            fixed bg-white dark:bg-background-dark-popupBg shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
             opacity-100 visible pointer-events-auto
             scale-100 translate-y-0
             transition-all duration-150 ease-in-out
@@ -616,7 +616,7 @@ export default {
             flyoutWrapper.style.pointerEvents = "none";
 
             flyout.className = `
-              fixed bg-white shadow-lg rounded-md p-3 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] border border-gray-200 backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
+              fixed bg-white shadow-lg rounded-md p-3 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
               opacity-0 invisible pointer-events-none
               scale-0 translate-y-16
               transition-all duration-150 ease-in-out

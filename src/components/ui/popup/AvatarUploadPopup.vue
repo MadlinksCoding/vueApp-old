@@ -4,20 +4,17 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="avatarPopupConfig"
   >
-    <div class="h-full bg-[#444444] font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
-      
-      <div class="flex justify-center items-center w-full min-h-screen bg-[#EAECF0]">
-        <div class="flex flex-col backdrop-blur-[50px] w-full bg-white/70 sm:max-w-[22.5rem] md:max-w-[34.75rem] md:rounded-[0.3125rem] xl:max-w-[64rem]">
+        <div class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-popupBg  md:rounded-[0.3125rem] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full">
           
           <div class="flex justify-between items-center p-4">
-            <h1 class="text-xl leading-normal font-semibold opacity-70 text-[#344054]">
+            <h1 class="text-xl leading-normal font-semibold opacity-70 text-[#344054] dark:text-text">
               Choose Avatar
             </h1>
             <img
               @click="emit('update:modelValue', false)"
               src="https://i.ibb.co.com/zWwvfc1B/close-btn.webp"
               alt="close-btn"
-              class="w-6 h-6 cursor-pointer hover:opacity-80"
+              class="w-6 h-6 cursor-pointer hover:opacity-80 dark:[filter:brightness(0)_invert(100%)]"
             />
           </div>
 
@@ -43,7 +40,7 @@
           <div class="flex flex-col gap-6 pt-1 pb-6 md:gap-4 md:py-6 xl:px-4 xl:gap-6">
             
             <div class="flex flex-col gap-2 md:py-2 xl:px-4">
-              <h3 class="text-base font-medium px-4 text-[#0C111D] xl:px-0">Avatar</h3>
+              <h3 class="text-base font-medium px-4 text-[#0C111D] dark:text-text xl:px-0">Avatar</h3>
               <div class="w-full flex overflow-x-scroll [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
                 <div class="flex justify-center items-center gap-2 w-max md:flex-col xl:w-full">
                   
@@ -62,7 +59,7 @@
             </div>
 
             <div class="flex flex-col gap-2 md:py-2">
-              <h3 class="text-base font-medium px-4 text-[#0C111D]">Background</h3>
+              <h3 class="text-base font-medium px-4 text-[#0C111D] dark:text-text">Background</h3>
               
               <BackgroundSelector 
                 :backgrounds="backgroundList"
@@ -74,16 +71,14 @@
 
           <div class="flex justify-between items-center gap-4 p-4">
             <button @click="emit('update:modelValue', false)" class="w-full h-10 flex justify-center items-center px-2 py-1 cursor-pointer">
-              <span class="text-lg font-medium text-[#0C111D]">CANCEL</span>
+              <span class="text-lg font-medium text-[#0C111D] dark:text-text">CANCEL</span>
             </button>
-            <button class="w-full h-10 flex justify-center items-center bg-black px-2 py-1 group/button cursor-pointer hover:bg-[#07F468]">
+            <button class="w-full h-10 flex justify-center items-center bg-black dark:bg-background-dark-app px-2 py-1 group/button cursor-pointer hover:bg-[#07F468] dark:hover:bg-[#07F468]">
               <span class="text-lg font-medium text-[#07F468] group-hover/button:text-black">SAVE</span>
             </button>
           </div>
 
         </div>
-      </div>
-    </div>
   </PopupHandler>
 </template>
 

@@ -10,7 +10,10 @@
   >
     <!-- popup-wrapper -->
     <div
-      class="w-full [background:linear-gradient(180deg,rgba(255,255,255,0.00)_0%,rgba(255,255,255,0.10)_50%,rgba(255,255,255,0.02)_100%),#0C111D] md:[0px_0px_10px_-10px_#00000080]"
+      class="w-full 
+      [background:linear-gradient(180deg,rgba(255,255,255,0.00)_0%,rgba(255,255,255,0.10)_50%,rgba(255,255,255,0.02)_100%),#0C111D] 
+      dark:[background:#424242]
+      md:[0px_0px_10px_-10px_#00000080]"
     >
       <!-- popup__media-section -->
       <div class="flex flex-col w-full relative lg:h-screen lg:bg-[#191919]">
