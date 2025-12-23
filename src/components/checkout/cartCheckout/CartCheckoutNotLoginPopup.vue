@@ -5,11 +5,11 @@
     :config="cartcheckoutNotLoginConfig"
   >
     <div
-      class="bg-[#272727] dark:bg-background-dark-popupBg font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] [&.dark]:bg-[#202324]"
+      class="bg-[#272727] font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] [&.dark]:bg-[#202324]"
     >
       <!-- popup-wrapper -->
       <div
-        class="flex flex-col h-screen bg-white/10 dark:bg-background-dark-popupBg backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
+        class="flex flex-col h-screen bg-white/10 backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
       >
         <!-- image-container -->
         <CheckoutMediaPreview
@@ -25,10 +25,10 @@
         <div
           class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] 
           [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 
-          md:h-screen md:bg-black/50 dark:bg-background-dark-popupBg"
+          md:h-screen md:bg-black/50 dark:bg-background-dark-app"
         >
           <!-- form-section -->
-          <div class="flex flex-col gap-6">``
+          <div class="flex flex-col gap-6">
             <!-- email-account-section -->
             <div class="flex flex-col gap-2">
               <!-- title-container -->

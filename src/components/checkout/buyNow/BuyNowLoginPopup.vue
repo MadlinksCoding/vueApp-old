@@ -54,10 +54,10 @@ const cartItems = [
   >
     <!-- popup-wrapper -->
     <div
-      class="bg-[#272727] dark:bg-background-dark-popupBg font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+      class="bg-[#272727] font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
     >
       <div
-        class="flex flex-col h-screen bg-white/10 dark:bg-background-dark-popupBg backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
+        class="flex flex-col h-screen bg-white/10  backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
       >
         <!-- image-container -->
         <CheckoutMediaPreview
@@ -73,7 +73,7 @@ const cartItems = [
         <div
           class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] 
           [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 md:h-screen
-           md:bg-black/50 dark:bg-background-dark-popupBg"
+           md:bg-black/50 dark:bg-background-dark-app"
         >
           <!-- form-section -->
           <div class="flex flex-col gap-6">
@@ -159,7 +159,7 @@ const cartItems = [
 
                   <!-- arrow-container -->
                   <div class="flex items-center gap-2.5">
-                    <span class="text-sm font-medium text-[#EAECF0]"
+                    <span class="text-sm font-medium text-[#EAECF0] dark:text-[#dddad5]"
                       >Change Card</span
                     >
                     <div
@@ -195,8 +195,8 @@ const cartItems = [
               <!-- checkbox-container -->
 
               <CheckboxGroup
-                checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
-                labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
+                checkboxClass="appearance-none border border-[#D0D5DD] dark:border-[#4a5568] rounded-[4px] w-4 min-w-4 h-4 mt-0.5 checked:accent-[#07f468] checked:bg-[#07f468] dark:checked:bg-[#0aff78] checked:border-[#07f468] dark:checked:border-[#0aff78] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] dark:checked:after:border-[white] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
+                labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer mt-1"
                 wrapperClass="flex items-center gap-2"
               >
                 I agree to Our Website's

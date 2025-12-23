@@ -1,6 +1,6 @@
 <template>
   <div
-    class="sidebar-wrapper hidden md:flex sticky top-0 z-[3] h-screen flex w-max shadow-custom dark:bg-background-dark-app bg-[rgba(249,250,251,0.7)] backdrop-blur-xs [-ms-overflow-style:none] [scrollbar-width:none]"
+    class="sidebar-wrapper hidden md:flex sticky top-0 z-[3] h-screen flex w-max shadow-custom bg-[rgba(249,250,251,0.7)] dark:bg-background-dark-app backdrop-blur-xs [-ms-overflow-style:none] [scrollbar-width:none]"
   >
     <div
       class="sidebar-container transition-all duration-150 ease-in-out w-[5.625rem] gap-1.5 pt-3 pb-3 z-[5] relative flex flex-col items-center justify-start"
@@ -19,7 +19,7 @@
 
       <!-- profile & controls -->
       <div
-        class="flex flex-col items-center self-stretch gap-2 pt-2 pb-2 pl-1 pr-1 border-b border-d0d5dd"
+        class="flex flex-col items-center self-stretch gap-2 pt-2 pb-2 pl-1 pr-1 border-b border-d0d5dd dark:border-gray-700"
       >
         <!-- avatar -->
         <div class="flex w-10 h-10 rounded-[1.25rem]">
@@ -34,7 +34,7 @@
             />
             <!-- status-indicator -->
             <div
-              class="absolute bottom-0 right-0 flex w-2.5 h-2.5 rounded-[0.438rem] bg-status"
+              class="absolute bottom-0 right-0 flex w-2.5 h-2.5 rounded-[0.438rem] bg-status dark:bg-status-dark"
             >
               &nbsp;
             </div>
@@ -47,7 +47,7 @@
         >
           <!-- log-out -->
           <div
-            class="log-out-icon-container flex cursor-pointer items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover group"
+            class="log-out-icon-container flex cursor-pointer items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover dark:hover:bg-notification-hover-dark group"
           >
             <img
               src="https://i.ibb.co/ccpY1KKt/svgviewer-png-output-53.webp"
@@ -59,7 +59,7 @@
           <!-- notification -->
           <div
             @click="isNotificationOpen = true"
-            class="notification-icon-container cursor-pointer flex items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover relative group"
+            class="notification-icon-container cursor-pointer flex items-center justify-center w-8 h-8 rounded-md transition-all duration-200 ease-in-out hover:bg-notification-hover dark:hover:bg-notification-hover-dark relative group"
           >
             <img
               src="https://i.ibb.co/v65qxNDc/svgviewer-png-output-38.webp"
@@ -136,7 +136,7 @@
       :is-loading="false"
     >
       <div
-        class="w-full h-[100vh] flex flex-col items-start gap-4 overflow-hidden bg-submenu-bg dark:bg-background-dark-cardBackground px-4 py-2 shadow-md backdrop-blur-lg"
+        class="w-full h-[100vh] flex flex-col items-start gap-4 overflow-hidden bg-submenu-bg dark:bg-background-dark-app/80 px-4 py-2 shadow-md backdrop-blur-lg"
       >
         <!-- submenu-header -->
         <div class="flex jusify-between gap-4 w-full mt-8">
@@ -148,7 +148,7 @@
               class="w-5 h-5"
             />
             <span
-              class="text-sm font-semibold text-submenu-title-text dark:text-text"
+              class="text-sm font-semibold text-submenu-title-text dark:text-[#C4D1E9]"
               >{{ currentSubmenuTitle }}</span
             >
           </div>
@@ -191,8 +191,8 @@
               :class="[
                 'relative z-10 text-sm font-medium transition',
                 child.enabled
-                  ? 'text-submenu-item-text dark:text-text group-hover:text-submenu-item-hover-shadow'
-                  : 'text-gray-400 dark:text-text',
+                  ? 'text-submenu-item-text dark:text-[#656F83] group-hover:text-submenu-item-hover-shadow'
+                  : 'text-gray-400 dark:text-[#656F83]',
               ]"
             >
               {{ child.title }}
@@ -364,7 +364,7 @@ export default {
           alt="${item.title}"
           class="w-6 h-6 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
+        <span class="pointer-events-none text-sidebar-text dark:text-sidebar-text-dark text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
       `;
       content.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active";
@@ -456,7 +456,7 @@ export default {
           alt="More"
           class="w-6 h-6 pointer-events-none transition-all duration-200 group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text ">More</span>
+        <span class="pointer-events-none dark:text-sidebar-text-dark text-sidebar-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text ">More</span>
       `;
       tempMore.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active ";
@@ -508,7 +508,7 @@ export default {
           alt="More"
           class="w-6 h-6 pointer-events-none transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)]"
         />
-        <span class="pointer-events-none text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">More</span>
+        <span class="pointer-events-none text-sidebar-text dark:text-sidebar-text-dark text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">More</span>
       `;
       moreBtn.className =
         "main-menu-item group flex flex-col items-center justify-center self-stretch gap-0.5 p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-sidebar-active";
@@ -541,7 +541,7 @@ export default {
             alt="${item.title}"
             class="w-6 h-6 transition-all duration-200 dark:[filter:brightness(0)_saturate(100%)_invert(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(29%)_sepia(98%)_saturate(5809%)_hue-rotate(325deg)_brightness(92%)_contrast(121%)] dark:filter dark:invert"
           />
-          <span class=" text-sidebar-text dark:text-text text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
+          <span class=" text-sidebar-text dark:text-sidebar-text-dark text-[0.625rem] font-medium leading-[1.125rem] text-center transition-all duration-200 group-hover:text-sidebar-active-text">${item.title}</span>
         `;
         o.className =
           "sidebar-menu-item block group transition-all duration-200 ease-in-out rounded-md flex-col items-center justify-center self-stretch w-[4.625rem] h-14 cursor-pointer p-2 whitespace-nowrap text-sm hover:bg-sidebar-active rounded transition-colors flex items-center";
@@ -580,7 +580,7 @@ export default {
           flyoutWrapper.style.pointerEvents = "auto";
 
           flyout.className = `
-            fixed bg-white dark:bg-background-dark-popupBg shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
+            fixed bg-white dark:bg-[rgba(24,26,27,0.5)] shadow-lg rounded-md p-3 ml-2 min-w-[200px] grid grid-cols-2 gap-4 z-[9999] backdrop-blur-lg bg-[hsla(0,0%,100%,0.5)]
             opacity-100 visible pointer-events-auto
             scale-100 translate-y-0
             transition-all duration-150 ease-in-out

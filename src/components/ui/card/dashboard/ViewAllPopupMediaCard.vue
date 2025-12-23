@@ -74,7 +74,7 @@
         class="flex justify-center items-center absolute left-0 bottom-0 z-[99999] bg-[#F093FB] h-[1.064rem] px-[0.4rem]"
       >
         <span
-          class="text-[0.58rem] leading-normal font-medium text-black "
+          class="text-[0.58rem] leading-normal font-medium text-black dark:text-text"
           >{{ discount }}</span
         >
       </div>

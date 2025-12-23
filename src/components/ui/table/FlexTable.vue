@@ -255,7 +255,7 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
                        <div class="flex flex-col justify-center items-start flex-1 min-h-[4.5rem] p-2 md:p-3 overflow-hidden">
                           <span class="truncate text-xs font-semibold text-zinc-900 w-full dark:text-text">{{ row[col.key] }}</span>
                           <div class="flex items-center w-full mt-0.5">
-                             <span class=" text-xs text-[#344054] dark:text-text-secondary-dark">{{ getVal(row, col.config?.subtextKey) }}</span>
+                             <span class=" text-xs text-[#344054] dark:text-[#B6C2D8]">{{ getVal(row, col.config?.subtextKey) }}</span>
                              <span v-if="col.config?.mobileRightKey" class="md:hidden truncate text-xs text-[#667085] whitespace-nowrap ml-2">{{ getVal(row, col.config.mobileRightKey) }}</span>
                           </div>
                           <div v-if="col.config?.mobileBottomUserKey" class="md:hidden flex items-center gap-1.5 mt-1.5">
@@ -267,7 +267,7 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
 
                     <div v-else-if="col.type === 'user'" class="flex items-center gap-[6px] p-2.5 h-full">
                        <img v-if="col.config?.avatarKey" :src="getVal(row, col.config.avatarKey)" class="w-5 h-5 rounded-full object-cover shrink-0" />
-                       <span class="truncate text-xs text-zinc-600 dark:text-text">{{ row[col.key] }}</span>
+                       <span class="truncate text-xs text-zinc-600 dark:text-[#96959F]">{{ row[col.key] }}</span>
                     </div>
 
                     <div v-else-if="col.type === 'status'" class="flex items-center p-2.5 h-full">
@@ -276,7 +276,7 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
                                 :class="col.config?.styles?.[row[col.key]]?.iconBg || 'bg-gray-100'">
                              <img v-if="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon"
                                   :src="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon" 
-                                  class="w-4 h-4 object-contain"/>
+                                  class="w-4 h-4 object-contain dark:[filter:invert(1)]"/>
                           </span>
                           <span class="flex justify-center items-center text-xs font-medium backdrop-blur-[10px] whitespace-nowrap rounded"
                                 :class="col.config?.styles?.[row[col.key]]?.textClass || 'text-gray-800'">

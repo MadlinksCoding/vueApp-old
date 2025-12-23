@@ -6,7 +6,7 @@
   >
     <!-- popup-wrapper -->
     <div
-      class="h-full bg-black/90 font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] dark:bg-background-dark-popupBg"
+      class="h-full bg-black/90 font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
     >
       <div class="flex flex-col gap-2">
         <!-- mobile-nav -->
@@ -112,7 +112,7 @@
 
             <!-- filter -->
             <div
-              class="flex justify-center items-center gap-2 px-4 py-2 h-10 rounded-[3.125rem] bg-black/90 dark:bg-background-dark-app cursor-pointer"
+              class="flex justify-center items-center gap-2 px-4 py-2 h-10 rounded-[3.125rem] bg-black/90  cursor-pointer"
             >
               <img
                 src="https://i.ibb.co.com/CsbQt0LN/filter.webp"
@@ -141,7 +141,7 @@
 
           <!-- filter -->
           <div class="flex justify-center items-center gap-1 pt-2">
-            <div class="flex items-center bg-black/90 p-1 rounded-[3.125rem] dark:bg-background-dark-app">
+            <div class="flex items-center bg-black/90 p-1 rounded-[3.125rem] ">
               <!-- tag -->
               <button
                 class="flex justify-center items-center gap-1 px-2 py-1 h-7 border border-[#07F468] rounded-[3.125rem] cursor-pointer"
@@ -236,7 +236,7 @@
           <div class="absolute top-8 left-6">
             <button
               @click="emit('update:modelValue', false)"
-              class="flex justify-center items-center p-2.5 rounded-full bg-black/90 dark:bg-background-dark-app"
+              class="flex justify-center items-center p-2.5 rounded-full bg-black/90 "
             >
               <img
                 src="https://i.ibb.co.com/HLCwss7q/arrow-left.webp"
@@ -265,7 +265,7 @@
               class="flex justify-center items-center gap-2 px-2 py-0.5 bg-white/20 cursor-pointer group tag-active [&.tag-active]:bg-[#07F468]"
             >
               <span
-                class="text-base font-medium text-[#FDFDFC] group-[.tag-active]:text-black"
+                class="text-base font-medium text-[#FDFDFC] dark:text-text group-[.tag-active]:text-black"
                 >Eating</span
               >
 

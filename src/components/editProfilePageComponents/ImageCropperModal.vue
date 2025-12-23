@@ -6,7 +6,7 @@
   >
     
       <div
-        class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-popupBg overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full"
+        class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-app overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full"
       >
         <div class="flex justify-between items-center p-4">
           <h1

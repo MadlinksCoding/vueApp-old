@@ -137,7 +137,7 @@ const statusConfig = {
   styles: {
     New: {
       iconSrc: "https://i.ibb.co.com/cSnyRK5k/stars.webp", // Specific icon
-      iconBg: "bg-[#FFE500] p-1", // Icon ka background
+      iconBg: "bg-[#FFE500] p-1 dark:bg-[#3E2E00]", // Icon ka background
       textClass: "text-[#FFE500] px-[6px] py-[4px] bg-[#000000]", // Text ka style + Text ka background
     },
     Shipped: {
@@ -147,7 +147,7 @@ const statusConfig = {
     },
     Pending: {
       // IconSrc nahi diya, toh defaultIcon use hoga
-      iconBg: "bg-yellow-100",
+      iconBg: "bg-yellow-100 " ,
       textClass: "text-yellow-600 bg-yellow-50",
     },
   },
@@ -214,10 +214,10 @@ const columns = [
 
 const theme = {
   container: "relative overflow-hidden",
-  header: "border-b border-zinc-200 dark:border-background-dark-app bg-[#F9FAFBE5] dark:bg-background-dark-cardBackground",
+  header: "border-b border-zinc-200 dark:border-background-dark-app bg-[#F9FAFBE5] dark:bg-background-dark-app",
   headerRow: "flex items-center ",
-  headerCell: "px-3 py-3 text-xs font-[400] text-[#667085] tracking-wider dark:text-text",
-  row: "flex items-center border-b border-zinc-100 dark:border-background-dark-app odd:bg-[#ebe3eb] dark:odd:bg-background-dark-cardBackground even:bg-[#efebf2] dark:even:bg-background-dark-cardBackground transition-colors cursor-pointer last:border-0",
+  headerCell: "px-3 py-3 text-xs font-[400] text-[#667085] tracking-wider dark:text-[#7A8195]",
+  row: "flex items-center border-b border-zinc-100 dark:border-background-dark-app odd:bg-[#ebe3eb] dark:odd:bg-[#322C32] even:bg-[#efebf2] dark:even:bg-[#2B282D] transition-colors cursor-pointer last:border-0",
   cell: "text-xs text-zinc-800 p-0 dark:text-text",
   footer: "p-3 text-center text-xs text-zinc-400",
 };

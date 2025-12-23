@@ -57,6 +57,8 @@ export default {
           dark: "#a10000",
         },
         status: {
+          DEFAULT: "#FDB022",
+          dark: "#B77702",
           new: "#ffe500",
           dot: {
             light: "#fdb022",
@@ -168,6 +170,7 @@ export default {
         },
         text: {
           DEFAULT: "#ffffff",
+          dark: "#e8e6e3",
           secondary: {
             light: "#667085",
             dark: "#ffffff85",
@@ -199,6 +202,18 @@ export default {
               light: "#0720c1",
               dark: "#0720c1",
             },
+          },
+          muted: {
+            light: "#344054",
+            dark: "#bdb7af",
+          },
+          secondary: {
+            light: "#667085",
+            dark: "#9e9589",
+          },
+          darker: {
+            light: "#0c111d",
+            dark: "#e8e6e3",
           },
           quaternary: "#667085",
         },
@@ -264,9 +279,9 @@ export default {
             DEFAULT: "rgba(24, 26, 27, 0.2)",
             input: "rgba(0, 0, 0, 0.3)",
             inputHover: "rgba(0, 0, 0, 0.5)",
-            app: "#292929ff",
-            cardBackground:"#333333",
-            popupBg:"#424242"
+            app: "#1A1B1B",
+            cardBackground: "#333333",
+            popupBg: "#424242",
           },
           header: {
             light: "#eaecf0",
@@ -435,88 +450,88 @@ export default {
         },
         light: {
           text: {
-            quaternary: '#667085',
+            quaternary: "#667085",
           },
           bg: {
-            section: 'hsla(0, 0%, 100%, 0.4)',
+            section: "hsla(0, 0%, 100%, 0.4)",
           },
         },
         fce40d: "#fce40d",
         d0d5dd: "#d0d5dd",
         ff00a6: "#ff00a6",
         dee5ec: "#dee5ec",
-        'primary-text': '#221f1f',
-        'primary-bg': '#f9fafb',
-        'border-light': '#d0d5dd',
-        'secondary-bg': '#edeff3',
-        'dark-text': '#0c111d',
-        'secondary-text': '#98A2B3',
-        'white': '#ffffff',
-        'gray-text': '#667085',
-        'black': '#000',
-        'medium-text': '#344054',
-        'light-border': '#dee5ec',
-        'light-bg': '#eff3f8',
-        'error': '#ff4405',
-        'error-light': '#ff692e',
-        'success': '#07f468',
-        'error-dark': '#ff561d',
-        'dark-gray': '#475467',
-        'darker-text': '#101828',
-        'beige-text': '#b1aaa0',
-        'light-beige': '#d6d3cd',
-        'medium-beige': '#bdb7af',
-        'almost-black': '#303437',
-        'lightest-bg': '#f5f7fa',
-        'medium-border': '#d1d5db',
-        'medium-gray': '#9ca3af',
-        'light-gray': '#a3a3a3',
-        'dark-bg': '#20262c',
-        'darker-bg': '#0b0f12',
-        'dark-border': '#2f343b',
-        'darker-border': '#1c1f22',
-        'light-divider': '#eaecf0',
-        'dark-gray-2': '#353a3c',
-        'timberwolf': '#dbd8d3',
-        'american-silver': '#d3d0ca',
-        'independence': '#4a5568',
-        'raisin-black-2': '#202325',
-        'vodka': '#bdb7ef',
-        'platinum': '#e8e6e3',
+        "primary-text": "#221f1f",
+        "primary-bg": "#f9fafb",
+        "border-light": "#d0d5dd",
+        "secondary-bg": "#edeff3",
+        "dark-text": "#0c111d",
+        "secondary-text": "#98A2B3",
+        white: "#ffffff",
+        "gray-text": "#667085",
+        black: "#000",
+        "medium-text": "#344054",
+        "light-border": "#dee5ec",
+        "light-bg": "#eff3f8",
+        error: "#ff4405",
+        "error-light": "#ff692e",
+        success: "#07f468",
+        "error-dark": "#ff561d",
+        "dark-gray": "#475467",
+        "darker-text": "#101828",
+        "beige-text": "#b1aaa0",
+        "light-beige": "#d6d3cd",
+        "medium-beige": "#bdb7af",
+        "almost-black": "#303437",
+        "lightest-bg": "#f5f7fa",
+        "medium-border": "#d1d5db",
+        "medium-gray": "#9ca3af",
+        "light-gray": "#a3a3a3",
+        "dark-bg": "#20262c",
+        "darker-bg": "#0b0f12",
+        "dark-border": "#2f343b",
+        "darker-border": "#1c1f22",
+        "light-divider": "#eaecf0",
+        "dark-gray-2": "#353a3c",
+        timberwolf: "#dbd8d3",
+        "american-silver": "#d3d0ca",
+        independence: "#4a5568",
+        "raisin-black-2": "#202325",
+        vodka: "#bdb7ef",
+        platinum: "#e8e6e3",
 
         // accent colors
-        'blue-accent': '#004EEB',
-        'blue-accent-light': '#3f9dff',
-        'tag-bg': '#D1E0FF',
-        'radio-border': '#d0d5dd',
-        'tooltip-bg': 'rgba(16,24,40,0.7)',
-        'dark-tooltip-bg': 'rgba(14,19,32,0.9)',
-        'preview-bg': '#f2f6fc',
-        'dark-preview-bg': '#1d1f20',
-        'upload-bg': 'rgba(255,68,5,0.1)',
-        'dark-upload-bg': 'rgba(201,51,0,0.1)',
+        "blue-accent": "#004EEB",
+        "blue-accent-light": "#3f9dff",
+        "tag-bg": "#D1E0FF",
+        "radio-border": "#d0d5dd",
+        "tooltip-bg": "rgba(16,24,40,0.7)",
+        "dark-tooltip-bg": "rgba(14,19,32,0.9)",
+        "preview-bg": "#f2f6fc",
+        "dark-preview-bg": "#1d1f20",
+        "upload-bg": "rgba(255,68,5,0.1)",
+        "dark-upload-bg": "rgba(201,51,0,0.1)",
       },
       backdropBlur: {
         xs: "5px",
         lg: "25px",
       },
       boxShadow: {
-        'sh1': '0 1px 2px 0 rgba(16, 24, 40, 0.05)',
-        'sh1-dark': '0 1px 2px 0 rgba(13, 19, 32, 0.05)',
+        sh1: "0 1px 2px 0 rgba(16, 24, 40, 0.05)",
+        "sh1-dark": "0 1px 2px 0 rgba(13, 19, 32, 0.05)",
         sidebar: "0 0 8px 0 rgba(0, 0, 0, 0.08)",
         custom: "4px 0 10px 0 rgba(0, 0, 0, 0.08)",
         green: "4px 4px 0 0 #07f468",
       },
       backgroundImage: {
-        'gradient-warning': `
+        "gradient-warning": `
                 linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 100%),
                 linear-gradient(0deg, rgba(255, 68, 5, 0.1) 0%, rgba(255, 68, 5, 0.1) 100%),
                 linear-gradient(0deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9))
               `,
-        'dark-gradient-warning': `
+        "dark-gradient-warning": `
                 linear-gradient(90deg, rgba(24, 26, 27, 0) 0%, rgba(24, 26, 27, 0.9) 100%),
                 linear-gradient(0deg, rgba(201, 51, 0, 0.1) 0%, rgba(201, 51, 0, 0.1) 100%)
-              `
+              `,
       },
       keyframes: {
         bouncedown: {
@@ -555,48 +570,48 @@ export default {
           },
         },
         slideFromLeft: {
-          '0%': {
-            transform: 'translateX(0%)'
+          "0%": {
+            transform: "translateX(0%)",
           },
-          '100%': {
-            transform: 'translateX(78%)'
-          }
+          "100%": {
+            transform: "translateX(78%)",
+          },
         },
         slideFromRight: {
-          '0%': {
-            transform: 'translateX(78%)'
+          "0%": {
+            transform: "translateX(78%)",
           },
-          '60%': {
-            transform: 'translateX(21%)'
+          "60%": {
+            transform: "translateX(21%)",
           },
-          '100%': {
-            transform: 'translateX(19%)'
-          }
+          "100%": {
+            transform: "translateX(19%)",
+          },
         },
         borealisBar: {
-          '0%': { left: '0%', right: '100%', width: '0%' },
-          '10%': { left: '0%', right: '75%', width: '25%' },
-          '90%': { right: '0%', left: '75%', width: '25%' },
-          '100%': { right: '0%', left: '100%', width: '25%' }
+          "0%": { left: "0%", right: "100%", width: "0%" },
+          "10%": { left: "0%", right: "75%", width: "25%" },
+          "90%": { right: "0%", left: "75%", width: "25%" },
+          "100%": { right: "0%", left: "100%", width: "25%" },
         },
         skeletonLoading: {
-                        '0%': { backgroundColor: 'rgba(173,173,173,1)' },
-                        '50%': { backgroundColor: 'rgba(173,173,173,0.7)' },
-                        '100%': { backgroundColor: 'rgba(173,173,173,1)' },
-                    },
+          "0%": { backgroundColor: "rgba(173,173,173,1)" },
+          "50%": { backgroundColor: "rgba(173,173,173,0.7)" },
+          "100%": { backgroundColor: "rgba(173,173,173,1)" },
+        },
       },
       animation: {
         bouncedown: "bouncedown 0.1s ease forwards",
         bouncup: "bouncup 0.5s ease forwards",
-        slidefromleft: 'slideFromLeft 0s ease forwards',
-        slidefromright: 'slideFromRight 0.5s ease-in forwards',
-        borealisBar: 'borealisBar 2s linear infinite',
-        'skeleton-loading': 'skeletonLoading 1.3s ease infinite',
+        slidefromleft: "slideFromLeft 0s ease forwards",
+        slidefromright: "slideFromRight 0.5s ease-in forwards",
+        borealisBar: "borealisBar 2s linear infinite",
+        "skeleton-loading": "skeletonLoading 1.3s ease infinite",
       },
       gridTemplateColumns: {
-        '5': 'repeat(5, minmax(0, 1fr))',
-        '6': 'repeat(6, minmax(0, 1fr))',
-      }
+        5: "repeat(5, minmax(0, 1fr))",
+        6: "repeat(6, minmax(0, 1fr))",
+      },
     },
   },
   safelist: [

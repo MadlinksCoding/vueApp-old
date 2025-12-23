@@ -12,7 +12,6 @@
     <div
       class="w-full 
       [background:linear-gradient(180deg,rgba(255,255,255,0.00)_0%,rgba(255,255,255,0.10)_50%,rgba(255,255,255,0.02)_100%),#0C111D] 
-      dark:[background:#424242]
       md:[0px_0px_10px_-10px_#00000080]"
     >
       <!-- popup__media-section -->
@@ -188,7 +187,7 @@
                     <!-- username -->
                     <div class="flex items-center gap-2">
                       <span
-                        class="text-xs leading-normal font-medium text-[#EAECF0] lg:text-sm lg:leading-normal lg:font-semibold lg:text-[#E7E5E4]"
+                        class="text-xs leading-normal font-medium text-[#EAECF0] dark:text-[#dddad5] lg:text-sm lg:leading-normal lg:font-semibold lg:text-[#E7E5E4]"
                         >@sammisjelly187</span
                       >
                       <img
@@ -208,7 +207,7 @@
                           class="w-3.5 h-3.5 [filter:brightness(100%)_saturate(0)]"
                         />
                         <span
-                          class="text-xs leading-normal text-[#EAECF0] align-middle"
+                          class="text-xs leading-normal text-[#EAECF0] dark:text-[#dddad5] align-middle"
                           >15.2K</span
                         >
                       </div>
@@ -221,7 +220,7 @@
                           class="h-3.5"
                         />
                         <span
-                          class="text-xs leading-normal text-[#EAECF0] align-middle"
+                          class="text-xs leading-normal text-[#EAECF0] dark:text-[#dddad5] align-middle"
                           >99K</span
                         >
                       </div>
@@ -479,7 +478,7 @@
                       class="w-3.5 h-3.5 [filter:brightness(100%)_saturate(0)]"
                     />
                     <span
-                      class="text-xs leading-[0.875rem] font-medium text-[#EAECF0] align-middle"
+                      class="text-xs leading-[0.875rem] font-medium text-[#EAECF0] dark:text-[#dddad5] align-middle"
                       >15.2K</span
                     >
                   </div>
@@ -494,7 +493,7 @@
                       class="h-3.5"
                     />
                     <span
-                      class="text-xs leading-[0.875rem] font-medium text-[#EAECF0] align-middle"
+                      class="text-xs leading-[0.875rem] font-medium text-[#EAECF0] dark:text-[#dddad5] align-middle"
                       >99K</span
                     >
                   </div>
@@ -768,7 +767,7 @@
                 >
                   <!-- icon-tag -->
                   <div
-                    class="flex justify-center items-center gap-[0.188rem] px-1 py-0.5 rounded bg-[rgba(24,34,48,0.50)] drop-shadow-[0_0_20px_rgba(0,0,0,0.25)]"
+                    class="flex justify-center items-center gap-[0.188rem] px-1 py-0.5 rounded bg-[rgba(24,34,48,0.50)] dark:bg-[rgba(31,44,63,0.50)] drop-shadow-[0_0_20px_rgba(0,0,0,0.25)]"
                   >
                     <img
                       src="https://i.ibb.co.com/wN978Hjm/video.webp"
@@ -776,7 +775,7 @@
                       class="w-4 h-4"
                     />
                     <span
-                      class="text-xs text-white leading-normal tracking-[0.008rem]"
+                      class="text-xs text-white leading-normal tracking-[0.008rem] dark:text-[#e8e6e3]"
                       >14:55:09</span
                     >
                   </div>
@@ -795,7 +794,7 @@
                           class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
                         />
                         <span
-                          class="text-xs leading-normal font-medium text-white tracking-[0.008rem]"
+                          class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3] tracking-[0.008rem]"
                           >0</span
                         >
                       </span>
@@ -808,7 +807,7 @@
                           class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
                         />
                         <span
-                          class="text-xs leading-normal font-medium text-white tracking-[0.0075rem]"
+                          class="text-xs leading-normal font-medium text-white tracking-[0.0075rem] dark:text-[#e8e6e3]"
                           >4</span
                         >
                       </span>
@@ -864,7 +863,7 @@
                       <!-- name -->
                       <a href="#" class="flex items-center gap-1 outline-none">
                         <span
-                          class="text-xs leading-normal font-medium truncate text-white"
+                          class="text-xs leading-normal font-medium truncate text-white " 
                           >Mistress Jessica</span
                         >
                         <img
@@ -935,7 +934,7 @@
                       class="w-4 h-4"
                     />
                     <span
-                      class="text-xs text-white leading-normal tracking-[0.008rem]"
+                      class="text-xs text-white leading-normal dark:text-[#e8e6e3] tracking-[0.008rem]"
                       >14:55:09</span
                     >
                   </div>
@@ -954,7 +953,7 @@
                           class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
                         />
                         <span
-                          class="text-xs leading-normal font-medium text-white tracking-[0.008rem]"
+                          class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3] tracking-[0.008rem]"
                           >0</span
                         >
                       </span>
@@ -967,7 +966,7 @@
                           class="w-[0.75rem] [filter:brightness(100)_saturate(0)]"
                         />
                         <span
-                          class="text-xs leading-normal font-medium text-white tracking-[0.0075rem]"
+                          class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3] tracking-[0.0075rem]"
                           >4</span
                         >
                       </span>
@@ -1000,7 +999,7 @@
                 <!-- title -->
                 <div class="flex items-start gap-1">
                   <span
-                    class="text-sm font-medium flex-grow line-clamp-2 text-white"
+                    class="text-sm font-medium flex-grow line-clamp-2 text-white dark:text-[#dbd8d3]"
                     >Record breaking fried chicken eating! Watch me break
                     world’s record! Watch now!</span
                   >

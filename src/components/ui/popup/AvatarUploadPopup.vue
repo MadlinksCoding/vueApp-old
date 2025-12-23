@@ -4,7 +4,7 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="avatarPopupConfig"
   >
-        <div class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-popupBg  md:rounded-[0.3125rem] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full">
+        <div class="flex flex-col backdrop-blur-[50px] bg-white/70 dark:bg-background-dark-app  md:rounded-[0.3125rem] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-full">
           
           <div class="flex justify-between items-center p-4">
             <h1 class="text-xl leading-normal font-semibold opacity-70 text-[#344054] dark:text-text">

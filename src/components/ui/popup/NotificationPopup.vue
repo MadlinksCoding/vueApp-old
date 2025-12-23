@@ -5,22 +5,22 @@
     :config="config"
   >
     <div
-      class="h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] bg-[panel-light/70] dark:bg-background-dark-popupBg backdrop-blur-[25px] md:w-[30rem] md:border-l md:border-panel-light-border md:dark:border-none"
+      class="h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] bg-panel-light/70 backdrop-blur-[25px] dark:bg-panel-dark/70 md:w-[30rem] md:border-l md:border-panel-light-border dark:md:border-panel-dark-border"
     >
       <!-- header -->
       <div
-        class="flex items-center self-stretch gap-2 p-2 pb-0 md:bg-transparent bg-background-header-light"
+        class="flex items-center self-stretch gap-2 p-2 pb-0 md:bg-transparent bg-background-header-light dark:bg-background-header-dark md:dark:bg-transparent"
       >
         <div class="flex-1 flex items-center gap-2">
           <span class="flex items-center justify-start">
             <img
               src="https://i.ibb.co/cX3Y4YZx/svgviewer-png-output-71.webp"
               alt="Notifications"
-              class="w-5 h-5 pointer-events-none dark:[filter:brightness(0)_invert(100%)]"
+              class="w-5 h-5 pointer-events-none"
             />
           </span>
           <span
-            class="text-sm font-semibold leading-5 text-text-secondary-light dark:text-text"
+            class="text-sm font-semibold leading-5 text-text-secondary-light dark:text-text-secondary-dark"
           >
             Notifications
           </span>
@@ -31,9 +31,7 @@
               <img
                 src="https://i.ibb.co/JR1WLL0s/svgviewer-png-output-72.webp"
                 alt="settings"
-                class="w-4 h-4 
-                dark:[filter:brightness(0)_invert(100%)]
-                [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)]"
+                class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)]"
               />
             </span>
           </div>
@@ -42,17 +40,15 @@
         <div class="flex">
           <a
             @click="emit('update:modelValue', false)"
-            class="flex items-center justify-center w-6 h-6 md:w-auto md:h-auto p-0 md:p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-panel-light-buttonHover cursor-pointer"
+            class="flex items-center justify-center w-6 h-6 md:w-auto md:h-auto p-0 md:p-2 rounded-md transition-all duration-200 ease-in-out hover:bg-panel-light-buttonHover dark:hover:bg-panel-dark-buttonHover cursor-pointer"
           >
             <img
-              class="w-6 h-6 pointer-events-none hidden md:block 
-              [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)]
-              dark:[filter:brightness(0)_invert(100%)]"
+              class="w-6 h-6 pointer-events-none hidden md:block [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)]"
               src="https://i.ibb.co/KxKfkV17/svgviewer-png-output-59.webp"
               alt="close"
             />
             <img
-              class="block w-6 h-6 pointer-events-none dark:[filter:brightness(0)_invert(100%)] md:hidden [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)]"
+              class="block w-6 h-6 pointer-events-none md:hidden [filter:brightness(0)_saturate(100%)_invert(45%)_sepia(13%)_saturate(594%)_hue-rotate(183deg)_brightness(92%)_contrast(92%)]"
               src="https://i.ibb.co/N2VqD6yD/svgviewer-png-output-60.webp"
               alt="close"
             />
@@ -68,28 +64,28 @@
         <div class="flex-1 self-stretch flex flex-col">
           <!-- tab-header-list -->
           <div
-            class="md:relative flex flex-col self-stretch items-start gap-2 p-2 pb-0 md:p-2 md:pb-0 md:pr-0 md:pl-0 md:bg-transparent bg-background-header-light fixed md:static w-full z-[99]"
+            class="md:relative flex flex-col self-stretch items-start gap-2 p-2 pb-0 md:p-2 md:pb-0 md:pr-0 md:pl-0 md:bg-transparent bg-background-header-light dark:bg-background-header-dark md:dark:bg-transparent fixed md:static w-full z-[99]"
           >
             <ul
-              class="flex flex-row justify-between items-center self-stretch overflow-x-auto whitespace-nowrap scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-[0_-1.5px_0_0_inset] shadow-border-tab-light"
+              class="flex flex-row justify-between items-center self-stretch overflow-x-auto whitespace-nowrap scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-[0_-1.5px_0_0_inset] shadow-border-tab-light dark:shadow-border-tab-dark"
             >
-              <li class="flex-1 flex outline-none">
+              <li class="flex-1 flex">
                 <a
                   href=""
-                  class="w-full outline-none flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-100 transition-all duration-200 ease-in-out shadow-[0_-1.5px_0_0_inset] shadow-border-tab-active-light dark:shadow-[#fff]"
+                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-100 transition-all duration-200 ease-in-out shadow-[0_-1.5px_0_0_inset] shadow-border-tab-active-light dark:shadow-border-tab-active-dark"
                 >
                   <span
                     class="flex items-center gap-0.5 h-8 pointer-events-none"
                   >
                     <span
-                      class="text-sm font-semibold uppercase leading-5 text-text-tab-active-light dark:text-text"
+                      class="text-sm font-semibold uppercase leading-5 text-text-tab-active-light dark:text-text-tab-active-dark"
                       >All</span
                     >
                     <span
                       class="flex flex-col items-center self-stretch gap-2.5"
                     >
                       <small
-                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text"
+                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text-badge-dark"
                         >400+</small
                       >
                     </span>
@@ -99,20 +95,20 @@
               <li class="flex-1 flex">
                 <a
                   href=""
-                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-[#fff] transition-all duration-200 ease-in-out"
+                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-border-tab-hover-dark transition-all duration-200 ease-in-out"
                 >
                   <span
                     class="flex items-center gap-0.5 h-8 pointer-events-none"
                   >
                     <span
-                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text"
+                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text-tab-dark"
                       >Unread</span
                     >
                     <span
                       class="flex flex-col items-center self-stretch gap-2.5"
                     >
                       <small
-                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text"
+                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text-badge-dark"
                         >400+</small
                       >
                     </span>
@@ -122,20 +118,20 @@
               <li class="flex-1 flex">
                 <a
                   href=""
-                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-[#fff] transition-all duration-200 ease-in-out"
+                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-border-tab-hover-dark transition-all duration-200 ease-in-out"
                 >
                   <span
                     class="flex items-center gap-0.5 h-8 pointer-events-none"
                   >
                     <span
-                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text"
+                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text-tab-dark"
                       >Custom Requests</span
                     >
                     <span
                       class="flex flex-col items-center self-stretch gap-2.5"
                     >
                       <small
-                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text"
+                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text-badge-dark"
                         >1</small
                       >
                     </span>
@@ -145,20 +141,20 @@
               <li class="flex-1 flex">
                 <a
                   href=""
-                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-[#fff] transition-all duration-200 ease-in-out"
+                  class="w-full flex flex-col items-center gap-2.5 whitespace-nowrap px-4 py-2 opacity-70 hover:shadow-[0_-1.5px_0_0_inset] hover:shadow-border-tab-hover-light dark:hover:shadow-border-tab-hover-dark transition-all duration-200 ease-in-out"
                 >
                   <span
                     class="flex items-center gap-0.5 h-8 pointer-events-none"
                   >
                     <span
-                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text" 
+                      class="text-sm font-medium uppercase leading-5 text-text-tab-light dark:text-text-tab-dark"
                       >Account</span
                     >
                     <span
                       class="flex flex-col items-center self-stretch gap-2.5"
                     >
                       <small
-                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text"
+                        class="text-[0.625rem] font-medium leading-none tracking-[0.016rem] text-text-badge-light dark:text-text-badge-dark"
                         >6</small
                       >
                     </span>
@@ -174,26 +170,24 @@
           >
             <div class="flex flex-1 justify-center self-stretch flex-col">
               <div
-                class="h-[calc(100vh-6.5rem)] bg-background-notification-light/50 backdrop-blur-[50px] overflow-y-auto self-stretch flex flex-col [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                class="h-[calc(100vh-6.5rem)] bg-background-notification-light/50 dark:bg-background-notification-dark/50 backdrop-blur-[50px] overflow-y-auto self-stretch flex flex-col [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 <div
                   class="opacity-100 visible pointer-events-auto translate-x-0 pb-1 self-stretch flex flex-col items-start"
                 >
                   <!-- notification warning -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-warning-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-warning-light dark:border-l-border-notification-warning-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out
-                       [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)]
-                       dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(183,119,2,0.15)_0px,rgba(183,119,2,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
                       >
                         <!-- Warning Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(253,176,34,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(253,176,34,0.1)] dark:bg-[rgba(183,119,2,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/d4xcGw6t/svgviewer-png-output-73.webp"
@@ -201,7 +195,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(81%)_sepia(13%)_saturate(5746%)_hue-rotate(341deg)_brightness(102%)_contrast(98%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#fdb022]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#fdb022] dark:bg-[#b77702]"
                           >
                             <img
                               src="https://i.ibb.co/nNXJP9LJ/svgviewer-png-output-74.webp"
@@ -222,7 +216,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Media Content Required: Your profile currently
                                 has no media. Enhance your profile's visibility
@@ -237,7 +231,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >1w</span
                                 >
                               </div>
@@ -250,16 +244,14 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out md:flex hidden"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out dark:text-text text-cta-dismiss-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-dismiss-light dark:text-cta-dismiss-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Dismiss</span
                                   >
                                   <span>
                                     <img
                                       src="https://i.ibb.co/TD1xRhhB/svgviewer-png-output-75.webp"
                                       alt="dismiss"
-                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] 
-                                      group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]
-                                      dark:[filter:brightness(0)_saturate(100%)_invert(100%)]"
+                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
                                     />
                                   </span>
                                 </a>
@@ -270,7 +262,7 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-warning-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-warning-light dark:text-cta-warning-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Take Action</span
                                   >
                                   <span>
@@ -291,12 +283,10 @@
 
                   <!-- notification success -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-success-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-success-light dark:border-l-border-notification-success-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out
-                       [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(46,211,183,0.15)_0,rgba(46,211,183,0.15)_100%),rgba(255,255,255,0.9)]
-                       dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(46,211,183,0.15)_0,rgba(46,211,183,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(35,168,151,0.15)_0px,rgba(35,168,151,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
@@ -315,7 +305,7 @@
 
                         <!-- Success Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(46,211,183,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(46,211,183,0.1)] dark:bg-[rgba(35,168,151,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co.com/27y6kPNB/placeholder-jpeg.webp"
@@ -323,7 +313,7 @@
                             class="w-full h-full"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ed3b7]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ed3b7] dark:bg-[#23a897]"
                           >
                             <img
                               src="https://i.ibb.co/nNXJP9LJ/svgviewer-png-output-74.webp"
@@ -344,7 +334,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Congratulations: Your media 'Audio with
                                 placeholder and no preview' has been approved.
@@ -358,7 +348,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >1m</span
                                 >
                               </div>
@@ -371,12 +361,10 @@
 
                   <!-- notification info -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-info-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-info-light dark:border-l-border-notification-info-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out 
-                      [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)]
-                      dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(14,152,180,0.15)_0px,rgba(14,152,180,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
@@ -395,7 +383,7 @@
 
                         <!-- Info Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(34,204,238,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(34,204,238,0.1)] dark:bg-[rgba(14,152,180,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/sdtcNrtm/svgviewer-png-output-76.webp"
@@ -403,7 +391,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(67%)_sepia(37%)_saturate(913%)_hue-rotate(145deg)_brightness(95%)_contrast(97%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ce]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ce] dark:bg-[#0e98b4]"
                           >
                             <img
                               src="https://i.ibb.co/VW3pDzp0/svgviewer-png-output-79.webp"
@@ -424,7 +412,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Bank Details Required: To ensure seamless
                                 transactions, please complete your bank
@@ -439,7 +427,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >3m</span
                                 >
                               </div>
@@ -452,12 +440,10 @@
 
                   <!-- notification destructive -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-destructive-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-destructive-light dark:border-l-border-notification-destructive-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out 
-                      [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)]
-                      dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(201,51,0,0.1)_0px,rgba(201,51,0,0.1)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
@@ -476,7 +462,7 @@
 
                         <!-- Destructive Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(255,68,5,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(255,68,5,0.1)] dark:bg-[rgba(201,51,0,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/p60ycFJX/svgviewer-png-output-77.webp"
@@ -484,7 +470,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(42%)_sepia(53%)_saturate(6174%)_hue-rotate(356deg)_brightness(98%)_contrast(105%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#ff4405]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#ff4405] dark:bg-[#c93300]"
                           >
                             <img
                               src="https://i.ibb.co/Kxgt1PZ5/svgviewer-png-output-78.webp"
@@ -505,7 +491,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Bank Details Required: To ensure seamless
                                 transactions, please complete your bank
@@ -520,7 +506,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >3m</span
                                 >
                               </div>
@@ -533,19 +519,17 @@
 
                   <!-- notification warning -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-warning-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-warning-light dark:border-l-border-notification-warning-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out 
-                      [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)]
-                      dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(183,119,2,0.15)_0px,rgba(183,119,2,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
                       >
                         <!-- Warning Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(253,176,34,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(253,176,34,0.1)] dark:bg-[rgba(183,119,2,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/d4xcGw6t/svgviewer-png-output-73.webp"
@@ -553,7 +537,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(81%)_sepia(13%)_saturate(5746%)_hue-rotate(341deg)_brightness(102%)_contrast(98%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#fdb022]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#fdb022] dark:bg-[#b77702]"
                           >
                             <img
                               src="https://i.ibb.co/nNXJP9LJ/svgviewer-png-output-74.webp"
@@ -574,7 +558,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text" 
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Media Content Required: Your profile currently
                                 has no media. Enhance your profile's visibility
@@ -589,7 +573,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >1w</span
                                 >
                               </div>
@@ -602,16 +586,14 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out md:flex hidden"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out dark:text-text text-cta-dismiss-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-dismiss-light dark:text-cta-dismiss-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Dismiss</span
                                   >
                                   <span>
                                     <img
                                       src="https://i.ibb.co/TD1xRhhB/svgviewer-png-output-75.webp"
                                       alt="dismiss"
-                                      class="h-4 w-4 transition-all duration-200 ease-in-out 
-                                      [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]
-                                      dark:[filter:brightness(0)_saturate(100%)_invert(100%)]"
+                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
                                     />
                                   </span>
                                 </a>
@@ -622,7 +604,7 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-warning-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-warning-light dark:text-cta-warning-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Take Action</span
                                   >
                                   <span>
@@ -643,19 +625,17 @@
 
                   <!-- notification success -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-success-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-success-light dark:border-l-border-notification-success-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out
-                       [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(46,211,183,0.15)_0,rgba(46,211,183,0.15)_100%),rgba(255,255,255,0.9)]
-                       dark:[background:#424242]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(46,211,183,0.15)_0,rgba(46,211,183,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(35,168,151,0.15)_0px,rgba(35,168,151,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
                       >
                         <!-- Success Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(46,211,183,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(46,211,183,0.1)] dark:bg-[rgba(35,168,151,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co.com/27y6kPNB/placeholder-jpeg.webp"
@@ -663,7 +643,7 @@
                             class="w-full h-full"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ed3b7]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ed3b7] dark:bg-[#23a897]"
                           >
                             <img
                               src="https://i.ibb.co/nNXJP9LJ/svgviewer-png-output-74.webp"
@@ -684,7 +664,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Congratulations: Your media 'Audio with
                                 placeholder and no preview' has been approved.
@@ -698,7 +678,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >1m</span
                                 >
                               </div>
@@ -711,14 +691,14 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out md:flex hidden"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out dark:text-text text-cta-dismiss-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-dismiss-light dark:text-cta-dismiss-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Dismiss</span
                                   >
                                   <span>
                                     <img
                                       src="https://i.ibb.co/TD1xRhhB/svgviewer-png-output-75.webp"
                                       alt="dismiss"
-                                      class="h-4 w-4 transition-all duration-200 ease-in-out dark:[filter:brightness(0)_saturate(100%)_invert(100%)] [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
+                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
                                     />
                                   </span>
                                 </a>
@@ -729,7 +709,7 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-success-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-success-light dark:text-cta-success-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Take Action</span
                                   >
                                   <span>
@@ -750,17 +730,17 @@
 
                   <!-- notification info -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-info-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-info-light dark:border-l-border-notification-info-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out dark:[background:#424242] [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(14,152,180,0.15)_0px,rgba(14,152,180,0.15)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
                       >
                         <!-- Info Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(34,204,238,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(34,204,238,0.1)] dark:bg-[rgba(14,152,180,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/sdtcNrtm/svgviewer-png-output-76.webp"
@@ -768,7 +748,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(67%)_sepia(37%)_saturate(913%)_hue-rotate(145deg)_brightness(95%)_contrast(97%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ce]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#2ce] dark:bg-[#0e98b4]"
                           >
                             <img
                               src="https://i.ibb.co/VW3pDzp0/svgviewer-png-output-79.webp"
@@ -789,7 +769,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Bank Details Required: To ensure seamless
                                 transactions, please complete your bank
@@ -804,7 +784,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >3m</span
                                 >
                               </div>
@@ -817,14 +797,14 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out md:flex hidden"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out dark:text-text text-cta-dismiss-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-dismiss-light dark:text-cta-dismiss-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Dismiss</span
                                   >
                                   <span>
                                     <img
                                       src="https://i.ibb.co/TD1xRhhB/svgviewer-png-output-75.webp"
                                       alt="dismiss"
-                                      class="h-4 w-4 transition-all duration-200 ease-in-out dark:[filter:brightness(0)_saturate(100%)_invert(100%)] [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
+                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
                                     />
                                   </span>
                                 </a>
@@ -835,7 +815,7 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-info-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-info-light dark:text-cta-info-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Take Action</span
                                   >
                                   <span>
@@ -856,17 +836,17 @@
 
                   <!-- notification destructive -->
                   <div
-                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light border-l-3 border-l-border-notification-destructive-light"
+                    class="relative flex justify-center items-center self-stretch border-b border-border-notification-light dark:border-border-notification-dark border-l-3 border-l-border-notification-destructive-light dark:border-l-border-notification-destructive-dark"
                   >
                     <div
-                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out dark:[background:#424242] [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)]"
+                      class="flex-1 gap-4 pt-3 pb-3 pl-2 pr-2 z-[2] relative self-stretch flex flex-col items-start transition-all duration-150 ease-in-out [background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)] dark:[background:linear-gradient(90deg,rgba(24,26,27,0)_0px,rgba(24,26,27,0.9)_100%),linear-gradient(0deg,rgba(201,51,0,0.1)_0px,rgba(201,51,0,0.1)_100%)] dark:bg-background-notification-panel-dark"
                     >
                       <div
                         class="relative flex justify-start items-start self-stretch gap-5"
                       >
                         <!-- Destructive Notification Icon -->
                         <div
-                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(255,68,5,0.1)]"
+                          class="relative flex justify-center items-center w-10 h-10 rounded-lg bg-[rgba(255,68,5,0.1)] dark:bg-[rgba(201,51,0,0.1)]"
                         >
                           <img
                             src="https://i.ibb.co/p60ycFJX/svgviewer-png-output-77.webp"
@@ -874,7 +854,7 @@
                             class="w-6 h-6 min-w-[1.5rem] [filter:brightness(0)_saturate(100%)_invert(42%)_sepia(53%)_saturate(6174%)_hue-rotate(356deg)_brightness(98%)_contrast(105%)]"
                           />
                           <div
-                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#ff4405]"
+                            class="absolute -bottom-[0.563rem] -right-[0.563rem] flex justify-center items-center w-[1.375rem] h-[1.375rem] rounded-lg bg-[#ff4405] dark:bg-[#c93300]"
                           >
                             <img
                               src="https://i.ibb.co/Kxgt1PZ5/svgviewer-png-output-78.webp"
@@ -895,7 +875,7 @@
                               class="self-stretch flex justify-start items-start pr-6 pt-2"
                             >
                               <p
-                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text"
+                                class="text-sm leading-5 font-normal text-text-notification-light dark:text-text-notification-dark"
                               >
                                 Bank Details Required: To ensure seamless
                                 transactions, please complete your bank
@@ -910,7 +890,7 @@
                               <!-- time -->
                               <div class="flex justify-start items-end">
                                 <span
-                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text"
+                                  class="text-xs leading-[1.125rem] text-text-time-light dark:text-text-time-dark"
                                   >3m</span
                                 >
                               </div>
@@ -923,14 +903,14 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out md:flex hidden"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out dark:text-text text-cta-dismiss-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-dismiss-light dark:text-cta-dismiss-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Dismiss</span
                                   >
                                   <span>
                                     <img
                                       src="https://i.ibb.co/TD1xRhhB/svgviewer-png-output-75.webp"
                                       alt="dismiss"
-                                      class="h-4 w-4 transition-all duration-200 ease-in-out dark:[filter:brightness(0)_saturate(100%)_invert(100%)] [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
+                                      class="h-4 w-4 transition-all duration-200 ease-in-out [filter:brightness(0)_saturate(100%)_invert(22%)_sepia(31%)_saturate(534%)_hue-rotate(179deg)_brightness(93%)_contrast(90%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
                                     />
                                   </span>
                                 </a>
@@ -941,7 +921,7 @@
                                   class="group flex items-center gap-0.5 transition-all duration-200 ease-in-out"
                                 >
                                   <span
-                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-destructive-light group-hover:text-cta-dismiss-hover"
+                                    class="text-xs leading-[1.125rem] font-medium transition-all duration-200 ease-in-out text-cta-destructive-light dark:text-cta-destructive-dark group-hover:text-cta-dismiss-hover dark:group-hover:text-cta-dismiss-hover"
                                     >Take Action</span
                                   >
                                   <span>

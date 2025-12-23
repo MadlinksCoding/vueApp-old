@@ -5,7 +5,7 @@
     :config="config"
   >
     <div
-      class="h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] dark:bg-background-dark-popupBg bg-panel-light/70  backdrop-blur-[25px] md:w-[30rem] md:border-l md:border-panel-light-border md:dark:border-none"
+      class="w-screen h-screen flex flex-col items-start overflow-hidden shadow-[4px_0_10px_0_rgba(0,0,0,0.08)] bg-panel-light/70 backdrop-blur-[25px] dark:bg-panel-dark/70 md:w-[30rem] md:border-l md:border-panel-light-border dark:md:border-panel-dark-border"
     >
       <div
         class="h-screen w-full overflow-y-auto scroll-smooth flex flex-col items-start self-stretch [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -14,7 +14,7 @@
           <!-- Back button -->
           <a
             @click="emit('update:modelValue', false)"
-            class="absolute top-2 right-2 z-[5] flex items-center justify-center w-8 h-8 transition-all duration-200 ease-in-out rounded-md hover:bg-panel-light-buttonHover md:p-1.5 md:w-auto md:h-auto"
+            class="absolute top-2 right-2 z-[5] flex items-center justify-center w-8 h-8 transition-all duration-200 ease-in-out rounded-md hover:bg-panel-light-buttonHover dark:hover:bg-panel-dark-buttonHover md:p-1.5 md:w-auto md:h-auto"
           >
             <img
               class="block w-6 h-6 pointer-events-none md:hidden"
@@ -221,11 +221,11 @@
 
           <!-- Quick settings panel -->
           <div
-            class="relative z-[3] flex flex-col items-start self-stretch bg-background-light dark:bg-background-dark-popupBg"
+            class="relative z-[3] flex flex-col items-start self-stretch bg-background-light dark:bg-background-dark"
           >
             <!-- Control block -->
             <div
-              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-[#d0d5dd]"
+              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-border-light dark:border-border-dark"
             >
               <!-- Block header -->
               <div
@@ -242,7 +242,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
+                    class="text-sm font-medium uppercase leading-5 text-text-muted-light dark:text-text-muted-dark"
                   >
                     Video call status
                   </span>
@@ -263,14 +263,14 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 dark:text-text text-black pointer-events-none"
+                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none dark:text-text-dark"
                       >
                         Offline
                       </span>
                       <img
                         src="https://i.ibb.co/hFStx6J8/svgviewer-png-output-62.webp"
                         alt="arrow-down"
-                        class="w-3 h-3 pointer-events-none"
+                        class="w-3 h-3 pointer-events-none dark:[filter:brightness(0)_invert(100%)]"
                       />
                     </a>
                   </div>
@@ -279,11 +279,11 @@
 
               <!-- Status text input -->
               <div
-                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover transition-all duration-150 ease-in-out"
+                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover dark:bg-background-dark-input dark:hover:bg-background-dark-inputHover transition-all duration-150 ease-in-out"
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-[#344054] placeholder:text-[#344054] dark:text-text"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-text-muted-light placeholder:text-text-muted-light dark:text-text-muted-dark dark:placeholder:text-text-muted-dark"
                   placeholder="Write status here..."
                   value="I am all dressed up ready to eat some chicken 💋"
                 />
@@ -308,15 +308,15 @@
                     id="profile-slidein-switch-1"
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Repost status message to X
                   </span>
@@ -331,7 +331,7 @@
 
             <!-- Control block -->
             <div
-              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-[#d0d5dd]"
+              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-border-light dark:border-border-dark"
             >
               <!-- Block header -->
               <div
@@ -348,7 +348,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
+                    class="text-sm font-medium uppercase leading-5 text-text-muted-light dark:text-text-muted-dark"
                   >
                     Audio call status
                   </span>
@@ -369,14 +369,14 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 text-black dark:text-text pointer-events-none"
+                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none dark:text-text-dark"
                       >
                         Offline
                       </span>
                       <img
                         src="https://i.ibb.co/hFStx6J8/svgviewer-png-output-62.webp"
                         alt="arrow-down"
-                        class="w-3 h-3 pointer-events-none"
+                        class="w-3 h-3 pointer-events-none dark:[filter:brightness(0)_invert(100%)]"
                       />
                     </a>
                   </div>
@@ -385,11 +385,11 @@
 
               <!-- Status text input -->
               <div
-                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover transition-all duration-150 ease-in-out"
+                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover dark:bg-background-dark-input dark:hover:bg-background-dark-inputHover transition-all duration-150 ease-in-out"
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none dark:placeholder:text-text text-[#344054] placeholder:text-[#344054]"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-text-muted-light placeholder:text-text-muted-light dark:text-text-muted-dark dark:placeholder:text-text-muted-dark"
                   placeholder="Away Message..."
                 />
                 <a
@@ -413,15 +413,15 @@
                     id="profile-slidein-switch-1"
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Repost status message to X
                   </span>
@@ -436,7 +436,7 @@
 
             <!-- Control block -->
             <div
-              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-[#d0d5dd]"
+              class="pointer-events-none relative z-[3] flex flex-col items-start self-stretch gap-4 p-4 opacity-50 border-b border-border-light dark:border-border-dark"
             >
               <!-- Block header -->
               <div
@@ -453,7 +453,7 @@
                     />
                   </span>
                   <span
-                    class="text-sm font-medium uppercase leading-5 text-[#344054] dark:text-text"
+                    class="text-sm font-medium uppercase leading-5 text-text-muted-light dark:text-text-muted-dark"
                   >
                     Chat status
                   </span>
@@ -474,14 +474,14 @@
                       class="inline-flex items-center gap-2 px-2 py-1 rounded-[0.938rem]"
                     >
                       <span
-                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none dark:text-text"
+                        class="text-sm font-medium uppercase leading-5 text-black pointer-events-none dark:text-text-dark"
                       >
                         Offline
                       </span>
                       <img
                         src="https://i.ibb.co/hFStx6J8/svgviewer-png-output-62.webp"
                         alt="arrow-down"
-                        class="w-3 h-3 pointer-events-none"
+                        class="w-3 h-3 pointer-events-none dark:[filter:brightness(0)_invert(100%)]"
                       />
                     </a>
                   </div>
@@ -490,11 +490,11 @@
 
               <!-- Status text input -->
               <div
-                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover transition-all duration-150 ease-in-out"
+                class="relative flex items-center self-stretch gap-2 px-2 py-1 rounded-[0.625rem] bg-background-light-input hover:bg-background-light-inputHover dark:bg-background-dark-input dark:hover:bg-background-dark-inputHover transition-all duration-150 ease-in-out"
               >
                 <input
                   type="text"
-                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none dark:text-text  text-[#344054] placeholder:text-[#344054]"
+                  class="flex-1 text-xs font-medium leading-6 bg-transparent outline-none border-none text-text-muted-light placeholder:text-text-muted-light dark:text-text-muted-dark dark:placeholder:text-text-muted-dark"
                   placeholder="Write status here..."
                   value="Can't type with my greasy fingers, call me instead 💋"
                 />
@@ -519,15 +519,15 @@
                     id="profile-slidein-switch-1"
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Repost status message to X
                   </span>
@@ -542,7 +542,7 @@
           </div>
 
           <!-- Auto repost settings -->
-          <div
+           <div
             class="relative z-[2] flex flex-col items-start self-stretch gap-4 p-4"
           >
             <!-- Heading -->
@@ -550,7 +550,7 @@
               class="flex items-center gap-2 [filter:brightness(0)_saturate(100%)_invert(37%)_sepia(57%)_saturate(6169%)_hue-rotate(214deg)_brightness(91%)_contrast(106%)]"
             >
               <span
-                class="text-xs font-medium leading-[1.125rem] text-[#344054] pointer-events-none"
+                class="text-xs font-medium leading-[1.125rem] text-text-muted-light dark:text-text-muted-dark pointer-events-none"
               >
                 Advanced Repost Settings
               </span>
@@ -564,7 +564,7 @@
             <!-- Settings block -->
             <div class="flex flex-col items-start self-stretch gap-4">
               <p
-                class="text-xs leading-[1.125rem] text-[text-darker-light] self-stretch dark:text-text"
+                class="text-xs leading-[1.125rem] text-text-darker-light dark:text-text-darker-dark self-stretch"
               >
                 Repost your status and custom message automatically when you:
               </p>
@@ -579,15 +579,15 @@
                     checked
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Sign In
                   </span>
@@ -604,15 +604,15 @@
                     checked
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Log Out
                   </span>
@@ -629,15 +629,15 @@
                     checked
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Changes Statuses
                   </span>
@@ -653,15 +653,15 @@
                     id="profile-slidein-switch-5"
                   />
                   <span
-                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d]"
+                    class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"
                   ></span>
                   <span
-                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem]"
+                    class="absolute left-[0.125rem] top-1/2 h-3 w-3 -translate-y-1/2 transform rounded-full bg-white shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"
                   ></span>
                 </label>
                 <div class="flex items-center gap-1">
                   <span
-                    class="text-xs leading-[1.125rem] text-[#667085] dark:text-text"
+                    class="text-xs leading-[1.125rem] text-text-secondary-light dark:text-text-secondary-dark"
                   >
                     Change Custom Messages
                   </span>
