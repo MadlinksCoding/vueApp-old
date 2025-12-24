@@ -18,13 +18,13 @@
                       <div
                         class="absolute z-0 flex flex-col justify-center items-center gap-2 mt-16 md:mt-24"
                       >
-                        <span class="text-base text-[#344054]"
+                        <span class="text-base text-[#344054] dark:text-[#bdb8af]"
                           >Token Balance</span
                         >
                         <div
                           class="flex flex-col justify-center items-center gap-2"
                         >
-                          <span class="text-5xl font-medium tracking-[0.015rem]"
+                          <span class="text-5xl font-medium tracking-[0.015rem] dark:text-[#bdb8af]"
                             >0</span
                           >
                         </div>

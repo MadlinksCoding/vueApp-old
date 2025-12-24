@@ -15,10 +15,10 @@
                     <div
                       class="flex flex-col justify-center items-center gap-2 text-center"
                     >
-                      <p class="text-base text-[#344054]">
+                      <p class="text-base text-[#344054] dark:text-[#bdb8af]">
                         You don’t have any active chats yet.
                       </p>
-                      <a class="text-sm text-[#344054] underline"
+                      <a class="text-sm text-[#344054] underline dark:text-[#bdb8af]"
                         >Look who is online</a
                       >
                     </div>

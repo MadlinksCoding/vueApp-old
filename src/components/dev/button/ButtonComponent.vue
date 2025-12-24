@@ -99,7 +99,7 @@ const themeClasses = {
   polygonRight:
     "w-max group flex items-center justify-center gap-[0.625rem] py-1 pr-[1.4rem] pl-2 bg-black hover:bg-[#07f468] text-[#fff] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-black relative cursor-pointer [clip-path:polygon(0_0,92%_0,100%_105%,0_105%)]",
   bgGreen:
-    "group flex items-center justify-center gap-2.5 py-6 pr-[1.4rem] bg-[#07f468] hover:bg-black text-[#000] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-[#07f468] relative cursor-pointer ",
+    "group flex items-center justify-center gap-2.5 py-6 px-[1.4rem] bg-[#07f468] hover:bg-black text-[#000] text-[1.125rem] leading-7 font-medium uppercase transition-colors duration-200 hover:text-[#07f468] relative cursor-pointer ",
   mediaBtn:
     "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]",
   profileMediaBtn:

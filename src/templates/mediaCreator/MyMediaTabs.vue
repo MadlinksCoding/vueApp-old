@@ -10,7 +10,7 @@
         modelValue === tab.value ? 'active bg-white dark:bg-[#121212]' : ''
       ]"
     >
-      <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#98A2B3] group-[.active]:font-semibold group-[.active]:text-[#344054] group-[.active]:dark:text-[#C0CCE4] dark:text-[#ACBACF] md:text-sm">
+      <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#98A2B3] group-[.active]:font-semibold group-[.active]:text-[#344054] group-[.active]:dark:text-[#C0CCE4] dark:text-text-dark-mutedBluish md:text-sm">
         {{ tab.label }}
       </span>
       

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col items-start self-stretch bg-white/20 gap-1 flex-grow backdrop-blur-[25px] shadow-[0_4px_6px_rgba(16,24,40,.08)] h-[21rem] md:h-[28.031rem]"
+    class="flex flex-col items-start self-stretch bg-white/20 dark:bg-background-dark-app/10 gap-1 flex-grow backdrop-blur-[25px] shadow-[0_4px_6px_rgba(16,24,40,.08)] h-[21rem] md:h-[28.031rem]"
   >
     <!-- Header -->
     <div
@@ -12,12 +12,12 @@
           <img
             :src="icon"
             :alt="title"
-            class="w-full h-full"
+            class="w-full h-full dark:[filter:brightness(0)_saturate(100%)_invert(100%)]"
           />
         </div>
 
         <h3
-          class="text-[#344054] text-lg font-medium uppercase md:text-xl md:leading-normal"
+          class="text-[#344054] text-lg font-medium uppercase md:text-xl md:leading-normal dark:text-[#bdb8af]"
         >
           {{ title }}
         </h3>

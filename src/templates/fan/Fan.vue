@@ -3,12 +3,12 @@
   <div class="flex flex-col md:flex-row ">
     <!-- dashboard-template-main -->
     <div
-      class="w-full [height:calc(100vw-3rem)] relative z-[2] bg-transparent md:h-auto before:content-[''] before:fixed before:bg-[url('https://staging.website.app/wp-content/plugins/website/assets/dashboard-v2/images/gradient-main-bg.svg')] before:bg-cover before:w-full before:bg-no-repeat before:h-full before:left-0 before:top-0 before:pointer-events-none">
+      class="w-full [height:calc(100vw-3rem)] relative z-[2] bg-transparent dark:bg-background-dark-app md:h-auto before:content-[''] before:fixed before:bg-[url('https://staging.website.app/wp-content/plugins/website/assets/dashboard-v2/images/gradient-main-bg.svg')] before:bg-cover before:w-full before:bg-no-repeat before:h-full before:left-0 before:top-0 before:pointer-events-none">
       <!-- dashboard-template-content -->
       <div class="flex flex-col h-full">
         <!-- container-wrapper -->
         <div
-          class="flex flex-col w-full h-full bg-gradient-to-b from-[rgba(255,255,255,0.3)] from-0% to-[rgba(255,255,255,0)] to-8% to:from-[rgba(24,26,27,0)]">
+          class="flex flex-col w-full h-full">
           <!-- main-section -->
           <div class="flex flex-col relative flex-grow">
             <!-- inner-container -->
@@ -218,17 +218,17 @@
                     <!-- Arrow -->
                     <div class="flex items-center justify-end gap-4">
                       <button @click="navigateTrending('<')"
-                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
+                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] dark:border-[#bdb8af] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
                         aria-label="Previous slide">
                         <img src="https://i.ibb.co.com/TBbShkb8/chevron-right.png" alt="chevron-left"
-                          class="w-8 min-w-8 h-8 min-h-8 rotate-180" />
+                          class="w-8 min-w-8 h-8 min-h-8 rotate-180 dark:[filter:brightness(0)_saturate(100%)_invert(100%)]" />
                       </button>
 
                       <button @click="navigateTrending('>')"
-                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
+                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] dark:border-[#bdb8af] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
                         aria-label="Next slide">
                         <img src="https://i.ibb.co.com/TBbShkb8/chevron-right.png" alt="chevron-right"
-                          class="w-8 min-w-8 h-8 min-h-8" />
+                          class="w-8 min-w-8 h-8 min-h-8 dark:[filter:brightness(0)_saturate(100%)_invert(100%)]" />
                       </button>
                     </div>
 
@@ -259,17 +259,17 @@
 
                     <div class="flex items-center justify-end gap-4">
                       <button @click="navigateNewWebsite('<')"
-                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
+                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 dark:border-[#bdb8af] [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
                         aria-label="Previous slide">
                         <img src="https://i.ibb.co.com/TBbShkb8/chevron-right.png" alt="chevron-left"
-                          class="w-8 min-w-8 h-8 min-h-8 rotate-180" />
+                          class="w-8 min-w-8 h-8 min-h-8 rotate-180 dark:[filter:brightness(0)_saturate(100%)_invert(100%)]" />
                       </button>
 
                       <button @click="navigateNewWebsite('>')"
-                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
+                        class="static flex items-center justify-center p-2 w-auto h-auto transform-none [background:unset] bg-white/15 dark:border-[#bdb8af] [border:1px_solid_rgba(0,0,0,0.5)] rounded-full backdrop-blur-[10px] [&:disabled]:opacity-50 [&:disabled]:cursor-not-allowed hover:bg-black/10 cursor-pointer"
                         aria-label="Next slide">
                         <img src="https://i.ibb.co.com/TBbShkb8/chevron-right.png" alt="chevron-right"
-                          class="w-8 min-w-8 h-8 min-h-8" />
+                          class="w-8 min-w-8 h-8 min-h-8 dark:[filter:brightness(0)_saturate(100%)_invert(100%)]" />
                       </button>
                     </div>
 

@@ -9,18 +9,18 @@
           <img
             :src="icon"
             :alt="title"
-            class="w-[1.375rem] h-[1.375rem]"
+            class="w-[1.375rem] h-[1.375rem] dark:[filter:brightness(0)_saturate(100%)_invert(100%)]"
           />
         </span>
 
         <h2
-          class="text-[#344054] text-xl leading-normal font-bold uppercase md:text-2xl"
+          class="text-[#344054] dark:text-[#bdb8af] text-xl leading-normal font-bold uppercase md:text-2xl"
         >
           {{ title }}
         </h2>
       </div>
 
-      <p class="text-base font-medium text-[#667085] md:text-lg">
+      <p class="text-base font-medium dark:text-[#bdb8af] text-[#667085] md:text-lg">
         {{ description }}
       </p>
     </div>

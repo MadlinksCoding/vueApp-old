@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen md:w-[26.875rem] md:max-h-[45.625rem]">
+  <div class="h-screen md:w-[26.875rem] ">
     <div
       class="flex flex-col h-full [background:linear-gradient(180deg,rgba(255,255,255,0.20)_-4.5%,rgba(255,255,255,0.00)_11.18%),rgba(0,0,0,0.70)] backdrop-blur-[25px] md:shadow-[0px_4px_4px_0px_#00000040]"
     >

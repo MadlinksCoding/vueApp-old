@@ -215,6 +215,9 @@ export default {
             light: "#0c111d",
             dark: "#e8e6e3",
           },
+          dark:{
+            mutedBluish:"#ACBACF"
+          },
           quaternary: "#667085",
         },
         placeholder: {

@@ -9,7 +9,7 @@
         class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <!-- head -->
         <div class="flex justify-between items-center px-[5px] py-[16px]">
-          <h3 class="text-sm font-semibold leading-5 text-primary-text">
+          <h3 class="text-sm font-semibold leading-5 text-primary-text dark:text-text">
             Upload Media
           </h3>
           <img class="w-4 h-4 [pointer-events:none]" src="https://i.ibb.co.com/Mxvwrpbg/svgviewer-png-output-84.webp"
@@ -21,7 +21,7 @@
           <button
             class="text-xs md:flex-1 font-normal leading-[1.125rem] flex md:min-w-[5rem] flex-col items-center gap-2.5 md:px-2 md:py-2 transition-all duration-200 cursor-pointer flex-shrink-0"
             :class="uploader.step === 1
-              ? 'border-b-2 border-black text-black'
+              ? 'border-b-2 border-black text-black dark:text-text'
               : 'border-b border-transparent text-gray-text'
               " @click="uploader.forceStep(1)">
             Preview Settings

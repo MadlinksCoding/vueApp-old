@@ -1,10 +1,14 @@
 <template>
     <div
-        class="relative z-[2] bg-[#F9FAFBE5] min-h-screen md:bg-transparent md:h-auto before:content-[''] before:fixed md:before:bg-[url('https://i.ibb.co.com/dw910Z5b/gradient-main-bg.webp')] before:bg-cover before:w-full before:bg-no-repeat before:h-full before:left-0 before:top-0 before:pointer-events-none">
+        class="relative z-[2] bg-[#F9FAFBE5] min-h-screen md:bg-transparent md:h-auto
+         before:content-[''] before:fixed 
+         md:before:bg-[url('https://i.ibb.co.com/dw910Z5b/gradient-main-bg.webp')] dark:bg-background-dark-app
+         before:bg-cover before:w-full before:bg-no-repeat before:h-full 
+         before:left-0 before:top-0 before:pointer-events-none">
         <div class="flex flex-col backdrop-blur-[50px] md:gap-6 ">
             <!-- title-section -->
             <section class="hidden md:flex justify-between items-center md:gap-6 pt-10 px-4 xl:px-10">
-                <h1 class="text-3xl font-medium leading-[2.375rem] text-[#475467]">Media</h1>
+                <h1 class="text-3xl font-medium leading-[2.375rem] text-[#475467] dark:text-text">Media</h1>
 
                 <ButtonComponent text="UPLOAD MEDIA" variant="mediaBtn"
                     :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
@@ -22,7 +26,7 @@
                         class="hidden md:flex w-[6.5rem] h-10 rounded-md bg-[#E6E6E6] animate-skeleton-loading">
                     </div>
                     <div v-else
-                        class="hidden md:flex bg-[#F9FAFB80] border border-[#D0D5DD] rounded-[0.3125rem] overflow-hidden">
+                        class="hidden md:flex bg-[#F9FAFB80] dark:bg-transparent border border-[#D0D5DD] rounded-[0.3125rem] overflow-hidden">
 
                         <button @click="viewMode = 'grid'" :class="{ 'active': viewMode === 'grid' }"
                             class="flex justify-center items-center h-10 py-2 px-4 border-r border-[#D0D5DD] outline-none flex-1 group [&.active]:bg-[#0C111D]">
@@ -63,7 +67,7 @@
                         <img src="https://i.ibb.co.com/vCnZbZrK/filter-funnel-02.webp" alt="filter"
                             class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(74%)_sepia(10%)_saturate(446%)_hue-rotate(179deg)_brightness(86%)_contrast(87%)] md:[filter:brightness(0)_saturate(100%)_invert(18%)_sepia(15%)_saturate(1287%)_hue-rotate(179deg)_brightness(101%)_contrast(82%)] md:w-5 md:h-5">
                         <span
-                            class="text-xs leading-normal font-medium text-[#98A2B3] md:text-sm md:leading-semibold md:text-[#344054]">Filter</span>
+                            class="text-xs leading-normal font-medium text-[#98A2B3] dark:text-[#BAC7DC] md:text-sm md:leading-semibold md:text-[#344054]">Filter</span>
                         <div class="hidden w-2 h-2 rounded-full bg-[#FF0066] md:flex"></div>
                     </button>
                 </div>

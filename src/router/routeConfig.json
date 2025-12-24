@@ -727,7 +727,6 @@
     "section": "auth",
     "preLoadSections": []
   },
-  
   {
     "slug": "/:pathMatch(.*)*",
     "redirect": "/404"

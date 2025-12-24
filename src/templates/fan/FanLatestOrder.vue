@@ -6,19 +6,19 @@
                 <div
                     class="flex px-1 py-1 rounded-[3rem] bg-gradient-to-r from-[rgba(251,_91,_162,_0.15)] to-[rgba(251,_91,_162,_0.08)] border-none shadow-[0_1px_2px_0_rgba(16,_24,_40,_0.05)] overflow-hidden items-start w-full sm:w-max">
                     <button
-                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap active [&.active]:rounded-[3rem] [&.active]:bg-black [&.active]:text-white [&.active]:font-semibold">
+                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 dark:text-text justify-center items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap active [&.active]:rounded-[3rem] [&.active]:bg-black [&.active]:text-white [&.active]:font-semibold">
                         Subscriptions
                     </button>
                     <button
-                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
+                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center dark:text-text  items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
                         PPV
                     </button>
                     <button
-                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
+                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center dark:text-text flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
                         Merch
                     </button>
                     <button
-                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
+                        class="trends-tabs-wrapper-button p-2 sm:px-4 sm:py-2 text-sm font-medium leading-5 justify-center items-center dark:text-text flex gap-2 outline-none border-none h-10 [flex:1] sm:h-auto sm:[flex:unset] whitespace-nowrap">
                         Custom Request
                     </button>
                 </div>
@@ -38,7 +38,7 @@
             </div>
 
             <!-- flexbox-table-data -->
-            <div class="w-full min-h-[25.375rem] flex justify-center items-center">
+            <div class="w-full flex justify-center items-center">
                 <!-- tab-content-item (Subscriptions) -->
                 <div class="flex flex-col justify-center gap-2 w-full h-full pb-8 min-w-0 min-h-0">
                     <div class="flex justify-center items-center p-4 pt-0">
@@ -50,7 +50,7 @@
 
                     <!-- text-container -->
                     <div class="flex flex-col justify-center items-center gap-2 text-center">
-                        <p class="text-base text-[#344054]">
+                        <p class="text-base text-[#344054] dark:text-[#bdb8af]">
                             You don’t have any orders at the moment
                         </p>
                     </div>

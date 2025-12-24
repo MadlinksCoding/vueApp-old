@@ -2,7 +2,7 @@
   <DashboardWrapperTwoColContainer>
     <!-- <BookingForm /> -->
 
-    <!-- <Cookies /> -->
+    <Cookies />
 
     <!-- <ButtonComponent text="Cancel" variant="hoverBgWhite" size="lg" /> -->
 
@@ -38,13 +38,17 @@
 
     <!-- <LoadingTest /> -->
     <!-- <PageDataTest />  -->
-
-    <!-- <Cart/> -->
+     <br>
+        <br>
+    <Cart/>
     <!-- <OrderReceived /> -->
-
-    <!-- <DashProfileSettings/> -->
-
     <br>
+        <br>
+    
+    <br>
+    <br>
+    <DashProfileSettings/>
+
     <br>
     <br>
 
