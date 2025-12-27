@@ -1,4 +1,5 @@
 <script setup>
+  import { ref } from "vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import SectionHeader from "../ReuseableComponents/SectionHeader.vue";
 import PaymentMethodLoggedIn from "../ReuseableComponents/PaymentMethodLoggedIn.vue";
@@ -8,12 +9,14 @@ import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import CheckoutMediaPreview from "../ReuseableComponents/CheckoutMediaPreview.vue";
 import TotalAmountRow from "../ReuseableComponents/TotalAmountRow.vue";
+import SectionToggleHeader from "../ReuseableComponents/SectionToggleHeader.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue"]);
+const orderSummaryOpen = ref(true);
 
 const buyNowLoginConfig = {
   actionType: "slidein",
@@ -25,8 +28,8 @@ const buyNowLoginConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "90%", "<786": "100%" },
-  height: { default: "90%", "<786": "100%" },
+  width: { default: "90%", "<768": "100%" },
+  height: { default: "90%", "<768": "100%" },
   scrollable: false,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -57,7 +60,7 @@ const cartItems = [
       class="bg-[#272727] font-sans p-0 m-0 box-border overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
     >
       <div
-        class="flex flex-col h-screen bg-white/10  backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
+        class="flex flex-col h-screen bg-white/10 backdrop-blur-[100px] drop-shadow-[0_4px_6px_-2px_#10182808,0_12px_16px_-4px_#10182814] md:flex-row overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:overflow-y-[unset]"
       >
         <!-- image-container -->
         <CheckoutMediaPreview
@@ -71,9 +74,7 @@ const cartItems = [
 
         <!-- form-container -->
         <div
-          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] 
-          [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 md:h-screen
-           md:bg-black/50 dark:bg-background-dark-app"
+          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 md:h-screen md:bg-black/50 dark:bg-background-dark-app"
         >
           <!-- form-section -->
           <div class="flex flex-col gap-6">
@@ -130,10 +131,16 @@ const cartItems = [
             </div>
 
             <!-- order-summary-section (mobile) -->
-             <div class="flex flex-col gap-6 md:hidden">
-               <OrderSummary title="ORDER SUMMARY" :items="cartItems" />
-              </div>
-               
+            <div class="flex flex-col gap-6 md:hidden">
+              <SectionToggleHeader
+                title="ORDER SUMMARY"
+                icon="https://i.ibb.co.com/xSK3W1w6/General.webp"
+                v-model="orderSummaryOpen"
+              >
+                <OrderSummary :items="cartItems" />
+              </SectionToggleHeader>
+            </div>
+
             <div class="flex flex-col gap-6">
               <!-- payment-method-section -->
               <div class="flex flex-col gap-4">
@@ -159,7 +166,8 @@ const cartItems = [
 
                   <!-- arrow-container -->
                   <div class="flex items-center gap-2.5">
-                    <span class="text-sm font-medium text-[#EAECF0] dark:text-[#dddad5]"
+                    <span
+                      class="text-sm font-medium text-[#EAECF0] dark:text-[#dddad5]"
                       >Change Card</span
                     >
                     <div
@@ -178,11 +186,17 @@ const cartItems = [
               </div>
 
               <!-- notes-section -->
-              <CheckoutNotes :showAvatars="false"/>
+              <CheckoutNotes :showAvatars="false" />
 
               <!-- order-summary-section (desktop) -->
               <div class="hidden flex-col gap-4 md:flex">
-                <OrderSummary title="ORDER SUMMARY" :items="cartItems" />
+                <SectionToggleHeader
+                  title="ORDER SUMMARY"
+                  icon="https://i.ibb.co.com/xSK3W1w6/General.webp"
+                  v-model="orderSummaryOpen"
+                >
+                  <OrderSummary :items="cartItems" />
+                </SectionToggleHeader>
               </div>
             </div>
           </div>

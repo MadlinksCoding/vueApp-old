@@ -138,7 +138,24 @@
       variant="mediaBtn"
       @click="subscribeUpdateLoginPopupOpen = true"
     />
+
     <br />
+    
+    <ButtonComponent
+      text="Purchase Tip Popup"
+      variant="mediaBtn"
+      @click="purchaseTipPopupOpen = true"
+    />
+
+    <br>
+
+    <ButtonComponent
+      text="Purchase Flow Subscription Popup"
+      variant="mediaBtn"
+      @click="purchaseFlowSubscriptionPopupOpen = true"
+    />
+
+    <br>
 
     <UploadingProgressBar
       :progress="uploadPercentage"
@@ -165,6 +182,8 @@
     <SubscribeLoginPopup v-model="subscribeLoginPopupOpen" />
     <SubscribeNotLoginPopup v-model="subscribeNotLoginPopupOpen" />
     <SubscribeUpdateLoginPopup v-model="subscribeUpdateLoginPopupOpen" />
+    <PurchaseTipFlowPopup v-model="purchaseTipPopupOpen" />
+    <PurchaseFlowSubscriptionOrderPopup v-model="purchaseFlowSubscriptionPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -192,6 +211,8 @@ import SubscribeLoginPopup from "@/components/checkout/subscribe/SubscribeLoginP
 import SubscribeNotLoginPopup from "@/components/checkout/subscribe/SubscribeNotLoginPopup.vue";
 import SubscribeUpdateLoginPopup from "@/components/checkout/subscribe/SubscribeUpdateLoginPopup.vue";
 import DashProfileSettings from "@/components/DashProfileSettings.vue";
+import PurchaseTipFlowPopup from "@/components/checkout/purchase/PurchaseTipFlowPopup.vue";
+import PurchaseFlowSubscriptionOrderPopup from "@/components/checkout/purchase/PurchaseFlowSubscriptionOrderPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -205,6 +226,8 @@ const cartCheckoutNotLoginPopupOpen = ref(false);
 const subscribeLoginPopupOpen = ref(false);
 const subscribeNotLoginPopupOpen = ref(false);
 const subscribeUpdateLoginPopupOpen = ref(false);
+const purchaseTipPopupOpen = ref(false);
+const purchaseFlowSubscriptionPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);

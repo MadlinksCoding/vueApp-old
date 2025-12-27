@@ -23,9 +23,7 @@
 
         <!-- form-container -->
         <div
-          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] 
-          [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 
-          md:h-screen md:bg-black/50 dark:bg-background-dark-app"
+          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 md:h-screen md:bg-black/50 dark:bg-background-dark-app"
         >
           <!-- form-section -->
           <div class="flex flex-col gap-6">
@@ -60,153 +58,135 @@
             </div>
 
             <!-- order-summary-section -->
-            <OrderSummary title="ORDER SUMMARY" :items="cartItems" />
+            <SectionToggleHeader
+              title="ORDER SUMMARY"
+              icon="https://i.ibb.co.com/xSK3W1w6/General.webp"
+              v-model="orderSummaryOpen"
+            >
+              <OrderSummary :items="cartItems" />
+            </SectionToggleHeader>
 
             <div class="flex flex-col gap-6">
               <!-- shipping-address-section -->
-              <div class="flex flex-col gap-4">
-                <!-- title-container -->
-                <div
-                  class="flex justify-between items-center border-b border-transparent"
+              
+                <SectionToggleHeader
+                  title="SHIPPING ADDRESS"
+                  icon="https://i.ibb.co.com/5gv74YLd/Maps-travel.webp"
+                  v-model="shippingOpen"
                 >
-                  <!-- section-title -->
-                  <div class="flex items-center gap-2">
-                    <div class="flex justify-center items-center w-5 h-5">
-                      <img
-                        src="https://i.ibb.co.com/5gv74YLd/Maps-travel.webp"
-                        alt="location-marker"
-                        class="w-5 h-5"
-                      />
-                    </div>
-                    <h3
-                      class="text-base font-semibold text-[#F9FAFB] align-middle"
-                    >
-                      SHIPPING ADDRESS
-                    </h3>
-                  </div>
+                  <!-- form-container -->
+                  <div class="flex flex-col gap-4">
+                    <div class="flex flex-col gap-3">
+                      <!-- input-group -->
+                      <div class="flex items-center gap-2 w-full">
+                        <!-- input-wrapper -->
+                        <div class="w-full">
+                          <BaseInput
+                            type="text"
+                            inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                            v-model="lastName"
+                            label="Last Name"
+                            labelFor="last-name"
+                            labelClass="text-sm font-medium text-[#F9FAFB]"
+                            placeholder="Last Name"
+                          />
+                        </div>
 
-                  <div
-                    class="flex justify-center items-center w-6 h-6 cursor-pointer"
-                  >
-                    <img
-                      src="https://i.ibb.co.com/qLW7tf3T/Arrows.webp"
-                      alt="chevron-down"
-                    />
-                  </div>
-                </div>
-
-                <!-- form-container -->
-                <div class="flex flex-col gap-4">
-                  <div class="flex flex-col gap-3">
-                    <!-- input-group -->
-                    <div class="flex items-center gap-2 w-full">
-                      <!-- input-wrapper -->
-                      <div class="w-full">
-                        <BaseInput
-                          type="text"
-                          inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                          v-model="lastName"
-                          label="Last Name"
-                          labelFor="last-name"
-                          labelClass="text-sm font-medium text-[#F9FAFB]"
-                          placeholder="Last Name"
-                        />
+                        <!-- input-wrapper -->
+                        <div class="w-full">
+                          <BaseInput
+                            type="text"
+                            inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                            v-model="firstName"
+                            label="First Name"
+                            labelFor="first-name"
+                            labelClass="text-sm font-medium text-[#F9FAFB]"
+                            placeholder="First Name"
+                          />
+                        </div>
                       </div>
 
                       <!-- input-wrapper -->
-                      <div class="w-full">
-                        <BaseInput
-                          type="text"
-                          inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                          v-model="firstName"
-                          label="First Name"
-                          labelFor="first-name"
-                          labelClass="text-sm font-medium text-[#F9FAFB]"
-                          placeholder="First Name"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- input-wrapper -->
-                    <BaseInput
-                      type="text"
-                      inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                      v-model="addressLine1"
-                      label="Address Line 1"
-                      labelFor="Address-Line-1"
-                      labelClass="text-sm font-medium text-[#F9FAFB]"
-                      placeholder="Address Line 1"
-                    />
-
-                    <!-- input-wrapper -->
-                    <BaseInput
-                      type="text"
-                      inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                      v-model="addressLine2"
-                      label="Address Line 2"
-                      labelFor="Address-Line-2"
-                      labelClass="text-sm font-medium text-[#F9FAFB]"
-                      placeholder="Address Line 2"
-                    />
-
-                    <!-- input-group -->
-                    <div class="flex items-center gap-2">
-                      <!-- input-wrapper -->
-                      <div class="w-full">
-                        <BaseInput
-                          type="text"
-                          inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                          v-model="postalCode"
-                          label="Postal Code"
-                          labelFor="postal-code"
-                          labelClass="text-sm font-medium text-[#F9FAFB]"
-                          placeholder="Postal Code"
-                        />
-                      </div>
-
-                      <!-- input-wrapper -->
-                      <div class="w-full">
-                        <BaseInput
-                          type="text"
-                          inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                          v-model="City"
-                          label="City"
-                          labelFor="City"
-                          labelClass="text-sm font-medium text-[#F9FAFB]"
-                          placeholder="City"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- dropdown-group -->
-                    <div class="flex items-center gap-2">
-                      <!-- dropdown-wrapper -->
-                      <BaseSelect
-                        label="Country"
-                        :options="countryOptions"
-                        v-model="selectedCountry"
+                      <BaseInput
+                        type="text"
+                        inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                        v-model="addressLine1"
+                        label="Address Line 1"
+                        labelFor="Address-Line-1"
+                        labelClass="text-sm font-medium text-[#F9FAFB]"
+                        placeholder="Address Line 1"
                       />
 
-                      <!-- dropdown-wrapper -->
-                      <BaseSelect
-                        label="State"
-                        :options="stateOptions"
-                        v-model="selectedState"
-                        placeholder=""
+                      <!-- input-wrapper -->
+                      <BaseInput
+                        type="text"
+                        inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                        v-model="addressLine2"
+                        label="Address Line 2"
+                        labelFor="Address-Line-2"
+                        labelClass="text-sm font-medium text-[#F9FAFB]"
+                        placeholder="Address Line 2"
                       />
-                    </div>
-                  </div>
 
-                  <!-- checkbox-container -->
-                  <CheckboxGroup
-                    label="Save this address for future use."
-                    v-model="profilePageModel"
-                    checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
-                    labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
-                    wrapperClass="flex items-center"
-                  />
-                </div>
-              </div>
+                      <!-- input-group -->
+                      <div class="flex items-center gap-2">
+                        <!-- input-wrapper -->
+                        <div class="w-full">
+                          <BaseInput
+                            type="text"
+                            inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                            v-model="postalCode"
+                            label="Postal Code"
+                            labelFor="postal-code"
+                            labelClass="text-sm font-medium text-[#F9FAFB]"
+                            placeholder="Postal Code"
+                          />
+                        </div>
+
+                        <!-- input-wrapper -->
+                        <div class="w-full">
+                          <BaseInput
+                            type="text"
+                            inputClass="bg-white/10 text-base text-[#F9FAFB] placeholder:text-base placeholder:text-[#F9FAFB]/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                            v-model="City"
+                            label="City"
+                            labelFor="City"
+                            labelClass="text-sm font-medium text-[#F9FAFB]"
+                            placeholder="City"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- dropdown-group -->
+                      <div class="flex items-center gap-2">
+                        <!-- dropdown-wrapper -->
+                        <BaseSelect
+                          label="Country"
+                          :options="countryOptions"
+                          v-model="selectedCountry"
+                        />
+
+                        <!-- dropdown-wrapper -->
+                        <BaseSelect
+                          label="State"
+                          :options="stateOptions"
+                          v-model="selectedState"
+                          placeholder=""
+                        />
+                      </div>
+                    </div>
+
+                    <!-- checkbox-container -->
+                    <CheckboxGroup
+                      label="Save this address for future use."
+                      v-model="profilePageModel"
+                      checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
+                      labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
+                      wrapperClass="flex items-center"
+                    />
+                  </div>
+                </SectionToggleHeader>
+            
 
               <!-- payment-method-section -->
               <div class="flex flex-col gap-4">
@@ -243,7 +223,7 @@
           <!-- total-section -->
           <div class="flex gap-6">
             <div class="flex flex-col gap-4 w-full">
-             <TotalAmountRow amount="USD$6.99" />
+              <TotalAmountRow amount="USD$6.99" />
 
               <!-- checkbox-container -->
               <CheckboxGroup
@@ -293,6 +273,10 @@ import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import BaseSelect from "../ReuseableComponents/BaseSelect.vue";
 import { ref } from "vue";
 import TotalAmountRow from "../ReuseableComponents/TotalAmountRow.vue";
+import SectionToggleHeader from "../ReuseableComponents/SectionToggleHeader.vue";
+
+const orderSummaryOpen = ref(true);
+const shippingOpen = ref(true);
 
 // Mock Data
 const cartItems = [
@@ -323,8 +307,8 @@ const cartcheckoutNotLoginConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "90%", "<786": "100%" },
-  height: { default: "90%", "<786": "100%" },
+  width: { default: "90%", "<768": "100%" },
+  height: { default: "90%", "<768": "100%" },
   scrollable: false,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",

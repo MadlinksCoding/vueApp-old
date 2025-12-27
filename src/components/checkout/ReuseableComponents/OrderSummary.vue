@@ -22,32 +22,6 @@ const toggleSection = () => {
 
 <template>
   <div class="w-full flex flex-col gap-5">
-    
-    <div 
-      @click="toggleSection"
-      class="flex justify-between items-center border-b border-transparent cursor-pointer select-none"
-    >
-      <div class="flex items-center gap-2">
-        <div class="flex justify-center items-center w-5 h-5">
-          <img
-            src="https://i.ibb.co.com/xSK3W1w6/General.webp"
-            alt="list"
-            class="w-5 h-5"
-          />
-        </div>
-        <h3 class="text-base font-semibold text-[#F9FAFB] align-middle">
-          {{ title }}
-        </h3>
-      </div>
-
-      <div class="flex justify-center items-center w-6 h-6 transition-transform duration-300"
-           :class="isOpen ? 'rotate-180' : 'rotate-0'">
-        <img
-          src="https://i.ibb.co.com/qLW7tf3T/Arrows.webp"
-          alt="chevron-down"
-        />
-      </div>
-    </div>
 
     <transition
       enter-active-class="transition-all duration-300 ease-out overflow-hidden"

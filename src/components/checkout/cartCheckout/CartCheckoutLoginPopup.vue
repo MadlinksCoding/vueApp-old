@@ -1,4 +1,5 @@
 <script setup>
+  import { ref } from "vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import SectionHeader from "../ReuseableComponents/SectionHeader.vue";
 import OrderSummary from "../ReuseableComponents/OrderSummary.vue";
@@ -8,6 +9,10 @@ import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import CheckoutMediaPreview from "../ReuseableComponents/CheckoutMediaPreview.vue";
 import CheckoutNotes from "../ReuseableComponents/CheckoutNotes.vue";
 import TotalAmountRow from "../ReuseableComponents/TotalAmountRow.vue";
+import AddressCard from "../ReuseableComponents/AddressCard.vue";
+import SectionToggleHeader from "../ReuseableComponents/SectionToggleHeader.vue";
+
+const orderSummaryOpen = ref(true);
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -25,8 +30,8 @@ const cartcheckoutLoginConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "90%", "<786": "100%" },
-  height: { default: "90%", "<786": "100%" },
+  width: { default: "90%", "<768": "100%" },
+  height: { default: "90%", "<768": "100%" },
   scrollable: false,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -90,9 +95,7 @@ const cartItems = [
 
         <!-- form-container -->
         <div
-          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none]
-          [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2
-           md:h-screen md:bg-black/50 dark:bg-background-dark-app"
+          class="flex flex-col gap-6 px-2 pt-4 pb-6 md:overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:py-6 md:w-1/2 md:h-screen md:bg-black/50 dark:bg-background-dark-app"
         >
           <!-- form-section -->
           <div class="flex flex-col gap-6">
@@ -150,7 +153,13 @@ const cartItems = [
 
             <!-- order-summary-section (mobile) -->
             <div class="flex flex-col gap-6 md:hidden">
-              <OrderSummary title="ORDER SUMMARY" :items="cartItems" />
+             <SectionToggleHeader
+                title="ORDER SUMMARY"
+                icon="https://i.ibb.co.com/xSK3W1w6/General.webp"
+                v-model="orderSummaryOpen"
+              >
+                <OrderSummary :items="cartItems" />
+              </SectionToggleHeader>
             </div>
 
             <div class="flex flex-col gap-6">
@@ -194,28 +203,9 @@ const cartItems = [
                 </div>
 
                 <!-- form-container -->
-                <div
-                  class="flex items-center gap-6 bg-black/25 rounded-md px-4 py-2 border border-[#EAECF080]"
-                >
-                  <div
-                    class="flex justify-between items-center gap-2 py-2 w-full"
-                  >
-                    <div class="h-12">
-                      <p
-                        class="text-base font-medium text-[#EAECF0] line-clamp-2"
-                      >
-                        Chan Tai Man,10/F Block5,Fook Yip Bldg,12345,Kwai
-                        Chung,Hong Kong
-                      </p>
-                    </div>
-
-                    <img
-                      src="https://i.ibb.co.com/JWT03TyR/svgviewer-png-output-33.png"
-                      alt="edit"
-                      class="w-[1.125rem] [filter:brightness(0)_saturate(100%)_invert(98%)_sepia(2%)_saturate(335%)_hue-rotate(184deg)_brightness(97%)_contrast(95%)] cursor-pointer"
-                    />
-                  </div>
-                </div>
+                <AddressCard
+                  address="Chan Tai Man,10/F Block5,Fook Yip Bldg,12345,Kwai Chung,Hong Kong"
+                />
               </div>
 
               <!-- payment-method-section -->
@@ -262,11 +252,17 @@ const cartItems = [
               </div>
 
               <!-- notes-section -->
-             <CheckoutNotes :showAvatars="true"/>
+              <CheckoutNotes :showAvatars="true" />
 
               <!-- order-summary-section (desktop) -->
               <div class="hidden flex-col gap-4 md:flex">
-                <OrderSummary title="ORDER SUMMARY" :items="cartItems" />
+               <SectionToggleHeader
+                title="ORDER SUMMARY"
+                icon="https://i.ibb.co.com/xSK3W1w6/General.webp"
+                v-model="orderSummaryOpen"
+              >
+                <OrderSummary :items="cartItems" />
+              </SectionToggleHeader>
               </div>
             </div>
           </div>
@@ -274,7 +270,7 @@ const cartItems = [
           <!-- total-section (mobile) -->
           <div class="flex gap-6 md:hidden">
             <div class="flex flex-col gap-4 w-full">
-             <TotalAmountRow amount="USD$6.99" />
+              <TotalAmountRow amount="USD$6.99" />
 
               <!-- checkbox-container -->
               <CheckboxGroup
@@ -328,31 +324,31 @@ const cartItems = [
 
           <!-- checkbox-container -->
           <CheckboxGroup
-                checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
-                labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
-                wrapperClass="flex items-center gap-2"
-              >
-                I agree to Our Website's
-                <a
-                  href=""
-                  class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
-                  >Terms and Condition</a
-                >
-                and
-                <a
-                  href=""
-                  class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
-                  >Privacy Policy</a
-                >.
-              </CheckboxGroup>
+            checkboxClass="appearance-none border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:accent-[#07f468] checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-[black] checked:after:border-b-[2px] checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer"
+            labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer"
+            wrapperClass="flex items-center gap-2"
+          >
+            I agree to Our Website's
+            <a
+              href=""
+              class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
+              >Terms and Condition</a
+            >
+            and
+            <a
+              href=""
+              class="text-sm leading-normal font-medium tracking-[0.0175rem] text-[#07F468] cursor-pointer"
+              >Privacy Policy</a
+            >.
+          </CheckboxGroup>
 
           <!-- button -->
           <ButtonComponent
-                text="Proceed Payment"
-                variant="checkoutProceedpayment"
-                :rightIcon="'https://i.ibb.co.com/NdmC2BjP/arrow-right.webp'"
-                :rightIconClass="`w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(67%)_sepia(19%)_saturate(5664%)_hue-rotate(95deg)_brightness(112%)_contrast(94%)]`"
-              />
+            text="Proceed Payment"
+            variant="checkoutProceedpayment"
+            :rightIcon="'https://i.ibb.co.com/NdmC2BjP/arrow-right.webp'"
+            :rightIconClass="`w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(67%)_sepia(19%)_saturate(5664%)_hue-rotate(95deg)_brightness(112%)_contrast(94%)]`"
+          />
         </div>
       </div>
     </div>
