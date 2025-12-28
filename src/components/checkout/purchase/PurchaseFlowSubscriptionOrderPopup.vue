@@ -22,7 +22,7 @@ import SubscriptionPlanCard from "../ReuseableComponents/SubscriptionPlanCard.vu
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   // ✅ NEW PROP: Controls flow ('new' or 'upgrade')
-  mode: { type: String, default: "new" },
+  mode: { type: String, default: "upgrade" },
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -225,6 +225,7 @@ onUnmounted(() => {
         <div
           class="flex flex-col gap-6 px-2 grow md:px-4 md:pt-6 lg:flex-row lg:p-0 lg:gap-0 lg:h-screen"
         >
+          <div id="mobile-summary-target-subscription" class="w-full lg:hidden"></div>
           
 
           <div
@@ -338,12 +339,24 @@ onUnmounted(() => {
                 :toggleable="false"
               >
                 <div v-if="checkout.state.paymentSaveCard">
+                  <div class="hidden lg:flex">
                   <PaymentMethodLoggedIn
                     :holderName="checkout.state.paymentCardHolder"
                     :cardNumber="checkout.state.paymentCardNumber"
                     :expiry="checkout.state.paymentExpiry"
                     @remove="checkout.state.paymentSaveCard = false"
+                    variant="large"
                   />
+                   </div>
+                   <div class="lg:hidden">
+                  <PaymentMethodLoggedIn
+                    :holderName="checkout.state.paymentCardHolder"
+                    :cardNumber="checkout.state.paymentCardNumber"
+                    :expiry="checkout.state.paymentExpiry"
+                    @remove="checkout.state.paymentSaveCard = false"
+                  
+                  />
+                   </div>
                 </div>
                 <div v-else>
                   <PaymentMethodNotLoggedIn
@@ -402,8 +415,17 @@ onUnmounted(() => {
 
           <div
             ref="rightColumnRef"
-            class="flex flex-col pb-[230px] gap-6 group/right-col [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] lg:w-1/2 lg:px-4 lg:pt-6 lg:-mb-[1px] lg:grow lg:bg-black/50 dark:lg:bg-[#181a1b]/50 lg:h-screen lg:overflow-y-auto relative"
+            class="flex flex-col pb-[260px] gap-6 group/right-col [&::-webkit-scrollbar]:hidden
+             [-ms-order-style:none] [scrollbar-width:none] lg:w-1/2 lg:px-4 lg:pt-6 lg:-mb-[1px]
+              lg:grow lg:bg-black/50 dark:lg:bg-[#181a1b]/50 lg:h-screen 
+              lg:overflow-y-auto relative"
           >
+
+          <Teleport
+              to="#mobile-summary-target-subscription"
+              :disabled="isLargeScreen"
+              v-if="isMounted"
+            >
             <SectionToggleHeader
               title="SUBSCRIPTION"
               icon="https://i.ibb.co.com/chd372MJ/logo-bg.webp"
@@ -427,7 +449,7 @@ onUnmounted(() => {
                     period="/mo"
                     backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
                     accentColor="#667085"
-                    footerText="Your membership will update in your next billing cycle (xx-xx-xxxx)"
+                    footerText=""
                     logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
                     leftSectionGradient="linear-gradient(0deg,rgba(0,0,0,0.5),rgba(0,0,0,0.5)),linear-gradient(0deg,rgba(102,112,133,0.50),rgba(102,112,133,0.50))"
 
@@ -467,11 +489,15 @@ onUnmounted(() => {
                 />
               </div>
             </SectionToggleHeader>
+              
+            </Teleport>
 
             <CheckoutNotes
               :showAvatars="true"
               v-model="checkout.state.orderNotes"
             />
+
+            
             <div id="subscription-total-target"></div>
           </div>
         </div>

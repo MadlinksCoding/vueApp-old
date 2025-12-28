@@ -38,19 +38,19 @@
 
     <!-- <LoadingTest /> -->
     <!-- <PageDataTest />  -->
-     <br>
-        <br>
-    <Cart/>
+    <br />
+    <br />
+    <Cart />
     <!-- <OrderReceived /> -->
-    <br>
-        <br>
-    
-    <br>
-    <br>
-    <DashProfileSettings/>
+    <br />
+    <br />
 
-    <br>
-    <br>
+    <br />
+    <br />
+    <DashProfileSettings />
+
+    <br />
+    <br />
 
     <ButtonComponent
       text="View All Popup"
@@ -140,14 +140,14 @@
     />
 
     <br />
-    
+
     <ButtonComponent
       text="Purchase Tip Popup"
       variant="mediaBtn"
       @click="purchaseTipPopupOpen = true"
     />
 
-    <br>
+    <br />
 
     <ButtonComponent
       text="Purchase Flow Subscription Popup"
@@ -155,7 +155,23 @@
       @click="purchaseFlowSubscriptionPopupOpen = true"
     />
 
-    <br>
+    <br />
+
+    <ButtonComponent
+      text="Guest Purchase Flow Popup"
+      variant="mediaBtn"
+      @click="guestPurchaseFlowPopupOpen = true"
+    />
+
+    <br />
+
+    <ButtonComponent
+      text="Upgrade Tier Popup"
+      variant="mediaBtn"
+      @click="upgradeTierPopupOpen = true"
+    />
+
+    <br />
 
     <UploadingProgressBar
       :progress="uploadPercentage"
@@ -183,7 +199,11 @@
     <SubscribeNotLoginPopup v-model="subscribeNotLoginPopupOpen" />
     <SubscribeUpdateLoginPopup v-model="subscribeUpdateLoginPopupOpen" />
     <PurchaseTipFlowPopup v-model="purchaseTipPopupOpen" />
-    <PurchaseFlowSubscriptionOrderPopup v-model="purchaseFlowSubscriptionPopupOpen" />
+    <PurchaseFlowSubscriptionOrderPopup
+      v-model="purchaseFlowSubscriptionPopupOpen"
+    />
+    <GuestPurchaseFlowPopup v-model="guestPurchaseFlowPopupOpen" />
+    <UpgradeTierPopup v-model="upgradeTierPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -213,6 +233,8 @@ import SubscribeUpdateLoginPopup from "@/components/checkout/subscribe/Subscribe
 import DashProfileSettings from "@/components/DashProfileSettings.vue";
 import PurchaseTipFlowPopup from "@/components/checkout/purchase/PurchaseTipFlowPopup.vue";
 import PurchaseFlowSubscriptionOrderPopup from "@/components/checkout/purchase/PurchaseFlowSubscriptionOrderPopup.vue";
+import GuestPurchaseFlowPopup from "@/components/checkout/purchase/GuestPurchaseFlowPopup.vue";
+import UpgradeTierPopup from "@/components/checkout/purchase/UpgradeTierPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -228,6 +250,8 @@ const subscribeNotLoginPopupOpen = ref(false);
 const subscribeUpdateLoginPopupOpen = ref(false);
 const purchaseTipPopupOpen = ref(false);
 const purchaseFlowSubscriptionPopupOpen = ref(false);
+const guestPurchaseFlowPopupOpen = ref(false);
+const upgradeTierPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);

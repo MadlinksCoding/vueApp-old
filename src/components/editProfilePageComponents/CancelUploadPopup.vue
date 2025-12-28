@@ -5,7 +5,9 @@
     :config="uploadCancelConfig"
   >
     <div
-      class="w-full sm:max-w-[23.4375rem] bg-white/90 dark:bg-background-dark-appbu  backdrop-blur-[50px] drop-shadow-[0px_-8px_10px_#0000000D] sm:shadow-[0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] overflow-hidden"
+      class="w-full sm:max-w-[23.4375rem] bg-white/90 dark:bg-background-dark-appbu 
+       backdrop-blur-[50px] drop-shadow-[0px_-8px_10px_#0000000D] 
+       sm:shadow-[0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] overflow-hidden"
     >
       <div class="flex flex-col gap-6 p-4">
         <p class="text-base font-semibold text-[#344054] dark:text-text">

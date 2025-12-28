@@ -672,6 +672,11 @@
   "componentPath": "@/templates/notFound/NotFound.vue"
   },
   {
+    "slug": "/paymentFail",
+    "requiresAuth": false,
+  "componentPath": "@/templates/failPayment/PaymentFail.vue"
+  },
+  {
     "slug": "/tableTestDemos",
     "requiresAuth": false,
     "section": "Demo",

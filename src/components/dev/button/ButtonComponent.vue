@@ -107,8 +107,9 @@ const themeClasses = {
     checkoutProceedpayment:
     "w-full flex justify-center items-center gap-2 w-full h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-[#07F468] px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-pointer group/button hover:bg-black text-base leading-[1.875rem] font-semibold uppercase text-black hover:text-[#07F468]",
     disableBtn:
-    "flex justify-center items-center gap-2 w-full text-base leading-[1.875rem] font-semibold uppercase text-white/30 h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-white/20 px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-not-allowed"
-
+    "flex justify-center items-center gap-2 w-full text-base leading-[1.875rem] font-semibold uppercase text-white/30 h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-white/20 px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-not-allowed",
+    actionGreen:"w-full sm:flex-grow sm:min-w-[17.125rem] h-10 flex justify-center items-center gap-2 px-6 sm:pl-2 bg-[#101828] border border-[#07F468] hover:bg-[#07F468] group/xbtn text-base font-medium tracking-[0.0218rem] whitespace-nowrap text-[#07F468] hover:text-[#0C111D]",
+    retryAction:"flex items-center gap-2.5 px-4 justify-center items-center h-10 shadow-[5px_4px_0px_0px_#07F468] cursor-pointer border-none outline-none bg-black group/button hover:bg-[#07F468] hover:shadow-[5px_4px_0px_0px_black] dark:bg-[#181a1b] dark:shadow-[5px_4px_0px_0px_#06c454] dark:hover:bg-[#06c454] dark:hover:shadow-[5px_4px_0px_0px_#181a1b] text-lg font-medium text-[#07F468] hover/button:text-black dark:text-[#07F468] dark:group-hover/button:text-[#181a1b]"
   };
 
 // Tailwind size classes
