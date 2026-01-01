@@ -50,7 +50,7 @@ const checkout = createStepStateEngine({
     paymentCardNumber: props.mode === "upgrade" ? "4242424242423507" : "",
     paymentExpiry: props.mode === "upgrade" ? "02/30" : "",
     paymentCardHolder: props.mode === "upgrade" ? "John Carter" : "",
-    paymentCvv: "", // CVV 
+    paymentCvv: "", // CVV
     // ✅ LOGIC: by default in upgrade popup payment will be saved
     paymentSaveCard: props.mode === "upgrade",
 
@@ -225,8 +225,10 @@ onUnmounted(() => {
         <div
           class="flex flex-col gap-6 px-2 grow md:px-4 md:pt-6 lg:flex-row lg:p-0 lg:gap-0 lg:h-screen"
         >
-          <div id="mobile-summary-target-subscription" class="w-full lg:hidden"></div>
-          
+          <div
+            id="mobile-summary-target-subscription"
+            class="w-full lg:hidden"
+          ></div>
 
           <div
             class="flex flex-col gap-6 [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] lg:w-1/2 lg:px-4 lg:py-6 lg:grow lg:h-screen lg:overflow-y-auto"
@@ -340,23 +342,22 @@ onUnmounted(() => {
               >
                 <div v-if="checkout.state.paymentSaveCard">
                   <div class="hidden lg:flex">
-                  <PaymentMethodLoggedIn
-                    :holderName="checkout.state.paymentCardHolder"
-                    :cardNumber="checkout.state.paymentCardNumber"
-                    :expiry="checkout.state.paymentExpiry"
-                    @remove="checkout.state.paymentSaveCard = false"
-                    variant="large"
-                  />
-                   </div>
-                   <div class="lg:hidden">
-                  <PaymentMethodLoggedIn
-                    :holderName="checkout.state.paymentCardHolder"
-                    :cardNumber="checkout.state.paymentCardNumber"
-                    :expiry="checkout.state.paymentExpiry"
-                    @remove="checkout.state.paymentSaveCard = false"
-                  
-                  />
-                   </div>
+                    <PaymentMethodLoggedIn
+                      :holderName="checkout.state.paymentCardHolder"
+                      :cardNumber="checkout.state.paymentCardNumber"
+                      :expiry="checkout.state.paymentExpiry"
+                      @remove="checkout.state.paymentSaveCard = false"
+                      variant="large"
+                    />
+                  </div>
+                  <div class="lg:hidden">
+                    <PaymentMethodLoggedIn
+                      :holderName="checkout.state.paymentCardHolder"
+                      :cardNumber="checkout.state.paymentCardNumber"
+                      :expiry="checkout.state.paymentExpiry"
+                      @remove="checkout.state.paymentSaveCard = false"
+                    />
+                  </div>
                 </div>
                 <div v-else>
                   <PaymentMethodNotLoggedIn
@@ -415,32 +416,62 @@ onUnmounted(() => {
 
           <div
             ref="rightColumnRef"
-            class="flex flex-col pb-[260px] gap-6 group/right-col [&::-webkit-scrollbar]:hidden
-             [-ms-order-style:none] [scrollbar-width:none] lg:w-1/2 lg:px-4 lg:pt-6 lg:-mb-[1px]
-              lg:grow lg:bg-black/50 dark:lg:bg-[#181a1b]/50 lg:h-screen 
-              lg:overflow-y-auto relative"
+            class="flex flex-col pb-[260px] gap-6 group/right-col [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] lg:w-1/2 lg:px-4 lg:pt-6 lg:-mb-[1px] lg:grow lg:bg-black/50 dark:lg:bg-[#181a1b]/50 lg:h-screen lg:overflow-y-auto relative"
           >
-
-          <Teleport
+            <Teleport
               to="#mobile-summary-target-subscription"
               :disabled="isLargeScreen"
               v-if="isMounted"
             >
-            <SectionToggleHeader
-              title="SUBSCRIPTION"
-              icon="https://i.ibb.co.com/chd372MJ/logo-bg.webp"
-              v-model="subscriptionOpen"
-              :showChevron="false"
-              :toggleable="false"
-            >
-              <div v-if="mode === 'upgrade'" class="flex flex-col gap-4">
-                <p class="text-sm text-white">
-                  You are about to change your membership tier as follows:
-                </p>
+              <SectionToggleHeader
+                title="SUBSCRIPTION"
+                icon="https://i.ibb.co.com/chd372MJ/logo-bg.webp"
+                v-model="subscriptionOpen"
+                :showChevron="false"
+                :toggleable="false"
+              >
+                <div v-if="mode === 'upgrade'" class="flex flex-col gap-4">
+                  <p class="text-sm text-white">
+                    You are about to change your membership tier as follows:
+                  </p>
 
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs text-[#98A2B3]"
-                    >Current Subscription</span
+                  <div class="flex flex-col gap-1">
+                    <span class="text-xs text-[#98A2B3]"
+                      >Current Subscription</span
+                    >
+                    <SubscriptionPlanCard
+                      variant="new"
+                      title="FEATURED library of LOREM LPSUM ATIER dolor sit amet, consectetur adipiscing elit."
+                      price="USD$499.99"
+                      period="/mo"
+                      backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
+                      accentColor="#667085"
+                      footerText=""
+                      logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
+                      leftSectionGradient="linear-gradient(0deg,rgba(0,0,0,0.5),rgba(0,0,0,0.5)),linear-gradient(0deg,rgba(102,112,133,0.50),rgba(102,112,133,0.50))"
+                    />
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <span class="text-xs text-[#98A2B3]">New Subscription</span>
+                    <SubscriptionPlanCard
+                      variant="new"
+                      title="FEATURED library of LOREM LPSUM ATIER dolor sit amet, consectetur adipiscing elit."
+                      price="USD$499.99"
+                      period="/mo"
+                      backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
+                      accentColor="#ff0066"
+                      footerText="Your membership will update in your next billing cycle (xx-xx-xxxx)"
+                      logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
+                      leftSectionGradient="linear-gradient(0deg,rgba(0,0,0,0.5),rgba(0,0,0,0.5)),linear-gradient(0deg,rgba(255,0,102,0.50),rgba(255,0,102,0.50))"
+                    />
+                  </div>
+                </div>
+
+                <div v-else>
+                  <span
+                    class="text-xs leading-normal mb-4 text-[#98A2B3] dark:text-[#b0a993] block"
+                    >New Subscription</span
                   >
                   <SubscriptionPlanCard
                     variant="new"
@@ -448,48 +479,12 @@ onUnmounted(() => {
                     price="USD$499.99"
                     period="/mo"
                     backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
-                    accentColor="#667085"
-                    footerText=""
+                    accentColor="#d8af0d"
+                    footerText="Your subscription will begin as soon as you complete checkout. Your billing cycle will start (02-26-2025)."
                     logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
-                    leftSectionGradient="linear-gradient(0deg,rgba(0,0,0,0.5),rgba(0,0,0,0.5)),linear-gradient(0deg,rgba(102,112,133,0.50),rgba(102,112,133,0.50))"
-
                   />
                 </div>
-
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs text-[#98A2B3]">New Subscription</span>
-                  <SubscriptionPlanCard
-                    variant="new"
-                    title="FEATURED library of LOREM LPSUM ATIER dolor sit amet, consectetur adipiscing elit."
-                    price="USD$499.99"
-                    period="/mo"
-                    backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
-                    accentColor="#ff0066"
-                    footerText="Your membership will update in your next billing cycle (xx-xx-xxxx)"
-                    logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
-                    leftSectionGradient="linear-gradient(0deg,rgba(0,0,0,0.5),rgba(0,0,0,0.5)),linear-gradient(0deg,rgba(255,0,102,0.50),rgba(255,0,102,0.50))"
-                  />
-                </div>
-              </div>
-
-              <div v-else>
-                <span
-                  class="text-xs leading-normal mb-4 text-[#98A2B3] dark:text-[#b0a993] block"
-                  >New Subscription</span
-                >
-                <SubscriptionPlanCard
-                  variant="new"
-                  title="FEATURED library of LOREM LPSUM ATIER dolor sit amet, consectetur adipiscing elit."
-                  price="USD$499.99"
-                  period="/mo"
-                  backgroundImage="https://i.ibb.co.com/LXPfFX03/profile-slidein-bg.webp"
-                  accentColor="#d8af0d"
-                  footerText="Your subscription will begin as soon as you complete checkout. Your billing cycle will start (02-26-2025)."
-                  logoImage="https://i.ibb.co.com/p6RVnpkx/logo-1.webp"
-                />
-              </div>
-            </SectionToggleHeader>
-              
+              </SectionToggleHeader>
             </Teleport>
 
             <CheckoutNotes
@@ -497,7 +492,6 @@ onUnmounted(() => {
               v-model="checkout.state.orderNotes"
             />
 
-            
             <div id="subscription-total-target"></div>
           </div>
         </div>
@@ -515,14 +509,37 @@ onUnmounted(() => {
               class="flex flex-col gap-4 px-2 pb-6 md:px-4 md:rounded-b-[0.625rem] lg:rounded-b-none"
             >
               <div class="flex flex-col gap-4 w-full">
-                <p v-if="mode === 'upgrade'" class="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] dark:text-[#b0a993]">
-                    You will be charged <span class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]">$6.99</span>
-                    at checkout, which is a prorated amount based on the remaining days in this billing cycle. After that, the full monthly fee of 
-                    <span class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]">$50.00</span>
-                    will be charged on XX-XX-XXXX and on the same date each month. Your subscription auto-renews, and you can cancel anytime in your account.
+                <p
+                  v-if="mode === 'upgrade'"
+                  class="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] dark:text-[#b0a993]"
+                >
+                  You will be charged
+                  <span
+                    class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]"
+                    >$6.99</span
+                  >
+                  at checkout, which is a prorated amount based on the remaining
+                  days in this billing cycle. After that, the full monthly fee
+                  of
+                  <span
+                    class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]"
+                    >$50.00</span
+                  >
+                  will be charged on XX-XX-XXXX and on the same date each month.
+                  Your subscription auto-renews, and you can cancel anytime in
+                  your account.
                 </p>
-                <p v-else class="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] dark:text-[#b0a993]">
-                    You will be charged <span class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]">$499.99</span>today (02-26-2025) and on the same day each month. This subscription renews automatically, and you can cancel anytime in your account.
+                <p
+                  v-else
+                  class="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] dark:text-[#b0a993]"
+                >
+                  You will be charged
+                  <span
+                    class="text-sm leading-normal tracking-[0.0175rem] text-[#07F468] dark:text-[#23f97b]"
+                    >$499.99</span
+                  >today (02-26-2025) and on the same day each month. This
+                  subscription renews automatically, and you can cancel anytime
+                  in your account.
                 </p>
                 <TotalAmountRow amount="USD$6.99" />
 

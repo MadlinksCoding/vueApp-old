@@ -5,9 +5,7 @@
     :config="uploadCancelConfig"
   >
     <div
-      class="w-full sm:max-w-[23.4375rem] bg-white/90 dark:bg-background-dark-appbu 
-       backdrop-blur-[50px] drop-shadow-[0px_-8px_10px_#0000000D] 
-       sm:shadow-[0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] overflow-hidden"
+      class="w-full sm:max-w-[23.4375rem] bg-white/90 dark:bg-background-dark-appbu backdrop-blur-[50px] drop-shadow-[0px_-8px_10px_#0000000D] sm:shadow-[0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] overflow-hidden"
     >
       <div class="flex flex-col gap-6 p-4">
         <p class="text-base font-semibold text-[#344054] dark:text-text">
@@ -17,7 +15,7 @@
         <div class="flex items-center gap-2">
           <button
             @click="emit('update:modelValue', false)"
-            class="w-full h-10 flex justify-center items-center bg-transparent "
+            class="w-full h-10 flex justify-center items-center bg-transparent"
           >
             <span class="text-base font-medium text-[#FF4405]">Cancel</span>
           </button>
@@ -57,7 +55,7 @@ const uploadCancelConfig = {
   offset: "0px",
   speed: "250ms",
   effect: "ease-in-out",
-  showOverlay: true, 
+  showOverlay: true,
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
