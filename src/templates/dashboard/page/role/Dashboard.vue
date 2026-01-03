@@ -182,6 +182,14 @@
     <AvatarMenu />
 
     <br />
+    <div class="flex flex-col items-center gap-6 md:gap-8">
+    <TierCard 
+      v-for="tier in tierData" 
+      :key="tier.id" 
+      :tier="tier" 
+    />
+    </div>
+    <br />
 
     <ProfileViewAllPopup v-model="isViewAllPopupOpen" />
 
@@ -235,6 +243,8 @@ import PurchaseTipFlowPopup from "@/components/checkout/purchase/PurchaseTipFlow
 import PurchaseFlowSubscriptionOrderPopup from "@/components/checkout/purchase/PurchaseFlowSubscriptionOrderPopup.vue";
 import GuestPurchaseFlowPopup from "@/components/checkout/purchase/GuestPurchaseFlowPopup.vue";
 import UpgradeTierPopup from "@/components/checkout/purchase/UpgradeTierPopup.vue";
+import TierCard from "@/components/ui/card/dashboard/TierCard.vue";
+import { tierData } from '../../../../../public/data/TierData.js';
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
