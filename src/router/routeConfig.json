@@ -719,6 +719,10 @@
   "componentPath": "@/components/ui/global/media/uploader/MediaUploader.vue"
   },
   {
+    "slug": "/plan",
+  "componentPath": "@/components/ui/global/plan/Plan.vue"
+  },
+  {
     "slug": "/MediaCardsVariations",
   "componentPath": "@/templates/mediaCardsVariations/MediaCardsVariations.vue"
   },

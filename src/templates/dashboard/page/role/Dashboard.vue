@@ -244,7 +244,7 @@ import PurchaseFlowSubscriptionOrderPopup from "@/components/checkout/purchase/P
 import GuestPurchaseFlowPopup from "@/components/checkout/purchase/GuestPurchaseFlowPopup.vue";
 import UpgradeTierPopup from "@/components/checkout/purchase/UpgradeTierPopup.vue";
 import TierCard from "@/components/ui/card/dashboard/TierCard.vue";
-import { tierData } from '../../../../../public/data/TierData.js';
+import { tierData } from '/public/data/TierData.js';
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);

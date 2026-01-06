@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
   <div
     ref="cardRef"
     data-tier-card-wrapper
-    class="h-[100svh] sm:w-[25.5rem] md:w-[28.25rem] p-2 sm:px-6 mt-"
+    class="h-[100svh]"
   >
     <div
       class="w-full h-full rounded-[0.3125rem] sm:max-h-[40.6875rem] md:w-[24rem] md:h-[37.625rem]"

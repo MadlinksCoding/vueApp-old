@@ -146,7 +146,7 @@ export const tierData = [
     stats: { video: 100, image: 80, audio: 70 },
 
     theme: {
-      textPrimary: "text-[#FB0464]",
+      textPrimary: "text-[#EAF6F4]",
       textSecondary: "text-[#FFED29] dark:text-[#ffee37]",
       shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
       barColor: "bg-[#FFED29] dark:bg-[#ffee37]",

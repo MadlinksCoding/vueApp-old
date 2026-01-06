@@ -1,0 +1,11 @@
+<template>
+    Details
+    Details
+    Details
+    Details
+    Details
+    Details
+    Details
+    Details
+    Details
+</template>

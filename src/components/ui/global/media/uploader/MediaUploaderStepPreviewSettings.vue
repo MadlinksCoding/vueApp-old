@@ -12,7 +12,7 @@
     </h4>
 
     <div
-      class="border border-border-light w-full flex-row items-stretch overflow-x-auto rounded-[0.313rem] bg-secondary-bg hidden md:flex"
+      class="border border-border-light w-full flex-row items-s tretch overflow-x-auto rounded-[0.313rem] bg-secondary-bg hidden md:flex"
       style="scrollbar-width: none; -ms-overflow-style: none">
       <div @click="uploader.goToSubstep('chooseScreenshot', { intent: 'user' })" :class="[
         'border-r flex flex-1 flex-shrink-0 min-w-fit items-center px-4 py-2 justify-center gap-2 border-border-light cursor-pointer',
