@@ -69,7 +69,7 @@ export default {
     inputClass: {
       type: String,
       default:
-        "bg-white/50 w-full px-3 py-3 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-[16px]",
+        "",
     },
     wrapperClass: {
       type: String,

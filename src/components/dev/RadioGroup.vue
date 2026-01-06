@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <label v-if="label" class="block text-sm font-medium text-gray-700 mb-2">
+    <label v-if="label" class="block text-sm mb-2" :class="labelClass">
       {{ label }}
     </label>
     <div class="space-y-2">
@@ -35,6 +35,7 @@ const props = defineProps<{
   options: RadioOption[]
   version: string
   radioLabelClass?: string
+  labelClass?: string
 }>()
 
 defineEmits<{

@@ -1,19 +1,29 @@
 <template>
-  <div class="flex flex-col items-start self-stretch relative">
+  <div
+    :class="['flex flex-col items-start self-stretch relative', parentClass]"
+  >
     <!-- Header Section -->
     <div class="flex flex-col gap-[0.375rem] w-full">
       <div class="flex flex-col gap-[0.375rem]">
         <div class="text-sm font-bold leading-5 text-[#667085]">
           {{ title }}
         </div>
-        <span class="text-base leading-6 text-dark-text opacity-70">
+        <span  
+         :class="[
+          'text-base text-dark-text ',
+          subTitleClass,
+        ]"
+        >
           {{ subtitle }}
         </span>
       </div>
 
       <!-- Search Input -->
       <div
-        class="flex items-start self-stretch relative border-b border-radio-border bg-white/30 pl-3"
+        :class="[
+          'flex items-start self-stretch relative border-b border-radio-border bg-white/30 pl-3',
+          searchWrapperClass,
+        ]"
       >
         <div class="flex items-center self-stretch pt-2 pb-3 gap-2 flex-1">
           <div class="flex items-center gap-2 flex-1">
@@ -24,7 +34,10 @@
               :placeholder="placeholder"
               @input="handleSearch"
               @focus="showResults = true"
-              class="w-full text-base leading-6 font-normal text-darker-text bg-transparent border-none outline-none"
+              :class="[
+                'w-full text-base leading-6 font-normal text-darker-text bg-transparent border-none outline-none',
+                inputClass,
+              ]"
             />
           </div>
 
@@ -172,7 +185,9 @@
           <div
             class="flex items-center gap-1 text-xs leading-[1.125rem] font-medium cursor-pointer"
             :class="
-              isSelected(performer.id) ? 'text-secondary-text' : 'text-[#004EEB]'
+              isSelected(performer.id)
+                ? 'text-secondary-text'
+                : 'text-[#004EEB]'
             "
             @click.stop="
               isSelected(performer.id)
@@ -216,7 +231,7 @@ const props = defineProps({
   },
   iconUrl: {
     type: String,
-    default: "https://i.ibb.co/XxnHRWSN/svgviewer-png-output-16.webp",
+    default: "https://i.ibb.co.com/jvc93MC4/search.webp",
   },
   iconAlt: {
     type: String,
@@ -246,6 +261,22 @@ const props = defineProps({
   historyTags: {
     type: Array,
     default: () => [],
+  },
+  subTitleClass: {
+    type: String,
+    default: "",
+  },
+  parentClass: {
+    type: String,
+    default: "",
+  },
+  searchWrapperClass: {
+    type: String,
+    default: "",
+  },
+  inputClass: {
+    type: String,
+    default: "",
   },
 });
 

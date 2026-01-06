@@ -2,8 +2,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { createStepStateEngine, attachEngineLogging } from '@/utils/stateEngine';
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
-// Note: Adjust path as per your folder structure
-import { tierData } from '../../../../../public/data/TierData.js'; 
 import TierCard from '../../card/dashboard/TierCard.vue';
 import PlanDetail from './PlanDetail.vue';
 import PlanVariation from './PlanVariation.vue';
@@ -11,16 +9,21 @@ import PlanSharing from './PlanSharing.vue';
 import PlanPublishSetting from './PlanPublishSetting.vue';
 
 // --- 1. SETUP STATE ENGINE ---
+// --- 1. SETUP STATE ENGINE ---
 const publishFlow = createStepStateEngine({
   flowId: 'publishFlow',
-  // ✅ FIX: Initial Step ab 1 hai
   initialStep: 1, 
   urlSync: 'query', 
   defaults: {
     activeDiscountPlan: '6m',
     isDraftPopupOpen: false,
     publishDate: '',
-    publishEndDate: ''
+    publishEndDate: '',
+    postToX: false,             
+    postMessage: '',            
+    socialThumbnailMode: 'useOriginal',
+    invitedPerformers: [],      
+    verifiedFanOnly: false
   }
 });
 
@@ -74,8 +77,6 @@ const buttonLabel = computed(() => {
     return publishFlow.substep === 'publish-immediately' ? 'PUBLISH NOW' : 'SCHEDULE PUBLISH';
 });
 
-// Tier Card Data helper
-const currentTierData = computed(() => tierData[0]);
 
 // --- 3. CONFIG FOR PREVIEW POPUP ---
 const previewPopupConfig = {
@@ -84,16 +85,70 @@ const previewPopupConfig = {
   offset: "0px",
   speed: "250ms",
   effect: "ease-in-out",
-  showOverlay: true,
+  showOverlay: false,
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
-  width: { default: "90%", "<768": "100%" },
+  width: { default: "auto", "<500" : "100%" },
   height: { default: "100%", "<768": "100%" },
   scrollable: true,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
 };
+
+const currentTierData = 
+  {
+    id: 1,
+    title: "My VVIP Lounge ❤️️️",
+    backgroundImage: "https://i.ibb.co.com/70sHrpv/featured-media-bg.webp",
+    isFeatured: true,
+    stats: { video: 100, image: 80, audio: 70 },
+    
+    // Theme Colors (Pink)
+    theme: {
+      textPrimary: '#07F468',
+      textSecondary: "text-[#FFED29] dark:text-[#ffee37]", // Price color
+      shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
+      barColor: "bg-[#FFED29]",
+      barTextColor: "text-[#FFED29]",
+      featuredBg: "bg-[#000]",
+        buttonBgImage: "url('https://i.ibb.co.com/B5M5ccbD/union-green.webp')",
+      flashLabel: "text-[#07F468]", // "Sale Ends in" color
+      flashText: "#07F468",
+      textReNew:"text-[#07F468] dark:text-[#e8e6e3]",
+      featuredText:"text-[#07F468] dark:text-[#06c454]"
+    },
+
+    plans: [
+      { id: '1d', label: '1 day', price: '55.86', discount: null },
+      { id: '1m', label: '1 month', price: '55.86', discount: '-5%' },
+      { id: '6m', label: '6 month', price: '55.86', discount: '-50%', isMostValue: true }, // Badge trigger
+      { id: '1y', label: '1 year', price: '55.86', discount: '-5%' },
+    ],
+    defaultPlan: '6m',
+
+    flashSale: {
+      active: true,
+      endsIn: "02:13:07",
+      originalPrice: "$111.72"
+    },
+
+        description: "Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! ...",
+
+    
+    // Footer Logic
+    footer: {
+      type: 'standard', // 'standard' | 'spend' | 'hidden' | 'subscribe'
+      buttonText: "CLAIM<br>OFFER",
+      progress: {
+        visible: true,
+        width: "5%",
+        leftText: "5 Left!",
+        rightText: "95/100 Offer"
+      }
+    }
+  }
+
 
 // --- LIFECYCLE ---
 onMounted(() => {
@@ -105,10 +160,12 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', checkScreenSize);
 });
+
+
 </script>
 
 <template>
-  <div class="bg-[#EAECF0] font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] group/body [&.dark]:bg-[#222526] min-h-screen">
+  <div class="bg-[#EAECF0] [&.dark]:bg-[#222526] pb-2">
     
     <div :class="{ 'schedule-publish-time': publishFlow.substep === 'schedule-publish-time' && publishFlow.step === 4 }">
         <div class="relative before:content-[''] before:fixed before:inset-0 before:pointer-events-none before:bg-cover before:bg-center before:bg-no-repeat before:bg-[url('https://i.ibb.co.com/QvpHN5vD/mobile-gradient-main-bg-1.webp')] md:before:bg-[url('https://i.ibb.co.com/dw910Z5b/gradient-main-bg.webp')]">
@@ -157,7 +214,7 @@ onUnmounted(() => {
                             <li @click="handleMainTab(1)" 
                                 :class="publishFlow.step === 1 ? 'border-[#FB5BA2] border-b-[2px] dark:border-[#950444] active' : ''"
                                 class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer md:w-max md:grow-0">
-                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                <div class="w-full flex justify-center items-center gap-2 px-1">
                                     <img src="https://i.ibb.co.com/qYw4qbtR/info-square.webp" class="w-5 h-5" :class="publishFlow.step === 1 ? '[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]' : '[filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)]'">
                                     <span class="text-sm font-semibold whitespace-nowrap" :class="publishFlow.step === 1 ? 'dark:text-[#ff1a76] text-[#FF0066]' : 'text-[#667085] dark:text-[#9e9689]'">Plan Detail</span>
                                 </div>
@@ -166,7 +223,7 @@ onUnmounted(() => {
                             <li @click="handleMainTab(2)" 
                                 :class="publishFlow.step === 2 ? 'border-[#FB5BA2] border-b-[2px] dark:border-[#950444] active' : ''"
                                 class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer md:w-max md:grow-0">
-                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                <div class="w-full flex justify-center items-center gap-2 px-1">
                                     <img src="https://i.ibb.co.com/NghXmqwT/dollar.webp" class="w-5 h-5" :class="publishFlow.step === 2 ? '[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]' : '[filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)]'">
                                     <span class="text-sm font-semibold whitespace-nowrap" :class="publishFlow.step === 2 ? 'dark:text-[#ff1a76] text-[#FF0066]' : 'text-[#667085] dark:text-[#9e9689]'">Plan Variations & Promotion</span>
                                 </div>
@@ -175,7 +232,7 @@ onUnmounted(() => {
                              <li @click="handleMainTab(3)" 
                                 :class="publishFlow.step === 3 ? 'border-[#FB5BA2] border-b-[2px] dark:border-[#950444] active' : ''"
                                 class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer md:w-max md:grow-0">
-                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                <div class="w-full flex justify-center items-center gap-2 px-1">
                                     <img src="https://i.ibb.co/ycjs2rZ2/share.webp" class="w-5 h-5" :class="publishFlow.step === 3 ? '[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]' : '[filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)]'">
                                     <span class="text-sm font-semibold whitespace-nowrap" :class="publishFlow.step === 3 ? 'dark:text-[#ff1a76] text-[#FF0066]' : 'text-[#667085] dark:text-[#9e9689]'">Sharing</span>
                                 </div>
@@ -184,7 +241,7 @@ onUnmounted(() => {
                             <li @click="handleMainTab(4)" 
                                 :class="publishFlow.step === 4 ? 'border-[#FB5BA2] border-b-[2px] dark:border-[#950444] active' : ''"
                                 class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer md:w-max md:grow-0">
-                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                <div class="w-full flex justify-center items-center gap-2 px-1">
                                     <img src="https://i.ibb.co.com/YTZ7WYpZ/upload.webp" class="w-5 h-5" :class="publishFlow.step === 4 ? '[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]' : '[filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)]'">
                                     <span class="text-sm font-semibold whitespace-nowrap" :class="publishFlow.step === 4 ? 'dark:text-[#ff1a76] text-[#FF0066]' : 'text-[#667085] dark:text-[#9e9689]'">Publish Setting</span>
                                 </div>
@@ -224,20 +281,54 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div v-if="isLargeScreen" class="shadow-[0px_0px_80px_0px_#07F46840,0px_0px_8px_0px_#07F46880]">
-                        <TierCard :tier="currentTierData" />
+                    <div v-if="isLargeScreen" >
+                        <div class="shadow-[0px_0px_80px_0px_#07F46840,0px_0px_20px_0px_#07F46880]">
+                            <TierCard :tier="currentTierData" />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <button 
+                            <button
                 v-if="!isLargeScreen"
-                @click="isPreviewPopupOpen = true"
-                class="fixed top-1/2 right-[-2.0625rem] translate-y-[-50%] -rotate-90 flex items-center gap-2 px-2 py-1 bg-[#07F468] shadow-[0px_1px_2px_0px_#1018280F,0px_1px_3px_0px_#1018281A] z-[10] transition-all duration-300 ease-out cursor-pointer group/button hover:bg-black xl:hidden dark:bg-[#06c454] dark:hover:bg-[#181a1b]"
-            >
-                <img src="https://i.ibb.co.com/nspLNGBK/eye-01.webp" class="block w-4 h-4 rotate-90 group-hover/button:[filter:brightness(0)_invert(1)]">
-                <span class="text-sm text-black group-hover/button:text-[#07F468] dark:text-[#e8e6e3] dark:group-hover/button:text-[#06c454]">Preview</span>
-            </button>
+                @click="isPreviewPopupOpen = !isPreviewPopupOpen"
+                :class="isPreviewPopupOpen
+                    ? 'sm:right-[25rem] md:right-[26rem] right-[-2rem] bg-black hover:bg-[#07F468]'
+                    : 'right-[-2.0625rem] bg-[#07F468] hover:bg-black'"
+                class="fixed top-1/2 translate-y-[-50%] -rotate-90
+                flex items-center gap-2 px-2 py-1
+                shadow-[0px_1px_2px_0px_#1018280F,0px_1px_3px_0px_#1018281A]
+                z-[9999] transition-all duration-300 ease-out cursor-pointer group
+                xl:hidden"
+                >
+                <!-- 👁 Eye icon (popup closed) -->
+                <img
+                    v-if="!isPreviewPopupOpen"
+                    src="https://i.ibb.co.com/nspLNGBK/eye-01.webp"
+                    class="w-4 h-4 rotate-90 transition-all duration-300
+                    group-hover:brightness-0 group-hover:invert"
+                />
+
+                <!-- ❌ Close icon (popup open) -->
+                <img
+                    v-else
+                    src="https://i.ibb.co.com/vvPDzMxj/close-green.webp"
+                    alt="close"
+                    class="w-4 h-4 transition-all duration-300
+                    group-hover:brightness-0"
+                />
+
+                <!-- Text -->
+                <span
+                    class="text-sm transition-all duration-300"
+                    :class="isPreviewPopupOpen
+                    ? 'text-[#07F468] group-hover:text-black'
+                    : 'text-black group-hover:text-[#07F468]'"
+                >
+                    Preview
+                </span>
+                </button>
+
 
             <div v-if="publishFlow.state.isDraftPopupOpen" class="fixed bottom-0 left-0 w-full rounded-t-[0.625rem] bg-white shadow-lg backdrop-blur-[50px] z-[7] md:hidden dark:bg-[#181a1b]" @click.stop>
                 <div class="flex flex-col py-1 w-full">
@@ -254,8 +345,10 @@ onUnmounted(() => {
                 @update:modelValue="val => isPreviewPopupOpen = val"
                 :config="previewPopupConfig"
             >
-                <div class="h-full w-full flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                     <TierCard :tier="currentTierData" />
+                <div class="h-full w-full flex items-center justify-center p-2 sm:px-6 bg-black/80 backdrop-blur-md">
+                    <div class="shadow-[0px_0px_80px_0px_#07F46840,0px_0px_8px_0px_#07F46880] "> 
+                    <TierCard :tier="currentTierData" />
+                    </div>
                 </div>
             </PopupHandler>
 

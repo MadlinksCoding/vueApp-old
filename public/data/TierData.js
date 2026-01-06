@@ -11,15 +11,17 @@ export const tierData = [
     
     // Theme Colors (Pink)
     theme: {
-      textPrimary: "text-[#FB0464]",
+      textPrimary: '#FB0464',
       textSecondary: "text-[#FFED29] dark:text-[#ffee37]", // Price color
       shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
-      barColor: "bg-[#FFED29] dark:bg-[#ffee37]",
+      barColor: "bg-[#FB0464] dark:bg-[#c90350]",
       barTextColor: "text-[#FFED29]",
       featuredBg: "bg-[#FB0464] dark:bg-[#c90350]",
       buttonBgImage: "url('https://i.ibb.co.com/gMff3x7t/union-pink.webp')",
       flashLabel: "text-white dark:text-[#e8e6e3]", // "Sale Ends in" color
-      flashText: "text-[#FB0464]"
+      flashText: "#FB0464",
+      textReNew:"text-white dark:text-[#e8e6e3]",
+      featuredText:"text-white dark:text-[#e8e6e3]"
     },
 
     plans: [
@@ -64,12 +66,15 @@ export const tierData = [
       textPrimary: "text-[#FFED29]",
       textSecondary: "text-[#FFED29] dark:text-[#ffee37]",
       shadow: "shadow-[0px_0px_80px_0px_#FFED2940,0px_0px_8px_0px_#FFED2980]",
-      barColor: "bg-[#FFED29] dark:bg-[#ffee37]",
+      barColor: "bg-[#ffffff]",
       barTextColor: "text-[#FFED29]", // Not used in spend footer but good to have
       featuredBg: "bg-[#FB0464] dark:bg-[#c90350]",
       buttonBgImage: "url('https://i.ibb.co.com/gMff3x7t/union-pink.webp')",
       flashLabel: "text-white dark:text-[#e8e6e3]", 
-      flashText: "text-[#FB0464]"
+      flashText: "#FB0464",
+      textReNew:"text-white dark:text-[#e8e6e3]",
+      featuredText:"text-white dark:text-[#e8e6e3]"
+
     },
 
     plans: [
@@ -88,7 +93,7 @@ export const tierData = [
       buttonText: "CLAIM<br>OFFER",
       progress: {
         visible: true,
-        width: "50%",
+        width: "80%",
         leftText: "Spend $200 more to claim",
         rightText: "200/ USD400"
       }
@@ -104,7 +109,7 @@ export const tierData = [
     stats: { video: 100, image: 80, audio: 70 },
 
     theme: {
-      textPrimary: "text-[#FB0464]",
+      textPrimary: '#FB0464',
       textSecondary: "text-[#FFED29] dark:text-[#ffee37]",
       shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
       barColor: "bg-[#FB0464] dark:bg-[#c90350]", // Bar color changed to Pink here
@@ -112,7 +117,10 @@ export const tierData = [
       featuredBg: "bg-[#FB0464] dark:bg-[#c90350]",
       buttonBgImage: "url('https://i.ibb.co.com/gMff3x7t/union-pink.webp')",
       flashLabel: "text-white dark:text-[#e8e6e3]", 
-      flashText: "text-[#FB0464]"
+      flashText: "#FB0464",
+      textReNew:"text-white dark:text-[#e8e6e3]",
+      featuredText:"text-white dark:text-[#e8e6e3]"
+
     },
 
     plans: [
@@ -146,7 +154,7 @@ export const tierData = [
     stats: { video: 100, image: 80, audio: 70 },
 
     theme: {
-      textPrimary: "text-[#EAF6F4]",
+      textPrimary: '#FB0464',
       textSecondary: "text-[#FFED29] dark:text-[#ffee37]",
       shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
       barColor: "bg-[#FFED29] dark:bg-[#ffee37]",
@@ -154,7 +162,9 @@ export const tierData = [
       featuredBg: "bg-[#FB0464] dark:bg-[#c90350]",
       buttonBgImage: "url('https://i.ibb.co.com/gMff3x7t/union-pink.webp')",
    flashLabel: "text-white dark:text-[#e8e6e3]", 
-      flashText: "text-[#FB0464]"
+      flashText: "#FB0464",
+textReNew:"text-white dark:text-[#e8e6e3]",
+      featuredText:"text-white dark:text-[#e8e6e3]"
 
     },
 
@@ -192,7 +202,10 @@ export const tierData = [
       featuredBg: "bg-black dark:bg-[#181a1b]", // Featured tag is black in Tier 5
       buttonBgImage: "url('https://i.ibb.co.com/B5M5ccbD/union-green.webp')",
         flashLabel: "text-[#07F468] dark:text-[#06c454]", 
-      flashText: "text-[#07F468] dark:text-[#06c454]"
+      flashText: "#07F468",
+      textReNew:"text-white dark:text-[#e8e6e3]",
+      featuredText:"text-[#07F468] dark:text-[#06c454]"
+
     },
 
     plans: [

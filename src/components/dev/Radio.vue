@@ -77,10 +77,10 @@ const inputConfig = {
     label: {
       addClass:
         props.version === "dashboard"
-          ? "ml-2 text-gray-900 dark:text-dark-text text-sm cursor-pointer" // removed pseudo-element styling
+          ? "cursor-pointer" // removed pseudo-element styling
           : props.version === "auth"
-          ? "block text-sm font-medium text-gray-700 dark:text-dark-text"
-          : "block text-sm font-medium text-text dark:text-dark-text",
+          ? "block "
+          : "block ",
       addAttributes: {
         for: props.id,
       },
