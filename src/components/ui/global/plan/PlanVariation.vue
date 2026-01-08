@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import SubscriptionVariations from './HelperComponents/SubscriptionVariations.vue';
 import LuckyDrawSection from './HelperComponents/LuckyDrawSection.vue';
 
-// Reactive Data Source (Jo apke 3 HTML blocks thy, unka data yahan hai)
+// Reactive Data Source 
 const subscriptionPlans = ref([
   {
     id: 1,

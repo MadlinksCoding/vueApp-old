@@ -1,17 +1,16 @@
 <script setup>
-import { ref, computed } from 'vue'; // 'computed' import kiya
+import { ref, computed } from 'vue'; 
 import CheckboxSwitch from '@/components/dev/checkbox/CheckboxSwitch.vue';
 import BaseInput from '@/components/dev/input/BaseInput.vue';
 import RadioGroup from '@/components/dev/RadioGroup.vue';
 import ReusableSearchInput from '../media/uploader/HelperComponents/ReusableSearchInput.vue';
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
 import CheckboxGroup from '../../form/checkbox/CheckboxGroup.vue';
+import { defineProps } from 'vue';
 
-// 1. Props define karein taake parent se flow mil sake
 const props = defineProps(['publishFlow']);
 
 // --- PROXIES (State Connection) ---
-// In computed properties ke zariye inputs direct flow state update karenge
 
 const postToXProxy = computed({
   get: () => props.publishFlow.state.postToX,
@@ -262,7 +261,8 @@ const copyLink = async () => {
                             label="Verified fan only" 
                             v-model="verifiedFanProxy"
                             checkboxClass="appearance-none bg-white border border-gray-300 rounded-[4px] w-4 h-4 cursor-pointer checked:bg-success checked:border-success checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border"
-                            labelClass="text-sm align-text-top text-[#0c111d] dark:text-[#dbd8d3]" wrapperClass="pl-1 flex items-center gap-3" />
+                            labelClass="text-sm align-text-top text-[#0c111d] dark:text-[#dbd8d3]" 
+                            wrapperClass="pl-1 flex items-center gap-3" />
                         </div>
                     </section>
                     </div>

@@ -9,12 +9,12 @@ import PlanSharing from './PlanSharing.vue';
 import PlanPublishSetting from './PlanPublishSetting.vue';
 
 // --- 1. SETUP STATE ENGINE ---
-// --- 1. SETUP STATE ENGINE ---
 const publishFlow = createStepStateEngine({
   flowId: 'publishFlow',
   initialStep: 1, 
   urlSync: 'query', 
   defaults: {
+    // --- Existing Defaults ---
     activeDiscountPlan: '6m',
     isDraftPopupOpen: false,
     publishDate: '',
@@ -24,15 +24,52 @@ const publishFlow = createStepStateEngine({
     socialThumbnailMode: 'useOriginal',
     invitedPerformers: [],      
     verifiedFanOnly: false,
-    substep: 'free-tier'
+    
+    // ✅ Substep Management
+    planDetailSubstep: 'free-tier',       // Default for Step 1
+    publishSettingSubstep: 'publish-immediately', // Default for Step 4
+
+    // --- ✅ NEW: Fields for PlanDetail.vue (State Sync) ---
+    tierName: 'Basic Lounge ❤️️️',
+    description: 'Welcome to Jenny’s basic lounge. You will get the most basic things in this tier.',   // Quill Editor Content
+    bgImage: null,     // Background Image URL
+    isFeaturedTier: false,
+    
+    // Price Setting
+    priceDuration: 'month',
+    basePrice: '29.5',
+    
+    // Discounts
+    subscriberDiscount: '',
+    unsubscribeDiscount: '',
+    
+    // Benefits & Tokens
+    tierAudience: 'everyone',
+    maxSubscribers: '',
+    freeTokensDiscount: '',
+    
+    // Merch & Custom Requests
+    merchDiscount: '',
+    applyMerchToSale: false,
+    payToViewDiscount: '',
+    applyPayToViewToSale: false,
+    customRequestDiscount: '', // Added if needed
+    applyCustomToSale: false,  // Added if needed
+    
+    // Media Options
+    selectedMediaOptions: [] 
   }
 });
 
 attachEngineLogging(publishFlow);
 
-// Ensure default substep only if we are on Step 4
-if (publishFlow.step === 4 && !publishFlow.substep) {
-  publishFlow.forceSubstep('publish-immediately');
+// Ensure default substep logic on load
+if (publishFlow.step === 1 && !publishFlow.state.planDetailSubstep) {
+  publishFlow.setState('planDetailSubstep', 'free-tier'); // Fixed: use setState for custom fields
+}
+
+if (publishFlow.step === 4 && !publishFlow.state.publishSettingSubstep) {
+  publishFlow.setState('publishSettingSubstep', 'publish-immediately');
 }
 
 // --- 2. LOGIC & HELPERS ---
@@ -50,9 +87,12 @@ function checkScreenSize() {
 // Navigation Handlers
 function handleMainTab(stepNumber) {
   publishFlow.goToStep(stepNumber);
-  // Reset substep logic when hitting step 4 manually
-  if (stepNumber === 4 && !publishFlow.substep) {
-    publishFlow.goToSubstep('publish-immediately');
+  
+  if (stepNumber === 1 && !publishFlow.state.planDetailSubstep) {
+     publishFlow.setState('planDetailSubstep', 'free-tier');
+  }
+  if (stepNumber === 4 && !publishFlow.state.publishSettingSubstep) {
+     publishFlow.setState('publishSettingSubstep', 'publish-immediately');
   }
 }
 
@@ -64,10 +104,26 @@ function toggleDraftPopup() {
 // ✅ MAIN NEXT / PUBLISH LOGIC
 function handleNextStep() {
     if (publishFlow.step < 4) {
-        // Agar Step 1, 2, 3 hai to Agla Step
-        publishFlow.goToStep(publishFlow.step + 1);
+        const nextStep = publishFlow.step + 1;
+        publishFlow.goToStep(nextStep);
+
+        // Auto-set substep for step 4
+        if (nextStep === 4) {
+            publishFlow.setState('publishSettingSubstep', 'publish-immediately');
+        }
     } else {
-        // Agar Step 4 (Last) hai to Publish (Force Step 1 as requested)
+        // ✅ FINAL SUBMISSION LOGIC (Updated)
+        // 1. Create a clean copy of the data to view in Console
+        const finalData = JSON.parse(JSON.stringify(publishFlow.state));
+        
+        console.group("🚀 FORM SUBMITTED - FINAL STATE");
+        console.log(finalData);
+        console.groupEnd();
+
+        // Optional: Alert for quick debug
+        // alert("Check Console for Data!");
+
+        // 2. Reset or Redirect
         publishFlow.forceStep(1);
     }
 }
@@ -75,7 +131,8 @@ function handleNextStep() {
 // ✅ BUTTON LABEL COMPUTED
 const buttonLabel = computed(() => {
     if (publishFlow.step < 4) return 'SAVE & PUBLISH';
-    return publishFlow.substep === 'publish-immediately' ? 'PUBLISH NOW' : 'SCHEDULE PUBLISH';
+    // Check Step 4 Specific Substep using the custom state field
+    return publishFlow.state.publishSettingSubstep === 'schedule-publish-time' ? 'SCHEDULE PUBLISH' : 'PUBLISH NOW';
 });
 
 
@@ -104,52 +161,38 @@ const currentTierData =
     backgroundImage: "https://i.ibb.co.com/70sHrpv/featured-media-bg.webp",
     isFeatured: true,
     stats: { video: 100, image: 80, audio: 70 },
-    
-    // Theme Colors (Pink)
     theme: {
       textPrimary: '#07F468',
-      textSecondary: "text-[#FFED29] dark:text-[#ffee37]", // Price color
+      textSecondary: "text-[#FFED29] dark:text-[#ffee37]",
       shadow: "shadow-[0px_0px_80px_0px_#FF8FBA40,0px_0px_8px_0px_#FF8FBA40]",
       barColor: "bg-[#FFED29]",
       barTextColor: "text-[#FFED29]",
       featuredBg: "bg-[#000]",
         buttonBgImage: "url('https://i.ibb.co.com/B5M5ccbD/union-green.webp')",
-      flashLabel: "text-[#07F468]", // "Sale Ends in" color
+      flashLabel: "text-[#07F468]",
       flashText: "#07F468",
       textReNew:"text-[#07F468] dark:text-[#e8e6e3]",
       featuredText:"text-[#07F468] dark:text-[#06c454]"
     },
-
     plans: [
       { id: '1d', label: '1 day', price: '55.86', discount: null },
       { id: '1m', label: '1 month', price: '55.86', discount: '-5%' },
-      { id: '6m', label: '6 month', price: '55.86', discount: '-50%', isMostValue: true }, // Badge trigger
+      { id: '6m', label: '6 month', price: '55.86', discount: '-50%', isMostValue: true },
       { id: '1y', label: '1 year', price: '55.86', discount: '-5%' },
     ],
     defaultPlan: '6m',
-
     flashSale: {
       active: true,
       endsIn: "02:13:07",
       originalPrice: "$111.72"
     },
-
-        description: "Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! Welcome to Jenny’s  VIP Lounge! This plan includes everything in Basic/VIP Lounge, plus: Behind the scene of every shot! stuff i wore from the shot for sale! Talk to me 24/7️❤️️️ Welcome to Jenny’s  VIP Lounge! ...",
-
-    
-    // Footer Logic
+    description: "Welcome to Jenny’s VIP Lounge!...",
     footer: {
-      type: 'standard', // 'standard' | 'spend' | 'hidden' | 'subscribe'
+      type: 'standard',
       buttonText: "CLAIM<br>OFFER",
-      progress: {
-        visible: true,
-        width: "5%",
-        leftText: "5 Left!",
-        rightText: "95/100 Offer"
-      }
+      progress: { visible: true, width: "5%", leftText: "5 Left!", rightText: "95/100 Offer" }
     }
   }
-
 
 // --- LIFECYCLE ---
 onMounted(() => {
@@ -161,14 +204,12 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', checkScreenSize);
 });
-
-
 </script>
 
 <template>
   <div class="bg-[#EAECF0] [&.dark]:bg-[#222526] pb-2">
     
-    <div :class="{ 'schedule-publish-time': publishFlow.substep === 'schedule-publish-time' && publishFlow.step === 4 }">
+    <div :class="{ 'schedule-publish-time': publishFlow.state.publishSettingSubstep === 'schedule-publish-time' && publishFlow.step === 4 }">
         <div class="relative before:content-[''] before:fixed before:inset-0 before:pointer-events-none before:bg-cover before:bg-center before:bg-no-repeat before:bg-[url('https://i.ibb.co.com/QvpHN5vD/mobile-gradient-main-bg-1.webp')] md:before:bg-[url('https://i.ibb.co.com/dw910Z5b/gradient-main-bg.webp')]">
             
             <div class="flex flex-col gap-6 min-h-screen md:gap-8">
@@ -197,8 +238,7 @@ onUnmounted(() => {
 
                             <button @click="handleNextStep" class="flex justify-center items-center gap-2 px-2 h-10 bg-[#07F468] cursor-pointer group/button hover:bg-[#0C111D] [&.disabled]:pointer-events-none [&.disabled]:bg-[#3440540D] dark:[&.disabled]:bg-[#323e520d] w-full md:w-max">
                           
-                             
-                                    <img v-if="publishFlow.substep === 'publish-immediately'" src="https://i.ibb.co.com/YTZ7WYpZ/upload.webp" alt="upload" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
+                                    <img v-if="publishFlow.state.publishSettingSubstep === 'publish-immediately'" src="https://i.ibb.co.com/YTZ7WYpZ/upload.webp" alt="upload" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
                                     <img v-else src="https://i.ibb.co.com/VW1DtcdC/Time-1.webp" alt="Time" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
                            
 
@@ -271,7 +311,7 @@ onUnmounted(() => {
                             <button @click="handleNextStep" class="flex justify-center items-center gap-2 px-2 h-10 bg-[#07F468] cursor-pointer group/button hover:bg-[#0C111D] [&.disabled]:pointer-events-none [&.disabled]:bg-[#3440540D] dark:[&.disabled]:bg-[#323e520d] w-full md:w-max">
                                 
                                 <template>
-                                    <img v-if="publishFlow.substep === 'publish-immediately'" src="https://i.ibb.co.com/YTZ7WYpZ/upload.webp" alt="upload" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
+                                    <img v-if="publishFlow.state.publishSettingSubstep === 'publish-immediately'" src="https://i.ibb.co.com/YTZ7WYpZ/upload.webp" alt="upload" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
                                     <img v-else src="https://i.ibb.co.com/VW1DtcdC/Time-1.webp" alt="Time" class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(6%)_sepia(53%)_saturate(560%)_hue-rotate(184deg)_brightness(99%)_contrast(99%)] group-hover/button:[filter:brightness(0)_saturate(100%)_invert(79%)_sepia(53%)_saturate(4738%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]">
                                 </template>
 
@@ -290,7 +330,7 @@ onUnmounted(() => {
                 </div>
             </div>
 
-                            <button
+            <button
                 v-if="!isLargeScreen"
                 @click="isPreviewPopupOpen = !isPreviewPopupOpen"
                 :class="isPreviewPopupOpen
@@ -302,7 +342,6 @@ onUnmounted(() => {
                 z-[9999] transition-all duration-300 ease-out cursor-pointer group
                 xl:hidden"
                 >
-                <!-- 👁 Eye icon (popup closed) -->
                 <img
                     v-if="!isPreviewPopupOpen"
                     src="https://i.ibb.co.com/nspLNGBK/eye-01.webp"
@@ -310,7 +349,6 @@ onUnmounted(() => {
                     group-hover:brightness-0 group-hover:invert"
                 />
 
-                <!-- ❌ Close icon (popup open) -->
                 <img
                     v-else
                     src="https://i.ibb.co.com/vvPDzMxj/close-green.webp"
@@ -319,7 +357,6 @@ onUnmounted(() => {
                     group-hover:brightness-0"
                 />
 
-                <!-- Text -->
                 <span
                     class="text-sm transition-all duration-300"
                     :class="isPreviewPopupOpen
@@ -328,7 +365,7 @@ onUnmounted(() => {
                 >
                     Preview
                 </span>
-                </button>
+            </button>
 
 
             <div v-if="publishFlow.state.isDraftPopupOpen" class="fixed bottom-0 left-0 w-full rounded-t-[0.625rem] bg-white shadow-lg backdrop-blur-[50px] z-[7] md:hidden dark:bg-[#181a1b]" @click.stop>

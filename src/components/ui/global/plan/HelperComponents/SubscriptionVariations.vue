@@ -1,7 +1,6 @@
 <script setup>
 import { defineProps, defineEmits } from 'vue';
 
-// Props define kiye hain taake parent se data aa sake
 defineProps({
   plan: {
     type: Object,
@@ -9,7 +8,6 @@ defineProps({
   }
 });
 
-// Events define kiye hain taake edit/remove button chal sakein
 const emit = defineEmits(['edit', 'remove']);
 </script>
 

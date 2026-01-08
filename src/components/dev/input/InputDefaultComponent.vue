@@ -10,13 +10,17 @@
         Required
       </span>
     </div>
+
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper3" class="relative" v-for="item in inputItems" :key="item.id">
       <component v-if="leftIcon && type !== 'checkbox' && type !== 'radio'" :is="leftIcon" class="w-4 h-4" />
 
       <span :class="leftSpanClass" v-if="leftSpan" class="text-sm font-semibold">{{ leftSpanText }}</span>
 
       <input v-bind="resolvedAttrs.inputAttrs" :id="item.id" :type="type" :value="modelValue" v-if="type !== 'textarea'"
-        @input="(e) => $emit('update:modelValue', type === 'number' ? Number(e.target.value) : e.target.value)" />
+        @input="(e) => $emit('update:modelValue', type === 'number' ? Number(e.target.value) : e.target.value)" 
+      />
+      
+      <img v-if="error" src="https://i.ibb.co.com/yBMzbHWz/alert-circle.webp" alt="alert-circle" class="w-4 h-4 mr-2" />
 
       <div class="w-full" v-if="type === 'textarea' && !richTextEditor">
         <textarea id="textarea" @input="$emit('update:modelValue', $event.target.value)"
@@ -52,15 +56,23 @@
       <component v-if="rightIcon && type !== 'checkbox' && type !== 'radio'" :is="rightIcon"
         class="w-4 h-4 cursor-pointer" />
     </div>
-    <p v-if="description" v-bind="resolvedAttrs.descriptionAttrs" class="text-xs text-slate-500">
+
+    <p v-if="error && errorMessage" 
+       class="text-xs mt-1" 
+       :class="errorMessageClass ? errorMessageClass : 'text-red-500'"
+    >
+      {{ errorMessage }}
+    </p>
+
+    <p v-if="description && !error" v-bind="resolvedAttrs.descriptionAttrs" class="text-xs text-slate-500">
       {{ description }}
     </p>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
-import { resolveAllConfigs } from "../../../utils/componentRenderingUtils";
+import { computed } from "vue";
+import { resolveAllConfigs } from "../../../utils/componentRenderingUtils"; // Adjust path as needed
 import { QuillEditor } from "@vueup/vue-quill";
 import "@vueup/vue-quill/dist/vue-quill.snow.css";
 
@@ -97,6 +109,13 @@ const props = defineProps({
   leftSpanClass: String,
   radioValue: String,
   wrapperOverrides: { type: Array, default: () => [] },
+  wrapper3Class: String,
+  // ✅ New Props for Error Handling
+  error: Boolean,
+  errorMessage: String,
+  errorMessageClass: String, // Dynamic class for error msg
+  // ✅ New Prop for Text styling (optional override)
+  inputClass: String
 });
 
 const inputConfig = {
@@ -125,27 +144,42 @@ const inputConfig = {
     },
     {
       targetAttribute: "wrapper3",
-      addClass:
+      addClass: [
         props.type === "checkbox"
           ? "flex items-start gap-2"
           : props.type === "radio"
             ? "flex items-center gap-2 relative"
             : props.richTextEditor
-              ? "border-b border-border rounded-input bg-white "
-              : "flex items-center px-3.5 py-2.5 border-b border-border rounded-input gap-2 focus-within:ring-3 focus-within:ring-primary/20 bg-white ",
+              ? "border-b border-border rounded-input bg-white"
+              : "flex items-center border-b rounded-input gap-2 focus-within:ring-3 focus-within:ring-primary/20 bg-white",
+        
+        // ✅ Logic: Agar error hai to Red border, warna normal border
+        props.error ? "border-red-500 focus-within:!border-red-500 focus-within:!ring-red-500/20" : "border-border",
+        
+        props.wrapper3Class
+      ].filter(Boolean).join(" "),
       addAttributes: { "data-wrapper": "wrapper3" },
     },
   ],
   elm: {
-    addClass:
+    addClass: [
       props.type === "checkbox"
         ? "w-4 min-w-4 h-4 cursor-pointer accent-primary"
         : props.type === "radio"
           ? "relative pl-8 cursor-pointer text-[0.938rem] font-medium leading-6 text-gray-900 "
-          : "flex-1 text-sm border-none focus:outline-none bg-transparent  placeholder-text" +
-          (props.leftIcon ? "pl-10" : "pl-3") +
-          " " +
-          (props.rightIcon ? "pr-10" : "pr-3"),
+          : "flex-1 border-none focus:outline-none bg-transparent placeholder-text",
+      
+      // ✅ Added default text color and weight styling (Dynamic)
+      // Agar props.inputClass mile to wo use kare, warna default black/medium use kare
+      props.inputClass ? props.inputClass : "text-[#0C111D] font-medium",
+      
+      // ✅ Hide Number Spinners Class
+      "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+
+      (props.leftIcon ? "pl-10" : "pl-3.5"),
+      (props.rightIcon ? "pr-10" : "pr-3")
+    ].filter(Boolean).join(" "),
+    
     addAttributes: {
       type: props.type,
     },
