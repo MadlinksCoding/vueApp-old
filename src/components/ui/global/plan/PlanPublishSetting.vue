@@ -154,7 +154,7 @@
 
             <div class="flex flex-col gap-1.5">
               <h4 class="text-sm font-semibold text-[#344054] dark:text-[#bdb8af]">
-                End Date <span class="text-xs leading-normal font-normal italic text-[#344054] dark:text-[#bdb8af]">optional</span>
+                End Date <span class="text-xs  leading-normal font-normal italic text-[#344054] dark:text-[#bdb8af]">optional</span>
               </h4>
               <div class="h-11 flex items-center bg-white/50 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b80] dark:border-[#3b4043]">
                 <div class="flex items-center gap-2 px-3 w-full min-w-0">
@@ -171,7 +171,7 @@
           </div>
       </div>
 
-    </div>
+    </div> 
   </section>
 </template>
 

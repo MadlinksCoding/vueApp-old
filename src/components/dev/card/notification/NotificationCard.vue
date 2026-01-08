@@ -12,7 +12,7 @@
 
       <!-- Card body -->
       <div
-        class="dashboard-toast-inner-wrapper flex gap-4 py-3 px-2 flex-1 min-w-0 min-h-0"
+        class="dashboard-toast-inner-wrapper flex gap-4 py-3 px-3 flex-1 min-w-0 min-h-0"
         :class="variantConfig.bgClass"
       >
         <div class="dashboard-toast-inner-container relative w-full flex items-start gap-5">
@@ -158,7 +158,7 @@ const palettes = {
   alert: {
     left: "bg-[#FDB022]",
     bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)] ",
-    title: "text-[#B54708] ",
+    title: "text-[#B54708] font-semibold",
     link: "text-[#FDB022]",
     iconBg: "bg-[rgba(253,176,34,0.15)]",
     iconStroke: "stroke-[#FDB022] text-[#FDB022]",

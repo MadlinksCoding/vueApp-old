@@ -23,7 +23,8 @@ const publishFlow = createStepStateEngine({
     postMessage: '',            
     socialThumbnailMode: 'useOriginal',
     invitedPerformers: [],      
-    verifiedFanOnly: false
+    verifiedFanOnly: false,
+    substep: 'free-tier'
   }
 });
 

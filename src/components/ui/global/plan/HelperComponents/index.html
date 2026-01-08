@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New tier page</title>
+
+    <!-- poppins font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Quill CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet"/>
+
+    <!-- Custom CSS -->
+    <script>
+      tailwind.config = {
+          darkMode: 'class',
+          theme: {
+              extend: {
+                  screens: {
+                      sm: '480px',
+                      md: '768px',
+                      lg: '1010px',
+                      xl: '1365px',
+                  },
+                  fontFamily: {
+                      sans: ['Poppins', 'Inter', 'Montserrat', 'Open Sans', 'arial', 'sans-serif'],
+                  },
+              },
+          },
+      }
+    </script>
+  </head>
+  <body class="bg-[#EAECF0] font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] [&.dark]:bg-[#222526]">
+    <!-- main-wrapper -->
+    <div class="relative before:content-[''] before:fixed before:inset-0 before:pointer-events-none before:bg-cover before:bg-center before:bg-no-repeat before:bg-[url('https://i.ibb.co.com/QvpHN5vD/mobile-gradient-main-bg-1.webp')] md:before:bg-[url('https://i.ibb.co.com/dw910Z5b/gradient-main-bg.webp')]">
+        <!-- container -->
+        <div class="flex flex-col gap-6 md:gap-8">
+            <!-- header -->
+            <div class="flex flex-col gap-2 backdrop-blur-[25px] [background:linear-gradient(180deg,#F0F0F0_0%,rgba(240,240,240,0.75)_100%)] md:gap-6 md:px-4 md:bg-white/5 md:backdrop-blur-[50px] xl:px-10 dark:[background:linear-gradient(#202325_0%,rgba(32,35,37,0.75)_100%)] md:dark:bg-[#181a1b0d]">
+                <!-- mobile-nav -->
+                <div class="flex justify-between items-center p-2 md:hidden">
+                    <img src="https://i.ibb.co.com/Zpm5jfZ9/chevron-left.webp" alt="back" class="w-6 h-6 [filter:brightness(0)] cursor-pointer dark:[filter:brightness(100%)]">
+
+                    <h1 class="text-sm font-semibold text-[#344054] dark:text-[#bdb8af]">New Tier</h1>
+
+                    <img data-save-as-draft-button src="https://i.ibb.co.com/xtn4YLHF/3-dots.webp" alt="settings" class="w-6 h-6 [filter:brightness(0)] cursor-pointer dark:[filter:brightness(100%)]">
+                </div>
+
+                <!-- desktop-nav -->
+                <div class="hidden justify-between items-center pt-10 md:flex">
+                    <!-- back-button -->
+                    <div class="flex justify-center items-center gap-1 cursor-pointer">
+                        <img src="https://i.ibb.co.com/HLCwss7q/arrow-left.webp" alt="back" class="w-4 h-4 [filter:brightness(0)] dark:[filter:brightness(100%)]">
+                        <span class="text-xs leading-normal font-medium text-[#344054] dark:text-[#bdb8af]">Back</span>
+                    </div>
+
+                    <div class="flex items-center gap-[1.625rem]">
+                        <!-- save-as-draft -->
+                        <a href="#" class="flex items-center gap-0.5 cursor-pointer">
+                            <img src="https://i.ibb.co.com/JWNPWKRW/upload-02.webp" alt="upload" class="w-5 h-5">
+                            <span class="text-sm font-medium text-[#155EEF]">Save as draft</span>
+                        </a>
+
+                        <button class="flex justify-center items-center px-2 h-10 bg-black cursor-pointer group/button hover:bg-[#07F468] disabled [&.disabled]:pointer-events-none [&.disabled]:bg-[#3440540D] dark:[&.disabled]:bg-[#323e520d]">
+                            <span class="text-lg font-medium text-[#07F468] group-hover/button:text-black group-[.disabled]/button:text-[#98A2B3] dark:group-[.disabled]/button:text-[#b0a99e]">SAVE & PUBLISH</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- tab-wrapper -->
+                <div class="flex items-center gap-2 px-0">
+                    <!-- tab-container -->
+                    <div class="flex items-center gap-6 px-2 sm:px00 w-full overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+                        <!-- tab-item -->
+                        <div class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer active group/tab [&.active]:border-b-[2px] [&.active]:border-[#FB5BA2] md:w-max md:grow-0 dark:[&.active]:border-[#950444]">
+                            <img src="https://i.ibb.co.com/qYw4qbtR/info-square.webp" alt="info-square" class="w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)] group-[.active]/tab:[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]">
+                            <span class="text-sm font-semibold whitespace-nowrap text-[#667085] group-[.active]/tab:text-[#FF0066] dark:text-[#9e9689] dark:group-[.active]/tab:text-[#ff1a76]">Plan Detail</span>
+                        </div>
+
+                        <!-- tab-item -->
+                        <div class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer group/tab [&.active]:border-b-[2px] [&.active]:border-[#FB5BA2] md:w-max md:grow-0 dark:[&.active]:border-[#950444]">
+                            <img src="https://i.ibb.co.com/NghXmqwT/dollar.webp" alt="dollar" class="w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)] group-[.active]/tab:[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]">
+                            <span class="text-sm font-semibold whitespace-nowrap text-[#667085] group-[.active]/tab:text-[#FF0066] dark:text-[#9e9689] dark:group-[.active]/tab:text-[#ff1a76]">Plan Variations & Promotion</span>
+                        </div>
+
+                        <!-- tab-item -->
+                        <div class="flex justify-center items-center gap-2 px-1 pb-3 grow min-w-max max-w-[calc((100%/3)-1rem)] cursor-pointer group/tab [&.active]:border-b-[2px] [&.active]:border-[#FB5BA2] md:w-max md:grow-0 dark:[&.active]:border-[#950444]">
+                            <img src="https://i.ibb.co/ycjs2rZ2/share.webp" alt="share" class="w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(44%)_sepia(18%)_saturate(467%)_hue-rotate(183deg)_brightness(93%)_contrast(86%)] group-[.active]/tab:[filter:brightness(0)_saturate(100%)_invert(15%)_sepia(77%)_saturate(6803%)_hue-rotate(330deg)_brightness(100%)_contrast(108%)]">
+                            <span class="text-sm font-semibold whitespace-nowrap text-[#667085] group-[.active]/tab:text-[#FF0066] dark:text-[#9e9689] dark:group-[.active]/tab:text-[#ff1a76]">Sharing</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- content-wrapper -->
+            <div class="flex gap-6 md:gap-10 xl:px-10">
+                <!-- content-container -->
+                <div class="flex flex-col gap-6 grow md:gap-8 md:pb-6 xl:pb-20">
+                    <!-- tier-information-section -->
+                    <section class="flex flex-col gap-4 px-2 py-4 bg-white/25 backdrop-blur-[25px] md:gap-6 md:p-4 dark:bg-[#181a1b40]">
+                        <h2 class="text-xl leading-normal font-semibold text-[#667085] dark:text-[#9e9689]">Tier information</h2>
+
+                        <!-- tier-name input-field -->
+                        <div class="flex flex-col gap-1.5">
+                            <!-- input-container -->
+                            <div class="w-full h-11 flex px-3.5 bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                <input type="text" placeholder="Tier Name..." value="Basic Lounge ❤️️️" class="text-base bg-transparent border-none outline-none text-[#101828] placeholder:text-[#667085] dark:text-[#d6d3cd] dark:placeholder:text-[#9e9689]">
+                            </div>
+                        </div>
+
+                        <!-- tier-description textarea field -->
+                         <div class="flex flex-col gap-1.5">
+                            <!-- Textarea with Quills library -->
+                            <div class="tier-description-quill-container px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm rounded-b-none shadow-[0px_1px_2px_0px_#1018280D] bg-white/30 gap-2 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                <div id="tier-description-quill-editor" class="[&_.ql-editor.ql-blank::before]:!font-normal [&_.ql-editor.ql-blank::before]:!left-0 [&_.ql-editor.ql-blank::before]:!text-base [&_.ql-editor.ql-blank::before]:!font-normal [&_.ql-editor.ql-blank::before]:not-italic [&_.ql-editor.ql-blank::before]:!text-[#667085] dark:!text-[#d6d3cd]">Welcome to Jenny’s  basic lounge. You will get the most basic things in this tier.</div>
+                            </div>
+                        </div>
+
+                        <!-- background-image uploader section -->
+                        <section class="flex flex-col gap-2">
+                            <h3 class="text-base font-semibold text-[#0C111D] md:text-lg md:font-medium dark:text-[#dbd8d3]">Background Image</h3>
+
+                            <!-- uploader-container -->
+                            <div data-media-upload="" class="hidden cursor-pointer border-2 border-transparent bg-[rgba(0,0,0,0.05)] rounded-lg p-10 h-[12.1875rem] w-full flex flex-col items-center justify-center hover:border-[#0c111d] dark:hover:border-[#857c6d] hover:bg-[rgba(0,0,0,0.10)] dark:hover:bg-[rgba(0,0,0,0.05)] group">
+
+                                <div data-media-upload-input-wrap="" class="gap-2 w-full flex flex-col justify-center items-center self-stretch border-2 border-dashed border-transparent">
+                                    <img src="https://i.ibb.co/twQ2CzCL/Images.webp" alt="Images" class="w-10 h-10 [filter:brightness(0)] dark:[filter:brightness(100%)]">
+                                    <h4 class="text-sm font-semibold text-center text-[#0C111D] dark:text-[#dbd8d3]"><span class="text-sm font-semibold underline text-[#0C111D] dark:text-[#dbd8d3]">Click here</span> to select image or drag and drop image here </h4>
+                                    <p class="text-[#333333] text-sm leading-normal font-medium text-center tracking-[0.00875rem] opacity-70 dark:text-[#c8c3bc]">(Allowed formats: JPEG, PNG. Max size: 10MB)</p>
+                                </div>
+                            </div>
+
+                            <!-- background-image-container -->
+                            <div class="w-full">
+                                <div class="relative w-[7.876rem] h-[12.5625rem] overflow-hidden">
+                                    <img src="https://i.ibb.co.com/70sHrpv/featured-media-bg.webp" alt="" class="h-full w-auto object-cover">
+                                    <button class="absolute top-0 right-0 w-6 h-6 flex justify-center items-center bg-[#FF0066] cursor-pointer hover:bg-[#FDB022] dark:bg-[#cc0052] dark:hover:bg-[#b77702]">
+                                        <img src="https://i.ibb.co.com/YMvbDsR/trash-03.webp" alt="trash" class="w-5 h-5">
+                                    </button>
+                                </div>
+                            </div>
+
+                        </section>
+
+                        <!-- featured tier toggle section -->
+                        <div data-featured-tier-toggle-container class="flex gap-4">
+                            <label class="relative inline-block w-9 h-5 min-w-[2.25rem] my-0.5 cursor-pointer">
+                                <input type="checkbox" class="peer h-0 w-0 opacity-0" id="featured-tier">
+                                <span class="absolute inset-0 cursor-pointer rounded-[0.75rem] bg-[#98a2b380] transition-all duration-100 ease-in-out peer-checked:bg-[#0c111d] dark:bg-[#434c5b80] dark:peer-checked:bg-[#0a0e17]"></span>
+                                <span class="absolute left-[0.125rem] top-1/2 h-4 w-4 -translate-y-1/2 transform rounded-full bg-[#ffffff] shadow-[0_1px_3px_0_rgba(16,24,40,0.1),0_1px_2px_0_rgba(16,24,40,0.06)] transition-all duration-100 ease-in-out peer-checked:translate-x-[1rem] dark:bg-[#181a1b]"></span>
+                            </label>
+
+                            <div data-featured-toast-container class="flex flex-col gap-2 grow group/feature-toggle-container">
+                                <!-- Toggle Label -->
+                                <label for="featured-tier" class="text-base font-semibold break-words cursor-pointer text-[#0c111d] dark:text-[#dbd8d3]">This is a Featured Tier</label>
+                                <div class="flex flex-col gap-1 w-full">
+                                    <p class="text-sm text-[#0C111D] dark:text-[#dbd8d3]">Featured tier will be displayed first by default on your subscription tier page.</p>
+                                    <div data-dashboard-toast="alert" class="hidden group-[.featured-tier]/feature-toggle-container:flex w-full">
+                                        <div class="w-full border-b border-[rgba(208,213,221,1)] dark:border-[rgba(74,85,104,1)] flex relative">
+                                            <div class="toast-border w-[0.188rem] absolute h-full left-0 top-0 block bg-[rgba(253,176,34,1)] dark:bg-[rgba(255,180,34,1)]"></div>
+                                            <div class="dashboard-toast-inner-wrapper flex gap-4 py-3 px-3 flex-1 min-w-0 min-h-0
+                                                        [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0%,rgba(253,176,34,0.15)_100%),rgba(255,255,255,0.9)]
+                                                        dark:[background:linear-gradient(90deg,rgba(26,32,44,0)_0%,rgba(26,32,44,0.9)_100%),linear-gradient(0deg,rgba(253,176,34,0.15)_0%,rgba(253,176,34,0.15)_100%),rgba(26,32,44,0.9)]">
+                                            <div class="dashboard-toast-inner-container relative w-full flex items-start gap-5">
+                                                <div class="flex flex-col flex-1 min-w-0 min-h-0 pr-[1.125rem] md:pr-0">
+                                                    <div class="flex flex-col gap-2 pb-2">
+                                                        <div class="flex justify-between items-center pt-1 pr-1">
+                                                        <span class="toast-heading text-sm font-semibold text-[#B54708] dark:text-[rgba(255,180,34,1)]">
+                                                            Your ‘VIP Lounge tier’ will not longer be a featured tier.
+                                                        </span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex justify-between items-center gap-4">
+                                                        <span class="text-black dark:text-[#e8e6e3] text-sm flex-1
+                                                                    [text-shadow:0_0_10px_rgba(0,0,0,0.10)] dark:[text-shadow:0_0_10px_rgba(255,255,255,0.10)]">
+                                                        This tier will be updated as the feature tier in your profile after saving.
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            </div>
+                                        </div>
+                                        </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- price-setting-section -->
+                    <section data-price-setting-section class="flex flex-col gap-4 px-2 py-4 bg-white/25 group/price-container paid-tier md:gap-6 md:p-4 dark:bg-[#181a1b40]">
+                        <h2 class="text-xl leading-normal font-semibold text-[#667085] dark:text-[#9e9689]">Price Setting</h2>
+
+                        <!-- Tab-button-container (free/paid) -->
+                        <ul data-price-tab-button-container class="flex w-full h-10 whitespace-nowrap rounded-[0.3125rem] overflow-hidden border border-[#D0D5DD] bg-[#F9FAFB] dark:border-[#3b4043] dark:bg-[#1b1d1e]">
+                            <li class="flex flex-1 justify-center items-center gap-2 border-r border-[#D0D5DD] cursor-pointer group/tab [&.active]:bg-[#0C111D] dark:border-[#3b4043] dark:[&.active]:bg-[#162036]">
+                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                    <span class="text-sm font-medium text-[#98A2B3] whitespace-nowrap group-[.active]/tab:text-white group-[.active]/tab:font-semibold dark:text-[#b0a99e] dark:group-[.active]/tab:text-[#e8e6e3]">Free Tier</span>
+                                </div>
+                            </li>
+
+                            <li class="flex flex-1 justify-center items-center gap-2 border-r border-[#D0D5DD] cursor-pointer group/tab [&.active]:bg-[#0C111D] dark:border-[#3b4043] dark:[&.active]:bg-[#162036] active">
+                                <div class="w-full flex justify-center items-center gap-2 px-4">
+                                    <span class="text-sm font-medium text-[#98A2B3] whitespace-nowrap group-[.active]/tab:text-white group-[.active]/tab:font-semibold dark:text-[#b0a99e] dark:group-[.active]/tab:text-[#e8e6e3]">Paid Tier</span>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <!-- subscription-based-price-section -->
+                        <section class="hidden flex-col gap-4 group-[.paid-tier]/price-container:flex">
+                            <h3 class="text-base font-semibold text-[#0C111D] dark:text-[#dbd8d3] md:text-lg">Subscription Base Price</h3>
+
+                            <div class="flex w-full">
+                                <!-- input-field -->
+                                <div class="flex flex-col gap-1.5 flex-1 min-w-0">
+                                    <!-- input-container -->
+                                    <div class="w-full h-11 flex items-center gap-2 px-3.5 bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                        <span class="text-base font-bold whitespace-nowrap text-[#344054] dark:text-[#bdb7af]">USD$</span>
+                                        <input type="text" value="29.5" class="text-base bg-transparent border-none outline-none w-full min-w-0 text-[#0C111D] placeholder:text-[#667085] dark:text-[#dbd8d3] dark:placeholder:text-[#9e9689]">
+                                    </div>
+
+                                    <p class="text-sm text-[#475467] dark:text-[#b1aba0]">Price must be between USD$ 1.95 to 500.</p>
+                                </div>
+
+                                <!-- dropdown -->
+                                <div class="relative w-[11.25rem] h-11 flex-shrink-0">
+                                    <div class="dash-select cursor-pointer">
+                                        <div class="dash-select__trigger h-11 flex items-center justify-between w-full px-3.5 border-r border-b border-r-[#D0D5DD] border-b-[#EAECF0] rounded-t-sm bg-white/50 shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b80] dark:border-r-[#3b4043] dark:border-b-[#353a3c]">
+                                            <span class="text-base font-medium text-[#0c111d] dark:text-[#dbd8d3]">Per month</span>
+                                            <img src="https://i.ibb.co/2mXMQ5F/chevron-down.webp" alt="chevron-down" class="select-arrow w-5 h-5 transition-transform duration-300 ease-in-out transform">
+                                        </div>
+                                        <div class="dash-options-container absolute w-full transition-all duration-300 z-10 top-[calc(100%+0.5rem)] shadow-none border-none opacity-0 invisible pointer-events-none">
+                                            <div class="dash-options rounded-[2px] bg-white/70 backdrop-blur-[25px] max-h-[200px] overflow-y-auto dark:bg-[#181a1bb3]">
+                                                <div class="dash-option flex items-center gap-2 h-12 px-3 border-b border-[#EAECF0] cursor-pointer hover:bg-white [&.selected]:bg-white dark:hover:bg-[#181a1b] dark:[&.selected]:bg-[#181a1b] dark:border-[#353a3c]">
+                                                    <span class="text-sm font-medium text-[#0c111d] dark:text-[#dbd8d3]">Per day</span>
+                                                </div>
+                                                <div class="dash-option flex items-center gap-2 h-12 px-3 border-b border-[#EAECF0] cursor-pointer hover:bg-white [&.selected]:bg-white dark:hover:bg-[#181a1b] dark:[&.selected]:bg-[#181a1b] dark:border-[#353a3c] selected">
+                                                    <span class="text-sm font-medium text-[#0c111d] dark:text-[#dbd8d3]">Per month</span>
+                                                </div>
+                                                <div class="dash-option flex items-center gap-2 h-12 px-3 border-b border-[#EAECF0] cursor-pointer hover:bg-white [&.selected]:bg-white dark:hover:bg-[#181a1b] dark:[&.selected]:bg-[#181a1b] dark:border-[#353a3c]">
+                                                    <span class="text-sm font-medium text-[#0c111d] dark:text-[#dbd8d3]">Per year</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <select class="dash-real-select hidden" name="dash-select" required="">
+                                        <option value="day">Per day</option>
+                                        <option value="month">Per month</option>
+                                        <option value="year">Per year</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- subscriber-discount-section -->
+                        <div class="hidden flex-col gap-4 group-[.paid-tier]/price-container:flex">
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base font-semibold text-[#0C111D] dark:text-[#dbd8d3] md:text-lg">Subscriber Discount</h3>
+                                    <span class="text-xs leading-normal font-medium italic text-[#667085] dark:text-[#9e9689]">Optional</span>
+                                </div>
+
+                                <p class="text-sm text-[#475467] dark:text-[#b1aba0]">Offer first-time subscriber discount when they join this tier for the first time.</p>
+                            </div>
+
+                            <!-- add-discount-button -->
+                            <button class="hidden items-center gap-0.5 cursor-pointer">
+                                <img src="https://i.ibb.co/TD3jgrGK/plus-square.webp" alt="plus-square" class="w-5 h-5">
+                                <span class="text-sm font-medium text-[#155EEF] dark:text-[#2c8df1]">ADD DISCOUNT</span>
+                            </button>
+
+                            <!-- discount-item -->
+                            <div class="flex flex-col gap-4 pb-2">
+                                <!-- price -->
+                                <div class="flex items-center gap-2">
+                                    <div>
+                                        <span class="text-base font-medium align-middle text-[#0C111D] dark:text-[#dbd8d3]">USD$</span>
+                                        <span class="text-3xl leading-[2.375rem] font-semibold align-baseline text-[#0C111D] dark:text-[#dbd8d3]">11.69</span>
+                                        <span class="text-xs leading-normal font-medium align-bottom text-[#0C111D] dark:text-[#dbd8d3]">/mo</span>
+                                    </div>
+
+                                    <!-- discount-tag -->
+                                    <div class="flex justify-center items-center px-1 py-0.5 bg-[#FCE40D] dark:bg-[#a19102]">
+                                        <span class="text-xs leading-normal font-semibold text-[#0C111D] dark:text-[#dbd8d3]">-40%</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 sm:flex-row sm:justify-between sm:flex-wrap">
+                                    <div class="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 sm:flex-wrap">
+                                        <div class="flex items-center gap-1">
+                                            <div class="flex justify-center items-center w-5 h-5">
+                                                <img src="https://i.ibb.co.com/Xx69xSx4/Weather.webp" alt="Weather" class="w-4 h-4">
+                                            </div>
+                                            <p class="text-sm text-[#344054] dark:text-[#bdb7af]">23 APR 2025-24 APR 2026</p>
+                                        </div>
+
+                                        <div class="flex items-center gap-1 pt-1">
+                                            <div class="flex justify-center items-center w-5 h-5">
+                                                <img src="https://i.ibb.co.com/vM4gQhD/calender.webp" alt="calender" class="w-4 h-4">
+                                            </div>
+                                            <p class="text-sm text-[#344054] dark:text-[#bdb7af]">Discount for 6 billing cycle</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end items-center gap-4 sm:grow">
+                                        <button class="flex justify-center items-center gap-0.5 outline-none cursor-pointer">
+                                            <img src="https://i.ibb.co.com/d01w6NWF/pen.webp" alt="pen" class="w-5 h-5">
+                                            <span class="text-sm font-medium text-[#155EEF] dark:text-[#2c8df1]">EDIT</span>
+                                        </button>
+
+                                        <button class="flex justify-center items-center gap-0.5 outline-none cursor-pointer">
+                                            <img src="https://i.ibb.co.com/7twNxfc1/trash.webp" alt="trash" class="w-5 h-5">
+                                            <span class="text-sm font-medium text-[#FF0066] dark:text-[#ff1a76]">REMOVE</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- subscriber-setting-section -->
+                    <section data-subscriber-setting-wrapper class="flex flex-col gap-4 px-2 py-4 bg-white/25 group/wrapper md:gap-6 md:p-4 dark:bg-[#181a1b40]">
+                        <h2 class="text-xl leading-normal font-semibold text-[#667085] dark:text-[#9e9689]">Subscriber Setting</h2>
+
+                        <!-- subscriber-selection-section -->
+                        <section class="flex flex-col gap-2">
+                            <h3 class="text-base font-semibold text-[#0C111D] dark:text-[#dbd8d3] md:text-lg">Who can subscribe to this plan tier?</h3>
+
+                            <div class="flex w-full">
+                                <!-- dropdown -->
+                                <div class="relative w-full h-11">
+                                    <div class="dash-select cursor-pointer">
+                                        <div class="dash-select__trigger h-11 flex items-center justify-between w-full px-3.5 border-r border-b border-b-[#EAECF0] rounded-t-sm bg-white/50 shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b80] dark:border-b-[#353a3c]">
+                                            <span class="text-base font-medium text-[#0c111d] dark:text-[#dbd8d3]">Everyone</span>
+                                            <img src="https://i.ibb.co/2mXMQ5F/chevron-down.webp" alt="chevron-down" class="select-arrow w-5 h-5 transition-transform duration-300 ease-in-out transform">
+                                        </div>
+                                        <div class="dash-options-container absolute w-full transition-all duration-300 z-10 top-[calc(100%+0.5rem)] shadow-none border-none opacity-0 invisible pointer-events-none">
+                                            <div class="dash-options rounded-[2px] bg-white/70 backdrop-blur-[25px] max-h-[200px] overflow-y-auto dark:bg-[#181a1bb3]">
+                                                <div class="dash-option flex items-center gap-2 h-12 px-3 border-b border-[#EAECF0] cursor-pointer hover:bg-white [&.selected]:bg-white dark:hover:bg-[#181a1b] dark:[&.selected]:bg-[#181a1b] dark:border-[#353a3c] selected">
+                                                    <span class="text-sm font-medium text-[#0c111d] dark:text-[#dbd8d3]">Everyone</span>
+                                                </div>
+                                                <div class="dash-option flex items-center gap-2 h-12 px-3 border-b border-[#EAECF0] cursor-pointer hover:bg-white [&.selected]:bg-white dark:hover:bg-[#181a1b] dark:[&.selected]:bg-[#181a1b] dark:border-[#353a3c]">
+                                                    <span class="text-sm font-medium text-[#0c111d] dark:text-[#dbd8d3]">Only those invited</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <select class="dash-real-select hidden" name="dash-select" required="">
+                                        <option value="everyone">Everyone</option>
+                                        <option value="only-those-invited">Only those invited</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="hidden group-[.only-invited]/wrapper:flex flex-col gap-2 py-2">
+                                <p class="text-base text-[#344054] dark:text-[#bdb7af]">Send subscription link below to specific fans:</p>
+                                <!-- input-field -->
+                                <div class="flex">
+                                    <!-- input-container -->
+                                    <div class="w-full h-12 flex gap-3.5 bg-white/75 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1bbf] dark:border-[#3b4043]">
+                                        <input data-invite-link type="text" placeholder="Enter amount" class="text-base bg-transparent border-none outline-none truncate grow min-w-0 pl-3.5 text-[#101828] placeholder:text-[#667085] pointer-events-none dark:text-[#d6d3cd] dark:placeholder:text-[#9e9689]" value="ourwebsite.com/invitelinkwww">
+                                        <button data-copy-button class="flex items-center gap-1 px-3.5 shrink-0 cursor-pointer">
+                                            <img src="https://i.ibb.co.com/jvvTYfmR/copy-01.webp" alt="copy-01" class="w-5 h-5">
+                                            <span class="text-sm font-semibold whitespace-nowrap text-[#344054] dark:text-[#bdb7af]">Copy Link</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- maximum-subscribers-section -->
+                        <div class="flex flex-col gap-2">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base font-semibold text-[#0C111D] dark:text-[#dbd8d3] md:text-lg">Maximum subscribers</h3>
+                                    <span class="text-xs leading-normal font-medium italic text-[#667085] dark:text-[#9e9689]">Optional</span>
+                                </div>
+
+                                <p class="text-base text-[#344054] dark:text-[#bdb7af]">Limit how many fans can join this tier at once. Leave blank to disable feature.</p>
+                            
+                                <!-- subscriber-amount input-field -->
+                                <div class="flex flex-col gap-1.5">
+                                    <!-- input-container -->
+                                    <div class="w-full h-11 flex px-3.5 bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                        <input type="text" placeholder="Enter amount" class="text-base bg-transparent border-none outline-none text-[#101828] placeholder:text-[#667085] dark:text-[#d6d3cd] dark:placeholder:text-[#9e9689]">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- unsubscribe-discount-section -->
+                        <div class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base font-semibold text-[#0C111D] dark:text-[#dbd8d3] md:text-lg">Unsubscribe Discount</h3>
+                                    <span class="text-xs leading-normal font-medium italic text-[#667085] dark:text-[#9e9689]">Optional</span>
+                                </div>
+
+                                <p class="text-sm text-[#475467] dark:text-[#b1aba0]">Offer discount to your subscribers when they unsubscribe from this tier. Note that all subscribers with different billing cycles from all tiers will be offered the same discount.</p>
+                            </div>
+
+                            <!-- add-discount-button -->
+                            <button class="hidden items-center gap-0.5 cursor-pointer">
+                                <img src="https://i.ibb.co/TD3jgrGK/plus-square.webp" alt="plus-square" class="w-5 h-5">
+                                <span class="text-sm font-medium text-[#155EEF] dark:text-[#2c8df1]">ADD DISCOUNT</span>
+                            </button>
+
+                            <!-- discount-item -->
+                            <div class="flex flex-col gap-4 pb-2">
+                                <!-- price -->
+                                <div class="flex items-center gap-2">
+                                    <div>
+                                        <span class="text-base font-medium align-middle text-[#0C111D] dark:text-[#dbd8d3]">USD$</span>
+                                        <span class="text-3xl leading-[2.375rem] font-semibold align-baseline text-[#0C111D] dark:text-[#dbd8d3]">11.69</span>
+                                        <span class="text-xs leading-normal font-medium align-bottom text-[#0C111D] dark:text-[#dbd8d3]">/mo</span>
+                                    </div>
+
+                                    <!-- discount-tag -->
+                                    <div class="flex justify-center items-center px-1 py-0.5 bg-[#FCE40D] dark:bg-[#a19102]">
+                                        <span class="text-xs leading-normal font-semibold text-[#0C111D] dark:text-[#dbd8d3]">-40%</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 sm:flex-row sm:justify-between sm:flex-wrap">
+                                    <div class="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 sm:flex-wrap">
+                                        <div class="flex items-center gap-1 pt-1">
+                                            <div class="flex justify-center items-center w-5 h-5">
+                                                <img src="https://i.ibb.co.com/vM4gQhD/calender.webp" alt="calender" class="w-4 h-4">
+                                            </div>
+                                            <p class="text-sm text-[#344054] dark:text-[#bdb7af]">Discount for 6 billing cycle</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end items-center gap-4 sm:grow">
+                                        <button class="flex justify-center items-center gap-0.5 outline-none cursor-pointer">
+                                            <img src="https://i.ibb.co.com/d01w6NWF/pen.webp" alt="pen" class="w-5 h-5">
+                                            <span class="text-sm font-medium text-[#155EEF] dark:text-[#2c8df1]">EDIT</span>
+                                        </button>
+
+                                        <button class="flex justify-center items-center gap-0.5 outline-none cursor-pointer">
+                                            <img src="https://i.ibb.co.com/7twNxfc1/trash.webp" alt="trash" class="w-5 h-5">
+                                            <span class="text-sm font-medium text-[#FF0066] dark:text-[#ff1a76]">REMOVE</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- subscriber-benifits-section -->
+                    <div class="flex flex-col gap-4 px-2 py-4 bg-white/25 md:gap-6 md:p-4 dark:bg-[#181a1b40]">
+                        <!-- title-section -->
+                        <div class="flex items-center gap-2 opacity-80">
+                            <h2 class="text-xl leading-normal font-semibold text-[#667085] dark:text-[#9e9689]">Subscriber Benefits</h2>
+                            <span class="text-xs leading-normal font-medium italic text-[#667085] dark:text-[#9e9689]">Optional</span>
+                        </div>
+
+                        <!-- form-container -->
+                        <div class="flex flex-col gap-4 backdrop-blur-[25px] md:gap-6">
+                            <!-- Free tokens section -->
+                            <div class="grid grid-cols-[repeat(auto-fit,minmax(15.25rem,1fr))] items-center gap-2 w-full">
+                                <!-- title & checkbox container -->
+                                <div class="relative flex flex-col gap-2">
+                                    <!-- title & tooltip container -->
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-base font-semibold text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Free tokens</h3>
+                                        
+                                        <span class="flex items-center justify-center">
+                                            <div class="md:relative inline-flex overflow-hidden cursor-pointer group hover:overflow-visible">
+                                                <!-- Icon -->
+                                                <img src="https://i.ibb.co/DPgMH5GG/svgviewer-png-output-15.webp" alt="tooltip icon" class="w-4 h-4">
+
+                                                <!-- Tooltip -->
+                                                <div class="absolute z-[2] flex flex-col items-start w-full md:w-max max-w-[22.4375rem] md:max-w-[21.5rem]
+                                                    opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto
+                                                    text-xs leading-normal font-medium text-white py-2 px-3 rounded-lg
+                                                    bg-[#101828B2] dark:bg-[rgba(14,19,32,0.9)] dark:text-[#dbd8d3] [box-shadow:0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] [backdrop-filter:blur(25px)]
+                                                    left-1/2 top-full translate-x-[-50%] translate-y-2 md:left-auto md:top-1/2 md:-right-2 md:translate-y-[-50%] md:translate-x-full
+                                                    before:content-[''] before:absolute before:w-0 before:h-0 before:left-1/2 before:top-[-6px] before:translate-x-[-50%] before:border-[6px] before:border-t-0 before:border-l-transparent before:border-r-transparent before:border-b-[rgba(16,24,40,0.7)]
+                                                    md:before:top-1/2 md:before:left-[-6px] md:before:translate-y-[-50%] md:before:border-[6px] md:before:border-r-[rgba(16,24,40,0.7)] md:before:border-t-transparent md:before:border-b-transparent md:before:border-l-transparent"
+                                                >
+                                                    <p class="text-xs leading-normal font-medium text-white dark:text-[#dbd8d3]">Set amount of free tokens given to member of this tier every recurring billing cycle. Frequency is based on your based subscription plan setting.</p>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div data-free-tokens-section class="flex flex-col gap-1.5 group/input">
+                                    <!-- input-container -->
+                                    <div class="h-11 flex items-center bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                        <div class="flex items-center gap-2 px-3.5 w-full min-w-0">
+                                            <input data-free-tokens-input type="text" value="10" class="text-base bg-transparent border-none outline-none w-full min-w-0 text-[#0C111D] placeholder:text-[#667085] dark:text-[#dbd8d3] dark:placeholder:text-[#9e9689]">
+                                            <img src="https://i.ibb.co.com/yBMzbHWz/alert-circle.webp" alt="alert-circle" class="hidden w-4 h-4 group-[.error]/input:flex">
+                                        </div>
+                                        <span class="text-base font-semibold whitespace-nowrap px-[1.125rem] text-[#344054] dark:text-[#bdb7af]">% off</span>
+                                    </div>
+
+                                    <p class="hidden text-sm text-[#FF4405] group-[.error]/input:flex dark:text-[#ff571e]">value must be between 1-99.</p>
+                                </div>
+                            </div>
+
+                            <!-- Merch discount section -->
+                            <div class="grid grid-cols-[repeat(auto-fit,minmax(15.25rem,1fr))] items-center gap-2 w-full">
+                                <!-- title & checkbox container -->
+                                <div class="flex flex-col gap-2">
+                                    <!-- title & tooltip container -->
+                                    <div class="relative flex items-center gap-2">
+                                        <h3 class="text-base font-semibold text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Merch Discount</h3>
+                                        
+                                        <span class="flex items-center justify-center">
+                                            <div class="md:relative inline-flex overflow-hidden cursor-pointer group hover:overflow-visible">
+                                                <!-- Icon -->
+                                                <img src="https://i.ibb.co/DPgMH5GG/svgviewer-png-output-15.webp" alt="tooltip icon" class="w-4 h-4">
+
+                                                <!-- Tooltip -->
+                                                <div class="absolute z-[2] flex flex-col items-start w-full md:w-max max-w-[22.4375rem] md:max-w-[21.5rem]
+                                                    opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto
+                                                    text-xs leading-normal font-medium text-white py-2 px-3 rounded-lg
+                                                    bg-[#101828B2] dark:bg-[rgba(14,19,32,0.9)] dark:text-[#dbd8d3] [box-shadow:0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] [backdrop-filter:blur(25px)]
+                                                    left-1/2 top-full translate-x-[-50%] translate-y-2 md:left-auto md:top-1/2 md:-right-2 md:translate-y-[-50%] md:translate-x-full
+                                                    before:content-[''] before:absolute before:w-0 before:h-0 before:left-1/2 before:top-[-6px] before:translate-x-[-50%] before:border-[6px] before:border-t-0 before:border-l-transparent before:border-r-transparent before:border-b-[rgba(16,24,40,0.7)]
+                                                    md:before:top-1/2 md:before:left-[-6px] md:before:translate-y-[-50%] md:before:border-[6px] md:before:border-r-[rgba(16,24,40,0.7)] md:before:border-t-transparent md:before:border-b-transparent md:before:border-l-transparent"
+                                                >
+                                                    <ul>
+                                                        <li class="text-xs leading-normal font-medium text-white relative pl-4  before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem] dark:text-[#dbd8d3]">
+                                                            Set percentage discount for all the merch in your shop (e.g. type ‘10’ in the input field if you want 10% off)
+                                                        </li>
+                                                        <li class="text-xs leading-normal font-medium text-white relative pl-4  before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem] dark:text-[#dbd8d3]">
+                                                            Leave blank to disable feature.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <!-- checkbox-container -->
+                                    <div class="flex gap-2">
+                                        <div class="flex justify-center items-center w-6 h-6">
+                                            <input type="checkbox" checked id="merch-discount-checkbox" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                                    checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                        </div>
+
+                                        <label for="merch-discount-checkbox" class="h-5 cursor-pointer">
+                                            <span class="text-sm align-text-top text-[#0c111d] dark:text-[#dbd8d3]">Apply to items already on sale</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div data-merch-discount-section class="flex flex-col gap-1.5 group/input">
+                                    <!-- input-container -->
+                                    <div class="h-11 flex items-center bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                        <div class="flex items-center gap-2 px-3.5 w-full min-w-0">
+                                            <input data-merch-discount-input type="text" value="10" class="text-base bg-transparent border-none outline-none w-full min-w-0 text-[#0C111D] placeholder:text-[#667085] dark:text-[#dbd8d3] dark:placeholder:text-[#9e9689]">
+                                            <img src="https://i.ibb.co.com/yBMzbHWz/alert-circle.webp" alt="alert-circle" class="hidden w-4 h-4 group-[.error]/input:flex">
+                                        </div>
+                                        <span class="text-base font-semibold whitespace-nowrap px-[1.125rem] text-[#344054] dark:text-[#bdb7af]">% off</span>
+                                    </div>
+
+                                    <p class="hidden text-sm text-[#FF4405] group-[.error]/input:flex dark:text-[#ff571e]">value must be between 1-99.</p>
+                                </div>
+                            </div>
+
+                            <!-- Pay to View discount section -->
+                            <div class="grid grid-cols-[repeat(auto-fit,minmax(15.25rem,1fr))] items-center gap-2 w-full">
+                                <!-- title & checkbox container -->
+                                <div class="flex flex-col gap-2">
+                                    <!-- title & tooltip container -->
+                                    <div class="relative flex items-center gap-2">
+                                        <h3 class="text-base font-semibold text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Pay to View Discount</h3>
+                                        
+                                        <span class="flex items-center justify-center">
+                                            <div class="md:relative inline-flex overflow-hidden cursor-pointer group hover:overflow-visible">
+                                                <!-- Icon -->
+                                                <img src="https://i.ibb.co/DPgMH5GG/svgviewer-png-output-15.webp" alt="tooltip icon" class="w-4 h-4">
+
+                                                <!-- Tooltip -->
+                                                <div class="absolute z-[2] flex flex-col items-start w-full md:w-max max-w-[22.4375rem] md:max-w-[21.5rem]
+                                                    opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto
+                                                    text-xs leading-normal font-medium text-white py-2 px-3 rounded-lg
+                                                    bg-[#101828B2] dark:bg-[rgba(14,19,32,0.9)] dark:text-[#dbd8d3] [box-shadow:0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] [backdrop-filter:blur(25px)]
+                                                    left-1/2 top-full translate-x-[-50%] translate-y-2 md:left-auto md:top-1/2 md:-right-2 md:translate-y-[-50%] md:translate-x-full
+                                                    before:content-[''] before:absolute before:w-0 before:h-0 before:left-1/2 before:top-[-6px] before:translate-x-[-50%] before:border-[6px] before:border-t-0 before:border-l-transparent before:border-r-transparent before:border-b-[rgba(16,24,40,0.7)]
+                                                    md:before:top-1/2 md:before:left-[-6px] md:before:translate-y-[-50%] md:before:border-[6px] md:before:border-r-[rgba(16,24,40,0.7)] md:before:border-t-transparent md:before:border-b-transparent md:before:border-l-transparent"
+                                                >
+                                                    <ul>
+                                                        <li class="text-xs leading-normal font-medium text-white relative pl-4  before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem] dark:text-[#dbd8d3]">
+                                                            Set percentage discount for all pay to view product in your shop(e.g. type ‘10’ in the input field if you want 10% off) 
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <!-- checkbox-container -->
+                                    <div class="flex gap-2">
+                                        <div class="flex justify-center items-center w-6 h-6">
+                                            <input type="checkbox" checked id="merch-discount-checkbox" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                                    checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                        </div>
+
+                                        <label for="merch-discount-checkbox" class="h-5 cursor-pointer">
+                                            <span class="text-sm align-text-top text-[#0c111d] dark:text-[#dbd8d3]">Apply to items already on sale</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- input-container -->
+                                <div class="h-11 flex items-center bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                    <input type="text" value="10" class="text-base bg-transparent border-none outline-none w-full min-w-0 px-3.5 text-[#0C111D] placeholder:text-[#667085] dark:text-[#dbd8d3] dark:placeholder:text-[#9e9689]">
+                                    <span class="text-base font-semibold whitespace-nowrap px-[1.125rem] text-[#344054] dark:text-[#bdb7af]">% off</span>
+                                </div>
+                            </div>
+
+                            <!-- Custom Request discount section -->
+                            <div class="grid grid-cols-[repeat(auto-fit,minmax(15.25rem,1fr))] items-center gap-2 w-full">
+                                <!-- title & checkbox container -->
+                                <div class="flex flex-col gap-2">
+                                    <!-- title & tooltip container -->
+                                    <div class="relative flex items-center gap-2">
+                                        <h3 class="text-base font-semibold text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Custom Request Discount</h3>
+                                        
+                                        <span class="flex items-center justify-center">
+                                            <div class="md:relative inline-flex overflow-hidden cursor-pointer group hover:overflow-visible">
+                                                <!-- Icon -->
+                                                <img src="https://i.ibb.co/DPgMH5GG/svgviewer-png-output-15.webp" alt="tooltip icon" class="w-4 h-4">
+
+                                                <!-- Tooltip -->
+                                                <div class="absolute z-[2] flex flex-col items-start w-full md:w-max max-w-[22.4375rem] md:max-w-[21.5rem]
+                                                    opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto
+                                                    text-xs leading-normal font-medium text-white py-2 px-3 rounded-lg
+                                                    bg-[#101828B2] dark:bg-[rgba(14,19,32,0.9)] dark:text-[#dbd8d3] [box-shadow:0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] [backdrop-filter:blur(25px)]
+                                                    left-1/2 top-full translate-x-[-50%] translate-y-2 md:left-auto md:top-1/2 md:-right-2 md:translate-y-[-50%] md:translate-x-full
+                                                    before:content-[''] before:absolute before:w-0 before:h-0 before:left-1/2 before:top-[-6px] before:translate-x-[-50%] before:border-[6px] before:border-t-0 before:border-l-transparent before:border-r-transparent before:border-b-[rgba(16,24,40,0.7)]
+                                                    md:before:top-1/2 md:before:left-[-6px] md:before:translate-y-[-50%] md:before:border-[6px] md:before:border-r-[rgba(16,24,40,0.7)] md:before:border-t-transparent md:before:border-b-transparent md:before:border-l-transparent"
+                                                >
+                                                    <ul>
+                                                        <li class="text-xs leading-normal font-medium text-white relative pl-4  before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem] dark:text-[#dbd8d3]">
+                                                            Set percentage discount for custom product request(e.g. type ‘10’ in the input field if you want 10% off) 
+                                                        </li>
+                                                        <li class="text-xs leading-normal font-medium text-white relative pl-4  before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem] dark:text-[#dbd8d3]">
+                                                            Leave blank to disable feature.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- input-container -->
+                                <div class="h-11 flex items-center bg-white/30 border-b border-[#D0D5DD] rounded-t-sm shadow-[0px_1px_2px_0px_#1018280D] dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+                                    <input type="text" value="10" class="text-base bg-transparent border-none outline-none w-full min-w-0 px-3.5 text-[#0C111D] placeholder:text-[#667085] dark:text-[#dbd8d3] dark:placeholder:text-[#9e9689]">
+                                    <span class="text-base font-semibold whitespace-nowrap px-[1.125rem] text-[#344054] dark:text-[#bdb7af]">% off</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- media-options-section -->
+                    <div class="flex flex-col gap-4 px-2 py-4 bg-white/25 overflow-hidden md:gap-6 md:p-4 dark:bg-[#181a1b40]">
+                        <div class="flex flex-col gap-2">
+                            <!-- title-section -->
+                            <div class="flex items-center gap-2 opacity-80">
+                                <h2 class="text-xl leading-normal font-semibold text-[#667085] dark:text-[#9e9689]">Media Options</h2>
+                                <span class="text-xs leading-normal font-medium italic text-[#667085] dark:text-[#9e9689]">Optional</span>
+                            </div>
+
+                            <p class="text-sm text-[#475467] dark:text-[#b1aba0] xl:text-base">You can include medias from other subscription tiers to this tier. Subscribers will gain access to all content posted to selected tier below.</p>
+                        </div>
+
+                        <!-- checkbox-section -->
+                        <div class="flex flex-col gap-2 md:gap-4">
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" id="tier-media-chekbox-1" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-1" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to some content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier published [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Published Tier</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">16 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" id="tier-media-chekbox-2" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-2" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to more content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier published [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Published Tier</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">24 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" checked id="tier-media-chekbox-3" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-3" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to some more content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier published [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Published Tier</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">100 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" checked id="tier-media-chekbox-4" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-4" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to even more content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier published [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Published Tier</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">5 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" id="tier-media-chekbox-5" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-5" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to even some more content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier draft [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Draft</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">3 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" id="tier-media-chekbox-6" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-6" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to the most content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier draft [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Draft</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">0 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" id="tier-media-chekbox-7" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-7" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to even the most content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier draft [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Draft</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689]">0 Media</span>
+                                </label>
+                            </div>
+
+                            <!-- chekbox-container -->
+                            <div class="w-full flex items-center gap-2 md:gap-6">
+                                <div class="flex justify-center items-center w-6 h-6">
+                                    <input type="checkbox" checked id="tier-media-chekbox-8" class="appearance-none bg-white border border-[#d1d5db] rounded w-4 min-w-[1rem] h-4 cursor-pointer
+                                            checked:bg-[#07f468] checked:border-[#07f468] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border-black checked:after:border-[2px] checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:rotate-45 checked:after:box-border">
+                                </div>
+
+                                <label for="tier-media-chekbox-8" class="w-full flex justify-between items-center gap-2 cursor-pointer">
+                                    <div class="flex items-center gap-2 min-w-0 flex-1 max-[350px]:max-w-[10rem]">
+                                        <h4 class="text-xs leading-normal font-semibold truncate w-max sm:w-[unset] text-[#0C111D] md:text-lg dark:text-[#dbd8d3]">Access to even more the most content</h4>
+                                        <div class="flex justify-center items-center px-1.5 rounded-[3.125rem] h-[1.125rem] group/tier draft [&.draft]:bg-white [&.published]:bg-[#D1E0FF] dark:[&.published]:bg-[#25282a] dark:[&.draft]:bg-[#181a1b]">
+                                            <span class="text-[0.625rem] leading-[1.125rem] font-medium whitespace-nowrap group-[.published]/tier:text-[#2970FF] group-[.draft]/tier:text-[#98A2B3] md:text-xs md:leading-normal dark:group-[.published]/tier:text-[#3799ff] dark:group-[.draft]/tier:text-[#b0a99e]">Draft</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- button-section -->
+                    <div class="flex items-center gap-2 p-2 sticky bottom-0 md:static md:gap-6 md:px-4 md:py-0 md:justify-end xl:px-0">
+                        <!-- save-as-draft -->
+                        <a href="#" class="hidden items-center gap-0.5 cursor-pointer md:flex">
+                            <img src="https://i.ibb.co.com/JWNPWKRW/upload-02.webp" alt="upload" class="w-5 h-5">
+                            <span class="text-sm font-medium text-[#155EEF]">Save as draft</span>
+                        </a>
+
+                        <button class="flex justify-center items-center px-2 h-10 bg-black cursor-pointer group/button hover:bg-[#07F468] [&.disabled]:pointer-events-none [&.disabled]:bg-[#3440540D] dark:[&.disabled]:bg-[#323e520d] w-full md:w-max">
+                            <span class="text-base font-medium text-[#07F468] group-hover/button:text-black group-[.disabled]/button:text-[#98A2B3] dark:group-[.disabled]/button:text-[#b0a99e] md:text-lg">SAVE & PUBLISH</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- tier-card-wrapper -->
+                <div data-tier-card-wrapper class="fixed h-[100svh] inset-0 z-[5] translate-x-full transition-transform duration-300 ease-out sm:w-[25.5rem] sm:right-0 sm:left-auto md:w-[28.25rem] xl:relative xl:inset-[unset] xl:h-[unset] xl:w-[unset] xl:translate-x-0 [&.preview-active]:translate-x-0">
+                    <div class="h-full flex justify-center items-center p-2 bg-black/80 backdrop-blur-[50px] sm:px-6 xl:h-max xl:p-0 xl:bg-transparent xl:backdrop-blur-0 dark:bg-[#181a1bcc] dark:xl:bg-transparent">
+                        <div class="w-full h-full [background:linear-gradient(180deg,rgba(0,0,0,0.14)_30%,rgba(0,0,0,0.7)_100%),url('https://i.ibb.co.com/70sHrpv/featured-media-bg.webp')_center/cover_no-repeat] rounded-[0.3125rem] shadow-[0px_0px_80px_0px_#07F46840,0px_0px_8px_0px_#07F46880] sm:max-h-[40.6875rem] md:w-[24rem] md:h-[37.625rem] dark:[background:linear-gradient(#181a1b24_30%,#181a1bb3_100%)]">
+                            <div class="h-full flex flex-col bg-black/30 backdrop-blur-[5px] rounded-[0.3125rem]">
+                                <div class="flex flex-col gap-3 px-4 pt-5 pb-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] max-h-[calc(100vh-9.5rem)] min-[350px]:max-h-[calc(100vh-8rem)] md:max-h-[unset]">
+                                    <!-- title -->
+                                    <span class="flex items-center">
+                                        <div class="w-full z-[5] relative overflow-hidden drop-shadow-[0px_4px_18px_#00000080] hover:overflow-visible hover:cursor-pointer group">
+                                            <h2 class="text-[1.875rem] leading-[2.375rem] font-semibold overflow-hidden line-clamp-2 text-white dark:text-[#e8e6e3]">My VVIP Lounge ❤️️️</h2>
+                                            <div class="absolute z-[2] flex flex-col items-start w-full max-w-[22.4375rem] md:max-w-[21.5rem] opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto text-xs leading-normal font-medium text-white py-2 px-3 rounded-lg bg-[#101828B2] dark:bg-[rgba(14,19,32,0.9)] dark:text-[#dbd8d3] [box-shadow:0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] [backdrop-filter:blur(25px)] left-1/2 top-full translate-x-[-50%] translate-y-2 before:content-[''] before:absolute before:w-0 before:h-0  before:left-1/2 before:top-[-5px] before:-translate-x-1/2 before:border-[6px] before:border-t-0 before:border-l-transparent before:border-r-transparent before:border-b-[#101828B2] dark:before:border-b-[rgba(14,19,32,0.9)]">My VVIP Lounge ❤️️️</div>
+                                        </div>
+                                    </span>
+
+                                    <!-- Stats (media-count) -->
+                                    <div class="flex items-center gap-2.5 drop-shadow-[0px_2px_12px_#000000BF]">
+                                        <!-- Videos count -->
+                                        <div class="flex items-center gap-[0.0625rem]">
+                                            <span class="text-xs font-medium leading-normal text-white dark:text-[#e8e6e3]">100</span>
+                                            <img src="https://i.ibb.co.com/sdBL6k4R/video.webp" alt="video" class="w-4 h-4 [filter:brightness(100%)]">
+                                        </div>
+
+                                        <div class="h-[0.188rem] w-[0.188rem] bg-white block rounded-full"></div>
+
+                                        <!-- Photos count -->
+                                        <div class="flex items-center gap-[0.0625rem]">
+                                            <span class="text-xs font-medium leading-normal text-white dark:text-[#e8e6e3]">80</span>
+                                            <img src="https://i.ibb.co.com/Qjn50qJy/Images.webp" alt="Images" class="w-4 h-4 [filter:brightness(100%)]">
+                                        </div>
+
+                                        <div class="h-[0.188rem] w-[0.188rem] bg-white block rounded-full"></div>
+
+                                        <!-- Other count -->
+                                        <div class="flex items-center gap-[0.0625rem]">
+                                            <span class="text-xs font-medium leading-normal text-white dark:text-[#e8e6e3]">70</span>
+                                            <img src="https://i.ibb.co.com/1JYD4qyw/audio.webp" alt="audio" class="w-4 h-4 [filter:brightness(100%)]">
+                                        </div>
+                                    </div>
+
+                                    <!-- buttons-container -->
+                                    <div class="flex items-center gap-2 py-2">
+                                        <div class="flex bg-white/15 rounded-[3.125rem] backdrop-blur-[25px] w-1/2 md:w-full dark:bg-[#181a1b26]">
+                                            <button data-discountPlan="1d" class="hidden justify-center items-center gap-0.5 px-2.5 py-1.5 rounded-[3.125rem] w-full cursor-pointer [&.discount-active]:!flex [&.discount-active]:bg-black dark:[&.discount-active]:bg-[#181a1b] md:!flex md:grow">
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-white dark:text-[#e8e6e3]">1 day</span>
+                                            </button>
+                                            <button data-discountPlan="1m" class="hidden justify-center items-center gap-0.5 px-2.5 py-1.5 rounded-[3.125rem] w-full cursor-pointer [&.discount-active]:!flex [&.discount-active]:bg-black dark:[&.discount-active]:bg-[#181a1b] md:!flex md:grow">
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-white dark:text-[#e8e6e3]">1 month</span>
+                                                <span class="text-xs leading-normal font-medium text-[#FFED29] dark:text-[#ffee37]">-5%</span>
+                                            </button>
+                                            <button data-discountPlan="6m" class="hidden justify-center items-center gap-0.5 px-2.5 py-1.5 rounded-[3.125rem] w-full cursor-pointer discount-active [&.discount-active]:!flex [&.discount-active]:bg-black dark:[&.discount-active]:bg-[#181a1b] md:!flex md:grow">
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-white dark:text-[#e8e6e3]">6 month</span>
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#FFED29] dark:text-[#ffee37]">-50%</span>
+                                            </button>
+                                            <button data-discountPlan="1y" class="hidden justify-center items-center gap-0.5 px-2.5 py-1.5 rounded-[3.125rem] w-full cursor-pointer [&.discount-active]:!flex [&.discount-active]:bg-black dark:[&.discount-active]:bg-[#181a1b] md:!flex md:grow">
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-white dark:text-[#e8e6e3]">1 year</span>
+                                                <span class="text-xs leading-normal font-medium whitespace-nowrap text-[#FFED29] dark:text-[#ffee37]">-5%</span>
+                                            </button>
+                                        </div>
+
+                                        <button data-more-plans-button class="flex justify-center items-center gap-0.5 px-2.5 py-1.5 rounded-[3.125rem] bg-white/15 backdrop-blur-[25px] cursor-pointer w-1/2 md:hidden dark:bg-[#181a1b26]">
+                                            <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">More Plans</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Price -->
+                                    <div class="flex gap-2">
+                                        <div class="flex items-baseline">
+                                            <span class="text-xl leading-normal font-semibold text-[#FFED29] dark:text-[#ffee37]">USD$</span>
+                                            <span class="text-4xl leading-[2.75rem] font-semibold tracking-[-0.045rem] text-[#FFED29] dark:text-[#ffee37]">55.86</span>
+                                        </div>
+
+                                        <div class="flex flex-col justify-between">
+                                            <div class="flex items-baseline gap-1 relative pl-4 pr-1 rounded bg-[#0C111D] ml-[0.3125rem] flex-wrap dark:bg-[#dbd8d3] max-[360px]:py-1 max-[360px]:w-min">
+                                                <img src="https://i.ibb.co.com/nqWs4Ny4/flash.webp" alt="flash" class="absolute -left-1.5 top-1/2 -translate-y-1/2 h-5">
+                                                <span class="text-[0.6875rem] leading-none whitespace-nowrap text-[#07F468] dark:text-[#06c454]">Sale Ends in</span>
+                                                <div class="flex items-center gap-0.5">
+                                                    <span class="text-xs leading-normal font-bold text-[#07F468] dark:text-[#06c454]">02</span>
+                                                    <span class="text-xs leading-normal font-bold text-[#07F468] dark:text-[#06c454]">:</span>
+                                                    <span class="text-xs leading-normal font-bold text-[#07F468] dark:text-[#06c454]">13</span>
+                                                    <span class="text-xs leading-normal font-bold text-[#07F468] dark:text-[#06c454]">:</span>
+                                                    <span class="text-xs leading-normal font-bold text-[#07F468] dark:text-[#06c454]">07</span>
+                                                </div>
+                                            </div>
+
+                                            <span class="text-xs leading-normal font-medium line-through text-white dark:text-[#e8e6e3]">$111.72</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- tier-description -->
+                                    <div class="flex flex-col drop-shadow-[0px_2px_12px_0px_#000000BF]">
+                                        <p class="text-sm line-clamp-[10] drop-shadow-[0px_2px_4px_-2px_#1018280F,0px_4px_8px_-2px_#1018281A] text-white md:line-clamp-[7] dark:text-[#e8e6e3]">Welcome to Jenny’s VIP Lounge. This plan includes all the features available in the Basic/VIP Lounge, along with exclusive benefits such as behind-the-scenes access from each photoshoot and additional premium content. Members also receive priority access for direct communication and updates. Enjoy a more personalized and enhanced experience in a dedicated VIP environment.Welcome to Jenny’s VIP Lounge. This plan includes all the features available in the Basic/VIP Lounge, along with exclusive benefits such as behind-the-scenes access from each photoshoot and additional premium content. Members also receive priority ...</p>
+                                        <button class="flex items-center gap-0.5">
+                                            <span class="text-xs leading-normal font-medium text-[#D0D5DD] dark:text-[#cfcac4]">READ MORE</span>
+                                            <img src="https://i.ibb.co.com/v4YdjnyQ/double-arrows.webp" alt="double-arrows" class="w-4 h-4">
+                                        </button>
+                                    </div>
+
+                                    <!-- feature-list-container -->
+                                    <ul class="flex flex-col gap-1 drop-shadow-[0px_2px_12px_0px_#000000BF]">
+                                        <li class="flex items-center gap-4">
+                                            <div class="flex items-center gap-2 grow">
+                                                <img src="https://i.ibb.co.com/qYmSQNzZ/take-coin.webp" alt="take-coin" class="w-4 h-4">
+                                                <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">Free Tokens</span>
+                                            </div>
+
+                                            <span class="text-sm font-medium text-white dark:text-[#e8e6e3]">100 tokens everyday</span>
+                                        </li>
+
+                                        <li class="flex items-center gap-4">
+                                            <div class="flex items-center gap-2 grow">
+                                                <img src="https://i.ibb.co.com/JWqTj09z/cart.webp" alt="cart" class="w-4 h-4">
+                                                <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">Merch Discount</span>
+                                            </div>
+
+                                            <span class="text-sm font-medium text-white dark:text-[#e8e6e3]">10% off</span>
+                                        </li>
+
+                                        <li class="flex items-center gap-4">
+                                            <div class="flex items-center gap-2 grow">
+                                                <img src="https://i.ibb.co.com/Mxk1cLRC/image.webp" alt="image" class="w-4 h-4">
+                                                <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">PPV Discount</span>
+                                            </div>
+
+                                            <span class="text-sm font-medium text-white dark:text-[#e8e6e3]">10% off</span>
+                                        </li>
+
+                                        <li class="flex items-center gap-4">
+                                            <div class="flex items-center gap-2 grow">
+                                                <img src="https://i.ibb.co.com/JWqTj09z/cart.webp" alt="cart" class="w-4 h-4">
+                                                <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">Custom Request</span>
+                                            </div>
+
+                                            <span class="text-sm font-medium text-white dark:text-[#e8e6e3]">5% off</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!-- free subscription button -->
+                                <button class="hidden absolute w-full bottom-[-1px] left-0 h-20 p-2 rounded-t-[0.625rem] bg-[#07F468] shadow-[0px_-8px_24px_0px_#07F46840] group/button hover:bg-[#0C111D] dark:bg-[#06c454] dark:hover:bg-[#dbd8d3]">
+                                    <span class="text-lg font-bold text-[#0C111D] group-hover/button:text-[#07F468] dark:text-[#dbd8d3] dark:group-hover/button:text-[#06c454]">SUBSCRIBE FOR FREE</span>
+                                </button>
+
+                                <!-- button -->
+                                <div class="absolute bottom-[-1px] left-0 flex cursor-pointer rounded-t-[0.625rem] overflow-hidden w-full">
+                                    <div class="flex z-[1] w-full">
+                                        <div class="flex flex-col gap-2 py-2 pl-2 pr-[2.875rem] bg-black w-full dark:bg-[#181a1b]">
+                                            <div class="flex flex-col">
+                                                <h3 class="text-lg font-bold text-[#07F468] dark:text-[#06c454]">6 months for USD$55.86</h3>
+                                                <p class="text-xs leading-normal font-medium text-[#07F468] dark:text-[#06c454]">Renews at USD$55.86 every 6 months</p>
+                                            </div>
+
+                                            <div class="flex flex-col gap-[0.4375rem]">
+                                                <div class="w-full h-[0.3125rem] rounded-[0.3125rem] bg-white/20 dark:bg-[#181a1b33]">
+                                                    <div class="w-[5%] h-full rounded-[0.3125rem] bg-[#FFED29] dark:bg-[#ffee37]"></div>
+                                                </div>
+
+                                                <div class="flex justify-between gap-1">
+                                                    <span class="text-xs leading-normal font-medium text-[#FFED29] dark:text-[#ffee37]">5 Left!</span>
+                                                    <span class="text-xs leading-normal font-medium text-[#D0D5DD] dark:text-[#cfcac4]">95/100 Offer</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <img src="https://i.ibb.co.com/h1DjTt7n/Union.png" alt="Union" class="absolute right-[4.425rem] w-[2.25rem] h-full [transform:rotateY(180deg)] [filter:brightness(0)_saturate(100%)_invert(77%)_sepia(10%)_saturate(6598%)_hue-rotate(86deg)_brightness(99%)_contrast(98%)]">
+                                    </div>
+
+                                    <div class="flex justify-center items-center pl-3 pr-2 bg-[#07F468] w-max z-[0]">
+                                        <span class="text-base font-bold text-[#0C111D] dark:text-[#dbd8d3]">CLAIM<br>OFFER</span>
+                                    </div>
+                                </div>
+
+                                <!-- featured-tag -->
+                                <div class="absolute -top-2 -left-2 [clip-path:polygon(0_0,100%_0,calc(100%-0.5rem)_100%,0_100%)] flex justify-center items-center pl-1.5 pr-2.5 py-0.5 z-[6] bg-black dark:bg-[#181a1b]">
+                                    <span class="text-sm font-semibold text-[#07F468] dark:text-[#06c454]">FEATURED</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- more-plans-popup -->
+                    <div data-more-plans-popup class="hidden fixed bottom-0 left-0 w-full rounded-t-[0.625rem] bg-white shadow-[0px_0px_12px_0px_#0000001A] backdrop-blur-[50px] z-[5] md:!hidden dark:bg-[#181a1b]">
+                        <div class="flex flex-col py-1 w-full">
+                            <!-- item -->
+                            <div data-discountPlan="1d" class="flex justify-center items-center h-11 px-1.5 py-0.5 [&.discount-active]:bg-[#F2F4F7] dark:[&.discount-active]:bg-[#1e2022]">
+                                <div class="flex justify-between items-center gap-6 px-2.5 py-2 w-full max-[350px]:gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-0.5">
+                                            <span class="text-sm font-medium whitespace-nowrap text-[#0C111D] dark:text-[#dbd8d3]">1 day</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-base font-semibold text-black dark:text-[#e8e6e3]">USD$55.86</span>
+                                </div>
+                            </div>
+
+                            <!-- item -->
+                            <div data-discountPlan="1m" class="flex justify-center items-center h-11 px-1.5 py-0.5 [&.discount-active]:bg-[#F2F4F7] dark:[&.discount-active]:bg-[#1e2022]">
+                                <div class="flex justify-between items-center gap-6 px-2.5 py-2 w-full max-[350px]:gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-0.5">
+                                            <span class="text-sm font-medium text-[#0C111D] dark:text-[#dbd8d3]">1 month</span>
+                                            <span class="text-xs leading-normal font-medium text-[#FF0066] dark:text-[#ff1a76]">-5%</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-base font-semibold whitespace-nowrap text-black dark:text-[#e8e6e3]">USD$55.86</span>
+                                </div>
+                            </div>
+
+                            <!-- item -->
+                            <div data-discountPlan="6m" class="flex justify-center items-center h-11 px-1.5 py-0.5 discount-active [&.discount-active]:bg-[#F2F4F7] dark:[&.discount-active]:bg-[#1e2022]">
+                                <div class="flex justify-between items-center gap-6 px-2.5 py-2 w-full max-[350px]:gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-0.5">
+                                            <span class="text-sm font-medium whitespace-nowrap text-[#0C111D] dark:text-[#dbd8d3]">6 month</span>
+                                            <span class="text-xs leading-normal font-medium text-[#FF0066] dark:text-[#ff1a76]">-50%</span>
+                                        </div>
+
+                                        <!-- hot -->
+                                        <div class="backdrop-blur-[10px]">
+                                            <div class="flex justify-center items-center gap-1 rounded ml-2 pl-2.5 pr-1.5 py-0.5 backdrop-blur-[10px] bg-[#FCE40D] dark:bg-[#a19102]">
+                                                <img src="https://i.ibb.co.com/4gCVM3BW/Hot-icon.webp" alt="Hot-icon" class="absolute -top-1 -left-2 w-6 h-6">
+                                                <span class="text-[0.625rem] leading-normal whitespace-nowrap font-semibold text-black dark:text-[#e8e6e3]">Most Value</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-base font-semibold text-black dark:text-[#e8e6e3]">USD$55.86</span>
+                                </div>
+                            </div>
+
+                            <!-- item -->
+                            <div data-discountPlan="1y" class="flex justify-center items-center h-11 px-1.5 py-0.5 [&.discount-active]:bg-[#F2F4F7] dark:[&.discount-active]:bg-[#1e2022]">
+                                <div class="flex justify-between items-center gap-6 px-2.5 py-2 w-full max-[350px]:gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-0.5">
+                                            <span class="text-sm font-medium whitespace-nowrap text-[#0C111D] dark:text-[#dbd8d3]">1 year</span>
+                                            <span class="text-xs leading-normal font-medium text-[#FF0066] dark:text-[#ff1a76]">-5%</span>
+                                        </div>
+                                    </div>
+
+                                    <span class="text-base font-semibold text-black dark:text-[#e8e6e3]">USD$55.86</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- preview-button -->
+    <button data-preview-button class="fixed top-1/2 right-[-2.0625rem] translate-y-[-50%] -rotate-90 flex items-center gap-2 px-2 py-1 bg-[#07F468] shadow-[0px_1px_2px_0px_#1018280F,0px_1px_3px_0px_#1018281A] z-[10] transition-all duration-300 ease-out cursor-pointer group/button [&.preview-active]:bg-black hover:bg-black [&.preview-active]:hover:bg-[#07F468] [&.preview-active:hover>span]:!text-black [&.preview-active:hover>img]:[filter:brightness(0)] sm:[&.preview-active]:right-[23.4375rem] md:[&.preview-active]:right-[26.1875rem] xl:hidden dark:bg-[#06c454] dark:hover:bg-[#181a1b] dark:[&.preview-active]:bg-[#181a1b] dark:[&.preview-active]:hover:bg-[#06c454] [&.preview-active:hover>span]:!text-[#e8e6e3] [&.preview-active:hover>img]:[filter:brightness(0)">
+        <img src="https://i.ibb.co.com/nspLNGBK/eye-01.webp" alt="eye-01" class="block w-4 h-4 rotate-90 group-[.preview-active]/button:hidden group-hover/button:[filter:brightness(0)_saturate(100%)_invert(68%)_sepia(83%)_saturate(890%)_hue-rotate(85deg)_brightness(97%)_contrast(100%)] dark:[filter:brightness(0)_saturate(100%)_invert(98%)_sepia(3%)_saturate(213%)_hue-rotate(357deg)_brightness(94%)_contrast(94%)] dark:group-hover/button:[filter:brightness(0)_saturate(100%)_invert(48%)_sepia(45%)_saturate(3284%)_hue-rotate(114deg)_brightness(104%)_contrast(95%)]">
+        <img src="https://i.ibb.co.com/vvPDzMxj/close-green.webp" alt="close" class="hidden w-4 h-4 group-[.preview-active]/button:block">
+        <span class="text-sm text-black group-[.preview-active]/button:text-[#07F468] group-hover/button:text-[#07F468] dark:text-[#e8e6e3] dark:group-[.preview-active]/button:text-[#06c454] dark:group-hover/button:text-[#06c454]">Preview</span>
+    </button>
+
+    <!-- save-as-draft -->
+    <div data-save-as-draft-popup class="hidden fixed bottom-0 left-0 w-full rounded-t-[0.625rem] bg-white shadow-[0px_0px_12px_0px_#0000001A] backdrop-blur-[50px] z-[7] md:!hidden dark:bg-[#181a1b]">
+        <div class="flex flex-col py-1 w-full">
+            <!-- item -->
+            <div class="flex justify-center items-center h-10 px-1.5 py-0.5 cursor-pointer hover:bg-[#F2F4F7]">
+                <div class="flex justify-center items-center px-2.5 py-2">
+                    <span class="text-sm font-medium text-[#0C111D] dark:text-[#dbd8d3]">Save as draft</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include the Quill library -->
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+    <!-- Initialize Quill editor with basic style -->
+    <script>
+      // Custom icons
+      const icons = Quill.import('ui/icons');
+      icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold-icon" border="0">';
+      icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="italic-icon" border="0">';
+      icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="link-icon" border="0">';
+      icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="link-icon" border="0">';
+      icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="link-icon" border="0">';
+
+      // Initialize Quill editor
+      const dashQuill = new Quill("#tier-description-quill-editor", {
+          modules: {
+          toolbar: [
+              ['bold', 'italic', 'link'],
+              [{ 'list': 'ordered' }, { 'list': 'bullet' }]
+          ],
+          },
+          placeholder: "Tier Description...",
+          theme: 'snow'
+      });
+
+      // Add Tailwind classes to Quill elements after initialization
+      document.addEventListener('DOMContentLoaded', () => {
+          const container = document.querySelector('.tier-description-quill-container');
+
+          // Toolbar styling
+          const toolbar = container.querySelector('.ql-toolbar.ql-snow');
+          if (toolbar) {
+          toolbar.classList.add(
+              'flex', 'p-0', 'pb-2',
+              'rounded-t-[0.625rem]', '!border-0'
+          );
+
+          const formats = toolbar.querySelectorAll('.ql-formats');
+          formats.forEach(format => {
+              format.classList.add('m-0', 'gap-1', 'flex', 'items-center', '!mr-0');
+          });
+
+          const buttons = toolbar.querySelectorAll('button');
+          buttons.forEach(button => {
+              button.classList.add('!p-0', '!w-8', '!h-8', 'hover:!bg-[#F9FAFB]', '[&.ql-active]:!bg-[#F9FAFB]');
+          });
+          }
+
+          // Container styling
+          const editorContainer = container.querySelector('.ql-container.ql-snow');
+          if (editorContainer) {
+          editorContainer.classList.add(
+              'rounded-b-[0.625rem]', 'min-h-[100px]',
+              'overflow-y-auto', '!border-0'
+          );
+          }
+
+          // Editor content styling
+          const editor = container.querySelector('.ql-editor');
+          if (editor) {
+          editor.classList.add('!p-0', '!text-[#101828]', '!text-base', '!font-sans', '!font-normal');
+
+          // Placeholder styling
+          editor.querySelector('.ql-blank')?.classList.add(
+              '!before:left-0', '!before:base',
+              '!before:font-normal', '!before:not-italic', 'before:!text-[#667085]', 'before:!font-sans', 'dark:before:!text-[#9e9689]'
+          );
+          }
+
+          // Tooltip styling
+          const tooltips = container.querySelectorAll('.ql-tooltip');
+          tooltips.forEach(tooltip => {
+          tooltip.classList.add('!left-0');
+
+          const input = tooltip.querySelector('input[type="text"]');
+          if (input) {
+              input.classList.add('!w-auto');
+          }
+          });
+      });
+    </script>
+
+    <!-- custom select-dropdown -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const customSelects = document.querySelectorAll('.dash-select');
+
+          customSelects.forEach(select => {
+              const trigger = select.querySelector('.dash-select__trigger span');
+              const options = select.querySelectorAll('.dash-option');
+              const realSelect = select.parentElement.querySelector('.dash-real-select');
+
+              // Set initial value
+              const selectedOption = select.querySelector('.dash-option.selected');
+              if (selectedOption) {
+                  trigger.textContent = selectedOption.querySelector('span').textContent;
+                  realSelect.value = selectedOption.dataset.value;
+              }
+
+              // Toggle dropdown
+              select.addEventListener('click', function(e) {
+                  e.stopPropagation();
+
+                  // Close all other selects first
+                  document.querySelectorAll('.dash-select').forEach(s => {
+                      if (s !== select) {
+                          s.classList.remove('open');
+                          s.querySelector('.select-arrow').classList.remove('rotate-180');
+                          s.querySelector('.dash-options-container').classList.add('opacity-0', 'invisible', 'pointer-events-none');
+                          s.querySelector('.dash-options-container').classList.remove('opacity-100', 'visible', 'pointer-events-auto');
+                      }
+                  });
+
+                  // Position dropdown based on available space
+                  positionDropdown(this);
+
+                  // Toggle this select
+                  this.classList.toggle('open');
+                  const arrow = this.querySelector('.select-arrow');
+                  const optionsContainer = this.querySelector('.dash-options-container');
+
+                  if (this.classList.contains('open')) {
+                      arrow.classList.add('rotate-180');
+                      optionsContainer.classList.remove('opacity-0', 'invisible', 'pointer-events-none');
+                      optionsContainer.classList.add('opacity-100', 'visible', 'pointer-events-auto');
+                  } else {
+                      arrow.classList.remove('rotate-180');
+                      optionsContainer.classList.add('opacity-0', 'invisible', 'pointer-events-none');
+                      optionsContainer.classList.remove('opacity-100', 'visible', 'pointer-events-auto');
+                  }
+              });
+
+              // Handle option selection
+              options.forEach(option => {
+                  option.addEventListener('click', function(e) {
+                      e.stopPropagation();
+
+                      options.forEach(opt => {
+                          opt.classList.remove('selected');
+                      });
+
+                      this.classList.add('selected');
+                      const optionSpan = this.querySelector('span');
+
+                      trigger.textContent = optionSpan.textContent;
+                      realSelect.value = this.dataset.value || optionSpan.textContent.toLowerCase();
+
+                      // Close the dropdown
+                      select.classList.remove('open');
+
+                        const arrow = select.querySelector('.select-arrow');
+                        const optionsContainer = select.querySelector('.dash-options-container');
+
+                        arrow.classList.remove('rotate-180');
+                        optionsContainer.classList.add('opacity-0', 'invisible', 'pointer-events-none');
+                        optionsContainer.classList.remove('opacity-100', 'visible', 'pointer-events-auto');
+
+                      // Trigger change event on the real select
+                      realSelect.dispatchEvent(new Event('change'));
+                  });
+              });
+          });
+
+          // Close dropdown when clicking outside
+          document.addEventListener('click', function() {
+              document.querySelectorAll('.dash-select').forEach(select => {
+                  select.classList.remove('open');
+
+                    const arrow = select.querySelector('.select-arrow');
+                    const optionsContainer = select.querySelector('.dash-options-container');
+
+                    arrow.classList.remove('rotate-180');
+                    optionsContainer.classList.add('opacity-0', 'invisible', 'pointer-events-none');
+                    optionsContainer.classList.remove('opacity-100', 'visible', 'pointer-events-auto');
+              });
+          });
+
+          // Position dropdown up or down based on available space
+          function positionDropdown(select) {
+              const optionsContainer = select.querySelector('.dash-options-container');
+              const rect = select.getBoundingClientRect();
+              const spaceBelow = window.innerHeight - rect.bottom;
+              const spaceAbove = rect.top;
+              const optionsHeight = select.querySelector('.dash-options').scrollHeight;
+
+              // Reset classes
+              select.classList.remove('upward');
+              optionsContainer.classList.remove('bottom-[calc(100%+0.5rem)]');
+              optionsContainer.classList.add('top-[calc(100%+0.5rem)]');
+
+              if (spaceBelow < optionsHeight && spaceAbove > spaceBelow) {
+                  select.classList.add('upward');
+                  optionsContainer.classList.remove('top-[calc(100%+0.5rem)]');
+                  optionsContainer.classList.add('bottom-[calc(100%+0.5rem)]');
+              }
+          }
+
+          // Reposition dropdowns on window resize
+          window.addEventListener('resize', function() {
+              document.querySelectorAll('.dash-select.open').forEach(select => {
+                  positionDropdown(select);
+              });
+          });
+      });
+    </script>
+
+    <!-- handle preview visibility -->
+    <script>
+        //
+        // toggle preview based on preview button click
+        //
+
+        const previewBtn = document.querySelector("[data-preview-button]");
+        const previewCard = document.querySelector("[data-tier-card-wrapper]");
+
+        if (previewBtn && previewCard) {
+            previewBtn.addEventListener("click", () => {
+                previewBtn.classList.toggle("preview-active");
+                previewCard.classList.toggle("preview-active");
+            });
+        }
+
+
+        //
+        // move tier-card to different container based on screen size
+        //
+
+        const el = document.querySelector("[data-tier-card-wrapper]");
+        const originalParent = el.parentNode;
+        const originalNext = el.nextSibling;
+
+        const mediaQuery = window.matchMedia("(max-width: 1364px)");
+
+        function handleResize(e) {
+            if (e.matches) {
+                // Below 1365px → move to body
+                document.body.append(el);
+            } else {
+                // 1365px and above → move back
+                if (originalNext) {
+                    originalParent.insertBefore(el, originalNext);
+                } else {
+                    originalParent.append(el);
+                }
+            }
+        }
+
+        // Run once on load
+        handleResize(mediaQuery);
+
+        // Listen for screen resize
+        mediaQuery.addEventListener("change", handleResize);
+    </script>
+
+    <!-- handle invalid input value -->
+    <script>
+        document.querySelectorAll('input[data-free-tokens-input], input[data-merch-discount-input]').forEach(input => {
+
+            input.addEventListener('input', () => {
+
+                const wrapper = input.closest('.group\\/input');
+                const raw = input.value.trim();
+
+                // If empty, remove error and exit
+                if (raw === '') {
+                    wrapper.classList.remove('error');
+                    return;
+                }
+
+                const value = parseInt(raw, 10);
+
+                const isInvalid = value < 1 || value > 99;
+
+                wrapper.classList.toggle('error', isInvalid);
+
+            });
+
+        });
+    </script>
+
+    <!-- handle only-invited selection -->
+    <script>
+        const wrapper = document.querySelector('[data-subscriber-setting-wrapper]');
+
+        document.querySelectorAll('.dash-option').forEach(option => {
+            option.addEventListener('click', () => {
+
+                const label = option.innerText.trim().toLowerCase();
+
+                const invited = label === 'only those invited';
+
+                wrapper.classList.toggle('only-invited', invited);
+
+            });
+        });
+    </script>
+
+    <!-- handle-invite-copy-link -->
+     <script>
+        document.querySelector('[data-copy-button]').addEventListener('click', async () => {
+
+            const input = document.querySelector('[data-invite-link]');
+            const link = input.value.trim();
+
+            if (!link) return;
+
+            try {
+                await navigator.clipboard.writeText(link);
+
+                // UI Feedback
+                const btn = document.querySelector('[data-copy-button] span');
+                btn.textContent = "Copied!";
+                
+                setTimeout(() => btn.textContent = "Copy Link", 1500);
+
+            } catch {
+                alert("Failed to copy");
+            }
+
+        });
+    </script>
+
+    <!-- handle paid/free tier -->
+    <script>
+        const priceSection = document.querySelector('[data-price-setting-section]');
+        const tabs = priceSection.querySelectorAll('[data-price-tab-button-container] > li');
+        console.log(priceSection)
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+
+                // Remove active from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+
+                // Add active to clicked tab
+                tab.classList.add('active');
+
+                const label = tab.innerText.trim().toLowerCase();
+
+                if (label === 'free tier') {
+                    priceSection.classList.remove('paid-tier');
+                } else {
+                    priceSection.classList.add('paid-tier');
+                }
+
+            });
+        });
+    </script>
+
+    <!-- handle toast for featured-tier -->
+    <script>
+        const checkbox = document.getElementById('featured-tier');
+        const toastContainer = document.querySelector('[data-featured-toast-container]');
+
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+            toastContainer.classList.add('featured-tier');
+            } else {
+            toastContainer.classList.remove('featured-tier');
+            }
+        });
+    </script>
+
+    <!-- handle tier card discount plan tabs -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Function to activate a plan across all elements
+            function activatePlan(planValue) {
+                // Remove 'discount-active' class from all plan elements
+                const allPlanElements = document.querySelectorAll('[data-discountPlan]');
+                allPlanElements.forEach(el => {
+                    el.classList.remove('discount-active');
+                });
+                
+                // Add 'discount-active' class to elements with matching plan value
+                const matchingElements = document.querySelectorAll(`[data-discountPlan="${planValue}"]`);
+                matchingElements.forEach(el => {
+                    el.classList.add('discount-active');
+                });
+            }
+            
+            // Add click listeners to tier card buttons
+            const tierButtons = document.querySelectorAll('[data-tier-card-wrapper] [data-discountPlan]');
+            tierButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const planValue = btn.getAttribute('data-discountPlan');
+                    activatePlan(planValue);
+                });
+            });
+            
+            // Add click listeners to more plans popup items
+            const popupItems = document.querySelectorAll('[data-more-plans-popup] [data-discountPlan]');
+            popupItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const planValue = item.getAttribute('data-discountPlan');
+                    activatePlan(planValue);
+                });
+            });
+            
+            // Handle the "More Plans" button to show the popup
+            const morePlansButton = document.querySelector('[data-more-plans-button]');
+            const morePlansPopup = document.querySelector('[data-more-plans-popup]');
+            
+            if (morePlansButton && morePlansPopup) {
+                morePlansButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    morePlansPopup.classList.add("flex");
+                    morePlansPopup.classList.remove("hidden");
+                });
+                
+                // Close popup when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!morePlansPopup.contains(e.target) && !morePlansButton.contains(e.target)) {
+                        morePlansPopup.classList.add("hidden");
+                        morePlansPopup.classList.remove("flex");
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- hanlde save-as-draft popup -->
+    <script>
+        const draftBtn = document.querySelector('[data-save-as-draft-button]');
+        const draftPopup = document.querySelector('[data-save-as-draft-popup]');
+
+        draftBtn.addEventListener('click', () => {
+            draftPopup.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!draftPopup.contains(e.target) && !draftBtn.contains(e.target)) {
+                draftPopup.classList.add('hidden');
+            }
+        });
+    </script>
+  </body>
+</html>
