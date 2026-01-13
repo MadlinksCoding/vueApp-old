@@ -10,6 +10,15 @@ export const menuItems = [
   },
   {
     id: 2,
+    title: "events",
+    image: "https://i.ibb.co/20NyykW9/svgviewer-png-output-41.webp",
+    route: "/dashboard/event",
+    parent: false,
+    children: [],
+    enabled: true
+  },
+  {
+    id: 3,
     title: "Payout",
     image: "https://i.ibb.co/20NyykW9/svgviewer-png-output-41.webp",
     route: "/dashboard/payout",
@@ -18,7 +27,7 @@ export const menuItems = [
     enabled: true
   },
   {
-    id: 3,
+    id: 4,
     title: "Orders",
     image: "https://i.ibb.co/vChqh7TX/svgviewer-png-output-43.webp",
     route: "/dashboard/orders",
@@ -49,7 +58,7 @@ export const menuItems = [
     enabled: true
   },
   {
-    id: 4,
+    id: 5,
     title: "Media",
     image: "https://i.ibb.co/HDtj7Y6g/svgviewer-png-output-44.webp",
     route: "/dashboard/my-media",
@@ -58,7 +67,7 @@ export const menuItems = [
     enabled: true
   },
   {
-    id: 5,
+    id: 6,
     title: "Chats",
     image: "https://i.ibb.co/nNs119bY/svgviewer-png-output-45.webp",
     route: "/chats",
@@ -67,7 +76,7 @@ export const menuItems = [
     enabled: false // Disabled as in original
   },
   {
-    id: 6,
+    id: 7,
     title: "Subscriptions",
     image: "https://i.ibb.co/4nTx2sMh/svgviewer-png-output-46.webp",
     route: "/dashboard/subscriptions",
@@ -77,7 +86,7 @@ export const menuItems = [
   },
   // Overflow items (these will appear in the floating panel)
   {
-    id: 7,
+    id: 8,
     title: "Shops",
     image: "https://i.ibb.co/LDwydPyB/svgviewer-png-output-47.webp",
     route: "/shops",
@@ -86,7 +95,7 @@ export const menuItems = [
     enabled: false // Disabled as in original
   },
   {
-    id: 8,
+    id: 9,
     title: "Profile",
     image: "https://i.ibb.co/VWvYhczd/svgviewer-png-output-48.webp",
     route: "/profile",
@@ -126,7 +135,7 @@ export const menuItems = [
     enabled: true
   },
   {
-    id: 9,
+    id: 10,
     title: "Settings",
     image: "https://i.ibb.co/w5pz6GM/svgviewer-png-output-49.webp",
     route: "/dashboard/settings",
@@ -135,7 +144,7 @@ export const menuItems = [
     enabled: true
   },
   {
-    id: 10,
+    id: 11,
     title: "X Repost",
     image: "https://i.ibb.co/Fkh7SSXw/svgviewer-png-output-50.webp",
     route: "/x-repost",
@@ -144,7 +153,7 @@ export const menuItems = [
     enabled: false // Disabled as in original
   },
   {
-    id: 11,
+    id: 12,
     title: "Blog",
     image: "https://i.ibb.co/JWyS5PwL/svgviewer-png-output-51.webp",
     route: "/blog",

@@ -731,6 +731,10 @@
   "componentPath": "@/templates/dashboard/page/agent/DashboardOrdersReceived.vue"
   },
   {
+    "slug": "/dashboard/events",
+  "componentPath": "@/templates/dashboard/page/agent/DashboardEvents.vue"
+  },
+  {
     "slug": "/",
     "redirect": "/log-in",
     "section": "auth",

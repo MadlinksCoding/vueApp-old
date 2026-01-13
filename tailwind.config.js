@@ -513,6 +513,11 @@ export default {
         "dark-preview-bg": "#1d1f20",
         "upload-bg": "rgba(255,68,5,0.1)",
         "dark-upload-bg": "rgba(201,51,0,0.1)",
+        'creamViolet': '#5549FF',
+        'brand-pink': '#FF0464',
+        'brand-textPink':'#FF128D',
+        'brand-yellow': '#fec100',
+        'brand-green': '#13ce66',
       },
       backdropBlur: {
         xs: "5px",
@@ -522,8 +527,9 @@ export default {
         sh1: "0 1px 2px 0 rgba(16, 24, 40, 0.05)",
         "sh1-dark": "0 1px 2px 0 rgba(13, 19, 32, 0.05)",
         sidebar: "0 0 8px 0 rgba(0, 0, 0, 0.08)",
-        custom: "4px 0 10px 0 rgba(0, 0, 0, 0.08)",
+        // custom: "4px 0 10px 0 rgba(0, 0, 0, 0.08)",
         green: "4px 4px 0 0 #07f468",
+        'custom': '0px 2px 8px 0px rgba(0,0,0,0.15)'
       },
       backgroundImage: {
         "gradient-warning": `

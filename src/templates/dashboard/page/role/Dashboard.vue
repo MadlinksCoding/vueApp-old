@@ -183,13 +183,19 @@
 
     <br />
     <div class="flex flex-col items-center gap-6 md:gap-8">
-    <TierCard 
-      v-for="tier in tierData" 
-      :key="tier.id" 
-      :tier="tier" 
-    />
+      <TierCard v-for="tier in tierData" :key="tier.id" :tier="tier" />
     </div>
     <br />
+
+    <LatestEventCard />
+    <br />
+
+    <div class="flex flex-wrap gap-8">
+      <EventCard theme="orange" :hasButton="true" />
+      <EventCard theme="orange" :hasButton="false" />
+      <EventCard theme="pink" :hasButton="true" />
+      <EventCard theme="pink" :hasButton="false" />
+    </div>
 
     <ProfileViewAllPopup v-model="isViewAllPopupOpen" />
 
@@ -244,7 +250,9 @@ import PurchaseFlowSubscriptionOrderPopup from "@/components/checkout/purchase/P
 import GuestPurchaseFlowPopup from "@/components/checkout/purchase/GuestPurchaseFlowPopup.vue";
 import UpgradeTierPopup from "@/components/checkout/purchase/UpgradeTierPopup.vue";
 import TierCard from "@/components/ui/card/dashboard/TierCard.vue";
-import { tierData } from '/public/data/TierData.js';
+import { tierData } from "/public/data/TierData.js";
+import LatestEventCard from "@/components/ui/card/dashboard/LatestEventCard.vue";
+import EventCard from "@/components/ui/card/dashboard/EventCard.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
