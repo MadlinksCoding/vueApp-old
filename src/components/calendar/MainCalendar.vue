@@ -5,7 +5,7 @@
     :data-view="effectiveView"
     :data-focus="cursor ? cursor.toISOString().slice(0,10) : ''">
 
-    <div v-if="variant === 'default'" class="flex flex-wrap items-center justify-between">
+    <div v-if="variant === 'default'" class="flex  items-center justify-between">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold" :class="theme.main.title">{{ title }}</div>
         <button class="px-[1.5rem] py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div v-else-if="variant === 'theme2'" class="flex items-center justify-between w-full mb-6 px-1">
+    <div v-else-if="variant === 'theme2'" class="flex items-center justify-between w-full px-1 mb-[3rem]">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold" :class="theme.main.title">{{ title }}</div>
         <span class="flex items-center justify-between">
@@ -54,22 +54,23 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="flex items-center justify-center w-6 h-6 bg-brand-pink rounded text-white shadow-sm cursor-pointer">
-           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </div>
-        <span class="text-base text-slate-600 font-normal">Show existing events/booking schedule</span>
+        <CheckboxGroup
+            label="Show existing events/booking schedule"
+            v-model="showSchedule"
+            checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
+            labelClass="text-xs sm:text-sm leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
+            wrapperClass="flex items-center"
+          />
       </div>
 
-      <button class="px-6 py-2.5 rounded-full bg-pink-50 border border-pink-100 text-brand-textPink text-sm font-bold flex items-center gap-2 hover:bg-pink-100 transition-colors">
+      <button class="px-6 py-2.5 rounded-full border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors">
         Preview booking schedule
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
       </button>
     </div>
 
-
     <template v-if="effectiveView !== 'month'">
       <div class="flex gap-2" :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
-        
         <div :class="theme.main.axisXLabel">
            <div v-if="variant === 'default'" class="flex items-center px-[0.25rem] gap-[0.125rem]">
              <span class="flex items-center justify-center w-[10px] h-[10px]">
@@ -102,7 +103,6 @@
           </div>
         </div>
       </div>
-
       <div class="flex gap-2 overflow-hidden">
         <div class="flex flex-col">
           <div v-for="(t) in range.labels" :key="'slot-label-'+t"
@@ -143,15 +143,15 @@
     </template>
 
     <template v-else>
-        <div class="grid grid-cols-7 mb-1" :class="theme.month.weekHeader">
-          <div v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="w" class="text-center">{{ w }}</div>
-        </div>
-        <div class="grid grid-cols-7 gap-1">
+       <div class="grid grid-cols-7 mt-[-3rem]">
+          <div v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="w" 
+          class="text-center text-lg font-semibold text-gray-500 mb-[10px] uppercase leading-7"
+          :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">{{ w }}</div>
           <button v-for="(d,i) in days" :key="'m-'+i" type="button" @click="emitDate(d)"
-            :class="[theme.month.cellBase, d.getMonth()!==cursor.getMonth() ? theme.month.outside : '', (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '']">
-            <div class="text-sm mb-1">{{ d.getDate() }}</div>
+          :class="[ theme.month.cellBase, d.getMonth() !== cursor.getMonth() ? theme.month.outside : '', (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '', d.getDay() === 0 ? 'text-red-400' : '' ]">
+            <div class="text-sm mb-1" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">{{ d.getDate() }}</div>
             <div class="space-y-1">
-              <div v-for="ev in eventsForDay(d)" :key="ev.id" :class="theme.month.cellEvent" @click.stop="dispatchEventClick(ev)">{{ ev.title }}</div>
+              <div v-for="ev in eventsForDay(d)" :key="ev.id" :class="[ theme.month.cellEvent, d.getDay() === 0 ? 'text-red-400' : '' ]" @click.stop="dispatchEventClick(ev)">{{ ev.title }}</div>
             </div>
           </button>
         </div>
@@ -162,9 +162,10 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { SOD, addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, timeToMinutes, overlaps, monthNames } from '@/utils/calendarHelpers.js';
+import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 
 const props = defineProps({
-  variant: { type: String, default: 'default' }, // 'default' or 'theme2'
+  variant: { type: String, default: 'default' },
   focusDate: { type: Date, required: true },
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
@@ -187,8 +188,10 @@ const view = ref(props.initialView);
 const nowTimer = ref(null);
 const nowY = ref(0);
 
+const showSchedule = ref(false); // Checkbox state
+
 const effectiveView = computed(() => {
-  if (props.variant === 'theme2') return 'week'; // Force Week view for Theme 2
+  if (props.variant === 'theme2') return 'week';
   if (width.value < 640) return 'day';
   if (width.value < 1024 && view.value === 'month') return 'week';
   return view.value;
@@ -227,15 +230,33 @@ const days = computed(() => {
   return effectiveView.value === 'day' ? [cursor.value] : weekDays.value;
 });
 
+// CHANGE 4: Refined Normalized Logic for JSON Handling
+// The .map function with `new Date(ev.start)` automatically handles ISO strings.
+// Added a filter check to ensure ev.start/ev.end exist before processing to prevent crashes on bad JSON.
 const normalized = computed(() => {
-  return (props.events || [])
+  let evs = props.events || [];
+
+  if (props.variant === 'theme2') {
+    evs = evs.filter(ev => {
+      if (ev.slot === 'custom') return true;
+      if (showSchedule.value) return true;
+      return false;
+    });
+  }
+
+  return evs
     .filter(ev => ev && ev.start && ev.end)
-    .map(ev => ({ ...ev, start: new Date(ev.start), end: new Date(ev.end), dataAttrs: ev.dataAttrs || {}, slot: ev.slot || null }));
+    .map(ev => ({ 
+      ...ev, 
+      start: new Date(ev.start), // Works for Date Object OR JSON String
+      end: new Date(ev.end),     // Works for Date Object OR JSON String
+      dataAttrs: ev.dataAttrs || {}, 
+      slot: ev.slot || null 
+    }));
 });
 
 const title = computed(() => {
   const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
-  // Theme 2 needs Month Year in Uppercase (handled by CSS)
   if (effectiveView.value === 'week') return `${monthNames[m]} ${y}`;
   if (effectiveView.value === 'month') return `${monthNames[m]} ${y}`;
   return `${monthNames[m]} ${d.getDate()}, ${y}`;

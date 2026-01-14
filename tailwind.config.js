@@ -215,8 +215,8 @@ export default {
             light: "#0c111d",
             dark: "#e8e6e3",
           },
-          dark:{
-            mutedBluish:"#ACBACF"
+          dark: {
+            mutedBluish: "#ACBACF",
           },
           quaternary: "#667085",
         },
@@ -459,6 +459,30 @@ export default {
             section: "hsla(0, 0%, 100%, 0.4)",
           },
         },
+        customGrey: {
+          DEFAULT: "#E3E4E1",
+        },
+        customGrey2: {
+          DEFAULT: "#DFE1DD",
+        },
+        customDarkGrey: {
+          DEFAULT: "#B7BBBB",
+        },
+         lightViolet:{
+                        DEFAULT:'#5549FF'
+                      },
+                      darkGrey:{
+                        DEFAULT:'#D1D0FE'
+                      },
+                      gray:{
+                        700:'#344054'
+                      },
+                      brightPink:{
+                        DEFAULT:'#FF0066'
+                      },
+                      activePink:{
+                        DEFAULT:'#FF0464'
+                      },
         fce40d: "#fce40d",
         d0d5dd: "#d0d5dd",
         ff00a6: "#ff00a6",
@@ -513,11 +537,11 @@ export default {
         "dark-preview-bg": "#1d1f20",
         "upload-bg": "rgba(255,68,5,0.1)",
         "dark-upload-bg": "rgba(201,51,0,0.1)",
-        'creamViolet': '#5549FF',
-        'brand-pink': '#FF0464',
-        'brand-textPink':'#FF128D',
-        'brand-yellow': '#fec100',
-        'brand-green': '#13ce66',
+        creamViolet: "#5549FF",
+        "brand-pink": "#FF0464",
+        "brand-textPink": "#FF128D",
+        "brand-yellow": "#fec100",
+        "brand-green": "#13ce66",
       },
       backdropBlur: {
         xs: "5px",
@@ -529,7 +553,7 @@ export default {
         sidebar: "0 0 8px 0 rgba(0, 0, 0, 0.08)",
         // custom: "4px 0 10px 0 rgba(0, 0, 0, 0.08)",
         green: "4px 4px 0 0 #07f468",
-        'custom': '0px 2px 8px 0px rgba(0,0,0,0.15)'
+        custom: "0px 2px 8px 0px rgba(0,0,0,0.15)",
       },
       backgroundImage: {
         "gradient-warning": `

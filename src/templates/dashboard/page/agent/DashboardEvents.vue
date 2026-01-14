@@ -1,9 +1,7 @@
 <template>
   <DashboardWrapperTwoColContainer>
-    
     <div class="mb-10">
-      <h2 class="text-lg font-bold mb-4 text-gray-500">Theme 1</h2>
-      <div class="flex w-full px-4 gap-4">
+      <div class="flex w-full gap-4">
         
         <main-calendar
           class="md:col-span-2 w-full"
@@ -23,58 +21,69 @@
 
           <template #event="{ event, style, onClick }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
-                :style="style"
-                @click.stop="onClick(event)">
+                 :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
               <div>{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-
           <template #event-alt="{ event, style, onClick }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
-                :style="style"
-                @click.stop="onClick(event)">
+                 :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-
           <template #event-custom="{ event, style, onClick }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
-                :style="style"
-                @click.stop="onClick(event)">
+                 :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-
           <template #event-custom2="{ event, style, onClick }">
             <div class="absolute py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
-                :style="style"
-                @click.stop="onClick(event)">
+                 :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
               <div class="text-[0.6875rem]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
         </main-calendar>
 
-        <mini-calendar
-          class="md:col-span-1 hidden lg:block"
-          :month-date="state.focus"
-          :selected-date="state.selected || state.focus"
-          :events="events1"
-          :theme="theme1"
-          :data-attrs="{ 'data-calendar':'mini' }"
-          @date-selected="onSelectFromMini">
+        <div class="flex flex-col gap-[16px]">
+            <mini-calendar
+            class="md:col-span-1 hidden lg:block"
+            :month-date="state.focus"
+            :selected-date="state.selected || state.focus"
+            :events="events1"
+            :theme="theme1"
+            :data-attrs="{ 'data-calendar':'mini' }"
+            @date-selected="onSelectFromMini">
         </mini-calendar>
+
+       <ButtonComponent
+  text="NEW EVENTS"
+  variant="none"
+  customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
+  :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
+  :leftIconClass="`
+    w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`"
+/>
+
+<div>
+      <EventsWidget 
+         :sections="eventsData" 
+         @join-click="handleJoin"
+         @reply-click="handleReply"
+      />
+   </div>
+    </div>
       </div>
     </div>
 
     <hr class="border-gray-300 my-8"/>
 
     <div>
-      <h2 class="text-lg font-bold mb-4 text-gray-500">Theme 2</h2>
-      <div class="flex w-full px-4">
+      <div class="flex w-full">
         
         <main-calendar
           class="w-full"
@@ -85,7 +94,7 @@
           :data-attrs="{ 'data-calendar':'main-2' }"
           :console-overlaps="true"
           :highlight-today-column="true"
-          time-start="05:00"
+          time-start="00:00"
           time-end="23:00"
           :slot-minutes="60"
           :row-height-px="64"
@@ -93,47 +102,47 @@
           @date-selected="onSelectFromMain">
 
           <template #event="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 rounded-md border border-emerald-200 text-xs text-emerald-700 shadow-sm overflow-hidden"
-                 :style="style"
-                 style="background: repeating-linear-gradient(45deg, #d1fae5, #d1fae5 5px, #ecfdf5 5px, #ecfdf5 10px);"
-                 @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 font-bold truncate">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
-                {{ event.title }}
+             <div class="absolute py-1 px-2 border-b border-blue-600 text-xs bg-blue-300/25 text-emerald-700 shadow-sm overflow-hidden"
+                  :style="style" @click.stop="onClick(event)">
+              <div class="flex items-center gap-1 text-blue-600 font-normal truncate ">
+                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z" stroke="#5555e8" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="mt-1 truncate">{{ event.title }}</span> 
               </div>
             </div>
           </template>
 
           <template #event-custom="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 rounded-md border border-pink-200 text-xs text-pink-700 shadow-sm overflow-hidden"
-                 :style="style"
-                 style="background: repeating-linear-gradient(45deg, #fce7f3, #fce7f3 5px, #fff1f2 5px, #fff1f2 10px);"
-                 @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 font-bold truncate">
-                <span class="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0"></span>
-                {{ event.title }}
+             <div class="absolute py-1 px-2 border-b border-[#FF0066] text-xs text-[#FF0066] shadow-sm overflow-hidden"
+                  :style="style"
+                  style="background: repeating-linear-gradient(-45deg, #EBBACC, #EBBACC 2px, #E9CFD7 3px, #E9CFD7 10px);"
+                  @click.stop="onClick(event)">
+              <div class="flex items-center gap-1 font-normal leading-4 truncate">
+                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z" stroke="#ff123b" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="mt-1 truncate">{{ event.title }}</span>
               </div>
             </div>
           </template>
 
           <template #event-alt="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 rounded-md bg-sky-100 border border-sky-200 text-sky-700 text-xs shadow-sm"
-                 :style="style"
-                 @click.stop="onClick(event)">
-               <div class="flex items-center gap-1 font-bold truncate">
+             <div class="absolute py-1 px-2  bg-teal-300/25 border-b border-[#15B79E] text-teal-500 text-xs shadow-sm"
+                  :style="style" @click.stop="onClick(event)">
+               <div class="flex items-center gap-1 font-normal truncate">
                  <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                 {{ event.title }}
+                    <span class="mt-1 truncate">{{ event.title }}</span>
                </div>
             </div>
           </template>
           
           <template #event-custom2="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 rounded-md bg-purple-100 border border-purple-200 text-purple-700 text-xs shadow-sm"
-                 :style="style"
-                 @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 font-bold truncate">
+             <div class="absolute py-1 px-2 bg-fuchsia-300/25 border-b border-[#AE4AEF] text-purple-700 text-xs shadow-sm"
+                  :style="style" @click.stop="onClick(event)">
+              <div class="flex items-center gap-1 font-normal text-[#AE4AEF]">
                  <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                 {{ event.title }}
+                <span class="mt-1 truncate">{{ event.title }}</span>
               </div>
             </div>
           </template>
@@ -150,17 +159,31 @@ import { hhmm } from '@/utils/calendarHelpers.js';
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import MainCalendar from '@/components/calendar/MainCalendar.vue';
 import DashboardWrapperTwoColContainer from '@/components/dashboard/DashboardWrapperTwoColContainer.vue';
+import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
+import EventsWidget from '@/components/calendar/EventsWidget.vue';
+import { ref } from 'vue';
 
 export default {
-  components: { MiniCalendar, MainCalendar, DashboardWrapperTwoColContainer },
+  components: { MiniCalendar, MainCalendar, DashboardWrapperTwoColContainer ,ButtonComponent,EventsWidget},
   data() {
     const now = new Date();
-    const y = now.getFullYear(), m = now.getMonth();
+    const y = now.getFullYear();
+    const m = now.getMonth();
 
-    // --- THEME 1 (Original - Stone/Gray) ---
+    // CHANGE: Helper to generate ISO Strings (JSON format)
+    // Example output: "2026-01-14T10:00:00"
+    const getIsoString = (dayOfMonth, hour, minute) => {
+        const d = new Date(y, m, dayOfMonth, hour, minute);
+        // Using sv-SE locale hack to get YYYY-MM-DD format, or just constructing it manually
+        // Simple manual construction to ensure local time ISO format:
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `${y}-${pad(m + 1)}-${pad(dayOfMonth)}T${pad(hour)}:${pad(minute)}:00`;
+    };
+
+    // --- THEME 1 ---
     const theme1 = {
       mini: {
-        wrapper: 'flex flex-col items-center font-medium text-gray-500 mt-[1.5rem] gap-[0.625rem] rounded-xl w-[20.375rem]',
+        wrapper: 'flex flex-col w-full items-center font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
         header: 'font-semibold',
         dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500',
         outside: 'opacity-0',
@@ -170,66 +193,160 @@ export default {
         dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
       },
       main: {
-        wrapper: 'relative flex flex-col pt-[1.5rem] gap-[5.5rem] overflow-hidden rounded-xl',
+        wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
         title: 'text-[1.5rem] font-semibold text-slate-800',
-        xHeader: 'absolute z-[30] text-[11px] uppercase tracking-wide text-slate-500 top-[6rem] w-full',
+        xHeader: 'absolute z-[30] text-[11px] uppercase tracking-wide text-slate-500 top-[5rem] w-full',
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px]',
-        axisXToday: 'text-white bg-gray-500 rounded-full',
+        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
         axisYRow: 'h-[62.62px] text-right pr-2 w-[4.875rem] text-gray-400 text-xs font-medium leading-4',
-        colBase: 'relative bg-white/20 overflow-hidden', // Original Stone BG
+        colBase: 'relative bg-white/20 overflow-hidden',
         gridRow: 'h-[62.61px] border-b  border-white/50',
         eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
       },
       month: {
         weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
-        cellBase: 'aspect-[1/1.1] rounded-lg p-2 text-left hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 border',
+        cellBase: 'aspect-[1/1.1] p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start',
         outside: 'opacity-40',
-        today: 'ring-2 ring-emerald-500',
+        today: 'border-2 border-emerald-500',
         cellEvent: 'text-[11px] px-2 py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
       }
     };
 
-    // --- THEME 2 (New - Lighter/Clean) ---
+    // --- THEME 2 ---
     const theme2 = {
       mini: {},
       main: {
-        wrapper: 'relative flex flex-col pt-[1.5rem] gap-[1rem] overflow-hidden rounded-xl',
+        wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
         title: 'text-[1.5rem] font-semibold text-slate-800',
-        xHeader: 'absolute z-[30] top-[4.5rem] w-full', 
+        xHeader: '', 
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
-        axisXToday: 'bg-slate-700 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
+        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
         axisYRow: 'h-[62.62px] text-right pr-4 w-[4.875rem] text-slate-400 text-[11px] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
-        gridRow: 'h-[62.61px] border-b border-slate-200/60',
+        gridRow: 'h-[62.61px] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
       },
       month: {}
     };
 
-    // --- DEMO 1 (Original Data) ---
+    // --- DEMO 1 (Original Data - kept as Date Objects for backward compat check) ---
     const events1 = [
       { id: 'e1', title: 'Group Call1', start: new Date(y, m, 6, 15, 30), end: new Date(y, m, 6, 17, 15), slot: 'custom' },
-      { id: 'e3', title: 'Live Call2', start: new Date(y, m, 3, 12, 0), end: new Date(y, m, 3, 14, 0), slot: 'alt' },
-      { id: 'e4', title: 'Live Call', start: new Date(y, m, 5, 6, 0), end: new Date(y, m, 5, 7, 0) },
-      { id: 'e7', title: 'Group Call', start: new Date(y, m, 9, 10, 0), end: new Date(y, m, 9, 16, 0), slot: 'custom2' },
+      { id: 'e2', title: 'Live Call2', start: new Date(y, m, 3, 12, 0), end: new Date(y, m, 3, 14, 0), slot: 'alt' },
+      { id: 'e3', title: 'Live Call', start: new Date(y, m, 5, 6, 0), end: new Date(y, m, 5, 7, 0) },
+      { id: 'e4', title: 'Group Call', start: new Date(y, m, 9, 10, 0), end: new Date(y, m, 9, 16, 0), slot: 'custom2' },
     ];
 
-    // --- DEMO 2 (Maid Cafe Data) ---
+    // --- CHANGE: DEMO 2 (JSON Array Format) ---
+    // These start/end values are now ISO STRINGS, not Date objects.
     const events2 = [
-      { id: 'e1', title: 'Maid Cafe Shift', start: new Date(y, m, 23, 12, 0), end: new Date(y, m, 23, 16, 0), slot: 'event' }, // Green
-      { id: 'e2', title: 'Event Title', start: new Date(y, m, 23, 12, 0), end: new Date(y, m, 23, 15, 0), slot: 'custom' }, // Pink
-      { id: 'e3', title: 'J&Bs Cooking', start: new Date(y, m, 24, 5, 0), end: new Date(y, m, 24, 9, 0), slot: 'custom2' }, // Purple
-      { id: 'e4', title: 'High School', start: new Date(y, m, 23, 10, 0), end: new Date(y, m, 23, 12, 0), slot: 'alt' }, // Blue
+      { id: 'e1', title: 'High School Life Simulator', start: getIsoString(11, 10, 0), end: getIsoString(11, 21, 0), slot: 'event' }, 
+      { id: 'e1-dup', title: 'Maid Cafe Simulator', start: getIsoString(11, 0, 0), end: getIsoString(11, 11, 0), slot: 'alt' }, 
+      { id: 'e2', title: 'Event Title', start: getIsoString(12, 0, 0), end: getIsoString(12, 4, 0), slot: 'custom' }, 
+      { id: 'e3', title: 'Maid Cafe Simulator', start: getIsoString(12, 1, 0), end: getIsoString(12, 11, 0), slot: 'alt' }, 
+      { id: 'e4', title: 'Event Title', start: getIsoString(13, 0, 0), end: getIsoString(13, 4, 0), slot: 'custom' }, 
+      { id: 'e5', title: 'Event Title', start: getIsoString(14, 22, 0), end: getIsoString(14, 23, 0), slot: 'custom' }, 
+      { id: 'e6', title: 'Maid Cafe Simulator', start: getIsoString(14, 0, 0), end: getIsoString(14, 4, 0), slot: 'alt' }, 
+      { id: 'e7', title: 'Event Title', start: getIsoString(15, 0, 0), end: getIsoString(15, 8, 0), slot: 'custom' }, 
+      { id: 'e8', title: 'Event Title', start: getIsoString(16, 2, 0), end: getIsoString(16, 8, 0), slot: 'custom' }, 
+      { id: 'e9', title: 'Maid Cafe Simulator', start: getIsoString(16, 0, 0), end: getIsoString(16, 21, 0), slot: 'alt' }, 
+      { id: 'e10', title: 'Event Title', start: getIsoString(17, 0, 0), end: getIsoString(17, 5, 0), slot: 'custom' }, 
+      { id: 'e11', title: 'Event Title', start: getIsoString(17, 22, 0), end: getIsoString(17, 23, 0), slot: 'custom' }, 
+      { id: '12', title: 'High School Life Simulator', start: getIsoString(17, 8, 0), end: getIsoString(17, 20, 0), slot: 'event' }, 
+      { id: 'e13', title: 'J&B’s Cooking show', start: getIsoString(13, 5, 0), end: getIsoString(13, 9, 0), slot: 'custom2' }, 
     ];
 
+  const eventsData = ref([
+  {
+    title: 'TODAY',
+    items: [
+      {
+        time: '2:15pm-9:30pm',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-white', 
+        showJoin: true,
+        statusText: 'in 5 min',
+        // WORKING IMAGE URL
+        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }] 
+      },
+      {
+        time: '2:15pm-9:30pm',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        showJoin: false,
+        // WORKING IMAGE URL
+        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+      }
+    ]
+  },
+  {
+    title: 'THIS WEEK',
+    items: [
+      {
+        dayName: 'TUE',
+        dayNumber: '24',
+        title: 'Group call',
+        titleColorClass: 'text-activePink',
+        borderClass: 'bg-brightPink',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        isGroup: true,
+        groupText: 'Mangoes, Apples and 30+',
+        avatars: [
+          { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=faces' },
+          { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces' },
+          { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces' }
+        ]
+      },
+      {
+        dayName: 'WED',
+        dayNumber: '25',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+      }
+    ]
+  },
+  {
+    title: 'PENDING EVENTS',
+    items: [
+      {
+        dayName: 'WED',
+        dayNumber: '25',
+        title: 'Live call',
+        titleColorClass: 'text-gray-900',
+        borderClass: 'bg-customDarkGrey',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        showReply: true,
+        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }]
+      },
+      {
+        dayName: 'SAT',
+        dayNumber: '28',
+        title: 'Live call',
+        titleColorClass: 'text-gray-900',
+        borderClass: 'bg-customDarkGrey',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
+        showReply: true,
+        avatars: [{ src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&crop=faces', name: 'Grapes' }]
+      }
+    ]
+  }
+]);
     return { 
       state: { focus: new Date(y, m, 23), selected: null, view: 'week' }, 
       events1,
-      events2,
+      events2, // Now strictly JSON compatible array
       theme1, 
-      theme2 
+      theme2,
+      eventsData
     };
   },
   methods: {

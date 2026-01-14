@@ -8,7 +8,7 @@
 
     <!-- <ButtonComponent text="Save" variant="greyBg" size="lg" /> -->
 
-    <!-- <ButtonComponent
+    <ButtonComponent
       text="Save"
       variant="polygonRight"
       :leftIcon="'https://i.ibb.co/Sw3WhF1p/svgviewer-png-output-9.webp'"
@@ -17,9 +17,9 @@
   filter brightness-0 invert
   group-hover:[filter:brightness(0)_saturate(100%)_invert(0%)_sepia(96%)_saturate(7494%)_hue-rotate(96deg)_brightness(112%)_contrast(97%)]
 `"
-    /> -->
+    />
 
-    <!-- <ButtonComponent
+    <ButtonComponent
       text="Next"
       variant="polygonLeft"
       :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'"
@@ -32,7 +32,7 @@
       btnHoverBg="black"
       btnText="black"
       btnHoverText="#07f468"
-    /> -->
+    />
 
     <!-- <OrderReceived /> -->
 

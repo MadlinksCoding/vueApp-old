@@ -40,7 +40,7 @@ const props = defineProps({
 
   variant: {
     type: String,
-    default: "primary",
+    default: "primary", // Default primary rahega taake purana code na tootay
   },
 
   size: {
@@ -60,7 +60,7 @@ const props = defineProps({
   btnHoverBg: { type: String, default: "black" },
   btnText: { type: String, default: "black" },
   btnHoverText: { type: String, default: "#07f468" },
-  customClass: { type: String, default: "" },
+  customClass: { type: String, default: "" }, // Aapki custom classes yahan aayengi
   addId: String,
   removeId: Boolean,
   addClass: String,
@@ -74,6 +74,9 @@ const props = defineProps({
 
 // Tailwind theme classes
 const themeClasses = {
+  // CHANGE 1: 'none' add kiya hai taake custom styling allow ho sake
+  none: "", 
+  
   primary:
     "bg-primary text-white font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed",
   secondary:
@@ -134,8 +137,12 @@ const buttonConfig = {
     },
   ],
   elm: {
+  // CHANGE 2: Logic update ki hai. 
+  // Agar 'none' ho to empty string return karega. 
+  // Agar variant valid ho to wo return karega.
+  // Agar invalid/missing ho to primary return karega (default behavior).
     addClass: `
-  ${themeClasses[props.variant] || themeClasses.primary}
+  ${ (themeClasses[props.variant] !== undefined) ? themeClasses[props.variant] : themeClasses.primary }
   ${sizeClasses[props.size] || sizeClasses.md}
   ${props.customClass || ""}
 `,
