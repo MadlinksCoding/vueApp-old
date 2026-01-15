@@ -19,32 +19,35 @@
           :min-event-height-px="0"
           @date-selected="onSelectFromMain">
 
-          <template #event="{ event, style, onClick }">
+         <template #event="{ event, style, onClick, view }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
-              <div>{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-          <template #event-alt="{ event, style, onClick }">
+
+          <template #event-alt="{ event, style, onClick, view }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-          <template #event-custom="{ event, style, onClick }">
+
+          <template #event-custom="{ event, style, onClick, view }">
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-          <template #event-custom2="{ event, style, onClick }">
+
+          <template #event-custom2="{ event, style, onClick, view }">
             <div class="absolute py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
                  :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div class="text-[0.6875rem]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="text-[0.6875rem]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
         </main-calendar>
@@ -194,22 +197,26 @@ export default {
       },
       main: {
         wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
-        title: 'text-[1.5rem] font-semibold text-slate-800 ',
-        xHeader: 'absolute z-[30] text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] lg:top-[5rem] w-full',
+        title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
+        xHeader: 'absolute text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] xl:top-[5rem] w-full',
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px]',
-        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[62.62px] text-right pr-2 w-[4.875rem] text-gray-400 text-xs font-medium leading-4',
+        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
+        axisYRow: 'h-[62.62px] text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
         colBase: 'relative bg-white/20 overflow-hidden',
         gridRow: 'h-[62.61px] border-b  border-white/50',
         eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
       },
-      month: {
+     month: {
         weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
-        cellBase: 'aspect-[1/1.1] p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start',
+        // 1. Added 'overflow-hidden' to cellBase so nothing spills out
+        cellBase: 'aspect-[1/1.1] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
         outside: 'opacity-40',
         today: 'border-2 border-emerald-500',
-        cellEvent: 'text-[11px] px-2 py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
+        // 2. Added 'w-full' to ensure truncate works
+        // 3. Adjusted text size: 'text-[9px] sm:text-[11px]' for better mobile fit
+        // 4. Adjusted padding: 'px-1 sm:px-2' for mobile
+        cellEvent: 'w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
       }
     };
 
@@ -218,12 +225,12 @@ export default {
       mini: {},
       main: {
         wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
-        title: 'xl:text-[1.5rem] font-semibold text-slate-800 md:text-sm',
+        title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
         xHeader: '', 
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[62.62px] text-right pr-4 w-[4.875rem] text-slate-400 text-[11px] font-medium leading-4 pt-1',
+        axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] text-slate-400 text-[11px] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
         gridRow: 'h-[62.61px] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
@@ -233,10 +240,11 @@ export default {
 
     // --- DEMO 1 (Original Data - kept as Date Objects for backward compat check) ---
     const events1 = [
-      { id: 'e1', title: 'Group Call1', start: new Date(y, m, 6, 15, 30), end: new Date(y, m, 6, 17, 15), slot: 'custom' },
-      { id: 'e2', title: 'Live Call2', start: new Date(y, m, 3, 12, 0), end: new Date(y, m, 3, 14, 0), slot: 'alt' },
-      { id: 'e3', title: 'Live Call', start: new Date(y, m, 5, 6, 0), end: new Date(y, m, 5, 7, 0) },
-      { id: 'e4', title: 'Group Call', start: new Date(y, m, 9, 10, 0), end: new Date(y, m, 9, 16, 0), slot: 'custom2' },
+      { id: 'e1', title: 'Group Call1', start: new Date(y, m, 11, 15, 30), end: new Date(y, m,11, 17, 15), slot: 'custom' },
+      { id: 'e2', title: 'Live Call2', start: new Date(y, m, 12, 12, 0), end: new Date(y, m, 12, 14, 0), slot: 'alt' },
+      { id: 'e3', title: 'Live Call', start: new Date(y, m, 13, 6, 0), end: new Date(y, m, 13, 7, 0) },
+      { id: 'e4', title: 'Group Call', start: new Date(y, m, 14, 10, 0), end: new Date(y, m, 14, 16, 0), slot: 'custom2' },
+      { id: 'e4', title: 'Group Call', start: new Date(y, m, 15, 10, 0), end: new Date(y, m, 15, 16, 0), slot: 'custom2' },
     ];
 
     // --- CHANGE: DEMO 2 (JSON Array Format) ---

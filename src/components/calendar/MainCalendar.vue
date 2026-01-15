@@ -5,7 +5,7 @@
     :data-view="effectiveView"
     :data-focus="cursor ? cursor.toISOString().slice(0,10) : ''">
 
-    <div v-if="variant === 'default'" class="flex  items-center justify-between">
+    <div v-if="variant === 'default'" class="flex items-center justify-between">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -16,7 +16,7 @@
           <!-- mobile-view-end-->
 
          </div>
-        <button class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
+        <button class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
           <p class="font-medium text-[14px] text-pink-500">Today</p>
         </button>
         <span class="lg:flex items-center justify-between hidden ">
@@ -29,8 +29,8 @@
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <div class="relative inline-block text-left hidden lg:flex" ref="dropdownContainer">
+      <div class="flex items-center gap-2" ref="dropdownContainer">
+        <div class="relative inline-block text-left hidden xl:flex" >
     
     <div 
       @click="toggleDropdown"
@@ -57,17 +57,17 @@
 
         </div>
         
-        <span class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+        <span class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
           <button class="text-[0.875rem] text-pink-400/80 w-[4.5rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('day')">Day</button>
           <button class="text-[0.875rem] text-white w-[4.5rem] font-semibold px-[1rem] py-[0.5rem] leading-[1.25rem] bg-pink-400/80 rounded-[3rem]" @click="setView('week')">Week</button>
           <button class="text-[0.875rem] text-pink-400/80 w-[4.875rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('month')">Month</button>
         </span>
 
         <!-- mobile-view-today-button -->
-          <button class="px-6 flex lg:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
+          <button class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
           <p class="font-medium text-[14px] text-pink-500">Today</p>
         </button>
-        <div class="cursor-pointer relative flex lg:hidden" ref="dropdownContainer">
+        <div class="cursor-pointer relative flex xl:hidden" >
           <div @click="toggleDropdown">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3.38589 5.66687C2.62955 4.82155 2.25138 4.39889 2.23712 4.03968C2.22473 3.72764 2.35882 3.42772 2.59963 3.22889C2.87684 3 3.44399 3 4.57828 3H19.4212C20.5555 3 21.1227 3 21.3999 3.22889C21.6407 3.42772 21.7748 3.72764 21.7624 4.03968C21.7481 4.39889 21.3699 4.82155 20.6136 5.66687L14.9074 12.0444C14.7566 12.2129 14.6812 12.2972 14.6275 12.3931C14.5798 12.4781 14.5448 12.5697 14.5236 12.6648C14.4997 12.7721 14.4997 12.8852 14.4997 13.1113V18.4584C14.4997 18.6539 14.4997 18.7517 14.4682 18.8363C14.4403 18.911 14.395 18.9779 14.336 19.0315C14.2692 19.0922 14.1784 19.1285 13.9969 19.2012L10.5969 20.5612C10.2293 20.7082 10.0455 20.7817 9.89802 20.751C9.76901 20.7242 9.6558 20.6476 9.583 20.5377C9.49975 20.4122 9.49975 20.2142 9.49975 19.8184V13.1113C9.49975 12.8852 9.49975 12.7721 9.47587 12.6648C9.45469 12.5697 9.41971 12.4781 9.37204 12.3931C9.31828 12.2972 9.2429 12.2129 9.09213 12.0444L3.38589 5.66687Z" stroke="#667085" stroke-width="1.77778" stroke-linecap="round" stroke-linejoin="round"/>
@@ -82,7 +82,7 @@
         </div>
 
         </div>
-        <div class="cursor-pointer flex lg:hidden" @click="calendarPopupOpen = true">
+        <div class="cursor-pointer flex xl:hidden" @click="calendarPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z" stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -91,8 +91,9 @@
       </div>
     </div>
 
-    <div v-else-if="variant === 'theme2'" class="flex items-center justify-between w-full px-1 mb-[3rem]">
-      <div class="flex items-center gap-[11px]">
+    <div v-else-if="variant === 'theme2'" class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full px-1 mb-[3rem]">
+      
+      <div class="flex items-center gap-[11px] order-1">
         <div class="font-bold" :class="theme.main.title">{{ title }}</div>
         <span class="flex items-center justify-between">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -104,7 +105,7 @@
         </span>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 order-3 w-full mt-1 lg:w-auto lg:order-2 lg:mt-0">
         <CheckboxGroup
             label="Show existing events/booking schedule"
             v-model="showSchedule"
@@ -114,14 +115,14 @@
           />
       </div>
 
-      <button class="px-6 py-2.5 rounded-full border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors">
+      <button class="px-6 py-2.5 rounded-full border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
         Preview booking schedule
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
       </button>
     </div>
 
     <template v-if="effectiveView !== 'month'">
-      <div class="flex gap-2" :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
+      <div class="flex " :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
         <div :class="theme.main.axisXLabel">
            <div v-if="variant === 'default'" class="lg:flex hidden items-center px-[0.25rem] gap-[0.125rem]">
              <span class="flex items-center justify-center w-[10px] h-[10px]">
@@ -136,7 +137,7 @@
         
         <div class="grid grid-cols-7 h-[3.995rem] w-full">
           <div v-for="(d,i) in days" :key="'xh-'+i"
-               class="text-center flex flex-col p-[2.5rem] items-center"
+               class="text-center flex flex-col items-center"
                :class="[
                  theme.main.axisXDay,
                  (sd(d).getDay() === 0 && variant === 'default') ? 'text-red-500' : '' 
@@ -144,7 +145,7 @@
                :data-date="d.toISOString().slice(0,10)">
             
             <div class="text-[11px] font-semibold leading-[1.25rem] uppercase" :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">
-              {{ ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i] }}
+              {{ ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] }}
             </div>
             
             <div class="text-[1rem] w-[2rem] text-center font-semibold leading-[2rem]"
@@ -196,13 +197,39 @@
     <template v-else>
        <div class="grid grid-cols-7 mt-[-3rem]">
           <div v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="w" 
-          class="text-center text-lg font-semibold text-gray-500 mb-[10px] uppercase leading-7"
+          class="text-center text-sm sm:text-lg font-semibold text-gray-500 mb-[10px] uppercase leading-7"
           :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">{{ w }}</div>
           <button v-for="(d,i) in days" :key="'m-'+i" type="button" @click="emitDate(d)"
           :class="[ theme.month.cellBase, d.getMonth() !== cursor.getMonth() ? theme.month.outside : '', (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '', d.getDay() === 0 ? 'text-red-400' : '' ]">
             <div class="text-sm mb-1" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">{{ d.getDate() }}</div>
-            <div class="space-y-1">
-              <div v-for="ev in eventsForDay(d)" :key="ev.id" :class="[ theme.month.cellEvent, d.getDay() === 0 ? 'text-red-400' : '' ]" @click.stop="dispatchEventClick(ev)">{{ ev.title }}</div>
+           <div class="space-y-1 w-full">
+              <template v-for="ev in eventsForDay(d)" :key="ev.id || ev.title + ev.start">
+                
+                <slot v-if="ev.slot === 'alt'" name="event-alt" 
+                      :event="ev" :day="d" view="month" 
+                      style="position: relative; width: 100%; height: auto; margin-bottom: 2px;" 
+                      :onClick="dispatchEventClick">
+                </slot>
+
+                <slot v-else-if="ev.slot === 'custom'" name="event-custom" 
+                      :event="ev" :day="d" view="month" 
+                      style="position: relative; width: 100%; height: auto; margin-bottom: 2px;" 
+                      :onClick="dispatchEventClick">
+                </slot>
+
+                <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" 
+                      :event="ev" :day="d" view="month" 
+                      style="position: relative; width: 100%; height: auto; margin-bottom: 2px;" 
+                      :onClick="dispatchEventClick">
+                </slot>
+
+                <slot v-else name="event" 
+                      :event="ev" :day="d" view="month" 
+                      style="position: relative; width: 100%; height: auto; margin-bottom: 2px;" 
+                      :onClick="dispatchEventClick">
+                </slot>
+
+              </template>
             </div>
           </button>
         </div>
@@ -337,7 +364,7 @@ const calendarPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "384px", "<768": "100%" },
+  width: { default: "384px", "<500": "90%" },
   height: { default: "100%", "<768": "100%" },
   scrollable: false,
   closeSpeed: "250ms",
