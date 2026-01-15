@@ -49,9 +49,9 @@
           </template>
         </main-calendar>
 
-        <div class="flex flex-col gap-[16px]">
+        <div class=" flex-col gap-[16px] hidden lg:flex">
             <mini-calendar
-            class="md:col-span-1 hidden lg:block"
+            class="md:col-span-1 "
             :month-date="state.focus"
             :selected-date="state.selected || state.focus"
             :events="events1"
@@ -60,16 +60,16 @@
             @date-selected="onSelectFromMini">
         </mini-calendar>
 
-       <ButtonComponent
-  text="NEW EVENTS"
-  variant="none"
-  customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
-  :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
-  :leftIconClass="`
-    w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`"
-/>
+            <ButtonComponent
+        text="NEW EVENTS"
+        variant="none"
+        customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
+        :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
+        :leftIconClass="`
+          w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`"
+      />
 
-<div>
+    <div>
       <EventsWidget 
          :sections="eventsData" 
          @join-click="handleJoin"
@@ -194,8 +194,8 @@ export default {
       },
       main: {
         wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
-        title: 'text-[1.5rem] font-semibold text-slate-800',
-        xHeader: 'absolute z-[30] text-[11px] uppercase tracking-wide text-slate-500 top-[5rem] w-full',
+        title: 'text-[1.5rem] font-semibold text-slate-800 ',
+        xHeader: 'absolute z-[30] text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] lg:top-[5rem] w-full',
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px]',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
@@ -218,7 +218,7 @@ export default {
       mini: {},
       main: {
         wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
-        title: 'text-[1.5rem] font-semibold text-slate-800',
+        title: 'xl:text-[1.5rem] font-semibold text-slate-800 md:text-sm',
         xHeader: '', 
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',

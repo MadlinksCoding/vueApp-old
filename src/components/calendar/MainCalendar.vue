@@ -7,11 +7,19 @@
 
     <div v-if="variant === 'default'" class="flex  items-center justify-between">
       <div class="flex items-center gap-[11px]">
-        <div class="font-bold" :class="theme.main.title">{{ title }}</div>
-        <button class="px-[1.5rem] py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
+        <div class="font-bold " :class="theme.main.title">{{ title }}</div>
+        <!-- mobile-view-start-->
+        <div class="cursor-pointer flex lg:hidden">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- mobile-view-end-->
+
+         </div>
+        <button class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
           <p class="font-medium text-[14px] text-pink-500">Today</p>
         </button>
-        <span class="flex items-center justify-between">
+        <span class="lg:flex items-center justify-between hidden ">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
              <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -22,21 +30,64 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <div class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between bg-pink-400/10">
-          <span class="flex items-center justify-center h-full">
-            <h2 class="text-[0.875rem] font-medium text-black">All Events</h2>
-            <p class="text-[10px] text-pink-500 font-medium h-full">20</p>
-          </span>
-          <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem]">
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+        <div class="relative inline-block text-left hidden lg:flex" ref="dropdownContainer">
+    
+    <div 
+      @click="toggleDropdown"
+      class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between bg-gradient-to-l from-pink-500/20 to-pink-500/10 cursor-pointer select-none hover:bg-pink-400/20 transition-colors"
+    >
+      <span class="flex items-center justify-center h-full">
+        <h2 class="text-[0.875rem] font-medium text-black">All Events</h2>
+        <p class="text-[10px] text-pink-500 font-medium h-full ml-1">20</p>
+      </span>
+      
+      <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200" :class="{ 'rotate-180': isDropdownOpen }">
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div 
+      v-if="isDropdownOpen"
+      class="absolute top-full left-0 mt-2 z-50 origin-top-left"
+    >
+      <EventDropdownContent />
+    </div>
+
         </div>
         
-        <span class="flex items-center w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+        <span class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
           <button class="text-[0.875rem] text-pink-400/80 w-[4.5rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('day')">Day</button>
           <button class="text-[0.875rem] text-white w-[4.5rem] font-semibold px-[1rem] py-[0.5rem] leading-[1.25rem] bg-pink-400/80 rounded-[3rem]" @click="setView('week')">Week</button>
           <button class="text-[0.875rem] text-pink-400/80 w-[4.875rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('month')">Month</button>
         </span>
+
+        <!-- mobile-view-today-button -->
+          <button class="px-6 flex lg:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
+          <p class="font-medium text-[14px] text-pink-500">Today</p>
+        </button>
+        <div class="cursor-pointer relative flex lg:hidden" ref="dropdownContainer">
+          <div @click="toggleDropdown">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.38589 5.66687C2.62955 4.82155 2.25138 4.39889 2.23712 4.03968C2.22473 3.72764 2.35882 3.42772 2.59963 3.22889C2.87684 3 3.44399 3 4.57828 3H19.4212C20.5555 3 21.1227 3 21.3999 3.22889C21.6407 3.42772 21.7748 3.72764 21.7624 4.03968C21.7481 4.39889 21.3699 4.82155 20.6136 5.66687L14.9074 12.0444C14.7566 12.2129 14.6812 12.2972 14.6275 12.3931C14.5798 12.4781 14.5448 12.5697 14.5236 12.6648C14.4997 12.7721 14.4997 12.8852 14.4997 13.1113V18.4584C14.4997 18.6539 14.4997 18.7517 14.4682 18.8363C14.4403 18.911 14.395 18.9779 14.336 19.0315C14.2692 19.0922 14.1784 19.1285 13.9969 19.2012L10.5969 20.5612C10.2293 20.7082 10.0455 20.7817 9.89802 20.751C9.76901 20.7242 9.6558 20.6476 9.583 20.5377C9.49975 20.4122 9.49975 20.2142 9.49975 19.8184V13.1113C9.49975 12.8852 9.49975 12.7721 9.47587 12.6648C9.45469 12.5697 9.41971 12.4781 9.37204 12.3931C9.31828 12.2972 9.2429 12.2129 9.09213 12.0444L3.38589 5.66687Z" stroke="#667085" stroke-width="1.77778" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+              <div 
+          v-if="isDropdownOpen"
+          class="absolute top-full right-5 mt-2 z-50 origin-top-left"
+        >
+          <EventDropdownContent />
+        </div>
+
+        </div>
+        <div class="cursor-pointer flex lg:hidden" @click="calendarPopupOpen = true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z" stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        </div>
+
       </div>
     </div>
 
@@ -72,7 +123,7 @@
     <template v-if="effectiveView !== 'month'">
       <div class="flex gap-2" :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
         <div :class="theme.main.axisXLabel">
-           <div v-if="variant === 'default'" class="flex items-center px-[0.25rem] gap-[0.125rem]">
+           <div v-if="variant === 'default'" class="lg:flex hidden items-center px-[0.25rem] gap-[0.125rem]">
              <span class="flex items-center justify-center w-[10px] h-[10px]">
                <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </span>
@@ -156,13 +207,95 @@
           </button>
         </div>
     </template>
+    <!-- popups -->
+    <PopupHandler
+      v-model="calendarPopupOpen"
+      :config="calendarPopupConfig"
+    >
+        <div class="bg-white rounded-tl-[10px] px-2 rounded-tr-[10px] flex flex-col w-full h-full 
+        overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] box-border">
+        <div className="w-full p-2 flex  gap-2">
+          
+        <div @click="setView('day')" className="w-full cursor-pointer p-2 bg-pink-500/75 rounded-2xl inline-flex flex-col justify-center items-center">
+        <div className="w-16 px-3 py-1 border-gray-300 flex flex-col justify-center items-center gap-2">
+        <div className="w-6 h-6 relative overflow-hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 3V21M15 3V21M7.8 3H16.2C17.8802 3 18.7202 3 19.362 3.32698C19.9265 3.6146 20.3854 4.07354 20.673 4.63803C21 5.27976 21 6.11984 21 7.8V16.2C21 17.8802 21 18.7202 20.673 19.362C20.3854 19.9265 19.9265 20.3854 19.362 20.673C18.7202 21 17.8802 21 16.2 21H7.8C6.11984 21 5.27976 21 4.63803 20.673C4.07354 20.3854 3.6146 19.9265 3.32698 19.362C3 18.7202 3 17.8802 3 16.2V7.8C3 6.11984 3 5.27976 3.32698 4.63803C3.6146 4.07354 4.07354 3.6146 4.63803 3.32698C5.27976 3 6.11984 3 7.8 3Z" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        </div>
+        <div className="justify-start text-black text-sm font-semibold font-['Poppins'] leading-5">Day</div>
+        </div>
+        </div>
+        
+        <div @click="setView('week')" className="w-full cursor-pointer p-2 bg-white/20 rounded-2xl outline outline-1 outline-offset-[-1px] outline-pink-500 inline-flex justify-center items-center">
+        <div className="px-3 py-1 border-gray-300 inline-flex flex-col justify-center items-center gap-2">
+        <div className="relative inline-flex justify-start items-center gap-2">
+        <div className="w-6 h-6 relative overflow-hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z" stroke="#FB5BA2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        </div>
+        <div className="left-[9px] top-[6.73px] absolute justify-start text-pink-500 text-[10px] font-semibold font-['Poppins'] leading-4">7</div>
+        </div>
+        <div className="justify-start text-pink-500 text-sm font-semibold font-['Poppins'] leading-5">Week</div>
+        </div>
+        </div>
+
+        <div @click="setView('month')" className="w-full cursor-pointer p-2 bg-white/20 rounded-2xl outline outline-1 outline-offset-[-1px] outline-pink-500 inline-flex justify-center items-center">
+        <div className="px-3 py-1 border-gray-300 inline-flex flex-col justify-center items-center gap-2">
+        <div className="w-6 h-6 relative overflow-hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z" stroke="#FB5BA2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+        </div>
+        <div className="justify-start text-pink-500 text-sm font-semibold font-['Poppins'] leading-5">Month</div>
+        </div>
+        </div>
+      </div>
+
+      <div class="w-full p-2 border-t border-black/20">
+      <EventsWidget 
+         :sections="eventsData" 
+         @join-click="handleJoin"
+         @reply-click="handleReply"
+      />
+      </div>
+
+      <div class="mt-[100px]">
+        <ButtonComponent
+        @click="newEventsPopupOpen = true"
+        text="NEW EVENTS"
+        variant="none"
+        customClass="group w-full h-12 min-h-10  px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
+        :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
+        :leftIconClass="`
+        w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`"
+/>
+</div>
+  </div>
+    </PopupHandler>
+
+    <PopupHandler
+      v-model="newEventsPopupOpen"
+      :config="newEventsPopupConfig"
+    >
+    <NewEventsPopup/>
+    </PopupHandler>
   </section>
+
+
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { SOD, addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, timeToMinutes, overlaps, monthNames } from '@/utils/calendarHelpers.js';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
+import { onUnmounted } from 'vue';
+import EventDropdownContent from './EventDropdownContent.vue';
+import PopupHandler from '../ui/popup/PopupHandler.vue';
+import EventsWidget from './EventsWidget.vue';
+import ButtonComponent from '../dev/button/ButtonComponent.vue';
+import NewEventsPopup from './NewEventsPopup.vue';
 
 const props = defineProps({
   variant: { type: String, default: 'default' },
@@ -180,20 +313,138 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected']);
+const emit = defineEmits(['date-selected',"update:modelValue"]);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const nowTimer = ref(null);
 const nowY = ref(0);
-
+// State for dropdown
+const isDropdownOpen = ref(false);
+const dropdownContainer = ref(null);
 const showSchedule = ref(false); // Checkbox state
+const calendarPopupOpen = ref(false);
+const newEventsPopupOpen = ref(false);
+
+const calendarPopupConfig = {
+  actionType: "slidein",
+  from: "right",
+  offset: "0px",
+  speed: "250ms",
+  effect: "ease-in-out",
+  showOverlay: false,
+  closeOnOutside: true,
+  lockScroll: false,
+  escToClose: true,
+  width: { default: "384px", "<768": "100%" },
+  height: { default: "100%", "<768": "100%" },
+  scrollable: false,
+  closeSpeed: "250ms",
+  closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
+const newEventsPopupConfig = {
+  actionType: "slidein",
+  from: "right",
+  offset: "0px",       // Right side se thora gap
+  verticalAlign: "bottom", // <--- NEW: Ye batayega ke bottom par rehna hai
+  width: { default: "auto" }, // Width content ke hisaab se (ya fixed "384px")
+  height: { default: "auto" }, // Height auto (Content ke hisaab se)
+  speed: "300ms",
+  effect: "ease-in-out",
+  showOverlay: false,   // Overlay off karein taake user baki page use kar sake
+  closeOnOutside: true,
+  lockScroll: false,    // Scroll lock na karein
+};
+
+const eventsData = ref([
+  {
+    title: 'TODAY',
+    items: [
+      {
+        time: '2:15pm-9:30pm',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-white', 
+        showJoin: true,
+        statusText: 'in 5 min',
+        // WORKING IMAGE URL
+        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }] 
+      },
+      {
+        time: '2:15pm-9:30pm',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        showJoin: false,
+        // WORKING IMAGE URL
+        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+      }
+    ]
+  },
+  {
+    title: 'THIS WEEK',
+    items: [
+      {
+        dayName: 'TUE',
+        dayNumber: '24',
+        title: 'Group call',
+        titleColorClass: 'text-activePink',
+        borderClass: 'bg-brightPink',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        isGroup: true,
+        groupText: 'Mangoes, Apples and 30+',
+        avatars: [
+          { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=faces' },
+          { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces' },
+          { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces' }
+        ]
+      },
+      {
+        dayName: 'WED',
+        dayNumber: '25',
+        title: 'Live call',
+        titleColorClass: 'text-lightViolet',
+        borderClass: 'bg-lightViolet',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+      }
+    ]
+  },
+  {
+    title: 'PENDING EVENTS',
+    items: [
+      {
+        dayName: 'WED',
+        dayNumber: '25',
+        title: 'Live call',
+        titleColorClass: 'text-gray-900',
+        borderClass: 'bg-customDarkGrey',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
+        showReply: true,
+        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }]
+      },
+      {
+        dayName: 'SAT',
+        dayNumber: '28',
+        title: 'Live call',
+        titleColorClass: 'text-gray-900',
+        borderClass: 'bg-customDarkGrey',
+        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
+        showReply: true,
+        avatars: [{ src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&crop=faces', name: 'Grapes' }]
+      }
+    ]
+  }
+]);
 
 const effectiveView = computed(() => {
   if (props.variant === 'theme2') return 'week';
-  if (width.value < 640) return 'day';
-  if (width.value < 1024 && view.value === 'month') return 'week';
+  // if (width.value < 640) return 'day';
+  // if (width.value < 1024 && view.value === 'month') return 'week';
   return view.value;
 });
 
@@ -322,7 +573,20 @@ const updateNowLine = () => {
   nowY.value = Math.min(100, Math.max(0, pct));
 };
 const handleResize = () => { width.value = window.innerWidth; };
+
+// Toggle function
+const toggleDropdown = () => {
+  isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+// Close dropdown if clicked outside
+const handleClickOutside = (event) => {
+  if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
+    isDropdownOpen.value = false;
+  }
+};
 onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
   window.addEventListener('resize', handleResize);
   nowTimer.value = setInterval(updateNowLine, 60000);
   updateNowLine();
@@ -330,5 +594,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
   clearInterval(nowTimer.value);
+});
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
 });
 </script>

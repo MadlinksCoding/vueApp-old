@@ -1,5 +1,5 @@
 <template>
-  <section class="flex flex-col gap-[1rem] w-max h-auto">
+  <section class="flex flex-col gap-[1rem]">
     
     <div v-for="(section, sIndex) in sections" :key="sIndex" class="flex flex-col gap-[0.5rem] w-full">
       
@@ -10,7 +10,7 @@
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
-        class="relative flex h-[4.125rem] w-[17.375rem] pr-[0.25rem] justify-end rounded-[0.25rem] shadow-purple-glow"
+        class="relative flex h-[4.125rem] pr-[0.25rem] justify-end rounded-[0.25rem] shadow-purple-glow"
         :class="event.bgClass || 'bg-customGrey'"
       >
         <div 
@@ -81,7 +81,7 @@
 
               <button 
                 @click="$emit('join-click', event)" 
-                class="flex items-center justify-between w-full px-[0.1875rem] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
+                class="flex items-center outline-none justify-between w-full px-[0.1875rem] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
               >
                 <span class="w-[1rem] h-[1rem]">
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">

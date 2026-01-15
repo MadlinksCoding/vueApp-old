@@ -253,6 +253,7 @@ import TierCard from "@/components/ui/card/dashboard/TierCard.vue";
 import { tierData } from "/public/data/TierData.js";
 import LatestEventCard from "@/components/ui/card/dashboard/LatestEventCard.vue";
 import EventCard from "@/components/ui/card/dashboard/EventCard.vue";
+import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
