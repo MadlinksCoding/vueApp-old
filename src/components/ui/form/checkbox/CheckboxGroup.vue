@@ -47,8 +47,6 @@ export default {
     labelClass: { type: String, default: "" },
     wrapperClass: { type: String, default: "" },
     tags: { type: Array, default: () => [] },
-    
-    // Naya prop add kiya hai
     metaText: { type: String, default: "" } 
   },
   emits: ["update:modelValue"],

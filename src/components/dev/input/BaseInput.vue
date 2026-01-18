@@ -19,7 +19,7 @@
       :maxlength="maxLength"
       :rows="rows"
       @input="resizeTextarea"
-      class="block w-full resize-none overflow-hidden placeholder:whitespace-normal min-h-[65px] leading-6"
+      class="block w-full resize-none overflow-hidden min-h-[65px] leading-6"
     ></textarea>
 
     <!-- INPUT MODE -->

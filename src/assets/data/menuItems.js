@@ -12,7 +12,7 @@ export const menuItems = [
     id: 2,
     title: "events",
     image: "https://i.ibb.co/20NyykW9/svgviewer-png-output-41.webp",
-    route: "/dashboard/event",
+    route: "/dashboard/events",
     parent: false,
     children: [],
     enabled: true

@@ -1,10 +1,8 @@
 <template>
   <div
-    data-media-upload
     class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-2 h-[12.1875rem] flex flex-col items-center justify-center hover:border-dark-text hover:bg-black/10 group"
   >
     <div
-      data-media-upload-input-wrap
       class="gap-1 w-full flex flex-col justify-center self-stretch border-2 border-dashed border-transparent"
     >
       <div class="flex flex-col items-center justify-center gap-3">
@@ -18,7 +16,6 @@
             accept="image/png, image/jpeg"
           />
           <span
-            data-media-upload-icon-container
             class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-success rounded-lg h-10 w-10 flex justify-center items-center group-hover:bg-black"
           >
             <slot name="icon">
@@ -87,7 +84,7 @@ const props = defineProps({
 
 // Computed property to show uploaded filename from state
 const fileName = computed(() => {
-  const file = props.uploader.state.uploadedThumbnailFile;
+  const file = props?.uploader?.state?.uploadedThumbnailFile;
   return file ? file.name : null;
 });
 

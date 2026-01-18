@@ -3,12 +3,12 @@ import NotificationCard from '@/components/dev/card/notification/NotificationCar
 import CheckboxSwitch from '@/components/dev/checkbox/CheckboxSwitch.vue';
 import BaseInput from '@/components/dev/input/BaseInput.vue';
 import { computed, onMounted, ref } from 'vue';
-import Quill from 'quill';
-import 'quill/dist/quill.snow.css'; 
 import BasePlanDropdown from './HelperComponents/BasePlanDropdown.vue';
 import BaseTooltip from './HelperComponents/BaseTooltip.vue';
 import CheckboxGroup from '../../form/checkbox/CheckboxGroup.vue';
 import InputDefaultComponent from '@/components/dev/input/InputDefaultComponent.vue';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css'; 
 
 const props = defineProps({
   publishFlow: {
