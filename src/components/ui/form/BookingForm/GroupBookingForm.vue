@@ -4,8 +4,8 @@ import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWra
 import { createStepStateEngine } from "@/utils/stateEngine.js"; // Adjust path if needed
 
 // Import Steps
-import OneOnOneBookinStep1 from "./OneOnOneBookinStep1.vue";
-import OneOnOneBookinStep2 from "./OneOnOneBookinStep2.vue";
+import GroupBookingStep1 from "./GroupBookingStep1.vue";
+import GroupBookingStep2 from "./GroupBookingStep2.vue";
 
 // Initialize State Engine
 const bookingFlow = createStepStateEngine({
@@ -34,24 +34,24 @@ onMounted(() => {
 
 <template>
   <DashboardWrapperTwoColContainer>
-    <div class="flex flex-col gap-6 relative w-full md:w-[550px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl">
+    <div class="flex flex-col gap-6  relative w-full md:w-[550px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl">
       
       <div class="px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center">
         <div class="justify-start text-slate-700 text-base font-semibold leading-6">
-          1 on 1 Call Booking Schedule
+          Group Event
         </div>
         <div class="w-2.5 h-2.5 relative overflow-hidden">
           <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="" />
         </div>
       </div>
 
-      <div class="w-full">
-        <OneOnOneBookinStep1 
+      <div class="w-full ">
+        <GroupBookingStep1 
           v-if="currentStep === 1" 
           :engine="bookingFlow" 
         />
 
-        <OneOnOneBookinStep2 
+        <GroupBookingStep2 
           v-if="currentStep === 2" 
           :engine="bookingFlow" 
         />

@@ -4,8 +4,8 @@
       {{ wrapperLabel }}
     </label>
 
-    <div class="flex items-center gap-4">
-      <label :class="['relative inline-block', switchWrapperClass || 'w-8 h-4']">
+    <div class="flex gap-4">
+      <label :class="['relative inline-block mt-1', switchWrapperClass || 'w-8 h-4 ']">
         <input
           type="checkbox"
           class="peer h-0 w-0 opacity-0"

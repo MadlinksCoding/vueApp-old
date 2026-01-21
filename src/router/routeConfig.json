@@ -739,6 +739,10 @@
   "componentPath": "@/components/ui/form/BookingForm/OneOnOneBookingForm.vue"
   },
   {
+    "slug": "/groupBookingForm",
+  "componentPath": "@/components/ui/form/BookingForm/GroupBookingForm.vue"
+  },
+  {
     "slug": "/",
     "redirect": "/log-in",
     "section": "auth",

@@ -1,10 +1,10 @@
 <template>
   <DashboardWrapperTwoColContainer>
     <div class="mb-10">
-      <div class="flex w-full gap-4">
+      <div class="flex w-full">
         
         <main-calendar
-          class="md:col-span-2 w-full"
+          class="md:col-span-2 w-full px-2"
           variant="default"
           :focus-date="state.focus"
           :events="events1"
@@ -23,7 +23,7 @@
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div class="text-[10px]" v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
 
@@ -31,7 +31,7 @@
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
 
@@ -39,7 +39,7 @@
             <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="opacity-90">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
 
@@ -47,12 +47,12 @@
             <div class="absolute py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
                  :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="text-[0.6875rem]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div v-if="view !== 'month'" class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
         </main-calendar>
 
-        <div class=" flex-col gap-[16px] hidden lg:flex">
+        <div class=" flex-col gap-[16px] hidden lg:flex px-[24px]">
             <mini-calendar
             class="md:col-span-1 "
             :month-date="state.focus"
@@ -79,7 +79,7 @@
          @reply-click="handleReply"
       />
    </div>
-    </div>
+        </div>
       </div>
     </div>
 
@@ -186,15 +186,19 @@ export default {
     // --- THEME 1 ---
     const theme1 = {
       mini: {
-        wrapper: 'flex flex-col w-full items-center font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
-        header: 'font-semibold',
-        dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500',
-        outside: 'opacity-0',
-        expired: 'opacity-100',
-        today: 'bg-gray-500 font-semibold text-white',
-        selected: 'rounded-full',
-        dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
-      },
+    wrapper: 'flex flex-col w-full items-center font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
+    header: 'font-semibold',
+    
+    // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
+    // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
+    dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+    
+    outside: 'opacity-0',
+    expired: 'opacity-100',
+    today: 'bg-gray-500 font-semibold text-white',
+    selected: 'rounded-full',
+    dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
+},
       main: {
         wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
         title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
@@ -202,7 +206,7 @@ export default {
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px]',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
-        axisYRow: 'h-[62.62px] text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
+        axisYRow: 'h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
         colBase: 'relative bg-white/20 overflow-hidden',
         gridRow: 'h-[62.61px] border-b  border-white/50',
         eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
@@ -230,7 +234,7 @@ export default {
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] text-slate-400 text-[11px] font-medium leading-4 pt-1',
+        axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[11px] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
         gridRow: 'h-[62.61px] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
@@ -279,7 +283,7 @@ export default {
         showJoin: true,
         statusText: 'in 5 min',
         // WORKING IMAGE URL
-        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }] 
+        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }] 
       },
       {
         time: '2:15pm-9:30pm',
@@ -289,7 +293,7 @@ export default {
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
         showJoin: false,
         // WORKING IMAGE URL
-        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
       }
     ]
   },
@@ -306,9 +310,9 @@ export default {
         isGroup: true,
         groupText: 'Mangoes, Apples and 30+',
         avatars: [
-          { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=faces' },
-          { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces' },
-          { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces' }
+          { src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png' },
+          { src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png' },
+          { src: 'https://i.ibb.co/0VQJ0swt/Vector.png' }
         ]
       },
       {
@@ -318,7 +322,7 @@ export default {
         titleColorClass: 'text-lightViolet',
         borderClass: 'bg-lightViolet',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
       }
     ]
   },
@@ -333,7 +337,7 @@ export default {
         borderClass: 'bg-customDarkGrey',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
         showReply: true,
-        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }]
+        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
       },
       {
         dayName: 'SAT',
@@ -343,7 +347,7 @@ export default {
         borderClass: 'bg-customDarkGrey',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
         showReply: true,
-        avatars: [{ src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&crop=faces', name: 'Grapes' }]
+        avatars: [{ src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png', name: 'Grapes' }]
       }
     ]
   }

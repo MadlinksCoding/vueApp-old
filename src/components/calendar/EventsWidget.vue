@@ -39,7 +39,7 @@
               
               <template v-if="!event.isGroup">
                 <img 
-                  class="z-[30] w-4 rounded-full h-4 object-cover object-center mask-mango shrink-0"
+                  class="z-[30] w-5 h-5 object-cover object-center mask-mango shrink-0"
                   :src="event.avatars[0].src"
                   alt="Avatar"
                 />
@@ -71,7 +71,7 @@
             
           </span>
 
-          <div class="flex items-center gap-[0.25rem] shrink-0">
+          <div class="flex  gap-[0.25rem] shrink-0">
             
             <div v-if="event.showJoin" class="flex flex-col items-end justify-between w-[5.4375rem]">
               <span class="flex items-center gap-[0.25rem]">
@@ -81,7 +81,7 @@
 
               <button 
                 @click="$emit('join-click', event)" 
-                class="flex items-center outline-none justify-between w-full px-[0.1875rem] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
+                class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
               >
                 <span class="w-[1rem] h-[1rem]">
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">

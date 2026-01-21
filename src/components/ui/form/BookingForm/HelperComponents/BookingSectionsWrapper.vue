@@ -6,7 +6,7 @@
     </div>
 
     <!-- Title + Body + Optional Accordion Icon -->
-    <div class="flex w-full justify-between">
+    <div class="flex w-full relative">
       <div class='w-full'>
         <div class="flex gap-2">
           <div
@@ -24,7 +24,7 @@
       </div>
 
       <!-- Optional Accordion Icon -->
-      <div v-if="accordionIcon" class="cursor-pointer"
+      <div v-if="accordionIcon" class="cursor-pointer absolute top-0 right-0"
       @click="$emit('toggle')">
         <img :src="accordionIcon" alt="accordion icon" />
       </div>

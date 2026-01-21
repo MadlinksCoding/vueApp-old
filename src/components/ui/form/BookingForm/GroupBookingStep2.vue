@@ -44,99 +44,6 @@ const publishSchedule = () => {
     </div>
 
     <BookingSectionsWrapper
-      title="Additional Request"
-      leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
-      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png"
-      :is-open="sectionsState.additionalRequest"
-      @toggle="toggleSection('additionalRequest')"
-    >
-      <div
-        v-show="sectionsState.additionalRequest"
-        class="inline-flex flex-col gap-5 w-full mt-5"
-      >
-        <div class="flex flex-col justify-center items-start gap-1">
-          <div class="flex gap-2">
-            <CheckboxGroup
-              label="Allow fan record the session"
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-              wrapperClass="flex items-center gap-2 mb-3"
-            />
-            <div class="mt-[2px]">
-              <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-            </div>
-          </div>
-          <div class="inline-flex gap-2">
-            <div class="w-6" />
-            <div class="opacity-50 inline-flex flex-col">
-              <div class="inline-flex justify-end items-center gap-2">
-                <BaseInput
-                  type="number"
-                  placeholder="15"
-                  v-model="duration"
-                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                />
-                <div
-                  class="justify-center text-slate-700 text-base font-normal leading-normal"
-                >
-                  Tokens
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="flex flex-col justify-center items-start gap-3">
-          <div class="flex flex-col justify-center items-start gap-1">
-            <div class="flex gap-2">
-              <CheckboxGroup
-                label="Allow personal request"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3"
-              />
-              <div class="mt-[2px]">
-                <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-              </div>
-            </div>
-            <div class="h-10 inline-flex justify-start items-center gap-2">
-              <div class="w-6" />
-              <div class="flex-1 inline-flex flex-col">
-                <div class="inline-flex justify-end items-center gap-2">
-                  <div
-                    class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal"
-                  >
-                    Let user add personal request in their booking
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="flex flex-col gap-4">
-          <div
-            class="justify-start text-gray-900 text-base font-normal leading-normal"
-          >
-            Customise your event with add-on service like offer to wear
-            different outfits and do different actions in the call.
-          </div>
-
-          <ButtonComponent
-        text="add-on service"
-        variant="none"
-        customClass="group bg-gray-900 flex justify-center items-center gap-2 min-w-14 px-2 py-1
-        text-center justify-start text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-        :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
-        :leftIconClass="`
-        w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]
-        rounded-sm  outline outline-[1.50px] outline-offset-[-0.75px] `"
-        />
-        </div>
-      </div>
-    </BookingSectionsWrapper>
-
-    <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
-
-    <BookingSectionsWrapper
       title="Audience Settings"
       leftIcon="https://i.ibb.co/5hNw0yjJ/Icon.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png"
@@ -152,7 +59,7 @@ const publishSchedule = () => {
             <div
               class="justify-start text-slate-700 text-base font-normal leading-normal"
             >
-              Who can book a call?
+              Who can join this event?
             </div>
             <div
               class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex"
@@ -161,31 +68,31 @@ const publishSchedule = () => {
             </div>
           </div>
         </div>
+        
         <div class="flex flex-col gap-3">
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-3">
+            
             <div class="inline-flex justify-start items-center gap-1">
               <div class="text-slate-700 text-base font-normal leading-normal">
                 Spending requirement
               </div>
               <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
             </div>
-            <div
-              class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300"
-            >
-              Todo
+
+            <div class="flex gap-[2px] items-center"> 
+                <div class="border border-blue-600 w-3.5 h-3.5 rounded-sm text-xs flex justify-center items-center text-blue-600">
+                    +
+                </div>
+                <div class="text-blue-600 text-sm font-medium">
+                    Add
+                </div>
             </div>
+          
           </div>
-          <ButtonComponent
-        text="add-on service"
-        variant="none"
-        customClass="group bg-gray-900 flex justify-center items-center gap-2 min-w-14 px-2 py-1
-        text-center justify-start text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-        :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
-        :leftIconClass="`
-        w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]
-       `"
-        />
+        
         </div>
+
+
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
             <div
@@ -212,7 +119,7 @@ const publishSchedule = () => {
     <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
     <BookingSectionsWrapper
-      title="Co-performer"
+      title="Collaborator"
       leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png"
       :is-open="sectionsState.coPerformer"
@@ -254,7 +161,7 @@ const publishSchedule = () => {
             </div>
           </div>
 
-          <div class="inline-flex gap-2  justify-between">
+          <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch
               v-model="isChecked"
               label="Post to X when a booking is received"
@@ -290,7 +197,7 @@ const publishSchedule = () => {
             </div>
           </div>
         
-          <div class="inline-flex gap-2 justify-between w-full">
+          <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch
               v-model="isChecked"
               label="Post to X when someone made a purchase in a session"

@@ -14,7 +14,6 @@
             <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <!-- mobile-view-end-->
-
          </div>
         <button class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
           <p class="font-medium text-[14px] text-pink-500">Today</p>
@@ -34,21 +33,28 @@
     
     <div 
       @click="toggleDropdown"
-      class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between bg-gradient-to-l from-pink-500/20 to-pink-500/10 cursor-pointer select-none hover:bg-pink-400/20 transition-colors"
+      class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between bg-[#000] cursor-pointer select-none transition-colors"
     >
       <span class="flex items-center justify-center h-full">
-        <h2 class="text-[0.875rem] font-medium text-black">All Events</h2>
+        <h2 class="text-[0.875rem] font-medium text-[#FFFFFF]">All Events</h2>
         <p class="text-[10px] text-pink-500 font-medium h-full ml-1">20</p>
       </span>
       
       <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200" :class="{ 'rotate-180': isDropdownOpen }">
         <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <path
+          d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
+          fill="white"
+          stroke="white"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
       </button>
     </div>
 
-    <div 
+    <div
       v-if="isDropdownOpen"
       class="absolute top-full left-0 mt-2 z-50 origin-top-left"
     >
@@ -57,11 +63,40 @@
 
         </div>
         
-        <span class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
-          <button class="text-[0.875rem] text-pink-400/80 w-[4.5rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('day')">Day</button>
-          <button class="text-[0.875rem] text-white w-[4.5rem] font-semibold px-[1rem] py-[0.5rem] leading-[1.25rem] bg-pink-400/80 rounded-[3rem]" @click="setView('week')">Week</button>
-          <button class="text-[0.875rem] text-pink-400/80 w-[4.875rem] font-bold px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem]" @click="setView('month')">Month</button>
-        </span>
+       <span class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+        
+        <button
+          @click="setView('day')"
+          class="w-[4.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+          :class="view === 'day'
+            ? 'bg-pink-400/80 text-white'
+            : 'text-pink-400/80'"
+        >
+          Day
+        </button>
+
+        <button
+          @click="setView('week')"
+          class="w-[4.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
+          :class="view === 'week'
+            ? 'bg-pink-400/80 text-white'
+            : 'text-pink-400/80'"
+        >
+          Week
+        </button>
+
+        <button
+          @click="setView('month')"
+          class="w-[4.875rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+          :class="view === 'month'
+            ? 'bg-pink-400/80 text-white'
+            : 'text-pink-400/80'"
+        >
+          Month
+        </button>
+
+      </span>
+
 
         <!-- mobile-view-today-button -->
           <button class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50" @click="goToday" data-main-today>
@@ -163,10 +198,10 @@
           </div>
         </div>
 
-        <span class="grid w-full relative rounded-md overflow-hidden" :class="[effectiveView==='day' ? 'grid-cols-1' : 'grid-cols-7']">
+        <span class="grid w-full relative rounded-md overflow-hidden " :class="[effectiveView==='day' ? 'grid-cols-1' : 'grid-cols-7']">
           <div v-for="(d,idx) in days" :key="'col-'+idx"
                :data-date="d.toISOString().slice(0,10)"
-               :data-expired="sd(d)<today?'true':'false'"
+               :data-expired="sd(d)<today?'true':'false'" 
                :class="theme.main.colBase"
                @click.self="emitDate(d)">
 
@@ -174,10 +209,10 @@
               <div v-for="i in range.rowCount" :key="'grid-'+i" :class="theme.main.gridRow"></div>
             </div>
             
-            <div v-if="sameDay(d, today)"
+            <!-- <div v-if="sameDay(d, today)"
                  class="absolute z-[20] left-0 right-0 border-b-2 border-brand-pink pointer-events-none"
                  :style="{ top: nowY + '%' }"
-                 data-now-line="true"></div>
+                 data-now-line="true"></div> -->
 
             <div class="relative z-[0]" data-cal-scroll
                  :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
@@ -374,15 +409,15 @@ const calendarPopupConfig = {
 const newEventsPopupConfig = {
   actionType: "slidein",
   from: "right",
-  offset: "0px",       // Right side se thora gap
-  verticalAlign: "bottom", // <--- NEW: Ye batayega ke bottom par rehna hai
-  width: { default: "auto" }, // Width content ke hisaab se (ya fixed "384px")
-  height: { default: "auto" }, // Height auto (Content ke hisaab se)
+  offset: "0px",
+  verticalAlign: "bottom", 
+  width: { default: "auto" }, 
+  height: { default: "auto" }, 
   speed: "300ms",
   effect: "ease-in-out",
-  showOverlay: false,   // Overlay off karein taake user baki page use kar sake
+  showOverlay: false,   
   closeOnOutside: true,
-  lockScroll: false,    // Scroll lock na karein
+  lockScroll: false,
 };
 
 const eventsData = ref([
@@ -398,7 +433,7 @@ const eventsData = ref([
         showJoin: true,
         statusText: 'in 5 min',
         // WORKING IMAGE URL
-        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }] 
+        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }] 
       },
       {
         time: '2:15pm-9:30pm',
@@ -408,7 +443,7 @@ const eventsData = ref([
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
         showJoin: false,
         // WORKING IMAGE URL
-        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
       }
     ]
   },
@@ -425,9 +460,9 @@ const eventsData = ref([
         isGroup: true,
         groupText: 'Mangoes, Apples and 30+',
         avatars: [
-          { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=faces' },
-          { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces' },
-          { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces' }
+          { src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png' },
+          { src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png' },
+          { src: 'https://i.ibb.co/0VQJ0swt/Vector.png' }
         ]
       },
       {
@@ -437,7 +472,7 @@ const eventsData = ref([
         titleColorClass: 'text-lightViolet',
         borderClass: 'bg-lightViolet',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        avatars: [{ src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces', name: 'Mangoes' }]
+        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
       }
     ]
   },
@@ -452,7 +487,7 @@ const eventsData = ref([
         borderClass: 'bg-customDarkGrey',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
         showReply: true,
-        avatars: [{ src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces', name: 'Apples' }]
+        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
       },
       {
         dayName: 'SAT',
@@ -462,7 +497,7 @@ const eventsData = ref([
         borderClass: 'bg-customDarkGrey',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
         showReply: true,
-        avatars: [{ src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&crop=faces', name: 'Grapes' }]
+        avatars: [{ src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png', name: 'Grapes' }]
       }
     ]
   }
@@ -582,7 +617,7 @@ const styleBlock = (ev) => {
   const rowsHeight = (clippedEnd - clippedStart) / step;
   const topPx = rowsFromTop * props.rowHeightPx;
   const heightPx = Math.max(props.minEventHeightPx, rowsHeight * props.rowHeightPx);
-  return `top:${topPx}px;height:${heightPx}px;left:0;right:0;`;
+  return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
 };
 const setView = (v) => { view.value = v; };
 const shift = (n) => {
