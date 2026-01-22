@@ -42,6 +42,7 @@ const publishSchedule = () => {
       <img src="https://i.ibb.co/CsWd11xX/Icon-2.png" alt="" />
       <div class="text-[12px] font-medium">Back</div>
     </div>
+    
 
     <BookingSectionsWrapper
       title="Additional Request"
@@ -244,7 +245,7 @@ const publishSchedule = () => {
    
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch
-              v-model="isChecked"
+              v-model="scheduleLive"
               label="Post to X when my booking schedule is live"
               version="dashboard"
               wrapper-label="Dark Mode"
@@ -256,7 +257,7 @@ const publishSchedule = () => {
 
           <div class="inline-flex gap-2  justify-between">
             <CheckboxSwitch
-              v-model="isChecked"
+              v-model="bookingReceived"
               label="Post to X when a booking is received"
               version="dashboard"
               wrapper-label="Dark Mode"
@@ -268,7 +269,7 @@ const publishSchedule = () => {
 
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch
-              v-model="isChecked"
+              v-model="session"
               label="Post to X when I am in a session"
               version="dashboard"
               wrapper-label="Dark Mode"
@@ -280,7 +281,7 @@ const publishSchedule = () => {
         
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch
-              v-model="isChecked"
+              v-model="tippedSession"
               label="Post to X when I am tipped in a session"
               version="dashboard"
               wrapper-label="Dark Mode"
@@ -292,7 +293,7 @@ const publishSchedule = () => {
         
           <div class="inline-flex gap-2 justify-between w-full">
             <CheckboxSwitch
-              v-model="isChecked"
+              v-model="purchaseSession"
               label="Post to X when someone made a purchase in a session"
               version="dashboard"
               wrapper-label="Dark Mode"
@@ -306,18 +307,18 @@ const publishSchedule = () => {
 
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
-    <div class="absolute right-0 bottom-0">
-      <ButtonComponent
-        @click="publishSchedule"
-        text="PUBLISH SCHEDULE"
-        variant="polygonLeft"
-        :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'"
-        :leftIconClass="`
-          w-6 h-6 transition duration-200
-          filter brightness-0
-          group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]
-        `"
-      />
-    </div>
+  </div>
+  <div class="absolute right-0 bottom-0">
+    <ButtonComponent
+      @click="publishSchedule"
+      text="PUBLISH SCHEDULE"
+      variant="polygonLeft"
+      :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'"
+      :leftIconClass="`
+        w-6 h-6 transition duration-200
+        filter brightness-0
+        group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]
+      `"
+    />
   </div>
 </template>

@@ -64,6 +64,53 @@
       editor.classList.add('!px-0', '!py-2', '!text-[#101828]', 'dark:!text-[#dbd8d3]', 'min-h-[80px]');
     }
   });
+
+  // Configuration for each day row
+const weekDays = ref([
+  { 
+    name: 'Sun', 
+    unavailable: true, 
+    icons: ['https://i.ibb.co/7J7qwz6H/Icon-3.png']
+  },
+  { 
+    name: 'Mon', 
+    slots: [1], // 1 Slot
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
+  },
+  { 
+    name: 'Tue', 
+    slots: [1, 2], // 3 Slots (Tuesday wapis 3 rows mein ayega)
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
+  },
+  { 
+    name: 'Wed', 
+    slots: [1], 
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
+  },
+  { 
+    name: 'Thu', 
+    slots: [1], 
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
+  },
+  { 
+    name: 'Fri', 
+    slots: [1], 
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/TqB49zLj/cloud-moon.png']
+  },
+  { 
+    name: 'Sat', 
+    slots: [1], 
+    icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/TqB49zLj/cloud-moon.png']
+  }
+]);
+
+// Helper to get tooltip text based on Icon Index (0, 1, 2)
+const getTooltipText = (index) => {
+  if (index === 0) return "Remove availability";
+  if (index === 1) return "Add another period to this day";
+  if (index === 2) return "Mark as off hours";
+  return "";
+};
   </script>
 
   <template>
@@ -276,6 +323,7 @@
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3"
+                  midImg="https://i.ibb.co/G418dSPz/Icon.png"
                 />
 
                 <div class="mt-[2px]">
@@ -488,10 +536,12 @@
                         From
                       </div>
                     </div>
+
                     <div class="w-4 h-4 relative" />
                   </div>
                 </div>
               </div>
+              
               <div
                 class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
               >
@@ -516,369 +566,87 @@
               </div>
             </div>
           </div>
+
+          
           <div class="flex flex-col gap-4 w-full">
-            <div
-              class="self-stretch min-h-10 inline-flex justify-start items-center gap-3"
+    
+          <div 
+            v-for="(day, index) in weekDays" 
+            :key="index" 
+            class="self-stretch inline-flex justify-start items-start gap-1"
+            :class="{ 'items-center min-h-10 gap-3': day.unavailable }" 
+          >
+            
+            <div 
+              class="justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
+              :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center justify-center'"
             >
-              <div
-                class="w-12 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Sun
-              </div>
-              <div
-                class="flex-1 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
+              {{ day.name }}
+            </div>
+
+            <template v-if="day.unavailable">
+              <div class="flex-1 justify-start text-gray-500 text-base font-normal leading-normal">
                 Not Available
               </div>
-              <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-            </div>
-            <div
-              class="self-stretch inline-flex justify-start items-center gap-1"
-            >
-              <div
-                class="w-10 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Mon
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                >
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                  >
-                    <div
-                      class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                    >
-                      Todo
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-              >
-                -
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                >
-                  <div
-                    class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    Todo
-                  </div>
-                </div>
-              </div>
-              <div class="pl-1 flex justify-start items-center gap-2">
-                <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                <img src="https://i.ibb.co/xqh8KkBk/Icon-1.png" alt="" />
-              </div>
-            </div>
-            <div class="self-stretch inline-flex justify-start items-start gap-1">
-              <div
-                class="w-10 h-10 justify-center text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Tue
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-center items-start gap-1"
-              >
-                <div
+              <img v-if="day.icons" :src="day.icons[0]" alt="" class="w-5 h-5 object-contain" /> 
+            </template>
+
+            <template v-else>
+              <div class="flex-1 inline-flex flex-col justify-center items-start gap-1">
+                
+                <div 
+                  v-for="(slot, sIdx) in day.slots" 
+                  :key="sIdx"
                   class="self-stretch inline-flex justify-start items-center gap-1"
                 >
-                  <div
-                    class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-                  >
-                    <div
-                      class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                    >
-                      <div
-                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                      >
-                        <div
-                          class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                        >
+                  
+                  <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                    <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
+                      <div class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
+                        <div class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
                           Todo
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-                  >
+
+                  <div class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal">
                     -
                   </div>
-                  <div
-                    class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-                  >
-                    <div
-                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                    >
-                      <div
-                        class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                      >
+
+                  <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                    <div class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
+                      <div class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
                         Todo
                       </div>
                     </div>
                   </div>
+
                   <div class="pl-1 flex justify-start items-center gap-2">
-                    <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                    <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                    <img src="https://i.ibb.co/xqh8KkBk/Icon-1.png" alt="" />
-                  </div>
-                </div>
-                <div
-                  class="self-stretch inline-flex justify-start items-center gap-1"
-                >
-                  <div
-                    class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-                  >
-                    <div
-                      class="self-stretch flex flex-col justify-start items-start gap-1.5"
+                    <div 
+                      v-for="(icon, iIdx) in day.icons" 
+                      :key="iIdx"
+                      class="group relative flex justify-center items-center cursor-pointer"
                     >
-                      <div
-                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
+                      <img :src="icon" alt="icon" />
+
+                      <div 
+                        class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center whitespace-nowrap z-50"
                       >
-                        <div
-                          class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                        >
-                          Todo
+                        <div class="bg-zinc-700/90 text-white text-xs font-medium py-1 px-2 rounded shadow-lg">
+                          {{ getTooltipText(iIdx) }}
                         </div>
+                        <div class="w-2 h-2 bg-slate-700 rotate-45 -mt-1"></div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-                  >
-                    -
-                  </div>
-                  <div
-                    class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-                  >
-                    <div
-                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                    >
-                      <div
-                        class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                      >
-                        Todo
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    class="pl-1 relative flex justify-start items-center gap-2"
-                  >
-                    <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                    <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                    <img src="https://i.ibb.co/xqh8KkBk/Icon-1.png" alt="" />
-                  </div>
+
                 </div>
-              </div>
-            </div>
-            <div
-              class="self-stretch inline-flex justify-start items-center gap-1"
-            >
-              <div
-                class="w-10 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Wed
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                >
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                  >
-                    <div
-                      class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                    >
-                      Todo
-                    </div>
-                  </div>
                 </div>
-              </div>
-              <div
-                class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-              >
-                -
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                >
-                  <div
-                    class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    Todo
-                  </div>
-                </div>
-              </div>
-              <div class="pl-1 flex justify-start items-center gap-2">
-                <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                <img src="https://i.ibb.co/xqh8KkBk/Icon-1.png" alt="" />
-              </div>
-            </div>
-            <div
-              class="self-stretch inline-flex justify-start items-center gap-1"
-            >
-              <div
-                class="w-10 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Thu
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                >
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                  >
-                    <div
-                      class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                    >
-                      Todo
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-              >
-                -
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                >
-                  <div
-                    class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    Todo
-                  </div>
-                </div>
-              </div>
-              <div class="pl-1 relative flex justify-start items-center gap-2">
-                <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                <img src="https://i.ibb.co/xqh8KkBk/Icon-1.png" alt="" />
-              </div>
-            </div>
-            <div
-              class="self-stretch inline-flex justify-start items-center gap-1"
-            >
-              <div
-                class="w-10 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Fri
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                >
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                  >
-                    <div
-                      class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                    >
-                      Todo
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-              >
-                -
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                >
-                  <div
-                    class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    Todo
-                  </div>
-                </div>
-              </div>
-              <div class="pl-1 flex justify-start items-center gap-2">
-                <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                <img src="https://i.ibb.co/TqB49zLj/cloud-moon.png" alt="" />
-              </div>
-            </div>
-            <div
-              class="self-stretch inline-flex justify-start items-center gap-1"
-            >
-              <div
-                class="w-10 justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-              >
-                Sat
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch flex flex-col justify-start items-start gap-1.5"
-                >
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                  >
-                    <div
-                      class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                    >
-                      Todo
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal"
-              >
-                -
-              </div>
-              <div
-                class="flex-1 inline-flex flex-col justify-start items-start gap-1.5"
-              >
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start"
-                >
-                  <div
-                    class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    Todo
-                  </div>
-                </div>
-              </div>
-              <div class="pl-1 relative flex justify-start items-center gap-2">
-                <img src="https://i.ibb.co/3yZjgcNV/Icon.png" alt="" />
-                <img src="https://i.ibb.co/7J7qwz6H/Icon-3.png" alt="" />
-                <img src="https://i.ibb.co/TqB49zLj/cloud-moon.png" alt="" />
-              </div>
-            </div>
+            </template>
+
           </div>
+        </div>
         </div>
       </BookingSectionsWrapper>
 
@@ -910,7 +678,11 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch inline-flex justify-start items-center gap-1"><div class="justify-start text-slate-700 text-base font-normal leading-normal">Fan can request to extend session in call</div><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div>
+              <div class="self-stretch inline-flex justify-start items-center gap-1">
+                <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+                  Fan can request to extend session in call</div>
+                  <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+                </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45" labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
                 <div class="opacity-50 flex justify-start items-end gap-2">
@@ -950,7 +722,7 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-              <div class="flex gap-2 items-center">
+              <div class="flex gap-2">
                 <CheckboxGroup label="Set buffer time between booked appointments" checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45" labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
                 <div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div>
               </div>
@@ -967,7 +739,7 @@
             </div>
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <div class="self-stretch flex flex-col justify-center items-start gap-1">
-                <div class="flex gap-2 items-center"><CheckboxGroup label="If booking slots are full, allow fans to join waitlist" checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45" labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" /><div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div></div>
+                <div class="flex gap-2"><CheckboxGroup label="If booking slots are full, allow fans to join waitlist" checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45" labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" /><div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div></div>
                 <div class="self-stretch inline-flex justify-start items-start gap-2"><div class="w-6 h-10" /><div class="opacity-50 inline-flex flex-col justify-start items-start"><div class="inline-flex justify-end items-center gap-2"><BaseInput type="number" placeholder="15" v-model="duration" inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" /><div class="justify-center text-slate-700 text-base font-normal leading-normal">waitlist spots</div></div></div></div>
               </div>
             </div>

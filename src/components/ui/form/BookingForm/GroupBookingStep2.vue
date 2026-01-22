@@ -196,6 +196,7 @@ const publishSchedule = () => {
               <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          
         
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch

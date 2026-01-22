@@ -9,6 +9,8 @@
         :class="checkboxClass"
         @change="$emit('update:modelValue', $event.target.checked)"
       />
+
+      <img v-if="midImg" :src="midImg" alt="">
       
       <span :class="labelClass">
         <slot>
@@ -47,7 +49,8 @@ export default {
     labelClass: { type: String, default: "" },
     wrapperClass: { type: String, default: "" },
     tags: { type: Array, default: () => [] },
-    metaText: { type: String, default: "" } 
+    metaText: { type: String, default: "" } ,
+    midImg: { type: String, default: "" }
   },
   emits: ["update:modelValue"],
 };

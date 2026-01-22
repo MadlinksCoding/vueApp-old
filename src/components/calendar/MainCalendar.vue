@@ -126,7 +126,7 @@
       </div>
     </div>
 
-    <div v-else-if="variant === 'theme2'" class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full px-1 mb-[3rem]">
+    <div v-else-if="variant === 'theme2'" class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem]">
       
       <div class="flex items-center gap-[11px] order-1">
         <div class="font-bold" :class="theme.main.title">{{ title }}</div>
@@ -145,12 +145,12 @@
             label="Show existing events/booking schedule"
             v-model="showSchedule"
             checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
-            labelClass="text-xs sm:text-sm leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
+            labelClass="text-xs sm:text-[12px] leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
             wrapperClass="flex items-center"
           />
       </div>
 
-      <button class="px-6 py-2.5 rounded-full border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
+      <button class="px-2 py-2.5 rounded-full border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
         Preview booking schedule
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
       </button>

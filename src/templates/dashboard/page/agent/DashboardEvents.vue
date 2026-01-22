@@ -83,12 +83,12 @@
       </div>
     </div>
 
-    <hr class="border-gray-300 my-8"/>
+    <!-- <hr class="border-gray-300 my-8"/>
 
     <div>
       <div class="flex w-full">
         
-        <main-calendar
+        <MainCalendar
           class="w-full"
           variant="theme2"
           :focus-date="state.focus"
@@ -150,127 +150,115 @@
             </div>
           </template>
 
-        </main-calendar>
+        </MainCalendar>
       </div>
-    </div>
+    </div> -->
   
   </DashboardWrapperTwoColContainer>
 </template>
 
-<script>
+<script setup>
 import { hhmm } from '@/utils/calendarHelpers.js';
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import MainCalendar from '@/components/calendar/MainCalendar.vue';
 import DashboardWrapperTwoColContainer from '@/components/dashboard/DashboardWrapperTwoColContainer.vue';
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
 import EventsWidget from '@/components/calendar/EventsWidget.vue';
-import { ref } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 
-export default {
-  components: { MiniCalendar, MainCalendar, DashboardWrapperTwoColContainer ,ButtonComponent,EventsWidget},
-  data() {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
+const now = new Date();
+const y = now.getFullYear();
+const m = now.getMonth();
 
-    // CHANGE: Helper to generate ISO Strings (JSON format)
-    // Example output: "2026-01-14T10:00:00"
-    const getIsoString = (dayOfMonth, hour, minute) => {
-        const d = new Date(y, m, dayOfMonth, hour, minute);
-        // Using sv-SE locale hack to get YYYY-MM-DD format, or just constructing it manually
-        // Simple manual construction to ensure local time ISO format:
-        const pad = (n) => n.toString().padStart(2, '0');
-        return `${y}-${pad(m + 1)}-${pad(dayOfMonth)}T${pad(hour)}:${pad(minute)}:00`;
-    };
+// CHANGE: Helper to generate ISO Strings (JSON format)
+// Example output: "2026-01-14T10:00:00"
+const getIsoString = (dayOfMonth, hour, minute) => {
+  const pad = (n) => n.toString().padStart(2, '0');
+  return `${y}-${pad(m + 1)}-${pad(dayOfMonth)}T${pad(hour)}:${pad(minute)}:00`;
+};
 
-    // --- THEME 1 ---
-    const theme1 = {
-      mini: {
+// --- THEME 1 ---
+const theme1 = {
+  mini: {
     wrapper: 'flex flex-col w-full items-center font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
     header: 'font-semibold',
-    
     // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
     // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
     dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
-    
     outside: 'opacity-0',
     expired: 'opacity-100',
     today: 'bg-gray-500 font-semibold text-white',
     selected: 'rounded-full',
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
-},
-      main: {
-        wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
-        title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
-        xHeader: 'absolute text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] xl:top-[5rem] w-full',
-        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
-        axisXDay: 'py-1 text-center h-[63.92px]',
-        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
-        axisYRow: 'h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
-        colBase: 'relative bg-white/20 overflow-hidden',
-        gridRow: 'h-[62.61px] border-b  border-white/50',
-        eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
-      },
-     month: {
-        weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
-        // 1. Added 'overflow-hidden' to cellBase so nothing spills out
-        cellBase: 'aspect-[1/1.1] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
-        outside: 'opacity-40',
-        today: 'border-2 border-emerald-500',
-        // 2. Added 'w-full' to ensure truncate works
-        // 3. Adjusted text size: 'text-[9px] sm:text-[11px]' for better mobile fit
-        // 4. Adjusted padding: 'px-1 sm:px-2' for mobile
-        cellEvent: 'w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
-      }
-    };
+  },
+  main: {
+    wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
+    title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
+    xHeader: 'absolute text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] xl:top-[5rem] w-full',
+    axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
+    axisXDay: 'py-1 text-center h-[63.92px]',
+    axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
+    axisYRow: 'h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
+    colBase: 'relative bg-white/20 overflow-hidden',
+    gridRow: 'h-[62.61px] border-b  border-white/50',
+    eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
+  },
+  month: {
+    weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
+    cellBase: 'aspect-[1/1.1] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
+    outside: 'opacity-40',
+    today: 'border-2 border-emerald-500',
+    cellEvent: 'w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
+  }
+};
 
-    // --- THEME 2 ---
-    const theme2 = {
-      mini: {},
-      main: {
-        wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
-        title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
-        xHeader: '', 
-        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
-        axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
-        axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[11px] font-medium leading-4 pt-1',
-        colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
-        gridRow: 'h-[62.61px] border-b border-white/50',
-        eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
-      },
-      month: {}
-    };
+// --- THEME 2 ---
+const theme2 = {
+  mini: {},
+  main: {
+    wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
+    title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
+    xHeader: '', 
+    axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
+    axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
+    axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
+    axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[11px] font-medium leading-4 pt-1',
+    colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
+    gridRow: 'h-[62.61px] border-b border-white/50',
+    eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
+  },
+  month: {}
+};
 
-    // --- DEMO 1 (Original Data - kept as Date Objects for backward compat check) ---
-    const events1 = [
-      { id: 'e1', title: 'Group Call1', start: new Date(y, m, 11, 15, 30), end: new Date(y, m,11, 17, 15), slot: 'custom' },
-      { id: 'e2', title: 'Live Call2', start: new Date(y, m, 12, 12, 0), end: new Date(y, m, 12, 14, 0), slot: 'alt' },
-      { id: 'e3', title: 'Live Call', start: new Date(y, m, 13, 6, 0), end: new Date(y, m, 13, 7, 0) },
-      { id: 'e4', title: 'Group Call', start: new Date(y, m, 14, 10, 0), end: new Date(y, m, 14, 16, 0), slot: 'custom2' },
-      { id: 'e4', title: 'Group Call', start: new Date(y, m, 15, 10, 0), end: new Date(y, m, 15, 16, 0), slot: 'custom2' },
-    ];
+// --- DEMO 1 (Original Data - kept as Date Objects for backward compat check) ---
+const events1 = ref([
+  { id: 'e1', title: 'Group Call1', start: new Date(y, m, 11, 15, 30), end: new Date(y, m,11, 17, 15), slot: 'custom' },
+  { id: 'e2', title: 'Live Call2', start: new Date(y, m, 12, 12, 0), end: new Date(y, m, 12, 14, 0), slot: 'alt' },
+  { id: 'e3', title: 'Live Call', start: new Date(y, m, 13, 6, 0), end: new Date(y, m, 13, 7, 0) },
+  { id: 'e4', title: 'Group Call', start: new Date(y, m, 14, 10, 0), end: new Date(y, m, 14, 16, 0), slot: 'custom2' },
+  { id: 'e4', title: 'Group Call', start: new Date(y, m, 15, 10, 0), end: new Date(y, m, 15, 16, 0), slot: 'custom2' },
+]);
 
-    // --- CHANGE: DEMO 2 (JSON Array Format) ---
-    // These start/end values are now ISO STRINGS, not Date objects.
-    const events2 = [
-      { id: 'e1', title: 'High School Life Simulator', start: getIsoString(11, 10, 0), end: getIsoString(11, 21, 0), slot: 'event' }, 
-      { id: 'e1-dup', title: 'Maid Cafe Simulator', start: getIsoString(11, 0, 0), end: getIsoString(11, 11, 0), slot: 'alt' }, 
-      { id: 'e2', title: 'Event Title', start: getIsoString(12, 0, 0), end: getIsoString(12, 4, 0), slot: 'custom' }, 
-      { id: 'e3', title: 'Maid Cafe Simulator', start: getIsoString(12, 1, 0), end: getIsoString(12, 11, 0), slot: 'alt' }, 
-      { id: 'e4', title: 'Event Title', start: getIsoString(13, 0, 0), end: getIsoString(13, 4, 0), slot: 'custom' }, 
-      { id: 'e5', title: 'Event Title', start: getIsoString(14, 22, 0), end: getIsoString(14, 23, 0), slot: 'custom' }, 
-      { id: 'e6', title: 'Maid Cafe Simulator', start: getIsoString(14, 0, 0), end: getIsoString(14, 4, 0), slot: 'alt' }, 
-      { id: 'e7', title: 'Event Title', start: getIsoString(15, 0, 0), end: getIsoString(15, 8, 0), slot: 'custom' }, 
-      { id: 'e8', title: 'Event Title', start: getIsoString(16, 2, 0), end: getIsoString(16, 8, 0), slot: 'custom' }, 
-      { id: 'e9', title: 'Maid Cafe Simulator', start: getIsoString(16, 0, 0), end: getIsoString(16, 21, 0), slot: 'alt' }, 
-      { id: 'e10', title: 'Event Title', start: getIsoString(17, 0, 0), end: getIsoString(17, 5, 0), slot: 'custom' }, 
-      { id: 'e11', title: 'Event Title', start: getIsoString(17, 22, 0), end: getIsoString(17, 23, 0), slot: 'custom' }, 
-      { id: '12', title: 'High School Life Simulator', start: getIsoString(17, 8, 0), end: getIsoString(17, 20, 0), slot: 'event' }, 
-      { id: 'e13', title: 'J&B’s Cooking show', start: getIsoString(13, 5, 0), end: getIsoString(13, 9, 0), slot: 'custom2' }, 
-    ];
+// --- CHANGE: DEMO 2 (JSON Array Format) ---
+// These start/end values are now ISO STRINGS, not Date objects.
+const events2 = ref([
+  { id: 'e1', title: 'High School Life Simulator', start: getIsoString(11, 10, 0), end: getIsoString(11, 21, 0), slot: 'event' }, 
+  { id: 'e1-dup', title: 'Maid Cafe Simulator', start: getIsoString(11, 0, 0), end: getIsoString(11, 11, 0), slot: 'alt' }, 
+  { id: 'e2', title: 'Event Title', start: getIsoString(12, 0, 0), end: getIsoString(12, 4, 0), slot: 'custom' }, 
+  { id: 'e3', title: 'Maid Cafe Simulator', start: getIsoString(12, 1, 0), end: getIsoString(12, 11, 0), slot: 'alt' }, 
+  { id: 'e4', title: 'Event Title', start: getIsoString(13, 0, 0), end: getIsoString(13, 4, 0), slot: 'custom' }, 
+  { id: 'e5', title: 'Event Title', start: getIsoString(14, 22, 0), end: getIsoString(14, 23, 0), slot: 'custom' }, 
+  { id: 'e6', title: 'Maid Cafe Simulator', start: getIsoString(14, 0, 0), end: getIsoString(14, 4, 0), slot: 'alt' }, 
+  { id: 'e7', title: 'Event Title', start: getIsoString(15, 0, 0), end: getIsoString(15, 8, 0), slot: 'custom' }, 
+  { id: 'e8', title: 'Event Title', start: getIsoString(16, 2, 0), end: getIsoString(16, 8, 0), slot: 'custom' }, 
+  { id: 'e9', title: 'Maid Cafe Simulator', start: getIsoString(16, 0, 0), end: getIsoString(16, 21, 0), slot: 'alt' }, 
+  { id: 'e10', title: 'Event Title', start: getIsoString(17, 0, 0), end: getIsoString(17, 5, 0), slot: 'custom' }, 
+  { id: 'e11', title: 'Event Title', start: getIsoString(17, 22, 0), end: getIsoString(17, 23, 0), slot: 'custom' }, 
+  { id: '12', title: 'High School Life Simulator', start: getIsoString(17, 8, 0), end: getIsoString(17, 20, 0), slot: 'event' }, 
+  { id: 'e13', title: 'J&B’s Cooking show', start: getIsoString(13, 5, 0), end: getIsoString(13, 9, 0), slot: 'custom2' }, 
+]);
 
-  const eventsData = ref([
+const eventsData = ref([
   {
     title: 'TODAY',
     items: [
@@ -282,7 +270,6 @@ export default {
         bgClass: 'bg-white', 
         showJoin: true,
         statusText: 'in 5 min',
-        // WORKING IMAGE URL
         avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }] 
       },
       {
@@ -292,7 +279,6 @@ export default {
         borderClass: 'bg-lightViolet',
         bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
         showJoin: false,
-        // WORKING IMAGE URL
         avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
       }
     ]
@@ -352,24 +338,30 @@ export default {
     ]
   }
 ]);
-    return { 
-      state: { focus: new Date(y, m, 23), selected: null, view: 'week' }, 
-      events1,
-      events2, // Now strictly JSON compatible array
-      theme1, 
-      theme2,
-      eventsData
-    };
-  },
-  methods: {
-    hhmm,
-    onSelectFromMini(date) { this.state.selected = new Date(date); this.state.focus = new Date(date); },
-    onSelectFromMain(date) { this.state.selected = new Date(date); }
-  },
-  mounted() {
-    document.addEventListener('calendar:event-click', (e) => {
-      console.log('[listener] event-click → event object:', e.detail.event);
-    });
-  }
+
+const state = reactive({
+  focus: new Date(y, m, 23),
+  selected: null,
+  view: 'week'
+});
+
+const onSelectFromMini = (date) => {
+  state.selected = new Date(date);
+  state.focus = new Date(date);
 };
+
+const onSelectFromMain = (date) => {
+  state.selected = new Date(date);
+};
+
+// Event click listener
+onMounted(() => {
+  document.addEventListener('calendar:event-click', (e) => {
+    console.log('[listener] event-click → event object:', e.detail.event);
+  });
+});
+
+// Helper stubs for EventsWidget
+const handleJoin = (item) => console.log('Join', item);
+const handleReply = (item) => console.log('Reply', item);
 </script>
