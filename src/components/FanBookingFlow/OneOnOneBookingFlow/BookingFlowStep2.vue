@@ -1,7 +1,7 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowHeader from '../HelperComponents/OneOnOneBookingFlowHeader.vue'; 
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { addMonths, monthNames } from '@/utils/calendarHelpers.js';
 
 const props = defineProps({
@@ -79,6 +79,29 @@ const addons = reactive([
 const selectedTime = ref(timeSlots[3]); 
 const selectedDurationObj = ref(durationOptions[0]); 
 
+// --- STATE PERSISTENCE (LOAD EXISTING DATA) ---
+onMounted(() => {
+  const existing = props.engine.getState('bookingDetails');
+  if (existing) {
+    if (existing.selectedDate) {
+      state.selected = new Date(existing.selectedDate);
+      state.focus = new Date(existing.selectedDate);
+    }
+    if (existing.selectedTime) {
+      selectedTime.value = timeSlots.find(s => s.value === existing.selectedTime.value) || timeSlots[3];
+    }
+    if (existing.selectedDuration) {
+      selectedDurationObj.value = durationOptions.find(d => d.value === existing.selectedDuration.value) || durationOptions[0];
+    }
+    if (existing.addons) {
+      existing.addons.forEach(savedAddon => {
+        const addon = addons.find(a => a.id === savedAddon.id);
+        if (addon) addon.selected = true;
+      });
+    }
+  }
+});
+
 const addMinutesToTime = (timeValue, minutesToAdd) => {
   if (!timeValue) return '';
   const [hours, minutes] = timeValue.split(':').map(Number);
@@ -115,59 +138,35 @@ const selectedDateDisplay = computed(() => {
   });
 });
 
-// --- NEW HEADER DATE LOGIC (Today/Tomorrow) ---
 const headerDateDisplay = computed(() => {
   if (!state.selected) return '';
-
   const selected = new Date(state.selected);
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
-
-  // Helper to compare dates without time
   const isSameDay = (d1, d2) => 
     d1.getDate() === d2.getDate() && 
     d1.getMonth() === d2.getMonth() && 
     d1.getFullYear() === d2.getFullYear();
 
   let prefix = '';
-  if (isSameDay(selected, today)) {
-    prefix = 'Today';
-  } else if (isSameDay(selected, tomorrow)) {
-    prefix = 'Tomorrow';
-  }
+  if (isSameDay(selected, today)) prefix = 'Today';
+  else if (isSameDay(selected, tomorrow)) prefix = 'Tomorrow';
 
-  const dateStr = selected.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
-
+  const dateStr = selected.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   return prefix ? `${prefix} ${dateStr}` : dateStr;
 });
 
 const totalPrice = computed(() => {
   if (!state.selected) return 0;
-
   const basePrice = selectedDurationObj.value.price;
-  const addonsPrice = addons.reduce((sum, item) => {
-    return item.selected ? sum + item.price : sum;
-  }, 0);
-  
+  const addonsPrice = addons.reduce((sum, item) => item.selected ? sum + item.price : sum, 0);
   return basePrice + addonsPrice;
 });
 
-const selectTime = (slot) => {
-  selectedTime.value = slot;
-};
-
-const selectDuration = (option) => {
-  selectedDurationObj.value = option;
-};
-
-const toggleAddon = (index) => {
-  addons[index].selected = !addons[index].selected;
-};
+const selectTime = (slot) => { selectedTime.value = slot; };
+const selectDuration = (option) => { selectedDurationObj.value = option; };
+const toggleAddon = (index) => { addons[index].selected = !addons[index].selected; };
 
 const goToNextStep = () => {
   const bookingData = {
@@ -177,7 +176,7 @@ const goToNextStep = () => {
     addons: addons.filter(a => a.selected),
     formattedTimeRange: formattedTimeRange.value, 
     selectedDateDisplay: selectedDateDisplay.value,
-    headerDateDisplay: headerDateDisplay.value, // SAVING THIS FOR STEP 3
+    headerDateDisplay: headerDateDisplay.value,
     totalPrice: totalPrice.value
   };
 
@@ -188,13 +187,8 @@ const goToNextStep = () => {
 
 <template>
   <div
-    class="rounded-[20px] h-full lg:w-[1024px] overflow-hidden" 
-    style="
-      background-image: url('/images/background.png');
-      background-size: cover;
-      background-repeat: no-repeat;
-      background-position: left 50% center;
-    "
+    class="rounded-[20px] h-full lg:w-[852px] overflow-hidden" 
+    style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
   >
     <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">
       <div class="rounded-b-[20px] h-full rounded-t-[20px] flex flex-col bg-black/50">
@@ -246,8 +240,7 @@ const goToNextStep = () => {
 
           <div
             v-else
-            class="flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 
-            lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
           >
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
               <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">SELECT CALL START TIME</h3>
@@ -352,6 +345,7 @@ const goToNextStep = () => {
               </div>
             </div>
           </div>
+
         </div>
 
         <div v-if="state.selected" class="flex-none flex justify-end">

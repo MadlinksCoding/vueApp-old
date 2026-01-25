@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue'; // watch add kiya hai
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
 import { createStepStateEngine } from '@/utils/stateEngine';
 
@@ -19,34 +19,62 @@ const emit = defineEmits(["update:modelValue"]);
 const engine = createStepStateEngine({
   flowId: 'one-on-one-booking-flow',
   initialStep: 1,
-  // urlSync: 'none' rakh raha hun taake popup khulne par URL ganda na ho
-  urlSync: 'none' 
-});
-
-// Initialize engine on mount
-onMounted(() => {
-  engine.initialize();
-});
-
-// Calculate which component to show based on engine.step
-const currentStepComponent = computed(() => {
-  switch (engine.step) {
-    case 1:
-      return BookingFlowStep1;
-    case 2:
-      return BookingFlowStep2;
-    case 3:
-      return BookingFlowStep3;
-    case 4:
-      return BookingFlowStep4;
-    default:
-      return BookingFlowStep1;
+  urlSync: 'none',
+  initialState: {
+    bookingDetails: {
+      selectedDate: null,
+      selectedTime: { label: '4:00pm', value: '16:00' },
+      selectedDuration: { value: 15, price: 500 },
+      addons: [],
+      otherRequest: "Can you buy this cake in this cake shop...",
+      totalPrice: 500,
+      walletBalance: 1000,
+      formattedTimeRange: "-",
+      headerDateDisplay: "",
+    }
   }
 });
 
-// --- Popup Config ---
+// --- CONSOLE DEBUGGER (Safe Version) ---
+watch(
+  () => [engine.state, engine.step, engine.substep],
+  ([newState, newStep, newSubstep]) => {
+    // Check if state and bookingDetails exist before parsing
+    if (!newState || !newState.bookingDetails) return;
+
+    try {
+      console.group('%c 1-on-1 Booking Flow Debug ', 'background: #22CCEE; color: #000; font-weight: bold; padding: 2px 4px; border-radius: 4px;');
+      console.log('%c Current Step: ', 'color: #22CCEE; font-weight: bold;', newStep);
+      console.log('%c Substep: ', 'color: #07F468; font-weight: bold;', newSubstep || 'None');
+      
+      // Safe logging using structuredClone or simple spread
+      console.log('%c Booking Data: ', 'color: #FFED29; font-weight: bold;', { ...newState.bookingDetails });
+      
+      console.groupEnd();
+    } catch (err) {
+      console.error("Debug Error:", err);
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+onMounted(() => {
+  engine.initialize();
+  console.log('%c Booking Engine Initialized ', 'color: #07F468; font-weight: bold; border: 1px solid #07F468; padding: 2px;');
+});
+
+const currentStepComponent = computed(() => {
+  switch (engine.step) {
+    case 1: return BookingFlowStep1;
+    case 2: return BookingFlowStep2;
+    case 3: return BookingFlowStep3;
+    case 4: return BookingFlowStep4;
+    default: return BookingFlowStep1;
+  }
+});
+
+// ... (config remains same) ...
 const oneOnOneBookingFlowPopupConfig = {
-  // --- Config Variables ---
   actionType: "popup",
   position: "center",
   customEffect: "scale",
@@ -75,7 +103,7 @@ const oneOnOneBookingFlowPopupConfig = {
     <component 
       :is="currentStepComponent" 
       :engine="engine"
+      @close-popup="emit('update:modelValue', false)"
     />
-
   </PopupHandler>
 </template>

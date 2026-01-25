@@ -8,22 +8,23 @@ const props = defineProps({
   }
 });
 
-// Retrieve Data
+// --- RETRIEVE DATA FROM ENGINE ---
+// Yeh wahi state uthayega jo Step 2 aur Step 3 mein sync hui hai
 const bookingData = computed(() => {
   return props.engine.getState('bookingDetails') || {};
 });
 
-// Computed Properties for Display
+// --- COMPUTED PROPERTIES FOR DISPLAY ---
+// Fallback values rakhi hain agar state khali ho (wese engine state se hi uthayega)
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
 
+const emit = defineEmits(['close-popup']);
 </script>
 
 <template>
-  <!-- <div class="w-96 h-full relative rounded-[10px] inline-flex flex-col justify-start items-start min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] bg-center bg-cover bg-no-repeat backdrop-blur-[1rem]"> -->
-<div class="flex-1 w-96 h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] 
-[scrollbar-width:none] ">
+<div class="flex-1 w-96 h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
 
     <div class="bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] bg-center bg-cover bg-no-repeat backdrop-blur-[1rem]">
 
@@ -82,7 +83,7 @@ const duration = computed(() => bookingData.value.selectedDuration?.value || '15
 
 
     <div 
-      @click="engine.goToStep(1)" 
+      @click="emit('close-popup')" 
       class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
     >
       <img src="/images/cross-white.svg" alt="cross-white" class="w-4 h-4" />

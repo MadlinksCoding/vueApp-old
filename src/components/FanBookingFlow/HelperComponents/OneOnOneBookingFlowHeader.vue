@@ -62,11 +62,11 @@ defineProps({
             <div class="flex flex-col gap-1 md:w-1/2 w-[170px]">
               <h3 class="text-xs text-[#22CCEE] font-semibold leading-[18px]">TIME</h3>
               <div class="flex flex-col text-white">
-                <p class="text-sm font-semibold leading-[20px]">
+                <p class="text-[12px] font-semibold leading-[20px]">
                   {{ dateDisplay }}
                 </p>
                 <div class="flex flex-row gap-2 items-center">
-                  <p class="text-sm font-medium leading-[20px]">{{ timeDisplay }}</p>
+                  <p class="text-[12px] font-medium leading-[20px]">{{ timeDisplay }}</p>
                   <p v-if="duration" class="text-sm text-[#98A2B3] font-medium leading-[20px]">
                     {{ duration }} min.
                   </p>
