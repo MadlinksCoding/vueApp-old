@@ -299,7 +299,7 @@
                   <div class="flex items-center opacity-50 gap-2 w-full">
                  <div class=" bg-white/50 w-36 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex">Todo</div>
                 <div class="bg-white/50 w-36 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex">Todo</div>
-                 <div className="w-24 text-slate-700 text-base font-normal leading-6">in advance</div>
+                 <div class="w-24 text-slate-700 text-base font-normal leading-6">in advance</div>
                     </div>
               </div>
             </div>

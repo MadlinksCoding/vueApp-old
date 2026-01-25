@@ -7,7 +7,7 @@
         <Heading text="Sign Up" tag="h2" theme="AuthHeading" />
 
         <form class="flex flex-col gap-8">
-          <div className="flex items-center gap-1">
+          <div class="flex items-center gap-1">
             <Paragraph
               text="Already have an account?"
               font-size="text-base"

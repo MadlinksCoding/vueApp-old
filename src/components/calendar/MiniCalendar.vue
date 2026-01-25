@@ -6,11 +6,11 @@
       :data-month="cursor.getMonth()+1"
       :data-year="cursor.getFullYear()">
 
-      <div class="grid grid-cols-7 text-[0.75rem] font-bold w-max uppercase tracking-wide ">
+      <div class="grid grid-cols-7 text-[0.75rem] font-bold  uppercase tracking-wide ">
         <div v-for="(w, idx) in ['S','M','T','W','T','F','S']" :key="idx" :class="['text-center w-[37.43px] h-[20px]', idx===0 ? 'text-red-500' : '']">{{ w }}</div>
       </div>
 
-      <div class="grid grid-cols-7 gap-0 w-max ">
+      <div class="grid grid-cols-7 gap-0  ">
         <template v-for="(d,i) in days" :key="i">
           <button
           v-if="d.getMonth()===cursor.getMonth()"
