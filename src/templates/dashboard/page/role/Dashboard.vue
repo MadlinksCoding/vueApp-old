@@ -181,6 +181,14 @@
 
     <br />
 
+     <ButtonComponent
+      text="Ticket Event Popup Open"
+      variant="mediaBtn"
+      @click="ticketEventPopupOpen = true"
+    />
+
+    <br />
+
     <UploadingProgressBar
       :progress="uploadPercentage"
       imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
@@ -227,6 +235,7 @@
     <GuestPurchaseFlowPopup v-model="guestPurchaseFlowPopupOpen" />
     <UpgradeTierPopup v-model="upgradeTierPopupOpen" />
     <OneOnOneBookingFlowPopup v-model="oneOnOneBookingFlowPopupOpen" />
+    <TicketEventPopup v-model="ticketEventPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -263,6 +272,7 @@ import LatestEventCard from "@/components/ui/card/dashboard/LatestEventCard.vue"
 import EventCard from "@/components/ui/card/dashboard/EventCard.vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
+import TicketEventPopup from "@/components/FanBookingFlow/GroupEventFlow/TicketEventPopup/TicketEventPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -281,6 +291,7 @@ const purchaseFlowSubscriptionPopupOpen = ref(false);
 const guestPurchaseFlowPopupOpen = ref(false);
 const upgradeTierPopupOpen = ref(false);
 const oneOnOneBookingFlowPopupOpen = ref(false);
+const ticketEventPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
