@@ -10,17 +10,17 @@ const emit = defineEmits(['close-popup']);
 // --- Button Configuration ---
 const actionButtons = [
   {
-    text: "View events on your calendar",
-    icon: "/images/calendar-black.svg",
-    bgColor: "bg-[#07F468]", // Green
+    text: "Tell your friends to fund",
+    icon: "/images/shareBlack.png",
+    bgColor: "bg-[#FFED29]", // Green
     textColor: "text-black",
     action: () => console.log("View Calendar Clicked")
   },
   {
     text: "Go to group chat",
-    icon: "/images/message-green.svg",
-    bgColor: "bg-gray-900", // Dark
-    textColor: "text-[#07F468]", // Green Text
+    icon: "/images/chatyellow.png",
+    bgColor: "bg-[#0C111D]", // Dark
+    textColor: "text-[#FFED29]", // Green Text
     action: () => console.log("Go to Chat Clicked")
   }
 ];
@@ -28,10 +28,13 @@ const actionButtons = [
 
 <template>
   <SuccessEventCard 
-  :is-crowd-funding="false"
-    success-icon="/images/success.svg"
-    heading-text="You’re in !"
-    sub-heading-text="Get ready for your session!"
+  :is-crowd-funding="true"
+  current-tokens="1,200"
+   total-tokens="8,000"
+   :progress-percent="15"
+    success-icon="/images/heartSuccessIcon.png"
+    heading-text="Thanks for your contribution!"
+    sub-heading-text="We will let you know once this event reaches event goals!"
     event-title="J&B’s Cooking show"
     event-date="Wednesday, August 24, 2025"
     event-time="9:30pm-10:30pm"

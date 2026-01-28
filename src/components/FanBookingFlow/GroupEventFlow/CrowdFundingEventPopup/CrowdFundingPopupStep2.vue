@@ -12,7 +12,7 @@ const props = defineProps({
 
 // --- STATE ---
 const sliderValue = ref(50);
-const walletBalance = ref(2500); // Mock Balance
+const walletBalance = ref(2500); 
 const minContribution = 500;
 const maxContribution = 5500;
 
@@ -43,13 +43,13 @@ const handleButtonClick = () => {
     props.engine.goToSubstep('top-up');
   } else {
     console.log("Booking Completed");
-    props.engine.goToStep(3); // Next Step
+    props.engine.goToStep(3);
   }
 };
 
 const finalizeTopUpAndBook = () => {
   console.log("Top Up & Booking Completed");
-  props.engine.goToStep(3); // Next Step
+  props.engine.goToStep(3);
 };
 
 const goBackToForm = () => {
@@ -66,13 +66,27 @@ const goBackToForm = () => {
     :top-up-amount="topUpAmount"
     :remaining-balance="remainingBalance"
     :is-top-up-view="isTopUpView"
-    :is-crowd-funding="false" 
+    :is-crowd-funding="true" 
     @back="props.engine.goToStep(1)"
     @close="props.engine.goToStep(1)"
     @btn-click="handleButtonClick"
     @finalize-topup="finalizeTopUpAndBook"
   >
     
+    <template #crowd-progress>
+       <div class="flex flex-col justify-center items-start gap-1.5 w-full">
+            <div class="flex flex-col gap-1.5 w-full">
+              <div class="w-full h-2 rounded-[5px] bg-white/20">
+                <div class="h-full rounded-[5px] bg-[#FFED29] w-[35%]"></div>
+              </div>
+            </div>
+            <div class="inline-flex w-full justify-between items-start">
+              <div class="text-right justify-center text-yellow-300 text-xs font-medium font-['Poppins'] leading-4">1,200/8,000 Tokens </div>
+              <div class="text-right justify-center text-white text-xs font-medium font-['Poppins'] leading-4">15% event goal reached</div>
+            </div>
+          </div>
+    </template>
+
     <template #main-form>
       <div class="flex flex-col gap-6">
         <div class="flex flex-col gap-1">

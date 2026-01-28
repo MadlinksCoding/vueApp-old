@@ -9,7 +9,7 @@ const props = defineProps({
 
 <template>
   <div
-    className="w-96 h-full relative rounded-3xl overflow-hidden
+    className="w-96 h-full min-h-0 relative rounded-3xl overflow-hidden 
     bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/ai-art.png')]
     bg-center bg-cover bg-no-repeat"
   >
