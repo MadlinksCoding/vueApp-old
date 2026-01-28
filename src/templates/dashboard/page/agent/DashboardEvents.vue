@@ -3,7 +3,7 @@
     <div class="mb-10">
       <div class="flex w-full">
         
-        <main-calendar
+        <MainCalendar
           class="md:col-span-2 w-full px-2"
           variant="default"
           :focus-date="state.focus"
@@ -50,10 +50,10 @@
               <div v-if="view !== 'month'" class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
-        </main-calendar>
+        </MainCalendar>
 
         <div class=" flex-col gap-[16px] hidden lg:flex px-[24px]">
-            <mini-calendar
+            <MiniCalendar
             class="md:col-span-1 "
             :month-date="state.focus"
             :selected-date="state.selected || state.focus"
@@ -61,7 +61,7 @@
             :theme="theme1"
             :data-attrs="{ 'data-calendar':'mini' }"
             @date-selected="onSelectFromMini">
-        </mini-calendar>
+        </MiniCalendar>
 
             <ButtonComponent
         text="NEW EVENTS"
@@ -200,7 +200,7 @@ const theme1 = {
     axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
     axisYRow: 'h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4',
     colBase: 'relative bg-white/20 overflow-hidden',
-    gridRow: 'h-[62.61px] border-b  border-white/50',
+    gridRow: 'h-[64px] border-b  border-white/50',
     eventBase: 'absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm'
   },
   month: {
@@ -352,6 +352,7 @@ const onSelectFromMini = (date) => {
 
 const onSelectFromMain = (date) => {
   state.selected = new Date(date);
+  state.focus = new Date(date); // Ye line zaroori hai sync ke liye
 };
 
 // Event click listener

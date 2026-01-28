@@ -53,13 +53,16 @@ export default {
   emits: ['date-selected'],
   data() { return { today: SOD(new Date()), cursor: new Date(this.monthDate) }; },
   watch: {
-    monthDate(v) {
-      if (v && (v.getMonth() !== this.cursor.getMonth() || v.getFullYear() !== this.cursor.getFullYear())) {
-        this.cursor = new Date(v);
+  monthDate: {
+    immediate: true,
+    handler(newVal) {
+      if (newVal) {
+        // Hamesha cursor ko update karein jab parent se new date aaye
+        this.cursor = new Date(newVal);
       }
-    },
-    events: { immediate: true, deep: true, handler(v) { console.log('[mini] events(len):', v?.length || 0, v); } }
-  },
+    }
+  }
+},
   computed: {
     header() { return `${monthNames[this.cursor.getMonth()]} ${this.cursor.getFullYear()}` },
     days() {

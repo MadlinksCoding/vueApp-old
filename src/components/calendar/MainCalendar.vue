@@ -32,27 +32,36 @@
         <div class="relative inline-block text-left hidden xl:flex" >
     
     <div 
-      @click="toggleDropdown"
-      class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between bg-[#000] cursor-pointer select-none transition-colors"
+  @click="toggleDropdown"
+  :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
+  class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300"
+>
+  <span class="flex items-center justify-center h-full">
+    <h2 class="text-[0.875rem] font-medium "
+    :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events</h2>
+    <p 
+      class="text-pink-500 text-[10px] font-bold h-full ml-1"
     >
-      <span class="flex items-center justify-center h-full">
-        <h2 class="text-[0.875rem] font-medium text-[#FFFFFF]">All Events</h2>
-        <p class="text-[10px] text-pink-500 font-medium h-full ml-1">20</p>
-      </span>
-      
-      <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200" :class="{ 'rotate-180': isDropdownOpen }">
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
-          fill="white"
-          stroke="white"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-      </button>
-    </div>
+      20
+    </p>
+  </span>
+  
+ <button 
+  class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200" 
+  :class="{ 'rotate-180': isDropdownOpen }"
+>
+  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
+      :fill="isDropdownOpen ? 'white' : 'black'"
+      :stroke="isDropdownOpen ? 'white' : 'black'"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+</button>
+</div>
 
     <div
       v-if="isDropdownOpen"
@@ -157,7 +166,8 @@
     </div>
 
     <template v-if="effectiveView !== 'month'">
-      <div class="flex " :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
+      <div class="flex" :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
+        
         <div :class="theme.main.axisXLabel">
            <div v-if="variant === 'default'" class="lg:flex hidden items-center px-[0.25rem] gap-[0.125rem]">
              <span class="flex items-center justify-center w-[10px] h-[10px]">
@@ -170,9 +180,11 @@
            </div>
         </div>
         
-        <div class="grid grid-cols-7 h-[3.995rem] w-full">
+        <div class="grid h-[3.995rem] w-full" 
+             :class="effectiveView === 'day' ? 'grid-cols-1' : 'grid-cols-7'">
+          
           <div v-for="(d,i) in days" :key="'xh-'+i"
-               class="text-center flex flex-col items-center"
+               class="text-center flex flex-col items-center justify-center"
                :class="[
                  theme.main.axisXDay,
                  (sd(d).getDay() === 0 && variant === 'default') ? 'text-red-500' : '' 
@@ -189,7 +201,9 @@
             </div>
           </div>
         </div>
+
       </div>
+
       <div class="flex gap-2 overflow-hidden">
         <div class="flex flex-col">
           <div v-for="(t) in range.labels" :key="'slot-label-'+t"
@@ -198,7 +212,7 @@
           </div>
         </div>
 
-        <span class="grid w-full relative rounded-md overflow-hidden " :class="[effectiveView==='day' ? 'grid-cols-1' : 'grid-cols-7']">
+        <span class="grid w-full relative rounded-md overflow-hidden" :class="[effectiveView==='day' ? 'grid-cols-1' : 'grid-cols-7']">
           <div v-for="(d,idx) in days" :key="'col-'+idx"
                :data-date="d.toISOString().slice(0,10)"
                :data-expired="sd(d)<today?'true':'false'" 
@@ -209,11 +223,6 @@
               <div v-for="i in range.rowCount" :key="'grid-'+i" :class="theme.main.gridRow"></div>
             </div>
             
-            <!-- <div v-if="sameDay(d, today)"
-                 class="absolute z-[20] left-0 right-0 border-b-2 border-brand-pink pointer-events-none"
-                 :style="{ top: nowY + '%' }"
-                 data-now-line="true"></div> -->
-
             <div class="relative z-[0]" data-cal-scroll
                  :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
@@ -375,7 +384,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected',"update:modelValue"]);
+const emit = defineEmits(['date-selected', 'update:focus-date']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -622,10 +631,19 @@ const styleBlock = (ev) => {
 const setView = (v) => { view.value = v; };
 const shift = (n) => {
   const v = effectiveView.value;
-  if (v === 'month') cursor.value = addMonths(cursor.value, n);
-  else cursor.value = addDays(cursor.value, n * 7);
+  if (v === 'month') {
+    cursor.value = addMonths(cursor.value, n);
+  } else {
+    cursor.value = addDays(cursor.value, n * 7);
+  }
+  // NEW: Emit the updated date so Mini Calendar can sync
+  emit('date-selected', new Date(cursor.value)); 
 };
-const goToday = () => { cursor.value = new Date(); };
+
+const goToday = () => {
+  cursor.value = new Date();
+  emit('date-selected', new Date(cursor.value)); // Sync on Today click
+};
 const updateNowLine = () => {
   const { sMin, eMin } = range.value;
   const now = new Date();
