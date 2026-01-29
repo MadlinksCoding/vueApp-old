@@ -5,6 +5,7 @@
     :data-view="effectiveView"
     :data-focus="cursor ? cursor.toISOString().slice(0,10) : ''">
 
+    <!-- default-header-theme-1 -->
     <div v-if="variant === 'default'" class="flex items-center justify-between">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
@@ -135,6 +136,7 @@
       </div>
     </div>
 
+    <!-- default-header-theme-2 -->
     <div v-else-if="variant === 'theme2'" class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem]">
       
       <div class="flex items-center gap-[11px] order-1">
@@ -165,7 +167,8 @@
       </button>
     </div>
 
-    <template v-if="effectiveView !== 'month'">
+    
+    <div v-if="effectiveView !== 'month'" class="overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] h-[800px] ">
       <div class="flex" :class="[effectiveView==='day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
         
         <div :class="theme.main.axisXLabel">
@@ -204,7 +207,7 @@
 
       </div>
 
-      <div class="flex gap-2 overflow-hidden">
+      <div class="flex gap-2 ">
         <div class="flex flex-col">
           <div v-for="(t) in range.labels" :key="'slot-label-'+t"
                :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']">
@@ -236,9 +239,9 @@
           </div>
         </span>
       </div>
-    </template>
+    </div>
 
-    <template v-else>
+    <div v-else >
        <div class="grid grid-cols-7 mt-[-3rem]">
           <div v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="w" 
           class="text-center text-sm sm:text-lg font-semibold text-gray-500 mb-[10px] uppercase leading-7"
@@ -277,7 +280,7 @@
             </div>
           </button>
         </div>
-    </template>
+    </div>
     <!-- popups -->
     <PopupHandler
       v-model="calendarPopupOpen"
