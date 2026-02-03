@@ -1,7 +1,7 @@
 <template>
   <DashboardWrapperTwoColContainer>
-    <div class="mb-10">
-      <div class="flex w-full">
+    <div class="mb-10 relative">
+      <div class="flex w-full ">
         
         <MainCalendar
           class="md:col-span-2 w-full px-2"
@@ -20,7 +20,7 @@
           @date-selected="onSelectFromMain">
 
          <template #event="{ event, style, onClick, view }">
-            <div class="absolute py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
+            <div class=" py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
               <div class="text-[10px]" v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -28,7 +28,7 @@
           </template>
 
           <template #event-alt="{ event, style, onClick, view }">
-            <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
+            <div class=" py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -36,7 +36,7 @@
           </template>
 
           <template #event-custom="{ event, style, onClick, view }">
-            <div class="absolute py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
+            <div class=" py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -44,7 +44,7 @@
           </template>
 
           <template #event-custom2="{ event, style, onClick, view }">
-            <div class="absolute py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
+            <div class=" py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
                  :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -52,7 +52,7 @@
           </template>
         </MainCalendar>
 
-        <div class=" flex-col gap-[16px] hidden lg:flex px-[24px]">
+        <div class=" flex-col gap-[16px] hidden lg:flex px-[24px] justify-between">
             <MiniCalendar
             class="md:col-span-1 "
             :month-date="state.focus"
@@ -80,6 +80,12 @@
       />
    </div>
         </div>
+
+        <div class="fixed bottom-5 right-5 z-50">
+     <button class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+        <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
+     </button>
+   </div>
       </div>
     </div>
 
@@ -192,7 +198,7 @@ const theme1 = {
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   },
   main: {
-    wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl',
+    wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl h-full',
     title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
     xHeader: 'absolute text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] xl:top-[5rem] w-full',
     axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
@@ -205,7 +211,7 @@ const theme1 = {
   },
   month: {
     weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
-    cellBase: 'aspect-[1/1.1] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
+    cellBase: ' md:aspect-[1/1.2] lg:aspect-[1/2] xl:aspect-[1/1.4] aspect-[0.8/1.5] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
     outside: 'opacity-40',
     today: 'border-2 border-emerald-500',
     cellEvent: 'w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'

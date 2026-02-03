@@ -4,7 +4,7 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 </script>
 
 <template>
-  <div class="w-[340px] bg-white rounded-[5px] inline-flex flex-col justify-start items-start shadow-lg border border-gray-100 z-50">
+  <div class="w-[240px] sm:w-[340px] bg-white rounded-[5px] inline-flex flex-col justify-start items-start shadow-lg border border-gray-100 z-50">
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         label="Video Call"
@@ -60,7 +60,7 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
       <CheckboxGroup
         label="Show booking schedule availability"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-gray-900 relative cursor-pointer checked:bg-gray-900 checked:border-gray-900 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-        labelClass="text-slate-700 text-[16px] cursor-pointer font-medium leading-6"
+        labelClass="text-slate-700 sm:text-[16px] text-[12px]  cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
     </div>

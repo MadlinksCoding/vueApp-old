@@ -235,7 +235,8 @@ const containerClassList = computed(() => {
     'isolate',
     'text-base',
     'antialiased',
-    'overflow-hidden' // container clips its own content (scroll applied inside content box)
+    'overflow-auto',
+    'outline-none'
   ];
   // Allow custom class string/array
   if (cfg.value.containerClass) {
