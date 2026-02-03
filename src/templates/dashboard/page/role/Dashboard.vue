@@ -221,6 +221,10 @@
       <EventCard theme="pink" :hasButton="false" />
     </div>
 
+    <br>
+
+   
+
     <ProfileViewAllPopup v-model="isViewAllPopupOpen" />
 
     <ProfileMediaDetailsPopup v-model="profileMediaDetailsPopupOpen" />

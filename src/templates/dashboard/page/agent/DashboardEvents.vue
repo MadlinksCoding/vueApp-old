@@ -4,7 +4,7 @@
       <div class="flex w-full ">
         
         <MainCalendar
-          class="md:col-span-2 w-full px-2"
+          class="md:col-span-2 w-full px-2 relative"
           variant="default"
           :focus-date="state.focus"
           :events="events1"
@@ -20,7 +20,10 @@
           @date-selected="onSelectFromMain">
 
          <template #event="{ event, style, onClick, view }">
-            <div class=" py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom"
+            <div  :class="[
+              view === 'month' ? 'static' : 'absolute',
+              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom'
+            ]"
                  :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
               <div class="text-[10px]" v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -28,7 +31,10 @@
           </template>
 
           <template #event-alt="{ event, style, onClick, view }">
-            <div class=" py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom"
+            <div :class="[
+            view === 'month' ? 'static' : 'absolute',
+            'py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom'
+          ]"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -36,7 +42,10 @@
           </template>
 
           <template #event-custom="{ event, style, onClick, view }">
-            <div class=" py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md"
+            <div :class="[
+    view === 'month' ? 'static' : 'absolute',
+    'py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md'
+  ]"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -44,7 +53,10 @@
           </template>
 
           <template #event-custom2="{ event, style, onClick, view }">
-            <div class=" py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md "
+            <div   :class="[
+    view === 'month' ? 'static' : 'absolute',
+    'py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md'
+  ]"
                  :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
               <div v-if="view !== 'month'" class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
@@ -87,78 +99,9 @@
      </button>
    </div>
       </div>
+
+     
     </div>
-
-    <!-- <hr class="border-gray-300 my-8"/>
-
-    <div>
-      <div class="flex w-full">
-        
-        <MainCalendar
-          class="w-full"
-          variant="theme2"
-          :focus-date="state.focus"
-          :events="events2"
-          :theme="theme2"
-          :data-attrs="{ 'data-calendar':'main-2' }"
-          :console-overlaps="true"
-          :highlight-today-column="true"
-          time-start="00:00"
-          time-end="23:00"
-          :slot-minutes="60"
-          :row-height-px="64"
-          :min-event-height-px="0"
-          @date-selected="onSelectFromMain">
-
-          <template #event="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 border-b border-blue-600 text-xs bg-blue-300/25 text-emerald-700 shadow-sm overflow-hidden"
-                  :style="style" @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 text-blue-600 font-normal truncate ">
-                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z" stroke="#5555e8" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="mt-1 truncate">{{ event.title }}</span> 
-              </div>
-            </div>
-          </template>
-
-          <template #event-custom="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 border-b border-[#FF0066] text-xs text-[#FF0066] shadow-sm overflow-hidden"
-                  :style="style"
-                  style="background: repeating-linear-gradient(-45deg, #EBBACC, #EBBACC 2px, #E9CFD7 3px, #E9CFD7 10px);"
-                  @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 font-normal leading-4 truncate">
-                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z" stroke="#ff123b" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="mt-1 truncate">{{ event.title }}</span>
-              </div>
-            </div>
-          </template>
-
-          <template #event-alt="{ event, style, onClick }">
-             <div class="absolute py-1 px-2  bg-teal-300/25 border-b border-[#15B79E] text-teal-500 text-xs shadow-sm"
-                  :style="style" @click.stop="onClick(event)">
-               <div class="flex items-center gap-1 font-normal truncate">
-                 <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <span class="mt-1 truncate">{{ event.title }}</span>
-               </div>
-            </div>
-          </template>
-          
-          <template #event-custom2="{ event, style, onClick }">
-             <div class="absolute py-1 px-2 bg-fuchsia-300/25 border-b border-[#AE4AEF] text-purple-700 text-xs shadow-sm"
-                  :style="style" @click.stop="onClick(event)">
-              <div class="flex items-center gap-1 font-normal text-[#AE4AEF]">
-                 <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                <span class="mt-1 truncate">{{ event.title }}</span>
-              </div>
-            </div>
-          </template>
-
-        </MainCalendar>
-      </div>
-    </div> -->
   
   </DashboardWrapperTwoColContainer>
 </template>
@@ -186,7 +129,7 @@ const getIsoString = (dayOfMonth, hour, minute) => {
 // --- THEME 1 ---
 const theme1 = {
   mini: {
-    wrapper: 'flex flex-col w-full items-center font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
+    wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
     header: 'font-semibold',
     // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
     // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
