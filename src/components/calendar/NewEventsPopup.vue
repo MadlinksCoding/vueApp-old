@@ -1,5 +1,5 @@
 <template>
-    <div class="w-96 bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col justify-start items-start overflow-hidden">
+    <div class=" w-full  bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col justify-start items-start overflow-hidden">
     <div class="self-stretch border-b border-gray-300 inline-flex justify-start items-center">
         <div class="w-1 self-stretch relative bg-indigo-600" />
         <div class="flex-1 px-2 py-3 flex justify-start items-center gap-2">

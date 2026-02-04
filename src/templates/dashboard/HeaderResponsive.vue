@@ -1,7 +1,7 @@
 <template>
   <header class="mb-[50px]">
     <div
-      class="flex flex-col gap-4 px-2 py-2 flex-1 z-10 backdrop-blur-lg fixed inset-x-0 top-0 bg-gradient-to-t from-white/90 to-white/0 bg-[rgba(234,236,240,0.9)]"
+      class="flex flex-col gap-4 px-2 py-2 flex-1 z-[999] backdrop-blur-lg fixed inset-x-0 top-0 bg-gradient-to-t from-white/90 to-white/0 bg-[rgba(234,236,240,0.9)]"
     >
       <div class="flex justify-between items-center">
         <!-- logo -->

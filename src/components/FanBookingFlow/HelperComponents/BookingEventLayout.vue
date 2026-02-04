@@ -152,8 +152,8 @@ const emit = defineEmits(['back', 'close', 'btn-click', 'finalize-topup']);
            <div class="flex justify-end absolute bottom-0 right-0 w-full">
             
         
-              <div className=" bg-black/55 pl-4 pr-2 flex justify-center items-center gap-2.5">
-                <div className="justify-center text-white text-xs font-normal leading-4">Completeing this booking means you agree to the event policy</div>
+              <div class=" bg-black/55 pl-4 pr-2 flex justify-center items-center gap-2.5">
+                <div class="justify-center text-white text-xs font-normal leading-4">Completeing this booking means you agree to the event policy</div>
               </div>
 
                 <div

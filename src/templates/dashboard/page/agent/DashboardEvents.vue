@@ -1,108 +1,95 @@
 <template>
   <DashboardWrapperTwoColContainer>
-    <div class="mb-10 relative">
-      <div class="flex w-full ">
-        
+    <div class="h-[calc(100vh-2rem)] flex flex-col overflow-hidden relative">
+      <div class="flex w-full h-full">
+
         <MainCalendar
-          class="md:col-span-2 w-full px-2 relative"
-          variant="default"
-          :focus-date="state.focus"
-          :events="events1"
-          :theme="theme1"
-          :data-attrs="{ 'data-calendar':'main' }"
-          :console-overlaps="true"
-          :highlight-today-column="true"
-          time-start="05:00"
-          time-end="23:00"
-          :slot-minutes="60"
-          :row-height-px="64"
-          :min-event-height-px="0"
+          class="flex-1 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          variant="default" :focus-date="state.focus" :events="events1" :theme="theme1"
+          :data-attrs="{ 'data-calendar': 'main' }" :console-overlaps="true" :highlight-today-column="true"
+          time-start="05:00" time-end="23:00" :slot-minutes="60" :row-height-px="64" :min-event-height-px="0"
           @date-selected="onSelectFromMain">
 
-         <template #event="{ event, style, onClick, view }">
-            <div  :class="[
+          <template #event="{ event, style, onClick, view }">
+            <div :class="[
               view === 'month' ? 'static' : 'absolute',
               'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] bg-creamViolet text-xs text-white shadow-custom'
-            ]"
-                 :style="style" @click.stop="onClick(event)">
+            ]" :style="style" @click.stop="onClick(event)">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
-              <div class="text-[10px]" v-if="view !== 'month'">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div class="text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
 
           <template #event-alt="{ event, style, onClick, view }">
             <div :class="[
-            view === 'month' ? 'static' : 'absolute',
-            'py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom'
-          ]"
-                 :style="style" @click.stop="onClick(event)">
+              view === 'month' ? 'static' : 'absolute',
+              'py-[0.125rem] px-[0.25rem] rounded-lg bg-white/60 text-blue-600 text-xs shadow-custom'
+            ]" :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end)
+              }}</div>
             </div>
           </template>
 
           <template #event-custom="{ event, style, onClick, view }">
             <div :class="[
-    view === 'month' ? 'static' : 'absolute',
-    'py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md'
-  ]"
-                 :style="style" @click.stop="onClick(event)">
+              view === 'month' ? 'static' : 'absolute',
+              'py-[0.125rem] px-[0.25rem] rounded-lg bg-brand-pink text-white text-xs shadow-md'
+            ]" :style="style" @click.stop="onClick(event)">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div class="opacity-90 text-[10px]">{{ hhmm(event.start) }} – {{ hhmm(event.end)
+              }}</div>
             </div>
           </template>
 
           <template #event-custom2="{ event, style, onClick, view }">
-            <div   :class="[
-    view === 'month' ? 'static' : 'absolute',
-    'py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md'
-  ]"
-                 :style="style" @click.stop="onClick(event)">
+            <div :class="[
+              view === 'month' ? 'static' : 'absolute',
+              'py-[0.125rem] px-[0.25rem] text-brand-textPink rounded-lg bg-white/50 shadow-md'
+            ]" :style="style" @click.stop="onClick(event)">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div v-if="view !== 'month'" class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
+              <div class="text-[10px] ">{{ hhmm(event.start) }} – {{ hhmm(event.end) }}</div>
             </div>
           </template>
         </MainCalendar>
 
-        <div class=" flex-col gap-[16px] hidden lg:flex px-[24px] justify-between">
-            <MiniCalendar
-            class="md:col-span-1 "
-            :month-date="state.focus"
-            :selected-date="state.selected || state.focus"
-            :events="events1"
-            :theme="theme1"
-            :data-attrs="{ 'data-calendar':'mini' }"
+        <div
+          class="hidden lg:flex flex-col gap-[16px] px-[24px] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <MiniCalendar class="md:col-span-1 " :month-date="state.focus" :selected-date="state.selected || state.focus"
+            :events="events1" :theme="theme1" :data-attrs="{ 'data-calendar': 'mini' }"
             @date-selected="onSelectFromMini">
-        </MiniCalendar>
+          </MiniCalendar>
 
-            <ButtonComponent
-        text="NEW EVENTS"
-        variant="none"
-        customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
-        :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
-        :leftIconClass="`
-          w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`"
-      />
+          <div class="relative w-full z-[999]" ref="popupTrigger">
+            <ButtonComponent text="NEW EVENTS" variant="none"
+              customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
+              :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
+          w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`" @click="togglePopup" />
 
-    <div>
-      <EventsWidget 
-         :sections="eventsData" 
-         @join-click="handleJoin"
-         @reply-click="handleReply"
-      />
-   </div>
+            <div v-show="isCreatePopupOpen" class="fixed z-[999]" :style="popupStyle">
+              <CreateEventPopup />
+            </div>
+          </div>
+
+          <div>
+            <EventsWidget :sections="eventsData" @join-click="handleJoin" @reply-click="handleReply" />
+          </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50">
-     <button class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-        <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
-     </button>
-   </div>
+        <div class="fixed bottom-5 right-5 z-50" @click="newEventsPopupOpen = true">
+          <button
+            class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+            <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
+          </button>
+        </div>
       </div>
 
-     
+      <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
+        <NewEventsPopup />
+      </PopupHandler>
+
     </div>
-  
+
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -114,6 +101,59 @@ import DashboardWrapperTwoColContainer from '@/components/dashboard/DashboardWra
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
 import EventsWidget from '@/components/calendar/EventsWidget.vue';
 import { ref, onMounted, reactive } from 'vue';
+import CreateEventPopup from '@/components/calendar/CreateEventPopup.vue';
+import NewEventsPopup from '@/components/calendar/NewEventsPopup.vue';
+import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
+
+const isCreatePopupOpen = ref(false);
+const newEventsPopupOpen = ref(false);
+
+const popupTrigger = ref(null);
+const popupStyle = reactive({ top: '0px', left: '0px' });
+
+const newEventsPopupConfig = {
+  actionType: "slidein",
+  from: "right",
+  offset: "0px",
+  verticalAlign: "bottom",
+  width: { default: "384px", "<768": "100%" },
+  height: { default: "auto" },
+  speed: "300ms",
+  effect: "ease-in-out",
+  showOverlay: false,
+  closeOnOutside: true,
+  lockScroll: false,
+};
+
+const updatePopupPosition = () => {
+  if (popupTrigger.value) {
+    const rect = popupTrigger.value.getBoundingClientRect();
+    popupStyle.top = `${rect.bottom + 8}px`; // 8px spacing
+    // Align right edge of popup with right edge of button/container
+    // Popup width is approx 429px, so we subtract that from rect.right
+    // But better to use left if we want it right-aligned? 
+    // css 'right' doesn't work easily with fixed left calc, so let's calc left
+    // left = rect.right - 429
+    popupStyle.left = `${rect.right - 429}px`;
+  }
+};
+
+const togglePopup = () => {
+  isCreatePopupOpen.value = !isCreatePopupOpen.value;
+  if (isCreatePopupOpen.value) {
+    updatePopupPosition();
+  }
+};
+
+// Update position on scroll or resize to keep it attached
+onMounted(() => {
+  window.addEventListener('resize', () => {
+    if (isCreatePopupOpen.value) updatePopupPosition();
+  });
+  window.addEventListener('scroll', () => {
+    if (isCreatePopupOpen.value) updatePopupPosition();
+  }, true); // Capture phase for scrolling of parent containers
+});
 
 const now = new Date();
 const y = now.getFullYear();
@@ -131,8 +171,6 @@ const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
     header: 'font-semibold',
-    // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
-    // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
     dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
     outside: 'opacity-0',
     expired: 'opacity-100',
@@ -154,7 +192,7 @@ const theme1 = {
   },
   month: {
     weekHeader: 'text-[11px] uppercase tracking-wide text-slate-500',
-    cellBase: ' md:aspect-[1/1.2] lg:aspect-[1/2] xl:aspect-[1/1.4] aspect-[0.8/1.5] p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
+    cellBase: 'h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden',
     outside: 'opacity-40',
     today: 'border-2 border-emerald-500',
     cellEvent: 'w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer'
@@ -167,7 +205,7 @@ const theme2 = {
   main: {
     wrapper: 'relative flex flex-col pt-[1.5rem] gap-[0px] overflow-hidden rounded-xl',
     title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
-    xHeader: '', 
+    xHeader: '',
     axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
     axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
     axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
@@ -181,7 +219,7 @@ const theme2 = {
 
 // --- DEMO 1 (Original Data - kept as Date Objects for backward compat check) ---
 const events1 = ref([
-  { id: 'e1', title: 'Group Call1', start: new Date(y, m, 11, 15, 30), end: new Date(y, m,11, 17, 15), slot: 'custom' },
+  { id: 'e1', title: 'Group Call1', start: new Date(y, m, 11, 15, 30), end: new Date(y, m, 11, 17, 15), slot: 'custom' },
   { id: 'e2', title: 'Live Call2', start: new Date(y, m, 12, 12, 0), end: new Date(y, m, 12, 14, 0), slot: 'alt' },
   { id: 'e3', title: 'Live Call', start: new Date(y, m, 13, 6, 0), end: new Date(y, m, 13, 7, 0) },
   { id: 'e4', title: 'Group Call', start: new Date(y, m, 14, 10, 0), end: new Date(y, m, 14, 16, 0), slot: 'custom2' },
@@ -191,20 +229,20 @@ const events1 = ref([
 // --- CHANGE: DEMO 2 (JSON Array Format) ---
 // These start/end values are now ISO STRINGS, not Date objects.
 const events2 = ref([
-  { id: 'e1', title: 'High School Life Simulator', start: getIsoString(11, 10, 0), end: getIsoString(11, 21, 0), slot: 'event' }, 
-  { id: 'e1-dup', title: 'Maid Cafe Simulator', start: getIsoString(11, 0, 0), end: getIsoString(11, 11, 0), slot: 'alt' }, 
-  { id: 'e2', title: 'Event Title', start: getIsoString(12, 0, 0), end: getIsoString(12, 4, 0), slot: 'custom' }, 
-  { id: 'e3', title: 'Maid Cafe Simulator', start: getIsoString(12, 1, 0), end: getIsoString(12, 11, 0), slot: 'alt' }, 
-  { id: 'e4', title: 'Event Title', start: getIsoString(13, 0, 0), end: getIsoString(13, 4, 0), slot: 'custom' }, 
-  { id: 'e5', title: 'Event Title', start: getIsoString(14, 22, 0), end: getIsoString(14, 23, 0), slot: 'custom' }, 
-  { id: 'e6', title: 'Maid Cafe Simulator', start: getIsoString(14, 0, 0), end: getIsoString(14, 4, 0), slot: 'alt' }, 
-  { id: 'e7', title: 'Event Title', start: getIsoString(15, 0, 0), end: getIsoString(15, 8, 0), slot: 'custom' }, 
-  { id: 'e8', title: 'Event Title', start: getIsoString(16, 2, 0), end: getIsoString(16, 8, 0), slot: 'custom' }, 
-  { id: 'e9', title: 'Maid Cafe Simulator', start: getIsoString(16, 0, 0), end: getIsoString(16, 21, 0), slot: 'alt' }, 
-  { id: 'e10', title: 'Event Title', start: getIsoString(17, 0, 0), end: getIsoString(17, 5, 0), slot: 'custom' }, 
-  { id: 'e11', title: 'Event Title', start: getIsoString(17, 22, 0), end: getIsoString(17, 23, 0), slot: 'custom' }, 
-  { id: '12', title: 'High School Life Simulator', start: getIsoString(17, 8, 0), end: getIsoString(17, 20, 0), slot: 'event' }, 
-  { id: 'e13', title: 'J&B’s Cooking show', start: getIsoString(13, 5, 0), end: getIsoString(13, 9, 0), slot: 'custom2' }, 
+  { id: 'e1', title: 'High School Life Simulator', start: getIsoString(11, 10, 0), end: getIsoString(11, 21, 0), slot: 'event' },
+  { id: 'e1-dup', title: 'Maid Cafe Simulator', start: getIsoString(11, 0, 0), end: getIsoString(11, 11, 0), slot: 'alt' },
+  { id: 'e2', title: 'Event Title', start: getIsoString(12, 0, 0), end: getIsoString(12, 4, 0), slot: 'custom' },
+  { id: 'e3', title: 'Maid Cafe Simulator', start: getIsoString(12, 1, 0), end: getIsoString(12, 11, 0), slot: 'alt' },
+  { id: 'e4', title: 'Event Title', start: getIsoString(13, 0, 0), end: getIsoString(13, 4, 0), slot: 'custom' },
+  { id: 'e5', title: 'Event Title', start: getIsoString(14, 22, 0), end: getIsoString(14, 23, 0), slot: 'custom' },
+  { id: 'e6', title: 'Maid Cafe Simulator', start: getIsoString(14, 0, 0), end: getIsoString(14, 4, 0), slot: 'alt' },
+  { id: 'e7', title: 'Event Title', start: getIsoString(15, 0, 0), end: getIsoString(15, 8, 0), slot: 'custom' },
+  { id: 'e8', title: 'Event Title', start: getIsoString(16, 2, 0), end: getIsoString(16, 8, 0), slot: 'custom' },
+  { id: 'e9', title: 'Maid Cafe Simulator', start: getIsoString(16, 0, 0), end: getIsoString(16, 21, 0), slot: 'alt' },
+  { id: 'e10', title: 'Event Title', start: getIsoString(17, 0, 0), end: getIsoString(17, 5, 0), slot: 'custom' },
+  { id: 'e11', title: 'Event Title', start: getIsoString(17, 22, 0), end: getIsoString(17, 23, 0), slot: 'custom' },
+  { id: '12', title: 'High School Life Simulator', start: getIsoString(17, 8, 0), end: getIsoString(17, 20, 0), slot: 'event' },
+  { id: 'e13', title: 'J&B’s Cooking show', start: getIsoString(13, 5, 0), end: getIsoString(13, 9, 0), slot: 'custom2' },
 ]);
 
 const eventsData = ref([
@@ -216,10 +254,10 @@ const eventsData = ref([
         title: 'Live call',
         titleColorClass: 'text-lightViolet',
         borderClass: 'bg-lightViolet',
-        bgClass: 'bg-white', 
+        bgClass: 'bg-white',
         showJoin: true,
         statusText: 'in 5 min',
-        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }] 
+        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
       },
       {
         time: '2:15pm-9:30pm',

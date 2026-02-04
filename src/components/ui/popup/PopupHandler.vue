@@ -297,14 +297,10 @@ async function openPanel() {
     setOverlayZ(currentZ.value - 1);
     setOverlayActive(true);
     setOverlayVisible(true);
-    if (cfg.value.closeOnOutside) {
-      overlayClick.setHandler(() => closeTopMost());
-    } else {
-      overlayClick.setHandler(() => {/* swallow clicks; do nothing */});
-    }
+    registerOverlayHandler();
   } else if (cfg.value.closeOnOutside) {
     // Even without overlay, set up outside click detection
-    overlayClick.setHandler(() => closeTopMost());
+    registerOverlayHandler();
   }
 
   // Body scroll lock
@@ -711,11 +707,25 @@ function buildEventDetail(phase) {
   };
 }
 
+// Helper to register the overlay click handler for THIS panel
+function registerOverlayHandler() {
+  if (cfg.value.closeOnOutside) {
+    overlayClick.setHandler(() => closeTopMost());
+  } else if (cfg.value.showOverlay) {
+    // If showing overlay but NOT closing on outside, swallow clicks
+    overlayClick.setHandler(() => {});
+  }
+}
+
 // -------------------- Watchers & lifecycle --------------------
 watch(() => props.modelValue, (nv) => {
   if (nv) {
     registerPanel(panelRef, {
-      onBecomeTop: () => { /* no-op; could add highlighting */ },
+      onBecomeTop: () => { 
+        // When this panel becomes top-most again (e.g. child closed), 
+        // restore its overlay click handler
+        registerOverlayHandler();
+      },
       onAllClosed: () => {
         // When all closed: hide overlay & unlock scroll
         setOverlayVisible(false);

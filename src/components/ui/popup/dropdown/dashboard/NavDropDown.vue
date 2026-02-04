@@ -87,14 +87,14 @@ const renderHeaderNav = () => {
   // render each item
   menuItems.forEach((item) => {
     const wrapper = document.createElement("div");
-    wrapper.className = "sidebar-item group";
+    wrapper.class = "sidebar-item group";
     
     if (!item.enabled) {
-      wrapper.className += " disabled opacity-50 pointer-events-none";
+      wrapper.class += " disabled opacity-50 pointer-events-none";
     }
 
     const a = document.createElement("a");
-    a.className = `main-menu-item flex flex-col outline-none items-center justify-center self-stretch gap-0.5 p-2 rounded min-w-[4.5rem] min-h-[4.5rem] group-hover:bg-sidebar-active transition-all duration-200 cursor-pointer`;
+    a.class = `main-menu-item flex flex-col outline-none items-center justify-center self-stretch gap-0.5 p-2 rounded min-w-[4.5rem] min-h-[4.5rem] group-hover:bg-sidebar-active transition-all duration-200 cursor-pointer`;
     a.setAttribute("href", item.route || "#");
     a.title = item.title;
     

@@ -17,7 +17,7 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
           <div class="w-2 h-2 bg-indigo-600 rounded-full" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
-          <img src="https://i.ibb.co/h0GrfX0/edit-02.png" alt="editIcon" />
+          <img src="/images/edit.png" alt="editIcon" />
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
           <div class="w-2 h-2 bg-cyan-500 rounded-full" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
-          <img src="https://i.ibb.co/h0GrfX0/edit-02.png" alt="editIcon" />
+                    <img src="/images/edit.png" alt="editIcon" />
         </div>
       </div>
     </div>
@@ -51,7 +51,7 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
           <div class="w-2 h-2 bg-rose-600 rounded-full" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
-          <img src="https://i.ibb.co/h0GrfX0/edit-02.png" alt="editIcon" />
+                    <img src="/images/edit.png" alt="editIcon" />
         </div>
       </div>
     </div>
