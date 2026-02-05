@@ -15,11 +15,11 @@
 
         </div>
 
-        <div v-if="isMobileCalendarOpen"
-          class="absolute top-10 left-0 z-[100] w-full lg:hidden rounded-bl-[12px] rounded-br-[12px] overflow-hidden">
-          <div class="p-2 bg-white/80 backdrop-blur-[10px] rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
+        <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
+          class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[12px] rounded-br-[12px] overflow-hidden">
+          <div class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
-              <div class="flex items-center gap-2 cursor-pointer">
+              <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
                 <div class="text-gray-900 text-base font-medium uppercase">{{ title }}</div>
                 <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
@@ -520,6 +520,10 @@
       <CalendarEventDetailsPopup :event="selectedEvent" />
     </PopupHandler>
 
+    <PopupHandler v-model="isDatePopupOpen" :config="datePopupConfig">
+      <MobileDateSelector :current-date="cursor" @update:date="handleDateUpdate" @close="isDatePopupOpen = false" />
+    </PopupHandler>
+
 
   </section>
 
@@ -538,6 +542,7 @@ import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
+import MobileDateSelector from './MobileDateSelector.vue';
 
 import MiniCalendar from './MiniCalendar.vue';
 
@@ -573,7 +578,29 @@ const newEventsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
 const selectedEvent = ref({});
 const isMobileCalendarOpen = ref(false);
+const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
+const mobileCalendarRef = ref(null);
+
+const handleMobileCalendarClickOutside = (event) => {
+  if (
+    isMobileCalendarOpen.value &&
+    mobileCalendarRef.value &&
+    !mobileCalendarRef.value.contains(event.target) &&
+    // Check if the click was on the toggle button itself (to avoid immediate re-opening)
+    !event.target.closest('.cursor-pointer.flex.lg\\:hidden')
+  ) {
+    isMobileCalendarOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleMobileCalendarClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleMobileCalendarClickOutside);
+});
 
 
 const toggleMobileCalendar = () => {
@@ -638,7 +665,7 @@ const newEventsPopupConfig = {
   from: "right",
   offset: "0px",
   verticalAlign: "bottom",
-  width: { default: "384px"  },
+  width: { default: "384px" },
   height: { default: "auto" },
   speed: "300ms",
   effect: "ease-in-out",
@@ -663,6 +690,29 @@ const eventDetailsPopupConfig = {
   scrollable: false,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
+const datePopupConfig = {
+  actionType: "slidein",
+  from: "top",
+  offset: "65px", // Height of header
+  verticalAlign: "top", // Opens from top
+  width: { default: "100%" },
+  height: { default: "auto" }, // Let component define height
+  speed: "300ms",
+  effect: "ease-in-out",
+  showOverlay: false,
+  closeOnOutside: true,
+  lockScroll: true,
+};
+
+const handleDateUpdate = (newDate) => {
+  cursor.value = newDate;
+  emit('date-selected', newDate);
+  // Also emit update:focus-date if user expects v-model behavior
+  emit('update:focus-date', newDate);
+  isDatePopupOpen.value = false;
+  isMobileCalendarOpen.value = false; // Close parent popup too if desired? User said "neeche jo calendar ha wahan bh date chng honic chyh"
 };
 
 const eventsData = ref([

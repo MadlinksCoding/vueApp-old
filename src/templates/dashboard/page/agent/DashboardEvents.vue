@@ -100,7 +100,7 @@ import MainCalendar from '@/components/calendar/MainCalendar.vue';
 import DashboardWrapperTwoColContainer from '@/components/dashboard/DashboardWrapperTwoColContainer.vue';
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
 import EventsWidget from '@/components/calendar/EventsWidget.vue';
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, reactive, onUnmounted } from 'vue';
 import CreateEventPopup from '@/components/calendar/CreateEventPopup.vue';
 import NewEventsPopup from '@/components/calendar/NewEventsPopup.vue';
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
@@ -145,14 +145,29 @@ const togglePopup = () => {
   }
 };
 
+const handlePositionUpdate = () => {
+  if (isCreatePopupOpen.value) updatePopupPosition();
+};
+
+const handleClickOutside = (event) => {
+  if (!isCreatePopupOpen.value) return;
+  const path = event.composedPath ? event.composedPath() : [];
+  if (popupTrigger.value && !path.includes(popupTrigger.value)) {
+    isCreatePopupOpen.value = false;
+  }
+};
+
 // Update position on scroll or resize to keep it attached
 onMounted(() => {
-  window.addEventListener('resize', () => {
-    if (isCreatePopupOpen.value) updatePopupPosition();
-  });
-  window.addEventListener('scroll', () => {
-    if (isCreatePopupOpen.value) updatePopupPosition();
-  }, true); // Capture phase for scrolling of parent containers
+  window.addEventListener('resize', handlePositionUpdate);
+  window.addEventListener('scroll', handlePositionUpdate, true); // Capture phase for scrolling of parent containers
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handlePositionUpdate);
+  window.removeEventListener('scroll', handlePositionUpdate, true);
+  document.removeEventListener('click', handleClickOutside);
 });
 
 const now = new Date();
