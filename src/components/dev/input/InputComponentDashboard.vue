@@ -1,80 +1,46 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
-    <label
-      v-if="showLabel"
-      v-bind="resolvedAttrs.labelAttrs"
-      class="flex justify-between items-center w-full"
-    >
+    <label v-if="showLabel" v-bind="resolvedAttrs.labelAttrs" class="flex justify-between items-center w-full">
       <span class="text-left text-[#667085] font-[700] text-[14px]">{{
         labelText
       }}</span>
 
       <span class="text-right">
-        <Paragraph
-          v-if="requiredDisplay === 'italic-text'"
-          :text="requiredDisplayText"
-          fontSize="text-xs"
-          fontColor="text-gray-500"
-          fontFamily="italic"
-        />
+        <Paragraph v-if="requiredDisplay === 'italic-text'" :text="requiredDisplayText" fontSize="text-xs"
+          fontColor="text-gray-500" fontFamily="italic" />
         <span v-else-if="requiredDisplay === '*'" class="text-red-500">*</span>
       </span>
     </label>
 
-    <Paragraph
-      v-if="optionalLabel"
-      :text="optionalLabelText"
-      fontSize="text-base"
-      fontWeight="font-normal"
-      fontColor="text-gray-900 "
-      shadow="opacity-70"
-    />
+    <Paragraph v-if="optionalLabel" :text="optionalLabelText" fontSize="text-base" fontWeight="font-normal"
+      fontColor="text-gray-900 " shadow="opacity-70" />
 
     <!-- Input -->
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper3" class="">
       <!-- Left icon -->
-      <div>
-        <div class="flex items-center">
+      <div class="flex-1 w-full">
+        <div class="flex items-center w-full">
           <component v-if="leftIcon" :is="leftIcon" class="w-5 h-5" />
 
           <!-- left span -->
 
-          <Paragraph
-            v-if="leftSpan"
-            :text="leftSpanText"
-            :class="leftSpanClass"
-            fontSize="text-base"
-            fontWeight="font-bold"
-            fontColor="text-gray-700"
-            layoutClass="whitespace-nowrap"
-          />
-          <input
-            v-bind="resolvedAttrs.inputAttrs"
-            :id="addId || resolvedAttrs.inputAttrs.id"
-            :value="modelValue"
-            :type="type"
-            v-if="type !== 'textarea'"
-            @input="
+          <Paragraph v-if="leftSpan" :text="leftSpanText" :class="leftSpanClass" fontSize="text-base"
+            fontWeight="font-bold" fontColor="text-gray-700" layoutClass="whitespace-nowrap" />
+          <input v-bind="resolvedAttrs.inputAttrs" :id="addId || resolvedAttrs.inputAttrs.id" :value="modelValue"
+            :type="type" v-if="type !== 'textarea'" @input="
               $emit(
                 'update:modelValue',
                 ($event.target as HTMLInputElement).value
               )
-            "
-            :class="[leftIcon ? 'pl-1' : 'pl-0', rightIcon ? 'pr-1' : 'pr-0']"
-          />
+              " :class="[leftIcon ? 'pl-1' : 'pl-0', rightIcon ? 'pr-1' : 'pr-0']" />
         </div>
 
-        <textarea
-          v-if="type === 'textarea'"
-          v-bind="resolvedAttrs.inputAttrs"
-          :rows="3"
-          @input="
-            $emit(
-              'update:modelValue',
-              ($event.target as HTMLInputElement).value
-            )
-          "
-        ></textarea>
+        <textarea v-if="type === 'textarea'" v-bind="resolvedAttrs.inputAttrs" :rows="3" @input="
+          $emit(
+            'update:modelValue',
+            ($event.target as HTMLInputElement).value
+          )
+          "></textarea>
       </div>
 
       <div>
@@ -82,90 +48,40 @@
         <component v-if="rightIcon" :is="rightIcon" class="w-5 h-5" />
 
         <!-- right span -->
-        <Paragraph
-          v-if="rightSpan"
-          :text="rightSpanText"
-          :class="rightSpanClass"
-          fontSize="text-base"
-          fontWeight="font-medium"
-          fontColor="text-gray-700 "
-          layoutClass="px-3 whitespace-nowrap"
-        />
+        <Paragraph v-if="rightSpan" :text="rightSpanText" :class="rightSpanClass" fontSize="text-base"
+          fontWeight="font-medium" fontColor="text-gray-700 " layoutClass="px-3 whitespace-nowrap" />
       </div>
     </div>
 
     <!-- Description -->
 
-    <Paragraph
-      v-if="description"
-      :text="description"
-      fontSize="text-sm"
-      fontColor="text-[#475467] "
-    />
+    <Paragraph v-if="description" :text="description" fontSize="text-sm" fontColor="text-[#475467] " />
 
     <!-- required-error-text -->
-    <Paragraph
-      v-if="requiredDisplay === 'required-text-error'"
-      text="This field is required."
-      fontSize="text-xs"
-      fontColor="text-[#FF4405]"
-      layoutClass="inline-flex items-center leading-loose"
-    />
+    <Paragraph v-if="requiredDisplay === 'required-text-error'" text="This field is required." fontSize="text-xs"
+      fontColor="text-[#FF4405]" layoutClass="inline-flex items-center leading-loose" />
 
     <!-- error-fields-container -->
-    <div
-      class="flex flex-col items-start self-stretch gap-1 px-2 pt-1 pb-2"
-      v-if="showErrors"
-    >
+    <div class="flex flex-col items-start self-stretch gap-1 px-2 pt-1 pb-2" v-if="showErrors">
       <div class="flex flex-col gap-1">
-        <div
-          v-for="(errorObj, index) in errors"
-          :key="index"
-          class="flex w-full gap-[.4375rem]"
-          :class="
-            index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
-          "
-        >
-          <component
-            v-if="errorObj.icon"
-            :is="errorObj.icon"
-            class="block w-[1.125rem] h-[1.125rem] md:w-[1.25rem] md:h-[1.25rem] Light"
-            :class="
-              index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
-            "
-          />
-          <Paragraph
-            :text="errorObj.error"
-            fontSize="text-sm"
-            :fontColor="
-              index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
-            "
-          />
+        <div v-for="(errorObj, index) in errors" :key="index" class="flex w-full gap-[.4375rem]" :class="index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
+          ">
+          <component v-if="errorObj.icon" :is="errorObj.icon"
+            class="block w-[1.125rem] h-[1.125rem] md:w-[1.25rem] md:h-[1.25rem] Light" :class="index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
+              " />
+          <Paragraph :text="errorObj.error" fontSize="text-sm" :fontColor="index === errors.length - 1 ? 'text-[#FF7C1E]' : 'text-[#FF4405]'
+            " />
         </div>
       </div>
     </div>
 
     <!-- success-fields-container -->
-    <div
-      class="flex flex-col items-start self-stretch gap-1 px-2 pt-1 pb-2"
-      v-if="onSuccess"
-    >
+    <div class="flex flex-col items-start self-stretch gap-1 px-2 pt-1 pb-2" v-if="onSuccess">
       <div class="flex flex-col gap-1">
-        <div
-          v-for="(successObj, index) in success"
-          :key="index"
-          class="flex w-full gap-[.4375rem] text-[#07f468]"
-        >
-          <component
-            v-if="successObj.icon"
-            :is="successObj.icon"
-            class="block w-[1.125rem] h-[1.125rem] md:w-[1.25rem] md:h-[1.25rem] text-[#07f468]Light"
-          />
-          <Paragraph
-            :text="successObj.message"
-            fontSize="text-sm"
-            fontColor="text-[#07f468] "
-          />
+        <div v-for="(successObj, index) in success" :key="index" class="flex w-full gap-[.4375rem] text-[#07f468]">
+          <component v-if="successObj.icon" :is="successObj.icon"
+            class="block w-[1.125rem] h-[1.125rem] md:w-[1.25rem] md:h-[1.25rem] text-[#07f468]Light" />
+          <Paragraph :text="successObj.message" fontSize="text-sm" fontColor="text-[#07f468] " />
         </div>
       </div>
     </div>

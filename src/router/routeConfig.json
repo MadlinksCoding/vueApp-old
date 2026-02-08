@@ -735,12 +735,19 @@
   "componentPath": "@/templates/dashboard/page/agent/DashboardEvents.vue"
   },
   {
-    "slug": "/bookingForm",
-  "componentPath": "@/components/ui/form/BookingForm/OneOnOneBookingForm.vue"
+    "slug": "/UnifiedBookingForm",
+  "componentPath": "@/components/ui/form/BookingForm/UnifiedBookingForm.vue"
   },
   {
     "slug": "/groupBookingForm",
   "componentPath": "@/components/ui/form/BookingForm/GroupBookingForm.vue"
+  },
+  {
+    "slug": "/dev/datepicker-showcase",
+    "requiresAuth": false,
+    "section": "dev",
+    "enabled": true,
+    "componentPath": "@/dev/DatePickerShowcase.vue"
   },
   {
     "slug": "/",
