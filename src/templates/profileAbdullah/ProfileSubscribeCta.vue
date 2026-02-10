@@ -1,3 +1,9 @@
+<script setup>
+import { ref } from 'vue';
+import ProfileSubscriptionPopup from './popups/ProfileSubscriptionPopup.vue';
+const profileSubscriptionPopupOpen = ref(false);
+</script>
+
 <template>
      <div class="flex md:mt-8 xl:mt-16">
               <!-- new-subscriber-button -->
@@ -78,6 +84,7 @@
                     </div>
 
                     <button
+                    @click="profileSubscriptionPopupOpen = true"
                       class="flex justify-center items-center self-stretch px-3 py-[0.313rem] bg-[#FB0464] flex-grow md:rounded-[0_16px_16px_0] lg:max-w-[18.9375rem]"
                     >
                       <span
@@ -89,4 +96,7 @@
                 </div>
               </div>
             </div>
+
+    <ProfileSubscriptionPopup v-model="profileSubscriptionPopupOpen" />
+
 </template>
