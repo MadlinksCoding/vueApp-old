@@ -80,7 +80,7 @@ const profileSubscriptionPopupConfig = {
 
             <div class='w-full flex flex-col justify-center items-center'>
                 <div>
-                    <ProfileSubscriptionCards />
+                    <ProfileSubscriptionCards :isPopupOpen="modelValue" />
                 </div>
             </div>
 

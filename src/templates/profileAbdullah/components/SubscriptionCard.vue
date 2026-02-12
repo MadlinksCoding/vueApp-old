@@ -1,7 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import CheckboxGroup from '@/components/ui/form/checkbox/CheckboxGroup.vue';
 import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
+import UpgradeTierPopup from '@/components/checkout/purchase/UpgradeTierPopup.vue';
+
+const upgradeTierPopupOpen = ref(false);
 
 const props = defineProps({
     isActive: {
@@ -76,7 +79,7 @@ const contentClasses = computed(() => {
                         <span :class="isActive
                             ? 'text-white text-5xl font-semibold font-[\'Poppins\'] leading-[60px]'
                             : 'text-neutral-400 text-5xl font-semibold font-[\'Poppins\'] leading-[54px]'">{{
-                            data.price }}</span>
+                                data.price }}</span>
                     </div>
 
                     <div :class="isActive
@@ -182,13 +185,16 @@ const contentClasses = computed(() => {
             <img src="/images/pinkSingleUnion.png" class='w-3 h-9' alt="">
         </div>
 
-        <!-- Followers Button (Only for 'Other' / Inactive cards) -->
-        <div v-if="!isActive" class="right-0 bottom-0 absolute">
-            <ButtonComponent text="30 Followers" variant="polygonLeft"
+        <!-- Followers Button (Only for cards that are NOT current subscription) -->
+        <div v-if="!data.isSubscribed" class="right-0 bottom-0 absolute"  @click="upgradeTierPopupOpen = true">
+            <ButtonComponent text="Upgrade" variant="polygonLeft"
                 :rightIconClass="`w-6 h-6 transition duration-200 filter brightness-0 invert-0 group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]`"
                 btnBg="#71717A" btnHoverBg="black" btnText="#000" btnHoverText="#07f468"
                 customClass="shadow-[3.5999999046325684px_3.5999999046325684px_0px_0px_rgba(0,0,0,1.00)] h-12 px-2 py-1" />
         </div>
 
     </div>
+
+    <UpgradeTierPopup v-model="upgradeTierPopupOpen" />
+
 </template>

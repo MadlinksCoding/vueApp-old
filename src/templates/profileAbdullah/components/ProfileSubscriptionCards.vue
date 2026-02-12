@@ -1,8 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import SubscriptionCard from './SubscriptionCard.vue';
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
 import '@splidejs/vue-splide/css';
+
+const props = defineProps({
+    isPopupOpen: { type: Boolean, default: false }
+});
+
+const emit = defineEmits(["update:modelValue"]);
+
+const splideRef = ref(null);
 
 const subscriptionCards = ref([
     {
@@ -105,11 +113,13 @@ const splideOptions = {
     gap: 0,
     pagination: true,
     arrows: false,
+    drag: false, // Disable drag/swipe interaction
     start: 2,
+    updateOnMove: true,
     speed: 400,
     trimSpace: false,
     breakpoints: {
-        1124: { perPage: 3, gap: "-50px" },
+        1124: { perPage: 3, gap: "-59px", focus: "center", trimSpace: false },
         768: { perPage: 1, gap: 0 },
         500: { perPage: 1, gap: 0 }
     }
@@ -121,9 +131,56 @@ const onMove = (splide, newIndex) => {
 };
 
 const onSplideMounted = (splide) => {
-    applyCoverflow(splide);
-    splide.on('resized', () => applyCoverflow(splide));
+    // Store the splide instance first
+    splideRef.value = splide;
+
+    // Immediate initialization - apply coverflow on the default state first
+    requestAnimationFrame(() => {
+        applyCoverflow(splide);
+
+        // Then navigate to index 2 and re-apply
+        requestAnimationFrame(() => {
+            splide.go(2, false); // Jump without animation
+
+            // Apply coverflow immediately after navigation
+            requestAnimationFrame(() => {
+                applyCoverflow(splide);
+
+                // Force one more update after a short delay
+                setTimeout(() => {
+                    splide.refresh();
+                    applyCoverflow(splide);
+                }, 100);
+            });
+        });
+    });
+
+    // Listen to moved event (fires after move completes)
+    splide.on('moved', () => {
+        requestAnimationFrame(() => applyCoverflow(splide));
+    });
+
+    // Listen to resize events
+    splide.on('resized', () => {
+        requestAnimationFrame(() => {
+            applyCoverflow(splide);
+        });
+    });
 };
+
+// Watch for popup open and reinitialize slider after animation
+watch(() => props.isPopupOpen, (isOpen) => {
+    if (isOpen && splideRef.value) {
+        // Wait for popup slide-in animation (250ms) + extra buffer
+        setTimeout(() => {
+            splideRef.value.refresh();
+            splideRef.value.go(2, false);
+            requestAnimationFrame(() => {
+                applyCoverflow(splideRef.value);
+            });
+        }, 350);
+    }
+});
 
 const applyCoverflow = (splide) => {
     const slides = splide.Components.Slides.get(true);
@@ -132,7 +189,7 @@ const applyCoverflow = (splide) => {
     const maxVisibleDist = Math.floor(perPage / 2);
 
     // ⬅️ Add this at the very start
-    if (perPage === 1 ) {
+    if (perPage === 1) {
         slides.forEach((slide) => {
             const el = slide.slide;
             el.style.transform = 'translateX(0) scale(1)';
@@ -161,8 +218,15 @@ const applyCoverflow = (splide) => {
             translateX = 0;
             zIndex = 30;
         } else if (absDist === 1 && perPage >= 2) {
-            scale = perPage <= 2 ? 0.85 : 0.85;
-            translateX = dist > 0 ? '-70px' : '70px';
+            scale = 0.85;
+
+            // fix for 3 cards layout
+            if (perPage === 3) {
+                translateX = dist > 0 ? '-30px' : '30px';
+            } else {
+                translateX = dist > 0 ? '-70px' : '70px';
+            }
+
             zIndex = 20;
         } else if (absDist === 2 && perPage >= 3) {
             scale = 0.7;
@@ -190,9 +254,9 @@ const applyCoverflow = (splide) => {
 </script>
 
 <template>
-    <div class="w-full flex justify-center max-w-[1306px] items-center py-10 overflow-hidden">
+    <div class="w-full flex justify-center items-center py-10 overflow-hidden">
         <Splide :options="splideOptions" @splide:move="onMove" @splide:mounted="onSplideMounted"
-            class="w-full  flex justify-center items-center" aria-label="Subscription Plans">
+            class="w-full max-w-[1306px] mx-auto" aria-label="Subscription Plans">
             <SplideSlide v-for="(card, index) in subscriptionCards" :key="index"
                 class="flex justify-center items-center py-10 transition-transform duration-300">
                 <SubscriptionCard :data="card" :isActive="activeIndex === index" />
