@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import SubscriptionCard from './SubscriptionCard.vue';
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
 import '@splidejs/vue-splide/css';
@@ -104,6 +104,19 @@ const subscriptionCards = ref([
 ]);
 
 const activeIndex = ref(2); // Start at current subscription
+
+// Find current subscription (highest priced subscription)
+const currentSubscription = computed(() => {
+    const subscribedCards = subscriptionCards.value.filter(card => card.isSubscribed);
+    if (subscribedCards.length === 0) return null;
+
+    // Return the subscription with highest price
+    return subscribedCards.reduce((max, card) => {
+        const maxPrice = parseFloat(max.price);
+        const cardPrice = parseFloat(card.price);
+        return cardPrice > maxPrice ? card : max;
+    });
+});
 
 const splideOptions = {
     type: 'slide',
@@ -259,7 +272,8 @@ const applyCoverflow = (splide) => {
             class="w-full max-w-[1306px] mx-auto" aria-label="Subscription Plans">
             <SplideSlide v-for="(card, index) in subscriptionCards" :key="index"
                 class="flex justify-center items-center py-10 transition-transform duration-300">
-                <SubscriptionCard :data="card" :isActive="activeIndex === index" />
+                <SubscriptionCard :data="card" :isActive="activeIndex === index"
+                    :currentSubscription="currentSubscription" />
             </SplideSlide>
         </Splide>
     </div>

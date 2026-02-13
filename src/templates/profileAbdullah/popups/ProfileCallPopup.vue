@@ -32,7 +32,7 @@ const profileCallPopupConfig = {
             class="relative h-full backdrop-blur-md overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col justify-between">
 
             <!-- cross-icon -->
-            <div
+            <div @click="emit('update:modelValue', false)"
                 class="p-3 right-5 top-5 absolute cursor-pointer bg-black/50 rounded-[50px] backdrop-blur-[10px] inline-flex justify-center items-center gap-2.5">
                 <svg width="16" height="16" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M17 1L1 17M1 1L17 17" stroke="white" stroke-width="1.5" stroke-linecap="round"
@@ -68,7 +68,8 @@ const profileCallPopupConfig = {
                         <div class="w-full lg:flex justify-center items-start gap-4">
                             <div class="w-full flex-1 relative flex  items-center">
                                 <div class="flex flex-col  items-start gap-2.5">
-                                    <img class="w-28 h-28 absolute top-3 -left-[60px] z-[9]" src="/images/camera-img.png" />
+                                    <img class="w-28 h-28 absolute top-3 -left-[60px] z-[9]"
+                                        src="/images/camera-img.png" />
                                 </div>
                                 <div class="w-96 inline-flex flex-col justify-center items-start gap-2">
                                     <div class="pl-10 flex flex-col  items-start gap-2.5">
@@ -243,8 +244,7 @@ const profileCallPopupConfig = {
                         </div>
                         <div class="self-stretch flex  items-center overflow-hidden">
                             <img src="/images/blueUnion.png" class="w-3.5 scale-x-[-1] absolute right-11" />
-                            <div
-                                class="self-stretch pl-2 pr-3 py-2 bg-[#0C111D] flex  items-center gap-0.5">
+                            <div class="self-stretch pl-2 pr-3 py-2 bg-[#0C111D] flex  items-center gap-0.5">
                                 <div class="w-6 h-6 relative overflow-hidden flex justify-center items-center">
                                     <img src="/images/pinkdropdown-img.png" alt="">
                                 </div>

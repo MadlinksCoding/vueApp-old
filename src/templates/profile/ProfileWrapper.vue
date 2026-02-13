@@ -45,9 +45,6 @@
           :media-items="payPerViewMedia"
           :total-count="11"
           :show-more-button="true"
-          @view-all-click="handleViewAll('pay-per-view')"
-          @media-click="handleMediaClick"
-          @show-more-click="handleShowMore('pay-per-view')"
         />
 
         <!-- subscription-section -->
@@ -56,9 +53,6 @@
           :media-items="subscriptionMedia"
           :total-count="8"
           :show-more-button="true"
-          @view-all-click="handleViewAll('subscription')"
-          @media-click="handleMediaClick"
-          @show-more-click="handleShowMore('subscription')"
         />
 
         <!-- featured-section -->
@@ -67,9 +61,6 @@
           :media-items="featuredMedia"
           :total-count="15"
           :show-more-button="true"
-          @view-all-click="handleViewAll('featured')"
-          @media-click="handleMediaClick"
-          @show-more-click="handleShowMore('featured')"
         />
       </div>
     </div>

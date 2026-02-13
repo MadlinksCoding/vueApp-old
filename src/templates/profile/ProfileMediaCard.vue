@@ -8,7 +8,7 @@
     @mouseleave="handleMouseLeave"
   >
     <a
-      href="#"
+    
       class="block absolute left-1/2 top-1/2 [transform:translate(-50%,-50%)_perspective(0)_translateZ(0)] overflow-visible w-full h-full transition-all duration-150 ease-in-out shadow-[0_0_10px_-34px_rgba(0,0,0,0.10)] bg-no-repeat bg-center bg-cover group-hover:duration-150 group-hover:z-[2] group-hover:block group-hover:w-full group-hover:h-full group-hover:min-w-full xl:group-hover:w-[26.25rem] xl:group-hover:h-[21.875rem] xl:group-hover:min-w-[unset] xl:group-hover:rounded-[0.313rem] xl:group-hover:shadow-[0_0_0.625rem_-2.125rem_rgba(0,0,0,0.10)]"
       @click.prevent="$emit('media-click', media)"
     >

@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8 bg-white mb-[200px] space-y-12">
+  <div class="p-8 bg-[#c9c7c7]  min-h-full">
 
     <h2 class="text-2xl font-bold mb-6">Media card Version 1</h2>
     

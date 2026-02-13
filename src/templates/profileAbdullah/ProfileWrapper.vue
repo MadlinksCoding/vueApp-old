@@ -367,7 +367,7 @@
             <ProfileMediaTabHeading title="Pay to View" :count="11" />
 
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
-              <PlayMediaCards :mediaList="myMediaData" />
+              <PlayMediaCards :mediaList="myMediaData" @media-click="openMediaPopup" />
             </div>
           </section>
 
@@ -375,7 +375,7 @@
             <ProfileMediaTabHeading title="Subscription" :count="15" />
 
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
-              <PlayMediaCards :mediaList="myMediaData" />
+              <PlayMediaCards :mediaList="myMediaData" @media-click="openMediaPopup" />
             </div>
 
           </section>
@@ -385,7 +385,7 @@
 
 
             <div class="mx-2 overflow-visible md:mx-4 xl:mx-12">
-              <PlayMediaCards :mediaList="myMediaData" />
+              <PlayMediaCards :mediaList="myMediaData" @media-click="openMediaPopup" />
             </div>
 
           </section>
@@ -413,6 +413,8 @@
 
       </div>
     </section>
+
+    <ProfileMediaDetailsPopup v-model="profileMediaDetailsPopupOpen" :media="selectedMedia" />
   </div>
 </template>
 
@@ -440,6 +442,15 @@ import HeaderUserProfileResponsive from "./HeaderUserProfileResponsive.vue";
 import HeaderUserProfileDesktop from "./HeaderUserProfileDesktop.vue";
 import ProfileHeaderOptionbuttons from "./ProfileHeaderOptionbuttons.vue";
 import ProfileMediaTabHeading from "./ProfileMediaTabHeading.vue";
+import ProfileMediaDetailsPopup from "@/components/ui/popup/ProfileMediaDetailsPopup.vue";
+
+const profileMediaDetailsPopupOpen = ref(false);
+const selectedMedia = ref({});
+
+const openMediaPopup = (media) => {
+  selectedMedia.value = media;
+  profileMediaDetailsPopupOpen.value = true;
+};
 
 // --- MEDIA LIST DATA ---
 const myMediaData = ref([
