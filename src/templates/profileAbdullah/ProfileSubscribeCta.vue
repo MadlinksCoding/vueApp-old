@@ -48,7 +48,7 @@ const profileSubscriptionPopupOpen = ref(false);
                    
                   </div>
 
-                  <!-- tier-price -->
+                  <!-- tier-price -->wi
                   <span
                     class="text-xs leading-6 font-medium whitespace-nowrap text-white md:text-sm"
                     >Starting

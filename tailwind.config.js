@@ -25,6 +25,15 @@ export default {
         primary: {
           DEFAULT: "#939393",
           dark: "#181a1b",
+          pink: "#FF0066",
+          "pink-dark": "#b30047",
+          "pink-light": "#FF1A76",
+          gradient: {
+            start: "#37FFD7",
+            end: "#07F468",
+            "start-dark": "#00ab91",
+            "end-dark": "#06c454",
+          },
         },
         accent: {
           pink: {
@@ -171,6 +180,10 @@ export default {
         text: {
           DEFAULT: "#ffffff",
           dark: "#e8e6e3",
+          primary: "#0C111D",
+          secondary: "#FCFAFF",
+          tertiary: "#FCFCFD",
+
           secondary: {
             light: "#667085",
             dark: "#ffffff85",
@@ -217,6 +230,10 @@ export default {
           },
           dark: {
             mutedBluish: "#ACBACF",
+            primary: "#e8e6e3",
+            secondary: "#dec8ff",
+            tertiary: "#e6e4e1",
+            muted: "#dbd8d3",
           },
           quaternary: "#667085",
         },
@@ -267,6 +284,10 @@ export default {
             },
           },
           icon: "#98A2B3",
+          tab: "#F2F4F7",
+          input: "#0C111D",
+          "tab-dark": "#333739",
+          "input-dark": "#857c6d",
         },
         errorBorder: {
           DEFAULT: "#ff4405",
@@ -345,6 +366,9 @@ export default {
           },
         },
         bg: {
+          overlay: "rgba(0, 0, 0, 0.3)",
+          card: "rgba(255, 255, 255, 0.25)",
+          form: "hsla(0, 0%, 100%, 0.5)",
           status: {
             light: "#ffe500",
             dark: "#a99700",
@@ -358,6 +382,15 @@ export default {
           statusTag: "#000",
           dark: {
             statusTag: "#181a1b",
+            switch: "#181a1b",
+            overlay: "rgba(24,26,27,0.3)",
+            form: "rgba(24,26,27,0.5)",
+          },
+          gradient: {
+            overlay: "rgba(0,0,0,0.45)",
+            "overlay-dark": "rgba(24,26,27,0.45)",
+            overlayLg: "rgba(0,0,0,0.9)",
+            "overlayLg-dark": "rgba(24,26,27,0.9)",
           },
         },
         cta: {
@@ -468,21 +501,23 @@ export default {
         customDarkGrey: {
           DEFAULT: "#B7BBBB",
         },
-         lightViolet:{
-                        DEFAULT:'#5549FF'
-                      },
-                      darkGrey:{
-                        DEFAULT:'#D1D0FE'
-                      },
-                      gray:{
-                        700:'#344054'
-                      },
-                      brightPink:{
-                        DEFAULT:'#FF0066'
-                      },
-                      activePink:{
-                        DEFAULT:'#FF0464'
-                      },
+        lightViolet: {
+          DEFAULT: "#5549FF",
+        },
+        darkGrey: {
+          DEFAULT: "#D1D0FE",
+        },
+        gray: {
+          700: "#344054",
+          500: "#6B7280",
+          800: "#1F2937",
+        },
+        brightPink: {
+          DEFAULT: "#FF0066",
+        },
+        activePink: {
+          DEFAULT: "#FF0464",
+        },
         fce40d: "#fce40d",
         d0d5dd: "#d0d5dd",
         ff00a6: "#ff00a6",

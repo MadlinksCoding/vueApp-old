@@ -31,8 +31,8 @@
       <div class="w-full h-full bg-cover bg-center bg-no-repeat relative">
         <div class="w-full h-full flex justify-center items-center">
 
-          <video v-if="media.type === 'video' || !media.type" ref="videoRef" class="object-cover w-full h-full" muted
-            loop playsinline>
+          <video v-if="media.type === 'video' || !media.type" ref="videoRef" :poster="media.poster"
+            class="object-cover w-full h-full" muted loop playsinline>
             <source :src="media.videoUrl" type="video/mp4">
           </video>
 
@@ -125,17 +125,34 @@
 
       <template v-if="variant === 'grid'">
         <div class="flex group-hover:hidden absolute left-0 bottom-0 z-[10000]">
-          <span class="flex justify-center items-center px-[0.4rem] gap-1  backdrop-filter backdrop-blur-[20px]"
+          <!-- Buy Label -->
+          <span v-if="buyLabel"
+            class="flex justify-center items-center px-2.5 py-1 gap-1 backdrop-filter backdrop-blur-[20px]"
+            :style="{ backgroundColor: buyBgColor }">
+            <span class="text-white text-xs font-medium leading-[.875rem]">{{ buyLabel }}</span>
+          </span>
+          <!-- Action Label -->
+          <span class="flex justify-center items-center px-[0.4rem] gap-1 backdrop-filter backdrop-blur-[20px]"
             :style="{ backgroundColor: actionBgColor }">
-            <span class="text-black text-[0.58rem] font-medium  leading-[.875rem]">{{ actionLabel }}</span>
+            <span class="text-black text-[0.58rem] font-medium leading-[.875rem]">{{ actionLabel }}</span>
           </span>
         </div>
 
         <div class="hidden group-hover:flex flex-col items-start gap-3 absolute left-0 bottom-0 z-[10000] pb-2 pl-2">
-          <span class="flex justify-center items-center px-[0.4rem] gap-1 backdrop-filter backdrop-blur-[20px]"
-            :style="{ backgroundColor: actionBgColor }">
-            <span class="text-black text-[0.58rem] font-medium  leading-[.875rem]">{{ actionLabel }}</span>
-          </span>
+          <div class="flex items-center">
+            <!-- Buy Label -->
+            <span v-if="buyLabel"
+              class="flex justify-center items-center px-2.5 py-1 gap-1 backdrop-filter backdrop-blur-[20px]"
+              :style="{ backgroundColor: buyBgColor }">
+              <span class="text-white text-xs   backdrop-blur-[10px] font-medium leading-[.875rem]">{{ buyLabel
+                }}</span>
+            </span>
+            <!-- Action Label -->
+            <span class="flex justify-center items-center px-[0.4rem] gap-1 backdrop-filter backdrop-blur-[20px]"
+              :style="{ backgroundColor: actionBgColor }">
+              <span class="text-black text-[0.58rem] font-medium leading-[.875rem]">{{ actionLabel }}</span>
+            </span>
+          </div>
           <span class="text-[0.58rem] font-medium flex-grow line-clamp-1 text-white">{{ media.title }}</span>
         </div>
 
@@ -220,7 +237,7 @@
       </div>
     </div>
 
-    <div v-if="variant === 'grid'" class="h-20 flex flex-col gap-1 w-full">
+    <div v-if="variant === 'grid' && showFooter" class="h-20 flex flex-col gap-1 w-full">
       <div class="flex items-start gap-1">
         <span class="text-sm font-medium flex-grow line-clamp-2" :style="{ color: titleColor }">
           {{ media.title }}
@@ -312,6 +329,19 @@ const props = defineProps({
   actionBgColor: {
     type: String,
     default: '#fb0464'
+  },
+  // ✅ NEW PROPS: Secondary Action (e.g., Buy Now)
+  buyLabel: {
+    type: String,
+    default: null
+  },
+  buyBgColor: {
+    type: String,
+    default: '#ffffff'
+  },
+  showFooter: {
+    type: Boolean,
+    default: true
   }
 });
 

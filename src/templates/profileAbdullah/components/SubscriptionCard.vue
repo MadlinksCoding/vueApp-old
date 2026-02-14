@@ -1,218 +1,169 @@
-<script setup>
-import { computed, ref } from 'vue';
-import CheckboxGroup from '@/components/ui/form/checkbox/CheckboxGroup.vue';
-import ButtonComponent from '@/components/dev/button/ButtonComponent.vue';
-import UpgradeTierPopup from '@/components/checkout/purchase/UpgradeTierPopup.vue';
+<template>
+    <li class="w-[21.4375rem] h-[32.625rem] absolute flex flex-col items-start rounded-sm transition-all duration-500 left-1/2 sm:h-[41.0625rem] md:w-96 md:h-[37.625rem] group"
+        :class="[
+            orderClass,
+            { 'is-current !backdrop-blur-0 !blur-0': isCurrent }
+        ]" @click="$emit('card-click')">
+        <div v-if="cardData.isFeatured || cardData.isCurrentSubscription"
+            class="absolute -top-2 -left-2 flex justify-center items-center w-max h-8 pl-2 pr-[1.15625rem] z-[2] transition-colors duration-300"
+            :class="cardData.isCurrentSubscription ? 'bg-[#FF0066]' : 'bg-[linear-gradient(90deg,#909090_0%,#AEAEAE_100%)]'"
+            style="clip-path: polygon(100% 0%, 100% 0%, calc(100% - 12.5px) 100%, 0% 100%, 0% 0%);">
+            <span class="text-lg font-semibold text-white uppercase">
+                {{ cardData.isCurrentSubscription ? 'Current Subscription' : 'FEATURED' }}
+            </span>
+        </div>
+        <div class="flex flex-col w-full h-full rounded-sm border-[1.5px] border-[#7E7E7E] group-[.is-current]:border-[#FF0066] dark:border-[#5f676b] dark:group-[.is-current]:border-[#cc0052] overflow-hidden relative bg-cover bg-center bg-no-repeat"
+            :style="cardBackgroundStyle">
 
-const upgradeTierPopupOpen = ref(false);
+            <!-- Badge/Button Container (Replaces Followers) -->
+            <div v-if="!cardData.isCurrentSubscription" @click.stop="$emit('trigger-action', cardData)"
+                class="absolute -bottom-[1.73px] right-0 flex justify-center items-center w-max h-[2.829rem] pl-[1.509rem] pr-[0.404rem] cursor-pointer transition-colors duration-200 [clip-path:polygon(19.6875px_0%,100%_0%,100%_100%,0%_100%,19.6875px_0%)] shadow-[3.23px_3.23px_0px_0px_#000000] z-[2]"
+                :class="isUpgrade ? 'bg-[#07F468] hover:bg-[#06c454]' : 'bg-[#E9E5D3] hover:bg-[#dcd8c0]'">
+                <span class="text-[1.35rem] leading-[1.8rem] font-semibold uppercase"
+                    :class="isUpgrade ? 'text-black' : 'text-black/60'">
+                    {{ actionText }}
+                </span>
+            </div>
+<!-- 
+            <div v-else
+                class="absolute -bottom-[1.73px] right-0 flex justify-center items-center w-max h-[2.829rem] pl-[1.509rem] pr-[0.404rem] bg-[#7E7E7E] [clip-path:polygon(19.6875px_0%,100%_0%,100%_100%,0%_100%,19.6875px_0%)] shadow-[3.23px_3.23px_0px_0px_#000000] z-[2]">
+                <span class="text-[1.35rem] leading-[1.8rem] font-semibold text-black">
+                    Current
+                </span>
+            </div> -->
+
+            <section
+                class="w-full h-full flex flex-col gap-4 px-6 pt-8 pb-[4.25rem] rounded-sm relative overflow-hidden"
+                style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%);">
+                <div class="absolute inset-0 w-full h-full backdrop-blur-[5px] pointer-events-none z-[-1]"></div>
+
+                <div class="w-full z-[5] relative drop-shadow-[0px_4px_18px_#00000080]">
+                    <h2 class="text-3xl leading-[2.375rem] font-semibold line-clamp-2 text-white uppercase">
+                        {{ cardData.title }}
+                    </h2>
+                </div>
+
+                <div class="flex items-center gap-2.5 drop-shadow-[0px_2px_12px_#000000BF]">
+                    <div class="flex items-center gap-[0.0625rem]">
+                        <span class="text-base text-white">{{ cardData.videos || 0 }}</span>
+                        <img src="https://i.ibb.co.com/PGgG4sNS/play-square.webp" alt="videos" class="w-5 h-5">
+                    </div>
+                    <div class="h-[0.188rem] w-[0.188rem] bg-white block rounded-full"></div>
+                    <div class="flex items-center gap-[0.0625rem]">
+                        <span class="text-base text-white">{{ cardData.photos || 0 }}</span>
+                        <img src="https://i.ibb.co.com/nN9TqnGb/image-03.webp" alt="photos" class="w-5 h-5">
+                    </div>
+                    <div class="h-[0.188rem] w-[0.188rem] bg-white block rounded-full"></div>
+                    <div class="flex items-center gap-[0.0625rem]">
+                        <span class="text-base text-white">{{ cardData.mediaCount || 0 }}</span>
+                        <img src="https://i.ibb.co.com/9HmCysxn/media.webp" alt="media" class="w-5 h-5">
+                    </div>
+                </div>
+
+                <div class="flex gap-1">
+                    <div class="flex items-baseline" :class="isCurrent ? 'text-[#FFCD29]' : 'text-[#949494]'">
+                        <span class="text-xl font-semibold">USD$</span>
+                        <span class="text-5xl font-semibold tracking-tighter">{{ cardData.price }}</span>
+                    </div>
+                    <div class="flex flex-col justify-between pt-[0.0625rem] pb-[0.625rem]">
+                        <div class="flex justify-center items-center w-max px-[0.3125rem] py-0.5 h-5 font-bold text-sm text-black"
+                            :class="isCurrent ? 'bg-[#FFCD29]' : 'bg-[#949494]'">
+                            -80%
+                        </div>
+                        <div class="flex items-end gap-1.5">
+                            <span class="text-base leading-5 font-medium line-through"
+                                :class="isCurrent ? 'text-[#FFCD29]' : 'text-[#949494]'">
+                                ${{ cardData.oldPrice }}
+                            </span>
+                            <span class="text-[0.625rem] leading-[0.8125rem]"
+                                :class="isCurrent ? 'text-[#FFCD29]' : 'text-[#949494]'">/mo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1 flex-1 pt-1 min-h-0 overflow-hidden">
+                    <p class="text-sm text-white drop-shadow-[0px_2px_4px_#1018280F] overflow-hidden"
+                        style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 7;"
+                        v-html="cardData.fullDescription"></p>
+                    <button class="flex items-center gap-0.5 w-max">
+                        <span class="text-xs font-medium text-[#07F468]">...Read more</span>
+                    </button>
+                </div>
+
+
+
+                <ul class="flex flex-col gap-2 mt-auto">
+                    <li v-for="(f, i) in cardData.features" :key="i" class="flex items-center gap-4">
+                        <div
+                            class="w-3 min-w-[0.75rem] h-3 bg-[#FF0066] rounded-[4px] relative after:content-[''] after:absolute after:left-1 after:top-[1px] after:w-[3px] after:h-[6px] after:border-white after:border-b-2 after:border-r-2 after:rotate-45">
+                        </div>
+                        <span class="text-base text-white" v-html="f"></span>
+                    </li>
+                </ul>
+
+            </section>
+        </div>
+    </li>
+</template>
+
+<script setup>
+import { computed } from 'vue';
 
 const props = defineProps({
-    isActive: {
-        type: Boolean,
-        default: false
-    },
-    data: {
+    cardData: {
         type: Object,
         required: true
     },
-    currentSubscription: {
-        type: Object,
-        default: null
+    order: {
+        type: Number,
+        required: true
+    },
+    isCurrent: {
+        type: Boolean,
+        default: false
+    },
+    currentSubscriptionPrice: {
+        type: Number,
+        default: 0
     }
 });
 
-// Determine if this is an upgrade or downgrade
-const isUpgrade = computed(() => {
-    if (!props.currentSubscription || props.data.isSubscribed) return null;
-    const currentPrice = parseFloat(props.currentSubscription.price);
-    const thisPrice = parseFloat(props.data.price);
-    return thisPrice > currentPrice;
+defineEmits(['card-click', 'trigger-action']);
+
+// Dynamic Background style with Gradient and Image
+const cardBackgroundStyle = computed(() => ({
+    backgroundImage: `linear-gradient(0deg, rgba(77, 32, 255, 0.25), rgba(77, 32, 255, 0.25)), url(${props.cardData.image})`
+}));
+
+// Slider Positioning logic
+const orderClass = computed(() => {
+    const mapping = {
+        1: 'opacity-70 z-[3] translate-x-[-180%] scale-[0.8] blur-[0.118rem]',
+        2: 'opacity-70 z-[4] translate-x-[-121%] scale-[0.9] blur-[0.118rem]',
+        3: 'opacity-100 z-[5] translate-x-[-50%] scale-100 blur-0',
+        4: 'opacity-70 z-[4] translate-x-[21%] scale-[0.9] blur-[0.118rem]',
+        5: 'opacity-70 z-[3] translate-x-[80%] scale-[0.8] blur-[0.118rem]'
+    };
+    return mapping[props.order] || '';
 });
 
-const actionType = computed(() => {
-    if (props.data.isSubscribed) return null;
+const isUpgrade = computed(() => {
+    const cardPrice = parseFloat(props.cardData.price || 0);
+    const currentPrice = props.currentSubscriptionPrice;
+    return cardPrice > currentPrice;
+});
+
+const actionText = computed(() => {
     return isUpgrade.value ? 'Upgrade' : 'Downgrade';
 });
-
-// Computed classes based on isActive state
-const containerClasses = computed(() => {
-    return props.isActive
-        ? "w-96 h-full relative bg-[linear-gradient(to_bottom,rgba(13,10,44,0.9),rgba(13,10,44,0.2),rgba(13,10,44,0.9)),url('/images/tierBluishCard.png')] bg-cover bg-center rounded-sm shadow-[0px_4px_50px_0px_rgba(0,255,217,0.25)] outline outline-[1.50px] outline-[#FF0066] transition-all duration-300"
-        : "w-96 h-full relative opacity-70 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.7),rgba(0,0,0,0),rgba(0,0,0,0.7)),url('/images/checkout-header.webp')] bg-cover bg-center rounded-sm outline outline-[1.35px] outline-zinc-500 blur-[1px] backdrop-blur-xl transition-all duration-300";
-});
-
-const contentClasses = computed(() => {
-    return props.isActive
-        ? "w-96 h-full px-6 pt-8 pb-16 bg-gradient-to-b from-black/0 to-black/50 rounded-sm border-[#FF0066] backdrop-blur-[5px] inline-flex flex-col justify-start items-center gap-4"
-        : "w-96 px-5 pt-7 pb-16 bg-black/0 rounded-sm backdrop-blur-sm inline-flex flex-col justify-start items-center gap-3.5";
-});
-
 </script>
 
-<template>
-    <div :class="containerClasses">
-        <div :class="contentClasses">
-
-            <!-- Header Title -->
-            <div
-                :class="isActive
-                    ? 'justify-start text-white text-3xl font-semibold font-[\'Poppins\'] leading-9 line-clamp-2'
-                    : 'self-stretch justify-start text-gray-200 text-2xl font-semibold font-[\'Poppins\'] leading-9 line-clamp-2'">
-                {{ data.title }}
-            </div>
-
-            <!-- Icons Row -->
-            <div class="w-full inline-flex justify-start items-center gap-2.5">
-                <div class="flex justify-start items-center gap-px">
-                    <div class="justify-center text-white text-base font-normal font-['Poppins'] tracking-tight">0</div>
-                    <div class="w-5 h-5 relative overflow-hidden">
-                        <img src="/images/video.webp" alt="">
-                    </div>
-                </div>
-                <div class="w-[3px] h-[3px] bg-white rounded-full" />
-                <div class="flex justify-center items-center gap-px">
-                    <div class="justify-center text-white text-base font-normal font-['Poppins'] tracking-tight">0</div>
-                    <div class="w-5 h-5 relative overflow-hidden">
-                        <img src="/images/galleryIcon.png" alt="">
-                    </div>
-                </div>
-                <div class="w-[3px] h-[3px] bg-white rounded-full" />
-                <div class="flex justify-center items-center gap-px">
-                    <div class="justify-center text-white text-base font-normal font-['Poppins'] tracking-tight">0</div>
-                    <div class=" relative overflow-hidden">
-                        <img src="/images/galleryIcon2.png" alt="">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Price Section -->
-            <div
-                :class="isActive ? 'w-full flex flex-col justify-end items-start gap-1' : 'self-stretch min-w-44 flex flex-col justify-end items-start gap-1'">
-                <div class="inline-flex justify-end items-end gap-1">
-                    <div class="justify-end">
-                        <span :class="isActive
-                            ? 'text-white text-xl font-semibold font-[\'Poppins\'] leading-8'
-                            : 'text-neutral-400 text-lg font-semibold font-[\'Poppins\'] leading-7'">USD$</span>
-                        <span :class="isActive
-                            ? 'text-white text-5xl font-semibold font-[\'Poppins\'] leading-[60px]'
-                            : 'text-neutral-400 text-5xl font-semibold font-[\'Poppins\'] leading-[54px]'">{{
-                                data.price }}</span>
-                    </div>
-
-                    <div :class="isActive
-                        ? 'pt-px pb-2.5 inline-flex flex-col justify-end items-start'
-                        : 'self-stretch pt-px pb-2 inline-flex flex-col justify-between items-start'">
-
-                        <!-- Discount Badge (Only for inactive/other if applicable, logic inferred from original) -->
-                        <!-- Original 'Current' didn't have discount badge visible in code, 'Other' had -50% -->
-                        <div v-if="!isActive && data.discount"
-                            class="px-1 py-0.5 bg-neutral-400 inline-flex justify-end items-center gap-2">
-                            <div
-                                class="text-right justify-center text-black text-xs font-bold font-['Poppins'] leading-4">
-                                {{ data.discount }}
-                            </div>
-                        </div>
-
-                        <div class="inline-flex justify-start items-end gap-1.5">
-                            <div v-if="!isActive && data.originalPrice"
-                                class="justify-end text-neutral-400 text-sm font-medium font-['Poppins'] line-through leading-4">
-                                {{ data.originalPrice }}
-                            </div>
-                            <div
-                                :class="isActive
-                                    ? 'justify-end text-white text-[10px] font-normal font-[\'Poppins\'] leading-3 tracking-tight'
-                                    : 'justify-end text-neutral-400 text-[9px] font-normal font-[\'Poppins\'] leading-3 tracking-tight'">
-                                /mo
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content / Description -->
-            <div
-                :class="isActive ? 'flex-1 pt-1 flex flex-col justify-start items-start gap-1' : 'self-stretch flex-1 pt-1 flex flex-col justify-start items-start gap-1'">
-                <div v-if="isActive" class="flex flex-col gap-3">
-                    <span
-                        class="text-white text-sm font-normal font-['Poppins'] leading-5 [text-shadow:_0px_2px_4px_rgb(16_24_40_/_0.06)] line-clamp-6">
-                        {{ data.description }}
-                    </span>
-                    <ul
-                        class="list-disc pl-5 text-white text-sm font-normal font-['Poppins'] leading-5 [text-shadow:_0px_2px_4px_rgb(16_24_40_/_0.06)]">
-                        <li v-for="(feature, index) in data.features" :key="index">{{ feature }}</li>
-                    </ul>
-                </div>
-                <div v-else class="self-stretch justify-start">
-                    <span
-                        class="text-gray-50 text-xs font-normal font-['Poppins'] leading-4 [text-shadow:_0px_2px_4px_rgb(16_24_40_/_0.06)] line-clamp-6">
-                        {{ data.description }}
-                    </span>
-                    <br />
-                    <span
-                        class="text-gray-50 text-xs font-normal font-['Poppins'] leading-4 [text-shadow:_0px_2px_4px_rgb(16_24_40_/_0.06)] line-clamp-6">
-                        <template v-for="(feature, index) in data.features" :key="index">
-                            {{ feature }}<br />
-                        </template>
-                    </span>
-                </div>
-
-                <!-- Read More -->
-                <div class="inline-flex justify-start items-center gap-0.5" :class="!isActive ? 'mt-1' : ''">
-                    <div
-                        :class="isActive ? 'justify-start text-green-500 text-xs font-medium font-[\'Poppins\'] leading-4' : 'justify-start text-zinc-500 text-xs font-medium font-[\'Poppins\'] leading-4'">
-                        ...Read more
-                    </div>
-                </div>
-            </div>
-
-            <!-- Features Checkboxes / List -->
-            <div
-                :class="isActive ? 'w-full flex flex-col justify-start items-start gap-2' : 'self-stretch flex flex-col justify-start items-start gap-2'">
-                <CheckboxGroup v-for="(item, idx) in data.perks" :key="idx"
-                    :checkboxClass="`appearance-none bg-white border border-[#D0D5DD] dark:border-[#4a5568] rounded-[2px] w-3 min-w-3 h-3 mt-0.5
-                            checked:accent-[#07f468] checked:bg-[#07f468] dark:checked:bg-[#0aff78] checked:border-[#07f468]
-                            dark:checked:border-[#0aff78] checked:relative checked:after:content-[''] checked:after:absolute
-                            checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2
-                            checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0
-                            checked:after:border-[black] dark:checked:after:border-[white] checked:after:border-b-[2px]
-                            checked:after:border-r-[2px] checked:after:rotate-45 checked:after:box-border cursor-pointer`"
-                    labelClass="text-sm leading-normal tracking-[0.0175rem] text-[#98A2B3] cursor-pointer mt-1"
-                    wrapperClass="flex items-center gap-2">
-                    <div class="flex-1 justify-start">
-                        <span
-                            :class="isActive ? 'text-[#7E7E7E] text-sm font-semibold font-[\'Poppins\'] leading-6' : 'text-zinc-500 text-sm font-semibold font-[\'Poppins\'] leading-5'">{{
-                                item.highlight }}</span>
-                        <span
-                            :class="isActive ? 'text-white text-sm font-normal font-[\'Poppins\'] leading-6' : 'text-white text-sm font-normal font-[\'Poppins\'] leading-5'">
-                            {{ item.text }}</span>
-                    </div>
-                </CheckboxGroup>
-            </div>
-
-        </div>
-
-        <!-- Current Subscription Badge (Only for Active / Subscribed) -->
-        <!-- Assuming isActive and isSubscribed are linked for this specific visualization where center = current -->
-        <div v-if="data.isSubscribed" class="h-8 left-[-6px] top-[-6px] absolute inline-flex justify-start items-start">
-            <div class="pl-2 pr-1.5 py-1 bg-[#FF0066] flex justify-end items-center gap-2.5">
-                <div class="justify-center text-white text-lg font-semibold font-['Poppins'] leading-7">
-                    Current Subscription
-                </div>
-            </div>
-            <img src="/images/pinkSingleUnion.png" class='w-3 h-9' alt="">
-        </div>
-
-        <!-- Upgrade/Downgrade Button (Only for cards that are NOT current subscription) -->
-        <div v-if="!data.isSubscribed" class="right-0 bottom-0 absolute" @click="upgradeTierPopupOpen = true">
-            <ButtonComponent :text="actionType" variant="polygonLeft"
-                :rightIconClass="`w-6 h-6 transition duration-200 filter brightness-0 invert-0 group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]`"
-                btnBg="#71717A" btnHoverBg="black" btnText="#000" btnHoverText="#07f468"
-                customClass="shadow-[3.5999999046325684px_3.5999999046325684px_0px_0px_rgba(0,0,0,1.00)] h-12 px-2 py-1" />
-        </div>
-
-    </div>
-
-    <UpgradeTierPopup v-model="upgradeTierPopupOpen" :currentSubscription="currentSubscription" :newSubscription="data"
-        :isUpgrade="isUpgrade" />
-
-</template>
+<style scoped>
+/* Ensuring text clamping works across browsers */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>

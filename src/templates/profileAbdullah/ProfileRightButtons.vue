@@ -1,15 +1,19 @@
 <script setup>
 import { ref } from 'vue';
 import ProfileCallPopup from './popups/profileCallPopup.vue';
+import TipPopup from './popups/TipPopup.vue';
 
 const isCallPopupOpen = ref(false);
+const isTipPopupOpen = ref(false);
 </script>
 
 <template>
   <div
     class="flex flex-col gap-4 absolute top-0 right-2 z-[999] mt-32 sm:mt-[4.09375rem] md:top-[10.313rem] md:right-4 xl:right-12">
     <div class="relative flex flex-col gap-2 lg:gap-4">
-      <div class="flex items-end relative w-12 sm:w-15 md:w-[5.34375rem] cursor-pointer">
+      <div
+      @click="isTipPopupOpen = true"
+       class="flex items-end relative w-12 sm:w-15 md:w-[5.34375rem] cursor-pointer">
         <!--group animate-slidefromleft hover:animate-slidefromright-->
         <img data-src="/images/token.webp" alt="tip-token" class="lazyload w-12 sm:w-15 md:w-[5.25rem]" />
       </div>
@@ -32,5 +36,6 @@ const isCallPopupOpen = ref(false);
   </div>
 
   <ProfileCallPopup v-model="isCallPopupOpen" />
+  <TipPopup v-model="isTipPopupOpen" />
   
 </template>

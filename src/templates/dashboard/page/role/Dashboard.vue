@@ -197,6 +197,14 @@
 
     <br />
 
+    <ButtonComponent
+      text="Tip Popup"
+      variant="mediaBtn"
+      @click="tipPopupOpen = true"
+    />
+
+    <br />
+
     <UploadingProgressBar
       :progress="uploadPercentage"
       imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
@@ -249,6 +257,7 @@
     <OneOnOneBookingFlowPopup v-model="oneOnOneBookingFlowPopupOpen" />
     <TicketEventPopup v-model="ticketEventPopupOpen" />
     <CrowdFundingEventPopup v-model="crowdFundingEventPopupOpen" />
+    <TipPopup v-model="tipPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -287,6 +296,7 @@ import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import TicketEventPopup from "@/components/FanBookingFlow/GroupEventFlow/TicketEventPopup/TicketEventPopup.vue";
 import CrowdFundingEventPopup from "@/components/FanBookingFlow/GroupEventFlow/CrowdFundingEventPopup/CrowdFundingEventPopup.vue";
+import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -307,6 +317,7 @@ const upgradeTierPopupOpen = ref(false);
 const oneOnOneBookingFlowPopupOpen = ref(false);
 const ticketEventPopupOpen = ref(false);
 const crowdFundingEventPopupOpen = ref(false);
+const tipPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
