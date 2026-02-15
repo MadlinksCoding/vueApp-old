@@ -2,6 +2,8 @@
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
 import { createStepStateEngine } from '@/utils/stateEngine';
 import TipStep1 from '@/templates/profileAbdullah/components/TipTokenSteps/TipStep1.vue';
+import TipStep2 from '@/templates/profileAbdullah/components/TipTokenSteps/TipStep2.vue';
+import TipStep3 from '@/templates/profileAbdullah/components/TipTokenSteps/TipStep3.vue';
 import { provide, onMounted } from 'vue';
 
 const props = defineProps({
@@ -22,7 +24,7 @@ const profileCallPopupConfig = {
     lockScroll: false,
     escToClose: true,
     width: { default: "auto", "<768": "100%", },
-    height:  { default: "auto", "<1010": "90%","<768": "100%" },
+    height: { default: "auto", "<1010": "90%", "<768": "100%" },
     scrollable: true,
     closeSpeed: "250ms",
     closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -35,6 +37,28 @@ const engine = createStepStateEngine({
         amount: 0,
         message: '',
         anonymous: false,
+        // Step 2 & 3 Data
+        topUpAmount: 100,
+        userBalance: 1834, // Mock
+        email: '',
+        password: '',
+        isLoggedIn: false, // Mock
+        authMode: 'login', // login, guest, forgot
+        paymentMethod: 'card',
+        paymentCardNumber: '',
+        paymentExpiry: '',
+        paymentCardHolder: '',
+        paymentCvv: '',
+        paymentSaveCard: false,
+        firstName: '',
+        lastName: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        postalCode: '',
+        selectedCountry: 'United States',
+        selectedState: '',
+        saveAddress: false,
     }
 });
 
@@ -47,6 +71,11 @@ const handleClose = () => {
 
 onMounted(() => {
     engine.initialize({ fromUrl: false });
+});
+
+import { watch } from 'vue';
+watch(() => engine.step, (val) => {
+    console.log('[TipPopup] engine.step changed to:', val);
 });
 
 </script>
@@ -69,7 +98,7 @@ onMounted(() => {
                 <!-- left-column -->
                 <div
                     class="w-full h-80 flex bg-[url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp')] bg-cover bg-center min-h-[23.4375rem] sm:min-h-[20rem] lg:min-h-[33.625rem] lg:w-[20.1875rem] ">
-                   
+
                     <!-- Overlay Container -->
                     <div
                         class="h-full w-full flex items-end bg-gradient-to-b from-transparent via-transparent to-bg-gradient-overlay dark:to-bg-gradient-overlay-dark lg:to-bg-gradient-overlayLg dark:lg:to-bg-gradient-overlayLg-dark">
@@ -97,6 +126,8 @@ onMounted(() => {
                     class="w-full bg-bg-card dark:bg-bg-dark-form  flex flex-col md:max-w-[31.6875rem] lg:max-w-none lg:w-[32.5625rem]
                     lg:h-[33.625rem] lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
                     <TipStep1 v-if="engine.step === 1" :engine="engine" @close="handleClose" />
+                    <TipStep2 v-if="engine.step === 2" :engine="engine" @close="handleClose" />
+                    <TipStep3 v-if="engine.step === 3" :engine="engine" @close="handleClose" />
                 </div>
             </div>
         </div>

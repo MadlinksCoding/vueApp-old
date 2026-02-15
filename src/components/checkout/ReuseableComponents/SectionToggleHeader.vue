@@ -1,30 +1,30 @@
 <template>
   <div class="border-b border-transparent">
     <!-- Header -->
-    <div
-      class="flex justify-between items-center cursor-pointer"
-       :class="toggleable ? 'cursor-pointer' : 'cursor-default'"
-      @click="handleClick"
-    >
+    <div class="flex justify-between items-center cursor-pointer"
+      :class="toggleable ? 'cursor-pointer' : 'cursor-default'" @click="handleClick">
       <div class="flex items-center gap-2">
         <div class="flex justify-center items-center w-5 h-5">
-          <img :src="icon" alt="section-icon" class="w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(98%)_sepia(1%)_saturate(934%)_hue-rotate(29deg)_brightness(120%)_contrast(100%)]" />
+          <div class="w-5 h-5 transition-colors duration-200" :class="iconColor" :style="{
+            maskImage: `url(${icon})`,
+            webkitMaskImage: `url(${icon})`,
+            maskSize: 'contain',
+            webkitMaskSize: 'contain',
+            maskRepeat: 'no-repeat',
+            webkitMaskRepeat: 'no-repeat',
+            maskPosition: 'center',
+            webkitMaskPosition: 'center'
+          }"></div>
         </div>
 
-        <h3 class="text-base font-semibold text-[#F9FAFB] dark:text-[#e5e3df]">
+        <h3 class="text-base font-semibold" :class="titleColor">
           {{ title }}
         </h3>
       </div>
 
-      <div
-       v-if="showChevron"
-      class="flex justify-center items-center w-6 h-6">
-        <img
-          src="https://i.ibb.co.com/qLW7tf3T/Arrows.webp"
-          alt="chevron"
-          class="transition-transform duration-300"
-          :class="isOpen ? 'rotate-180' : 'rotate-0'"
-        />
+      <div v-if="showChevron" class="flex justify-center items-center w-6 h-6">
+        <img src="https://i.ibb.co.com/qLW7tf3T/Arrows.webp" alt="chevron" class="transition-transform duration-300"
+          :class="isOpen ? 'rotate-180' : 'rotate-0'" />
       </div>
     </div>
 
@@ -43,9 +43,17 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  titleColor: {
+    type: String,
+    default: "text-[#F9FAFB] dark:text-[#e5e3df]", // ✅ default to white
+  },
   icon: {
     type: String,
     required: true,
+  },
+  iconColor: {
+    type: String,
+    default: "bg-[#F9FAFB] dark:bg-[#e5e3df]", // ✅ default to white bg
   },
   modelValue: {
     type: Boolean,
