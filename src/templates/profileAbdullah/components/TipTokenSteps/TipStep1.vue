@@ -52,12 +52,14 @@ const handleTip = () => {
 };
 
 const handleCashTip = () => {
-    isLoading.value = true;
-    setTimeout(() => {
-        isLoading.value = false;
-        showSuccess.value = true;
-        // Optional: Hide alert after a few seconds if needed
-    }, 2000);
+    console.log('handleCashTip called', { amount: cashAmount.value });
+
+    // Persist state
+    props.engine.state.cashAmount = cashAmount.value;
+    props.engine.state.paymentMode = 'cash';
+
+    // Navigate to Payment Step (Step 3)
+    props.engine.goToStep(3);
 };
 
 const handleTopUp = () => {
@@ -70,6 +72,7 @@ const handleTopUp = () => {
     props.engine.state.amount = tokenAmount.value;
     props.engine.state.anonymous = isAnonymous.value;
     props.engine.state.userBalance = userBalance.value;
+    props.engine.state.paymentMode = 'token'; // Reset/Set payment mode
 
     console.log('Navigating to Step 2...');
     // Navigate to Top Up Step (Step 2)

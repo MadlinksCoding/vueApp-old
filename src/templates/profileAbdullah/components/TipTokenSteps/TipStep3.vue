@@ -65,6 +65,11 @@ const finalPrice = computed(() => props.engine.state.finalPrice || 0);
 const originalPrice = computed(() => props.engine.state.originalPrice || 0);
 // const discount = computed(() => props.engine.state.discount || 0); // Not used in display but good to have
 
+const isCashMode = computed(() => props.engine.state.paymentMode === 'cash');
+const cashTipAmount = computed(() => props.engine.state.cashAmount || 0);
+const serviceCharge = computed(() => cashTipAmount.value * 0.10);
+const finalCashPayment = computed(() => cashTipAmount.value + serviceCharge.value);
+
 // Methods
 const handleBack = () => {
     if (props.engine && props.engine.goToStep) {
@@ -95,9 +100,9 @@ const processPayment = () => {
             address1: props.engine.state.addressLine1,
             city: props.engine.state.city
         },
-        amount: finalPrice.value
+        amount: finalPrice.value || finalCashPayment.value
     });
-    alert(`Processing Payment of $${finalPrice.value.toFixed(2)} for ${topUpAmount.value} tokens.`);
+    // alert(`Processing Payment of $${finalPrice.value.toFixed(2)} for ${topUpAmount.value} tokens.`);
     // Navigate to success or close?
     // emit('close');
 };
@@ -203,16 +208,25 @@ const formatCurrency = (value) => {
                     <div v-else-if="engine.state.authMode === 'forgot'" class="flex flex-col gap-4">
                         <button class="flex items-center gap-0.5 bg-transparent border-none outline-none cursor-pointer"
                             @click="engine.state.authMode = 'login'">
-                            <img src="https://i.ibb.co.com/G45DRqmz/arrow-left-01.webp" alt="arrow left"
-                                class="w-4 h-4" />
-                            <span class="text-xs leading-normal font-medium text-white dark:text-[#e8e6e3]">Back to Log
+                            <div class="w-4 h-4 bg-[#344054]" :style="{
+                                maskImage: `url('https://i.ibb.co.com/G45DRqmz/arrow-left-01.webp')`,
+                                webkitMaskImage: `url('https://i.ibb.co.com/G45DRqmz/arrow-left-01.webp')`,
+                                maskSize: 'contain',
+                                maskRepeat: 'no-repeat',
+                                maskPosition: 'center',
+                                webkitMaskSize: 'contain',
+                                webkitMaskRepeat: 'no-repeat',
+                                webkitMaskPosition: 'center'
+                            }">
+                            </div>
+                            <span class="text-xs leading-normal font-medium text-[#344054]">Back to Log
                                 in</span>
                         </button>
                         <div class="flex flex-col gap-1.5 w-full group/input">
                             <div
                                 class="w-full h-10 flex items-center gap-2 py-2 px-3 border-b border-[#D0D5DD] dark:border-[#3b4043] bg-white/10 dark:bg-[#181a1b]/10 group-[.error]/input:border-[#FF692E] shadow-[0_1px_2px_0_#1018280D]">
                                 <input type="email" placeholder="Email" v-model="engine.state.email"
-                                    class="text-base text-white dark:text-[#e8e6e3] placeholder:text-base placeholder:text-[#667085]/50 dark:placeholder:text-[#e5e3df]/50 placeholder:font-sans w-full outline-none border-none bg-transparent" />
+                                    class="text-base text-[#344054] placeholder:text-base placeholder:text-[#667085]/50 dark:placeholder:text-[#e5e3df]/50 placeholder:font-sans w-full outline-none border-none bg-transparent" />
                                 <img src="https://i.ibb.co.com/yBMzbHWz/alert-circle.webp" alt="alert-circle"
                                     class="hidden w-4 h-4 cursor-pointer group-[.error]/input:flex" />
                             </div>
@@ -326,84 +340,123 @@ const formatCurrency = (value) => {
         </div>
         <div class="flex flex-col mt-auto bg-white/50 dark:bg-[#181a1b80] pb-[3.25rem] sm:pb-0 flex-1">
             <!-- top-up amount table section -->
-            <div class="flex flex-col gap-3 py-2 px-2 mt-auto md:px-4 md:mt-[unset] lg:px-6 pb-0 sm:pb-2">
-                <!-- row -->
-                <div class="flex justify-between items-center pt-2 border-t border-transparent">
-                    <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Your
-                        Balance</span>
-                    <div class="flex items-center gap-1">
-                        <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg" class="w-6 h-6">
-                        <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
-                            userBalance }}</span>
-                    </div>
-                </div>
-
-                <!-- row -->
-                <div class="flex justify-between items-center border-t border-transparent">
-                    <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Top Up
-                        Amount</span>
-                    <div class="flex items-center gap-1">
-                        <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">+</span>
-                        <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg" class="w-6 h-6">
-                        <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
-                            topUpAmount }}</span>
-                    </div>
-                </div>
-
-                <!-- row (total) -->
-                <div class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]">
-                    <span
-                        class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary">Total
-                        After Top Up</span>
-                    <div class="flex items-center gap-1">
-                        <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg" class="w-6 h-6">
-                        <span class="text-lg font-semibold text-text-primary dark:text-text-dark-primary">{{
-                            totalTokens
-                        }}</span>
-                    </div>
-                </div>
-
-                <!-- row (final) -->
-                <div class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]">
-                    <span
-                        class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary">Final
-                        Payment</span>
-                    <div class="flex flex-col items-end gap-1">
+            <template v-if="!isCashMode">
+                <div class="flex flex-col gap-3 py-2 px-2 mt-auto md:px-4 md:mt-[unset] lg:px-6 pb-0 sm:pb-2">
+                    <!-- row -->
+                    <div class="flex justify-between items-center pt-2 border-t border-transparent">
+                        <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Your
+                            Balance</span>
                         <div class="flex items-center gap-1">
-                            <div
-                                class="bg-gradient-to-r from-primary-gradient-start dark:from-primary-gradient-start-dark to-primary-gradient-end dark:to-primary-gradient-end-dark shadow-[-1px_1px_8px_0px_#35FFD340,1px_-1px_8px_0px_#1CF89940] dark:shadow-[-1px_1px_8px_0px_#00ac9040,1px_-1px_8px_0px_#06b97f40] flex justify-center items-center w-max">
-                                <div class="flex justify-center items-center gap-[0.1875rem] pt-0.5 px-1">
-                                    <span
-                                        class="text-[0.625rem] text-[#182230] font-semibold leading-normal dark:text-[#d1cdc7]">30%
-                                        OFF</span>
+                            <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg"
+                                class="w-6 h-6">
+                            <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
+                                userBalance }}</span>
+                        </div>
+                    </div>
+
+                    <!-- row -->
+                    <div class="flex justify-between items-center border-t border-transparent">
+                        <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Top Up
+                            Amount</span>
+                        <div class="flex items-center gap-1">
+                            <span
+                                class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">+</span>
+                            <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg"
+                                class="w-6 h-6">
+                            <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
+                                topUpAmount }}</span>
+                        </div>
+                    </div>
+
+                    <!-- row (total) -->
+                    <div class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]">
+                        <span
+                            class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary">Total
+                            After Top Up</span>
+                        <div class="flex items-center gap-1">
+                            <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg"
+                                class="w-6 h-6">
+                            <span class="text-lg font-semibold text-text-primary dark:text-text-dark-primary">{{
+                                totalTokens
+                                }}</span>
+                        </div>
+                    </div>
+
+                    <!-- row (final) -->
+                    <div class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]">
+                        <span
+                            class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary">Final
+                            Payment</span>
+                        <div class="flex flex-col items-end gap-1">
+                            <div class="flex items-center gap-1">
+                                <div
+                                    class="bg-gradient-to-r from-primary-gradient-start dark:from-primary-gradient-start-dark to-primary-gradient-end dark:to-primary-gradient-end-dark shadow-[-1px_1px_8px_0px_#35FFD340,1px_-1px_8px_0px_#1CF89940] dark:shadow-[-1px_1px_8px_0px_#00ac9040,1px_-1px_8px_0px_#06b97f40] flex justify-center items-center w-max">
+                                    <div class="flex justify-center items-center gap-[0.1875rem] pt-0.5 px-1">
+                                        <span
+                                            class="text-[0.625rem] text-[#182230] font-semibold leading-normal dark:text-[#d1cdc7]">30%
+                                            OFF</span>
+                                    </div>
                                 </div>
+                                <span class="text-base font-semibold text-text-primary dark:text-text-dark-primary">{{
+                                    formatCurrency(finalPrice) }}</span>
                             </div>
-                            <span class="text-base font-semibold text-text-primary dark:text-text-dark-primary">{{
-                                formatCurrency(finalPrice) }}</span>
+
+                            <span
+                                class="text-[0.625rem] leading-[1.125rem] text-text-primary dark:text-text-dark-primary line-through">{{
+                                    formatCurrency(originalPrice) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template v-else>
+                <div class="flex flex-col gap-3 py-2 px-2 mt-auto md:px-4 md:mt-[unset] lg:px-6 pb-0 sm:pb-2">
+                    <!-- row -->
+                    <div class="flex justify-between items-center pt-2 border-t border-transparent">
+                        <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Tip
+                            Amount</span>
+                        <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
+                            formatCurrency(cashTipAmount) }}</span>
+                    </div>
+
+                    <!-- row -->
+                    <div class="flex justify-between items-center border-t border-transparent">
+                        <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Service
+                            Charge (10%)</span>
+                        <span class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary">{{
+                            formatCurrency(serviceCharge) }}</span>
+                    </div>
+
+                    <!-- row (final) -->
+                    <div class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]">
+                        <span class="text-xs leading-normal text-text-primary dark:text-text-dark-primary">Final
+                            Payment</span>
+                        <span class="text-base font-semibold text-text-primary dark:text-text-dark-primary">{{
+                            formatCurrency(finalCashPayment) }}</span>
+                    </div>
+                </div>
+            </template>
+
+            <!-- button -->
+
+            <div @click="processPayment"
+                class="flex justify-end items-end mt-auto fixed sm:relative bottom-0 right-0 z-[100000] sm:z-auto">
+                <div class="h-11 md:h-14 shadow-[0px_0px_16px_0px_#FFFFFF80]">
+                    <button
+                        class="relative flex justify-center items-center gap-2 h-11 md:h-14 bg-[#07f468] hover:bg-black px-4 backdrop-blur-[100px] transition-all duration-200 group">
+                        <!-- Pseudo-element for the skewed background -->
+                        <div
+                            class="absolute top-0 -left-3 w-8 h-full bg-[#07f468] [transform:skew(163deg,0)_translateX(3px)] backdrop-blur-[100px] shadow-[-12px_0px_16px_0px_#ffffff40] group-hover:bg-black transition-colors duration-200 z-[-1]">
                         </div>
 
                         <span
-                            class="text-[0.625rem] leading-[1.125rem] text-text-primary dark:text-text-dark-primary line-through">{{
-                                formatCurrency(originalPrice) }}</span>
-                    </div>
+                            class="text-base text-black font-medium leading-6 group-hover:text-[#07f468] whitespace-nowrap transition-all duration-200">
+                            PROCESS PAYMENT
+                        </span>
+                        <img src="https://i.ibb.co.com/NdmC2BjP/arrow-right.webp" alt="arrow-right"
+                            class="w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(76%)_sepia(81%)_saturate(2416%)_hue-rotate(87deg)_brightness(101%)_contrast(98%)] transition-all duration-200">
+                    </button>
                 </div>
             </div>
-
-            <!-- button -->
-             
-           <div @click="processPayment" class="flex justify-end items-end mt-auto fixed sm:relative bottom-0 right-0 z-[100000] sm:z-auto">
-                <div class="h-11 md:h-14 shadow-[0px_0px_16px_0px_#FFFFFF80]">
-                  <button class="relative flex justify-center items-center gap-2 h-11 md:h-14 bg-[#07f468] hover:bg-black px-4 backdrop-blur-[100px] transition-all duration-200 group">
-                    <!-- Pseudo-element for the skewed background -->
-                    <div class="absolute top-0 -left-3 w-8 h-full bg-[#07f468] [transform:skew(163deg,0)_translateX(3px)] backdrop-blur-[100px] shadow-[-12px_0px_16px_0px_#ffffff40] group-hover:bg-black transition-colors duration-200 z-[-1]"></div>
-
-                    <span class="text-base text-black font-medium leading-6 group-hover:text-[#07f468] whitespace-nowrap transition-all duration-200">
-                      PROCESS PAYMENT
-                    </span>
-                    <img src="https://i.ibb.co.com/NdmC2BjP/arrow-right.webp" alt="arrow-right" class="w-6 h-6 [filter:brightness(0)_saturate(100%)] group-hover:[filter:brightness(0)_saturate(100%)_invert(76%)_sepia(81%)_saturate(2416%)_hue-rotate(87deg)_brightness(101%)_contrast(98%)] transition-all duration-200">
-                  </button>
-                </div>
-              </div>
         </div>
     </div>
 </template>
