@@ -202,7 +202,7 @@ const localIsAnonymous = computed({
                             class="w-3.5 h-3.5">
                         <span class="text-base text-[#182230] font-semibold leading-6 dark:text-[#d1cdc7]">{{
                             tokenAmount
-                            }}</span>
+                        }}</span>
                     </div>
                 </div>
                 <div class="bg-[#000000D9] p-1 flex justify-center items-center">
@@ -234,7 +234,7 @@ const localIsAnonymous = computed({
     <!-- buttons-container -->
     <div class="flex justify-end items-end pt-4  mt-auto z-[100000]">
         <div v-if="needsTopUp" class="h-11 md:h-14 shadow-[0px_0px_16px_0px_#FFFFFF80] pointer-events-auto">
-            <button @click="console.log('Top Up Clicked'); $emit('handleTopUp')"
+            <button @click="$emit('handleTopUp')"
                 class="relative flex justify-center items-center gap-2 w-[11.75rem] h-11 md:h-14 bg-[#ff0066] hover:bg-white px-4 backdrop-blur-[100px] transition-all duration-200 group">
                 <!-- Pseudo-element for the skewed background -->
                 <div

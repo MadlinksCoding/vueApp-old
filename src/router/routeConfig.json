@@ -29,7 +29,6 @@
     "section": "auth",
     "requiresAuth": false,
     "enabled": true,
-    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthLogIn.vue",
     "preLoadSections": ["dashboard", "shop"]
@@ -37,7 +36,6 @@
   {
     "slug": "/lost-password",
     "section": "auth",
-    "redirectIfLoggedIn": "/dashboard",
     "requiresAuth": false,
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthLostPassword.vue",
@@ -47,7 +45,6 @@
     "slug": "/reset-password",
     "section": "auth",
     "requiresAuth": false,
-    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthResetPassword.vue",
     "preLoadSections": ["dashboard"]
@@ -57,7 +54,6 @@
     "section": "auth",
     "requiresAuth": false,
     "enabled": true,
-    "redirectIfLoggedIn": "/dashboard",
     "supportedRoles": [],
     "componentPath": "@/templates/auth/page/role/AuthSignUp.vue",
     "preLoadSections": ["dashboard"]

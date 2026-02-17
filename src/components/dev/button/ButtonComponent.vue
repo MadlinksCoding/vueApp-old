@@ -1,25 +1,12 @@
 <template>
   <div v-bind="resolvedAttrs.wrapperAttrs.wrapper1">
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
-      <button
-        :type="type"
-        v-bind="resolvedAttrs.inputAttrs"
-        :disabled="disabled"
-        @click="handleClick"
-      >
-        <img
-          v-if="leftIcon"
-          :src="leftIcon"
-          :class="` inline-block ${leftIconClass}`"
-        />
+      <button :type="type" v-bind="resolvedAttrs.inputAttrs" :disabled="disabled" @click="handleClick">
+        <img v-if="leftIcon" :src="leftIcon" :class="` inline-block ${leftIconClass}`" />
 
         <span>{{ text }}</span>
 
-        <img
-          v-if="rightIcon"
-          :src="rightIcon"
-          :class="` inline-block ${rightIconClass}`"
-        />
+        <img v-if="rightIcon" :src="rightIcon" :class="` inline-block ${rightIconClass}`" />
       </button>
     </div>
   </div>
@@ -75,8 +62,8 @@ const props = defineProps({
 // Tailwind theme classes
 const themeClasses = {
   // CHANGE 1: 'none' add kiya hai taake custom styling allow ho sake
-  none: "", 
-  
+  none: "",
+
   primary:
     "bg-primary text-white font-medium rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed",
   secondary:
@@ -107,20 +94,20 @@ const themeClasses = {
     "flex justify-center items-center gap-2.5 h-10 px-2 py-1 cursor-pointer text-lg font-medium text-[#07F468] hover:text-black bg-black border-none outline-none group hover:bg-[#07F468]",
   profileMediaBtn:
     "flex justify-center items-center h-11 p-2.5 rounded-[3.125rem] text-sm leading-6 text-[#07F468] bg-black/90 cursor-pointer dark:bg-background-dark-app",
-    checkoutProceedpayment:
+  checkoutProceedpayment:
     "w-full flex justify-center items-center gap-2 w-full h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-[#07F468] px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-pointer group/button hover:bg-black text-base leading-[1.875rem] font-semibold uppercase text-black hover:text-[#07F468]",
-    disableBtn:
+  disableBtn:
     "flex justify-center items-center gap-2 w-full text-base leading-[1.875rem] font-semibold uppercase text-white/30 h-12 border-t-[1.5px] border-b-[1.5px] border-transparent bg-white/20 px-4 [clip-path:polygon(24px_0,100%_0,calc(100%_-_24px)_100%,0_100%)] cursor-not-allowed",
-    actionGreen:"w-full sm:flex-grow sm:min-w-[17.125rem] h-10 flex justify-center items-center gap-2 px-6 sm:pl-2 bg-[#101828] border border-[#07F468] hover:bg-[#07F468] group/xbtn text-base font-medium tracking-[0.0218rem] whitespace-nowrap text-[#07F468] hover:text-[#0C111D]",
-    retryAction:"flex items-center gap-2.5 px-4 justify-center items-center h-10 shadow-[5px_4px_0px_0px_#07F468] cursor-pointer border-none outline-none bg-black group/button hover:bg-[#07F468] hover:shadow-[5px_4px_0px_0px_black] dark:bg-[#181a1b] dark:shadow-[5px_4px_0px_0px_#06c454] dark:hover:bg-[#06c454] dark:hover:shadow-[5px_4px_0px_0px_#181a1b] text-lg font-medium text-[#07F468] hover/button:text-black dark:text-[#07F468] dark:group-hover/button:text-[#181a1b]",
-    simpleBtn:"flex justify-center items-center gap-1 px-3.5 h-12 shrink-0 cursor-pointer group/button [&.disabled]:pointer-events-none min-w-max text-sm font-semibold whitespace-nowrap bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--btn-text)] hover:text-[var(--btn-hover-text)]" 
-  };
+  actionGreen: "w-full sm:flex-grow sm:min-w-[17.125rem] h-10 flex justify-center items-center gap-2 px-6 sm:pl-2 bg-[#101828] border border-[#07F468] hover:bg-[#07F468] group/xbtn text-base font-medium tracking-[0.0218rem] whitespace-nowrap text-[#07F468] hover:text-[#0C111D]",
+  retryAction: "flex items-center gap-2.5 px-4 justify-center items-center h-10 shadow-[5px_4px_0px_0px_#07F468] cursor-pointer border-none outline-none bg-black group/button hover:bg-[#07F468] hover:shadow-[5px_4px_0px_0px_black] dark:bg-[#181a1b] dark:shadow-[5px_4px_0px_0px_#06c454] dark:hover:bg-[#06c454] dark:hover:shadow-[5px_4px_0px_0px_#181a1b] text-lg font-medium text-[#07F468] hover/button:text-black dark:text-[#07F468] dark:group-hover/button:text-[#181a1b]",
+  simpleBtn: "flex justify-center items-center gap-1 px-3.5 h-12 shrink-0 cursor-pointer group/button [&.disabled]:pointer-events-none min-w-max text-sm font-semibold whitespace-nowrap bg-[var(--btn-bg)] hover:bg-[var(--btn-hover-bg)] text-[var(--btn-text)] hover:text-[var(--btn-hover-text)]"
+};
 
 // Tailwind size classes
 const sizeClasses = {
   sm: "px-2 py-1 text-sm",
   md: "",
-  lg: "px-6 py-3 text-lg",
+  lg: "px-6 py-3 ",
 };
 
 const buttonConfig = {
@@ -137,12 +124,12 @@ const buttonConfig = {
     },
   ],
   elm: {
-  // CHANGE 2: Logic update ki hai. 
-  // Agar 'none' ho to empty string return karega. 
-  // Agar variant valid ho to wo return karega.
-  // Agar invalid/missing ho to primary return karega (default behavior).
+    // CHANGE 2: Logic update ki hai. 
+    // Agar 'none' ho to empty string return karega. 
+    // Agar variant valid ho to wo return karega.
+    // Agar invalid/missing ho to primary return karega (default behavior).
     addClass: `
-  ${ (themeClasses[props.variant] !== undefined) ? themeClasses[props.variant] : themeClasses.primary }
+  ${(themeClasses[props.variant] !== undefined) ? themeClasses[props.variant] : themeClasses.primary}
   ${sizeClasses[props.size] || sizeClasses.md}
   ${props.customClass || ""}
 `,

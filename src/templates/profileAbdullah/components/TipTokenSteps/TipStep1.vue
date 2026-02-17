@@ -63,18 +63,12 @@ const handleCashTip = () => {
 };
 
 const handleTopUp = () => {
-    console.log('handleTopUp called in TipStep1', {
-        amount: tokenAmount.value,
-        anonymous: isAnonymous.value,
-        engine: props.engine
-    });
     // Persist state to engine before navigating
     props.engine.state.amount = tokenAmount.value;
     props.engine.state.anonymous = isAnonymous.value;
     props.engine.state.userBalance = userBalance.value;
     props.engine.state.paymentMode = 'token'; // Reset/Set payment mode
 
-    console.log('Navigating to Step 2...');
     // Navigate to Top Up Step (Step 2)
     props.engine.goToStep(2);
 };

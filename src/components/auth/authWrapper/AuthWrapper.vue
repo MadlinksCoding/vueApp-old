@@ -1,6 +1,6 @@
 <template>
   <div
-    class="bg-container w-full flex justify-between items-center h-[100vh] bg-[url('https://i.ibb.co.com/jPw7ChWb/auth-bg.webp')] bg-cover bg-no-repeat bg-lightgray xl:bg-center lg:bg-center md:bg-left sm:bg-[position:-100px] max-[479px]:bg-[position:-290px]"
+    class="bg-container w-full flex justify-between items-center h-[100vh] bg-[url('/images/ai-art.png')] bg-cover bg-no-repeat bg-lightgray xl:bg-center lg:bg-center md:bg-left sm:bg-[position:-100px] max-[479px]:bg-[position:-290px]"
   >
     <!-- Left column -->
     <div></div>

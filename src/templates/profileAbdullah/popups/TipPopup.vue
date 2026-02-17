@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
 import { createStepStateEngine } from '@/utils/stateEngine';
 import TipStep1 from '@/templates/profileAbdullah/components/TipTokenSteps/TipStep1.vue';
@@ -71,11 +71,6 @@ const handleClose = () => {
 
 onMounted(() => {
     engine.initialize({ fromUrl: false });
-});
-
-import { watch } from 'vue';
-watch(() => engine.step, (val) => {
-    console.log('[TipPopup] engine.step changed to:', val);
 });
 
 </script>
