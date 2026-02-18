@@ -11,7 +11,10 @@ import { authHandler } from "@/services/authHandler";
 import { useSectionsStore } from "./stores/sectionStore";
 import { createCacheJanitor } from "./plugins/cacheJanitor";
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
-import '@splidejs/vue-splide/css'; // Default CSS import
+import 'lightgallery/css/lightgallery.css';
+import 'lightgallery/css/lg-zoom.css';
+import 'lightgallery/css/lg-thumbnail.css';
+import '@splidejs/splide/css';
 
 async function initializeApp() {
   const app = createApp(App);

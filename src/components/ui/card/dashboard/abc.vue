@@ -1,502 +1,680 @@
 <template>
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dash Analytics Components</title>
-
+    <title>Merch popup</title>
     <!-- poppins font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com"  />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
       rel="stylesheet"
     />
 
+    <!-- Splide CSS/JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+
+    <!-- lightgallery CSS/JS + plugins -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/css/lightgallery-bundle.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/lightgallery.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/plugins/thumbnail/lg-thumbnail.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.2/plugins/zoom/lg-zoom.umd.js"></script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Custom CSS -->
     <script>
       tailwind.config = {
-          darkMode: 'class',
-          theme: {
-              extend: {
-                  screens: {
-                      sm: '480px',
-                      md: '768px',
-                      lg: '1010px',
-                      xl: '1365px',
-                  },
-                  fontFamily: {
-                      sans: ['Poppins', 'Inter', 'Montserrat', 'Open Sans', 'arial', 'sans-serif'],
-                  },
-                  colors: {
-                      primary: {
-                          pink: '#FF0066',
-                          'pink-dark': '#b30047',
-                          'pink-light': '#FF1A76',
-                          gradient: {
-                              start: '#37FFD7',
-                              end: '#07F468',
-                              'start-dark': '#00ab91',
-                              'end-dark': '#06c454'
-                          }
-                      },
-                      text: {
-                          primary: '#0C111D',
-                          secondary: '#FCFAFF',
-                          tertiary: '#FCFCFD',
-                          dark: {
-                              primary: '#e8e6e3',
-                              secondary: '#dec8ff',
-                              tertiary: '#e6e4e1',
-                              muted: '#dbd8d3'
-                          }
-                      },
-                      bg: {
-                          overlay: 'rgba(0, 0, 0, 0.3)',
-                          card: 'rgba(255, 255, 255, 0.25)',
-                          form: 'hsla(0, 0%, 100%, 0.5)',
-                          dark: {
-                              switch: '#181a1b',
-                              overlay: 'rgba(24,26,27,0.3)',
-                              form: 'rgba(24,26,27,0.5)'
-                          },
-                          gradient: {
-                              overlay: 'rgba(0,0,0,0.45)',
-                              'overlay-dark': 'rgba(24,26,27,0.45)',
-                              overlayLg: 'rgba(0,0,0,0.9)',
-                              'overlayLg-dark': 'rgba(24,26,27,0.9)'
-                          }
-                      },
-                      border: {
-                          tab: '#F2F4F7',
-                          input: '#0C111D',
-                          'tab-dark': '#333739',
-                          'input-dark': '#857c6d'
-                      },
-                      gray: {
-                          500: '#6B7280',
-                          800: '#1F2937'
-                      }
-                  }
-              },
-          },
+        darkMode: 'class',
+        theme: {
+          extend: {
+            screens: {
+              sm: '480px',
+              md: '768px',
+              lg: '1024px',
+              xl: '1365px',
+            },
+            fontFamily: {
+              sans: ['Poppins', 'Inter', 'Montserrat', 'Open Sans', 'arial', 'sans-serif'],
+            }
+          }
+        }
       }
     </script>
   </head>
-  <body class="font-sans p-0 m-0 box-border">
-    <section class="flex flex-col md:p-8 gap-6 bg-gray-500 dark:bg-gray-800">
-      <!-- token-tip-step-2b-top-up-amount-3-->
-      <div
-        class="token-popup-container flex flex-col w-full overflow-visible shadow-[0px_0px_20px_0px_rgba(0,0,0,0.25)] dark:shadow-[0px_0px_20px_0px_rgba(24,26,27,0.25)] backdrop-blur-[50px] relative md:w-max md:max-w-[31.6875rem] lg:max-w-none"
-      >
-        <!-- close-icon -->
-        <div
-          class="hidden absolute w-10 h-10 top-2 right-2 z-10 md:flex justify-center items-center cursor-pointer rounded-full bg-transparent [backdrop-filter:blur(0)] [filter:drop-shadow(0_0_20px_#FFFFFF)] md:w-12 md:h-12 md:-top-6 md:-right-6 md:bg-bg-overlay dark:md:bg-bg-dark-overlay md:[backdrop-filter:blur(20px)] md:[filter:none]"
-        >
-          <img
-            class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)] md:w-[2.125rem] md:h-[2.125rem] md:[filter:none]"
-            src="https://i.ibb.co.com/XrzfWZFN/svgviewer-png-output-35.webp"
-            alt="close-icon"
-          />
-        </div>
+<body class="bg-[#444444] font-sans p-0 m-0 box-border overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] [&.dark]:bg-[#3e4446]">
+  <!-- wrapper   -->
+  <div class="bg-black/50 relative before:absolute before:inset-0 before:bg-[url('https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp')] before:bg-cover before:bg-center before:bg-no-repeat before:content-[''] before:z-[-1] dark:bg-[#181a1b]/50">
+    <!-- bg-overlay -->
+    <div class="absolute inset-0 w-full h-full bg-black/5 backdrop-blur-[125px] pointer-events-none z-[-1] dark:bg-[#181a1b]/5"></div>
+  
+    <!-- container -->
+    <div class="flex flex-col min-h-screen lg:flex-row lg:h-screen lg:overflow-hidden">
+      <!-- close-button -->
+      <button class="fixed top-4 right-4 flex justify-center items-center w-8 h-8 z-50 drop-shadow-[0px_30px_-34px_#0000004D] cursor-pointer">
+          <img src="https://i.ibb.co.com/DfT6Sg5g/x-close.webp" alt="x close" class="w-full h-full [filter:brightness(0)_saturate(100%)_invert(97%)_sepia(1%)_saturate(5636%)_hue-rotate(182deg)_brightness(95%)_contrast(81%)]">
+      </button>
 
-        <div
-          class="mobile-responsive-navbar fixed sm:absolute sm:bg-transparent sm:backdrop-blur-0 sm:transition-none w-full top-0 right-0 z-10 flex md:hidden justify-between items-center p-2 cursor-pointer bg-transparent"
-        >
-          <div class="w-10 h-10 flex justify-center items-center br-rounded">
-            <img
-              src="https://i.ibb.co.com/8njxTqWK/chevron-left.webp"
-              alt="chevron-left"
-              class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)] md:w-[2.125rem] md:h-[2.125rem] md:[filter:none] cursor-pointer"
-            />
-          </div>
-          <div class="w-10 h-10 flex justify-center items-center br-rounded">
-            <img
-              class="w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(90%)_sepia(9%)_saturate(72%)_hue-rotate(183deg)_brightness(105%)_contrast(91%)] md:w-[2.125rem] md:h-[2.125rem] md:[filter:none] cursor-pointer"
-              src="https://i.ibb.co.com/XrzfWZFN/svgviewer-png-output-35.webp"
-              alt="close-icon"
-            />
-          </div>
-        </div>
+      <!-- splide-section -->
+      <div class="h-full lg:w-1/2 lg:flex lg:flex-col lg:h-screen lg:overflow-hidden">
+        <section data-main-slider class="splide bg-black/25 flex-1 min-h-0 dark:bg-[#181a1b]/25" aria-label="Main Gallery">
+            <div class="splide__track h-full">
+                <ul class="splide__list h-full items-center"></ul>
+            </div>
+        </section>
 
-        <!-- column-container -->
-        <div
-          class="column-container flex flex-col lg:flex-row sm:pb-0 max-h-screen sm:max-h-[unset] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
-        >
-          <!-- left-column -->
-          <div
-            class="w-full h-80 flex bg-[url('https://i.ibb.co.com/bjGQxr5S/sample-bg-image.webp')] bg-cover bg-center min-h-[23.4375rem] sm:min-h-[20rem] lg:w-[20.1875rem] lg:min-h-[unset] lg:h-[unset]"
-          >
-            <!-- Overlay Container -->
-            <div
-              class="w-full flex items-end bg-gradient-to-b from-transparent via-transparent to-bg-gradient-overlay dark:to-bg-gradient-overlay-dark lg:to-bg-gradient-overlayLg dark:lg:to-bg-gradient-overlayLg-dark"
-            >
-              <!-- Text Container -->
-              <div
-                class="p-2 flex flex-col gap-2.5 [filter:drop-shadow(0_0_0.5rem_rgba(0,0,0,0.5))] md:p-4"
-              >
-                <p
-                  class="text-xl leading-[1.875rem] text-white dark:text-text-dark-primary font-medium"
-                >
-                  I would love to get some tip if you appreciate my content. :)
-                  **** 123
-                </p>
+        <section data-thumbs-slider class="splide pt-2 shrink-0" aria-label="Thumbnails">
+            <div class="splide__track sm:max-w-[450px] mx-auto lg:max-w-full">
+                <ul class="splide__list drop-shadow-[0px_30px_-34px_#0000004D]"></ul>
+            </div>
+        </section>
+
+        <div data-lightGallery class="hidden"></div>
+      </div>
+
+      <!-- text-section -->
+      <div class="flex flex-col p-2 lg:w-1/2 lg:h-screen lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] lg:p-6 lg:px-10">
+        <div class="flex flex-col gap-6 lg:gap-10">
+            <!-- text-section__header -->
+            <div data-text-section-header class="flex flex-col gap-6">
+                <!-- title-section -->
+                <section class="flex flex-col gap-4 pt-3">
+                    <!-- tag-link-section -->
+                    <div class="flex items-center gap-1 flex-wrap">
+                        <a href="#" class="text-sm text-[#D0D5DD] hover:underline hover:text-[#07F468] dark:text-[#cfcac4] dark:hover:text-[#23f97b]">Seasonal Fruits</a>
+                        <span class="text-xs leading-normal tracking-[0.01875rem] text-[#D0D5DD] dark:text-[#cfcac4]">,</span>
+                        <a href="#" class="text-sm text-[#D0D5DD] hover:underline hover:text-[#07F468] dark:text-[#cfcac4] dark:hover:text-[#23f97b]">Mostly Eating</a>
+                        <span class="text-xs leading-normal tracking-[0.01875rem] text-[#D0D5DD] dark:text-[#cfcac4]">,</span>
+                        <a href="#" class="text-sm text-[#D0D5DD] hover:underline hover:text-[#07F468] dark:text-[#cfcac4] dark:hover:text-[#23f97b]">Fried Chicken</a>
+                    </div>
+
+                    <h1 class="text-xl leading-normal font-semibold drop-shadow-[0px_0px_10px_#0000001A] text-[#F5F5F4] lg:text-3xl lg:leading-[2.375rem] dark:text-[#e1dfdb]">[Peach] from my farm-Peach from my farm (Autumn harvest)</h1>
+                </section>
+
+                <!-- tags-container -->
+                <div class="flex items-center gap-2">
+                    <img src="https://i.ibb.co.com/ZRFYW4BD/tag-01.webp" alt="tag 01" class="w-4 h-4 min-w-[1rem]">
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <!-- tag -->
+                        <div class="flex justify-center items-center px-2 h-6 bg-[#0C111D] cursor-pointer dark:bg-[#0a0e17]">
+                            <span class="text-sm font-medium text-[#F9FAFB] dark:text-[#dddad5]">Featured</span>
+                        </div>
+
+                        <!-- tag -->
+                        <div class="flex justify-center items-center px-2 h-6 bg-[#0C111D] cursor-pointer dark:bg-[#0a0e17]">
+                            <span class="text-sm font-medium text-[#F9FAFB] dark:text-[#dddad5]">Best Seller</span>
+                        </div>
+
+                        <!-- tag -->
+                        <div class="flex justify-center items-center px-2 h-6 bg-[#0C111D] cursor-pointer dark:bg-[#0a0e17]">
+                            <span class="text-sm font-medium text-[#F9FAFB] dark:text-[#dddad5]">Seasonal Offers</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- likes-view-container -->
+                <div class="flex items-center gap-4 ">
+                    <!-- likes -->
+                    <div class="flex items-center gap-2">
+                        <img src="https://i.ibb.co.com/9kNrMyfz/heart.webp" alt="heart" class="w-4 h-4">
+                        <span class="text-base text-[#F2F4F7] dark:text-[#e1dfdb]">123</span>
+                    </div>
+
+                    <!-- views -->
+                    <div class="flex items-center gap-2">
+                        <img src="https://i.ibb.co.com/0V8HcdXr/eye.webp" alt="eye" class="w-4 h-4">
+                        <span class="text-base text-[#F2F4F7] dark:text-[#e1dfdb]">2K</span>
+                    </div>
+
+                    <!-- merch -->
+                    <div class="flex items-center gap-2">
+                        <img src="https://i.ibb.co.com/YTqCn1M0/shopping-cart-03.webp" alt="shopping cart 03" class="w-4 h-4">
+                        <span class="text-base text-[#F2F4F7] dark:text-[#e1dfdb]">15</span>
+                    </div>
+                </div>
+
+                <!-- price-display -->
+                <div class="flex flex-col gap-2 md:flex-row md:items-center">
+                    <!-- price -->
+                    <div class="flex items-baseline gap-0.5 drop-shadow-[0px_0px_40px_#FFC300]">
+                        <span class="text-xl leading-normal font-semibold align-bottom text-white dark:text-[#e8e6e3]">USD$</span>
+                        <span class="text-base font-medium line-through align-middle text-white dark:text-[#e8e6e3]">12.99</span>
+                        <span class="text-6xl leading-[4.5rem] font-semibold align-bottom -tracking-[0.075rem] text-white dark:text-[#e8e6e3]">6.99</span>
+                    </div>
+
+                    <!-- labels -->
+                    <div class="flex items-center gap-3 pt-[0.0625rem] pb-2.5 flex-wrap md:items-start md:flex-col md:pb-5">
+                        <!-- yellow-label with icon -->
+                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[linear-gradient(90deg,#D8AF0D_0%,#9F8009_100%)]">
+                            <img src="https://i.ibb.co.com/3m6JKJSh/clock.webp" alt="clock" class="w-4 h-4">
+                            <span class="text-xs leading-normal font-semibold text-black dark:text-[#e8e6e3]">Pre-Order Discount</span>
+                        </div>
+
+                        <!-- yellow-label -->
+                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[linear-gradient(90deg,#D8AF0D_0%,#9F8009_100%)]">
+                            <span class="text-xs leading-normal font-semibold text-black dark:text-[#e8e6e3]">Official Release: 12 Jul 2024</span>
+                        </div>
+
+                        <!-- red-label -->
+                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[#FF4405]">
+                            <span class="text-xs leading-normal font-semibold text-white dark:text-[#e8e6e3]">1 LEFT IN STOCK</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- button-container -->
+                <div data-button-container class="flex w-full group/button-container sticky bottom-0 [&.is-sticky]:w-[calc(100%+1rem)] [&.is-sticky]:-ml-2 [&.is-sticky]:py-6 [&.is-sticky]:bg-[linear-gradient(0deg,rgba(255,255,255,0.01)_0%,rgba(255,255,255,0)_100%)] [&.is-sticky]:backdrop-blur-[50px]">
+                    <button class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-[#FFFADD] bg-[rgba(242,242,3,0.7)] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[inset_0_0_1px_0_#FFF3A1,0_0_10px_0_#FFB909B2,0_0px_10px_0_#FFB909B2,0_5px_50px_0_#F2F20380,0px_0px_10px_0px_#F2F2030D] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75">
+                        <!-- text-container -->
+                        <div class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                            <span class="text-xl leading-normal font-bold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap">Pre-order NOW</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- tab-section -->
+            <div class="flex flex-col gap-4 pb-20">
+                <!-- tab-button-container -->
+                <div class="flex items-center gap-4">
+                    <!-- tab-button -->
+                    <button data-tab="product-details" class="flex justify-center items-center p-2.5 w-max border-b border-transparent cursor-pointer group/tab-button active [&.active]:border-white dark:[&.active]:border-[#303436]">
+                        <span class="text-base opacity-50 group-[.active]/tab-button:opacity-100 text-white dark:text-[#e8e6e3]">Product Details</span>
+                    </button>
+
+                    <!-- tab-button -->
+                    <button data-tab="shipping-policy" class="flex justify-center items-center p-2.5 w-max border-b border-transparent cursor-pointer group/tab-button [&.active]:border-white dark:[&.active]:border-[#303436]">
+                        <span class="text-base opacity-50 group-[.active]/tab-button:opacity-100 text-white dark:text-[#e8e6e3]">Shipping Policy</span>
+                    </button>
+                </div>
+
+                <!-- tab-container -->
                 <div class="flex flex-col">
-                  <div class="flex gap-1 items-center">
-                    <span
-                      class="text-sm leading-5 text-text-secondary dark:text-text-dark-secondary font-medium"
-                      >Princess Carrot Pop</span
-                    >
-                    <img
-                      src="https://i.ibb.co.com/nMhY8CpS/svgviewer-png-output-22.webp"
-                      alt="verified-tick"
-                      class="w-[0.6875rem] h-[0.625rem]"
-                    />
-                  </div>
-                  <span
-                    class="text-xs leading-[1.125rem] text-text-tertiary dark:text-text-dark-tertiary font-medium"
-                    >@sammisjelly187</span
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
+                    <div data-tab-container="product-details" class="flex flex-col gap-4">
+                        <p class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb]">Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !</p>
+                    
+                        <ul class="flex flex-col">
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Get Jenny’s favourite Mangoes!</li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Buy them while supply last !</li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Get Jenny’s favourite Mangoes! Buy them while supply last !</li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! </li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Buy them while supply last !</li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Get Jenny’s favourite Mangoes! Buy them while supply last !</li>
+                            <li class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb] relative pl-4 before:content-[''] before:w-1 before:h-1 before:rounded-full before:bg-white before:absolute before:left-[0.188rem] before:top-[0.438rem]">Get Jenny’s favourite Mangoes! Buy them while supply last !</li>
+                        </ul>
+                    </div>
 
-          <!-- right-column -->
-          <div
-            class="w-full min-h-[unset] bg-bg-card dark:bg-bg-dark-form flex flex-col sm:min-h-[36.875rem] md:min-h-[32.375rem] md:max-w-[31.6875rem] lg:max-w-none lg:w-[32.5625rem] lg:min-h-[33.625rem]"
-          >
-            <!-- tabs-content-container -->
-            <div class="flex flex-col">
-              <!-- top-up input section -->
-              <div
-                class="flex flex-col gap-4 px-2 pt-4 pb-6 md:px-4 md:pt-4 lg:px-6 lg:pt-6 xl:p-6"
-              >
-                <!-- top-up input section top -->
-                <div class="flex flex-col gap-6">
-                  <!-- back-button -->
-                  <div
-                    class="hidden md:flex items-center gap-0.5 w-max h-[1.125rem] cursor-pointer"
-                  >
-                    <img
-                      src="https://i.ibb.co.com/8njxTqWK/chevron-left.webp"
-                      alt="chevron-left"
-                      class="w-4 h-4"
-                    />
-                    <span
-                      class="text-xs font-medium text-[#475467] dark:text-[#b1aaa0]"
-                      >Back</span
-                    >
-                  </div>
+                    <div data-tab-container="shipping-policy" class="hidden flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <img src="https://i.ibb.co.com/7NBsK3xG/plane.webp" alt="plane" class="w-5 h-5">
+                            <p class="text-sm font-medium text-[#07F468] dark:text-[#23f97b]">This product ships internationally.</p>
+                        </div>
 
-                  <div class="flex flex-col gap-2">
-                    <p
-                      class="font-semibold text-text-primary dark:text-text-dark-muted text-base leading-6 md:text-lg md:leading-7"
-                    >
-                      Enter Top Up Amount
-                    </p>
-                    <!-- alert-container -->
-                    <div data-dashboard-toast="alert" class="w-full relative">
-                      <div
-                        class="w-full border-b-[0.5px] border-[#344054] bg-[#242424] flex relative"
-                      >
-                        <div
-                          class="hidden md:block w-[0.188rem] block bg-[#FF4405]"
-                        ></div>
-                        <div
-                          class="flex gap-4 py-3 px-2 flex-1 min-w-0 min-h-0 [background:linear-gradient(0deg,rgba(255,68,5,0.3),rgba(255,68,5,0.3)),linear-gradient(90deg,rgba(0,0,0,0)0%,rgba(0,0,0,0.9)100%)] before:absolute before:content-[''] before:top-0 before:left-0 before:w-full before:h-full before:bg-[linear-gradient(90deg,rgba(0,0,0,0)0%,rgba(0,0,0,0.9)100%)] relative"
-                        >
-                          <div class="relative w-full flex gap-4">
-                            <div class="relative">
-                              <img
-                                src="https://i.ibb.co.com/Y49kymq4/alert-icon.webp"
-                                alt="alert-icon"
-                                class="h-10"
-                              />
+                        <div class="hidden items-center gap-2">
+                            <img src="https://i.ibb.co.com/fV9JY4v2/marker-pin-06.webp" alt="marker pin 06" class="w-5 h-5">
+                            <p class="text-sm font-medium text-[#D7D3D0] dark:text-[#e1dfdb]">This product ships to Taiwan only.</p>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <span class="w-[12.5rem] min-w-[12.5rem] text-sm text-[#F5F5F4] dark:text-[#e1dfdb]">Deliver from</span>
+                            <div class="flex gap-2 items-center grow flex-wrap">
+                                <span class="text-sm font-medium text-[#F5F5F4] dark:text-[#e1dfdb]">Taiwan</span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <span class="text-sm font-semibold text-[#F5F5F4] dark:text-[#e1dfdb]">Shipping Fee</span>
+                            
+                            <div class="flex gap-4">
+                                <span class="w-[12.5rem] min-w-[12.5rem] text-xs text-[#F5F5F4] dark:text-[#e1dfdb]">Domestic</span>
+                                <div class="flex gap-2 items-center grow flex-wrap">
+                                    <span class="text-sm font-medium text-[#F5F5F4] dark:text-[#e1dfdb]">Taiwan</span>
+                                </div>
                             </div>
 
-                            <div class="flex flex-col">
-                              <p class="text-sm font-semibold text-[#ff4405]">
-                                Input value exceeds maximum allowance (14,000
-                                tokens)
-                              </p>
-                              <div class="flex justify-end items-end">
-                                <button
-                                  class="flex items-center gap-1 p-0 bg-transparent outline-none border-none cursor-pointer"
-                                >
-                                  <span
-                                    class="text-xs leading-normal font-medium text-[#ff4405]"
-                                    >Set to Max</span
-                                  >
-                                  <img
-                                    src="https://i.ibb.co.com/8njxTqWK/chevron-left.webp"
-                                    alt="chevron-left"
-                                    class="w-4 h-4 [filter:brightness(100)] rotate-180"
-                                  />
-                                </button>
-                              </div>
+                            <div class="flex gap-4">
+                                <span class="w-[12.5rem] min-w-[12.5rem] text-xs text-[#F5F5F4] dark:text-[#e1dfdb]">International</span>
+                                <div class="flex gap-2 items-center grow flex-wrap">
+                                    <span class="text-sm font-medium text-[#F5F5F4] dark:text-[#e1dfdb]">USD$ 123</span>
+                                    <span class="text-xs italic text-[#F5F5F4] dark:text-[#e1dfdb]">Applicable to all countries</span>
+                                </div>
                             </div>
-                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div
-                      class="flex justify-between items-end gap-2 border-b border-b-border-input dark:border-b-border-input-dark"
-                    >
-                      <div class="flex items-center gap-2">
-                        <img
-                          src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp"
-                          alt="token-tip-svg"
-                          class="w-12 h-12"
-                        />
-                        <input
-                          type="text"
-                          value="16,200"
-                          class="token-input w-full border-none bg-transparent outline-none text-primary-pink dark:text-primary-pink-dark text-[2.5rem] font-semibold leading-[3.75rem] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </div>
-                      <span
-                        class="text-lg font-semibold pb-[0.313rem] text-text-primary dark:text-text-dark-primary"
-                        >tokens</span
-                      >
-                    </div>
-                  </div>
-                </div>
 
-                <!-- top-up input section bottom -->
-                <div class="flex flex-col gap-4 pt-7 pb-4">
-                  <div class="w-full relative">
-                    <div
-                      data-slider-track-base
-                      class="absolute top-0 left-0 h-[13px] w-full bg-[#34405480] rounded-full z-[1]"
-                    ></div>
-                    <div
-                      data-tip-range-slider-track-fill
-                      class="absolute top-0 left-0 h-[13px] bg-[linear-gradient(90deg,#9198FF_0%,#FF8DDF_122.28%,#FF0066_244.56%)] rounded-full z-[2]"
-                      style="width: 8.57143%;"
-                    ></div>
-                    <input
-                      data-tip-range-slider
-                      type="range"
-                      min="100"
-                      max="14000"
-                      value="14000"
-                      step="1"
-                      class="appearance-none w-full h-[13px] rounded-full bg-transparent relative outline-none border-none z-[2] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[2.75rem] [&::-webkit-slider-thumb]:h-[2.75rem] [&::-webkit-slider-thumb]:bg-[url('https://i.ibb.co.com/2Y7SmcW6/slider-icon.webp')] [&::-webkit-slider-thumb]:bg-[length:120%] [&::-webkit-slider-thumb]:bg-[position:center] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-none [&::-webkit-slider-thumb]:mt-[-4px] [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-[3] [&::-webkit-slider-thumb]:overflow-visible [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[2.75rem] [&::-moz-range-thumb]:h-[2.75rem] [&::-moz-range-thumb]:bg-[url('https://i.ibb.co.com/2Y7SmcW6/slider-icon.webp')] [&::-moz-range-thumb]:bg-[length:120%] [&::-moz-range-thumb]:bg-[position:center] [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:relative [&::-moz-range-thumb]:z-[3] [&::-moz-range-thumb]:overflow-visible"
-                    />
-                  </div>
+                        <div class="flex flex-col gap-2">
+                            <span class="text-sm font-semibold text-[#F5F5F4] dark:text-[#e1dfdb]">Delivery & Processing Time</span>
+                            
+                            <div class="flex gap-4">
+                                <span class="w-[12.5rem] min-w-[12.5rem] text-xs text-[#F5F5F4] dark:text-[#e1dfdb]">International</span>
+                                <div class="flex gap-2 items-center grow flex-wrap">
+                                    <span class="text-sm font-medium text-[#F5F5F4] dark:text-[#e1dfdb]">14-30 days</span>
+                                </div>
+                            </div>
+                        </div>
 
-                  <div class="flex justify-between items-center">
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >100</span
-                    >
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >300</span
-                    >
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >600</span
-                    >
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >1,500</span
-                    >
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >4,500</span
-                    >
-                    <span
-                      class="text-[14px] leading-[20px] font-poppins text-white"
-                      >14,000</span
-                    >
-                  </div>
+                        <div class="flex flex-col gap-2">
+                            <span class="text-sm font-semibold text-[#F5F5F4] dark:text-[#e1dfdb]">Tracking</span>
+                            
+                            <p class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb]">Once your order is shipped, you will receive a tracking number via email once Jenny has process your order.</p>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <span class="text-sm font-semibold text-[#F5F5F4] dark:text-[#e1dfdb]">Customs and Duties</span>
+                            
+                            <p class="text-sm text-[#F5F5F4] dark:text-[#e1dfdb]">Please be aware that international shipments may be subject to customs inspections and import duties. These charges are the responsibility of the recipient and vary by country.</p>
+                        </div>
+                    </div>
                 </div>
-              </div>
             </div>
 
-            <div
-              class="flex flex-col mt-auto bg-white/50 dark:bg-[#181a1b80] pb-[3.25rem] sm:pb-0"
-            >
-              <!-- top-up amount table section -->
-              <div
-                class="flex flex-col gap-3 py-2 px-2 mt-auto md:px-4 md:mt-[unset] lg:px-6 pb-0 sm:pb-2"
-              >
-                <!-- row -->
-                <div
-                  class="flex justify-between items-center pt-2 border-t border-transparent"
-                >
-                  <span
-                    class="text-xs leading-normal text-text-primary dark:text-text-dark-primary"
-                    >Your Balance</span
-                  >
-                  <div class="flex items-center gap-1">
-                    <img
-                      src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp"
-                      alt="token-tip-svg"
-                      class="w-6 h-6"
-                    />
-                    <span
-                      class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary"
-                      >100</span
-                    >
-                  </div>
-                </div>
+            <!-- button-container -->
+            <div class="flex justify-end items-end gap-2">
+                <button class="flex justify-center items-center w-8 h-8 backdrop-blur-[50px] rounded-full border-[0.5px] border-[#E9E5D3] bg-[#E9E5D3]/5 dark:border-[#36311b] dark:bg-[#36311b]/5">
+                    <img src="https://i.ibb.co.com/fGdzgLXp/share-06.webp" alt="share 06" class="w-4 h-4">
+                </button>
 
-                <!-- row -->
-                <div
-                  class="flex justify-between items-center border-t border-transparent"
-                >
-                  <span
-                    class="text-xs leading-normal text-text-primary dark:text-text-dark-primary"
-                    >Top Up Amount</span
-                  >
-                  <div class="flex items-center gap-1">
-                    <span
-                      class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary"
-                      >+</span
-                    >
-                    <img
-                      src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp"
-                      alt="token-tip-svg"
-                      class="w-6 h-6"
-                    />
-                    <span
-                      class="text-sm leading-[1.25rem] text-text-primary dark:text-text-dark-primary"
-                      >100</span
-                    >
-                  </div>
-                </div>
-
-                <!-- row (total) -->
-                <div
-                  class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]"
-                >
-                  <span
-                    class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary"
-                    >Total After Top Up</span
-                  >
-                  <div class="flex items-center gap-1">
-                    <img
-                      src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp"
-                      alt="token-tip-svg"
-                      class="w-6 h-6"
-                    />
-                    <span
-                      class="text-lg font-semibold text-text-primary dark:text-text-dark-primary"
-                      >600</span
-                    >
-                  </div>
-                </div>
-
-                <!-- row (final) -->
-                <div
-                  class="flex justify-between items-center pt-2 border-t border-[#fcfcfd]"
-                >
-                  <span
-                    class="text-xs leading-normal font-semibold text-text-primary dark:text-text-dark-primary"
-                    >Final Payment</span
-                  >
-                  <div class="flex flex-col items-end gap-1">
-                    <div class="flex items-center gap-1">
-                      <div
-                        class="bg-gradient-to-r from-primary-gradient-start dark:from-primary-gradient-start-dark to-primary-gradient-end dark:to-primary-gradient-end-dark shadow-[-1px_1px_8px_0px_#35FFD340,1px_-1px_8px_0px_#1CF89940] dark:shadow-[-1px_1px_8px_0px_#00ac9040,1px_-1px_8px_0px_#06b97f40] flex justify-center items-center w-max"
-                      >
-                        <div
-                          class="flex justify-center items-center gap-[0.1875rem] pt-0.5 px-1"
-                        >
-                          <span
-                            class="text-[0.625rem] text-[#182230] font-semibold leading-normal dark:text-[#d1cdc7]"
-                            >30% OFF</span
-                          >
-                        </div>
-                      </div>
-                      <span
-                        class="text-base font-semibold text-text-primary dark:text-text-dark-primary"
-                        >USD$ 123.45</span
-                      >
-                    </div>
-
-                    <span
-                      class="text-[0.625rem] leading-[1.125rem] text-text-primary dark:text-text-dark-primary line-through"
-                      >USD$ 123.45</span
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <!-- button -->
-              <div
-                class="flex justify-end items-end mt-auto fixed sm:relative bottom-0 right-0 z-[100000] sm:z-auto"
-              >
-                <div class="h-11 md:h-14 shadow-[0px_0px_16px_0px_#FFFFFF80]">
-                  <button
-                    class="relative flex justify-center items-center gap-2 w-[11.75rem] h-11 md:h-14 bg-[#98a2b3] hover:bg-white px-4 backdrop-blur-[100px] transition-all duration-200 group pointer-events-none"
-                  >
-                    <!-- Pseudo-element for the skewed background -->
-                    <div
-                      class="absolute top-0 -left-3 w-8 h-full bg-[#98a2b3] [transform:skew(163deg,0)_translateX(3px)] backdrop-blur-[100px] shadow-[-12px_0px_16px_0px_#ffffff40] group-hover:bg-white transition-colors duration-200 z-[-1]"
-                    ></div>
-
-                    <span
-                      class="text-base text-white font-medium leading-6 group-hover:text-[#FF0066] whitespace-nowrap transition-all duration-200"
-                    >
-                      Pay USD$ 123.45
-                    </span>
-                    <img
-                      src="https://i.ibb.co.com/NdmC2BjP/arrow-right.webp"
-                      alt="arrow-right"
-                      class="w-6 h-6 group-hover:[filter:brightness(0)_saturate(100%)_invert(17%)_sepia(87%)_saturate(5028%)_hue-rotate(328deg)_brightness(98%)_contrast(114%)] transition-all duration-200"
-                    />
-                  </button>
-                </div>
-              </div>
+                <button class="flex justify-center items-center w-8 h-8 backdrop-blur-[50px] rounded-full border-[0.5px] border-[#E9E5D3] bg-[#E9E5D3]/5 dark:border-[#36311b] dark:bg-[#36311b]/5">
+                    <img src="https://i.ibb.co.com/hFw7MBf2/icon.webp" alt="icon" class="w-4 h-4">
+                </button>
             </div>
-          </div>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <script defer>
-      // range slider
-      const slider = document.querySelector("[data-tip-range-slider]");
-      const trackFill = document.querySelector("[data-tip-range-slider-track-fill]");
+  <!-- handle splide & lightGallery initialization, custom cursor, and parallax effect -->
+  <script>
+    // Array of image sources for the slider and thumbnails
+    const images = [
+        { src: "https://picsum.photos/id/1015/1920/1080", thumb: "https://picsum.photos/id/1015/240/160" },
+        { src: "https://picsum.photos/id/133/1920/1080", thumb: "https://picsum.photos/id/133/240/160" },
+        { src: "https://picsum.photos/id/160/1920/1080", thumb: "https://picsum.photos/id/160/240/160" },
+        { src: "https://picsum.photos/id/201/1920/1080", thumb: "https://picsum.photos/id/201/240/160" },
+        { src: "https://picsum.photos/id/251/1920/1080", thumb: "https://picsum.photos/id/251/240/160" },
+        { src: "https://picsum.photos/id/160/1920/1080", thumb: "https://picsum.photos/id/160/240/160" },
+    ];
 
-      function updateTrackFill() {
-          const percent = (slider.value / slider.max) * 100;
-          trackFill.style.width = `${percent}%`;
-      }
+    /**
+     * Builds the slides for both the main slider and thumbnail slider by dynamically inserting HTML elements.
+     */
+    function buildSlides() {
+        const mainList = document.querySelector('[data-main-slider] .splide__list');
+        const thumbsList = document.querySelector('[data-thumbs-slider] .splide__list');
 
-      slider.addEventListener("input", updateTrackFill);
-      updateTrackFill();
+        images.forEach((img, i) => {
+            mainList.innerHTML += `<li class="splide__slide relative"><img src="${img.src}" alt="Image ${i+1}" class="w-full h-auto block cursor-zoom-in rounded-lg shadow-[0_10px_30px_rgba(0,0,0,0.6)]"></li>`;
+            thumbsList.innerHTML += `<li class="splide__slide aspect-square backdrop-blur-[10px] border ![border:1px_solid_transparent_!important;] transition-all duration-300 cursor-pointer [&.is-active]:[border:1px_solid_#F5F5F4_!important;] after:content-[''] after:absolute after:inset-0 after:bg-[#222222]/10 after:pointer-events-none dark:after:bg-[#2b2f31]/10 dark:[&.is-active]:[border:1px_solid_#333739_!important;]"><img src="${img.thumb}" alt="Thumb ${i+1}" class="w-full h-full object-cover"></li>`;
+        });
+    }
 
-      // Scroll detection code
-      const navbar = document.querySelector(".mobile-responsive-navbar");
-      const popupContainer = document.querySelector(".token-popup-container");
-      const scrollableContainer = document.querySelector(".column-container");
-      const scrollThreshold = 10;
+    /**
+     * Initializes the Splide sliders for the main image display and thumbnails, syncing them together.
+     */
+    function initSplide() {
+        const main = new Splide('[data-main-slider]', {
+            type: 'fade',
+            pagination: false,
+            arrows: false,
+            cover: true,
+            heightRatio: 1.22445,
+            mediaQuery: 'min',
+            breakpoints: {
+                480: { heightRatio: 1.1755, height: '450px'},
+                1024: { heightRatio: 'auto', fixedHeight: '100vh' },
 
-      function handleScroll() {
-          console.log("scrolled", scrollableContainer.scrollTop);
-          if (scrollableContainer.scrollTop > scrollThreshold) {
-              navbar.classList.add('backdrop-blur-[400px]', 'bg-gradient-to-b', 'from-[rgba(240,240,240,0.5)]', 'to-[rgba(240,240,240,0.375)]', 'transition-all', 'duration-300', 'ease-linear');
-          } else {
-              navbar.classList.remove('backdrop-blur-[400px]', 'bg-gradient-to-b', 'from-[rgba(240,240,240,0.5)]', 'to-[rgba(240,240,240,0.375)]', 'transition-all', 'duration-300', 'ease-linear');
-          }
-      }
+            }
+        });
 
-      scrollableContainer.addEventListener('scroll', handleScroll);
+        const thumbs = new Splide('[data-thumbs-slider]', {
+            perPage: 6,
+            gap: 8,
+            pagination: false,
+            isNavigation: true,
+            arrows: false,
+            drag: true,
+            mediaQuery: 'min',
+        });
 
-      // Check initial state
-      handleScroll();
-    </script>
-  </body>
+        main.sync(thumbs);
+        main.mount();
+        thumbs.mount();
+    }
+
+    // Global variable to hold the LightGallery instance
+    let lgInstance;
+
+    /**
+     * Initializes LightGallery with dynamic elements and plugins, and sets up parallax effect.
+     * @returns {Object} The initialized LightGallery instance.
+     */
+    function initLightGallery() {
+        const container = document.querySelector('[data-lightGallery]');
+
+        const dynamicItems = images.map(img => ({
+            src: img.src,
+            thumb: img.thumb,
+        }));
+
+        setupParallax(container);
+
+        lgInstance = lightGallery(container, {
+            dynamic: true,
+            dynamicEl: dynamicItems,
+            plugins: [lgThumbnail, lgZoom],
+            thumbnail: true,
+            thumbMargin: 0,
+            alignThumbnails: 'middle',
+            animateThumb: true,
+            zoom: true,
+            actualSize: true,
+            showZoomInOutIcons: false,
+            speed: 400,
+            download: false,
+            counter: false,
+            controls: false,
+            showCloseIcon: false,
+            addClass: 'lg-custom-thumbs'
+        });
+
+        return lgInstance;
+    }
+
+    /**
+     * Checks if the device has a fine pointer (e.g., mouse) for enabling custom cursor features.
+     * @returns {boolean} True if the device has a fine pointer, false otherwise.
+     */
+    function hasFinePointer() {
+        return window.matchMedia('(pointer: fine)').matches;
+    }
+
+    /**
+     * Sets up parallax effect, custom cursor, and other UI enhancements for the LightGallery container.
+     * @param {HTMLElement} container - The LightGallery container element.
+     */
+    function setupParallax(container) {
+        container.addEventListener('lgAfterOpen', () => {
+            const outer = document.querySelector('.lg-outer');
+            if (!outer) return;
+
+            // Hide default toolbar (includes all controls)
+            const toolbar = outer.querySelector('.lg-toolbar');
+            if (toolbar) {
+                toolbar.classList.add('!hidden');
+            }
+
+            const lgImageContainer = outer.querySelector('.lg-content');
+            if(lgImageContainer) {
+                lgImageContainer.classList.add('!bottom-[7.875rem]');
+            }
+
+            // Add custom close button
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'fixed top-6 right-6 flex justify-center items-center w-12 h-12 bg-black/30 backdrop-blur-[10px] rounded-full cursor-pointer z-[10000] dark:bg-[#181a1b]/30';
+            closeBtn.innerHTML = `
+                <img src="https://i.ibb.co.com/DfT6Sg5g/x-close.webp" 
+                     alt="x close" 
+                     class="w-8 h-8 drop-shadow-[0px_0px_8px_#00000080] [filter:brightness(0)_saturate(100%)_invert(97%)_sepia(1%)_saturate(5636%)_hue-rotate(182deg)_brightness(95%)_contrast(81%)]">
+            `;
+            closeBtn.addEventListener('click', () => {
+                if (lgInstance) lgInstance.closeGallery();
+            });
+            outer.appendChild(closeBtn);
+
+            // CUSTOM CURSOR (only on lightbox image)
+            if (!hasFinePointer()) return;
+
+            const customCursor = document.createElement('div');
+            customCursor.id = 'lg-custom-cursor';
+            customCursor.className = `flex justify-center items-center w-10 h-10 lg:w-20 lg:h-20 rounded-full bg-black/25 backdrop-blur-[10px] group/cursor dark:bg-[#181a1b]/25 pointer-events-none fixed z-[9999] transition-opacity duration-200`;
+            customCursor.innerHTML = `
+                <img src="https://i.ibb.co.com/TDGYvfTn/zoom-in.webp" alt="zoom in" class="w-6 h-6 lg:w-10 lg:h-10 zoom-in-icon transition-all duration-200">
+                <img src="https://i.ibb.co.com/jdwwgzf/zoom-out.webp" alt="zoom out" class="w-6 h-6 lg:w-10 lg:h-10 zoom-out-icon hidden transition-all duration-200">
+            `;
+            outer.appendChild(customCursor);
+
+            // Force-hide ALL default cursors (grab, zoom, etc.) **ONLY** on the image elements
+            const forceNoCursor = () => {
+                const imageAreas = outer.querySelectorAll('.lg-object, .lg-image');
+                imageAreas.forEach(el => {
+                    if (el) el.style.setProperty('cursor', 'none', 'important');
+                });
+            };
+            forceNoCursor();
+
+            // Inject strong cursor override
+            const style = document.createElement('style');
+            style.id = 'lg-cursor-override';
+            style.innerHTML = `
+            @media (pointer: fine) {
+                .lg-outer.lg-grab .lg-item img,
+                .lg-outer.lg-grabbing .lg-item img {
+                    cursor: none !important;
+                }
+            }
+            `;
+            document.head.appendChild(style);
+
+            const lgBackgroundWrapper = document.querySelector('.lg-backdrop');
+            if (lgBackgroundWrapper) {
+                lgBackgroundWrapper.classList.add('after:content-[""]', 'after:absolute', 'after:inset-0', 'after:!bg-black/50', 'after:backdrop-blur-[125px]', 'dark:after:!bg-[#181a1b]/50', 'after:bg-cover', 'after:bg-center', 'after:bg-no-repeat', 'after:z-[1]');
+            }
+
+            function updateBackground() {
+                const currentImg = outer.querySelector('.lg-current img');
+                if (currentImg && lgBackgroundWrapper) {
+                    lgBackgroundWrapper.style.backgroundImage = `url(${currentImg.src})`;
+                }
+            }
+
+            updateBackground();
+
+            const thumbOuter = outer.querySelector('.lg-thumb-outer');
+            if (thumbOuter) {
+                thumbOuter.classList.add('!bg-transparent')
+            }
+
+            const thumbInner = outer.querySelector('.lg-thumb');
+            if (thumbInner) {
+                thumbInner.classList.add('!w-full', '!flex', 'justify-self-center', 'gap-1', '!bg-transparent', 'drop-shadow-[0px_30px_-34px_#0000004D]', '!p-1', '!m-0', '!flex-nowrap', '!overflow-x-hidden', '!transform-none', '!transition-none', 'md:!w-[45rem]', 'md:!p-2', 'md:gap-2')
+            }
+
+            const thumbImageWrappers = outer.querySelectorAll('.lg-thumb-item');
+            if (thumbImageWrappers) {
+                thumbImageWrappers.forEach(wrapper => {
+                    wrapper.classList.add(`!w-[calc((100vw-1.75rem)/${images.length})]`, '!h-auto', '!aspect-square', '!mb-0', 'backdrop-blur-[10px]', 'bg-white/20', '[border:1px_solid_transparent_!important;]', '[&.active]:[border:1px_solid_#F5F5F4_!important;]', `lg:!w-[calc((45rem-1.75rem)/${images.length})]`, 'dark:bg-[#181a1b]/20', 'dark:[&.active]:[border:1px_solid_#333739_!important;]')
+                    // Ensure images fill the square wrapper
+                    const img = wrapper.querySelector('img');
+                    if (img) {
+                        img.classList.add('!w-full', '!h-full', '!object-cover');
+                    }
+                });
+            }
+
+            const imgWraps = outer.querySelectorAll('.lg-img-wrap');
+            imgWraps.forEach(wrap => {
+                wrap.style.transition = 'transform 0.08s cubic-bezier(0.23, 1, 0.32, 1) !important';
+                wrap.style.willChange = 'transform';
+            });
+
+            const getCurrentImgWrap = () => {
+                return outer.querySelector('.lg-current .lg-img-wrap');
+            };
+
+            const handleMouseMove = (e) => {
+                const imgWrap = getCurrentImgWrap();
+                if (!imgWrap) return;
+
+                const isZoomed = outer.classList.contains('lg-zoomed');
+
+                if (isZoomed) {
+                    const rect = outer.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 80;
+                    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 80;
+
+                    imgWrap.style.transform = `translate(${x}px, ${y}px)`;
+                } else {
+                    imgWrap.style.transform = '';
+                }
+
+                // ✅ CUSTOM CURSOR: Applied **ONLY** to .lg-object & .lg-image (even during click/drag)
+                const isOverImage = e.target.closest('.lg-object') || e.target.closest('.lg-image');
+                if (isOverImage) {
+                    customCursor.style.left = `${e.clientX}px`;
+                    customCursor.style.top = `${e.clientY}px`;
+                    customCursor.style.transform = 'translate(-50%, -50%)';
+                    customCursor.style.opacity = '1';
+
+                    // Toggle icons
+                    const zoomInIcon = customCursor.querySelector('.zoom-in-icon');
+                    const zoomOutIcon = customCursor.querySelector('.zoom-out-icon');
+                    if (isZoomed) {
+                        zoomInIcon.classList.add('hidden');
+                        zoomOutIcon.classList.remove('hidden');
+                    } else {
+                        zoomInIcon.classList.remove('hidden');
+                        zoomOutIcon.classList.add('hidden');
+                    }
+                } else {
+                    customCursor.style.opacity = '0';
+                }
+            };
+
+            // Attach once
+            outer.addEventListener('mousemove', handleMouseMove);
+
+            // 🔥 IMPORTANT: Reset transform on slide change + fix thumbnail positioning
+            container.addEventListener('lgAfterSlide', () => {
+                const imgWrap = getCurrentImgWrap();
+                if (imgWrap) imgWrap.style.transform = '';
+
+                updateBackground();
+
+                // Fix thumbnail bar from shifting on slide change (due to custom widths overriding LG's calc)
+                const thumb = outer.querySelector('.lg-thumb');
+                if (thumb) {
+                    thumb.style.left = '0px';
+                    thumb.style.transform = 'translateX(0px)';
+                    // Re-apply flex if needed (in case LG overrides)
+                    thumb.style.display = 'flex';
+                }
+
+                // Re-apply cursor override after slide change
+                forceNoCursor();
+            });
+
+            container.addEventListener('lgBeforeClose', () => {
+                outer.removeEventListener('mousemove', handleMouseMove);
+
+                const imgWrap = getCurrentImgWrap();
+                if (imgWrap) imgWrap.style.transform = '';
+
+                // Cleanup custom cursor
+                const cursor = outer.querySelector('#lg-custom-cursor');
+                if (cursor) cursor.remove();
+            }, { once: true });
+        });
+    }
+
+    /**
+     * Sets up click event listeners on main slides to trigger LightGallery opening, preventing accidental opens from drags.
+     */
+    function setupLightboxTrigger() {
+        const mainSlides = document.querySelectorAll('[data-main-slider] .splide__slide');
+
+        mainSlides.forEach((slide, index) => {
+            let startX, startY;
+
+            slide.addEventListener('mousedown', (e) => {
+                startX = e.clientX;
+                startY = e.clientY;
+            });
+
+            slide.addEventListener('click', (e) => {
+                if (!startX || !startY) return;
+                const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+                if (dist < 12) {
+                    lgInstance.openGallery(index);
+                }
+            });
+        });
+    }
+
+    // Event listener for window load to initialize all components
+    window.addEventListener('load', () => {
+        buildSlides();
+        initSplide();
+        lgInstance = initLightGallery();
+        setupLightboxTrigger();
+    });
+</script>
+
+<!-- handle sticky button on scroll -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Select the element to make sticky
+  const stickyEl = document.querySelector("[data-button-container]")
+
+  /**
+   * Checks if the element is at the bottom of the viewport and toggles the sticky class accordingly.
+   */
+  function checkSticky() {
+    const rect = stickyEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // When sticky is active at bottom
+    if (Math.abs(rect.bottom - viewportHeight) < 1) {
+      stickyEl.classList.add("is-sticky");
+    } else {
+      stickyEl.classList.remove("is-sticky");
+    }
+  }
+
+  // Run on scroll + resize
+  window.addEventListener("scroll", checkSticky);
+  window.addEventListener("resize", checkSticky);
+
+  // Run once on load
+  checkSticky();
+});
+</script>
+
+<!-- toggle tab container's visibility on tab button click -->
+<script>
+    // Select all tab buttons and containers
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    const tabContainers = document.querySelectorAll('[data-tab-container]');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const target = button.dataset.tab;
+
+            // toggle active state
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            // show / hide containers
+            tabContainers.forEach(container => {
+                if (container.dataset.tabContainer === target) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            });
+
+        });
+    });
+
+    // show active tab on load
+    const activeTab = document.querySelector('[data-tab-button] .active');
+        if (activeTab) {
+        activeTab.click();
+    }
+
+</script>
+</body>
 </html>
 
 </template>

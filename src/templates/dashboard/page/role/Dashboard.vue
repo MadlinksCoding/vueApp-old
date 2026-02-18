@@ -8,31 +8,19 @@
 
     <!-- <ButtonComponent text="Save" variant="greyBg" size="lg" /> -->
 
-    <ButtonComponent
-      text="Save"
-      variant="polygonRight"
-      :leftIcon="'https://i.ibb.co/Sw3WhF1p/svgviewer-png-output-9.webp'"
-      :leftIconClass="`
+    <ButtonComponent text="Save" variant="polygonRight"
+      :leftIcon="'https://i.ibb.co/Sw3WhF1p/svgviewer-png-output-9.webp'" :leftIconClass="`
   w-6 h-6 transition duration-200
   filter brightness-0 invert
   group-hover:[filter:brightness(0)_saturate(100%)_invert(0%)_sepia(96%)_saturate(7494%)_hue-rotate(96deg)_brightness(112%)_contrast(97%)]
-`"
-    />
+`" />
 
-    <ButtonComponent
-      text="Next"
-      variant="polygonLeft"
-      :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'"
-      :rightIconClass="`
+    <ButtonComponent text="Next" variant="polygonLeft"
+      :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
   w-6 h-6 transition duration-200
   filter brightness-0 invert-0   /* Default: black */
   group-hover:[filter:brightness(0)_saturate(100%)_invert(75%)_sepia(23%)_saturate(7280%)_hue-rotate(93deg)_brightness(109%)_contrast(95%)]
-`"
-      btnBg="#07f468"
-      btnHoverBg="black"
-      btnText="black"
-      btnHoverText="#07f468"
-    />
+`" btnBg="#07f468" btnHoverBg="black" btnText="black" btnHoverText="#07f468" />
 
     <!-- <OrderReceived /> -->
 
@@ -52,172 +40,94 @@
     <br />
     <br />
 
-    <ButtonComponent
-      text="View All Popup"
-      variant="mediaBtn"
-      @click="isViewAllPopupOpen = true"
-    />
+    <ButtonComponent text="View All Popup" variant="mediaBtn" @click="isViewAllPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Profle media details popup"
-      variant="mediaBtn"
-      @click="profileMediaDetailsPopupOpen = true"
-    />
+    <ButtonComponent text="Profle media details popup" variant="mediaBtn"
+      @click="profileMediaDetailsPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Avatar upload popup"
-      variant="mediaBtn"
-      @click="avatarPopupOpen = true"
-    />
+    <ButtonComponent text="Avatar upload popup" variant="mediaBtn" @click="avatarPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Image Crop Popup"
-      variant="mediaBtn"
-      @click="imageCropPopupOpen = true"
-    />
+    <ButtonComponent text="Image Crop Popup" variant="mediaBtn" @click="imageCropPopupOpen = true" />
 
     <br />
-    <ButtonComponent
-      text="Cancel Upload Popup"
-      variant="mediaBtn"
-      @click="cancelUploadPopupOpen = true"
-    />
+    <ButtonComponent text="Cancel Upload Popup" variant="mediaBtn" @click="cancelUploadPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Buy Now Login Popup"
-      variant="mediaBtn"
-      @click="buyNowLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Buy Now Login Popup" variant="mediaBtn" @click="buyNowLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Buy Now Not Login Popup"
-      variant="mediaBtn"
-      @click="buyNowNotLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Buy Now Not Login Popup" variant="mediaBtn" @click="buyNowNotLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Cart Checkout Login Popup"
-      variant="mediaBtn"
-      @click="cartCheckoutLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Cart Checkout Login Popup" variant="mediaBtn" @click="cartCheckoutLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Cart Checkout Not Login Popup"
-      variant="mediaBtn"
-      @click="cartCheckoutNotLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Cart Checkout Not Login Popup" variant="mediaBtn"
+      @click="cartCheckoutNotLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Subscribe Login Popup"
-      variant="mediaBtn"
-      @click="subscribeLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Subscribe Login Popup" variant="mediaBtn" @click="subscribeLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Subscribe Not Login Popup"
-      variant="mediaBtn"
-      @click="subscribeNotLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Subscribe Not Login Popup" variant="mediaBtn" @click="subscribeNotLoginPopupOpen = true" />
     <br />
 
-    <ButtonComponent
-      text="Subscribe update Login Popup"
-      variant="mediaBtn"
-      @click="subscribeUpdateLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Subscribe update Login Popup" variant="mediaBtn"
+      @click="subscribeUpdateLoginPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Purchase Tip Popup"
-      variant="mediaBtn"
-      @click="purchaseTipPopupOpen = true"
-    />
+    <ButtonComponent text="Purchase Tip Popup" variant="mediaBtn" @click="purchaseTipPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Purchase Flow Subscription Popup"
-      variant="mediaBtn"
-      @click="purchaseFlowSubscriptionPopupOpen = true"
-    />
+    <ButtonComponent text="Purchase Flow Subscription Popup" variant="mediaBtn"
+      @click="purchaseFlowSubscriptionPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Guest Purchase Flow Popup"
-      variant="mediaBtn"
-      @click="guestPurchaseFlowPopupOpen = true"
-    />
+    <ButtonComponent text="Guest Purchase Flow Popup" variant="mediaBtn" @click="guestPurchaseFlowPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Upgrade Tier Popup"
-      variant="mediaBtn"
-      @click="upgradeTierPopupOpen = true"
-    />
+    <ButtonComponent text="Upgrade Tier Popup" variant="mediaBtn" @click="upgradeTierPopupOpen = true" />
 
     <br />
 
-     <ButtonComponent
-      text="1on1 Booking FlowPopup open"
-      variant="mediaBtn"
-      @click="oneOnOneBookingFlowPopupOpen = true"
-    />
+    <ButtonComponent text="1on1 Booking FlowPopup open" variant="mediaBtn"
+      @click="oneOnOneBookingFlowPopupOpen = true" />
 
     <br />
 
-     <ButtonComponent
-      text="Ticket Event Popup Open"
-      variant="mediaBtn"
-      @click="ticketEventPopupOpen = true"
-    />
+    <ButtonComponent text="Ticket Event Popup Open" variant="mediaBtn" @click="ticketEventPopupOpen = true" />
 
     <br />
 
-     <ButtonComponent
-      text="Crowd Funding Event Popup"
-      variant="mediaBtn"
-      @click="crowdFundingEventPopupOpen = true"
-    />
+    <ButtonComponent text="Crowd Funding Event Popup" variant="mediaBtn" @click="crowdFundingEventPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Tip Popup"
-      variant="mediaBtn"
-      @click="tipPopupOpen = true"
-    />
+    <ButtonComponent text="Tip Popup" variant="mediaBtn" @click="tipPopupOpen = true" />
 
     <br />
 
-    <ButtonComponent
-      text="Profile Login Popup"
-      variant="mediaBtn"
-      @click="profileLoginPopupOpen = true"
-    />
+    <ButtonComponent text="Profile Login Popup" variant="mediaBtn" @click="profileLoginPopupOpen = true" />
 
     <br />
 
-    <UploadingProgressBar
-      :progress="uploadPercentage"
-      imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
-      label="Uploading..."
-    />
+    <ButtonComponent text="Profile Merch Popup" variant="mediaBtn" @click="profileMerchPopupOpen = true" />
+
+    <br />
+
+    <UploadingProgressBar :progress="uploadPercentage" imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
+      label="Uploading..." />
     <br />
     <AvatarMenu />
 
@@ -239,7 +149,9 @@
 
     <br>
 
-   
+
+    <ProfileMerchPopup />
+
 
     <ProfileViewAllPopup v-model="isViewAllPopupOpen" />
 
@@ -257,9 +169,7 @@
     <SubscribeNotLoginPopup v-model="subscribeNotLoginPopupOpen" />
     <SubscribeUpdateLoginPopup v-model="subscribeUpdateLoginPopupOpen" />
     <PurchaseTipFlowPopup v-model="purchaseTipPopupOpen" />
-    <PurchaseFlowSubscriptionOrderPopup
-      v-model="purchaseFlowSubscriptionPopupOpen"
-    />
+    <PurchaseFlowSubscriptionOrderPopup v-model="purchaseFlowSubscriptionPopupOpen" />
     <GuestPurchaseFlowPopup v-model="guestPurchaseFlowPopupOpen" />
     <UpgradeTierPopup v-model="upgradeTierPopupOpen" />
     <OneOnOneBookingFlowPopup v-model="oneOnOneBookingFlowPopupOpen" />
@@ -267,6 +177,7 @@
     <CrowdFundingEventPopup v-model="crowdFundingEventPopupOpen" />
     <TipPopup v-model="tipPopupOpen" />
     <ProfileLoginPopup v-model="profileLoginPopupOpen" />
+    <ProfileMerchPopup v-model="profileMerchPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -307,6 +218,7 @@ import TicketEventPopup from "@/components/FanBookingFlow/GroupEventFlow/TicketE
 import CrowdFundingEventPopup from "@/components/FanBookingFlow/GroupEventFlow/CrowdFundingEventPopup/CrowdFundingEventPopup.vue";
 import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPopup.vue";
+import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -329,6 +241,7 @@ const ticketEventPopupOpen = ref(false);
 const crowdFundingEventPopupOpen = ref(false);
 const tipPopupOpen = ref(false);
 const profileLoginPopupOpen = ref(false);
+const profileMerchPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);

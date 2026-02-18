@@ -28,6 +28,7 @@
     "aws-amplify": "^6.15.5",
     "fs-extra": "^11.3.1",
     "jwt-decode": "^4.0.0",
+    "lightgallery": "^2.9.0",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",
     "vue": "^3.5.18",
