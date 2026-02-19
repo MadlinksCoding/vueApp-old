@@ -396,17 +396,25 @@
           <div
             class="flex flex-col gap-6 px-2 py-4 bg-black/50 backdrop-blur-[400px] sm:p-4 md:gap-9 lg:flex-grow lg:mx-auto lg:px-12 lg:py-6">
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-              <MerchCard bgImage="/images/checkout-header.webp" title="My top (washed) Get Jenny’s favourite Mangoes!"
-                currency="USD" price="$25" finalPrice="$25"
+              <MerchCard @click="openMerchPopup('pre-order')" bgImage="/images/checkout-header.webp"
+                title="My top (washed) Get Jenny’s favourite Mangoes!" currency="USD" price="$25" finalPrice="$25"
                 description="Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !"
                 overlayBg="linear-gradient(0deg, rgba(255,255,255,0.68) -3.06%, rgba(255,255,255,0) 144.5%), linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1))"
                 overlayHoverBg="linear-gradient(0deg, rgba(255,255,255,0.9) -3.06%, rgba(255,255,255,0) 144.5%), linear-gradient(0deg, rgba(0,0,0,0.25), rgba(0,0,0,0.25))" />
 
-              <MerchCard bgImage="/images/checkout-header.webp" title="My top (washed) Get Jenny’s favourite Mangoes!"
-                currency="USD" price="$25" finalPrice="$25" discountText="10% OFF"
+              <MerchCard @click="openMerchPopup('regular')" bgImage="/images/checkout-header.webp"
+                title="My top (washed) Get Jenny’s favourite Mangoes!" currency="USD" price="$25" finalPrice="$25"
+                discountText="10% OFF"
                 description="Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !Get Jenny’s favourite Mangoes! Buy them while supply last !"
                 overlayBg="linear-gradient(0deg, rgba(255,205,41,0.68) -3.06%, rgba(255,205,41,0) 117.35%), linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1))"
                 overlayHoverBg="linear-gradient(0deg, rgba(255,205,41,0.9) -3.06%, rgba(255,205,41,0) 117.35%), linear-gradient(0deg, rgba(0,0,0,0.25), rgba(0,0,0,0.25))" />
+
+              <!-- Test card for other variants -->
+              <MerchCard @click="openMerchPopup('out-of-stock')" bgImage="/images/checkout-header.webp"
+                title="Out of Stock Item" currency="USD" price="$25" finalPrice="$25"
+                description="This item is out of stock."
+                overlayBg="linear-gradient(0deg, rgba(255,255,255,0.68) -3.06%, rgba(255,255,255,0) 144.5%), linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1))"
+                overlayHoverBg="linear-gradient(0deg, rgba(255,255,255,0.9) -3.06%, rgba(255,255,255,0) 144.5%), linear-gradient(0deg, rgba(0,0,0,0.25), rgba(0,0,0,0.25))" />
             </div>
           </div>
         </div>
@@ -415,6 +423,7 @@
     </section>
 
     <ProfileMediaDetailsPopup v-model="profileMediaDetailsPopupOpen" :media="selectedMedia" />
+    <ProfileMerchPopup v-model="profileMerchPopupOpen" :variant="selectedMerchVariant" />
   </div>
 </template>
 
@@ -443,13 +452,22 @@ import HeaderUserProfileDesktop from "./HeaderUserProfileDesktop.vue";
 import ProfileHeaderOptionbuttons from "./ProfileHeaderOptionbuttons.vue";
 import ProfileMediaTabHeading from "./ProfileMediaTabHeading.vue";
 import ProfileMediaDetailsPopup from "@/components/ui/popup/ProfileMediaDetailsPopup.vue";
+import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 
 const profileMediaDetailsPopupOpen = ref(false);
 const selectedMedia = ref({});
 
+const profileMerchPopupOpen = ref(false);
+const selectedMerchVariant = ref('regular');
+
 const openMediaPopup = (media) => {
   selectedMedia.value = media;
   profileMediaDetailsPopupOpen.value = true;
+};
+
+const openMerchPopup = (variant) => {
+  selectedMerchVariant.value = variant;
+  profileMerchPopupOpen.value = true;
 };
 
 // --- MEDIA LIST DATA ---

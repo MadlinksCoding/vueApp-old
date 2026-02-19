@@ -118,8 +118,9 @@
                 <!-- likes-view-container -->
                 <div class="flex items-center gap-4 ">
                     <!-- likes -->
-                    <div class="flex items-center gap-2">
-                        <img src="https://i.ibb.co.com/9kNrMyfz/heart.webp" alt="heart" class="w-4 h-4">
+                    <div class="flex items-center gap-2 group">
+                        <img src="https://i.ibb.co.com/9kNrMyfz/heart.webp" alt="heart" class="block group-[.active]:hidden w-4 h-4">
+                        <img src="https://i.ibb.co.com/fVpSgdPJ/heart.webp" alt="heart" class="hidden group-[.active]:block w-4 h-4">
                         <span class="text-base text-[#F2F4F7] dark:text-[#e1dfdb]">123</span>
                     </div>
 
@@ -139,38 +140,17 @@
                 <!-- price-display -->
                 <div class="flex flex-col gap-2 md:flex-row md:items-center">
                     <!-- price -->
-                    <div class="flex items-baseline gap-0.5 drop-shadow-[0px_0px_40px_#FFC300]">
-                        <span class="text-xl leading-normal font-semibold align-bottom text-white dark:text-[#e8e6e3]">USD$</span>
-                        <span class="text-base font-medium line-through align-middle text-white dark:text-[#e8e6e3]">12.99</span>
-                        <span class="text-6xl leading-[4.5rem] font-semibold align-bottom -tracking-[0.075rem] text-white dark:text-[#e8e6e3]">6.99</span>
-                    </div>
-
-                    <!-- labels -->
-                    <div class="flex items-center gap-3 pt-[0.0625rem] pb-2.5 flex-wrap md:items-start md:flex-col md:pb-5">
-                        <!-- yellow-label with icon -->
-                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[linear-gradient(90deg,#D8AF0D_0%,#9F8009_100%)]">
-                            <img src="https://i.ibb.co.com/3m6JKJSh/clock.webp" alt="clock" class="w-4 h-4">
-                            <span class="text-xs leading-normal font-semibold text-black dark:text-[#e8e6e3]">Pre-Order Discount</span>
-                        </div>
-
-                        <!-- yellow-label -->
-                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[linear-gradient(90deg,#D8AF0D_0%,#9F8009_100%)]">
-                            <span class="text-xs leading-normal font-semibold text-black dark:text-[#e8e6e3]">Official Release: 12 Jul 2024</span>
-                        </div>
-
-                        <!-- red-label -->
-                        <div class="flex justify-center items-center gap-1 px-1.5 py-0.5 bg-[#FF4405]">
-                            <span class="text-xs leading-normal font-semibold text-white dark:text-[#e8e6e3]">1 LEFT IN STOCK</span>
-                        </div>
+                    <div class="flex items-baseline gap-0.5">
+                        <span class="text-6xl leading-[4.5rem] font-semibold align-bottom -tracking-[0.075rem] text-white dark:text-[#e8e6e3]">FREE</span>
                     </div>
                 </div>
 
                 <!-- button-container -->
                 <div data-button-container class="flex w-full group/button-container sticky bottom-0 [&.is-sticky]:w-[calc(100%+1rem)] [&.is-sticky]:-ml-2 [&.is-sticky]:py-6 [&.is-sticky]:bg-[linear-gradient(0deg,rgba(255,255,255,0.01)_0%,rgba(255,255,255,0)_100%)] [&.is-sticky]:backdrop-blur-[50px]">
-                    <button class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-[#FFFADD] bg-[rgba(242,242,3,0.7)] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[inset_0_0_1px_0_#FFF3A1,0_0_10px_0_#FFB909B2,0_0px_10px_0_#FFB909B2,0_5px_50px_0_#F2F20380,0px_0px_10px_0px_#F2F2030D] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75">
+                    <button class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-[#FFE0E3] bg-[#FF44000D] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[0px_0px_40px_0px_#FC190D80_inset,0px_5px_50px_0px_#FC190D80,0px_0px_35px_0px_#FC190D40,0px_0px_10px_0px_#FC190D0D,0px_0px_1px_0px_#FFB6BC_inset] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-40 lg:h-[4.5rem]">
                         <!-- text-container -->
                         <div class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
-                            <span class="text-xl leading-normal font-bold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap">Pre-order NOW</span>
+                            <span class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">OUT OF STOCK</span>
                         </div>
                     </button>
                 </div>
@@ -637,7 +617,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", checkSticky);
 
   // Run once on load
-  checkSticky();
+  window.addEventListener("load", checkSticky);
 });
 </script>
 

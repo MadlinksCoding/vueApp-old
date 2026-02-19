@@ -2,20 +2,19 @@
     <PopupHandler :modelValue="modelValue" @update:modelValue="(val) => emit('update:modelValue', val)"
         :config="profileMerchPopupConfig">
         <!-- wrapper   -->
-        <div
-            class=" relative bg-no-repeat bg-cover bg-[url('/images/merchOverlay.png')] bg-center   dark:bg-[#181a1b]/50">
+        <div ref="popupWrapper"
+            class="bg-black/50 relative before:absolute before:inset-0 before:bg-[url('https://i.ibb.co.com/5WQ43b48/sample-bg-image-compressed.webp')] before:bg-cover before:bg-center before:bg-no-repeat before:content-[''] before:z-[-1] dark:bg-[#181a1b]/50">
             <!-- bg-overlay -->
-            <!-- <div
-            class="absolute inset-0 w-full h-full bg-black/5 backdrop-blur-[125px] pointer-events-none z-[-1] dark:bg-[#181a1b]/5">
-        </div> -->
-
+            <div
+                class="absolute inset-0 w-full h-full bg-black/5 backdrop-blur-[125px] pointer-events-none z-[-1] dark:bg-[#181a1b]/5">
+            </div>
 
             <!-- container -->
             <div class="flex flex-col min-h-screen lg:flex-row lg:h-screen lg:overflow-hidden">
                 <!-- close-button -->
                 <button
                     class="fixed top-4 right-4 flex justify-center items-center w-8 h-8 z-50 drop-shadow-[0px_30px_-34px_#0000004D] cursor-pointer"
-                    @click="$emit('close')">
+                    @click="emit('update:modelValue', false)">
                     <img src="https://i.ibb.co.com/DfT6Sg5g/x-close.webp" alt="x close"
                         class="w-full h-full [filter:brightness(0)_saturate(100%)_invert(97%)_sepia(1%)_saturate(5636%)_hue-rotate(182deg)_brightness(95%)_contrast(81%)]">
                 </button>
@@ -165,14 +164,78 @@
                             </div>
 
                             <!-- button-container -->
-                            <div :class="['flex w-full ']">
-                                <button
+                            <div ref="stickyContainer"
+                                :class="['flex w-full group/button-container sticky bottom-0', isSticky ? 'is-sticky w-[calc(100%+1rem)] -ml-2 py-6 bg-[linear-gradient(0deg,rgba(255,255,255,0.01)_0%,rgba(255,255,255,0)_100%)] backdrop-blur-[50px]' : '']">
+
+                                <!-- State: pre-order (Yellow) -->
+                                <button v-if="variant === 'pre-order'"
                                     class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-[#FFFADD] bg-[rgba(242,242,3,0.7)] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[inset_0_0_1px_0_#FFF3A1,0_0_10px_0_#FFB909B2,0_5px_50px_0_#F2F20380,0px_0px_10px_0px_#F2F2030D] before:absolute before:inset-0 before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75">
                                     <div
                                         class="w-full h-full flex justify-center items-center gap-0.5 relative z-10 skew-x-[24deg]">
                                         <span
                                             class="text-xl font-bold text-[#F5F5F5] drop-shadow-[0px_0px_30px_#10182880] whitespace-nowrap uppercase">Pre-order
                                             NOW</span>
+                                    </div>
+                                </button>
+
+                                <!-- State: regular (Pink Buy Now + Add to Cart) -->
+                                <template v-else-if="variant === 'regular'">
+                                    <button
+                                        class="relative flex-grow h-14 ml-3 group-[.is-sticky]/button-container:ml-5 border-[3px] border-[#FFE1FC] bg-[#F600FE]/50 [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[0_0_10px_0_#F600FEB2,0_5px_50px_0_#E803AE80,0_0_35px_0_#E803AE40,0_0_10px_0_#E803AE0D,inset_0_0_1px_0_#FF97F3E5] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75 md:before:opacity-65 md:shadow-[0_0_10px_0_#F600FEB2,0_0_40px_0_#E803AE80_inset,0_5px_50px_0_#E803AE80,0_0_35px_0_#E803AE40,0_0_10px_0_#E803AE0D,0_0_1px_0_#FF97F3E5_inset] lg:h-[4.5rem]">
+                                        <!-- text-container -->
+                                        <div
+                                            class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                                            <span
+                                                class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">BUY
+                                                NOW</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        class="relative flex-grow h-14 -ml-[3px] mr-3 group-[.is-sticky]/button-container:mr-5 border-[3px] border-[#FFE1FC] bg-[#E0007880] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[0_0_10px_0_#F600FEB2,0_5px_50px_0_#E803AE80,0_0_35px_0_#E803AE40,0_0_10px_0_#E803AE0D,inset_0_0_1px_0_#FF97F3E5] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75 md:before:opacity-65 md:shadow-[0_0_10px_0_#F600FEB2,0_0_40px_0_#E803AE80_inset,0_5px_50px_0_#E803AE80,0_0_35px_0_#E803AE40,0_0_10px_0_#E803AE0D,0_0_1px_0_#FF97F3E5_inset] lg:h-[4.5rem]">
+                                        <!-- text-container -->
+                                        <div
+                                            class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                                            <span
+                                                class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">Add
+                                                to Cart</span>
+                                        </div>
+                                    </button>
+                                </template>
+
+                                <!-- State: subscriber-pre-order (Blue) -->
+                                <button v-else-if="variant === 'subscriber-pre-order'"
+                                    class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-white bg-[#1EBBFFB2] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[inset_0_0_40px_0_#0D71FC80,inset_0_0_1px_0_#1B45FF,inset_0_0_10px_0_#1EBBFFB2,0_5px_50px_0_#0D71FC80,0_0_35px_0_#0D71FC40,0_0_10px_0_#0D71FC0D] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75 lg:h-[4.5rem]">
+                                    <!-- text-container -->
+                                    <div
+                                        class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                                        <span
+                                            class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">Subscribe
+                                            & Pre-order</span>
+                                    </div>
+                                </button>
+
+                                <!-- State: subscriber-grab (Blue) -->
+                                <button v-else-if="variant === 'subscriber-grab'"
+                                    class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-white bg-[#1EBBFFB2] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[inset_0_0_40px_0_#0D71FC80,inset_0_0_1px_0_#1B45FF,inset_0_0_10px_0_#1EBBFFB2,0_5px_50px_0_#0D71FC80,0_0_35px_0_#0D71FC40,0_0_10px_0_#0D71FC0D] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-75 lg:h-[4.5rem]">
+                                    <!-- text-container -->
+                                    <div
+                                        class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                                        <span
+                                            class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">Subscribe
+                                            & Grab</span>
+                                    </div>
+                                </button>
+
+                                <!-- State: out-of-stock (Red) -->
+                                <button v-else-if="variant === 'out-of-stock'"
+                                    class="relative flex-grow h-14 mx-3 group-[.is-sticky]/button-container:mx-5 border-[3px] border-[#FFE0E3] bg-[#FF44000D] [background-blend-mode:overlay] px-1 transform skew-x-[-24deg] shadow-[0px_0px_40px_0px_#FC190D80_inset,0px_5px_50px_0px_#FC190D80,0px_0px_35px_0px_#FC190D40,0px_0px_10px_0px_#FC190D0D,0px_0px_1px_0px_#FFB6BC_inset] before:absolute before:inset-0 before:w-full before:h-full before:content-[''] before:bg-[url('https://i.ibb.co.com/GfcYM2zK/button-bg.webp')] before:bg-center before:bg-cover before:opacity-40 lg:h-[4.5rem]">
+                                    <!-- text-container -->
+                                    <div
+                                        class="w-full h-full flex justify-center items-center gap-0.5 relative z-[10] skew-x-[24deg]">
+                                        <span
+                                            class="text-xl leading-normal font-semibold align-middle text-[#F5F5F5] drop-shadow-[0px_0px_30px_0px_#10182880] whitespace-nowrap lg:text-3xl lg:leading-[2.375rem]">OUT
+                                            OF STOCK</span>
                                     </div>
                                 </button>
                             </div>
@@ -321,11 +384,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import lightGallery from 'lightgallery';
 import lgZoom from 'lightgallery/plugins/zoom';
 import lgThumbnail from 'lightgallery/plugins/thumbnail';
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue';
+import 'lightgallery/css/lightgallery.css';
+import 'lightgallery/css/lg-zoom.css';
+import 'lightgallery/css/lg-thumbnail.css';
 
 const images = [
     { src: "https://picsum.photos/id/1015/1920/1080", thumb: "https://picsum.photos/id/1015/240/160" },
@@ -342,14 +408,33 @@ const mainSplide = ref(null);
 const thumbSplide = ref(null);
 const lgTrigger = ref(null);
 const stickyContainer = ref(null);
+const popupWrapper = ref(null);
 let lgInstance = null;
 let startX, startY;
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
+    variant: {
+        type: String,
+        default: 'regular',
+        validator: (value) => ['regular', 'pre-order', 'subscriber-pre-order', 'subscriber-grab', 'out-of-stock'].includes(value)
+    },
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+// When popup opens, Splide needs to recalculate dimensions because
+// it was mounted while the popup was hidden (zero dimensions).
+watch(() => props.modelValue, async (val) => {
+    if (val) {
+        await nextTick();
+        // Small delay to ensure PopupHandler has finished its transition
+        setTimeout(() => {
+            mainSplide.value?.splide?.refresh();
+            thumbSplide.value?.splide?.refresh();
+        }, 50);
+    }
+});
 
 const profileMerchPopupConfig = {
     actionType: "slidein",
@@ -359,11 +444,11 @@ const profileMerchPopupConfig = {
     effect: "ease-in-out",
     showOverlay: false,
     closeOnOutside: true,
-    lockScroll: false,
+    lockScroll: true,
     escToClose: true,
-    width: { default: "90%", "<768": "100%" },
+    width: { default: "100%", "<768": "100%" },
     height: { default: "100%", "<768": "100%" },
-    scrollable: false,
+    scrollable: true,
     closeSpeed: "250ms",
     closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
 };
@@ -374,11 +459,21 @@ const mainOptions = {
     arrows: false,
     cover: true,
     heightRatio: 1.22445,
-    breakpoints: { 480: { height: '450px' }, 1024: { fixedHeight: '100vh' } }
+    mediaQuery: 'min',
+    breakpoints: {
+        480: { heightRatio: 1.1755, height: '450px' },
+        1024: { heightRatio: 'auto', fixedHeight: '100vh' }
+    }
 };
 
 const thumbOptions = {
-    perPage: 6, gap: 8, pagination: false, isNavigation: true, arrows: false, drag: true,
+    perPage: 6,
+    gap: 8,
+    pagination: false,
+    isNavigation: true,
+    arrows: false,
+    drag: true,
+    mediaQuery: 'min',
 };
 
 const onMouseDown = (e) => { startX = e.clientX; startY = e.clientY; };
@@ -393,6 +488,9 @@ const checkSticky = () => {
     isSticky.value = Math.abs(rect.bottom - window.innerHeight) < 2;
 };
 
+// Check for fine pointer (mouse)
+const hasFinePointer = () => window.matchMedia('(pointer: fine)').matches;
+
 onMounted(async () => {
     await nextTick();
     const main = mainSplide.value.splide;
@@ -401,6 +499,7 @@ onMounted(async () => {
 
     // Init LightGallery
     lgInstance = lightGallery(lgTrigger.value, {
+        container: popupWrapper.value,
         dynamic: true,
         dynamicEl: images.map(img => ({ src: img.src, thumb: img.thumb })),
         plugins: [lgThumbnail, lgZoom],
@@ -410,52 +509,98 @@ onMounted(async () => {
         controls: false,
         showCloseIcon: false,
         addClass: 'lg-custom-thumbs',
+        backdropClass: 'lg-profile-merch-backdrop',
         thumbMargin: 0,
         zoom: true,
-        actualSize: true,
+        actualSize: false,
     });
 
-    // Parallax & Custom Cursor Logic (Exactly as your script)
+    // Parallax & Custom Cursor Logic
     lgTrigger.value.addEventListener('lgAfterOpen', () => {
         const outer = document.querySelector('.lg-outer');
         if (!outer) return;
 
-        // Hide default toolbar
-        // Handled by CSS now: outer.querySelector('.lg-toolbar')?.classList.add('!hidden');
-        // Handled by CSS now: outer.querySelector('.lg-content')?.classList.add('!bottom-[7.875rem]');
+        // Hide Scrollbar of the popup container to prevent clipping/artifacts
+        if (popupWrapper.value && popupWrapper.value.parentElement) {
+            popupWrapper.value.parentElement.style.overflow = 'hidden';
+        }
+
+        // Force-hide default toolbar & content bottom shift (handled by CSS, but robust safety here)
+        const toolbar = outer.querySelector('.lg-toolbar');
+        if (toolbar) toolbar.classList.add('!hidden');
+
+        const lgImageContainer = outer.querySelector('.lg-content');
+        if (lgImageContainer) lgImageContainer.classList.add('!bottom-[7.875rem]');
 
         // Custom Close Button
         const closeBtn = document.createElement('button');
-        closeBtn.className = 'fixed top-6 right-6 w-12 h-12 bg-black/30 backdrop-blur-[10px] rounded-full z-[10000] flex items-center justify-center cursor-pointer';
-        closeBtn.innerHTML = `<img src="https://i.ibb.co.com/DfT6Sg5g/x-close.webp" class="w-8 h-8 invert opacity-80">`;
-        closeBtn.onclick = () => lgInstance.closeGallery();
+        closeBtn.className = 'fixed top-6 right-6 flex justify-center items-center w-12 h-12 bg-black/30 backdrop-blur-[10px] rounded-full cursor-pointer z-[10000] dark:bg-[#181a1b]/30';
+        closeBtn.innerHTML = `
+            <img src="https://i.ibb.co.com/DfT6Sg5g/x-close.webp" 
+                 alt="x close" 
+                 class="w-8 h-8 drop-shadow-[0px_0px_8px_#00000080] [filter:brightness(0)_saturate(100%)_invert(97%)_sepia(1%)_saturate(5636%)_hue-rotate(182deg)_brightness(95%)_contrast(81%)]">
+        `;
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (lgInstance) lgInstance.closeGallery();
+        });
         outer.appendChild(closeBtn);
 
-        // Custom Cursor div
-        const cursor = document.createElement('div');
-        cursor.id = 'lg-custom-cursor';
-        cursor.className = 'fixed w-20 h-20 bg-black/25 backdrop-blur-[10px] rounded-full pointer-events-none z-[9999] opacity-0 flex items-center justify-center transition-opacity duration-200';
-        cursor.innerHTML = `<img src="https://i.ibb.co.com/TDGYvfTn/zoom-in.webp" class="w-10 h-10 zi"><img src="https://i.ibb.co.com/jdwwgzf/zoom-out.webp" class="w-10 h-10 zo hidden">`;
-        outer.appendChild(cursor);
+        // CUSTOM CURSOR (only if fine pointer)
+        let customCursor = null;
+        if (hasFinePointer()) {
+            customCursor = document.createElement('div');
+            customCursor.id = 'lg-custom-cursor';
+            customCursor.className = `flex justify-center items-center w-10 h-10 lg:w-20 lg:h-20 rounded-full bg-black/25 backdrop-blur-[10px] group/cursor dark:bg-[#181a1b]/25 pointer-events-none fixed z-[9999] transition-opacity duration-200 opacity-0 transform -translate-x-1/2 -translate-y-1/2`;
+            customCursor.innerHTML = `
+                <img src="https://i.ibb.co.com/TDGYvfTn/zoom-in.webp" alt="zoom in" class="w-6 h-6 lg:w-10 lg:h-10 zoom-in-icon transition-all duration-200">
+                <img src="https://i.ibb.co.com/jdwwgzf/zoom-out.webp" alt="zoom out" class="w-6 h-6 lg:w-10 lg:h-10 zoom-out-icon hidden transition-all duration-200">
+            `;
+            outer.appendChild(customCursor);
 
-        // --- Background Blur Logic ---
+            // Inject strong cursor override for Chrome/Safari compatibility
+            if (!document.getElementById('lg-cursor-override')) {
+                const style = document.createElement('style');
+                style.id = 'lg-cursor-override';
+                style.innerHTML = `
+                @media (pointer: fine) {
+                    .lg-outer.lg-grab .lg-item img,
+                    .lg-outer.lg-grabbing .lg-item img {
+                    }
+                }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Force-hide ALL default cursors
+        const forceNoCursor = () => {
+            const imageAreas = outer.querySelectorAll('.lg-object, .lg-image');
+            imageAreas.forEach(el => {
+                if (el) el.style.setProperty('cursor', 'none', 'important');
+            });
+        };
+        forceNoCursor();
+
+        // Background Blur Logic
+        // Handled via CSS class .lg-profile-merch-backdrop
         const lgBackgroundWrapper = document.querySelector('.lg-backdrop');
         if (lgBackgroundWrapper) {
-            // Use Tailwind after: classes to create the overlay, and set background image on the element itself
-            lgBackgroundWrapper.classList.add('after:content-[""]', 'after:absolute', 'after:inset-0', 'after:bg-black/50', 'after:backdrop-blur-[125px]', 'dark:after:bg-[#181a1b]/50', 'after:bg-cover', 'after:bg-center', 'after:bg-no-repeat', 'after:z-[1]', '!opacity-100');
+            // Apply background-size and position via JS as it changes with image
+            lgBackgroundWrapper.style.backgroundSize = 'cover';
+            lgBackgroundWrapper.style.backgroundPosition = 'center';
+            lgBackgroundWrapper.style.backgroundRepeat = 'no-repeat';
         }
 
         const updateBackground = () => {
             const currentImg = outer.querySelector('.lg-current img');
             if (currentImg && lgBackgroundWrapper) {
                 lgBackgroundWrapper.style.backgroundImage = `url(${currentImg.src})`;
-                lgBackgroundWrapper.style.backgroundSize = 'cover';
-                lgBackgroundWrapper.style.backgroundPosition = 'center';
             }
         };
         updateBackground();
 
-        // --- Thumbnail Styling ---
+        // Thumbnails Logic
         const thumbOuter = outer.querySelector('.lg-thumb-outer');
         if (thumbOuter) thumbOuter.classList.add('!bg-transparent');
 
@@ -473,52 +618,104 @@ onMounted(async () => {
             } else {
                 wrapper.style.setProperty('width', `calc((100vw - 1.75rem) / ${images.length})`, 'important');
             }
-            // Add img styles
+
             const img = wrapper.querySelector('img');
             if (img) img.classList.add('!w-full', '!h-full', '!object-cover');
         });
 
-        // Mouse Parallax + Cursor Follow
-        const moveHandler = (e) => {
+        const imgWraps = outer.querySelectorAll('.lg-img-wrap');
+        imgWraps.forEach(wrap => {
+            wrap.style.transition = 'transform 0.08s cubic-bezier(0.23, 1, 0.32, 1) !important';
+            wrap.style.willChange = 'transform';
+        });
+
+        const getCurrentImgWrap = () => {
+            return outer.querySelector('.lg-current .lg-img-wrap');
+        };
+
+        // Mouse Move Handler
+        const handleMouseMove = (e) => {
+            const imgWrap = getCurrentImgWrap();
+            if (!imgWrap) return;
+
             const isZoomed = outer.classList.contains('lg-zoomed');
-            const wrap = outer.querySelector('.lg-current .lg-img-wrap');
-            const isOver = e.target.closest('.lg-object, .lg-image');
 
-            if (isOver) {
-                cursor.style.opacity = '1';
-                cursor.style.left = `${e.clientX}px`;
-                cursor.style.top = `${e.clientY}px`;
-                cursor.style.transform = 'translate(-50%, -50%)';
-                cursor.querySelector('.zi').classList.toggle('hidden', isZoomed);
-                cursor.querySelector('.zo').classList.toggle('hidden', !isZoomed);
-            } else { cursor.style.opacity = '0'; }
+            if (isZoomed) {
+                const rect = outer.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width - 0.5) * 80;
+                const y = ((e.clientY - rect.top) / rect.height - 0.5) * 80;
+                imgWrap.style.transform = `translate(${x}px, ${y}px)`;
+            } else {
+                imgWrap.style.transform = '';
+            }
 
-            if (isZoomed && wrap) {
-                const x = (e.clientX / window.innerWidth - 0.5) * 80;
-                const y = (e.clientY / window.innerHeight - 0.5) * 80;
-                wrap.style.transform = `translate(${x}px, ${y}px)`;
+            // Custom Cursor Logic
+            if (customCursor) {
+                const isOverImage = e.target.closest('.lg-object') || e.target.closest('.lg-image');
+                if (isOverImage) {
+                    customCursor.style.left = `${e.clientX}px`;
+                    customCursor.style.top = `${e.clientY}px`;
+                    customCursor.style.opacity = '1';
+
+                    const zoomInIcon = customCursor.querySelector('.zoom-in-icon');
+                    const zoomOutIcon = customCursor.querySelector('.zoom-out-icon');
+                    if (isZoomed) {
+                        zoomInIcon?.classList.add('hidden');
+                        zoomOutIcon?.classList.remove('hidden');
+                    } else {
+                        zoomInIcon?.classList.remove('hidden');
+                        zoomOutIcon?.classList.add('hidden');
+                    }
+                } else {
+                    customCursor.style.opacity = '0';
+                }
             }
         };
 
-        outer.addEventListener('mousemove', moveHandler);
-        lgTrigger.value.addEventListener('lgAfterSlide', () => {
-            outer.querySelector('.lg-current .lg-img-wrap').style.transform = '';
+        outer.addEventListener('mousemove', handleMouseMove);
+
+        // Helper to clean up listener
+        const cleanupListener = () => {
+            outer.removeEventListener('mousemove', handleMouseMove);
+        };
+
+        // lgAfterSlide Logic
+        const onSlide = () => {
+            const imgWrap = getCurrentImgWrap();
+            if (imgWrap) imgWrap.style.transform = '';
+
             updateBackground();
 
             const thumb = outer.querySelector('.lg-thumb');
             if (thumb) {
                 thumb.style.left = '0px';
                 thumb.style.transform = 'translateX(0px)';
+                thumb.style.display = 'flex'; // Re-apply flex
             }
-        });
-    });
+            forceNoCursor();
+        };
 
-    window.addEventListener('scroll', checkSticky);
-    window.addEventListener('resize', checkSticky);
+        lgTrigger.value.addEventListener('lgAfterSlide', onSlide);
+
+        // Cleanup on Close
+        lgTrigger.value.addEventListener('lgBeforeClose', () => {
+            cleanupListener();
+            const cursor = outer.querySelector('#lg-custom-cursor');
+            if (cursor) cursor.remove();
+
+            // Restore Scrollbar
+            if (popupWrapper.value && popupWrapper.value.parentElement) {
+                popupWrapper.value.parentElement.style.removeProperty('overflow');
+            }
+
+            lgTrigger.value.removeEventListener('lgAfterSlide', onSlide);
+        }, { once: true });
+
+    });
 });
 
 onUnmounted(() => {
-    window.removeEventListener('scroll', checkSticky);
+    window.removeEventListener('scroll', checkSticky, true);
     window.removeEventListener('resize', checkSticky);
     lgInstance?.destroy();
 });
@@ -528,11 +725,35 @@ onUnmounted(() => {
 /* Global styles for LightGallery when appended to body */
 .lg-outer {
     z-index: 999999 !important;
-    /* Higher than PopupHandler */
+    position: fixed !important;
+    /* Scoped to viewport for correct centering */
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
-.lg-backdrop {
+/* Custom Backdrop Class */
+.lg-backdrop.lg-profile-merch-backdrop {
     z-index: 999998 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(125px) !important;
+    -webkit-backdrop-filter: blur(125px) !important;
+    opacity: 1 !important;
+    transition: opacity 0.4s ease 0s !important;
+}
+
+/* Dark mode support for backdrop if needed, though usually handled by opacity/color */
+.dark .lg-backdrop.lg-profile-merch-backdrop {
+    background-color: rgba(24, 26, 27, 0.5) !important;
+}
+
+/* Pseudo-element for the background image overlay effect (if needed) */
+.lg-backdrop.lg-profile-merch-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: inherit;
+    z-index: 1;
 }
 
 /* Instance specific overrides using the class added in config: 'lg-custom-thumbs' */
