@@ -126,6 +126,10 @@
 
     <br />
 
+    <ButtonComponent text="Top Up Popup" variant="mediaBtn" @click="topUpPopupOpen = true" />
+
+    <br />
+
     <UploadingProgressBar :progress="uploadPercentage" imageSrc="https://i.ibb.co.com/Kx9QDc68/auth-bg-compressed.webp"
       label="Uploading..." />
     <br />
@@ -178,6 +182,7 @@
     <TipPopup v-model="tipPopupOpen" />
     <ProfileLoginPopup v-model="profileLoginPopupOpen" />
     <ProfileMerchPopup v-model="profileMerchPopupOpen" />
+    <TopUpPopup v-model="topUpPopupOpen" />
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -219,6 +224,7 @@ import CrowdFundingEventPopup from "@/components/FanBookingFlow/GroupEventFlow/C
 import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPopup.vue";
 import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
+import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -242,6 +248,7 @@ const crowdFundingEventPopupOpen = ref(false);
 const tipPopupOpen = ref(false);
 const profileLoginPopupOpen = ref(false);
 const profileMerchPopupOpen = ref(false);
+const topUpPopupOpen = ref(false);
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
