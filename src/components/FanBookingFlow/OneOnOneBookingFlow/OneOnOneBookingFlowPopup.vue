@@ -86,7 +86,7 @@ const oneOnOneBookingFlowPopupConfig = {
   lockScroll: false,
   escToClose: true,
   width: { default: "auto", "<500px": "90%" },
-  height: { default: "90%", "<768": "90%" },
+  height: { default: "auto" },
   scrollable: true,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",

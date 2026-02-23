@@ -9,7 +9,7 @@ const props = defineProps({
 
 <template>
   <div
-    class="sm:w-96 h-full overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl bg-center bg-cover bg-no-repeat bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] backdrop-blur-md"
+    class="sm:w-96 h-[556px] max-h-full overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl bg-center bg-cover bg-no-repeat bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] backdrop-blur-md"
   >
     <div class="flex flex-col justify-between w-full h-full rounded-3xl bg-black/15">
       <div

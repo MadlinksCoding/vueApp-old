@@ -32,11 +32,11 @@ const shiftMonth = (n) => {
 const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
-    header: 'text-lg font-semibold text-gray-900',
+    header: 'text-lg font-medium text-white',
     dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
     outside: 'opacity-0',
     expired: 'opacity-100',
-    today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
+    today: 'bg-gray-500 font-medium text-white hover:bg-gray-600',
     selected: 'rounded-full',
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   }
@@ -187,7 +187,7 @@ const goToNextStep = () => {
 
 <template>
   <div
-    class="rounded-[20px] h-full lg:w-[852px] overflow-hidden" 
+    class="rounded-[20px] h-[556px] max-h-full lg:w-[852px] overflow-hidden" 
     style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
   >
     <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">

@@ -88,7 +88,7 @@ const finalBalanceAfterBooking = computed(() => {
 
 <template>
     <div
-      class="rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+      class="rounded-[20px] h-[556px] max-h-full lg:w-[852px] overflow-hidden"
       style="
         background-image: url('/images/background.png');
         background-size: cover;

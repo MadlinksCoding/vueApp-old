@@ -9,13 +9,11 @@ const props = defineProps({
 });
 
 // --- RETRIEVE DATA FROM ENGINE ---
-// Yeh wahi state uthayega jo Step 2 aur Step 3 mein sync hui hai
 const bookingData = computed(() => {
   return props.engine.getState('bookingDetails') || {};
 });
 
 // --- COMPUTED PROPERTIES FOR DISPLAY ---
-// Fallback values rakhi hain agar state khali ho (wese engine state se hi uthayega)
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
@@ -24,7 +22,7 @@ const emit = defineEmits(['close-popup']);
 </script>
 
 <template>
-<div class="flex-1 w-96 h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
+<div class="flex-1 w-96 h-[556px] max-h-full rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
 
     <div class="bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] bg-center bg-cover bg-no-repeat backdrop-blur-[1rem]">
 

@@ -11,6 +11,7 @@ import GroupBookingStep1 from "./GroupBookingStep1.vue";
 import GroupBookingStep2 from "./GroupBookingStep2.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
+import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 
 const props = defineProps({
     type: {
@@ -100,6 +101,7 @@ attachEngineLogging(bookingFlow);
 
 // Sync engine with component to make it reactive for the template
 const currentStep = ref(1);
+const oneOnOneBookingFlowPopupOpen = ref(false);
 
 // --- VALIDATION LOGIC ---
 
@@ -258,7 +260,8 @@ const formTitle = computed(() => {
                 <MainCalendar class="w-full px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
-                    :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain">
+                    :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
+                    @preview-schedule="oneOnOneBookingFlowPopupOpen = true">
 
                     <template #event="{ event, style, onClick }">
                         <div class="absolute py-1 px-2 border-b border-blue-600 text-xs bg-blue-300/25 text-emerald-700 shadow-sm overflow-hidden"
@@ -363,4 +366,6 @@ const formTitle = computed(() => {
             </div>
         </div>
     </div>
+
+    <OneOnOneBookingFlowPopup v-model="oneOnOneBookingFlowPopupOpen" />
 </template>
