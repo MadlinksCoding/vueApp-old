@@ -620,8 +620,8 @@ const formTitle = computed(() => {
             </div>
 
             <div class="w-full">
-                <NotificationCard variant="alert" :showIcon="false" title="You have 3 active subscriber in this tier"
-                    description="Changing detail of this plan might affect current subscriber's subscription fee and benefits." />
+                <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
+                    description="To preview how your booking schedule will look like on your profile, go to preview booking schedule." />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
                     {{ calendarError }}
                 </div>
