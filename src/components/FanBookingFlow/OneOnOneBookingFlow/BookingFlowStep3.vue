@@ -240,6 +240,49 @@ function parseTokenBalance(response, receiverId) {
   return null;
 }
 
+function fireAndForgetReminderNotify() {
+  const previewPayload = mapCreateBookingToRequest(props.engine.state, {
+    stateEngine: props.engine,
+    fanUserId: resolveFanUserId(),
+    creatorId: resolveCreatorId(),
+    userId: resolveFanUserId(),
+  });
+
+  const formattedStartTime = String(formattedTime.value || "").split("-")[0]?.trim();
+  const payload = {
+    session_type: selectedEvent.value?.eventCallType
+      || selectedEvent.value?.raw?.eventCallType
+      || "video",
+    event_minutes: Number(sessionDuration.value || previewPayload?.durationMinutes || 0),
+    event_start_time: formattedStartTime || previewPayload?.startIso || "",
+    booking_name: selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event",
+    number_of_participants: 1,
+    fan_id: String(resolveFanUserId() || ""),
+    creator_id: String(resolveCreatorId() || ""),
+  };
+
+  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/reminder-notify";
+
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const queued = navigator.sendBeacon(endpoint, blob);
+      if (queued) return;
+    }
+  } catch (_) {
+    // Fire-and-forget endpoint; ignore transport errors.
+  }
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {
+    // Fire-and-forget endpoint; ignore transport errors.
+  });
+}
+
 function clearHoldTimer() {
   if (holdTimerId) {
     clearInterval(holdTimerId);
@@ -447,6 +490,8 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       });
       return;
     }
+
+    fireAndForgetReminderNotify();
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
