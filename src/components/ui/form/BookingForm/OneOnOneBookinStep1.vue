@@ -203,6 +203,19 @@
     return new Date().toISOString().slice(0, 10);
   }
 
+  const todayIsoDate = getTodayIsoDate();
+
+  function getDateToMin() {
+    if (!isIsoDate(formData.value.dateFrom)) return todayIsoDate;
+    return formData.value.dateFrom > todayIsoDate ? formData.value.dateFrom : todayIsoDate;
+  }
+
+  function getOneTimeDateMin() {
+    const fromDate = isIsoDate(formData.value.dateFrom) ? formData.value.dateFrom : null;
+    if (!fromDate) return todayIsoDate;
+    return fromDate > todayIsoDate ? fromDate : todayIsoDate;
+  }
+
   function createOneTimeDate(date = getTodayIsoDate()) {
     return {
       id: `date_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -221,6 +234,89 @@
       { key: "fri", name: "Fri", unavailable: true, offHours: false, slots: [] },
       { key: "sat", name: "Sat", unavailable: true, offHours: false, slots: [] },
     ];
+  }
+
+  const DAY_KEY_TO_INDEX = {
+    sun: 0,
+    sunday: 0,
+    mon: 1,
+    monday: 1,
+    tue: 2,
+    tuesday: 2,
+    wed: 3,
+    wednesday: 3,
+    thu: 4,
+    thursday: 4,
+    fri: 5,
+    friday: 5,
+    sat: 6,
+    saturday: 6,
+  };
+
+  const DAY_INDEX_TO_KEY = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  function isWeeklyRepeatRule() {
+    return formData.value.repeatRule === "weekly" || formData.value.repeatRule === "everyXWeeks";
+  }
+
+  function parseIsoDateToLocalNoon(isoDate) {
+    if (!isIsoDate(isoDate)) return null;
+    const localDate = new Date(`${isoDate}T12:00:00`);
+    return Number.isNaN(localDate.getTime()) ? null : localDate;
+  }
+
+  function getAllowedWeeklyDayKeysForRange() {
+    if (!isWeeklyRepeatRule()) return null;
+    if (!isIsoDate(formData.value.dateFrom) || !isIsoDate(formData.value.dateTo)) return null;
+
+    const startDate = parseIsoDateToLocalNoon(formData.value.dateFrom);
+    const endDate = parseIsoDateToLocalNoon(formData.value.dateTo);
+    if (!startDate || !endDate) return null;
+
+    const [fromDate, toDate] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
+    const allowed = new Set();
+    const cursor = new Date(fromDate);
+
+    while (cursor <= toDate) {
+      allowed.add(DAY_INDEX_TO_KEY[cursor.getDay()]);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return allowed;
+  }
+
+  function isWeeklyDayLocked(dayLike) {
+    const allowedDays = getAllowedWeeklyDayKeysForRange();
+    if (!allowedDays) return false;
+
+    const normalized = String(dayLike || "").toLowerCase();
+    const dayIndex = DAY_KEY_TO_INDEX[normalized];
+    if (!Number.isFinite(dayIndex)) return false;
+
+    const canonicalKey = DAY_INDEX_TO_KEY[dayIndex];
+    return !allowedDays.has(canonicalKey);
+  }
+
+  function applyWeeklyRangeLocking() {
+    if (!isWeeklyRepeatRule()) return;
+    const allowedDays = getAllowedWeeklyDayKeysForRange();
+    if (!allowedDays) return;
+
+    let mutated = false;
+    weekDays.value.forEach((day) => {
+      if (!isWeeklyDayLocked(day.key || day.name)) return;
+
+      if (!day.unavailable || day.slots.length > 0 || day.offHours) {
+        day.unavailable = true;
+        day.slots = [];
+        day.offHours = false;
+        mutated = true;
+      }
+    });
+
+    if (mutated) {
+      syncAvailabilityToForm();
+    }
   }
 
   function normalizeAvailability(input = []) {
@@ -335,7 +431,7 @@
 
   function addDayAvailability(dayIndex) {
     const day = weekDays.value[dayIndex];
-    if (!day) return;
+    if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     day.unavailable = false;
     day.slots = [makeSlot("00:00", "03:00")];
     day.offHours = false;
@@ -344,7 +440,7 @@
 
   function addWeeklySlot(dayIndex) {
     const day = weekDays.value[dayIndex];
-    if (!day) return;
+    if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     day.unavailable = false;
     day.slots.push(makeSlot("00:00", "03:00"));
     syncAvailabilityToForm();
@@ -352,7 +448,7 @@
 
   function removeWeeklySlot(dayIndex, slotIndex) {
     const day = weekDays.value[dayIndex];
-    if (!day) return;
+    if (!day || isWeeklyDayLocked(day.key || day.name)) return;
 
     day.slots.splice(slotIndex, 1);
     if (day.slots.length === 0) {
@@ -366,7 +462,7 @@
 
   function toggleSlotOffHours(dayIndex, slotIndex) {
     const day = weekDays.value[dayIndex];
-    if (!day) return;
+    if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     const slot = day.slots?.[slotIndex];
     if (!slot) return;
     slot.offHours = !slot.offHours;
@@ -421,19 +517,55 @@
     syncAvailabilityToForm();
   }
 
+  const dateRangeMessage = ref("");
+
+  function isIsoDate(value) {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+
+  function enforceDateRange(changedField = "dateFrom") {
+    const dateFrom = formData.value.dateFrom;
+    const dateTo = formData.value.dateTo;
+    dateRangeMessage.value = "";
+
+    if (!isIsoDate(dateFrom) || !isIsoDate(dateTo)) return;
+    if (dateFrom <= dateTo) return;
+
+    if (changedField === "dateTo") {
+      formData.value.dateFrom = dateTo;
+    } else {
+      formData.value.dateTo = dateFrom;
+    }
+
+    dateRangeMessage.value = "Date range adjusted: end date cannot be earlier than start date.";
+  }
+
   watch(
-    () => [formData.value.dateFrom, formData.value.dateTo],
-    ([dateFrom]) => {
+    () => formData.value.dateFrom,
+    (dateFrom) => {
       if (dateFrom) {
         formData.value.selectedDate = dateFrom;
       }
+      enforceDateRange("dateFrom");
+      applyWeeklyRangeLocking();
     },
     { immediate: true }
   );
 
   watch(
+    () => formData.value.dateTo,
+    () => {
+      enforceDateRange("dateTo");
+      applyWeeklyRangeLocking();
+    }
+  );
+
+  watch(
     () => formData.value.repeatRule,
-    () => onRepeatRuleChange()
+    () => {
+      onRepeatRuleChange();
+      applyWeeklyRangeLocking();
+    }
   );
 
   syncAvailabilityToForm();
@@ -523,7 +655,7 @@
                 </div>
                 <div class="flex flex-col">
                   <div class="justify-center text-black text-base font-medium leading-normal">Sessions</div>
-                  <div class="justify-center text-black text-xs font-medium leading-none">(15 minutes)</div>
+                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration }} minutes)</div>
                 </div>
               </div>
             </div>
@@ -565,8 +697,8 @@
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       sessions minimum
                     </div>
-                    <div class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      (2 x 15 minutes)
+                    <div v-if="formData.sessionMinimum && formData.duration" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
+                      ({{ formData.sessionMinimum }} x {{ formData.duration }} = {{ formData.sessionMinimum * formData.duration }} minutes)
                     </div>
                   </div>
                 </div>
@@ -578,8 +710,8 @@
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       % off base price
                     </div>
-                    <div class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      (800 tokens/session)
+                    <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
+                      ({{ Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }} tokens/session)
                     </div>
                   </div>
                 </div>
@@ -764,8 +896,13 @@
                     <span v-if="formData.repeatRule !== 'everyXWeeks'"
                       class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> Optional</span>
                   </div>
-                  <BaseInput type="date" placeholder="From" v-model="formData.dateFrom"
-                    inputClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal" />
+                  <input
+                    type="date"
+                    v-model="formData.dateFrom"
+                    :min="todayIsoDate"
+                    :max="formData.dateTo || undefined"
+                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
+                  />
                 </div>
               </div>
 
@@ -774,10 +911,17 @@
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                     {{ formData.repeatRule === 'everyXWeeks' ? `End date` : '' }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
                   </div>
-                  <BaseInput type="date" placeholder="To" v-model="formData.dateTo"
-                    inputClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal" />
+                  <input
+                    type="date"
+                    v-model="formData.dateTo"
+                    :min="getDateToMin()"
+                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
+                  />
                 </div>
               </div>
+            </div>
+            <div v-if="dateRangeMessage" class="text-xs text-amber-600 mt-1">
+              {{ dateRangeMessage }}
             </div>
           </div>
 
@@ -786,7 +930,10 @@
 
             <div v-for="(day, index) in weekDays" :key="index"
               class="self-stretch inline-flex justify-start items-start gap-1"
-              :class="{ 'items-center min-h-10 gap-3': day.unavailable }">
+              :class="{
+                'items-center min-h-10 gap-3': day.unavailable,
+                'opacity-60': isWeeklyDayLocked(day.key || day.name),
+              }">
 
               <div class="justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
                 :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center justify-center'">
@@ -799,6 +946,8 @@
                 </div>
                 <button type="button" @click="addDayAvailability(index)"
                   class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  :disabled="isWeeklyDayLocked(day.key || day.name)"
+                  :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                   title="Add availability">
                   +
                 </button>
@@ -813,6 +962,7 @@
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                         <select v-model="slot.startTime" @change="onSlotChanged"
+                          :disabled="isWeeklyDayLocked(day.key || day.name)"
                           class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
                           <option v-for="timeOption in timeOptions" :key="`start-${day.key}-${sIdx}-${timeOption.value}`"
                             :value="timeOption.value">
@@ -828,6 +978,7 @@
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <select v-model="slot.endTime" @change="onSlotChanged"
+                        :disabled="isWeeklyDayLocked(day.key || day.name)"
                         class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
                         <option v-for="timeOption in timeOptions" :key="`end-${day.key}-${sIdx}-${timeOption.value}`"
                           :value="timeOption.value">
@@ -839,17 +990,25 @@
                     <div class="pl-1 flex justify-start items-center gap-2">
                       <button type="button" @click="removeWeeklySlot(index, sIdx)"
                         class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                        :disabled="isWeeklyDayLocked(day.key || day.name)"
+                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                         title="Remove availability">
                         -
                       </button>
                       <button type="button" @click="addWeeklySlot(index)"
                         class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                        :disabled="isWeeklyDayLocked(day.key || day.name)"
+                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                         title="Add another period to this day">
                         +
                       </button>
                       <button v-if="formData.repeatRule === 'weekly'" type="button" @click="toggleSlotOffHours(index, sIdx)"
                         class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                        :class="slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500'"
+                        :disabled="isWeeklyDayLocked(day.key || day.name)"
+                        :class="[
+                          slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500',
+                          isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
+                        ]"
                         title="Mark as off hours">
                         ⛅
                       </button>
@@ -866,8 +1025,14 @@
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
               class="border border-gray-200 rounded-md p-3 bg-white/30">
               <div class="flex items-center gap-2 mb-3">
-                <BaseInput type="date" v-model="entry.date" @change="onSlotChanged"
-                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <input
+                  type="date"
+                  v-model="entry.date"
+                  @change="onSlotChanged"
+                  :min="getOneTimeDateMin()"
+                  :max="formData.dateTo || undefined"
+                  class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+                />
                 <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
                   class="w-7 h-7 rounded text-red-500 hover:bg-red-50">
                   🗑

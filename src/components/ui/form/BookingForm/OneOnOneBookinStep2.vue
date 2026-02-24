@@ -349,6 +349,35 @@ function formatValidationErrors(errors = []) {
   });
 }
 
+function notifyEventCreated({ creatorId, eventName }) {
+  const payload = {
+    creator_id: creatorId,
+    event_name: eventName,
+    action: "created",
+  };
+
+  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/notify";
+
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const beaconQueued = navigator.sendBeacon(endpoint, blob);
+      if (beaconQueued) return;
+    }
+  } catch (error) {
+    // Fire-and-forget endpoint; ignore transport errors.
+  }
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {
+    // Fire-and-forget endpoint; ignore transport errors.
+  });
+}
+
 const createEvent = async () => {
   if (isCreating.value) return;
 
@@ -378,6 +407,11 @@ const createEvent = async () => {
         });
         return;
       }
+
+      notifyEventCreated({
+        creatorId: resolveCreatorId(),
+        eventName: String(formData.value.eventTitle || "").trim() || "Untitled Event",
+      });
 
       await router.push({
         path: "/dashboard/events",
