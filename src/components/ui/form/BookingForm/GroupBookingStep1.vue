@@ -6,6 +6,7 @@
   import BaseInput from "@/components/dev/input/BaseInput.vue";
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
+  import { showToast } from "@/utils/toastBus.js";
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -48,8 +49,21 @@
     sectionsState.value[key] = !sectionsState.value[key];
   };
 
-  const goToNext = () => {
-    props.engine.goToStep(2);
+  const goToNext = async () => {
+    try {
+      await props.engine.goToStep(2, { throwOnBlocked: true });
+    } catch (error) {
+      const messages = (error?.errors || []).map((e) =>
+        typeof e === "string" ? e : (e?.message || "Validation error")
+      );
+      const fallback = error?.message || "Please fix validation errors before continuing.";
+      const body = messages.length ? messages.join(" ") : fallback;
+      showToast({
+        type: "error",
+        title: "Validation Failed",
+        message: body,
+      });
+    }
   };
 
   onMounted(() => {

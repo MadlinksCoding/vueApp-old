@@ -2,7 +2,8 @@
     <div
         class="w-[429px] bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col overflow-hidden">
         <div
-            class="border-b border-gray-300 inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors">
+            class="border-b border-gray-300 inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors"
+            @click="onCreatePrivate">
             <div class="flex-1 px-2 py-3 flex items-center gap-2 border-l-[3px] border-[#5549FF]">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
@@ -21,7 +22,7 @@
                 <img class="w-20 h-20" src="/images/cartoonfeet.png" />
             </div>
         </div>
-        <div class="inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors">
+        <div class="opacity-25 pointer-events-none inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors" @click="onCreateGroup">
             <div class="flex-1 px-2 py-3 flex border-l-[3px] border-[#FF0464] items-center gap-2">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
@@ -44,5 +45,13 @@
 </template>
 
 <script setup>
-// Component logic can be added here if needed in the future
+const emit = defineEmits(["create-private", "create-group"]);
+
+const onCreatePrivate = () => {
+    emit("create-private");
+};
+
+const onCreateGroup = () => {
+    emit("create-group");
+};
 </script>

@@ -1,19 +1,27 @@
 <template>
     <div
-        class="w-full sm:w-[492px] border-l-[4px] border-[#5549FF] bg-gray-50 rounded shadow-[0px_0px_8px_0px_rgba(99,88,255,0.50)] inline-flex items-start overflow-hidden">
-        <div class="w-1 relative bg-indigo-600" />
+        class="w-full sm:w-[492px] border-l-[4px] bg-gray-50 rounded inline-flex items-start overflow-hidden"
+        :style="popupStyle"
+    >
+        <div class="w-1 relative" :style="{ backgroundColor: eventColor }" />
         <div class="w-full p-4 flex items-start gap-1">
             <div class="flex-1 inline-flex flex-col items-start gap-6">
                 <div class="w-full inline-flex justify-between items-center">
-                    <div class="justify-center text-indigo-600 text-2xl font-semibold font-['Poppins'] leading-8">
-                        {{ event.title || 'Live Call' }}
+                    <div class="text-2xl font-semibold font-['Poppins'] leading-8" :style="{ color: eventColor }">
+                        {{ titleText }}
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-1">
-                            <div class="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                            <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">in 5 min</div>
+                        <div class="flex items-center gap-1" v-if="statusHint">
+                            <div class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
+                            <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">{{ statusHint }}</div>
                         </div>
-                        <div class="px-2 py-[3px] bg-indigo-600 rounded flex items-center gap-1 cursor-pointer">
+                        <button
+                            v-if="showJoinButton"
+                            type="button"
+                            class="px-2 py-[3px] rounded flex items-center gap-1 cursor-pointer"
+                            :style="{ backgroundColor: eventColor }"
+                            @click="handleJoin"
+                        >
                             <div class="w-4 h-4 relative overflow-hidden">
                                 <svg width="15" height="15" viewBox="0 0 15 15" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
@@ -23,62 +31,45 @@
                                 </svg>
                             </div>
                             <div class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</div>
-                        </div>
-                        <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z"
-                                stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                            <path
-                                d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z"
-                                stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                            <path
-                                d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z"
-                                stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-
+                        </button>
                     </div>
                 </div>
+
                 <div class="flex flex-col items-start gap-4">
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/alarmIcon.png" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-2">
-                            <div class="justify-center text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
                                 {{ formattedDate }}
                             </div>
                             <div class="inline-flex items-start gap-2">
-                                <div
-                                    class="justify-center text-gray-900 text-sm font-medium font-['Poppins'] leading-5">
+                                <div class="text-gray-900 text-sm font-medium font-['Poppins'] leading-5">
                                     {{ formattedTimeRange }}
                                 </div>
-                                <div
-                                    class="justify-center text-gray-400 text-sm font-medium font-['Poppins'] leading-5">
+                                <div class="text-gray-400 text-sm font-medium font-['Poppins'] leading-5">
                                     {{ duration }} minutes
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/profile.webp" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-2">
-                            <div class="justify-center text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">1
-                                guest</div>
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">{{ guestHeading }}</div>
                             <div class="flex flex-col justify-center items-start gap-1">
-                                <div data-alignment="H" data-last-updated="false" data-likes-follower-count="false"
-                                    data-media-count="true" data-online-indicator="false" data-shape="1" data-size="xxs"
-                                    data-verified-account="false" class="inline-flex justify-center items-center gap-2">
-                                    <div class="w-6 h-6 relative">
-                                        <img class="w-5 h-5 left-[1.17px] top-[1px] absolute"
-                                            src="/images/mangoes.png" />
+                                <div class="inline-flex justify-center items-center gap-2">
+                                    <div class="w-6 h-6 relative" v-if="guestAvatar">
+                                        <img class="w-5 h-5 left-[1.17px] top-[1px] absolute" :src="guestAvatar" />
                                     </div>
                                     <div class="inline-flex flex-col justify-center items-start">
                                         <div class="inline-flex items-center gap-1">
-                                            <div
-                                                class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5 line-clamp-1">
-                                                Mangoes
+                                            <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5 line-clamp-1">
+                                                {{ guestLabel }}
                                             </div>
                                         </div>
                                     </div>
@@ -86,62 +77,105 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/dotpoints.png" alt="">
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
-                            <div class="justify-center text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
-                                Additional
-                                request</div>
-                            <div class="justify-center text-gray-900 text-sm font-normal font-['Poppins'] leading-5">
-                                record live
-                                call</div>
-                            <div class="justify-center text-gray-900 text-sm font-normal font-['Poppins'] leading-5">
-                                Roleplay</div>
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">Additional request</div>
+                            <div
+                                v-for="(line, index) in additionalRequestLines"
+                                :key="`request_${index}`"
+                                class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5"
+                            >
+                                {{ line }}
+                            </div>
                         </div>
                     </div>
+
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/dollar.png" alt="">
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
-                            <div class="justify-center text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
                                 Minimum charge
                             </div>
-                            <div class="justify-center text-gray-900 text-sm font-normal font-['Poppins'] leading-5">
-                                USD$ 15</div>
+                            <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5">
+                                {{ minimumChargeLabel }}
+                            </div>
                         </div>
                     </div>
+
                     <div class="inline-flex items-center gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/bell-1.webp" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="flex items-center gap-2">
-                            <div class="justify-center text-gray-900 text-sm font-normal font-['Poppins'] leading-5">5
-                                minutes before
-                            </div>
+                            <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5">{{ reminderLabel }}</div>
                         </div>
                     </div>
-                    <div class="inline-flex w-full items-center gap-4 ">
+
+                    <div class="inline-flex w-full items-center gap-4" v-if="chatUrl">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img src="/images/message-dots.png" alt="">
                         </div>
-                        <div class="flex items-center gap-2">
-                            <div class="flex items-center gap-0.5">
-                                <div
-                                    class="justify-center text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
-                                    Open chat</div>
-
-                                <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M9.3335 22.6666L22.6668 9.33331M22.6668 9.33331H9.3335M22.6668 9.33331V22.6666"
-                                        stroke="#000" stroke-width="2.5" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-
+                        <a
+                            class="flex items-center gap-0.5"
+                            :href="chatUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
+                                Open chat
                             </div>
+                            <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M9.3335 22.6666L22.6668 9.33331M22.6668 9.33331H9.3335M22.6668 9.33331V22.6666"
+                                    stroke="#000" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </a>
+                    </div>
+
+                    <div v-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
+                        <button
+                            type="button"
+                            class="px-3 py-2 rounded text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+                            @click="handleApprove"
+                        >
+                            Accept
+                        </button>
+                        <button
+                            type="button"
+                            class="px-3 py-2 rounded text-xs font-semibold text-white bg-red-500 hover:bg-red-600 cursor-pointer"
+                            @click="handleReject"
+                        >
+                            Reject
+                        </button>
+                    </div>
+
+                    <div v-if="showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
+                        <div class="text-xs font-medium text-red-700 mb-2">
+                            Are you sure you want to reject this booking?
+                        </div>
+                        <div class="inline-flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="px-3 py-1.5 rounded text-xs font-semibold text-white bg-red-600 hover:bg-red-700 cursor-pointer"
+                                @click="confirmReject"
+                            >
+                                Yes, Reject
+                            </button>
+                            <button
+                                type="button"
+                                class="px-3 py-1.5 rounded text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                                @click="cancelReject"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -151,7 +185,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
 
 const props = defineProps({
@@ -161,21 +195,261 @@ const props = defineProps({
     }
 });
 
+const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking']);
+
+function normalizeHexColor(color, fallback = '#5549FF') {
+    if (typeof color !== 'string') return fallback;
+    const normalized = color.trim();
+    return /^#([0-9a-fA-F]{3}){1,2}$/.test(normalized) ? normalized : fallback;
+}
+
+function titleCaseFromKey(key = '') {
+    return String(key)
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function pickFirstString(...values) {
+    for (const value of values) {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
+}
+
+const raw = computed(() => props.event?.raw || {});
+const eventSnapshot = computed(() => raw.value?.eventSnapshot || {});
+const eventCurrent = computed(() => raw.value?.eventCurrent || {});
+
+const mergedEvent = computed(() => ({
+    ...(eventCurrent.value || {}),
+    ...(eventSnapshot.value || {}),
+}));
+
+const eventColor = computed(() => normalizeHexColor(
+    props.event?.color
+    || raw.value?.eventColorSkin
+    || mergedEvent.value?.eventColorSkin
+    || '#5549FF'
+));
+
+const popupStyle = computed(() => ({
+    borderColor: eventColor.value,
+    boxShadow: `0px 0px 8px 0px ${eventColor.value}80`,
+}));
+
+const startDate = computed(() => {
+    const source = props.event?.start || raw.value?.startIso || raw.value?.startAtIso || raw.value?.start;
+    const parsed = new Date(source);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+});
+
+const endDate = computed(() => {
+    const source = props.event?.end || raw.value?.endIso || raw.value?.endAtIso || raw.value?.end;
+    const parsed = new Date(source);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+});
+
+const titleText = computed(() => (
+    props.event?.title
+    || raw.value?.eventTitle
+    || mergedEvent.value?.title
+    || 'Untitled Booking'
+));
+
 const formattedDate = computed(() => {
-    if (!props.event.start) return 'Wed April 23,2025'; // Fallback
-    const d = new Date(props.event.start);
+    if (!startDate.value) return 'Date not set';
     const options = { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' };
-    return d.toLocaleDateString('en-US', options);
+    return startDate.value.toLocaleDateString('en-US', options);
 });
 
 const formattedTimeRange = computed(() => {
-    if (!props.event.start || !props.event.end) return '2:30pm-2:45pm'; // Fallback
-    return `${hhmm(props.event.start)} - ${hhmm(props.event.end)}`;
+    if (!startDate.value || !endDate.value) return 'Time not set';
+    return `${hhmm(startDate.value)} - ${hhmm(endDate.value)}`;
 });
 
 const duration = computed(() => {
-    if (!props.event.start || !props.event.end) return 15;
-    const diff = new Date(props.event.end) - new Date(props.event.start);
-    return Math.floor(diff / 1000 / 60);
+    if (!startDate.value || !endDate.value) return Number(raw.value?.durationMinutes || 0) || 0;
+    const diff = endDate.value.getTime() - startDate.value.getTime();
+    return Math.max(0, Math.floor(diff / 1000 / 60));
 });
+
+const statusLabel = computed(() => String(raw.value?.status || props.event?.status || '').toLowerCase());
+
+const statusHint = computed(() => {
+    if (!startDate.value || !endDate.value) return statusLabel.value ? titleCaseFromKey(statusLabel.value) : '';
+
+    const now = Date.now();
+    const startMs = startDate.value.getTime();
+    const endMs = endDate.value.getTime();
+
+    if (now >= startMs && now < endMs) return 'live now';
+
+    const minutesToStart = Math.floor((startMs - now) / 60000);
+    if (minutesToStart >= 0 && minutesToStart <= 120) {
+        return `in ${minutesToStart} min`;
+    }
+
+    if (statusLabel.value) return titleCaseFromKey(statusLabel.value);
+    return '';
+});
+
+const statusDotColor = computed(() => {
+    if (statusHint.value === 'live now') return '#22C55E';
+    const label = statusLabel.value;
+    if (label === 'confirmed' || label === 'completed') return '#22C55E';
+    if (label === 'pending' || label === 'pending_hold') return '#F59E0B';
+    if (label.startsWith('cancelled')) return '#EF4444';
+    return '#6B7280';
+});
+
+const showJoinButton = computed(() => {
+    if (joinUrl.value) return true;
+    const label = statusLabel.value;
+    return label === 'confirmed' || label === 'completed' || label === 'pending_hold' || statusHint.value === 'live now';
+});
+
+function handleJoin() {
+    emit('join-call', {
+        bookingId: raw.value?.bookingId || props.event?.bookingId || null,
+        eventId: raw.value?.eventId || props.event?.eventId || null,
+        joinUrl: joinUrl.value || null,
+        event: props.event,
+    });
+}
+
+const bookingId = computed(() => raw.value?.bookingId || props.event?.bookingId || null);
+const eventId = computed(() => raw.value?.eventId || props.event?.eventId || null);
+const canReviewPending = computed(() => statusLabel.value === 'pending');
+const showRejectConfirm = ref(false);
+
+watch(
+    () => bookingId.value,
+    () => {
+        showRejectConfirm.value = false;
+    }
+);
+
+function emitReviewAction(decision) {
+    emit(decision === 'approve' ? 'approve-booking' : 'reject-booking', {
+        bookingId: bookingId.value,
+        eventId: eventId.value,
+        decision,
+        event: props.event,
+    });
+}
+
+function handleApprove() {
+    showRejectConfirm.value = false;
+    emitReviewAction('approve');
+}
+
+function handleReject() {
+    showRejectConfirm.value = true;
+}
+
+function confirmReject() {
+    showRejectConfirm.value = false;
+    emitReviewAction('reject');
+}
+
+function cancelReject() {
+    showRejectConfirm.value = false;
+}
+
+const guestCount = computed(() => {
+    const value = Number(raw.value?.guestCount || 1);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+});
+
+const guestHeading = computed(() => `${guestCount.value} guest${guestCount.value === 1 ? '' : 's'}`);
+
+const guestLabel = computed(() => (
+    pickFirstString(
+        raw.value?.userDisplayName,
+        raw.value?.userName,
+        raw.value?.userUsername,
+    )
+    || (raw.value?.userId ? `User #${raw.value.userId}` : 'Guest')
+));
+
+const guestAvatar = computed(() => raw.value?.userAvatarUrl || null);
+
+const additionalRequestLines = computed(() => {
+    const lines = [];
+
+    const requestedAddOns = Array.isArray(raw.value?.requestedAddOns) ? raw.value.requestedAddOns : [];
+    requestedAddOns.forEach((item) => {
+        if (typeof item === 'string' && item.trim()) {
+            lines.push(item.trim());
+            return;
+        }
+        const label = item?.title || item?.name || item?.label;
+        if (typeof label === 'string' && label.trim()) {
+            lines.push(label.trim());
+        }
+    });
+
+    const additionalRequests = raw.value?.additionalRequests || {};
+    Object.entries(additionalRequests).forEach(([key, value]) => {
+        if (value === true) {
+            lines.push(titleCaseFromKey(key));
+            return;
+        }
+        if (typeof value === 'string' && value.trim()) {
+            lines.push(`${titleCaseFromKey(key)}: ${value.trim()}`);
+            return;
+        }
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            lines.push(`${titleCaseFromKey(key)}: ${value}`);
+        }
+    });
+
+    const personalRequestText = String(raw.value?.personalRequestText || '').trim();
+    if (personalRequestText) {
+        lines.push(personalRequestText);
+    }
+
+    return lines.length > 0 ? lines : ['No additional request'];
+});
+
+const minimumChargeLabel = computed(() => {
+    const payment = raw.value?.payment || {};
+    const lineTotal = Array.isArray(payment?.lines)
+        ? payment.lines.reduce((sum, line) => sum + Number(line?.amount || 0), 0)
+        : 0;
+    const total = Number(payment?.total ?? raw.value?.paymentTotal ?? lineTotal ?? 0);
+    const currency = String(payment?.currency || raw.value?.paymentCurrency || 'TOKENS').toUpperCase();
+
+    if (!Number.isFinite(total) || total <= 0) return 'Not set';
+    if (currency === 'TOKENS') return `${Math.ceil(total)} tokens`;
+
+    return `${currency} ${total}`;
+});
+
+const reminderLabel = computed(() => {
+    const reminderMinutes = Number(
+        raw.value?.reminderMinutes
+        ?? mergedEvent.value?.callReminderMinutesBefore
+        ?? mergedEvent.value?.remindBeforeMinutes
+        ?? 0
+    );
+    if (!Number.isFinite(reminderMinutes) || reminderMinutes <= 0) return 'Reminder not set';
+    return `${reminderMinutes} minutes before`;
+});
+
+const chatUrl = computed(() => (
+    raw.value?.chatUrl
+    || mergedEvent.value?.chatUrl
+    || null
+));
+
+const joinUrl = computed(() => (
+    raw.value?.joinUrl
+    || raw.value?.callUrl
+    || mergedEvent.value?.joinUrl
+    || mergedEvent.value?.callUrl
+    || null
+));
 </script>

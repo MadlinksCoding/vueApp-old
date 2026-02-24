@@ -110,7 +110,7 @@
           </div>
 
           <div v-if="isDropdownOpen" class="absolute top-full left-0 mt-2 z-50 origin-top-left">
-            <EventDropdownContent />
+            <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
         </div>
@@ -160,7 +160,7 @@
           </div>
 
           <div v-if="isDropdownOpen" class="absolute top-full right-5 mt-2 z-50 origin-top-left">
-            <EventDropdownContent />
+            <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
         </div>
@@ -277,6 +277,8 @@
             <div class="relative z-[0]" data-cal-scroll
               :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
+                <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
+                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
                 <slot v-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
                   :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
                 <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
@@ -517,7 +519,11 @@
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
-      <CalendarEventDetailsPopup :event="selectedEvent" />
+      <CalendarEventDetailsPopup
+        :event="selectedEvent"
+        @approve-booking="handleApproveBooking"
+        @reject-booking="handleRejectBooking"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="isDatePopupOpen" :config="datePopupConfig">
@@ -562,7 +568,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'approve-booking', 'reject-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -572,7 +578,13 @@ const nowY = ref(0);
 // State for dropdown
 const isDropdownOpen = ref(false);
 const dropdownContainer = ref(null);
-const showSchedule = ref(false); // Checkbox state
+const showSchedule = ref(true); // Checkbox state
+const dropdownFilters = ref({
+  video: true,
+  audio: true,
+  groupCall: false,
+  showSchedule: true,
+});
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
@@ -844,11 +856,49 @@ const days = computed(() => {
 const normalized = computed(() => {
   let evs = props.events || [];
 
+  if (props.variant === 'default') {
+    evs = evs.filter((ev) => {
+      const isAvailabilityBlock = ev?.isAvailabilityBlock === true;
+      if (isAvailabilityBlock && !showSchedule.value) return false;
+
+      const rawCallType = String(
+        ev?.eventCallType
+          || ev?.raw?.eventCallType
+          || ev?.event?.eventCallType
+          || '',
+      ).trim().toLowerCase();
+      const rawEventType = String(
+        ev?.eventType
+          || ev?.type
+          || ev?.raw?.eventType
+          || ev?.raw?.type
+          || '',
+      ).trim().toLowerCase();
+
+      if (rawEventType.includes('group')) return !!dropdownFilters.value.groupCall;
+
+      if (rawCallType.includes('audio')) return !!dropdownFilters.value.audio;
+      if (rawCallType.includes('video')) return !!dropdownFilters.value.video;
+
+      // Unknown call type fallback: keep visible if any 1:1 channel is enabled.
+      return !!(dropdownFilters.value.video || dropdownFilters.value.audio);
+    });
+  }
+
   if (props.variant === 'theme2') {
     evs = evs.filter(ev => {
+      const isDraftPreview = ev?.isDraftPreview === true;
+      const isExistingSchedule = ev?.isExistingSchedule === true;
+
+      // New explicit flags take precedence in theme2:
+      // - Draft preview is always visible
+      // - Existing schedule is visible only when checkbox is enabled
+      if (isDraftPreview) return true;
+      if (isExistingSchedule) return !!showSchedule.value;
+
+      // Backward-compatible behavior for older events payloads.
       if (ev.slot === 'custom') return true;
-      if (showSchedule.value) return true;
-      return false;
+      return !!showSchedule.value;
     });
   }
 
@@ -901,6 +951,16 @@ const dispatchEventClick = (event) => {
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
   eventDetailsPopupOpen.value = true;
+};
+
+const handleApproveBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('approve-booking', payload);
+};
+
+const handleRejectBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('reject-booking', payload);
 };
 const eventsForDay = (day) => {
   const s = SOD(day), e = addDays(s, 1);
@@ -976,5 +1036,23 @@ onBeforeUnmount(() => {
 });
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+});
+
+watch(
+  () => dropdownFilters.value.showSchedule,
+  (value) => {
+    if (showSchedule.value !== value) {
+      showSchedule.value = value;
+    }
+  },
+);
+
+watch(showSchedule, (value) => {
+  if (dropdownFilters.value.showSchedule !== value) {
+    dropdownFilters.value = {
+      ...dropdownFilters.value,
+      showSchedule: value,
+    };
+  }
 });
 </script>

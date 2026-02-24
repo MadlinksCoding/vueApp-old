@@ -1,6 +1,34 @@
 <script setup>
+import { computed } from 'vue';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
-// Agar aap chahein to yahan props define kar sakte hain future mein data pass karne ke liye
+
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    default: () => ({
+      video: true,
+      audio: true,
+      groupCall: false,
+      showSchedule: false,
+    }),
+  },
+});
+
+const emit = defineEmits(['update:modelValue']);
+
+const filters = computed(() => ({
+  video: props.modelValue?.video !== false,
+  audio: props.modelValue?.audio !== false,
+  groupCall: props.modelValue?.groupCall === true,
+  showSchedule: props.modelValue?.showSchedule !== false,
+}));
+
+function updateFilter(key, value) {
+  emit('update:modelValue', {
+    ...filters.value,
+    [key]: value,
+  });
+}
 </script>
 
 <template>
@@ -8,6 +36,8 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         label="Video Call"
+        :model-value="filters.video"
+        @update:modelValue="(value) => updateFilter('video', value)"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-indigo-600 relative cursor-pointer checked:bg-indigo-600 checked:border-indigo-600 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
@@ -25,6 +55,8 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         label="Audio Call"
+        :model-value="filters.audio"
+        @update:modelValue="(value) => updateFilter('audio', value)"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-cyan-500 relative cursor-pointer checked:bg-cyan-500 checked:border-cyan-500 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
@@ -39,9 +71,10 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
       </div>
     </div>
 
-    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
+    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors opacity-50 pointer-events-none">
       <CheckboxGroup
         label="Group Call"
+        :model-value="filters.groupCall"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-rose-600 relative cursor-pointer checked:bg-rose-600 checked:border-rose-600 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
@@ -59,6 +92,8 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
     <div class="self-stretch h-14 px-3 py-2 border-t border-gray-300 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         label="Show booking schedule availability"
+        :model-value="filters.showSchedule"
+        @update:modelValue="(value) => updateFilter('showSchedule', value)"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-gray-900 relative cursor-pointer checked:bg-gray-900 checked:border-gray-900 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
         labelClass="text-slate-700 sm:text-[16px] text-[12px]  cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"

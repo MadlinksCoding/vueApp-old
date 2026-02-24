@@ -1,5 +1,6 @@
 <script setup>
-import { ref, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import InputComponentDashbaord from "../../../dev/input/InputComponentDashboard.vue";
@@ -7,15 +8,54 @@ import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
+import { showToast } from "@/utils/toastBus.js";
+import {
+  fetchActiveSubscriptionTiers,
+  searchInvitableUsers,
+} from "@/services/events/eventsAudienceApi.js";
 
 const props = defineProps(["engine"]);
+const router = useRouter();
+const route = useRoute();
+const isCreating = ref(false);
+
+function normalizeSelectionArray(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        const numeric = Number(item);
+        return Number.isFinite(numeric) ? numeric : item;
+      })
+      .filter((item) => item !== null && item !== undefined && item !== "");
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const numeric = Number(item);
+        return Number.isFinite(numeric) ? numeric : item;
+      });
+  }
+
+  return [];
+}
 
 const formData = ref({
   allowRecording: props.engine.state.allowRecording || false,
   recordingPrice: props.engine.state.recordingPrice || "",
   allowPersonalRequest: props.engine.state.allowPersonalRequest || false,
-  blockedUserSearch: props.engine.state.blockedUserSearch || "",
+  personalRequestNote: props.engine.state.personalRequestNote || "",
+  blockedUsers: normalizeSelectionArray(props.engine.state.blockedUsers || props.engine.state.blockedUserSearch),
   coPerformerSearch: props.engine.state.coPerformerSearch || "",
+  whoCanBook: props.engine.state.whoCanBook || "everyone",
+  subscriptionTiers: normalizeSelectionArray(props.engine.state.subscriptionTiers),
+  invitedUsers: normalizeSelectionArray(props.engine.state.invitedUsers),
+  spendingRequirement: props.engine.state.spendingRequirement || "none",
+  minSpendTokens: props.engine.state.minSpendTokens || "",
+  requiredProductIds: props.engine.state.requiredProductIds || "",
   xPostLive: props.engine.state.xPostLive || false,
   xPostBooked: props.engine.state.xPostBooked || false,
   xPostInSession: props.engine.state.xPostInSession || false,
@@ -28,6 +68,27 @@ watch(formData, (newVal) => {
     props.engine.setState(key, newVal[key], { silent: true });
   });
 }, { deep: true });
+
+const subscriptionTierOptions = ref([]);
+const subscriptionTiersLoading = ref(false);
+const subscriptionTiersError = ref("");
+let subscriptionTierAbortController = null;
+
+const inviteSearchQuery = ref("");
+const inviteUserOptions = ref([]);
+const inviteUsersLoading = ref(false);
+const inviteUsersError = ref("");
+const invitedUserLookup = ref({});
+let inviteSearchAbortController = null;
+let inviteSearchTimeoutId = null;
+
+const blockedUserSearchQuery = ref("");
+const blockedUserOptions = ref([]);
+const blockedUsersLoading = ref(false);
+const blockedUsersError = ref("");
+const blockedUserLookup = ref({});
+let blockedUserSearchAbortController = null;
+let blockedUserSearchTimeoutId = null;
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -45,15 +106,296 @@ const goToBack = () => {
   props.engine.goToStep(1);
 };
 
-const publishSchedule = async () => {
+function setInviteUserLookup(users = []) {
+  const nextLookup = { ...invitedUserLookup.value };
+  users.forEach((user) => {
+    if (user?.id === undefined || user?.id === null) return;
+    nextLookup[String(user.id)] = user;
+  });
+  invitedUserLookup.value = nextLookup;
+}
+
+function setBlockedUserLookup(users = []) {
+  const nextLookup = { ...blockedUserLookup.value };
+  users.forEach((user) => {
+    if (user?.id === undefined || user?.id === null) return;
+    nextLookup[String(user.id)] = user;
+  });
+  blockedUserLookup.value = nextLookup;
+}
+
+function getInvitedUserLabel(id) {
+  const lookup = invitedUserLookup.value[String(id)];
+  if (!lookup) return `User #${id}`;
+  return lookup.displayName || lookup.username || lookup.label || `User #${id}`;
+}
+
+function getBlockedUserLabel(id) {
+  const lookup = blockedUserLookup.value[String(id)];
+  if (!lookup) return `User #${id}`;
+  return lookup.displayName || lookup.username || lookup.label || `User #${id}`;
+}
+
+function toggleSubscriptionTier(tierId) {
+  const existing = Array.isArray(formData.value.subscriptionTiers)
+    ? [...formData.value.subscriptionTiers]
+    : [];
+  const index = existing.findIndex((item) => String(item) === String(tierId));
+  if (index >= 0) {
+    existing.splice(index, 1);
+  } else {
+    existing.push(tierId);
+  }
+  formData.value.subscriptionTiers = existing;
+}
+
+function toggleInvitedUser(user) {
+  if (!user || user.id === undefined || user.id === null) return;
+  const userId = user.id;
+  const existing = Array.isArray(formData.value.invitedUsers)
+    ? [...formData.value.invitedUsers]
+    : [];
+  const index = existing.findIndex((item) => String(item) === String(userId));
+
+  if (index >= 0) {
+    existing.splice(index, 1);
+  } else {
+    existing.push(userId);
+  }
+
+  formData.value.invitedUsers = existing;
+  setInviteUserLookup([user]);
+}
+
+function removeInvitedUser(userId) {
+  const existing = Array.isArray(formData.value.invitedUsers)
+    ? [...formData.value.invitedUsers]
+    : [];
+  formData.value.invitedUsers = existing.filter((item) => String(item) !== String(userId));
+}
+
+function toggleBlockedUser(user) {
+  if (!user || user.id === undefined || user.id === null) return;
+  const userId = user.id;
+  const existing = Array.isArray(formData.value.blockedUsers)
+    ? [...formData.value.blockedUsers]
+    : [];
+  const index = existing.findIndex((item) => String(item) === String(userId));
+
+  if (index >= 0) {
+    existing.splice(index, 1);
+  } else {
+    existing.push(userId);
+  }
+
+  formData.value.blockedUsers = existing;
+  setBlockedUserLookup([user]);
+}
+
+function removeBlockedUser(userId) {
+  const existing = Array.isArray(formData.value.blockedUsers)
+    ? [...formData.value.blockedUsers]
+    : [];
+  formData.value.blockedUsers = existing.filter((item) => String(item) !== String(userId));
+}
+
+function resolveCreatorId() {
+  const routeCreatorId = Number(route.query?.creatorId);
+  if (Number.isFinite(routeCreatorId)) return routeCreatorId;
+
+  const engineCreatorId = Number(props.engine.getState("creatorId"));
+  if (Number.isFinite(engineCreatorId)) return engineCreatorId;
+
+  if (typeof window !== "undefined") {
+    const storageCreatorId = Number(window.localStorage?.getItem("creatorId"));
+    if (Number.isFinite(storageCreatorId)) return storageCreatorId;
+  }
+
+  return 1;
+}
+
+async function loadSubscriptionTierOptions() {
+  if (subscriptionTierAbortController) subscriptionTierAbortController.abort();
+  subscriptionTierAbortController = new AbortController();
+  subscriptionTiersLoading.value = true;
+  subscriptionTiersError.value = "";
+
+  try {
+    subscriptionTierOptions.value = await fetchActiveSubscriptionTiers({
+      creatorId: resolveCreatorId(),
+      signal: subscriptionTierAbortController.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    subscriptionTiersError.value = error?.message || "Could not load active tiers.";
+    subscriptionTierOptions.value = [];
+  } finally {
+    subscriptionTiersLoading.value = false;
+  }
+}
+
+async function runInviteUserSearch(query) {
+  const safeQuery = String(query || "").trim();
+  if (safeQuery.length < 2) {
+    inviteUserOptions.value = [];
+    inviteUsersError.value = "";
+    return;
+  }
+
+  if (inviteSearchAbortController) inviteSearchAbortController.abort();
+  inviteSearchAbortController = new AbortController();
+  inviteUsersLoading.value = true;
+  inviteUsersError.value = "";
+
+  try {
+    const users = await searchInvitableUsers({
+      query: safeQuery,
+      signal: inviteSearchAbortController.signal,
+    });
+    inviteUserOptions.value = users;
+    setInviteUserLookup(users);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    inviteUsersError.value = error?.message || "Could not search users.";
+    inviteUserOptions.value = [];
+  } finally {
+    inviteUsersLoading.value = false;
+  }
+}
+
+async function runBlockedUserSearch(query) {
+  const safeQuery = String(query || "").trim();
+  if (safeQuery.length < 2) {
+    blockedUserOptions.value = [];
+    blockedUsersError.value = "";
+    return;
+  }
+
+  if (blockedUserSearchAbortController) blockedUserSearchAbortController.abort();
+  blockedUserSearchAbortController = new AbortController();
+  blockedUsersLoading.value = true;
+  blockedUsersError.value = "";
+
+  try {
+    const users = await searchInvitableUsers({
+      query: safeQuery,
+      signal: blockedUserSearchAbortController.signal,
+    });
+    blockedUserOptions.value = users;
+    setBlockedUserLookup(users);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    blockedUsersError.value = error?.message || "Could not search users.";
+    blockedUserOptions.value = [];
+  } finally {
+    blockedUsersLoading.value = false;
+  }
+}
+
+watch(() => formData.value.whoCanBook, (whoCanBook) => {
+  if (whoCanBook === "subscribersOnly" && subscriptionTierOptions.value.length === 0 && !subscriptionTiersLoading.value) {
+    loadSubscriptionTierOptions();
+  }
+
+  if (whoCanBook !== "inviteOnly") {
+    inviteSearchQuery.value = "";
+    inviteUserOptions.value = [];
+    inviteUsersError.value = "";
+    inviteUsersLoading.value = false;
+    if (inviteSearchTimeoutId) {
+      clearTimeout(inviteSearchTimeoutId);
+      inviteSearchTimeoutId = null;
+    }
+    if (inviteSearchAbortController) {
+      inviteSearchAbortController.abort();
+    }
+  }
+}, { immediate: true });
+
+watch(inviteSearchQuery, (query) => {
+  if (formData.value.whoCanBook !== "inviteOnly") return;
+
+  if (inviteSearchTimeoutId) {
+    clearTimeout(inviteSearchTimeoutId);
+  }
+
+  inviteSearchTimeoutId = setTimeout(() => {
+    runInviteUserSearch(query);
+  }, 350);
+});
+
+watch(blockedUserSearchQuery, (query) => {
+  if (blockedUserSearchTimeoutId) {
+    clearTimeout(blockedUserSearchTimeoutId);
+  }
+
+  blockedUserSearchTimeoutId = setTimeout(() => {
+    runBlockedUserSearch(query);
+  }, 350);
+});
+
+onBeforeUnmount(() => {
+  if (subscriptionTierAbortController) subscriptionTierAbortController.abort();
+  if (inviteSearchAbortController) inviteSearchAbortController.abort();
+  if (blockedUserSearchAbortController) blockedUserSearchAbortController.abort();
+  if (inviteSearchTimeoutId) clearTimeout(inviteSearchTimeoutId);
+  if (blockedUserSearchTimeoutId) clearTimeout(blockedUserSearchTimeoutId);
+});
+
+function formatValidationErrors(errors = []) {
+  return (errors || []).map((error) => {
+    if (typeof error === "string") return error;
+    return error?.message || "Validation error";
+  });
+}
+
+const createEvent = async () => {
+  if (isCreating.value) return;
+
   const result = await props.engine.validate(2);
 
   if (result.valid) {
-    console.log("Form Valid! Payload:", props.engine.state);
-    alert("Schedule Published Successfully! (Check Console for Payload)");
+    isCreating.value = true;
+    props.engine.setState("creatorId", resolveCreatorId(), { reason: "create-event-flow", silent: true });
+    props.engine.setState("eventType", "1on1-call", { reason: "create-event-flow", silent: true });
+
+    try {
+      const flowResult = await props.engine.callFlow("events.createEvent", null, {
+        context: {
+          stateEngine: props.engine,
+          creatorId: resolveCreatorId(),
+        },
+      });
+
+      if (!flowResult?.ok) {
+        const message = flowResult?.meta?.uiErrors?.[0]
+          || flowResult?.error?.message
+          || "Could not create event. Please try again.";
+        showToast({
+          type: "error",
+          title: "Create Event Failed",
+          message,
+        });
+        return;
+      }
+
+      await router.push({
+        path: "/dashboard/events",
+        query: {
+          refresh: "1",
+          creatorId: String(resolveCreatorId()),
+        },
+      });
+    } finally {
+      isCreating.value = false;
+    }
   } else {
-    console.log("Validation Errors:", result.errors);
-    alert("Please fix errors before publishing:\n" + result.errors.map(e => "- " + e.message).join("\n"));
+    const messages = formatValidationErrors(result.errors);
+    showToast({
+      type: "error",
+      title: "Validation Failed",
+      message: messages.length ? messages.join(" ") : "Please fix errors before creating.",
+    });
   }
 };
 </script>
@@ -109,9 +451,9 @@ const publishSchedule = async () => {
               <div class="w-6" />
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">
-                    Let user add personal request in their booking
-                  </div>
+                  <BaseInput type="text" placeholder="Optional note shown to fans"
+                    v-model="formData.personalRequestNote" :disabled="!formData.allowPersonalRequest"
+                    inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
               </div>
             </div>
@@ -144,9 +486,100 @@ const publishSchedule = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Who can book a call?
             </div>
-            <div
-              class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex">
-              Todo
+            <select v-model="formData.whoCanBook"
+              class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
+              <option value="everyone">Everyone</option>
+              <option value="subscribersOnly">Subscribers only</option>
+              <option value="inviteOnly">Invite only</option>
+            </select>
+
+            <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2">
+              <div class="text-slate-700 text-sm font-medium">
+                Select subscription tiers
+              </div>
+              <div v-if="subscriptionTiersLoading" class="text-slate-500 text-sm">
+                Loading active tiers...
+              </div>
+              <div v-else-if="subscriptionTiersError" class="text-rose-600 text-sm">
+                {{ subscriptionTiersError }}
+              </div>
+              <div v-else-if="subscriptionTierOptions.length === 0" class="text-slate-500 text-sm">
+                No active tiers found for this creator.
+              </div>
+              <div v-else class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2">
+                <label
+                  v-for="tier in subscriptionTierOptions"
+                  :key="`tier-${tier.id}`"
+                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="formData.subscriptionTiers.some((item) => String(item) === String(tier.id))"
+                    @change="toggleSubscriptionTier(tier.id)"
+                    class="h-4 w-4"
+                  />
+                  <span class="text-slate-700 text-sm">{{ tier.label }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div v-if="formData.whoCanBook === 'inviteOnly'" class="mt-3 flex flex-col gap-2">
+              <div class="text-slate-700 text-sm font-medium">
+                Invite specific users
+              </div>
+              <BaseInput
+                v-model="inviteSearchQuery"
+                type="text"
+                placeholder="Search users by username"
+                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+              />
+
+              <div v-if="inviteUsersLoading" class="text-slate-500 text-sm">
+                Searching users...
+              </div>
+              <div v-else-if="inviteUsersError" class="text-rose-600 text-sm">
+                {{ inviteUsersError }}
+              </div>
+              <div
+                v-else-if="inviteSearchQuery.trim().length >= 2 && inviteUserOptions.length === 0"
+                class="text-slate-500 text-sm"
+              >
+                No users found.
+              </div>
+              <div
+                v-else-if="inviteUserOptions.length > 0"
+                class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2"
+              >
+                <label
+                  v-for="user in inviteUserOptions"
+                  :key="`invite-${user.id}`"
+                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="formData.invitedUsers.some((item) => String(item) === String(user.id))"
+                    @change="toggleInvitedUser(user)"
+                    class="h-4 w-4"
+                  />
+                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
+                </label>
+              </div>
+
+              <div
+                v-if="Array.isArray(formData.invitedUsers) && formData.invitedUsers.length > 0"
+                class="flex flex-wrap gap-2 pt-1"
+              >
+                <button
+                  v-for="userId in formData.invitedUsers"
+                  :key="`selected-${userId}`"
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                  @click="removeInvitedUser(userId)"
+                >
+                  <span>{{ getInvitedUserLabel(userId) }}</span>
+                  <span class="text-slate-500">x</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -158,9 +591,20 @@ const publishSchedule = async () => {
               </div>
               <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
             </div>
-            <div
-              class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300">
-              Todo
+            <select v-model="formData.spendingRequirement"
+              class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
+              <option value="none">None</option>
+              <option value="minSpend">Minimum spend</option>
+              <option value="mustOwnProducts">Must own products</option>
+            </select>
+            <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
+              <BaseInput type="number" placeholder="Minimum spend in tokens" v-model="formData.minSpendTokens"
+                inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+            </div>
+            <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1">
+              <BaseInput type="text" placeholder="Required product IDs (comma separated)"
+                v-model="formData.requiredProductIds"
+                inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
             </div>
           </div>
           <ButtonComponent text="add-on service" variant="none"
@@ -175,10 +619,60 @@ const publishSchedule = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Blocked user
             </div>
-            <div class="w-full">
-              <InputComponentDashbaord id="input_b" placeholder="Search by username & email"
-                v-model="formData.blockedUserSearch" label-text="Co-performer (Optional)"
-                :left-icon="MagnifyingGlassIcon" optionalLabel class="w-full" />
+            <div class="w-full flex flex-col gap-2">
+              <BaseInput
+                v-model="blockedUserSearchQuery"
+                type="text"
+                placeholder="Search by username & email"
+                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
+              />
+
+              <div v-if="blockedUsersLoading" class="text-slate-500 text-sm">
+                Searching users...
+              </div>
+              <div v-else-if="blockedUsersError" class="text-rose-600 text-sm">
+                {{ blockedUsersError }}
+              </div>
+              <div
+                v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
+                class="text-slate-500 text-sm"
+              >
+                No users found.
+              </div>
+              <div
+                v-else-if="blockedUserOptions.length > 0"
+                class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2"
+              >
+                <label
+                  v-for="user in blockedUserOptions"
+                  :key="`blocked-${user.id}`"
+                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="formData.blockedUsers.some((item) => String(item) === String(user.id))"
+                    @change="toggleBlockedUser(user)"
+                    class="h-4 w-4"
+                  />
+                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
+                </label>
+              </div>
+
+              <div
+                v-if="Array.isArray(formData.blockedUsers) && formData.blockedUsers.length > 0"
+                class="flex flex-wrap gap-2 pt-1"
+              >
+                <button
+                  v-for="userId in formData.blockedUsers"
+                  :key="`blocked-selected-${userId}`"
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                  @click="removeBlockedUser(userId)"
+                >
+                  <span>{{ getBlockedUserLabel(userId) }}</span>
+                  <span class="text-slate-500">x</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -250,7 +744,7 @@ const publishSchedule = async () => {
 
   </div>
   <div class="absolute right-0 bottom-0">
-    <ButtonComponent @click="publishSchedule" text="PUBLISH SCHEDULE" variant="polygonLeft"
+    <ButtonComponent @click="createEvent" :disabled="isCreating" text="CREATE EVENT" variant="polygonLeft"
       :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`
         w-6 h-6 transition duration-200
         filter brightness-0

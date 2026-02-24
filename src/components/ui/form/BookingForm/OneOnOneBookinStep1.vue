@@ -1,5 +1,5 @@
   <script setup>
-  import { onMounted, ref, watch } from "vue";
+  import { onMounted, onUnmounted, ref, watch } from "vue";
   import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
@@ -7,6 +7,7 @@
   import ThumbnailUploader from "../../global/media/uploader/HelperComponents/ThumbnailUploader.vue";
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
+  import { showToast } from "@/utils/toastBus.js";
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -17,6 +18,27 @@
   const formData = ref({
     eventTitle: props.engine.state.eventTitle || "",
     eventDescription: props.engine.state.eventDescription || "",
+    eventColorSkin: props.engine.state.eventColorSkin || "#5549FF",
+    repeatRule: props.engine.state.repeatRule || "weekly",
+    repeatX: Number(props.engine.state.repeatX) || 2,
+    eventCallType: props.engine.state.eventCallType || "video",
+    eventRingtoneUrl: props.engine.state.eventRingtoneUrl || "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
+    selectedDate: props.engine.state.selectedDate || new Date().toISOString().slice(0, 10),
+    selectedStartTime: props.engine.state.selectedStartTime || "15:00",
+    selectedEndTime: props.engine.state.selectedEndTime || "16:00",
+    dateFrom: props.engine.state.dateFrom || "",
+    dateTo: props.engine.state.dateTo || "",
+    weeklyAvailability: Array.isArray(props.engine.state.weeklyAvailability)
+      ? JSON.parse(JSON.stringify(props.engine.state.weeklyAvailability))
+      : [],
+    oneTimeAvailability: Array.isArray(props.engine.state.oneTimeAvailability)
+      ? JSON.parse(JSON.stringify(props.engine.state.oneTimeAvailability))
+      : [],
+    advanceCancelWindowUnit: props.engine.state.advanceCancelWindowUnit || "day",
+    bufferUnit: props.engine.state.bufferUnit || "minutes",
+    lateStartAction: props.engine.state.lateStartAction || "reschedule",
+    lateStartDiscountPercent: props.engine.state.lateStartDiscountPercent || "",
+    setReminders: props.engine.state.setReminders || false,
     duration: props.engine.state.duration || "",
     maxSessionDuration: props.engine.state.maxSessionDuration || "",
     basePrice: props.engine.state.basePrice || "",
@@ -69,9 +91,64 @@
     sectionsState.value[key] = !sectionsState.value[key];
   };
 
-  const goToNext = () => {
-    props.engine.goToStep(2);
+  const goToNext = async () => {
+    try {
+      await props.engine.goToStep(2, { throwOnBlocked: true });
+    } catch (error) {
+      const messages = (error?.errors || []).map((e) =>
+        typeof e === "string" ? e : (e?.message || "Validation error")
+      );
+      const fallback = error?.message || "Please fix validation errors before continuing.";
+      const body = messages.length ? messages.join(" ") : fallback;
+      showToast({
+        type: "error",
+        title: "Validation Failed",
+        message: body,
+      });
+    }
   };
+
+  const ringtoneOptions = [
+    { label: "Ringtone 1", value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" },
+    { label: "Ringtone 2", value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3" },
+    { label: "Ringtone 3", value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3" },
+  ];
+
+  const colorOptions = [
+    { label: "Blue", value: "#5549FF" },
+    { label: "Red", value: "#FF3B30" },
+    { label: "Green", value: "#22C55E" },
+    { label: "Pink", value: "#FF2D92" },
+    { label: "Orange", value: "#F97316" },
+    { label: "Purple", value: "#8B5CF6" },
+    { label: "Teal", value: "#14B8A6" },
+  ];
+
+  let previewAudio = null;
+  const previewRingtone = async () => {
+    try {
+      if (!formData.value.eventRingtoneUrl) return;
+      if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.currentTime = 0;
+      }
+      previewAudio = new Audio(formData.value.eventRingtoneUrl);
+      await previewAudio.play();
+    } catch (error) {
+      showToast({
+        type: "warning",
+        title: "Preview Unavailable",
+        message: "Could not preview this ringtone on your browser.",
+      });
+    }
+  };
+
+  onUnmounted(() => {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+    }
+  });
 
   onMounted(() => {
     // Quill Setup (Preserved exactly as provided)
@@ -118,52 +195,248 @@
     }
   });
 
-  // Configuration for each day row
-  const weekDays = ref([
-    {
-      name: 'Sun',
-      unavailable: true,
-      icons: ['https://i.ibb.co/7J7qwz6H/Icon-3.png']
-    },
-    {
-      name: 'Mon',
-      slots: [1], // 1 Slot
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
-    },
-    {
-      name: 'Tue',
-      slots: [1, 2], // 3 Slots (Tuesday wapis 3 rows mein ayega)
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
-    },
-    {
-      name: 'Wed',
-      slots: [1],
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
-    },
-    {
-      name: 'Thu',
-      slots: [1],
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/xqh8KkBk/Icon-1.png']
-    },
-    {
-      name: 'Fri',
-      slots: [1],
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/TqB49zLj/cloud-moon.png']
-    },
-    {
-      name: 'Sat',
-      slots: [1],
-      icons: ['https://i.ibb.co/3yZjgcNV/Icon.png', 'https://i.ibb.co/7J7qwz6H/Icon-3.png', 'https://i.ibb.co/TqB49zLj/cloud-moon.png']
-    }
-  ]);
+  function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
+    return { startTime, endTime, offHours: Boolean(offHours) };
+  }
 
-  // Helper to get tooltip text based on Icon Index (0, 1, 2)
-  const getTooltipText = (index) => {
-    if (index === 0) return "Remove availability";
-    if (index === 1) return "Add another period to this day";
-    if (index === 2) return "Mark as off hours";
-    return "";
-  };
+  function getTodayIsoDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function createOneTimeDate(date = getTodayIsoDate()) {
+    return {
+      id: `date_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      date,
+      slots: [],
+    };
+  }
+
+  function makeDefaultWeeklyAvailability() {
+    return [
+      { key: "sun", name: "Sun", unavailable: true, offHours: false, slots: [] },
+      { key: "mon", name: "Mon", unavailable: true, offHours: false, slots: [] },
+      { key: "tue", name: "Tue", unavailable: true, offHours: false, slots: [] },
+      { key: "wed", name: "Wed", unavailable: true, offHours: false, slots: [] },
+      { key: "thu", name: "Thu", unavailable: true, offHours: false, slots: [] },
+      { key: "fri", name: "Fri", unavailable: true, offHours: false, slots: [] },
+      { key: "sat", name: "Sat", unavailable: true, offHours: false, slots: [] },
+    ];
+  }
+
+  function normalizeAvailability(input = []) {
+    const defaults = makeDefaultWeeklyAvailability();
+    if (!Array.isArray(input) || input.length === 0) return defaults;
+
+    return defaults.map((defaultDay, index) => {
+      const sourceDay = input[index] || {};
+      const sourceSlots = Array.isArray(sourceDay.slots) ? sourceDay.slots : [];
+
+      return {
+        key: sourceDay.key || defaultDay.key,
+        name: sourceDay.name || defaultDay.name,
+        unavailable: Boolean(sourceDay.unavailable),
+        offHours: Boolean(sourceDay.offHours),
+        slots: sourceSlots
+          .map((slot) => ({
+            startTime: typeof slot?.startTime === "string" ? slot.startTime : null,
+            endTime: typeof slot?.endTime === "string" ? slot.endTime : null,
+            offHours: Boolean(slot?.offHours ?? sourceDay.offHours),
+          }))
+          .filter((slot) => slot.startTime && slot.endTime),
+      };
+    }).map((day) => {
+      if (day.unavailable) return { ...day, slots: [] };
+      return day;
+    });
+  }
+
+  function normalizeOneTimeAvailability(input = []) {
+    if (!Array.isArray(input) || input.length === 0) {
+      return [createOneTimeDate(formData.value.dateFrom || formData.value.selectedDate || getTodayIsoDate())];
+    }
+
+    return input.map((entry) => ({
+      id: entry?.id || `date_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      date: typeof entry?.date === "string" && entry.date ? entry.date : getTodayIsoDate(),
+      slots: Array.isArray(entry?.slots) && entry.slots.length > 0
+        ? entry.slots.map((slot) => ({
+          startTime: typeof slot?.startTime === "string" ? slot.startTime : "12:00",
+          endTime: typeof slot?.endTime === "string" ? slot.endTime : "15:00",
+        }))
+        : [],
+    }));
+  }
+
+  formData.value.weeklyAvailability = normalizeAvailability(formData.value.weeklyAvailability);
+  formData.value.oneTimeAvailability = normalizeOneTimeAvailability(formData.value.oneTimeAvailability);
+
+  const weekDays = ref(formData.value.weeklyAvailability);
+  const oneTimeDates = ref(formData.value.oneTimeAvailability);
+
+  function to12HourLabel(time24 = "00:00") {
+    const [rawHour = "0", rawMinute = "0"] = String(time24).split(":");
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
+    const safeHour = Number.isFinite(hour) ? hour : 0;
+    const safeMinute = Number.isFinite(minute) ? minute : 0;
+    const period = safeHour >= 12 ? "PM" : "AM";
+    const twelveHour = safeHour % 12 === 0 ? 12 : safeHour % 12;
+    return `${twelveHour}:${String(safeMinute).padStart(2, "0")} ${period}`;
+  }
+
+  const timeOptions = Array.from({ length: 48 }, (_, index) => {
+    const hours = Math.floor(index / 2);
+    const minutes = index % 2 === 0 ? "00" : "30";
+    const value = `${String(hours).padStart(2, "0")}:${minutes}`;
+    return { value, label: to12HourLabel(value) };
+  });
+
+  function syncAvailabilityToForm() {
+    formData.value.weeklyAvailability = weekDays.value.map((day) => ({
+      key: day.key,
+      name: day.name,
+      unavailable: day.unavailable,
+      offHours: day.slots.some((slot) => Boolean(slot.offHours)),
+      slots: day.slots.map((slot) => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        offHours: Boolean(slot.offHours),
+      })),
+    }));
+
+    formData.value.oneTimeAvailability = oneTimeDates.value.map((entry) => ({
+      id: entry.id,
+      date: entry.date,
+      slots: entry.slots.map((slot) => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      })),
+    }));
+
+    if (formData.value.repeatRule === "doesNotRepeat") {
+      const firstDate = oneTimeDates.value[0];
+      if (firstDate && firstDate.slots.length > 0) {
+        formData.value.selectedDate = firstDate.date;
+        formData.value.dateFrom = firstDate.date;
+        formData.value.dateTo = firstDate.date;
+        formData.value.selectedStartTime = firstDate.slots[0].startTime;
+        formData.value.selectedEndTime = firstDate.slots[0].endTime;
+      }
+      return;
+    }
+
+    const firstAvailable = weekDays.value.find((day) => !day.unavailable && day.slots.length > 0);
+    if (!firstAvailable) return;
+
+    const firstSlot = firstAvailable.slots[0];
+    formData.value.selectedStartTime = firstSlot.startTime;
+    formData.value.selectedEndTime = firstSlot.endTime;
+  }
+
+  function addDayAvailability(dayIndex) {
+    const day = weekDays.value[dayIndex];
+    if (!day) return;
+    day.unavailable = false;
+    day.slots = [makeSlot("00:00", "03:00")];
+    day.offHours = false;
+    syncAvailabilityToForm();
+  }
+
+  function addWeeklySlot(dayIndex) {
+    const day = weekDays.value[dayIndex];
+    if (!day) return;
+    day.unavailable = false;
+    day.slots.push(makeSlot("00:00", "03:00"));
+    syncAvailabilityToForm();
+  }
+
+  function removeWeeklySlot(dayIndex, slotIndex) {
+    const day = weekDays.value[dayIndex];
+    if (!day) return;
+
+    day.slots.splice(slotIndex, 1);
+    if (day.slots.length === 0) {
+      day.unavailable = true;
+      day.offHours = false;
+    } else {
+      day.offHours = day.slots.some((slot) => Boolean(slot.offHours));
+    }
+    syncAvailabilityToForm();
+  }
+
+  function toggleSlotOffHours(dayIndex, slotIndex) {
+    const day = weekDays.value[dayIndex];
+    if (!day) return;
+    const slot = day.slots?.[slotIndex];
+    if (!slot) return;
+    slot.offHours = !slot.offHours;
+    day.offHours = day.slots.some((item) => Boolean(item.offHours));
+    syncAvailabilityToForm();
+  }
+
+  function onSlotChanged() {
+    syncAvailabilityToForm();
+  }
+
+  function addOneTimeDate() {
+    oneTimeDates.value.push(createOneTimeDate(formData.value.dateFrom || getTodayIsoDate()));
+    syncAvailabilityToForm();
+  }
+
+  function removeOneTimeDate(dateIndex) {
+    if (oneTimeDates.value.length <= 1) return;
+    oneTimeDates.value.splice(dateIndex, 1);
+    syncAvailabilityToForm();
+  }
+
+  function addOneTimeSlot(dateIndex) {
+    const dateEntry = oneTimeDates.value[dateIndex];
+    if (!dateEntry) return;
+    dateEntry.slots.push(makeSlot("12:00", "15:00"));
+    syncAvailabilityToForm();
+  }
+
+  function removeOneTimeSlot(dateIndex, slotIndex) {
+    const dateEntry = oneTimeDates.value[dateIndex];
+    if (!dateEntry) return;
+
+    if (dateEntry.slots.length <= 1) {
+      if (oneTimeDates.value.length > 1) {
+        removeOneTimeDate(dateIndex);
+      }
+      return;
+    }
+
+    dateEntry.slots.splice(slotIndex, 1);
+    syncAvailabilityToForm();
+  }
+
+  function onRepeatRuleChange() {
+    if (formData.value.repeatRule === "everyXWeeks") {
+      formData.value.repeatX = 2;
+    }
+    if (formData.value.repeatRule === "doesNotRepeat" && oneTimeDates.value.length === 0) {
+      oneTimeDates.value = normalizeOneTimeAvailability([]);
+    }
+    syncAvailabilityToForm();
+  }
+
+  watch(
+    () => [formData.value.dateFrom, formData.value.dateTo],
+    ([dateFrom]) => {
+      if (dateFrom) {
+        formData.value.selectedDate = dateFrom;
+      }
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => formData.value.repeatRule,
+    () => onRepeatRuleChange()
+  );
+
+  syncAvailabilityToForm();
 </script>
 
   <template>
@@ -182,9 +455,12 @@
               <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
                 inputClass="px-3.5 text-gray-500 text-gray-500 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
-            <div
-              class="h-[45px] bg-white/50 border-l text-sm px-2 inline-flex flex-col justify-center items-center gap-1.5 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300">
-              Todo</div>
+            <select v-model="formData.eventColorSkin"
+              class="h-[45px] bg-white/50 border-l text-sm px-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none min-w-[140px]">
+              <option v-for="color in colorOptions" :key="color.value" :value="color.value">
+                {{ color.label }}
+              </option>
+            </select>
           </div>
           <div
             class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
@@ -193,23 +469,28 @@
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
               <div class="text-slate-700 text-xs font-normal leading-none">Call Type</div>
-              <div
-                class="self-stretch bg-white/50 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
-                Todo</div>
+              <select v-model="formData.eventCallType"
+                class="self-stretch bg-white/50 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
+                <option value="video">Video Call</option>
+                <option value="audio">Audio Call</option>
+              </select>
             </div>
           </div>
           <div class="flex w-full gap-3">
             <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
               <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <div class="self-stretch bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm 
-                  shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex 
-                  justify-start items-start">Todo</div>
+                <select v-model="formData.eventRingtoneUrl"
+                  class="self-stretch bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
+                  <option v-for="ringtone in ringtoneOptions" :key="ringtone.value" :value="ringtone.value">
+                    {{ ringtone.label }}
+                  </option>
+                </select>
               </div>
             </div>
-            <div class="flex justify-start items-center gap-1">
+            <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
               <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
               <div class="justify-start text-slate-700 text-sm font-medium leading-tight">Preview</div>
-            </div>
+            </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">Event Image </span><span
@@ -467,51 +748,41 @@
               GMT +8 Hong Kong Standard time
             </div>
 
-            <BaseInput type="number" placeholder="15" v-model="formData.calendarDuration"
-              inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
-            <div class="self-stretch inline-flex justify-start items-end">
+            <select v-model="formData.repeatRule"
+              class="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300">
+              <option value="weekly">Repeat Weekly</option>
+              <option value="doesNotRepeat">Does not repeat</option>
+              <option value="everyXWeeks">Repeats every 2 weeks</option>
+            </select>
+            <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="self-stretch inline-flex justify-start items-end">
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start">
-                    <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">Duration </span><span
-                      class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
+                    <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                      {{ formData.repeatRule === 'everyXWeeks' ? 'Start date' : 'Duration' }}
+                    </span>
+                    <span v-if="formData.repeatRule !== 'everyXWeeks'"
+                      class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> Optional</span>
                   </div>
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-center gap-2">
-                    <div class="flex-1 flex justify-start items-center gap-2">
-                      <img src="https://i.ibb.co/ntP5c3B/Icon-1.png" alt="" />
-                      <div
-                        class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                        From
-                      </div>
-                    </div>
-
-                    <div class="w-4 h-4 relative" />
-                  </div>
+                  <BaseInput type="date" placeholder="From" v-model="formData.dateFrom"
+                    inputClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal" />
                 </div>
               </div>
 
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <div
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-center gap-2">
-                    <div class="flex-1 flex justify-start items-center gap-2">
-                      <img src="https://i.ibb.co/ntP5c3B/Icon-1.png" alt="" />
-
-                      <div
-                        class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                        To
-                      </div>
-                    </div>
-                    <div class="w-4 h-4 relative" />
+                  <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                    {{ formData.repeatRule === 'everyXWeeks' ? `End date` : '' }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
                   </div>
+                  <BaseInput type="date" placeholder="To" v-model="formData.dateTo"
+                    inputClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal" />
                 </div>
               </div>
             </div>
           </div>
 
 
-          <div class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
 
             <div v-for="(day, index) in weekDays" :key="index"
               class="self-stretch inline-flex justify-start items-start gap-1"
@@ -526,7 +797,11 @@
                 <div class="flex-1 justify-start text-gray-500 text-base font-normal leading-normal">
                   Not Available
                 </div>
-                <img v-if="day.icons" :src="day.icons[0]" alt="" class="w-5 h-5 object-contain" />
+                <button type="button" @click="addDayAvailability(index)"
+                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  title="Add availability">
+                  +
+                </button>
               </template>
 
               <template v-else>
@@ -537,13 +812,13 @@
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                        <div
-                          class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
-                          <div
-                            class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                            Todo
-                          </div>
-                        </div>
+                        <select v-model="slot.startTime" @change="onSlotChanged"
+                          class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
+                          <option v-for="timeOption in timeOptions" :key="`start-${day.key}-${sIdx}-${timeOption.value}`"
+                            :value="timeOption.value">
+                            {{ timeOption.label }}
+                          </option>
+                        </select>
                       </div>
                     </div>
 
@@ -552,34 +827,94 @@
                     </div>
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                      <div
-                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
-                        <div
-                          class="flex-1 justify-start text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                          Todo
-                        </div>
-                      </div>
+                      <select v-model="slot.endTime" @change="onSlotChanged"
+                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
+                        <option v-for="timeOption in timeOptions" :key="`end-${day.key}-${sIdx}-${timeOption.value}`"
+                          :value="timeOption.value">
+                          {{ timeOption.label }}
+                        </option>
+                      </select>
                     </div>
 
                     <div class="pl-1 flex justify-start items-center gap-2">
-                      <div v-for="(icon, iIdx) in day.icons" :key="iIdx"
-                        class="group relative flex justify-center items-center cursor-pointer">
-                        <img :src="icon" alt="icon" />
-
-                        <div
-                          class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center whitespace-nowrap z-50">
-                          <div class="bg-zinc-700/90 text-white text-xs font-medium py-1 px-2 rounded shadow-lg">
-                            {{ getTooltipText(iIdx) }}
-                          </div>
-                          <div class="w-2 h-2 bg-slate-700 rotate-45 -mt-1"></div>
-                        </div>
-                      </div>
+                      <button type="button" @click="removeWeeklySlot(index, sIdx)"
+                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                        title="Remove availability">
+                        -
+                      </button>
+                      <button type="button" @click="addWeeklySlot(index)"
+                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                        title="Add another period to this day">
+                        +
+                      </button>
+                      <button v-if="formData.repeatRule === 'weekly'" type="button" @click="toggleSlotOffHours(index, sIdx)"
+                        class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                        :class="slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500'"
+                        title="Mark as off hours">
+                        ⛅
+                      </button>
                     </div>
 
                   </div>
                 </div>
               </template>
 
+            </div>
+          </div>
+
+          <div v-if="formData.repeatRule === 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
+            <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
+              class="border border-gray-200 rounded-md p-3 bg-white/30">
+              <div class="flex items-center gap-2 mb-3">
+                <BaseInput type="date" v-model="entry.date" @change="onSlotChanged"
+                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
+                  class="w-7 h-7 rounded text-red-500 hover:bg-red-50">
+                  🗑
+                </button>
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <div v-if="entry.slots.length === 0" class="flex items-center">
+                  <button
+                    type="button"
+                    @click="addOneTimeSlot(entryIndex)"
+                    class="px-2 py-1 text-xs rounded bg-gray-900 text-green-400 hover:bg-black"
+                  >
+                    Add time slot
+                  </button>
+                </div>
+
+                <div v-for="(slot, slotIndex) in entry.slots" :key="`${entry.id}-${slotIndex}`"
+                  class="flex items-center gap-1">
+                  <select v-model="slot.startTime" @change="onSlotChanged"
+                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
+                    <option v-for="timeOption in timeOptions" :key="`one-start-${entry.id}-${slotIndex}-${timeOption.value}`"
+                      :value="timeOption.value">
+                      {{ timeOption.label }}
+                    </option>
+                  </select>
+                  <div class="text-gray-500">-</div>
+                  <select v-model="slot.endTime" @change="onSlotChanged"
+                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
+                    <option v-for="timeOption in timeOptions" :key="`one-end-${entry.id}-${slotIndex}-${timeOption.value}`"
+                      :value="timeOption.value">
+                      {{ timeOption.label }}
+                    </option>
+                  </select>
+                  <button type="button" @click="removeOneTimeSlot(entryIndex, slotIndex)"
+                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">-</button>
+                  <button type="button" @click="addOneTimeSlot(entryIndex)"
+                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <button type="button" @click="addOneTimeDate"
+                class="bg-gray-900 text-green-400 text-xs font-semibold px-2 py-1 rounded hover:bg-black">
+                Add A Date
+              </button>
             </div>
           </div>
         </div>
@@ -601,9 +936,16 @@
             </div>
             <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
               <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <div
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
-                  <div class="flex-1 justify-start text-gray-900 text-base font-normal leading-normal">Todo</div>
+                <select v-model="formData.lateStartAction"
+                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
+                  <option value="reschedule">Allow reschedule</option>
+                  <option value="refund">Issue refund</option>
+                  <option value="nextDiscount">Give next-session discount</option>
+                </select>
+                <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
+                  <BaseInput type="number" placeholder="Discount % for next session"
+                    v-model="formData.lateStartDiscountPercent"
+                    inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
                 </div>
               </div>
             </div>
@@ -657,11 +999,15 @@
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">Call reminder</div>
                 <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
               </div>
+              <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2 mb-2 mt-2" />
               <div class="self-stretch flex flex-col justify-start items-start">
                 <div class=" inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
                   <BaseInput type="number" placeholder="15" v-model="formData.remindMeTime"
-                    :disabled="!formData.remindMeTime"
+                    :disabled="!formData.setReminders"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">minutes before
                     a
@@ -689,10 +1035,11 @@
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                 <div class="w-44 inline-flex flex-col justify-start items-start gap-1.5">
                   <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                    <div
-                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex justify-start items-start">
-                      <div class="flex-1 justify-start text-gray-900 text-base font-normal leading-normal">Todo</div>
-                    </div>
+                    <select v-model="formData.bufferUnit" :disabled="!formData.setBufferTime"
+                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -754,4 +1101,3 @@
         `" btnBg="#07f468" btnHoverBg="black" btnText="black" btnHoverText="#07f468" />
     </div>
   </template>
-
