@@ -240,7 +240,7 @@ function parseTokenBalance(response, receiverId) {
   return null;
 }
 
-function fireAndForgetReminderNotify() {
+function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) {
   const previewPayload = mapCreateBookingToRequest(props.engine.state, {
     stateEngine: props.engine,
     fanUserId: resolveFanUserId(),
@@ -253,15 +253,56 @@ function fireAndForgetReminderNotify() {
     session_type: selectedEvent.value?.eventCallType
       || selectedEvent.value?.raw?.eventCallType
       || "video",
-    event_minutes: Number(sessionDuration.value || previewPayload?.durationMinutes || 0),
-    event_start_time: formattedStartTime || previewPayload?.startIso || "",
-    booking_name: selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event",
+    event_type: selectedEvent.value?.type
+      || selectedEvent.value?.eventType
+      || selectedEvent.value?.raw?.type
+      || selectedEvent.value?.raw?.eventType
+      || "1on1-call",
+    event_duration: Number(sessionDuration.value || previewPayload?.durationMinutes || 0),
+    start_at: previewPayload?.startIso || formattedStartTime || "",
+    event_name: selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event",
+    booking_id: bookingId || props.engine.getState('fanBooking.booking.bookingId') || null,
+    event_id: eventId || previewPayload?.eventId || selectedEvent.value?.eventId || null,
     number_of_participants: 1,
     fan_id: String(resolveFanUserId() || ""),
     creator_id: String(resolveCreatorId() || ""),
   };
 
-  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/reminder-notify";
+  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/create-schedule";
+
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const queued = navigator.sendBeacon(endpoint, blob);
+      if (queued) return;
+    }
+  } catch (_) {
+    // Fire-and-forget endpoint; ignore transport errors.
+  }
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {
+    // Fire-and-forget endpoint; ignore transport errors.
+  });
+}
+
+function fireAndForgetBookingCreated() {
+  const payload = {
+    creator_id: String(resolveCreatorId() || ""),
+    event_name: selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event",
+    event_type: selectedEvent.value?.type
+      || selectedEvent.value?.eventType
+      || selectedEvent.value?.raw?.type
+      || selectedEvent.value?.raw?.eventType
+      || "1on1-call",
+    action: "created",
+  };
+
+  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -491,7 +532,21 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       return;
     }
 
-    fireAndForgetReminderNotify();
+    const bookingId = result?.data?.bookingId
+      || result?.data?.id
+      || result?.data?.item?.bookingId
+      || result?.data?.booking?.bookingId
+      || props.engine.getState('fanBooking.booking.bookingId')
+      || props.engine.getState('fanBooking.booking.result.bookingId')
+      || props.engine.getState('fanBooking.booking.result.item.bookingId')
+      || null;
+    const eventId = result?.data?.eventId
+      || result?.data?.item?.eventId
+      || selectedEvent.value?.eventId
+      || null;
+
+    fireAndForgetCreateSchedule({ bookingId, eventId });
+    fireAndForgetBookingCreated();
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
