@@ -349,14 +349,15 @@ function formatValidationErrors(errors = []) {
   });
 }
 
-function notifyEventCreated({ creatorId, eventName }) {
+function notifyEventCreated({ creatorId, eventName, eventType }) {
   const payload = {
     creator_id: creatorId,
     event_name: eventName,
+    event_type: eventType,
     action: "created",
   };
 
-  const endpoint = "https://new-stage.fansocial.app/wp-json/api/bookings/notify";
+  const endpoint = "https://new-stage.fansocial.app/wp-json/api/event/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -411,6 +412,7 @@ const createEvent = async () => {
       notifyEventCreated({
         creatorId: resolveCreatorId(),
         eventName: String(formData.value.eventTitle || "").trim() || "Untitled Event",
+        eventType: props.engine.getState("eventType") || "1on1-call",
       });
 
       await router.push({

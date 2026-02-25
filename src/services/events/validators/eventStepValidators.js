@@ -7,6 +7,28 @@ function asError(field, message) {
   return { field, message };
 }
 
+function hasAnyValidSlots(slots) {
+  if (!Array.isArray(slots)) return false;
+  return slots.some((slot) => {
+    const start = typeof slot?.startTime === "string" ? slot.startTime.trim() : "";
+    const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
+    return start.length > 0 && end.length > 0;
+  });
+}
+
+function hasAtLeastOneWeeklySlot(state = {}) {
+  const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
+  return weekly.some((day) => {
+    if (day?.unavailable) return false;
+    return hasAnyValidSlots(day?.slots);
+  });
+}
+
+function hasAtLeastOneOneTimeSlot(state = {}) {
+  const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
+  return oneTime.some((entry) => hasAnyValidSlots(entry?.slots));
+}
+
 function asArray(value) {
   if (Array.isArray(value)) return value.filter((item) => item !== null && item !== undefined && item !== "");
   if (typeof value === "string") {
@@ -33,6 +55,15 @@ export function step1Validator(state = {}) {
   const basePrice = asNumber(state?.basePrice);
   if (basePrice == null || basePrice < 0) {
     errors.push(asError("basePrice", "Base price must be 0 or higher."));
+  }
+
+  const repeatRule = state?.repeatRule || "weekly";
+  if (repeatRule === "doesNotRepeat") {
+    if (!hasAtLeastOneOneTimeSlot(state)) {
+      errors.push(asError("oneTimeAvailability", "Add at least one available slot before continuing."));
+    }
+  } else if (!hasAtLeastOneWeeklySlot(state)) {
+    errors.push(asError("weeklyAvailability", "Add at least one available slot before continuing."));
   }
 
   return { errors };
