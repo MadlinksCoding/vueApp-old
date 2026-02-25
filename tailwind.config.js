@@ -667,6 +667,26 @@ export default {
           "50%": { backgroundColor: "rgba(173,173,173,0.7)" },
           "100%": { backgroundColor: "rgba(173,173,173,1)" },
         },
+        profileCrossfade: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        driftLeft: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(50%)" },
+        },
+        driftRight: {
+          "0%": { transform: "translateX(0%)" },
+          "100%": { transform: "translateX(-70%)" },
+        },
+        driftLeftDesktop: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(15%)" },
+        },
+        driftRightDesktop: {
+          "0%": { transform: "translateX(0%)" },
+          "100%": { transform: "translateX(-25%)" },
+        },
       },
       animation: {
         bouncedown: "bouncedown 0.1s ease forwards",
@@ -675,6 +695,11 @@ export default {
         slidefromright: "slideFromRight 0.5s ease-in forwards",
         borealisBar: "borealisBar 2s linear infinite",
         "skeleton-loading": "skeletonLoading 1.3s ease infinite",
+        profileCrossfade: "profileCrossfade 500ms linear forwards",
+        driftLeft: "driftLeft 3s linear forwards",
+        driftRight: "driftRight 3s linear forwards",
+        driftLeftDesktop: "driftLeftDesktop 3s linear forwards",
+        driftRightDesktop: "driftRightDesktop 3s linear forwards",
       },
       gridTemplateColumns: {
         5: "repeat(5, minmax(0, 1fr))",

@@ -70,9 +70,9 @@ const profileSeeMorePopupConfig = computed(() => {
         :config="profileSeeMorePopupConfig">
 
         <div
-            className="w-full md:w-[720px] h-[519px] p-6 bg-black/50 backdrop-blur-xl inline-flex flex-col justify-start items-start gap-4">
-            <div className="self-stretch inline-flex justify-start items-center gap-2">
-                <div className="flex-1 justify-start text-white text-2xl font-semibold font-['Poppins'] leading-8">
+            class="w-full md:w-[720px] h-[519px] p-6 bg-black/50 backdrop-blur-xl inline-flex flex-col justify-start items-start gap-4">
+            <div class="self-stretch inline-flex justify-start items-center gap-2">
+                <div class="flex-1 justify-start text-white text-2xl font-semibold font-['Poppins'] leading-8">
                     Jenny’ Playhouse</div>
                 <div @click="emit('update:modelValue', false)"
                     class="w-8 h-8 relative overflow-hidden flex justify-center items-center cursor-pointer">
@@ -82,7 +82,7 @@ const profileSeeMorePopupConfig = computed(() => {
                     </svg>
                 </div>
             </div>
-            <div className="self-stretch flex-1 justify-start">
+            <div class="self-stretch flex-1 justify-start">
                 <span class="text-white text-base font-normal font-['Poppins'] leading-6"> I love eating! watch me eat
                     different food every 8pm EST time👅!Here is Jenny’s bio. I love eating! I I love eating! watch me
                     eat different food every 8pm EST time👅!Here is Jenny’s bio. I love eating! watch me eat different
