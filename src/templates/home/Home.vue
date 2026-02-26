@@ -37,6 +37,8 @@ const handleHeroSlideChange = (index) => {
         <div class="relative z-0">
             <MainNavbar />
 
+            
+
             <main>
                 <HeroSection @slideChange="handleHeroSlideChange" />
                 <AboutSection />

@@ -23,7 +23,7 @@ onUnmounted(() => {
 
 <template>
     <nav :class="[
-        'sticky top-0 left-0 flex justify-between items-center gap-6 p-2 w-full bg-[linear-gradient(180deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0)_100%)] z-[100] transition-all duration-300 md:px-6 md:py-4',
+        'sticky md:relative top-0 left-0 flex justify-between items-center gap-6 p-2 w-full bg-[linear-gradient(180deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0)_100%)] z-[100] transition-all duration-300 md:px-6 md:py-4',
         { 'bg-black/20 backdrop-blur-[10px]': isScrolling }
     ]">
         <div class="flex items-center gap-[3.375rem] opacity-70">
@@ -33,6 +33,7 @@ onUnmounted(() => {
                     class="w-full [filter:brightness(0)_saturate(100%)_invert(96%)_sepia(93%)_saturate(12%)_hue-rotate(312deg)_brightness(92%)_contrast(97%)]">
             </div>
 
+ 
             <ul class="hidden md:flex items-center gap-[3.375rem]">
                 <li class="flex justify-center items-center w-max">
                     <a href="#"

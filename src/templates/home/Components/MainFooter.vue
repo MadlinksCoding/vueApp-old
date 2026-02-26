@@ -11,7 +11,8 @@
                     <p class="text-xs leading-normal break-all text-[#A9A29D] dark:text-[#aea79c]">
                         support@ourwebsite.app</p>
                 </a>
-
+                
+    
                 <a href="#" class="flex items-center gap-2 cursor-pointer">
                     <img loading="lazy" src="https://i.ibb.co.com/JWGHSqrz/question-circle.webp" alt="question circle"
                         class="w-6 h-6 min-w-[1.5rem]">

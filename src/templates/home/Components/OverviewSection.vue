@@ -10,6 +10,8 @@
                 streams and platform exclusive events. Make online connections more intimate than ever.</p>
         </section>
 
+
+        
         <!-- image-container -->
         <div class="w-full aspect-[1.561/1] md:max-w-[36.25rem] md:mx-auto lg:w-1/2">
             <img loading="lazy" src="https://i.ibb.co.com/99t1wvzN/all-screen-preview.webp" alt="all screen preview"

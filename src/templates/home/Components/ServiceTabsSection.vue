@@ -37,7 +37,7 @@ const setTab = (id) => {
             <div class="flex flex-col gap-6">
                 <!-- tab-buttons -->
                 <div
-                    class="flex items-center gap-6 px-4 py-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:px-12">
+                    class="flex items-center justify-center gap-6 px-4 py-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:px-12">
                     <ul class="flex items-center gap-2 xl:gap-4">
                         <li v-for="tab in tabs" :key="tab.id" @click="setTab(tab.id)"
                             :class="['flex justify-center items-center gap-2.5 px-5 py-2 bg-[#FCFCFD] rounded-[6.25rem] shadow-[0px_3px_16.8px_0px_#0C111D26] cursor-pointer group/tab-button xl:px-8 xl:py-4 dark:bg-[#191c1d]', { 'bg-[#07F468] dark:bg-[#06c454] tab-active': activeTab === tab.id }]">
