@@ -4,7 +4,7 @@
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
-  import ThumbnailUploader from "../../global/media/uploader/HelperComponents/ThumbnailUploader.vue";
+  import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
@@ -69,7 +69,8 @@
     requestExtendSession: props.engine.state.requestExtendSession || false,
     setBufferTime: props.engine.state.setBufferTime || false,
     setMaxBookings: props.engine.state.setMaxBookings || false,
-    allowWaitlist: props.engine.state.allowWaitlist || false
+    allowWaitlist: props.engine.state.allowWaitlist || false,
+    eventImageUrl: props.engine.state.eventImageUrl || "",
   });
 
   // Watch for changes and update engine state
@@ -79,6 +80,11 @@
       props.engine.setState(key, newVal[key], { silent: true });
     });
   }, { deep: true });
+
+  const onEventImageUploaded = ({ media_urls }) => {
+    formData.value.eventImageUrl = Array.isArray(media_urls) ? media_urls[0] : media_urls;
+  };
+
   const quillEditor = ref(null);
 
   // Accordion State
@@ -635,7 +641,41 @@
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">Event Image </span><span
                 class="text-gray-500 text-xs italic font-normal leading-none">Optional</span></div>
             <div class="w-full">
-              <ThumbnailUploader subtitle="or drag and drop" fileInfo="SVG, PNG, JPG or GIF (max. 800x400px)" />
+              <!-- Uploaded image preview with delete button -->
+              <div v-if="formData.eventImageUrl" class="relative mb-2">
+                <img
+                  :src="formData.eventImageUrl"
+                  alt="Event image preview"
+                  class="w-full rounded-xl object-cover max-h-40"
+                />
+                <button
+                  type="button"
+                  class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 hover:bg-red-700 flex items-center justify-center transition-colors"
+                  aria-label="Remove image"
+                  @click="formData.eventImageUrl = ''"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <ThumbnailUploaderNay
+                v-if="!formData.eventImageUrl"
+                custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-2 h-[12.1875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
+                input-wrapper-class="border-2 border-dashed border-transparent"
+                button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
+                button-icon-wrapper-class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-green-500 rounded-lg h-10 w-10 flex justify-center items-center hover:bg-black"
+                button-parent-wrapper-class="flex flex-col items-center justify-center gap-3"
+                button-text="Click to upload"
+                button-text-class="font-semibold text-gray-900 cursor-pointer"
+                drop-text="or drag and drop"
+                drop-text-class="text-sm font-normal leading-5 text-gray-500 text-center"
+                custom-allowed-types="SVG, PNG, JPG or GIF"
+                custom-max-size="800x400px"
+                eenable-image-compression="true"
+                format-text-class="text-gray-500 text-xs leading-[1.125rem] text-center mb-0"
+                @media-uploaded="onEventImageUploaded"
+              />
             </div>
           </div>
         </div>

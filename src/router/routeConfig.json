@@ -752,6 +752,13 @@
     "preLoadSections": []
   },
   {
+    "slug": "/dev/thumbnail-uploader-nay",
+    "section": "misc",
+    "requiresAuth": false,
+    "supportedRoles": [],
+    "componentPath": "@/components/ui/global/media/uploader/HelperComponents/ThumbnailUploaderNayExample.vue"
+  },
+  {
     "slug": "/:pathMatch(.*)*",
     "redirect": "/404"
   }
