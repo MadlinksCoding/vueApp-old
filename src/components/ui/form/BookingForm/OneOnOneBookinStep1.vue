@@ -429,6 +429,18 @@
     formData.value.selectedEndTime = firstSlot.endTime;
   }
 
+  function getTotalWeeklySlotCount() {
+    return weekDays.value.reduce((count, day) => (
+      count + (Array.isArray(day?.slots) ? day.slots.length : 0)
+    ), 0);
+  }
+
+  function getTotalOneTimeSlotCount() {
+    return oneTimeDates.value.reduce((count, entry) => (
+      count + (Array.isArray(entry?.slots) ? entry.slots.length : 0)
+    ), 0);
+  }
+
   function addDayAvailability(dayIndex) {
     const day = weekDays.value[dayIndex];
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
@@ -449,6 +461,7 @@
   function removeWeeklySlot(dayIndex, slotIndex) {
     const day = weekDays.value[dayIndex];
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
+    if (!Array.isArray(day.slots) || getTotalWeeklySlotCount() <= 1) return;
 
     day.slots.splice(slotIndex, 1);
     if (day.slots.length === 0) {
@@ -495,13 +508,7 @@
   function removeOneTimeSlot(dateIndex, slotIndex) {
     const dateEntry = oneTimeDates.value[dateIndex];
     if (!dateEntry) return;
-
-    if (dateEntry.slots.length <= 1) {
-      if (oneTimeDates.value.length > 1) {
-        removeOneTimeDate(dateIndex);
-      }
-      return;
-    }
+    if (!Array.isArray(dateEntry.slots) || getTotalOneTimeSlotCount() <= 1) return;
 
     dateEntry.slots.splice(slotIndex, 1);
     syncAvailabilityToForm();
@@ -990,8 +997,8 @@
                     <div class="pl-1 flex justify-start items-center gap-2">
                       <button type="button" @click="removeWeeklySlot(index, sIdx)"
                         class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
+                        :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
+                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }"
                         title="Remove availability">
                         -
                       </button>
@@ -1068,6 +1075,8 @@
                     </option>
                   </select>
                   <button type="button" @click="removeOneTimeSlot(entryIndex, slotIndex)"
+                    :disabled="getTotalOneTimeSlotCount() <= 1"
+                    :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalOneTimeSlotCount() <= 1 }"
                     class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">-</button>
                   <button type="button" @click="addOneTimeSlot(entryIndex)"
                     class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">+</button>
@@ -1143,7 +1152,7 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium leading-normal">sessions maximum</div>
-                    <div class="justify-center text-black text-xs font-medium leading-none">(30 minutes)</div>
+                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration * formData.extendSessionMax }} minutes)</div>
                   </div>
                 </div>
               </div>
