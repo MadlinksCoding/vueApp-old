@@ -5,6 +5,7 @@
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
   import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
+  import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";

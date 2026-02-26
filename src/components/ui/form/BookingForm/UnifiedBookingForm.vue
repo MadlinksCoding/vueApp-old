@@ -590,7 +590,7 @@ const formTitle = computed(() => {
         <ToastHost />
         <div class="flex w-full">
             <div
-                class="flex h-full flex-col gap-6 relative w-full md:w-[500px] md:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl">
+                class="flex h-full flex-col gap-6 relative w-full md:w-[520px] md:min-w-[520px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl">
 
                 <div class="px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center">
                     <div class="justify-start text-slate-700 text-base font-semibold leading-6">
