@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
@@ -8,11 +8,13 @@ import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
+import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
+import { DUMMY_SPENDING_REQUIREMENT_PRODUCTS } from "@/services/events/mock/spendingRequirementProducts.mock.js";
 
 const props = defineProps(["engine"]);
 const router = useRouter();
@@ -43,6 +45,34 @@ function normalizeSelectionArray(value) {
   return [];
 }
 
+function normalizeRequiredProducts(value) {
+  if (!Array.isArray(value)) return [];
+
+  const deduped = new Map();
+  value.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const id = String(item.id || "").trim();
+    const type = String(item.type || "").trim().toLowerCase();
+    if (!id || !type) return;
+
+    const key = `${type}:${id}`;
+    if (deduped.has(key)) return;
+
+    deduped.set(key, {
+      id,
+      type,
+      title: String(item.title || "").trim(),
+      tokenPrice: Number.isFinite(Number(item.tokenPrice)) ? Number(item.tokenPrice) : 0,
+      usdPrice: Number.isFinite(Number(item.usdPrice)) ? Number(item.usdPrice) : 0,
+      thumbnailUrl: String(item.thumbnailUrl || "").trim(),
+      tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
+      actionLabel: String(item.actionLabel || "").trim() || "Buy",
+    });
+  });
+
+  return Array.from(deduped.values());
+}
+
 const formData = ref({
   allowRecording: props.engine.state.allowRecording || false,
   recordingPrice: props.engine.state.recordingPrice || "",
@@ -53,9 +83,10 @@ const formData = ref({
   whoCanBook: props.engine.state.whoCanBook || "everyone",
   subscriptionTiers: normalizeSelectionArray(props.engine.state.subscriptionTiers),
   invitedUsers: normalizeSelectionArray(props.engine.state.invitedUsers),
+  inviteSecret: props.engine.state.inviteSecret || "",
   spendingRequirement: props.engine.state.spendingRequirement || "none",
   minSpendTokens: props.engine.state.minSpendTokens || "",
-  requiredProductIds: props.engine.state.requiredProductIds || "",
+  requiredProducts: normalizeRequiredProducts(props.engine.state.requiredProducts),
   xPostLive: props.engine.state.xPostLive || false,
   xPostBooked: props.engine.state.xPostBooked || false,
   xPostInSession: props.engine.state.xPostInSession || false,
@@ -72,6 +103,7 @@ watch(formData, (newVal) => {
 const subscriptionTierOptions = ref([]);
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
+const subscriptionTierDropdownOpen = ref(false);
 let subscriptionTierAbortController = null;
 
 const inviteSearchQuery = ref("");
@@ -89,6 +121,9 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
+const INVITE_LINK_BASE_URL = "https://fansocial.app/event-invite";
+const spendingProductPopupOpen = ref(false);
+const spendingRequirementProductItems = ref(DUMMY_SPENDING_REQUIREMENT_PRODUCTS);
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -149,6 +184,32 @@ function toggleSubscriptionTier(tierId) {
   formData.value.subscriptionTiers = existing;
 }
 
+function isAllSubscriptionTiersSelected() {
+  if (!Array.isArray(subscriptionTierOptions.value) || subscriptionTierOptions.value.length === 0) {
+    return false;
+  }
+  return subscriptionTierOptions.value.every((tier) => (
+    formData.value.subscriptionTiers.some((item) => String(item) === String(tier.id))
+  ));
+}
+
+function toggleAllSubscriptionTiers() {
+  if (isAllSubscriptionTiersSelected()) {
+    formData.value.subscriptionTiers = [];
+    return;
+  }
+  formData.value.subscriptionTiers = subscriptionTierOptions.value.map((tier) => tier.id);
+}
+
+function getSubscriptionTierDropdownLabel() {
+  const selectedCount = Array.isArray(formData.value.subscriptionTiers)
+    ? formData.value.subscriptionTiers.length
+    : 0;
+  if (selectedCount === 0) return "All Tiers";
+  if (selectedCount === 1) return "1 Tier selected";
+  return `${selectedCount} Tiers selected`;
+}
+
 function toggleInvitedUser(user) {
   if (!user || user.id === undefined || user.id === null) return;
   const userId = user.id;
@@ -174,6 +235,57 @@ function removeInvitedUser(userId) {
   formData.value.invitedUsers = existing.filter((item) => String(item) !== String(userId));
 }
 
+function generateInviteSecret() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const randomPart = Math.random().toString(36).slice(2, 12);
+  return `${Date.now()}-${randomPart}`;
+}
+
+const inviteLink = computed(() => {
+  const secret = String(formData.value.inviteSecret || "").trim();
+  return secret ? `${INVITE_LINK_BASE_URL}/${secret}` : `${INVITE_LINK_BASE_URL}/`;
+});
+
+async function copyInviteLink() {
+  const value = inviteLink.value;
+  if (!value || value.endsWith("/")) {
+    showToast({
+      type: "error",
+      title: "Invite Link",
+      message: "Invite link is not ready yet.",
+    });
+    return;
+  }
+
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    showToast({
+      type: "success",
+      title: "Invite Link",
+      message: "Invite link copied.",
+    });
+  } catch (error) {
+    showToast({
+      type: "error",
+      title: "Invite Link",
+      message: "Could not copy invite link.",
+    });
+  }
+}
+
 function toggleBlockedUser(user) {
   if (!user || user.id === undefined || user.id === null) return;
   const userId = user.id;
@@ -197,6 +309,18 @@ function removeBlockedUser(userId) {
     ? [...formData.value.blockedUsers]
     : [];
   formData.value.blockedUsers = existing.filter((item) => String(item) !== String(userId));
+}
+
+function getRequiredProductKey(product = {}) {
+  return `${String(product?.type || "").trim().toLowerCase()}:${String(product?.id || "").trim()}`;
+}
+
+function openSpendingProductPopup() {
+  spendingProductPopupOpen.value = true;
+}
+
+function onConfirmSpendingProducts(selectedItems = []) {
+  formData.value.requiredProducts = normalizeRequiredProducts(selectedItems);
 }
 
 function resolveCreatorId() {
@@ -293,8 +417,16 @@ async function runBlockedUserSearch(query) {
 }
 
 watch(() => formData.value.whoCanBook, (whoCanBook) => {
+  if (whoCanBook === "inviteOnly" && !String(formData.value.inviteSecret || "").trim()) {
+    formData.value.inviteSecret = generateInviteSecret();
+  }
+
   if (whoCanBook === "subscribersOnly" && subscriptionTierOptions.value.length === 0 && !subscriptionTiersLoading.value) {
     loadSubscriptionTierOptions();
+  }
+
+  if (whoCanBook !== "subscribersOnly") {
+    subscriptionTierDropdownOpen.value = false;
   }
 
   if (whoCanBook !== "inviteOnly") {
@@ -526,10 +658,10 @@ const createEvent = async () => {
               class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
               <option value="everyone">Everyone</option>
               <option value="subscribersOnly">Subscribers only</option>
-              <option value="inviteOnly">Invite only</option>
+              <option value="inviteOnly">Only those invited</option>
             </select>
 
-            <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2">
+            <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2 relative">
               <div class="text-slate-700 text-sm font-medium">
                 Select subscription tiers
               </div>
@@ -542,24 +674,48 @@ const createEvent = async () => {
               <div v-else-if="subscriptionTierOptions.length === 0" class="text-slate-500 text-sm">
                 No active tiers found for this creator.
               </div>
-              <div v-else class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2">
-                <label
-                  v-for="tier in subscriptionTierOptions"
-                  :key="`tier-${tier.id}`"
-                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+              <div v-else class="relative">
+                <button
+                  type="button"
+                  @click="subscriptionTierDropdownOpen = !subscriptionTierDropdownOpen"
+                  class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base flex items-center justify-between"
                 >
-                  <input
-                    type="checkbox"
-                    :checked="formData.subscriptionTiers.some((item) => String(item) === String(tier.id))"
-                    @change="toggleSubscriptionTier(tier.id)"
-                    class="h-4 w-4"
-                  />
-                  <span class="text-slate-700 text-sm">{{ tier.label }}</span>
-                </label>
+                  <span>{{ getSubscriptionTierDropdownLabel() }}</span>
+                  <span class="text-slate-500 text-xs">▼</span>
+                </button>
+
+                <div
+                  v-if="subscriptionTierDropdownOpen"
+                  class="absolute z-20 mt-1 w-full max-h-52 overflow-y-auto rounded border border-gray-200 bg-white shadow-md"
+                >
+                  <label class="flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-gray-100">
+                    <input
+                      type="checkbox"
+                      :checked="isAllSubscriptionTiersSelected()"
+                      @change="toggleAllSubscriptionTiers"
+                      class="h-4 w-4"
+                    />
+                    <span class="text-slate-700 text-sm">All Tiers</span>
+                  </label>
+                  <label
+                    v-for="tier in subscriptionTierOptions"
+                    :key="`tier-${tier.id}`"
+                    class="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="formData.subscriptionTiers.some((item) => String(item) === String(tier.id))"
+                      @change="toggleSubscriptionTier(tier.id)"
+                      class="h-4 w-4"
+                    />
+                    <span class="text-slate-700 text-sm">{{ tier.label }}</span>
+                  </label>
+                </div>
               </div>
             </div>
 
             <div v-if="formData.whoCanBook === 'inviteOnly'" class="mt-3 flex flex-col gap-2">
+              <!-- Temporarily disabled: manual invite-user search, using invite link only for now.
               <div class="text-slate-700 text-sm font-medium">
                 Invite specific users
               </div>
@@ -569,7 +725,28 @@ const createEvent = async () => {
                 placeholder="Search users by username"
                 inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
               />
+              -->
 
+              <div class="text-slate-700 text-sm font-medium pt-1">
+                Invite link
+              </div>
+              <div class="w-full inline-flex items-center gap-2">
+                <input
+                  :value="inviteLink"
+                  type="text"
+                  readonly
+                  class="flex-1 bg-white/75 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-sm"
+                />
+                <button
+                  type="button"
+                  class="shrink-0 px-3 py-2 rounded border border-slate-300 bg-white/80 text-slate-700 text-sm font-semibold hover:bg-white"
+                  @click="copyInviteLink"
+                >
+                  Copy Link
+                </button>
+              </div>
+
+              <!-- Temporarily disabled: manual invite-user dropdown and selected chips.
               <div v-if="inviteUsersLoading" class="text-slate-500 text-sm">
                 Searching users...
               </div>
@@ -616,6 +793,7 @@ const createEvent = async () => {
                   <span class="text-slate-500">x</span>
                 </button>
               </div>
+              -->
             </div>
           </div>
         </div>
@@ -630,25 +808,49 @@ const createEvent = async () => {
             <select v-model="formData.spendingRequirement"
               class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
               <option value="none">None</option>
-              <option value="minSpend">Minimum spend</option>
-              <option value="mustOwnProducts">Must own products</option>
+              <option value="minSpend" disabled>User need to spend minimum amount to join</option>
+              <option value="mustOwnProducts">User need to buy specific product(s) to join</option>
             </select>
             <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
               <BaseInput type="number" placeholder="Minimum spend in tokens" v-model="formData.minSpendTokens"
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
             </div>
-            <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1">
-              <BaseInput type="text" placeholder="Required product IDs (comma separated)"
-                v-model="formData.requiredProductIds"
-                inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+            <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
+              <ButtonComponent
+                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? 'Switch Product' : 'Add Product'"
+                variant="none"
+                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
+                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
+                @click="openSpendingProductPopup"
+              />
+
+              <div
+                v-if="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0"
+                class="flex flex-col gap-2"
+              >
+                <div
+                  v-for="product in formData.requiredProducts"
+                  :key="getRequiredProductKey(product)"
+                  class="flex items-center gap-2 rounded border border-gray-200 bg-white/70 p-2"
+                >
+                  <img
+                    :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
+                    :alt="product.title || 'Product'"
+                    class="h-10 w-14 rounded object-cover"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold text-slate-800 truncate">
+                      {{ product.title || `${product.type} ${product.id}` }}
+                    </div>
+                    <div class="text-[11px] text-slate-500 capitalize">
+                      {{ product.type }} · {{ product.tokenPrice || 0 }} tokens
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <ButtonComponent text="add-on service" variant="none"
-            customClass="group bg-gray-900 flex justify-center items-center gap-2 min-w-14 px-2 py-1
-        text-center justify-start text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-            :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'" :leftIconClass="`
-        w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]
-       `" />
         </div>
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
@@ -779,6 +981,12 @@ const createEvent = async () => {
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
   </div>
+  <SpendingRequirementProductPopup
+    v-model="spendingProductPopupOpen"
+    :items="spendingRequirementProductItems"
+    :selected-items="formData.requiredProducts"
+    @confirm="onConfirmSpendingProducts"
+  />
   <div class="absolute right-0 bottom-0">
     <ButtonComponent @click="createEvent" :disabled="isCreating" text="CREATE EVENT" variant="polygonLeft"
       :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`

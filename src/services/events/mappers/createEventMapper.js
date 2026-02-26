@@ -332,6 +332,7 @@ function applyAudienceConstraints(mapped, payload = {}) {
 
   if (mapped.whoCanBook === "inviteOnly") {
     mapped.invitedUsers = stringToArray(payload.invitedUsers);
+    withOptionalField(mapped, "inviteSecret", nonEmptyString(payload.inviteSecret, ""));
   }
 }
 
@@ -341,7 +342,41 @@ function applySpendingConstraints(mapped, payload = {}) {
   }
 
   if (mapped.spendingRequirement === "mustOwnProducts") {
-    mapped.productIds = stringToArray(payload.requiredProductIds || payload.productIds);
+    const source = Array.isArray(payload.requiredProducts) ? payload.requiredProducts : [];
+    const normalized = [];
+    const seen = new Set();
+
+    source.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const id = nonEmptyString(item.id, "");
+      const type = nonEmptyString(item.type, "").toLowerCase();
+      if (!id || !type) return;
+
+      const key = `${type}:${id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const normalizedItem = {
+        id,
+        type,
+        title: nonEmptyString(item.title, `Product ${id}`),
+        tokenPrice: pickNumeric(item.tokenPrice, 0),
+        usdPrice: pickNumeric(item.usdPrice, 0),
+        tags: Array.isArray(item.tags)
+          ? item.tags.map((tag) => nonEmptyString(tag, "")).filter(Boolean)
+          : [],
+        actionLabel: nonEmptyString(item.actionLabel, "Buy"),
+      };
+
+      const thumbnailUrl = nonEmptyString(item.thumbnailUrl, "");
+      if (thumbnailUrl) {
+        normalizedItem.thumbnailUrl = thumbnailUrl;
+      }
+
+      normalized.push(normalizedItem);
+    });
+
+    mapped.requiredProducts = normalized;
   }
 }
 

@@ -94,9 +94,20 @@ export function step2Validator(state = {}) {
   }
 
   if (state?.whoCanBook === "inviteOnly") {
-    const invitedUsers = asArray(state?.invitedUsers);
-    if (invitedUsers.length === 0) {
-      errors.push(asError("invitedUsers", "Please select at least one invited user."));
+    const inviteSecret = typeof state?.inviteSecret === "string"
+      ? state.inviteSecret.trim()
+      : "";
+    if (!inviteSecret) {
+      errors.push(asError("inviteSecret", "Invite link is not ready yet. Please try again."));
+    }
+  }
+
+  if (state?.spendingRequirement === "mustOwnProducts") {
+    const requiredProducts = Array.isArray(state?.requiredProducts)
+      ? state.requiredProducts.filter((item) => item && item.id && item.type)
+      : [];
+    if (requiredProducts.length === 0) {
+      errors.push(asError("requiredProducts", "Please add at least one product for spending requirement."));
     }
   }
 
