@@ -460,11 +460,11 @@ const createEvent = async () => {
           </div>
           <div class="inline-flex gap-2">
             <div class="w-6" />
-            <div class="opacity-50 inline-flex flex-col">
+            <div :class="['inline-flex flex-col',!formData.allowRecording ? 'opacity-50':'opacity-100']">
               <div class="inline-flex justify-end items-center gap-2">
-                <BaseInput type="number" placeholder="15" v-model="formData.recordingPrice"
+                <BaseInput type="number" placeholder="" v-model="formData.recordingPrice"
                   :disabled="!formData.allowRecording"
-                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal">
                   Tokens
                 </div>

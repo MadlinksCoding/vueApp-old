@@ -598,7 +598,7 @@
           <div class="flex w-full">
             <div class="flex-1">
               <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
-                inputClass="px-3.5 text-gray-500 text-gray-500 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
+                inputClass="px-3.5 text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
             <select v-model="formData.eventColorSkin"
               class="h-[45px] bg-white/50 border-l text-sm px-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none min-w-[140px]">
@@ -684,7 +684,7 @@
       <BookingSectionsWrapper title="Session Duration" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-[30px]'>
           <div class="flex items-center gap-2 mt-3 ">
-            <BaseInput type="number" placeholder="15" v-model="formData.duration"
+            <BaseInput type="number" placeholder="" v-model="formData.duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             <div class=" text-black text-base font-medium leading-normal">Minutes</div>
           </div>
@@ -692,13 +692,14 @@
             <CheckboxGroup v-model="formData.allowLongerSessions" label="Allow user to book longer sessions"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
-            <div class="opacity-50 ml-6">
+            <div :class="['ml-6 transition-opacity duration-200',
+                        !formData.allowLongerSessions ? 'opacity-50' : 'opacity-100']">
               <div class="w-full text-gray-500 text-sm font-medium leading-tight">Maximum Session Allowed</div>
               <div class="flex items-center gap-1.5 ">
                 <div class="">
-                  <BaseInput type="number" placeholder="15" v-model="formData.maxSessionDuration"
+                  <BaseInput type="number" placeholder="" v-model="formData.maxSessionDuration"
                     :disabled="!formData.allowLongerSessions"
-                    inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
                 <div class="flex flex-col">
                   <div class="justify-center text-black text-base font-medium leading-normal">Sessions</div>
@@ -718,7 +719,7 @@
               Base Price
             </div>
             <div class="flex items-center gap-2">
-              <BaseInput type="number" placeholder="15" v-model="formData.basePrice"
+              <BaseInput type="number" placeholder="" v-model="formData.basePrice"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
               <div class="flex gap-2 items-center">
                 <span class="text-black text-base font-medium font-['Poppins'] leading-normal">Tokens </span><span
@@ -736,10 +737,10 @@
             <div class="self-stretch inline-flex justify-start items-start gap-2">
               <div class="w-6 h-6" />
               <div class="inline-flex flex-col justify-start items-start gap-2">
-                <div class="opacity-50 inline-flex justify-end items-center gap-2">
-                  <BaseInput type="number" placeholder="15" v-model="formData.sessionMinimum"
+                <div :class="['inline-flex justify-end items-center gap-2',!formData.enableLongerDiscount? 'opacity-50':'opacity-100']">
+                  <BaseInput type="number" placeholder="" v-model="formData.sessionMinimum"
                     :disabled="!formData.enableLongerDiscount"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       sessions minimum
@@ -749,10 +750,10 @@
                     </div>
                   </div>
                 </div>
-                <div class="opacity-50 inline-flex justify-end items-center gap-2">
-                  <BaseInput type="number" placeholder="15" v-model="formData.discountPercentage"
+                <div :class="['inline-flex justify-end items-center gap-2',!formData.enableLongerDiscount? 'opacity-50':'opacity-100']">
+                  <BaseInput type="number" placeholder="" v-model="formData.discountPercentage"
                     :disabled="!formData.enableLongerDiscount"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       % off base price
@@ -773,18 +774,32 @@
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3" />
 
-              <div class="mt-[2px]">
-                <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+              <div class="mt-[2px] relative group inline-block">
+                <img
+                  src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                  alt=""
+                  class="cursor-pointer"
+                />
+                <!-- Tooltip -->
+                <div
+                  class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                        bg-white text-gray-800 text-xs font-medium
+                        px-3 py-2 rounded-md shadow-lg border border-gray-200
+                        opacity-0 group-hover:opacity-100
+                        transition-opacity duration-200 pointer-events-none z-50"
+                >
+                  This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment.
+                </div>
               </div>
             </div>
 
             <div class="inline-flex justify-start items-start gap-2">
               <div class="w-6 h-10" />
               <div class="inline-flex flex-col justify-center items-start gap-2">
-                <div class="opacity-50 inline-flex justify-start items-center gap-2">
-                  <BaseInput type="number" placeholder="15" v-model="formData.bookingFee"
+                <div :class="['inline-flex justify-start items-center gap-2',!formData.enableBookingFee? 'opacity-50':'opacity-100']">
+                  <BaseInput type="number" placeholder="" v-model="formData.bookingFee"
                     :disabled="!formData.enableBookingFee"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="w-14 justify-start text-black text-base font-medium font-['Poppins'] leading-normal">
                     Tokens
                   </div>
@@ -800,14 +815,28 @@
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
 
-                <div class="mt-[2px]">
-                  <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-                </div>
+                 <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      bookings without personal requests will be approved automatically.
+                    </div>
+                  </div>
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-6" />
-                <div class="flex-1 opacity-50 inline-flex flex-col justify-start items-start gap-2">
+                <div :class="['flex-1 inline-flex flex-col justify-start items-start gap-2',!formData.allowInstantBooking ? 'opacity-50':'opacity-100']">
                   <div class="self-stretch inline-flex justify-end items-center gap-2">
                     <div
                       class="flex-1 justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
@@ -831,18 +860,32 @@
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" />
 
-                <div class="mt-[2px]">
-                  <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-                </div>
+                <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      A rescheduling fee will be charged if a confirmed booking is changed.
+                    </div>
+                  </div>
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
-                <div class="opacity-50 inline-flex flex-col justify-start items-start">
+                <div :class="['inline-flex flex-col justify-start items-start',!formData.enableRescheduleFee ? 'opacity-50':'opacity-100']">
                   <div class="inline-flex justify-end items-center gap-2">
-                    <BaseInput type="number" placeholder="15" v-model="formData.rescheduleFee"
+                    <BaseInput type="number" placeholder="" v-model="formData.rescheduleFee"
                       :disabled="!formData.enableRescheduleFee"
-                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
 
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
                       Tokens
@@ -860,13 +903,27 @@
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" />
 
-                <div class="mt-[2px]">
-                  <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-                </div>
+                <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call.
+                    </div>
+                  </div>
               </div>
-              <div class="self-stretch inline-flex justify-start items-start gap-2">
+              <div :class="['self-stretch inline-flex justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
                 <div class="w-6 h-10" />
-                <div class="opacity-50 inline-flex flex-col justify-start items-start">
+                <div class="inline-flex flex-col justify-start items-start">
                   <div class="inline-flex justify-end items-center gap-2">
                     <BaseInput type="number" placeholder="15" v-model="formData.cancellationFee"
                       :disabled="!formData.enableCancellationFee"
@@ -879,17 +936,17 @@
               </div>
             </div>
 
-            <div class="ml-7 opacity-50 flex flex-col justify-start items-start gap-2">
+            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 label="User can cancel in advance to void minimum charge"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3" />
-              <div class="flex items-center gap-2">
+              <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
                 <div class="flex items-center gap-2">
                   <BaseInput type="number" placeholder="15" v-model="formData.advanceVoid"
                     :disabled="!formData.allowAdvanceCancellation"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal">
                   in advance
@@ -902,18 +959,18 @@
 
       <BookingSectionsWrapper title="Off-hour Surcharge" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         titleIcon="https://i.ibb.co/HD78k3Sf/Icon.png">
-        <div class="self-stretch inline-flex justify-start items-center gap-2 mt-5">
+        <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" label="Add"
             checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
             labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
-          <div class="flex-1 opacity-50 inline-flex flex-col justify-start items-start">
+          <div class="flex-1 inline-flex flex-col justify-start items-start">
             <div class="inline-flex justify-end items-center gap-2">
-              <BaseInput type="number" placeholder="15" v-model="formData.offHourSurcharge"
+              <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-black text-base font-medium leading-normal">% from base price</div>
-                <div class="justify-center text-black text-xs font-medium leading-none">(1,600 tokens/session)</div>
+                <div class="justify-center text-gray-700 text-base font-medium leading-normal">% from base price</div>
+                <div class="justify-center text-gray-700 text-xs font-medium leading-none">(1,600 tokens/session)</div>
               </div>
             </div>
           </div>
@@ -1179,17 +1236,33 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">
                   Fan can request to extend session in call</div>
-                <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+                 <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined.
+                    </div>
+                  </div>
               </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup v-model="formData.requestExtendSession"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
-                <div class="opacity-50 flex justify-start items-end gap-2">
-                  <BaseInput type="number" placeholder="15" v-model="formData.extendSessionMax"
+                <div :class="['flex justify-start items-end gap-2',!formData.requestExtendSession ? 'opacity-50':'opacity-100']">
+                  <BaseInput type="number" placeholder="" v-model="formData.extendSessionMax"
                     :disabled="!formData.requestExtendSession"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium leading-normal">sessions maximum</div>
                     <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration * formData.extendSessionMax }} minutes)</div>
@@ -1211,18 +1284,34 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">Call reminder</div>
-                <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+                <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      Reminders will be sent to notify you of upcoming appointments.
+                    </div>
+                  </div>
               </div>
               <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-2 mt-2" />
-              <div class="self-stretch flex flex-col justify-start items-start">
+              <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
                 <div class=" inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
-                  <BaseInput type="number" placeholder="15" v-model="formData.remindMeTime"
+                  <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
                     :disabled="!formData.setReminders"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">minutes before
                     a
                   </div>
@@ -1239,18 +1328,34 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div>
+              <div class="mt-[2px] relative group inline-block">
+                    <img
+                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
+                      alt=""
+                      class="cursor-pointer"
+                    />
+                    <!-- Tooltip -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
+                            bg-white text-gray-800 text-xs font-medium
+                            px-3 py-2 rounded-md shadow-lg border border-gray-200
+                            opacity-0 group-hover:opacity-100
+                            transition-opacity duration-200 pointer-events-none z-50"
+                    >
+                      Reminders will be sent to notify you of upcoming appointments.
+                    </div>
+                  </div>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
-              <div class="opacity-50 flex justify-start items-end gap-2">
-                <BaseInput type="number" placeholder="15" v-model="formData.bufferTime"
+              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50':'opacity-100']">
+                <BaseInput type="number" placeholder="" v-model="formData.bufferTime"
                   :disabled="!formData.setBufferTime"
-                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="w-44 inline-flex flex-col justify-start items-start gap-1.5">
                   <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                     <select v-model="formData.bufferUnit" :disabled="!formData.setBufferTime"
-                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none disabled:cursor-not-allowed">
                       <option value="minutes">Minutes</option>
                       <option value="hours">Hours</option>
                     </select>
