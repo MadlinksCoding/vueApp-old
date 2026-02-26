@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import ProfileCallPopup from './popups/profileCallPopup.vue';
+import ProfileCallPopup from './popups/ProfileCallPopup.vue';
 import TipPopup from './popups/TipPopup.vue';
 
 const isCallPopupOpen = ref(false);
