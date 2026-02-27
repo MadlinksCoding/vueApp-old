@@ -60,7 +60,7 @@ const localIsAnonymous = computed({
                 <div class="flex items-center gap-2">
                     <img src="https://i.ibb.co.com/VprH7dBg/token-tip-svg.webp" alt="token-tip-svg" class="w-12 h-12">
                     <input type="number" v-model="localTokenAmount"
-                        class="token-input w-full border-none bg-transparent outline-none text-text-primary dark:text-text-dark-primary text-[2.5rem] font-semibold leading-[3.75rem] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                        class="token-input w-full border-none outline-none bg-transparent text-text-primary dark:text-text-dark-primary text-[2.5rem] font-semibold leading-[3.75rem] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
                 </div>
                 <span
                     class="text-lg font-semibold pb-[0.313rem] text-text-primary dark:text-text-dark-primary">tokens</span>
