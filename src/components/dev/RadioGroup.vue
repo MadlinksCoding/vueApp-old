@@ -4,41 +4,46 @@
       {{ label }}
     </label>
     <div class="space-y-2">
-     <Radio
-  v-for="option in options"
-  :key="option.value"
-  :model-value="modelValue"
-  :value="option.value"
-  :name="name"
-  :label="option.label"
-  :id="`${name}-${option.value}`"
-  :version="version"
-  :radio-label-class="radioLabelClass"
-  @update:model-value="$emit('update:modelValue', $event)"
-/>
+      <Radio v-for="option in options" :key="option.value" :model-value="modelValue" :value="option.value" :name="name"
+        :label="option.label" :id="`${name}-${option.value}`" :version="version" :radio-label-class="radioLabelClass"
+        @update:model-value="$emit('update:modelValue', $event)" />
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import Radio from './Radio.vue'
 
-interface RadioOption {
-  value: string | number
-  label: string
-}
+const props = defineProps({
+  modelValue: {
+    type: [String, Number],
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
+  },
+  label: {
+    type: String,
+    default: ""
+  },
+  options: {
+    type: Array,
+    required: true
+  },
+  version: {
+    type: String,
+    required: true
+  },
+  radioLabelClass: {
+    type: String,
+    default: ""
+  },
+  labelClass: {
+    type: String,
+    default: ""
+  }
+})
 
-const props = defineProps<{
-  modelValue: string | number
-  name: string
-  label?: string
-  options: RadioOption[]
-  version: string
-  radioLabelClass?: string
-  labelClass?: string
-}>()
-
-defineEmits<{
-  'update:modelValue': [value: string | number]
-}>()
+defineEmits(['update:modelValue'])
 </script>

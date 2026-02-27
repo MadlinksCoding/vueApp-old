@@ -59,41 +59,52 @@
   </transition>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, ref, watch } from "vue";
 
-const props = withDefaults(
-  defineProps<{
-    variant?: "notice" | "alert" | "success" | "error" | "info" | "warning" | "limit-exceeded";
-    title?: string;
-    description?: string;
-    linkLabel?: string;
-    linkHref?: string;
-    icon?: any;
-    showIcon?: boolean;
-    closable?: boolean;
-    modelValue?: boolean; // controls open/close externally
-  }>(),
-  {
-    variant: "notice",
-    title: "",
-    description: "",
-    linkLabel: "",
-    linkHref: "",
-    showIcon: true,
-    closable: true,
-    modelValue: true,
-  }
-);
+const props = defineProps({
+  variant: {
+    type: String,
+    default: "notice",
+    validator: (value) => ["notice", "alert", "success", "error", "info", "warning", "limit-exceeded"].includes(value),
+  },
+  title: {
+    type: String,
+    default: "",
+  },
+  description: {
+    type: String,
+    default: "",
+  },
+  linkLabel: {
+    type: String,
+    default: "",
+  },
+  linkHref: {
+    type: String,
+    default: "",
+  },
+  icon: {
+    type: [Object, Function, String],
+  },
+  showIcon: {
+    type: Boolean,
+    default: true,
+  },
+  closable: {
+    type: Boolean,
+    default: true,
+  },
+  modelValue: {
+    type: Boolean,
+    default: true,
+  },
+});
 
-const emit = defineEmits<{
-  (e: "update:modelValue", v: boolean): void;
-  (e: "close"): void;
-  (e: "link"): void;
-}>();
+const emit = defineEmits(["update:modelValue", "close", "link"]);
 
 // Local open state to support both controlled and uncontrolled usages
-const isOpen = ref<boolean>(props.modelValue);
+const isOpen = ref(props.modelValue);
 watch(
   () => props.modelValue,
   (v) => {
@@ -163,7 +174,7 @@ const palettes = {
     iconBg: "bg-transparent", // Transparent since we might use a custom icon or no bg
     iconStroke: "stroke-[#FF4405] text-[#FF4405]",
   },
-} as const;
+};
 
 const variantConfig = computed(() => {
   const p = palettes[props.variant];

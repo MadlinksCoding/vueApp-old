@@ -5,8 +5,7 @@
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
   import ThumbnailUploader from "../../global/media/uploader/HelperComponents/ThumbnailUploader.vue";
-  import Quill from 'quill';
-  import 'quill/dist/quill.snow.css';
+  import QuillEditor from "@/components/dev/input/QuillEditor.vue";
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -57,7 +56,7 @@
       props.engine.setState(key, newVal[key], { silent: true });
     });
   }, { deep: true });
-  const quillEditor = ref(null);
+
 
   // Accordion State
   const sectionsState = ref({
@@ -73,50 +72,7 @@
     props.engine.goToStep(2);
   };
 
-  onMounted(() => {
-    // Quill Setup (Preserved exactly as provided)
-    const icons = Quill.import('ui/icons');
-    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold" style="width:30px;">';
-    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="italic" style="width:30px;">';
-    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="link" style="width:30px;">';
-    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="ol" style="width:30px;">';
-    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="ul" style="width:30px;">';
 
-    new Quill(quillEditor.value, {
-      modules: { toolbar: [['bold', 'italic', 'link', { 'list': 'ordered' }, { 'list': 'bullet' }]] },
-      placeholder: "Event Description...",
-      theme: 'snow'
-    });
-
-    // Set initial content if exists
-    if (formData.value.eventDescription) {
-      quillEditor.value.firstChild.innerHTML = formData.value.eventDescription;
-    }
-
-    // Listen for text changes
-    quillEditor.value.firstChild.addEventListener('input', () => {
-      formData.value.eventDescription = quillEditor.value.firstChild.innerHTML;
-    });
-
-    const container = quillEditor.value.closest('.tier-description-quill-container');
-    const toolbar = container.querySelector('.ql-toolbar.ql-snow');
-    if (toolbar) {
-      toolbar.style.border = 'none';
-      toolbar.classList.add('!px-0', '!pt-0', '!pb-2');
-      toolbar.querySelectorAll('button').forEach(b => {
-        b.classList.add('!w-auto', '!min-w-[30px]', '!h-auto', '!p-1', 'rounded', 'hover:!bg-[#F9FAFB]', 'dark:hover:!bg-[#323232]', 'flex', 'items-center', 'justify-center');
-      });
-    }
-    const editorContainer = container.querySelector('.ql-container.ql-snow');
-    if (editorContainer) {
-      editorContainer.style.border = 'none';
-      editorContainer.classList.add('!font-sans', '!text-base');
-    }
-    const editor = container.querySelector('.ql-editor');
-    if (editor) {
-      editor.classList.add('!px-0', '!py-2', '!text-[#101828]', 'dark:!text-[#dbd8d3]', 'min-h-[80px]');
-    }
-  });
 
   // Configuration for each day row
   const weekDays = ref([
@@ -186,10 +142,7 @@
               class="h-[45px] bg-white/50 border-l text-sm px-2 inline-flex flex-col justify-center items-center gap-1.5 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300">
               Todo</div>
           </div>
-          <div
-            class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
-            <div ref="quillEditor"></div>
-          </div>
+          <QuillEditor v-model="formData.eventDescription" placeholder="Event Description..." />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
               <div class="text-slate-700 text-xs font-normal leading-none">Call Type</div>

@@ -189,6 +189,7 @@
 <script setup>
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
+import ButtonBase from "@/components/dev/button/ButtonBase.vue";
 import LoadingTest from "@/components/LoadingTest.vue";
 import Cookies from "@/components/ui/badge/dashboard/Cookies.vue";
 import Cart from "@/components/ui/Cart.vue";

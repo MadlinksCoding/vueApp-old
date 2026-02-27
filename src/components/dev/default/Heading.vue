@@ -10,7 +10,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed } from "vue";
 import { resolveAllConfigs } from "@/utils/componentRenderingUtils";
 
@@ -18,14 +18,14 @@ const props = defineProps({
   text: { type: String, required: true },
 
   tag: {
-    type: String as () => "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
+    type: String,
     default: "h2",
   },
 
   theme: { type: String, default: "defaultSecondaryHeading" },
 
   version: {
-    type: String as () => "basic" | "dashboard" | "profile" | "authentication",
+    type: String,
     default: "basic",
   },
 
@@ -39,13 +39,13 @@ const props = defineProps({
   addClass: String,
   removeClass: Boolean,
   addAttributes: Object,
-  removeAttributes: { type: Array as () => string[], default: () => [] },
+  removeAttributes: { type: Array, default: () => [] },
 
-  wrapperOverrides: { type: Array as () => any[], default: () => [] },
+  wrapperOverrides: { type: Array, default: () => [] },
 });
 
 // Tailwind classes matrix (themes × h1–h6)
-const themeClasses: Record<string, Record<string, string>> = {
+const themeClasses = {
   defaultPrimaryHeading: {
     h1: "text-4xl font-bold text-text dark:text-text-dark tracking-tight",
     h2: "text-3xl font-bold text-text dark:text-text-dark tracking-tight",
@@ -85,10 +85,10 @@ const themeClasses: Record<string, Record<string, string>> = {
   formHeading: {
     h4: "text-base font-[600] font-semibold leading-[24px] text-[#344054]",
   },
-  profileFeed:{
-    h2:"text-xl leading-normal font-medium text-white drop-shadow-[0px_0px_10px_-34px_#0000001A]"
+  profileFeed: {
+    h2: "text-xl leading-normal font-medium text-white drop-shadow-[0px_0px_10px_-34px_#0000001A]"
   },
-   demoHeadings: {
+  demoHeadings: {
     h1: "text-3xl font-bold ",
     h2: "text-2xl font-semibold",
     h3: "text-xl font-medium",
@@ -96,8 +96,8 @@ const themeClasses: Record<string, Record<string, string>> = {
     h5: "text-base font-normal",
     h6: "text-sm font-normal",
   },
-  orderHeading:{
-    h1:"text-[#475467] text-[30px] font-[500] dark:text-[#ACBACF]"
+  orderHeading: {
+    h1: "text-[#475467] text-[30px] font-[500] dark:text-[#ACBACF]"
   }
 };
 

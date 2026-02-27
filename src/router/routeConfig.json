@@ -533,7 +533,7 @@
     "requiresAuth": false,
     "enabled": false,
     "supportedRoles": [],
-    "componentPath": "@ /templates/about/AboutWrapper.vue",
+    "componentPath": "@/templates/about/AboutWrapper.vue",
     "preLoadSections": ["dashboard"]
   },
   {

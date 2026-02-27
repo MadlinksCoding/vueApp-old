@@ -3,12 +3,8 @@
     <div v-bind="resolvedAttrs.wrapperAttrs.wrapper2">
       <!-- Optional Left Icon -->
       <template v-if="leftIcon">
-        <img
-          v-if="typeof leftIcon === 'string'"
-          :src="leftIcon"
-          :alt="text + ' icon'"
-          :class="[iconSize, iconSpacing]"
-        />
+        <img v-if="typeof leftIcon === 'string'" :src="leftIcon" :alt="text + ' icon'"
+          :class="[iconSize, iconSpacing]" />
         <component v-else :is="leftIcon" :class="[iconSize, iconSpacing]" />
       </template>
 
@@ -20,7 +16,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed } from "vue";
 import { resolveAllConfigs } from "@/utils/componentRenderingUtils";
 
@@ -39,10 +35,10 @@ const props = defineProps({
   addClass: String,
   removeClass: Boolean,
   addAttributes: Object,
-  removeAttributes: { type: Array as () => string[], default: () => [] },
+  removeAttributes: { type: Array, default: () => [] },
 
   version: { type: String, default: "" },
-  wrapperOverrides: { type: Array as () => any[], default: () => [] },
+  wrapperOverrides: { type: Array, default: () => [] },
 
   // style props
   fontSize: { type: String, default: "text-base" },
