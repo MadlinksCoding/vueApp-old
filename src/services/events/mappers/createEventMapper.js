@@ -380,6 +380,34 @@ function applySpendingConstraints(mapped, payload = {}) {
   }
 }
 
+function normalizeAddOns(addOns = []) {
+  const source = Array.isArray(addOns) ? addOns : [];
+  const normalized = [];
+
+  source.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+
+    const title = nonEmptyString(item.title || item.name, "");
+    const description = typeof item.description === "string"
+      ? item.description.trim()
+      : "";
+    const priceTokens = pickNumeric(item.priceTokens ?? item.tokens ?? item.price, null);
+
+    const hasAnyValue = title || description || priceTokens !== null;
+    if (!hasAnyValue) return;
+    if (!title) return;
+    if (priceTokens === null || priceTokens < 0) return;
+
+    normalized.push({
+      title,
+      description,
+      priceTokens,
+    });
+  });
+
+  return normalized;
+}
+
 function buildLateStartPolicy(payload = {}) {
   const action = nonEmptyString(payload.lateStartAction, "reschedule");
   const policy = { action };
@@ -433,6 +461,7 @@ function mapBasePayload(payload = {}, context = {}) {
     socialAutoPost: buildSocialAutoPost(payload),
     blockedUsers: stringToArray(payload.blockedUsers || payload.blockedUserSearch),
     coHosts: stringToArray(payload.coHosts || payload.coPerformerSearch),
+    addOns: normalizeAddOns(payload.addOns),
 
     allowFanRecordingEnabled: asBoolean(payload.allowRecording, false),
     allowPersonalRequestRequired: asBoolean(payload.allowPersonalRequest, false),
