@@ -114,6 +114,10 @@ const showApprovalNeeded = computed(() => {
   return !instant;
 });
 
+const isPreviewReadOnly = computed(() => (
+  Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
+));
+
 function toWholeTokens(value) {
   const numeric = Number(value || 0);
   return Math.ceil(Number.isFinite(numeric) ? numeric : 0);
@@ -247,6 +251,10 @@ const canProceedToPayment = computed(() => {
     && !selectedTime.value.disabled
   );
 });
+
+const bottomActionDisabled = computed(() => (
+  isPreviewReadOnly.value || !canProceedToPayment.value
+));
 
 const formattedTimeRange = computed(() => {
   if (!state.selected || !selectedTime.value) return '-';
@@ -421,6 +429,10 @@ const toggleAddon = (index) => {
 };
 
 const goToNextStep = () => {
+  if (isPreviewReadOnly.value) {
+    return;
+  }
+
   if (!state.selected) {
     showToast({
       type: 'error',
@@ -757,16 +769,18 @@ onMounted(() => {
 
         <div v-if="state.selected && hasAvailableSlots" class="flex-none flex justify-end">
           <button
-            :disabled="!canProceedToPayment"
+            :disabled="bottomActionDisabled"
             @click="goToNextStep"
           >
             <div
               class="relative w-[14.625rem] p-[12px] rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
-              :class="canProceedToPayment
+              :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
                 : 'bg-[#07F468]/40 cursor-not-allowed after:border-r-[1rem] after:border-r-[#07F468]/40'"
             >
-              <p class="text-lg leading-[28px] text-black text-center font-medium">CONTINUE</p>
+              <p class="text-lg leading-[28px] text-black text-center font-medium">
+                {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'CONTINUE' }}
+              </p>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img src="/images/arrow-right.svg" alt="arrow-right-icon" />
               </div>

@@ -40,6 +40,14 @@ function asArray(value) {
   return [];
 }
 
+function hasAnyAddonValue(addOn = {}) {
+  const title = typeof addOn?.title === "string" ? addOn.title.trim() : "";
+  const description = typeof addOn?.description === "string" ? addOn.description.trim() : "";
+  const priceRaw = addOn?.priceTokens;
+  const hasPrice = priceRaw !== null && priceRaw !== undefined && String(priceRaw).trim() !== "";
+  return Boolean(title || description || hasPrice);
+}
+
 export function step1Validator(state = {}) {
   const errors = [];
 
@@ -110,6 +118,21 @@ export function step2Validator(state = {}) {
       errors.push(asError("requiredProducts", "Please add at least one product for spending requirement."));
     }
   }
+
+  const addOns = Array.isArray(state?.addOns) ? state.addOns : [];
+  addOns.forEach((addOn, index) => {
+    if (!hasAnyAddonValue(addOn)) return;
+
+    const title = typeof addOn?.title === "string" ? addOn.title.trim() : "";
+    if (!title) {
+      errors.push(asError(`addOns.${index}.title`, `Add-on service ${index + 1} title is required.`));
+    }
+
+    const price = asNumber(addOn?.priceTokens);
+    if (price == null || price < 0) {
+      errors.push(asError(`addOns.${index}.priceTokens`, `Add-on service ${index + 1} price must be 0 or higher.`));
+    }
+  });
 
   return { errors };
 }

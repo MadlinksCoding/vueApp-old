@@ -73,11 +73,26 @@ function normalizeRequiredProducts(value) {
   return Array.from(deduped.values());
 }
 
+function normalizeAddOns(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      title: String(item.title || "").trim(),
+      description: String(item.description || "").trim(),
+      priceTokens: item.priceTokens === null || item.priceTokens === undefined
+        ? ""
+        : String(item.priceTokens),
+    }));
+}
+
 const formData = ref({
   allowRecording: props.engine.state.allowRecording || false,
   recordingPrice: props.engine.state.recordingPrice || "",
   allowPersonalRequest: props.engine.state.allowPersonalRequest || false,
   personalRequestNote: props.engine.state.personalRequestNote || "",
+  addOns: normalizeAddOns(props.engine.state.addOns),
   blockedUsers: normalizeSelectionArray(props.engine.state.blockedUsers || props.engine.state.blockedUserSearch),
   coPerformerSearch: props.engine.state.coPerformerSearch || "",
   whoCanBook: props.engine.state.whoCanBook || "everyone",
@@ -313,6 +328,23 @@ function removeBlockedUser(userId) {
 
 function getRequiredProductKey(product = {}) {
   return `${String(product?.type || "").trim().toLowerCase()}:${String(product?.id || "").trim()}`;
+}
+
+function addAddOnService() {
+  const current = Array.isArray(formData.value.addOns) ? [...formData.value.addOns] : [];
+  current.push({
+    title: "",
+    description: "",
+    priceTokens: "",
+  });
+  formData.value.addOns = current;
+}
+
+function removeAddOnService(index) {
+  const current = Array.isArray(formData.value.addOns) ? [...formData.value.addOns] : [];
+  if (index < 0 || index >= current.length) return;
+  current.splice(index, 1);
+  formData.value.addOns = current;
 }
 
 function openSpendingProductPopup() {
@@ -633,12 +665,84 @@ const createEvent = async () => {
             different outfits and do different actions in the call.
           </div>
 
-          <ButtonComponent text="add-on service" variant="none"
-            customClass="group bg-gray-900 flex justify-center items-center gap-2 min-w-14 px-2 py-1
-        text-center justify-start text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-            :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
-        w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]
-        rounded-sm  outline outline-[1.50px] outline-offset-[-0.75px] `" />
+          <div v-if="!Array.isArray(formData.addOns) || formData.addOns.length === 0" class="inline-flex">
+            <button
+              type="button"
+              class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+              @click="addAddOnService"
+            >
+              <img
+                src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
+                alt=""
+                class="w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)] rounded-sm outline outline-[1.50px] outline-offset-[-0.75px]"
+              />
+              <span>Add-On Service</span>
+            </button>
+          </div>
+
+          <div v-else class="flex flex-col gap-4">
+            <div
+              v-for="(addOn, index) in formData.addOns"
+              :key="`addon-${index}`"
+              class="flex flex-col gap-2"
+            >
+              <div class="inline-flex justify-between items-center">
+                <div class="text-[#667085] text-base font-semibold leading-normal">
+                  Add-on service {{ index + 1 }}
+                </div>
+                <button
+                  type="button"
+                  class="text-[#f15a24] text-[22px] leading-none"
+                  @click="removeAddOnService(index)"
+                >
+                  -
+                </button>
+              </div>
+
+              <BaseInput
+                type="text"
+                placeholder="Record the session"
+                v-model="addOn.title"
+                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+              />
+
+              <textarea
+                v-model="addOn.description"
+                rows="3"
+                placeholder="Description (Optional)"
+                class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
+              />
+
+              <div class="inline-flex items-center gap-2">
+                <BaseInput
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="15"
+                  v-model="addOn.priceTokens"
+                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+                />
+                <div class="text-slate-700 text-[16px] font-semibold whitespace-nowrap">
+                  Tokens
+                </div>
+              </div>
+            </div>
+
+            <div class="inline-flex">
+              <button
+                type="button"
+                class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                @click="addAddOnService"
+              >
+                <img
+                  src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
+                  alt=""
+                  class="w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)] rounded-sm outline outline-[1.50px] outline-offset-[-0.75px]"
+                />
+                <span>Add More Service</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </BookingSectionsWrapper>
