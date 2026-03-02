@@ -2,6 +2,8 @@ import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
+import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
+import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
   validateFetchCreatorEventsPayload,
   validateFetchCreatorEventsResponse,
@@ -115,6 +117,23 @@ export const flowRegistry = {
       uiErrorMap: {
         CREATE_EVENT_FAILED: "Could not create event. Please try again.",
         CREATE_EVENT_UNEXPECTED: "Unexpected error while creating event.",
+      },
+    },
+  },
+
+  "events.fetchSpendingRequirementItems": {
+    flowKind: "read",
+    flow: fetchSpendingRequirementItemsFlow,
+    mapper: { fromResponse: mapFetchSpendingRequirementItemsFromResponse },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 22000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1200, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      uiErrorMap: {
+        MISSING_CREATOR_ID: "Creator id is required before loading spending requirement items.",
+        MISSING_SPENDING_REQUIREMENT_TYPE: "Item type is required before loading spending requirement items.",
+        FETCH_SPENDING_REQUIREMENT_ITEMS_FAILED: "Could not load spending requirement items right now.",
+        FETCH_SPENDING_REQUIREMENT_ITEMS_UNEXPECTED: "Unexpected error while loading spending requirement items.",
       },
     },
   },
