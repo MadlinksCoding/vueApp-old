@@ -5,6 +5,7 @@ import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { showToast } from "@/utils/toastBus.js";
+import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
@@ -16,6 +17,11 @@ const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanUserId: { type: [Number, String], default: null },
   eventId: { type: [String, Number], default: null },
+  previewMode: { type: Boolean, default: false },
+  previewEvent: { type: Object, default: null },
+  previewBookedSlots: { type: Array, default: () => [] },
+  previewStartStep: { type: Number, default: 1 },
+  previewReadOnly: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue", "booking-created", "booking-failed"]);
@@ -84,6 +90,8 @@ const engine = createFlowStateEngine({
       ui: {
         catalogLoading: false,
         catalogError: "",
+        previewMode: false,
+        previewReadOnly: false,
       },
     },
   },
@@ -92,6 +100,44 @@ const engine = createFlowStateEngine({
 function toNumber(value, fallback = null) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function deepClone(value) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (error) {
+    return value;
+  }
+}
+
+function normalizePreviewStartStep(step) {
+  const parsed = Number(step);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function buildPreviewBookedSlotsIndex(previewEventId, bookedSlots = []) {
+  const index = buildBookedSlotsIndex(bookedSlots);
+  if (!previewEventId) return index;
+
+  const mergedByDate = {};
+  Object.values(index).forEach((byDate) => {
+    if (!byDate || typeof byDate !== "object") return;
+    Object.entries(byDate).forEach(([dateIso, rows]) => {
+      if (!Array.isArray(rows) || rows.length === 0) return;
+      if (!mergedByDate[dateIso]) mergedByDate[dateIso] = [];
+      rows.forEach((row) => {
+        mergedByDate[dateIso].push({ ...row });
+      });
+    });
+  });
+
+  Object.keys(mergedByDate).forEach((dateIso) => {
+    mergedByDate[dateIso].sort((left, right) => left.startMs - right.startMs);
+  });
+
+  index[previewEventId] = mergedByDate;
+  return index;
 }
 
 function resolveCreatorId() {
@@ -152,6 +198,8 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
 
   engine.setState("fanBooking.ui.catalogLoading", true, { reason: "catalog-load", silent: true });
   engine.setState("fanBooking.ui.catalogError", "", { reason: "catalog-load", silent: true });
+  engine.setState("fanBooking.ui.previewMode", false, { reason: "catalog-load", silent: true });
+  engine.setState("fanBooking.ui.previewReadOnly", false, { reason: "catalog-load", silent: true });
 
   const result = await engine.callFlow(
     "bookings.fetchCreatorBookingContext",
@@ -183,6 +231,82 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
   return result;
 }
 
+async function loadPreviewContext() {
+  const previewEvent = deepClone(props.previewEvent);
+  if (!previewEvent || typeof previewEvent !== "object") {
+    const message = "Preview event is not ready yet.";
+    engine.setState("fanBooking.ui.catalogError", message, { reason: "preview-load-failed", silent: true });
+    showToast({
+      type: "error",
+      title: "Preview Unavailable",
+      message,
+    });
+    return { ok: false, error: { message } };
+  }
+
+  syncBookingContext();
+
+  const previewEventId = String(previewEvent.eventId || previewEvent.id || `preview_event_${resolveCreatorId()}`);
+  previewEvent.id = previewEventId;
+  previewEvent.eventId = previewEventId;
+  previewEvent.status = previewEvent.status || "active";
+  previewEvent.raw = previewEvent.raw || {};
+  previewEvent.raw.eventId = previewEventId;
+  previewEvent.raw.status = previewEvent.raw.status || "active";
+
+  const previewBookedSlots = Array.isArray(props.previewBookedSlots)
+    ? deepClone(props.previewBookedSlots)
+    : [];
+  const previewBookedSlotsIndex = buildPreviewBookedSlotsIndex(previewEventId, previewBookedSlots);
+  const startStep = normalizePreviewStartStep(props.previewStartStep);
+  const isReadOnlyPreview = Boolean(props.previewReadOnly);
+
+  await engine.forceStep(startStep, { intent: "open-preview-popup" });
+  engine.forceSubstep(null, { intent: "open-preview-popup" });
+
+  engine.setState("fanBooking.catalog.cachedResponse", {
+    events: [previewEvent],
+    rawEvents: [previewEvent.raw || {}],
+    bookedSlots: previewBookedSlots,
+    bookedSlotsIndex: previewBookedSlotsIndex,
+    meta: { fetchedAt: Date.now(), source: "preview" },
+  }, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.catalog.events", [previewEvent], { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.catalog.rawEvents", [previewEvent.raw || {}], { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.catalog.bookedSlots", previewBookedSlots, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.catalog.bookedSlotsIndex", previewBookedSlotsIndex, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.catalog.meta", {
+    ...(engine.getState("fanBooking.catalog.meta") || {}),
+    fetchedAt: Date.now(),
+    updatedAt: Date.now(),
+    checkedAt: Date.now(),
+    source: "preview",
+  }, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.ui.catalogLoading", false, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.ui.catalogError", "", { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.ui.previewMode", true, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.ui.previewReadOnly", isReadOnlyPreview, { reason: "preview-load", silent: true });
+
+  if (startStep <= 1) {
+    engine.setState("fanBooking.context.selectedEventId", null, { reason: "preview-load", silent: true });
+    engine.setState("fanBooking.context.selectedEvent", null, { reason: "preview-load", silent: true });
+  } else {
+    engine.setState("fanBooking.context.selectedEventId", previewEventId, { reason: "preview-load", silent: true });
+    engine.setState("fanBooking.context.selectedEvent", previewEvent, { reason: "preview-load", silent: true });
+  }
+
+  engine.setState("fanBooking.temporaryHold", {
+    temporaryHoldId: null,
+    status: "none",
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+  }, { reason: "preview-load", silent: true });
+
+  return { ok: true };
+}
+
 function hasBookingCreated() {
   return Boolean(
     engine.getState("fanBooking.booking.bookingId")
@@ -199,6 +323,7 @@ function getActiveTemporaryHoldId() {
 }
 
 async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
+  if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) return;
   if (isReleasingHold.value) return;
   if (hasBookingCreated()) return;
 
@@ -248,6 +373,11 @@ watch(
       await releaseTemporaryHoldIfNeeded({ silent: true });
       return;
     }
+    if (props.previewMode) {
+      await loadPreviewContext();
+      return;
+    }
+
     await engine.forceStep(1, { intent: "open-popup" });
     engine.forceSubstep(null, { intent: "open-popup" });
     await loadBookingContext();
@@ -287,7 +417,7 @@ const oneOnOneBookingFlowPopupConfig = {
   lockScroll: false,
   escToClose: true,
   width: { default: "auto", "<500px": "90%" },
-  height: { default: "90%", "<768": "90%" },
+  height: { default: "auto" },
   scrollable: true,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -304,8 +434,8 @@ const oneOnOneBookingFlowPopupConfig = {
     <component 
       :is="currentStepComponent" 
       :engine="engine"
-      @close-popup="emit('update:modelValue', false)"
-      @retry-catalog="loadBookingContext({ forceRefresh: true })"
+      @close-popup="handlePopupModelValueUpdate(false)"
+      @retry-catalog="props.previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
     />
     <ToastHost />
   </PopupHandler>

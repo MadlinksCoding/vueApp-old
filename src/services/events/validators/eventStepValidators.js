@@ -40,6 +40,14 @@ function asArray(value) {
   return [];
 }
 
+function hasAnyAddonValue(addOn = {}) {
+  const title = typeof addOn?.title === "string" ? addOn.title.trim() : "";
+  const description = typeof addOn?.description === "string" ? addOn.description.trim() : "";
+  const priceRaw = addOn?.priceTokens;
+  const hasPrice = priceRaw !== null && priceRaw !== undefined && String(priceRaw).trim() !== "";
+  return Boolean(title || description || hasPrice);
+}
+
 export function step1Validator(state = {}) {
   const errors = [];
 
@@ -94,11 +102,37 @@ export function step2Validator(state = {}) {
   }
 
   if (state?.whoCanBook === "inviteOnly") {
-    const invitedUsers = asArray(state?.invitedUsers);
-    if (invitedUsers.length === 0) {
-      errors.push(asError("invitedUsers", "Please select at least one invited user."));
+    const inviteSecret = typeof state?.inviteSecret === "string"
+      ? state.inviteSecret.trim()
+      : "";
+    if (!inviteSecret) {
+      errors.push(asError("inviteSecret", "Invite link is not ready yet. Please try again."));
     }
   }
+
+  if (state?.spendingRequirement === "mustOwnProducts") {
+    const requiredProducts = Array.isArray(state?.requiredProducts)
+      ? state.requiredProducts.filter((item) => item && item.id && item.type)
+      : [];
+    if (requiredProducts.length === 0) {
+      errors.push(asError("requiredProducts", "Please add at least one product for spending requirement."));
+    }
+  }
+
+  const addOns = Array.isArray(state?.addOns) ? state.addOns : [];
+  addOns.forEach((addOn, index) => {
+    if (!hasAnyAddonValue(addOn)) return;
+
+    const title = typeof addOn?.title === "string" ? addOn.title.trim() : "";
+    if (!title) {
+      errors.push(asError(`addOns.${index}.title`, `Add-on service ${index + 1} title is required.`));
+    }
+
+    const price = asNumber(addOn?.priceTokens);
+    if (price == null || price < 0) {
+      errors.push(asError(`addOns.${index}.priceTokens`, `Add-on service ${index + 1} price must be 0 or higher.`));
+    }
+  });
 
   return { errors };
 }
