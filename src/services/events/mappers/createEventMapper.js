@@ -348,9 +348,9 @@ function applySpendingConstraints(mapped, payload = {}) {
 
     source.forEach((item) => {
       if (!item || typeof item !== "object") return;
-      const id = nonEmptyString(item.id, "");
+      const id = toNumberOr(item.id, null);
       const type = nonEmptyString(item.type, "").toLowerCase();
-      if (!id || !type) return;
+      if (id == null || !type) return;
 
       const key = `${type}:${id}`;
       if (seen.has(key)) return;
@@ -360,13 +360,20 @@ function applySpendingConstraints(mapped, payload = {}) {
         id,
         type,
         title: nonEmptyString(item.title, `Product ${id}`),
-        tokenPrice: pickNumeric(item.tokenPrice, 0),
-        usdPrice: pickNumeric(item.usdPrice, 0),
         tags: Array.isArray(item.tags)
           ? item.tags.map((tag) => nonEmptyString(tag, "")).filter(Boolean)
           : [],
-        actionLabel: nonEmptyString(item.actionLabel, "Buy"),
       };
+
+      const buyPrice = pickNumeric(item?.buyPrice, null);
+      if (buyPrice != null) {
+        normalizedItem.buyPrice = buyPrice;
+      }
+
+      const subscribePrice = pickNumeric(item?.subscribePrice, null);
+      if (subscribePrice != null) {
+        normalizedItem.subscribePrice = subscribePrice;
+      }
 
       const thumbnailUrl = nonEmptyString(item.thumbnailUrl, "");
       if (thumbnailUrl) {

@@ -5,9 +5,12 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   items: { type: Array, default: () => [] },
   selectedItems: { type: Array, default: () => [] },
+  loadingByType: { type: Object, default: () => ({}) },
+  hasMoreByType: { type: Object, default: () => ({}) },
+  errorByType: { type: Object, default: () => ({}) },
 });
 
-const emit = defineEmits(["update:modelValue", "confirm", "cancel"]);
+const emit = defineEmits(["update:modelValue", "confirm", "cancel", "tab-change", "load-more"]);
 
 const tabs = [
   { key: "media", label: "Media" },
@@ -29,9 +32,10 @@ function normalizeSelectedItems(items = []) {
 
   source.forEach((item) => {
     if (!item || typeof item !== "object") return;
-    const id = String(item.id || "").trim();
+    const parsedId = Number(item.id);
+    const id = Number.isFinite(parsedId) ? parsedId : null;
     const type = String(item.type || "").trim();
-    if (!id || !type) return;
+    if (id === null || !type) return;
 
     const key = `${type}:${id}`;
     if (map.has(key)) return;
@@ -40,11 +44,10 @@ function normalizeSelectedItems(items = []) {
       id,
       type,
       title: String(item.title || "").trim(),
-      tokenPrice: Number.isFinite(Number(item.tokenPrice)) ? Number(item.tokenPrice) : 0,
-      usdPrice: Number.isFinite(Number(item.usdPrice)) ? Number(item.usdPrice) : 0,
+      buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : 0,
+      subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : 0,
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
-      actionLabel: String(item.actionLabel || "").trim() || "Buy",
     });
   });
 
@@ -58,8 +61,13 @@ watch(
     draftSelected.value = normalizeSelectedItems(props.selectedItems);
     searchQuery.value = "";
     activeTab.value = "media";
+    emit("tab-change", "media");
   }
 );
+
+watch(activeTab, (tab) => {
+  emit("tab-change", tab);
+});
 
 const filteredItems = computed(() => {
   const source = Array.isArray(props.items) ? props.items : [];
@@ -75,6 +83,23 @@ const filteredItems = computed(() => {
     return title.includes(query) || tags.includes(query);
   });
 });
+
+const activeTabLoading = computed(() => Boolean(props.loadingByType?.[activeTab.value]));
+const activeTabHasMore = computed(() => Boolean(props.hasMoreByType?.[activeTab.value]));
+const activeTabError = computed(() => String(props.errorByType?.[activeTab.value] || ""));
+
+function handleListScroll(event) {
+  if (activeTabLoading.value || !activeTabHasMore.value || String(searchQuery.value || "").trim()) return;
+
+  const target = event?.target;
+  if (!target) return;
+
+  const thresholdPx = 56;
+  const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - thresholdPx;
+  if (nearBottom) {
+    emit("load-more", activeTab.value);
+  }
+}
 
 function isSelected(item) {
   const key = productKey(item);
@@ -147,8 +172,12 @@ function handleConfirm() {
           />
         </div>
 
-        <div class="max-h-[24rem] overflow-y-auto px-4 pb-3">
-          <div v-if="filteredItems.length === 0" class="py-8 text-center text-sm text-slate-500">
+        <div class="max-h-[24rem] overflow-y-auto px-4 pb-3" @scroll="handleListScroll">
+          <div v-if="activeTabError" class="py-4 text-center text-sm text-rose-600">
+            {{ activeTabError }}
+          </div>
+
+          <div v-if="filteredItems.length === 0 && !activeTabLoading" class="py-8 text-center text-sm text-slate-500">
             No products found for this tab.
           </div>
 
@@ -169,11 +198,25 @@ function handleConfirm() {
               <div class="p-2 bg-white">
                 <div class="text-xs font-semibold text-slate-800 line-clamp-2">{{ item.title }}</div>
                 <div class="mt-1 text-[11px] text-slate-500">{{ item.type }}</div>
-                <div class="mt-1 text-[11px] text-slate-700">
-                  {{ item.actionLabel }} {{ item.tokenPrice }} tokens
+                <div class="flex gap-3">
+                  <div v-if="item.buyPrice" class="mt-1 text-[11px] text-slate-700">
+                    Buy USD${{ item.buyPrice }}
+                  </div>
+
+                  <div v-if="item.subscribePrice" class="mt-1 text-[11px] text-slate-700">
+                    Subscribe USD${{ item.subscribePrice }}
+                  </div>
+
+                  <div v-if="!item.buyPrice && !item.subscribePrice" class="mt-1 text-[11px] text-slate-700">
+                    FREE
+                  </div>
                 </div>
               </div>
             </button>
+          </div>
+
+          <div v-if="activeTabLoading" class="py-4 text-center text-xs text-slate-500">
+            Loading more...
           </div>
         </div>
 

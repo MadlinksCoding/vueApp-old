@@ -14,7 +14,6 @@ import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
-import { DUMMY_SPENDING_REQUIREMENT_PRODUCTS } from "@/services/events/mock/spendingRequirementProducts.mock.js";
 
 const props = defineProps(["engine"]);
 const router = useRouter();
@@ -51,9 +50,10 @@ function normalizeRequiredProducts(value) {
   const deduped = new Map();
   value.forEach((item) => {
     if (!item || typeof item !== "object") return;
-    const id = String(item.id || "").trim();
+    const parsedId = Number(item.id);
+    const id = Number.isFinite(parsedId) ? parsedId : null;
     const type = String(item.type || "").trim().toLowerCase();
-    if (!id || !type) return;
+    if (id === null || !type) return;
 
     const key = `${type}:${id}`;
     if (deduped.has(key)) return;
@@ -62,11 +62,10 @@ function normalizeRequiredProducts(value) {
       id,
       type,
       title: String(item.title || "").trim(),
-      tokenPrice: Number.isFinite(Number(item.tokenPrice)) ? Number(item.tokenPrice) : 0,
-      usdPrice: Number.isFinite(Number(item.usdPrice)) ? Number(item.usdPrice) : 0,
+      buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : null,
+      subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : null,
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
-      actionLabel: String(item.actionLabel || "").trim() || "Buy",
     });
   });
 
@@ -136,9 +135,97 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
-const INVITE_LINK_BASE_URL = "https://fansocial.app/event-invite";
+const INVITE_LINK_BASE_URL = import.meta.env.VITE_BASE_URL + "/event-invite";
 const spendingProductPopupOpen = ref(false);
-const spendingRequirementProductItems = ref(DUMMY_SPENDING_REQUIREMENT_PRODUCTS);
+const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
+
+function emptySpendingCatalogState() {
+  return {
+    media: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+    subscription: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+    product: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+  };
+}
+
+function normalizeCatalogTabState(tabState = {}) {
+  return {
+    items: normalizeRequiredProducts(tabState.items),
+    loading: Boolean(tabState.loading),
+    error: String(tabState.error || ""),
+    hasMore: tabState.hasMore !== false,
+    totalCount: Number.isFinite(Number(tabState.totalCount)) ? Number(tabState.totalCount) : null,
+    offset: Math.max(0, Number.isFinite(Number(tabState.offset)) ? Number(tabState.offset) : 0),
+    count: Math.max(1, Number.isFinite(Number(tabState.count)) ? Number(tabState.count) : SPENDING_REQUIREMENT_PAGE_SIZE),
+    initialized: Boolean(tabState.initialized),
+  };
+}
+
+function normalizeSpendingCatalog(value = {}) {
+  const fallback = emptySpendingCatalogState();
+  return {
+    media: normalizeCatalogTabState(value.media || fallback.media),
+    subscription: normalizeCatalogTabState(value.subscription || fallback.subscription),
+    product: normalizeCatalogTabState(value.product || fallback.product),
+  };
+}
+
+const spendingRequirementCatalog = ref(
+  normalizeSpendingCatalog(props.engine.getState("events.spendingRequirementCatalog") || {})
+);
+
+const spendingRequirementProductItems = computed(() => {
+  const source = spendingRequirementCatalog.value || {};
+  return [
+    ...(source.media?.items || []),
+    ...(source.subscription?.items || []),
+    ...(source.product?.items || []),
+  ];
+});
+
+const spendingRequirementLoadingByType = computed(() => ({
+  media: Boolean(spendingRequirementCatalog.value?.media?.loading),
+  subscription: Boolean(spendingRequirementCatalog.value?.subscription?.loading),
+  product: Boolean(spendingRequirementCatalog.value?.product?.loading),
+}));
+
+const spendingRequirementHasMoreByType = computed(() => ({
+  media: Boolean(spendingRequirementCatalog.value?.media?.hasMore),
+  subscription: Boolean(spendingRequirementCatalog.value?.subscription?.hasMore),
+  product: Boolean(spendingRequirementCatalog.value?.product?.hasMore),
+}));
+
+const spendingRequirementErrorByType = computed(() => ({
+  media: String(spendingRequirementCatalog.value?.media?.error || ""),
+  subscription: String(spendingRequirementCatalog.value?.subscription?.error || ""),
+  product: String(spendingRequirementCatalog.value?.product?.error || ""),
+}));
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -351,6 +438,111 @@ function openSpendingProductPopup() {
   spendingProductPopupOpen.value = true;
 }
 
+function setCatalogTabState(type, nextState = {}) {
+  const current = normalizeSpendingCatalog(spendingRequirementCatalog.value || {});
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(current, safeType)) return;
+
+  current[safeType] = normalizeCatalogTabState({
+    ...current[safeType],
+    ...nextState,
+  });
+  spendingRequirementCatalog.value = current;
+  props.engine.setState("events.spendingRequirementCatalog", current, { reason: "spending-requirement-catalog", silent: true });
+}
+
+function mergeCatalogItems(existing = [], incoming = []) {
+  const merged = new Map();
+  normalizeRequiredProducts(existing).forEach((item) => {
+    merged.set(getRequiredProductKey(item), item);
+  });
+  normalizeRequiredProducts(incoming).forEach((item) => {
+    merged.set(getRequiredProductKey(item), item);
+  });
+  return Array.from(merged.values());
+}
+
+async function fetchSpendingRequirementTab(type, { append = false } = {}) {
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!["media", "subscription", "product"].includes(safeType)) return;
+
+  const currentTab = normalizeCatalogTabState(spendingRequirementCatalog.value?.[safeType] || {});
+  if (currentTab.loading) return;
+  if (append && !currentTab.hasMore) return;
+
+  setCatalogTabState(safeType, { loading: true, error: "" });
+
+  const creatorId = resolveCreatorId();
+  const payload = {
+    creatorId,
+    type: safeType,
+    count: currentTab.count || SPENDING_REQUIREMENT_PAGE_SIZE,
+    offset: append ? currentTab.offset : 0,
+  };
+
+  const flowResult = await props.engine.callFlow(
+    "events.fetchSpendingRequirementItems",
+    payload,
+    {
+      forceRefresh: true,
+      skipDestinationRead: true,
+      context: {
+        creatorId,
+        stateEngine: props.engine,
+      },
+    }
+  );
+
+  if (!flowResult?.ok) {
+    const message = flowResult?.meta?.uiErrors?.[0]
+      || flowResult?.error?.message
+      || "Could not load products.";
+    setCatalogTabState(safeType, {
+      loading: false,
+      error: message,
+      initialized: true,
+    });
+    return;
+  }
+
+  const responseData = flowResult.data || {};
+  const nextItems = normalizeRequiredProducts(responseData.items);
+  const mergedItems = append ? mergeCatalogItems(currentTab.items, nextItems) : nextItems;
+
+  setCatalogTabState(safeType, {
+    loading: false,
+    error: "",
+    initialized: true,
+    items: mergedItems,
+    offset: Number.isFinite(Number(responseData.nextOffset))
+      ? Number(responseData.nextOffset)
+      : mergedItems.length,
+    count: Number.isFinite(Number(responseData.count))
+      ? Number(responseData.count)
+      : currentTab.count,
+    totalCount: Number.isFinite(Number(responseData.totalCount))
+      ? Number(responseData.totalCount)
+      : null,
+    hasMore: responseData.hasMore !== false,
+  });
+}
+
+function ensureSpendingRequirementTabLoaded(type) {
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!["media", "subscription", "product"].includes(safeType)) return;
+  const tab = normalizeCatalogTabState(spendingRequirementCatalog.value?.[safeType] || {});
+  if (tab.initialized && Array.isArray(tab.items) && tab.items.length > 0) return;
+  fetchSpendingRequirementTab(safeType, { append: false });
+}
+
+function handleSpendingProductPopupTabChange(type) {
+  ensureSpendingRequirementTabLoaded(type);
+}
+
+function handleSpendingProductPopupLoadMore(type) {
+  fetchSpendingRequirementTab(type, { append: true });
+}
+
 function onConfirmSpendingProducts(selectedItems = []) {
   formData.value.requiredProducts = normalizeRequiredProducts(selectedItems);
 }
@@ -476,6 +668,24 @@ watch(() => formData.value.whoCanBook, (whoCanBook) => {
   }
 }, { immediate: true });
 
+watch(
+  () => formData.value.spendingRequirement,
+  (requirement) => {
+    if (requirement === "mustOwnProducts") {
+      ensureSpendingRequirementTabLoaded("media");
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => spendingProductPopupOpen.value,
+  (isOpen) => {
+    if (!isOpen) return;
+    ensureSpendingRequirementTabLoaded("media");
+  }
+);
+
 watch(inviteSearchQuery, (query) => {
   if (formData.value.whoCanBook !== "inviteOnly") return;
 
@@ -521,7 +731,7 @@ function notifyEventCreated({ creatorId, eventName, eventType }) {
     action: "created",
   };
 
-  const endpoint = "https://new-stage.fansocial.app/wp-json/api/event/create";
+  const endpoint = import.meta.env.VITE_BASE_URL + "/wp-json/api/event/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -947,8 +1157,22 @@ const createEvent = async () => {
                     <div class="text-xs font-semibold text-slate-800 truncate">
                       {{ product.title || `${product.type} ${product.id}` }}
                     </div>
-                    <div class="text-[11px] text-slate-500 capitalize">
-                      {{ product.type }} · {{ product.tokenPrice || 0 }} tokens
+                    <div class="flex gap-2">
+                      <div class="text-[11px] text-slate-500 capitalize">
+                        {{ product.type }}
+                      </div>
+
+                      <div v-if="product.buyPrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> Buy USD${{ product.buyPrice || 0 }}
+                      </div>
+
+                      <div v-if="product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> Subscribe USD${{ product.subscribePrice || 0 }}
+                      </div>
+
+                      <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> FREE
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1089,6 +1313,11 @@ const createEvent = async () => {
     v-model="spendingProductPopupOpen"
     :items="spendingRequirementProductItems"
     :selected-items="formData.requiredProducts"
+    :loading-by-type="spendingRequirementLoadingByType"
+    :has-more-by-type="spendingRequirementHasMoreByType"
+    :error-by-type="spendingRequirementErrorByType"
+    @tab-change="handleSpendingProductPopupTabChange"
+    @load-more="handleSpendingProductPopupLoadMore"
     @confirm="onConfirmSpendingProducts"
   />
   <div class="absolute right-0 bottom-0">

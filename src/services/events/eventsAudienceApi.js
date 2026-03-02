@@ -1,4 +1,5 @@
-const AUDIENCE_API_BASE_URL = "https://new-stage.fansocial.app/wp-json/api/users";
+const AUDIENCE_API_BASE_URL = import.meta.env.VITE_BASE_URL + "/wp-json/api/users";
+
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
