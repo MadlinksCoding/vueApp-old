@@ -10,12 +10,25 @@ import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSecti
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
+import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
 import { DUMMY_SPENDING_REQUIREMENT_PRODUCTS } from "@/services/events/mock/spendingRequirementProducts.mock.js";
+
+const whoCanBookOptions = [
+  { label: 'Everyone', value: 'everyone' },
+  { label: 'Subscribers only', value: 'subscribersOnly' },
+  { label: 'Invite only', value: 'inviteOnly' }
+];
+
+const spendingRequirementOptions = [
+  { label: 'None', value: 'none' },
+  { label: 'Minimum spend', value: 'minSpend' },
+  { label: 'Must own products', value: 'mustOwnProducts' }
+];
 
 const props = defineProps(["engine"]);
 const router = useRouter();
@@ -117,6 +130,12 @@ watch(formData, (newVal) => {
 }, { deep: true });
 
 const subscriptionTierOptions = ref([]);
+const subscriptionTierDropdownOptions = computed(() => {
+  return subscriptionTierOptions.value.map(tier => ({
+    label: tier.label,
+    value: tier.id
+  }));
+});
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
 const subscriptionTierDropdownOpen = ref(false);
@@ -758,12 +777,10 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Who can book a call?
             </div>
-            <select v-model="formData.whoCanBook"
-              class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
-              <option value="everyone">Everyone</option>
-              <option value="subscribersOnly">Subscribers only</option>
-              <option value="inviteOnly">Only those invited</option>
-            </select>
+            <CustomDropdown 
+              v-model="formData.whoCanBook" 
+              :options="whoCanBookOptions" 
+            />
 
             <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2 relative">
               <div class="text-slate-700 text-sm font-medium">
@@ -778,43 +795,19 @@ const createEvent = async () => {
               <div v-else-if="subscriptionTierOptions.length === 0" class="text-slate-500 text-sm">
                 No active tiers found for this creator.
               </div>
-              <div v-else class="relative">
-                <button
-                  type="button"
-                  @click="subscriptionTierDropdownOpen = !subscriptionTierDropdownOpen"
-                  class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base flex items-center justify-between"
+              <div v-else class="w-full">
+                <CustomDropdown
+                  v-model="formData.subscriptionTiers"
+                  :options="subscriptionTierDropdownOptions"
+                  :multiple="true"
+                  :hasCheckboxes="true"
                 >
-                  <span>{{ getSubscriptionTierDropdownLabel() }}</span>
-                  <span class="text-slate-500 text-xs">▼</span>
-                </button>
-
-                <div
-                  v-if="subscriptionTierDropdownOpen"
-                  class="absolute z-20 mt-1 w-full max-h-52 overflow-y-auto rounded border border-gray-200 bg-white shadow-md"
-                >
-                  <label class="flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-gray-100">
-                    <input
-                      type="checkbox"
-                      :checked="isAllSubscriptionTiersSelected()"
-                      @change="toggleAllSubscriptionTiers"
-                      class="h-4 w-4"
-                    />
-                    <span class="text-slate-700 text-sm">All Tiers</span>
-                  </label>
-                  <label
-                    v-for="tier in subscriptionTierOptions"
-                    :key="`tier-${tier.id}`"
-                    class="flex items-center gap-2 px-3 py-2 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="formData.subscriptionTiers.some((item) => String(item) === String(tier.id))"
-                      @change="toggleSubscriptionTier(tier.id)"
-                      class="h-4 w-4"
-                    />
-                    <span class="text-slate-700 text-sm">{{ tier.label }}</span>
-                  </label>
-                </div>
+                  <template #trigger="{ selected }">
+                    <span class="text-slate-900 font-medium">
+                      {{ selected && selected.length > 0 ? `${selected.length} Tiers selected` : 'Select tiers' }}
+                    </span>
+                  </template>
+                </CustomDropdown>
               </div>
             </div>
 
@@ -876,7 +869,7 @@ const createEvent = async () => {
                     v-model="inviteSearchQuery"
                     type="text"
                     placeholder="Search users by username"
-                    class="bg-transparent w-full pl-10 pr-3 py-3 outline-none border-b border-gray-200 text-slate-700 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                    class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-gray-500 focus:bg-white/90 transition-colors"
                   />
                 </div>
 
@@ -954,12 +947,10 @@ const createEvent = async () => {
               </div>
               <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
             </div>
-            <select v-model="formData.spendingRequirement"
-              class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
-              <option value="none">None</option>
-              <option value="minSpend" disabled>User need to spend minimum amount to join</option>
-              <option value="mustOwnProducts">User need to buy specific product(s) to join</option>
-            </select>
+            <CustomDropdown 
+              v-model="formData.spendingRequirement" 
+              :options="spendingRequirementOptions" 
+            />
             <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
               <BaseInput type="number" placeholder="Minimum spend in tokens" v-model="formData.minSpendTokens"
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
@@ -1013,7 +1004,7 @@ const createEvent = async () => {
                   v-model="blockedUserSearchQuery"
                   type="text"
                   placeholder="Search by username & email"
-                  class="bg-transparent w-full pl-10 pr-3 py-3 outline-none border-b border-gray-200 text-slate-700 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                  class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-slate-500 focus:bg-white/90 transition-colors"
                 />
               </div>
 
@@ -1055,10 +1046,7 @@ const createEvent = async () => {
                           class="text-[#FF5B22] text-[14px]">
                       blocked
                     </span>
-                    <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#FF5B22] transition-transform hover:scale-110" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                    </svg>
+                    <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
                   </div>
                 </div>
               </div>
