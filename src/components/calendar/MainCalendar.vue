@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-2 md:pl-0 backdrop-blur-md">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -216,12 +216,12 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full">
+    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
-          <div v-if="variant === 'default'" class="lg:flex hidden items-center px-[0.25rem] gap-[0.125rem]">
-            <span class="flex items-center justify-center w-[10px] h-[10px]">
+          <div v-if="variant === 'default'" class="lg:flex hidden justify-end items-center px-[0.25rem] gap-[0.125rem]">
+            <span class="flex items-center justify-center w-[10px] h-[10px] flex-1 text-right">
               <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round"
                   stroke-linejoin="round" />

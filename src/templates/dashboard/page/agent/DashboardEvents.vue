@@ -106,7 +106,7 @@
           </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50" @click="newEventsPopupOpen = true">
+        <div class="fixed bottom-5 right-5 z-50 lg:hidden" @click="newEventsPopupOpen = true">
           <button
             class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
             <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
@@ -479,9 +479,9 @@ const theme1 = {
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   },
   main: {
-    wrapper: 'relative flex flex-col gap-[5.5rem] overflow-hidden rounded-xl h-full',
+    wrapper: 'relative flex flex-col gap-0 overflow-hidden rounded-xl h-full',
     title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
-    xHeader: 'absolute text-[11px] uppercase tracking-wide text-slate-500 top-[4rem] xl:top-[5rem] w-full',
+    xHeader: 'text-[11px] uppercase tracking-wide text-slate-500 top-[3.3rem] xl:top-[4rem] sticky w-full backdrop-blur-md z-10',
     axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
     axisXDay: 'py-1 text-center h-[63.92px]',
     axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center',
