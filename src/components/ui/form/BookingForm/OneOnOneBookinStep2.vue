@@ -11,6 +11,7 @@ import BaseInput from "@/components/dev/input/BaseInput.vue";
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
 import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
+import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
@@ -897,7 +898,7 @@ const createEvent = async () => {
           <div v-if="!Array.isArray(formData.addOns) || formData.addOns.length === 0" class="inline-flex">
             <button
               type="button"
-              class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+              class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
               @click="addAddOnService"
             >
               <img
@@ -932,7 +933,7 @@ const createEvent = async () => {
                 type="text"
                 placeholder="Record the session"
                 v-model="addOn.title"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
               />
 
               <textarea
@@ -947,11 +948,11 @@ const createEvent = async () => {
                   type="number"
                   min="0"
                   step="1"
-                  placeholder="15"
+                  placeholder=""
                   v-model="addOn.priceTokens"
                   inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
                 />
-                <div class="text-slate-700 text-[16px] font-semibold whitespace-nowrap">
+                <div class="text-black text-[16px] font-medium whitespace-nowrap">
                   Tokens
                 </div>
               </div>
@@ -1037,7 +1038,7 @@ const createEvent = async () => {
               <div class="text-slate-700 text-sm font-medium pt-1">
                 Invite link
               </div>
-              <div class="w-full inline-flex items-center gap-2">
+              <div class="w-full inline-flex items-center">
                 <input
                   :value="inviteLink"
                   type="text"
@@ -1046,9 +1047,10 @@ const createEvent = async () => {
                 />
                 <button
                   type="button"
-                  class="shrink-0 px-3 py-2 rounded border border-slate-300 bg-white/80 text-slate-700 text-sm font-semibold hover:bg-white"
+                  class="shrink-0 flex gap-1 px-3 py-2 border-b border-gray-300 bg-white/80 text-gray-700 text-sm font-semibold hover:bg-white"
                   @click="copyInviteLink"
                 >
+                  <img src="@/assets/images/icons/copy-to-clipboard.webp" alt="" class="w-4 h-4"/>
                   Copy Link
                 </button>
               </div>
@@ -1260,14 +1262,14 @@ const createEvent = async () => {
                       {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
                     </div>
                     <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                      <span class="text-gray-950 text-[15px] font-medium">{{ user.label }}</span>
-                     <!-- <span class="text-slate-500 text-[15px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
+                      <span class="text-gray-950 text-[16px]">{{ user.label }}</span>
+                     <!-- <span class="text-slate-500 text-[16px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
                     </div>
                   </div>
 
                   <div class="flex items-center justify-center pl-3">
                     <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
-                          class="text-[#FF5B22] text-[14px]">
+                          class="text-[#FF4405] text-[12px] font-medium">
                       blocked
                     </span>
                     <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
@@ -1294,8 +1296,8 @@ const createEvent = async () => {
                     {{ (getBlockedUserLabel(userId) || '?').charAt(0).toUpperCase() }}
                   </div>
                   <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                    <span class="text-gray-950 text-[15px] font-medium">{{ getBlockedUserLabel(userId) }}</span>
-                    <span class="text-gray-500 text-[15px]">{{ blockedUserLookup[userId]?.raw?.user_email || blockedUserLookup[userId]?.raw?.email || `${blockedUserLookup[userId]?.username || 'user'}@email.com` }}</span>
+                    <span class="text-gray-950 text-[16px]">{{ getBlockedUserLabel(userId) }}</span>
+                    <span class="text-gray-500 text-[16px]">{{ blockedUserLookup[userId]?.raw?.user_email || blockedUserLookup[userId]?.raw?.email || `${blockedUserLookup[userId]?.username || 'user'}@email.com` }}</span>
                   </div>
                 </div>
 

@@ -25,7 +25,7 @@ defineProps({
     <!-- Tooltip -->
     <div
       :class="[
-        'absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem] bg-white text-gray-800 text-xs font-medium px-3 py-2 rounded-md shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50',
+        'absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem] bg-[rgba(55,59,68,0.90)] text-white text-xs font-medium p-1 rounded-md shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50',
         tooltipClass,
       ]"
     >

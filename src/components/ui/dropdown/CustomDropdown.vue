@@ -57,7 +57,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
           <img v-if="options.find(o => o.value === modelValue)?.image" :src="options.find(o => o.value === modelValue)?.image" class="w-5 h-5 object-contain" />
           <component v-else-if="options.find(o => o.value === modelValue)?.icon" :is="options.find(o => o.value === modelValue)?.icon" class="w-5 h-5 text-slate-700" />
           <div v-if="options.find(o => o.value === modelValue)?.color" class="w-5 h-5 rounded-full" :style="{ backgroundColor: options.find(o => o.value === modelValue)?.color }"></div>
-          <span>{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (options.find(o => o.value === modelValue)?.label || placeholder) }}</span>
+          <span class="text-slate-900">{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (options.find(o => o.value === modelValue)?.label || placeholder) }}</span>
         </div>
       </slot>
       
@@ -74,7 +74,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
           v-for="option in options" 
           :key="option.value"
           @click="selectOption(option)"
-          class="cursor-pointer hover:bg-black/5 transition-colors"
+          class="cursor-pointer hover:bg-[#EAECF0] transition-colors"
         >
           <slot name="option" :option="option" :isSelected="multiple ? modelValue.includes(option.value) : modelValue === option.value">
             <div :class="[optionClass, 'flex items-center gap-3']">
@@ -84,7 +84,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
               <img v-if="option.image" :src="option.image" class="w-5 h-5 object-contain" />
               <component v-else-if="option.icon" :is="option.icon" class="w-5 h-5 text-slate-700" />
               <div v-if="option.color" class="w-6 h-6 rounded-full shadow-sm" :style="{ backgroundColor: option.color }"></div>
-              <span>{{ option.label }}</span>
+              <span class="text-slate-700">{{ option.label }}</span>
             </div>
           </slot>
         </div>

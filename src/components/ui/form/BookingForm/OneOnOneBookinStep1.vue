@@ -158,6 +158,12 @@
     { label: "Hours", value: "hours" },
   ];
 
+  const timeUnitOptions = [
+    { label: "Minute", value: "minute" },
+    { label: "Hour", value: "hour" },
+    { label: "Day", value: "day" },
+  ];
+
   let previewAudio = null;
   const previewRingtone = async () => {
     try {
@@ -815,24 +821,8 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3" />
-
-              <div class="mt-[2px] relative group inline-block">
-                <img
-                  src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                  alt=""
-                  class="cursor-pointer"
-                />
-                <!-- Tooltip -->
-                <div
-                  class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                        bg-white text-gray-800 text-xs font-medium
-                        px-3 py-2 rounded-md shadow-lg border border-gray-200
-                        opacity-0 group-hover:opacity-100
-                        transition-opacity duration-200 pointer-events-none z-50"
-                >
-                  This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment.
-                </div>
-              </div>
+              <
+              <TooltipIcon text="This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment." />
             </div>
 
             <div class="inline-flex justify-start items-start gap-2">
@@ -852,28 +842,12 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
               <div class="flex gap-2">
-                <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant booking"
+                <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant ooking"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
 
-                 <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      bookings without personal requests will be approved automatically.
-                    </div>
-                  </div>
+                 <TooltipIcon text="Bookings without personal requests are automatically approved." />
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
@@ -902,23 +876,7 @@
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" />
 
-                <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      A rescheduling fee will be charged if a confirmed booking is changed.
-                    </div>
-                  </div>
+                <TooltipIcon text="A rescheduling fee will be charged if a confirmed booking is changed." />
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
@@ -945,23 +903,7 @@
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" />
 
-                <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call.
-                    </div>
-                  </div>
+                <TooltipIcon text="A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call." />
               </div>
               <div :class="['self-stretch inline-flex justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
                 <div class="w-6 h-10" />
@@ -985,12 +927,17 @@
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3" />
               <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center">
                   <BaseInput type="number" placeholder="15" v-model="formData.advanceVoid"
                     :disabled="!formData.allowAdvanceCancellation"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-24 px-3 py-2 rounded-tl-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed border-r" />
                 </div>
-                <div class="justify-center text-slate-700 text-base font-normal leading-normal">
+                  <CustomDropdown
+                    v-model="formData.advanceCancelWindowUnit"
+                    :options="timeUnitOptions"
+                    :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
+                  />
+                <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
                   in advance
                 </div>
               </div>
@@ -1275,23 +1222,7 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">
                   Fan can request to extend session in call</div>
-                 <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined.
-                    </div>
-                  </div>
+                 <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." />
               </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup v-model="formData.requestExtendSession"
@@ -1323,23 +1254,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">Call reminder</div>
-                <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      Reminders will be sent to notify you of upcoming appointments.
-                    </div>
-                  </div>
+                <TooltipIcon text="Reminders will be sent to notify you of upcoming appointments." />
               </div>
               <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -1367,23 +1282,7 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <div class="mt-[2px] relative group inline-block">
-                    <img
-                      src="https://i.ibb.co/HD78k3Sf/Icon.png"
-                      alt=""
-                      class="cursor-pointer"
-                    />
-                    <!-- Tooltip -->
-                    <div
-                      class="absolute left-1/2 -translate-x-1/2 mt-2 w-max max-w-[16rem]
-                            bg-white text-gray-800 text-xs font-medium
-                            px-3 py-2 rounded-md shadow-lg border border-gray-200
-                            opacity-0 group-hover:opacity-100
-                            transition-opacity duration-200 pointer-events-none z-50"
-                    >
-                      Reminders will be sent to notify you of upcoming appointments.
-                    </div>
-                  </div>
+              <TooltipIcon text="Set a buffer time between appointment slots." />
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1405,7 +1304,7 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div>
+              <TooltipIcon text="Set a daily limit for how many appointments you can accept."/>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1424,7 +1323,7 @@
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
-                <div class="mt-[2px]"><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" /></div>
+                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments."/>
               </div>
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
