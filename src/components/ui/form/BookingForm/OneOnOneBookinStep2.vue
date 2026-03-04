@@ -8,13 +8,26 @@ import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
+import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
+import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
-import { DUMMY_SPENDING_REQUIREMENT_PRODUCTS } from "@/services/events/mock/spendingRequirementProducts.mock.js";
+
+const whoCanBookOptions = [
+  { label: 'Everyone', value: 'everyone' },
+  { label: 'Subscribers only', value: 'subscribersOnly' },
+  { label: 'Invite only', value: 'inviteOnly' }
+];
+
+const spendingRequirementOptions = [
+  { label: 'None', value: 'none' },
+  { label: 'Minimum spend', value: 'minSpend' },
+  { label: 'Must own products', value: 'mustOwnProducts' }
+];
 
 const props = defineProps(["engine"]);
 const router = useRouter();
@@ -51,9 +64,10 @@ function normalizeRequiredProducts(value) {
   const deduped = new Map();
   value.forEach((item) => {
     if (!item || typeof item !== "object") return;
-    const id = String(item.id || "").trim();
+    const parsedId = Number(item.id);
+    const id = Number.isFinite(parsedId) ? parsedId : null;
     const type = String(item.type || "").trim().toLowerCase();
-    if (!id || !type) return;
+    if (id === null || !type) return;
 
     const key = `${type}:${id}`;
     if (deduped.has(key)) return;
@@ -62,15 +76,28 @@ function normalizeRequiredProducts(value) {
       id,
       type,
       title: String(item.title || "").trim(),
-      tokenPrice: Number.isFinite(Number(item.tokenPrice)) ? Number(item.tokenPrice) : 0,
-      usdPrice: Number.isFinite(Number(item.usdPrice)) ? Number(item.usdPrice) : 0,
+      buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : null,
+      subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : null,
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
-      actionLabel: String(item.actionLabel || "").trim() || "Buy",
     });
   });
 
   return Array.from(deduped.values());
+}
+
+function normalizeAddOns(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      title: String(item.title || "").trim(),
+      description: String(item.description || "").trim(),
+      priceTokens: item.priceTokens === null || item.priceTokens === undefined
+        ? ""
+        : String(item.priceTokens),
+    }));
 }
 
 const formData = ref({
@@ -78,6 +105,7 @@ const formData = ref({
   recordingPrice: props.engine.state.recordingPrice || "",
   allowPersonalRequest: props.engine.state.allowPersonalRequest || false,
   personalRequestNote: props.engine.state.personalRequestNote || "",
+  addOns: normalizeAddOns(props.engine.state.addOns),
   blockedUsers: normalizeSelectionArray(props.engine.state.blockedUsers || props.engine.state.blockedUserSearch),
   coPerformerSearch: props.engine.state.coPerformerSearch || "",
   whoCanBook: props.engine.state.whoCanBook || "everyone",
@@ -101,6 +129,12 @@ watch(formData, (newVal) => {
 }, { deep: true });
 
 const subscriptionTierOptions = ref([]);
+const subscriptionTierDropdownOptions = computed(() => {
+  return subscriptionTierOptions.value.map(tier => ({
+    label: tier.label,
+    value: tier.id
+  }));
+});
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
 const subscriptionTierDropdownOpen = ref(false);
@@ -121,9 +155,97 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
-const INVITE_LINK_BASE_URL = "https://fansocial.app/event-invite";
+const INVITE_LINK_BASE_URL = import.meta.env.VITE_BASE_URL + "/event-invite";
 const spendingProductPopupOpen = ref(false);
-const spendingRequirementProductItems = ref(DUMMY_SPENDING_REQUIREMENT_PRODUCTS);
+const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
+
+function emptySpendingCatalogState() {
+  return {
+    media: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+    subscription: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+    product: {
+      items: [],
+      loading: false,
+      error: "",
+      hasMore: true,
+      totalCount: null,
+      offset: 0,
+      count: SPENDING_REQUIREMENT_PAGE_SIZE,
+      initialized: false,
+    },
+  };
+}
+
+function normalizeCatalogTabState(tabState = {}) {
+  return {
+    items: normalizeRequiredProducts(tabState.items),
+    loading: Boolean(tabState.loading),
+    error: String(tabState.error || ""),
+    hasMore: tabState.hasMore !== false,
+    totalCount: Number.isFinite(Number(tabState.totalCount)) ? Number(tabState.totalCount) : null,
+    offset: Math.max(0, Number.isFinite(Number(tabState.offset)) ? Number(tabState.offset) : 0),
+    count: Math.max(1, Number.isFinite(Number(tabState.count)) ? Number(tabState.count) : SPENDING_REQUIREMENT_PAGE_SIZE),
+    initialized: Boolean(tabState.initialized),
+  };
+}
+
+function normalizeSpendingCatalog(value = {}) {
+  const fallback = emptySpendingCatalogState();
+  return {
+    media: normalizeCatalogTabState(value.media || fallback.media),
+    subscription: normalizeCatalogTabState(value.subscription || fallback.subscription),
+    product: normalizeCatalogTabState(value.product || fallback.product),
+  };
+}
+
+const spendingRequirementCatalog = ref(
+  normalizeSpendingCatalog(props.engine.getState("events.spendingRequirementCatalog") || {})
+);
+
+const spendingRequirementProductItems = computed(() => {
+  const source = spendingRequirementCatalog.value || {};
+  return [
+    ...(source.media?.items || []),
+    ...(source.subscription?.items || []),
+    ...(source.product?.items || []),
+  ];
+});
+
+const spendingRequirementLoadingByType = computed(() => ({
+  media: Boolean(spendingRequirementCatalog.value?.media?.loading),
+  subscription: Boolean(spendingRequirementCatalog.value?.subscription?.loading),
+  product: Boolean(spendingRequirementCatalog.value?.product?.loading),
+}));
+
+const spendingRequirementHasMoreByType = computed(() => ({
+  media: Boolean(spendingRequirementCatalog.value?.media?.hasMore),
+  subscription: Boolean(spendingRequirementCatalog.value?.subscription?.hasMore),
+  product: Boolean(spendingRequirementCatalog.value?.product?.hasMore),
+}));
+
+const spendingRequirementErrorByType = computed(() => ({
+  media: String(spendingRequirementCatalog.value?.media?.error || ""),
+  subscription: String(spendingRequirementCatalog.value?.subscription?.error || ""),
+  product: String(spendingRequirementCatalog.value?.product?.error || ""),
+}));
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -315,8 +437,130 @@ function getRequiredProductKey(product = {}) {
   return `${String(product?.type || "").trim().toLowerCase()}:${String(product?.id || "").trim()}`;
 }
 
+function addAddOnService() {
+  const current = Array.isArray(formData.value.addOns) ? [...formData.value.addOns] : [];
+  current.push({
+    title: "",
+    description: "",
+    priceTokens: "",
+  });
+  formData.value.addOns = current;
+}
+
+function removeAddOnService(index) {
+  const current = Array.isArray(formData.value.addOns) ? [...formData.value.addOns] : [];
+  if (index < 0 || index >= current.length) return;
+  current.splice(index, 1);
+  formData.value.addOns = current;
+}
+
 function openSpendingProductPopup() {
   spendingProductPopupOpen.value = true;
+}
+
+function setCatalogTabState(type, nextState = {}) {
+  const current = normalizeSpendingCatalog(spendingRequirementCatalog.value || {});
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!Object.prototype.hasOwnProperty.call(current, safeType)) return;
+
+  current[safeType] = normalizeCatalogTabState({
+    ...current[safeType],
+    ...nextState,
+  });
+  spendingRequirementCatalog.value = current;
+  props.engine.setState("events.spendingRequirementCatalog", current, { reason: "spending-requirement-catalog", silent: true });
+}
+
+function mergeCatalogItems(existing = [], incoming = []) {
+  const merged = new Map();
+  normalizeRequiredProducts(existing).forEach((item) => {
+    merged.set(getRequiredProductKey(item), item);
+  });
+  normalizeRequiredProducts(incoming).forEach((item) => {
+    merged.set(getRequiredProductKey(item), item);
+  });
+  return Array.from(merged.values());
+}
+
+async function fetchSpendingRequirementTab(type, { append = false } = {}) {
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!["media", "subscription", "product"].includes(safeType)) return;
+
+  const currentTab = normalizeCatalogTabState(spendingRequirementCatalog.value?.[safeType] || {});
+  if (currentTab.loading) return;
+  if (append && !currentTab.hasMore) return;
+
+  setCatalogTabState(safeType, { loading: true, error: "" });
+
+  const creatorId = resolveCreatorId();
+  const payload = {
+    creatorId,
+    type: safeType,
+    count: currentTab.count || SPENDING_REQUIREMENT_PAGE_SIZE,
+    offset: append ? currentTab.offset : 0,
+  };
+
+  const flowResult = await props.engine.callFlow(
+    "events.fetchSpendingRequirementItems",
+    payload,
+    {
+      forceRefresh: true,
+      skipDestinationRead: true,
+      context: {
+        creatorId,
+        stateEngine: props.engine,
+      },
+    }
+  );
+
+  if (!flowResult?.ok) {
+    const message = flowResult?.meta?.uiErrors?.[0]
+      || flowResult?.error?.message
+      || "Could not load products.";
+    setCatalogTabState(safeType, {
+      loading: false,
+      error: message,
+      initialized: true,
+    });
+    return;
+  }
+
+  const responseData = flowResult.data || {};
+  const nextItems = normalizeRequiredProducts(responseData.items);
+  const mergedItems = append ? mergeCatalogItems(currentTab.items, nextItems) : nextItems;
+
+  setCatalogTabState(safeType, {
+    loading: false,
+    error: "",
+    initialized: true,
+    items: mergedItems,
+    offset: Number.isFinite(Number(responseData.nextOffset))
+      ? Number(responseData.nextOffset)
+      : mergedItems.length,
+    count: Number.isFinite(Number(responseData.count))
+      ? Number(responseData.count)
+      : currentTab.count,
+    totalCount: Number.isFinite(Number(responseData.totalCount))
+      ? Number(responseData.totalCount)
+      : null,
+    hasMore: responseData.hasMore !== false,
+  });
+}
+
+function ensureSpendingRequirementTabLoaded(type) {
+  const safeType = String(type || "").trim().toLowerCase();
+  if (!["media", "subscription", "product"].includes(safeType)) return;
+  const tab = normalizeCatalogTabState(spendingRequirementCatalog.value?.[safeType] || {});
+  if (tab.initialized && Array.isArray(tab.items) && tab.items.length > 0) return;
+  fetchSpendingRequirementTab(safeType, { append: false });
+}
+
+function handleSpendingProductPopupTabChange(type) {
+  ensureSpendingRequirementTabLoaded(type);
+}
+
+function handleSpendingProductPopupLoadMore(type) {
+  fetchSpendingRequirementTab(type, { append: true });
 }
 
 function onConfirmSpendingProducts(selectedItems = []) {
@@ -444,6 +688,24 @@ watch(() => formData.value.whoCanBook, (whoCanBook) => {
   }
 }, { immediate: true });
 
+watch(
+  () => formData.value.spendingRequirement,
+  (requirement) => {
+    if (requirement === "mustOwnProducts") {
+      ensureSpendingRequirementTabLoaded("media");
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => spendingProductPopupOpen.value,
+  (isOpen) => {
+    if (!isOpen) return;
+    ensureSpendingRequirementTabLoaded("media");
+  }
+);
+
 watch(inviteSearchQuery, (query) => {
   if (formData.value.whoCanBook !== "inviteOnly") return;
 
@@ -489,7 +751,7 @@ function notifyEventCreated({ creatorId, eventName, eventType }) {
     action: "created",
   };
 
-  const endpoint = "https://new-stage.fansocial.app/wp-json/api/event/create";
+  const endpoint = import.meta.env.VITE_BASE_URL + "/wp-json/api/event/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -586,9 +848,7 @@ const createEvent = async () => {
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
-            <div class="mt-[2px]">
-              <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-            </div>
+            <TooltipIcon text="If enabled, fans can purchase a session recording as an add-on. The recording includes the creator’s full video feed and will be available after the booking ends" />
           </div>
           <div class="inline-flex gap-2">
             <div class="w-6" />
@@ -611,17 +871,18 @@ const createEvent = async () => {
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3" />
-              <div class="mt-[2px]">
-                <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
-              </div>
+              <TooltipIcon text="If enabled, fans can include a personal request in the booking form. You can review it and adjust the price before confirming the booking." />
             </div>
             <div class="h-10 inline-flex justify-start items-center gap-2">
               <div class="w-6" />
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
-                  <BaseInput type="text" placeholder="Optional note shown to fans"
+                  <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+                    Let user add personal request in their booking
+                  </div>
+                  <!-- <BaseInput type="text" placeholder="Optional note shown to fans"
                     v-model="formData.personalRequestNote" :disabled="!formData.allowPersonalRequest"
-                    inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                    inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" /> -->
                 </div>
               </div>
             </div>
@@ -633,12 +894,84 @@ const createEvent = async () => {
             different outfits and do different actions in the call.
           </div>
 
-          <ButtonComponent text="add-on service" variant="none"
-            customClass="group bg-gray-900 flex justify-center items-center gap-2 min-w-14 px-2 py-1
-        text-center justify-start text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-            :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
-        w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]
-        rounded-sm  outline outline-[1.50px] outline-offset-[-0.75px] `" />
+          <div v-if="!Array.isArray(formData.addOns) || formData.addOns.length === 0" class="inline-flex">
+            <button
+              type="button"
+              class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+              @click="addAddOnService"
+            >
+              <img
+                src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
+                alt=""
+                class="w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)] rounded-sm outline outline-[1.50px] outline-offset-[-0.75px]"
+              />
+              <span>Add-On Service</span>
+            </button>
+          </div>
+
+          <div v-else class="flex flex-col gap-4">
+            <div
+              v-for="(addOn, index) in formData.addOns"
+              :key="`addon-${index}`"
+              class="flex flex-col gap-2"
+            >
+              <div class="inline-flex justify-between items-center">
+                <div class="text-[#667085] text-base font-semibold leading-normal">
+                  Add-on service {{ index + 1 }}
+                </div>
+                <button
+                  type="button"
+                  class="text-[#f15a24] text-[22px] leading-none"
+                  @click="removeAddOnService(index)"
+                >
+                  -
+                </button>
+              </div>
+
+              <BaseInput
+                type="text"
+                placeholder="Record the session"
+                v-model="addOn.title"
+                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+              />
+
+              <textarea
+                v-model="addOn.description"
+                rows="3"
+                placeholder="Description (Optional)"
+                class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
+              />
+
+              <div class="inline-flex items-center gap-2">
+                <BaseInput
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="15"
+                  v-model="addOn.priceTokens"
+                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+                />
+                <div class="text-slate-700 text-[16px] font-semibold whitespace-nowrap">
+                  Tokens
+                </div>
+              </div>
+            </div>
+
+            <div class="inline-flex">
+              <button
+                type="button"
+                class="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-2 py-1 text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                @click="addAddOnService"
+              >
+                <img
+                  src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
+                  alt=""
+                  class="w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)] rounded-sm outline outline-[1.50px] outline-offset-[-0.75px]"
+                />
+                <span>Add More Service</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </BookingSectionsWrapper>
@@ -654,12 +987,10 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Who can book a call?
             </div>
-            <select v-model="formData.whoCanBook"
-              class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
-              <option value="everyone">Everyone</option>
-              <option value="subscribersOnly">Subscribers only</option>
-              <option value="inviteOnly">Only those invited</option>
-            </select>
+            <CustomDropdown 
+              v-model="formData.whoCanBook" 
+              :options="whoCanBookOptions" 
+            />
 
             <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2 relative">
               <div class="text-slate-700 text-sm font-medium">
@@ -674,43 +1005,19 @@ const createEvent = async () => {
               <div v-else-if="subscriptionTierOptions.length === 0" class="text-slate-500 text-sm">
                 No active tiers found for this creator.
               </div>
-              <div v-else class="relative">
-                <button
-                  type="button"
-                  @click="subscriptionTierDropdownOpen = !subscriptionTierDropdownOpen"
-                  class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base flex items-center justify-between"
+              <div v-else class="w-full">
+                <CustomDropdown
+                  v-model="formData.subscriptionTiers"
+                  :options="subscriptionTierDropdownOptions"
+                  :multiple="true"
+                  :hasCheckboxes="true"
                 >
-                  <span>{{ getSubscriptionTierDropdownLabel() }}</span>
-                  <span class="text-slate-500 text-xs">▼</span>
-                </button>
-
-                <div
-                  v-if="subscriptionTierDropdownOpen"
-                  class="absolute z-20 mt-1 w-full max-h-52 overflow-y-auto rounded border border-gray-200 bg-white shadow-md"
-                >
-                  <label class="flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-gray-100">
-                    <input
-                      type="checkbox"
-                      :checked="isAllSubscriptionTiersSelected()"
-                      @change="toggleAllSubscriptionTiers"
-                      class="h-4 w-4"
-                    />
-                    <span class="text-slate-700 text-sm">All Tiers</span>
-                  </label>
-                  <label
-                    v-for="tier in subscriptionTierOptions"
-                    :key="`tier-${tier.id}`"
-                    class="flex items-center gap-2 px-3 py-2 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="formData.subscriptionTiers.some((item) => String(item) === String(tier.id))"
-                      @change="toggleSubscriptionTier(tier.id)"
-                      class="h-4 w-4"
-                    />
-                    <span class="text-slate-700 text-sm">{{ tier.label }}</span>
-                  </label>
-                </div>
+                  <template #trigger="{ selected }">
+                    <span class="text-slate-900 font-medium">
+                      {{ selected && selected.length > 0 ? `${selected.length} Tiers selected` : 'Select tiers' }}
+                    </span>
+                  </template>
+                </CustomDropdown>
               </div>
             </div>
 
@@ -769,28 +1076,73 @@ const createEvent = async () => {
                   class="flex items-center gap-2 py-1.5 cursor-pointer"
                 >
                   <input
-                    type="checkbox"
-                    :checked="formData.invitedUsers.some((item) => String(item) === String(user.id))"
-                    @change="toggleInvitedUser(user)"
-                    class="h-4 w-4"
+                    v-model="inviteSearchQuery"
+                    type="text"
+                    placeholder="Search users by username"
+                    class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-gray-500 focus:bg-white/90 transition-colors"
                   />
-                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
-                </label>
+                </div>
+
+                <div v-if="inviteUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
+                  Searching users...
+                </div>
+                <div v-else-if="inviteUsersError" class="px-4 py-3 text-rose-600 text-sm">
+                  {{ inviteUsersError }}
+                </div>
+                <div
+                  v-else-if="inviteSearchQuery.trim().length >= 2 && inviteUserOptions.length === 0"
+                  class="px-4 py-3 text-slate-500 text-sm"
+                >
+                  No users found.
+                </div>
+                <div
+                  v-else-if="inviteUserOptions.length > 0"
+                  class="max-h-60 overflow-y-auto"
+                >
+                  <div
+                    v-for="user in inviteUserOptions"
+                    :key="`invite-${user.id}`"
+                    class="flex items-center justify-between px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer"
+                    @click="toggleInvitedUser(user)"
+                  >
+                    <div class="flex items-center gap-3">
+                      <img v-if="user.avatar" :src="user.avatar" class="w-8 h-8 rounded-full object-cover bg-gray-100 shadow-sm" />
+                      <div v-else class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-sm shadow-sm">
+                        {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                        <span class="text-slate-900 text-[15px] font-medium">{{ user.displayName || user.username || user.label }}</span>
+                        <span class="text-slate-500 text-[15px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center justify-center pl-3">
+                      <span v-if="formData.invitedUsers.some((item) => String(item) === String(user.id))"
+                            class="text-green-600 text-[14px]">
+                        invited
+                      </span>
+                      <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-green-600 transition-transform hover:scale-110" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div
                 v-if="Array.isArray(formData.invitedUsers) && formData.invitedUsers.length > 0"
-                class="flex flex-wrap gap-2 pt-1"
+                class="flex flex-wrap gap-2 pt-2"
               >
                 <button
                   v-for="userId in formData.invitedUsers"
                   :key="`selected-${userId}`"
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-white/75 border border-gray-200 px-3 py-1 text-xs text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
                   @click="removeInvitedUser(userId)"
                 >
                   <span>{{ getInvitedUserLabel(userId) }}</span>
-                  <span class="text-slate-500">x</span>
+                  <span class="text-slate-400 hover:text-slate-600">x</span>
                 </button>
               </div>
               -->
@@ -805,12 +1157,10 @@ const createEvent = async () => {
               </div>
               <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
             </div>
-            <select v-model="formData.spendingRequirement"
-              class="w-full bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-slate-700 text-base">
-              <option value="none">None</option>
-              <option value="minSpend" disabled>User need to spend minimum amount to join</option>
-              <option value="mustOwnProducts">User need to buy specific product(s) to join</option>
-            </select>
+            <CustomDropdown 
+              v-model="formData.spendingRequirement" 
+              :options="spendingRequirementOptions" 
+            />
             <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
               <BaseInput type="number" placeholder="Minimum spend in tokens" v-model="formData.minSpendTokens"
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
@@ -843,8 +1193,22 @@ const createEvent = async () => {
                     <div class="text-xs font-semibold text-slate-800 truncate">
                       {{ product.title || `${product.type} ${product.id}` }}
                     </div>
-                    <div class="text-[11px] text-slate-500 capitalize">
-                      {{ product.type }} · {{ product.tokenPrice || 0 }} tokens
+                    <div class="flex gap-2">
+                      <div class="text-[11px] text-slate-500 capitalize">
+                        {{ product.type }}
+                      </div>
+
+                      <div v-if="product.buyPrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> Buy USD${{ product.buyPrice || 0 }}
+                      </div>
+
+                      <div v-if="product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> Subscribe USD${{ product.subscribePrice || 0 }}
+                      </div>
+
+                      <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> FREE
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -857,59 +1221,89 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Blocked user
             </div>
-            <div class="w-full flex flex-col gap-2">
-              <BaseInput
-                v-model="blockedUserSearchQuery"
-                type="text"
-                placeholder="Search by username & email"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-              />
+            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative">
+              <div class="relative w-full">
+                <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  v-model="blockedUserSearchQuery"
+                  type="text"
+                  placeholder="Search by username & email"
+                  class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                />
+              </div>
 
-              <div v-if="blockedUsersLoading" class="text-slate-500 text-sm">
+              <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
                 Searching users...
               </div>
-              <div v-else-if="blockedUsersError" class="text-rose-600 text-sm">
+              <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
                 {{ blockedUsersError }}
               </div>
               <div
                 v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
-                class="text-slate-500 text-sm"
+                class="px-4 py-3 text-slate-500 text-sm"
               >
                 No users found.
               </div>
               <div
                 v-else-if="blockedUserOptions.length > 0"
-                class="max-h-40 overflow-y-auto rounded border border-gray-200 bg-white/70 px-3 py-2"
+                class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
               >
-                <label
+                <div
                   v-for="user in blockedUserOptions"
                   :key="`blocked-${user.id}`"
-                  class="flex items-center gap-2 py-1.5 cursor-pointer"
+                  class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
+                  @click="toggleBlockedUser(user)"
                 >
-                  <input
-                    type="checkbox"
-                    :checked="formData.blockedUsers.some((item) => String(item) === String(user.id))"
-                    @change="toggleBlockedUser(user)"
-                    class="h-4 w-4"
-                  />
-                  <span class="text-slate-700 text-sm">{{ user.label }}</span>
-                </label>
-              </div>
+                  <div class="flex items-center gap-2">
+                    <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
+                    <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                      {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                      <span class="text-gray-950 text-[15px] font-medium">{{ user.label }}</span>
+                     <!-- <span class="text-slate-500 text-[15px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
+                    </div>
+                  </div>
 
+                  <div class="flex items-center justify-center pl-3">
+                    <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
+                          class="text-[#FF5B22] text-[14px]">
+                      blocked
+                    </span>
+                    <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="Array.isArray(formData.blockedUsers) && formData.blockedUsers.length > 0"
+              class="flex flex-col gap-0 pt-2 w-full"
+            >
               <div
-                v-if="Array.isArray(formData.blockedUsers) && formData.blockedUsers.length > 0"
-                class="flex flex-wrap gap-2 pt-1"
+                v-for="(userId, index) in formData.blockedUsers"
+                :key="`blocked-selected-${userId}`"
+                :class="[
+                  'flex items-center justify-between py-3',
+                  index !== formData.blockedUsers.length - 1 ? 'border-b border-gray-200' : ''
+                ]"
               >
-                <button
-                  v-for="userId in formData.blockedUsers"
-                  :key="`blocked-selected-${userId}`"
-                  type="button"
-                  class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
-                  @click="removeBlockedUser(userId)"
-                >
-                  <span>{{ getBlockedUserLabel(userId) }}</span>
-                  <span class="text-slate-500">x</span>
-                </button>
+                <div class="flex items-center gap-3">
+                  <img v-if="blockedUserLookup[userId]?.avatar" :src="blockedUserLookup[userId].avatar" class="w-8 h-8 rounded-full object-cover bg-gray-100 shadow-sm" />
+                  <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                    {{ (getBlockedUserLabel(userId) || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                    <span class="text-gray-950 text-[15px] font-medium">{{ getBlockedUserLabel(userId) }}</span>
+                    <span class="text-gray-500 text-[15px]">{{ blockedUserLookup[userId]?.raw?.user_email || blockedUserLookup[userId]?.raw?.email || `${blockedUserLookup[userId]?.username || 'user'}@email.com` }}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-center pl-3">
+                  <button type="button" class="text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" @click="removeBlockedUser(userId)">
+                    <img src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp" alt="3-dot" class="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -985,6 +1379,11 @@ const createEvent = async () => {
     v-model="spendingProductPopupOpen"
     :items="spendingRequirementProductItems"
     :selected-items="formData.requiredProducts"
+    :loading-by-type="spendingRequirementLoadingByType"
+    :has-more-by-type="spendingRequirementHasMoreByType"
+    :error-by-type="spendingRequirementErrorByType"
+    @tab-change="handleSpendingProductPopupTabChange"
+    @load-more="handleSpendingProductPopupLoadMore"
     @confirm="onConfirmSpendingProducts"
   />
   <div class="absolute right-0 bottom-0">

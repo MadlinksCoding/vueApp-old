@@ -348,9 +348,9 @@ function applySpendingConstraints(mapped, payload = {}) {
 
     source.forEach((item) => {
       if (!item || typeof item !== "object") return;
-      const id = nonEmptyString(item.id, "");
+      const id = toNumberOr(item.id, null);
       const type = nonEmptyString(item.type, "").toLowerCase();
-      if (!id || !type) return;
+      if (id == null || !type) return;
 
       const key = `${type}:${id}`;
       if (seen.has(key)) return;
@@ -360,13 +360,20 @@ function applySpendingConstraints(mapped, payload = {}) {
         id,
         type,
         title: nonEmptyString(item.title, `Product ${id}`),
-        tokenPrice: pickNumeric(item.tokenPrice, 0),
-        usdPrice: pickNumeric(item.usdPrice, 0),
         tags: Array.isArray(item.tags)
           ? item.tags.map((tag) => nonEmptyString(tag, "")).filter(Boolean)
           : [],
-        actionLabel: nonEmptyString(item.actionLabel, "Buy"),
       };
+
+      const buyPrice = pickNumeric(item?.buyPrice, null);
+      if (buyPrice != null) {
+        normalizedItem.buyPrice = buyPrice;
+      }
+
+      const subscribePrice = pickNumeric(item?.subscribePrice, null);
+      if (subscribePrice != null) {
+        normalizedItem.subscribePrice = subscribePrice;
+      }
 
       const thumbnailUrl = nonEmptyString(item.thumbnailUrl, "");
       if (thumbnailUrl) {
@@ -378,6 +385,34 @@ function applySpendingConstraints(mapped, payload = {}) {
 
     mapped.requiredProducts = normalized;
   }
+}
+
+function normalizeAddOns(addOns = []) {
+  const source = Array.isArray(addOns) ? addOns : [];
+  const normalized = [];
+
+  source.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+
+    const title = nonEmptyString(item.title || item.name, "");
+    const description = typeof item.description === "string"
+      ? item.description.trim()
+      : "";
+    const priceTokens = pickNumeric(item.priceTokens ?? item.tokens ?? item.price, null);
+
+    const hasAnyValue = title || description || priceTokens !== null;
+    if (!hasAnyValue) return;
+    if (!title) return;
+    if (priceTokens === null || priceTokens < 0) return;
+
+    normalized.push({
+      title,
+      description,
+      priceTokens,
+    });
+  });
+
+  return normalized;
 }
 
 function buildLateStartPolicy(payload = {}) {
@@ -433,6 +468,7 @@ function mapBasePayload(payload = {}, context = {}) {
     socialAutoPost: buildSocialAutoPost(payload),
     blockedUsers: stringToArray(payload.blockedUsers || payload.blockedUserSearch),
     coHosts: stringToArray(payload.coHosts || payload.coPerformerSearch),
+    addOns: normalizeAddOns(payload.addOns),
 
     allowFanRecordingEnabled: asBoolean(payload.allowRecording, false),
     allowPersonalRequestRequired: asBoolean(payload.allowPersonalRequest, false),

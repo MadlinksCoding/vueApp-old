@@ -5,9 +5,32 @@
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
   import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
+  import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
+  import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
+  import videoIcon from '@/assets/images/icons/video-recorder.webp'
+  import phoneIcon from '@/assets/images/icons/phone.webp'
+  import musicIcon from '@/assets/images/icons/music-note.webp'
+
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
+
+  const callTypeOptions = [
+    { label: 'Video Call', value: 'video', image: videoIcon },
+    { label: 'Audio Call', value: 'audio', image: phoneIcon }
+  ];
+
+  const repeatRuleOptions = [
+    { label: 'Repeat Weekly', value: 'weekly' },
+    { label: 'Does not repeat', value: 'doesNotRepeat' },
+    { label: 'Repeats every 2 weeks', value: 'everyXWeeks' }
+  ];
+
+  const lateStartActionOptions = [
+    { label: 'Allow reschedule', value: 'reschedule' },
+    { label: 'Issue refund', value: 'refund' },
+    { label: 'Give next-session discount', value: 'nextDiscount' }
+  ];
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -115,9 +138,9 @@
   };
 
   const ringtoneOptions = [
-    { label: "Ringtone 1", value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" },
-    { label: "Ringtone 2", value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3" },
-    { label: "Ringtone 3", value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3" },
+    { label: "Ringtone 1", value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
+    { label: "Ringtone 2", value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
+    { label: "Ringtone 3", value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
   ];
 
   const colorOptions = [
@@ -128,6 +151,11 @@
     { label: "Orange", value: "#F97316" },
     { label: "Purple", value: "#8B5CF6" },
     { label: "Teal", value: "#14B8A6" },
+  ];
+
+  const bufferUnitOptions = [
+    { label: "Minutes", value: "minutes" },
+    { label: "Hours", value: "hours" },
   ];
 
   let previewAudio = null;
@@ -600,12 +628,28 @@
               <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
                 inputClass="px-3.5 text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
-            <select v-model="formData.eventColorSkin"
-              class="h-[45px] bg-white/50 border-l text-sm px-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none min-w-[140px]">
-              <option v-for="color in colorOptions" :key="color.value" :value="color.value">
-                {{ color.label }}
-              </option>
-            </select>
+            <div class="">
+              <CustomDropdown
+                v-model="formData.eventColorSkin"
+                :options="colorOptions"
+                buttonClass="h-full bg-white/50 border-l pr-3 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
+                dropdownClass="w-full bg-white shadow-lg overflow-y-auto max-h-60 border border-gray-100 right-0 origin-top-right mt-0"
+              >
+                <!-- Trigger: Only show the selected color dot -->
+                <template #trigger="{ selected }">
+                  <div class="flex items-center justify-center p-2">
+                    <div class="w-4 h-4 rounded-full shadow-sm" :style="{ backgroundColor: selected }"></div>
+                  </div>
+                </template>
+                
+                <!-- Option: Only show the color dot, centered -->
+                <template #option="{ option }">
+                  <div class="flex justify-start p-3">
+                    <div class="w-4 h-4 rounded-full shadow-sm" :style="{ backgroundColor: option.value }"></div>
+                  </div>
+                </template>
+              </CustomDropdown>
+            </div>
           </div>
           <div
             class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
@@ -613,23 +657,21 @@
           </div>
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
-              <div class="text-slate-700 text-xs font-normal leading-none">Call Type</div>
-              <select v-model="formData.eventCallType"
-                class="self-stretch bg-white/50 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
-                <option value="video">Video Call</option>
-                <option value="audio">Audio Call</option>
-              </select>
+              <div class="text-slate-700 text-xs font-normal leading-none mb-1.5">Call Type</div>
+              <CustomDropdown
+                v-model="formData.eventCallType"
+                :options="callTypeOptions"
+              />
             </div>
           </div>
           <div class="flex w-full gap-3">
             <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
               <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <select v-model="formData.eventRingtoneUrl"
-                  class="self-stretch bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
-                  <option v-for="ringtone in ringtoneOptions" :key="ringtone.value" :value="ringtone.value">
-                    {{ ringtone.label }}
-                  </option>
-                </select>
+                <CustomDropdown
+                  v-model="formData.eventRingtoneUrl"
+                  :options="ringtoneOptions"
+                  buttonClass="self-stretch bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
+                />
               </div>
             </div>
             <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
@@ -984,12 +1026,10 @@
               GMT +8 Hong Kong Standard time
             </div>
 
-            <select v-model="formData.repeatRule"
-              class="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300">
-              <option value="weekly">Repeat Weekly</option>
-              <option value="doesNotRepeat">Does not repeat</option>
-              <option value="everyXWeeks">Repeats every 2 weeks</option>
-            </select>
+            <CustomDropdown
+              v-model="formData.repeatRule"
+              :options="repeatRuleOptions"
+            />
             <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="self-stretch inline-flex justify-start items-end">
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -1207,12 +1247,11 @@
             </div>
             <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
               <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <select v-model="formData.lateStartAction"
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none">
-                  <option value="reschedule">Allow reschedule</option>
-                  <option value="refund">Issue refund</option>
-                  <option value="nextDiscount">Give next-session discount</option>
-                </select>
+                <CustomDropdown
+                  v-model="formData.lateStartAction"
+                  :options="lateStartActionOptions"
+                  buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
+                />
                 <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
                   <BaseInput type="number" placeholder="Discount % for next session"
                     v-model="formData.lateStartDiscountPercent"
@@ -1354,11 +1393,7 @@
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="w-44 inline-flex flex-col justify-start items-start gap-1.5">
                   <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                    <select v-model="formData.bufferUnit" :disabled="!formData.setBufferTime"
-                      class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none disabled:cursor-not-allowed">
-                      <option value="minutes">Minutes</option>
-                      <option value="hours">Hours</option>
-                    </select>
+                    <CustomDropdown :options="bufferUnitOptions" v-model="formData.bufferUnit" :disabled="!formData.setBufferTime" />
                   </div>
                 </div>
               </div>

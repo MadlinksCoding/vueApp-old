@@ -11,10 +11,12 @@ import GroupBookingStep1 from "./GroupBookingStep1.vue";
 import GroupBookingStep2 from "./GroupBookingStep2.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
+import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
+import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -102,6 +104,7 @@ const bookingFlow = createFlowStateEngine({
         recordingPrice: "",
         allowPersonalRequest: false,
         personalRequestNote: "",
+        addOns: [],
         blockedUserSearch: "",
         blockedUsers: [],
         coPerformerSearch: "",
@@ -134,6 +137,7 @@ attachEngineLogging(bookingFlow);
 
 // Sync engine with component to make it reactive for the template
 const currentStep = ref(1);
+const previewSchedule = ref(false);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
 const creatorEventsForCalendar = ref([]);
@@ -177,6 +181,26 @@ const resolveCreatorId = () => {
         ? creatorFromRoute
         : (creatorFromStorage || 1);
 };
+
+const previewEventForFanFlow = computed(() => {
+    try {
+        const creatorId = resolveCreatorId();
+        return mapDraftEventToFanBookingPreview(
+            { ...(bookingFlow.state || {}) },
+            {
+                creatorId,
+                previewEventId: `preview_event_${creatorId}`,
+            },
+        );
+    } catch (error) {
+        return null;
+    }
+});
+
+const previewBookedSlotsForFanFlow = computed(() => {
+    const slots = bookingFlow.getState("fanBooking.catalog.bookedSlots");
+    return Array.isArray(slots) ? slots : [];
+});
 
 const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     const creatorId = resolveCreatorId();
@@ -636,7 +660,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <MainCalendar class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
-                    :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain">
+                    :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
+                    @preview-schedule="previewSchedule = true">
 
                     <template #event="{ event, style, onClick }">
                         <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden"
@@ -745,4 +770,13 @@ useBodyOverflowHidden({ minWidth: 1010 });
             </div>
         </div>
     </div>
+
+    <OneOnOneBookingFlowPopup
+        v-model="previewSchedule"
+        :preview-mode="true"
+        :preview-event="previewEventForFanFlow"
+        :preview-booked-slots="previewBookedSlotsForFanFlow"
+        :preview-start-step="1"
+        :preview-read-only="true"
+    />
 </template>

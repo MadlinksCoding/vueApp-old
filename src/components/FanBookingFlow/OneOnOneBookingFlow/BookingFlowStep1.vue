@@ -34,9 +34,28 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function toPlainText(value, fallback = "No description provided for this event.") {
+  if (typeof value !== "string" || !value.trim()) return fallback;
+
+  if (typeof DOMParser !== "undefined") {
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(value, "text/html");
+    const text = parsed?.body?.textContent?.trim();
+    return text || fallback;
+  }
+
+  const stripped = value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return stripped || fallback;
+}
+
 function addOnPreview(event = {}) {
+  const isFanRecordingAllowed = Boolean(event?.raw?.allowFanRecordingEnabled);
+  const fanRecordingTokens = safeNumber(event?.raw?.allowFanRecordingTokens, 0);
+
   const addOns = Array.isArray(event?.raw?.addOns) ? event.raw.addOns : [];
-  return addOns.slice(0, 5).map((item) => ({
+  const finalAddOns = isFanRecordingAllowed ? [{ title: "Record our session", price: fanRecordingTokens }, ...addOns] : [...addOns];
+
+  return finalAddOns.slice(0, 5).map((item) => ({
     title: item?.title || item?.name || "Add-on",
     price: safeNumber(item?.priceTokens || item?.price, 0),
   }));
@@ -171,7 +190,7 @@ watch(
         <div class="flex flex-col gap-[1rem]">
           <div class="content-desc">
             <p class="text-ellipsis line-clamp-5">
-              {{ currentEvent?.description || 'No description provided for this event.' }}
+              {{ toPlainText(currentEvent?.description) }}
             </p>
           </div>
 
