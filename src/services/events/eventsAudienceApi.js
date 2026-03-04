@@ -1,4 +1,5 @@
-const AUDIENCE_API_BASE_URL = import.meta.env.VITE_BASE_URL + "/wp-json/api/users";
+const AUDIENCE_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/users";
+const SUBSCRIPTIONS_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/subscriptions";
 
 
 function asArray(value) {
@@ -14,7 +15,7 @@ export async function fetchActiveSubscriptionTiers({ creatorId, signal } = {}) {
   const safeCreatorId = normalizeId(creatorId);
   if (safeCreatorId == null || safeCreatorId === "") return [];
 
-  const url = `${AUDIENCE_API_BASE_URL}/active-tiers?user_id=${encodeURIComponent(safeCreatorId)}`;
+  const url = `${SUBSCRIPTIONS_API_BASE_URL}/plans/list?creator_id=${encodeURIComponent(safeCreatorId)}&count=20`;
   const response = await fetch(url, {
     method: "GET",
     signal,
@@ -29,9 +30,10 @@ export async function fetchActiveSubscriptionTiers({ creatorId, signal } = {}) {
   const rows = asArray(payload?.results);
 
   return rows
+    // .filter((row) => String(row?.status || "").toLowerCase() === "publish")
     .map((row) => ({
       id: normalizeId(row?.id),
-      label: String(row?.name || row?.title || `Tier ${row?.id || ""}`).trim(),
+      label: String(row?.title || row?.name || `Tier ${row?.id || ""}`).trim(),
       raw: row,
     }))
     .filter((row) => row.id !== null && row.id !== undefined);
@@ -71,4 +73,3 @@ export async function searchInvitableUsers({ query, signal } = {}) {
     })
     .filter((row) => row.id !== null && row.id !== undefined);
 }
-

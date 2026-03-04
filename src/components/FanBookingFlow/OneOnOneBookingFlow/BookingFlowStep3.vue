@@ -268,7 +268,7 @@ function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) 
     creator_id: String(resolveCreatorId() || ""),
   };
 
-  const endpoint = import.meta.env.VITE_BASE_URL + "/wp-json/api/bookings/create-schedule";
+  const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/bookings/create-schedule";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -302,7 +302,7 @@ function fireAndForgetBookingCreated() {
     action: "created",
   };
 
-  const endpoint = import.meta.env.VITE_BASE_URL + "/wp-json/api/bookings/create";
+  const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/bookings/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {

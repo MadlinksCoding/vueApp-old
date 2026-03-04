@@ -2,7 +2,7 @@ import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { asFlowError, toNumberOr } from "@/services/events/eventsApiUtils.js";
 
-const EXTERNAL_API_BASE_URL = import.meta.env.VITE_BASE_URL + "/wp-json/api";
+const EXTERNAL_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api";
 const COLLECTION_CONFIG = {
   media: {
     path: "/media/list",
@@ -13,7 +13,7 @@ const COLLECTION_CONFIG = {
     creatorParam: "creator_id",
   },
   subscription: {
-    path: "/subscriptions/plans",
+    path: "/subscriptions/plans/list",
     creatorParam: "creator_id",
   },
 };
@@ -41,7 +41,7 @@ function mapPrimaryResponse(type, response = {}, payload = {}) {
   const totalCount = toNumberOr(response?.total_count, null);
   return {
     type,
-    source: type === "subscription" ? "subscriptions/plans" : `${type}/list`,
+    source: type === "subscription" ? "subscriptions/plans/list" : `${type}/list`,
     results,
     totalCount,
     count: toNumberOr(payload?.count, 20),

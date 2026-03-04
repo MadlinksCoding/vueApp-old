@@ -25,9 +25,9 @@ const whoCanBookOptions = [
 ];
 
 const spendingRequirementOptions = [
-  { label: 'None', value: 'none' },
-  { label: 'Minimum spend', value: 'minSpend' },
-  { label: 'Must own products', value: 'mustOwnProducts' }
+  { label: 'No spending requirement', value: 'none' },
+  // { label: 'User need to spend minimum amount to join', value: 'minSpend' },
+  { label: 'User need to buy specific product(s) to join', value: 'mustOwnProducts' }
 ];
 
 const props = defineProps(["engine"]);
@@ -156,7 +156,7 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
-const INVITE_LINK_BASE_URL = import.meta.env.VITE_BASE_URL + "/event-invite";
+const INVITE_LINK_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/event-invite";
 const spendingProductPopupOpen = ref(false);
 const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
 
@@ -752,7 +752,7 @@ function notifyEventCreated({ creatorId, eventName, eventType }) {
     action: "created",
   };
 
-  const endpoint = import.meta.env.VITE_BASE_URL + "/wp-json/api/event/create";
+  const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/event/create";
 
   try {
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {

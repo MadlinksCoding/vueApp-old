@@ -776,7 +776,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :preview-mode="true"
         :preview-event="previewEventForFanFlow"
         :preview-booked-slots="previewBookedSlotsForFanFlow"
-        :preview-start-step="1"
+        :preview-start-step="2"
         :preview-read-only="true"
     />
 </template>

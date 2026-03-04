@@ -261,9 +261,6 @@ async function loadPreviewContext() {
   const startStep = normalizePreviewStartStep(props.previewStartStep);
   const isReadOnlyPreview = Boolean(props.previewReadOnly);
 
-  await engine.forceStep(startStep, { intent: "open-preview-popup" });
-  engine.forceSubstep(null, { intent: "open-preview-popup" });
-
   engine.setState("fanBooking.catalog.cachedResponse", {
     events: [previewEvent],
     rawEvents: [previewEvent.raw || {}],
@@ -303,6 +300,11 @@ async function loadPreviewContext() {
     createdAt: null,
     checkedAt: null,
   }, { reason: "preview-load", silent: true });
+
+  // Move to the requested step only after preview catalog/context are hydrated.
+  // This avoids Step 2 mount race where selectedEvent is still null.
+  await engine.forceStep(startStep, { intent: "open-preview-popup" });
+  engine.forceSubstep(null, { intent: "open-preview-popup" });
 
   return { ok: true };
 }
