@@ -106,7 +106,7 @@
           </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50" @click="newEventsPopupOpen = true">
+        <div class="fixed bottom-5 right-5 z-50 lg:hidden" @click="newEventsPopupOpen = true">
           <button
             class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
             <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
