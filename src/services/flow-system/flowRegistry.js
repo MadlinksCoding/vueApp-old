@@ -16,8 +16,10 @@ import { createTemporaryHoldFlow } from "@/services/bookings/flows/createTempora
 import { getTemporaryHoldStatusFlow } from "@/services/bookings/flows/getTemporaryHoldStatusFlow.js";
 import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTemporaryHoldFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
+import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
+import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
 import {
   validateFetchCatalogPayload,
   validateFetchCatalogResponse,
@@ -299,6 +301,27 @@ export const flowRegistry = {
         REVIEW_BOOKING_FAILED: "Could not update booking approval.",
         HTTP_400: "This booking cannot be reviewed in its current status.",
         HTTP_402: "Could not reverse token hold for rejected booking.",
+      },
+    },
+  },
+  "bookings.cancelBooking": {
+    flowKind: "write",
+    flow: cancelBookingFlow,
+    mapper: { toRequest: mapCancelBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastCancel", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastCancelAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+      ],
+      uiErrorMap: {
+        CANCEL_BOOKING_MISSING_ID: "Booking id is required.",
+        CANCEL_BOOKING_FAILED: "Could not cancel booking.",
+        HTTP_400: "This booking cannot be cancelled in its current status.",
+        HTTP_402: "Could not reverse token hold for cancellation.",
       },
     },
   },
