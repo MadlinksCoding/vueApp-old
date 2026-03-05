@@ -14,6 +14,8 @@ import {
   onDeactivated,
 } from "vue";
 
+import {v4 as uuidv4} from 'uuid';
+
 // ---------- small helpers ----------
 
 function deepClone(value) {
@@ -459,14 +461,11 @@ export function createStepStateEngine(config) {
     // validator registration
     registerValidator,
 
-    // validator registration
-    registerValidator,
-
     addValidator(step, fn) {
       registerValidator(
-        `step-${step}-validation`,
+        `step-${step}-validation-` + uuidv4(),
         async ({ engine }) => {
-          const res = await fn(engine.state);
+          const res = await fn(engine.state, engine);
           if (res === true) return {};
           if (typeof res === "string") return { errors: [res] };
           return res;
@@ -499,7 +498,7 @@ export function createStepStateEngine(config) {
 
     // navigation: step
     async goToStep(nextStep, options = {}) {
-      const { intent = "user", force = false } = options;
+      const { intent = "user", force = false, throwOnBlocked = false } = options;
 
       if (core.step === nextStep) {
         log("step:no-op", {
@@ -537,6 +536,15 @@ export function createStepStateEngine(config) {
           next: nextStep,
         });
 
+        if (throwOnBlocked) {
+          const error = new Error("Step transition blocked by exit validation.");
+          error.code = "STEP_BLOCKED_EXIT";
+          error.phase = "exit";
+          error.errors = exitDecision.errors || [];
+          error.warnings = exitDecision.warnings || [];
+          throw error;
+        }
+
         return;
       }
 
@@ -557,6 +565,15 @@ export function createStepStateEngine(config) {
           prev: core.step,
           next: nextStep,
         });
+
+        if (throwOnBlocked) {
+          const error = new Error("Step transition blocked by entry validation.");
+          error.code = "STEP_BLOCKED_ENTRY";
+          error.phase = "entry";
+          error.errors = entryDecision.errors || [];
+          error.warnings = entryDecision.warnings || [];
+          throw error;
+        }
 
         return;
       }

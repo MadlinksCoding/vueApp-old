@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 p-2 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-2 md:pl-0 backdrop-blur-md">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -111,7 +111,7 @@
           </div>
 
           <div v-if="isDropdownOpen" class="absolute top-full left-0 mt-2 z-50 origin-top-left">
-            <EventDropdownContent />
+            <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
         </div>
@@ -161,7 +161,7 @@
           </div>
 
           <div v-if="isDropdownOpen" class="absolute top-full right-5 mt-2 z-50 origin-top-left">
-            <EventDropdownContent />
+            <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
         </div>
@@ -217,12 +217,12 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full">
+    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
-          <div v-if="variant === 'default'" class="lg:flex hidden items-center px-[0.25rem] gap-[0.125rem]">
-            <span class="flex items-center justify-center w-[10px] h-[10px]">
+          <div v-if="variant === 'default'" class="lg:flex hidden justify-end items-center px-[0.25rem] gap-[0.125rem]">
+            <span class="flex items-center justify-center w-[10px] h-[10px] flex-1 text-right">
               <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round"
                   stroke-linejoin="round" />
@@ -278,6 +278,8 @@
             <div class="relative z-[0]" data-cal-scroll
               :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
+                <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
+                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
                 <slot v-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
                   :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
                 <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
@@ -518,7 +520,12 @@
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
-      <CalendarEventDetailsPopup :event="selectedEvent" />
+      <CalendarEventDetailsPopup
+        :event="selectedEvent"
+        @approve-booking="handleApproveBooking"
+        @reject-booking="handleRejectBooking"
+        @cancel-booking="handleCancelBooking"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="isDatePopupOpen" :config="datePopupConfig">
@@ -563,7 +570,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking', 'cancel-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -573,7 +580,13 @@ const nowY = ref(0);
 // State for dropdown
 const isDropdownOpen = ref(false);
 const dropdownContainer = ref(null);
-const showSchedule = ref(false); // Checkbox state
+const showSchedule = ref(true); // Checkbox state
+const dropdownFilters = ref({
+  video: true,
+  audio: true,
+  groupCall: false,
+  showSchedule: true,
+});
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
@@ -845,11 +858,49 @@ const days = computed(() => {
 const normalized = computed(() => {
   let evs = props.events || [];
 
+  if (props.variant === 'default') {
+    evs = evs.filter((ev) => {
+      const isAvailabilityBlock = ev?.isAvailabilityBlock === true;
+      if (isAvailabilityBlock && !showSchedule.value) return false;
+
+      const rawCallType = String(
+        ev?.eventCallType
+          || ev?.raw?.eventCallType
+          || ev?.event?.eventCallType
+          || '',
+      ).trim().toLowerCase();
+      const rawEventType = String(
+        ev?.eventType
+          || ev?.type
+          || ev?.raw?.eventType
+          || ev?.raw?.type
+          || '',
+      ).trim().toLowerCase();
+
+      if (rawEventType.includes('group')) return !!dropdownFilters.value.groupCall;
+
+      if (rawCallType.includes('audio')) return !!dropdownFilters.value.audio;
+      if (rawCallType.includes('video')) return !!dropdownFilters.value.video;
+
+      // Unknown call type fallback: keep visible if any 1:1 channel is enabled.
+      return !!(dropdownFilters.value.video || dropdownFilters.value.audio);
+    });
+  }
+
   if (props.variant === 'theme2') {
     evs = evs.filter(ev => {
+      const isDraftPreview = ev?.isDraftPreview === true;
+      const isExistingSchedule = ev?.isExistingSchedule === true;
+
+      // New explicit flags take precedence in theme2:
+      // - Draft preview is always visible
+      // - Existing schedule is visible only when checkbox is enabled
+      if (isDraftPreview) return true;
+      if (isExistingSchedule) return !!showSchedule.value;
+
+      // Backward-compatible behavior for older events payloads.
       if (ev.slot === 'custom') return true;
-      if (showSchedule.value) return true;
-      return false;
+      return !!showSchedule.value;
     });
   }
 
@@ -902,6 +953,31 @@ const dispatchEventClick = (event) => {
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
   eventDetailsPopupOpen.value = true;
+};
+
+const openEventDetails = (event) => {
+  if (!event || typeof event !== 'object') return;
+  selectedEvent.value = event;
+  eventDetailsPopupOpen.value = true;
+};
+
+const closeEventDetails = () => {
+  eventDetailsPopupOpen.value = false;
+};
+
+const handleApproveBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('approve-booking', payload);
+};
+
+const handleRejectBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('reject-booking', payload);
+};
+
+const handleCancelBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('cancel-booking', payload);
 };
 const eventsForDay = (day) => {
   const s = SOD(day), e = addDays(s, 1);
@@ -977,5 +1053,28 @@ onBeforeUnmount(() => {
 });
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+});
+
+watch(
+  () => dropdownFilters.value.showSchedule,
+  (value) => {
+    if (showSchedule.value !== value) {
+      showSchedule.value = value;
+    }
+  },
+);
+
+watch(showSchedule, (value) => {
+  if (dropdownFilters.value.showSchedule !== value) {
+    dropdownFilters.value = {
+      ...dropdownFilters.value,
+      showSchedule: value,
+    };
+  }
+});
+
+defineExpose({
+  openEventDetails,
+  closeEventDetails,
 });
 </script>

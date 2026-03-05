@@ -4,7 +4,9 @@
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
-  import QuillEditor from "@/components/dev/input/QuillEditor.vue";
+  import Quill from 'quill';
+  import 'quill/dist/quill.snow.css';
+  import { showToast } from "@/utils/toastBus.js";
 
   // Accept Engine
   const props = defineProps(['engine']);
@@ -47,15 +49,28 @@
     sectionsState.value[key] = !sectionsState.value[key];
   };
 
-  const goToNext = () => {
-    props.engine.goToStep(2);
+  const goToNext = async () => {
+    try {
+      await props.engine.goToStep(2, { throwOnBlocked: true });
+    } catch (error) {
+      const messages = (error?.errors || []).map((e) =>
+        typeof e === "string" ? e : (e?.message || "Validation error")
+      );
+      const fallback = error?.message || "Please fix validation errors before continuing.";
+      const body = messages.length ? messages.join(" ") : fallback;
+      showToast({
+        type: "error",
+        title: "Validation Failed",
+        message: body,
+      });
+    }
   };
 
 
 </script>
 
   <template>
-    <form class="flex flex-col gap-6 relative px-6">
+    <form class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
 
       <div class="  inline-flex justify-start items-start gap-4">
         <div class="w-6 h-6 relative overflow-hidden">

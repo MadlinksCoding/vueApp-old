@@ -4,6 +4,18 @@ export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      height: {
+        dvh: '100dvh',
+      },
+      maxHeight: {
+        dvh: '100dvh',
+      },
+      minHeight: {
+        dvh: '100dvh',
+      },
+      maxWidth: {
+        "fullvw": "100vw",
+      },
       screens: {
         sm: "480px",
         md: "768px",
@@ -712,5 +724,17 @@ export default {
     "hover:bg-[linear-gradient(180deg,rgba(87,85,85,0.50)_0%,rgba(0,0,0,0.50)_100%)]",
     "hover:[box-shadow:0px_0px_20px_0px_rgba(255,150,192,0.8)_inset,_8px_8px_30px_0px_rgba(255,0,102,0.7),_0px_0px_35px_0px_rgba(255,255,221,0.5),_-8px_-8px_30px_0px_rgba(255,0,0,0.7)]",
   ],
-  plugins: [],
+  plugins: [
+    function ({ addUtilities }) {
+      addUtilities({
+        '.no-scrollbar': {
+          '-ms-overflow-style': 'none',
+          'scrollbar-width': 'none',
+        },
+        '.no-scrollbar::-webkit-scrollbar': {
+          display: 'none',
+        },
+      });
+    },
+  ],
 };

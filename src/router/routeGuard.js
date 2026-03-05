@@ -48,7 +48,7 @@ function getParentRouteDeps(path) {
 // --- Main Route Guard ---
 export default function routeGuard(to, from, next) {
   const auth = useAuthStore();
-  const user = auth.simulate || auth.currentUser;
+  let user = auth.simulate || auth.currentUser;
   if (!user) {
     try {
       const sim = localStorage.getItem("simulate");
@@ -178,11 +178,13 @@ export default function routeGuard(to, from, next) {
   }
 
   // 7. Infinite loop prevention (generic)
-  if (to.path === from.path) {
-    console.error(
-      `[GUARD] Infinite loop detected when redirecting from "${from.path}" to "${to.path}"`
+  // Allow same-path navigation when query/hash changes (common in dashboard refresh flows).
+  // Only block exact no-op navigations.
+  if (to.fullPath === from.fullPath) {
+    console.warn(
+      `[GUARD] No-op navigation detected for "${to.fullPath}" -> cancelling navigation`
     );
-    return next("/404");
+    return next(false);
   }
 
   // 8. Allow navigation

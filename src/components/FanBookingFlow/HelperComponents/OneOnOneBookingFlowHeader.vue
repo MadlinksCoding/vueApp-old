@@ -8,6 +8,10 @@ defineProps({
     type: Number,
     default: 0
   },
+  subtotalDisplay: {
+    type: String,
+    default: ""
+  },
   duration: {
     type: [Number, String],
     default: 0
@@ -16,6 +20,14 @@ defineProps({
   dateDisplay: {
     type: String,
     default: '-'
+  },
+  titleDisplay: {
+    type: String,
+    default: 'High School Life Simulator'
+  },
+  showApprovalNeeded: {
+    type: Boolean,
+    default: true
   }
 });
 </script>
@@ -27,7 +39,7 @@ defineProps({
         <div class="bg-[#22CCEE] rounded-tl-[20px] p-[0.25rem_0.375rem_0.25rem_1rem] w-fit min-h-[28px] flex justify-center items-center">
           <p class="text-sm leading-[20px] text-[#0C111D] font-bold">1 on 1 call</p>
         </div>
-        <div class="bg-[#0C111D] hidden lg:flex rounded-[6px] p-[0.3125rem_0.375rem] w-fit min-h-[28px] lg:flex justify-center items-center gap-2">
+        <div v-if="showApprovalNeeded" class="bg-[#0C111D] hidden lg:flex rounded-[6px] p-[0.3125rem_0.375rem] w-fit min-h-[28px] lg:flex justify-center items-center gap-2">
           <div class="w-4 h-4 flex justify-center items-center">
             <img src="/images/dots.svg" alt="status-icon" />
           </div>
@@ -39,7 +51,7 @@ defineProps({
         <div class="flex flex-col sm:flex-row gap-6 w-full">
           
           <div class="flex flex-col text-white md:w-1/2 w-full gap-1">
-            <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">High School Life Simulator</h1>
+            <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
             <div class="flex flex-row items-center gap-2">
               <div class="w-6 h-6 flex justify-center items-center">
                 <img src="/images/ex-profile.png" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
@@ -51,7 +63,7 @@ defineProps({
                 </div>
               </div>
             </div>
-            <div class="bg-[#0C111D] rounded-[6px] lg:hidden p-[0.3125rem_0.375rem] w-fit min-h-[28px] flex justify-center items-center gap-2">
+            <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] lg:hidden p-[0.3125rem_0.375rem] w-fit min-h-[28px] flex justify-center items-center gap-2">
               <div class="w-4 h-4 flex justify-center items-center"><img src="/images/dots.svg" alt="status-icon" /></div>
               <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">APPROVAL NEEDED</div>
             </div>
@@ -80,7 +92,7 @@ defineProps({
                 <div class="w-6 h-6 flex justify-center items-center" v-if="subtotal > 0">
                   <img src="/images/token.svg" alt="price-icon" />
                 </div>
-                <p class="text-lg font-semibold leading-[28px]">{{ subtotal > 0 ? subtotal : '-' }}</p>
+                <p class="text-lg font-semibold leading-[28px]">{{ subtotal > 0 ? (subtotalDisplay || subtotal) : '-' }}</p>
               </div>
             </div>
 
