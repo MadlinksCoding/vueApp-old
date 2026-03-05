@@ -1168,15 +1168,6 @@ const createEvent = async () => {
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
             </div>
             <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
-              <ButtonComponent
-                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? 'Switch Product' : 'Add Product'"
-                variant="none"
-                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
-                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
-                @click="openSpendingProductPopup"
-              />
-
               <div
                 v-if="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0"
                 class="flex flex-col gap-2"
@@ -1184,29 +1175,37 @@ const createEvent = async () => {
                 <div
                   v-for="product in formData.requiredProducts"
                   :key="getRequiredProductKey(product)"
-                  class="flex items-center gap-2 rounded border border-gray-200 bg-white/70 p-2"
+                  class="flex items-start gap-2 pt-2"
                 >
-                  <img
+                  <div class="relative">
+                    <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
+                      <img src="" alt="">
+                      <span class="text-xs text-white">Count</span>
+                    </div>
+                    <img
                     :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
                     :alt="product.title || 'Product'"
-                    class="h-10 w-14 rounded object-cover"
+                    class="w-[8.5rem] h-[4.875rem] aspect-[136.00/78.34] object-cover"
                   />
-                  <div class="flex-1 min-w-0">
+                  </div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-0">
                     <div class="text-xs font-semibold text-slate-800 truncate">
                       {{ product.title || `${product.type} ${product.id}` }}
                     </div>
                     <div class="flex gap-2">
-                      <div class="text-[11px] text-slate-500 capitalize">
+                     <!-- <div class="text-[11px] text-slate-500 capitalize">
                         {{ product.type }}
+                      </div> -->
+                      <div v-if="product.subscribePrice" class="text-xs text-white capitalize flex gap-1 bg-[#F06] px-[0.375rem] py-[0.125rem]">
+                        <span>Subscribe</span> 
+                        <span class="font-semibold">${{ product.subscribePrice || 0 }}</span>
                       </div>
 
-                      <div v-if="product.buyPrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> Buy USD${{ product.buyPrice || 0 }}
+                      <div v-if="product.buyPrice" class="text-xs text-white capitalize flex gap-1 bg-[#0133FB] px-[0.375rem] py-[0.125rem]">
+                        <span>Buy</span> 
+                        <span class="font-semibold">${{ product.buyPrice || 0 }}</span>
                       </div>
 
-                      <div v-if="product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> Subscribe USD${{ product.subscribePrice || 0 }}
-                      </div>
 
                       <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
                         <span>·</span> FREE
@@ -1215,6 +1214,14 @@ const createEvent = async () => {
                   </div>
                 </div>
               </div>
+              <ButtonComponent
+                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? 'Switch Product' : 'Add Product'"
+                variant="none"
+                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
+                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
+                @click="openSpendingProductPopup"
+              />
             </div>
           </div>
         </div>

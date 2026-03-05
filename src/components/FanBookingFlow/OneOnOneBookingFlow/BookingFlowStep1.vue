@@ -111,129 +111,131 @@ watch(
 </script>
 
 <template>
-  <div
-    class="sm:w-96 h-full overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl bg-center bg-cover bg-no-repeat bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] backdrop-blur-md"
-  >
-    <div v-if="isLoading" class="h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
-      Loading events...
-    </div>
+  <div class="h-screen w-full max-h-full overflow-auto scrollbar-hide py-8">
+    <div
+      class="sm:w-[25rem] h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl bg-center bg-cover bg-no-repeat bg-[linear-gradient(180deg,rgba(12,17,29,0)_25%,#0C111D_100%),url('/images/background.png')] backdrop-blur-md"
+    >
+      <div v-if="isLoading" class="h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
+        Loading events...
+      </div>
 
-    <div v-else-if="loadError" class="h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
-      <p class="text-sm text-red-300">{{ loadError }}</p>
-      <button
-        @click="emit('retry-catalog')"
-        class="px-4 py-2 rounded-lg bg-[#22CCEE] text-[#0C111D] text-sm font-semibold"
-      >
-        Retry
-      </button>
-    </div>
-
-    <div v-else-if="events.length === 0" class="h-full flex items-center justify-center rounded-3xl bg-black/15 px-6 text-center text-white text-sm">
-      No active events available right now.
-    </div>
-
-    <div v-else class="flex flex-col justify-between w-full h-full rounded-3xl bg-black/15 relative">
-      <div class="absolute right-0 flex items-center justify-end gap-2 px-3 pt-3">
+      <div v-else-if="loadError" class="h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
+        <p class="text-sm text-red-300">{{ loadError }}</p>
         <button
-          type="button"
-          class="w-7 h-7 rounded-full bg-white/20 text-white text-xl disabled:opacity-40"
-          :disabled="currentIndex === 0"
-          @click="goPrev"
+          @click="emit('retry-catalog')"
+          class="px-4 py-2 rounded-lg bg-[#22CCEE] text-[#0C111D] text-sm font-semibold"
         >
-          ‹
-        </button>
-        <div class="text-xs text-white/90 font-medium min-w-[46px] text-center">
-          {{ currentIndex + 1 }} / {{ totalEvents }}
-        </div>
-        <button
-          type="button"
-          class="w-7 h-7 rounded-full bg-white/20 text-white text-xl disabled:opacity-40"
-          :disabled="currentIndex >= totalEvents - 1"
-          @click="goNext"
-        >
-          ›
+          Retry
         </button>
       </div>
 
-      <div
-        class="card-header flex flex-col justify-center items-center w-[5.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] rounded-tl-3xl rounded-br-sm"
-      >
-        <p class="header-content p-[0.25rem 0.375rem 0.25rem 1rem]">
-          {{ callTypeLabel(currentEvent || {}) }}
-        </p>
-        <div class="absolute top-0 right-0 p-3">
-          <img src="" alt="" />
-        </div>
+      <div v-else-if="events.length === 0" class="h-full flex items-center justify-center rounded-3xl bg-black/15 px-6 text-center text-white text-sm">
+        No active events available right now.
       </div>
 
-      <div
-        class="card-content flex flex-col gap-[0.5rem] text-white w-full h-full p-[1rem]"
-      >
-        <div
-          class="flex flex-col justify-end gap-[1rem] min-h-52 h-full pb-[0.5rem]"
-        >
-          <div class="content-title text-3xl font-semibold line-clamp-2">
-            {{ currentEvent?.title || 'Untitled Event' }}
-          </div>
-          <div
-            class="content-price flex flex-row justify-start items-end gap-[0.5rem]"
+      <div v-else class="flex flex-col justify-between w-full h-full rounded-3xl bg-black/15 relative">
+        <div class="absolute right-0 flex items-center justify-end gap-2 px-3 pt-3">
+          <button
+            type="button"
+            class="w-7 h-7 rounded-full bg-white/20 text-white text-xl disabled:opacity-40"
+            :disabled="currentIndex === 0"
+            @click="goPrev"
           >
-            <div class="price-icon h-full flex justify-center items-center">
-              <img src="/images/token.svg" class="w-[2rem] h-[2rem]" />
-            </div>
-            <p class="price-amount text-4xl font-semibold">{{ safeNumber(currentEvent?.basePriceTokens, 0) }}</p>
-            <p class="price-currency text-2xl font-semibold">Tokens</p>
-            <p class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} minutes</p>
+            ‹
+          </button>
+          <div class="text-xs text-white/90 font-medium min-w-[46px] text-center">
+            {{ currentIndex + 1 }} / {{ totalEvents }}
+          </div>
+          <button
+            type="button"
+            class="w-7 h-7 rounded-full bg-white/20 text-white text-xl disabled:opacity-40"
+            :disabled="currentIndex >= totalEvents - 1"
+            @click="goNext"
+          >
+            ›
+          </button>
+        </div>
+
+        <div
+          class="card-header flex flex-col justify-center items-center w-[5.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] rounded-tl-3xl rounded-br-[4px]"
+        >
+          <p class="header-content p-[0.25rem 0.375rem 0.25rem 1rem]">
+            {{ callTypeLabel(currentEvent || {}) }}
+          </p>
+          <div class="absolute top-0 right-0 p-3">
+            <img src="" alt="" />
           </div>
         </div>
 
-        <div class="flex flex-col gap-[1rem]">
-          <div class="content-desc">
-            <p class="text-ellipsis line-clamp-5">
-              {{ toPlainText(currentEvent?.description) }}
+        <div
+          class="card-content flex flex-col gap-[0.5rem] text-white w-full h-full p-[1rem]"
+        >
+          <div
+            class="flex flex-col justify-end gap-[1rem] min-h-52 h-full pb-[0.5rem]"
+          >
+            <div class="content-title text-3xl font-semibold line-clamp-2">
+              {{ currentEvent?.title || 'Untitled Event' }}
+            </div>
+            <div
+              class="content-price flex flex-row justify-start items-end gap-[0.5rem]"
+            >
+              <div class="price-icon h-full flex justify-center items-center">
+                <img src="/images/token.svg" class="w-[2rem] h-[2rem]" />
+              </div>
+              <p class="price-amount text-4xl font-semibold mb-[-3px]">{{ safeNumber(currentEvent?.basePriceTokens, 0) }}</p>
+              <p class="price-currency text-2xl font-semibold mb-[-3px]">Tokens</p>
+              <p class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} minutes</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-[1rem]">
+            <div class="content-desc">
+              <p class="text-ellipsis line-clamp-5">
+                {{ toPlainText(currentEvent?.description) }}
+              </p>
+            </div>
+
+            <div v-if="addOnPreview(currentEvent || {}).length > 0" class="flex flex-col justify-start gap-[0.25rem] w-full">
+              <div
+                class="extra-row flex flex-row justify-between w-full"
+                v-for="addon in addOnPreview(currentEvent || {})"
+                :key="`${currentEvent?.eventId || currentEvent?.id}_${addon.title}`"
+              >
+                <p class="title text-sm line-clamp-1">{{ addon.title }}</p>
+                <p class="price text-sm font-semibold">+{{ addon.price }} Tokens</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          @click="selectEvent(currentEvent)"
+          class="card-footer flex flex-row justify-between items-center text-[#0C111D] bg-[#22CCEE] rounded-b-3xl cursor-pointer transition-colors"
+        >
+          <div
+            class="left flex flex-col justify-center items-center grow gap-[0.5rem] py-2 px-6 mr-[-3px]"
+          >
+            <p class="left-title text-xl font-bold italic">BOOK NOW</p>
+            <p class="left-subtitle text-xs lg:text-sm">
+              Next available time:
+              <b class="font-semibold text-xs lg:text-sm">{{ nextAvailableLabel(currentEvent || {}) }}</b>
             </p>
           </div>
-
-          <div v-if="addOnPreview(currentEvent || {}).length > 0" class="flex flex-col justify-start gap-[0.25rem] w-full">
-            <div
-              class="extra-row flex flex-row justify-between w-full"
-              v-for="addon in addOnPreview(currentEvent || {})"
-              :key="`${currentEvent?.eventId || currentEvent?.id}_${addon.title}`"
-            >
-              <p class="title text-sm line-clamp-1">{{ addon.title }}</p>
-              <p class="price text-sm font-semibold">+{{ addon.price }} Tokens</p>
-            </div>
+          <div
+            class="right flex relative justify-center items-center bg-[#0C111D] w-[6rem] self-stretch pl-8 pr-6"
+          >
+            <img
+              class="absolute z-[999] h-full left-0 "
+              src="/images/Union.svg"
+              alt=""
+            />
+            <img
+              src="/images/arrow-up-right.svg"
+              class="right-icon relative left-[10px]"
+            />
           </div>
-        </div>
+        </button>
       </div>
-
-      <button
-        @click="selectEvent(currentEvent)"
-        class="card-footer flex flex-row justify-between items-center text-[#0C111D] bg-[#22CCEE] rounded-b-3xl cursor-pointer transition-colors"
-      >
-        <div
-          class="left flex flex-col justify-center items-center grow gap-[0.5rem] py-2 px-6"
-        >
-          <p class="left-title text-xl font-bold italic">BOOK NOW</p>
-          <p class="left-subtitle text-xs lg:text-sm">
-            Next available time:
-            <b class="font-semibold text-xs lg:text-sm">{{ nextAvailableLabel(currentEvent || {}) }}</b>
-          </p>
-        </div>
-        <div
-          class="right flex relative justify-center items-center bg-[#0C111D] w-[6rem] h-full"
-        >
-          <img
-            class="absolute z-[999] h-full left-[-2px]"
-            src="/images/Union.svg"
-            alt=""
-          />
-          <img
-            src="/images/arrow-up-right.svg"
-            class="right-icon relative left-[10px]"
-          />
-        </div>
-      </button>
     </div>
   </div>
 </template>

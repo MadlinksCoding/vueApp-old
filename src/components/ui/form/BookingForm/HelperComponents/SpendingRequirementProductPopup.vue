@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
+import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -143,14 +144,14 @@ function handleConfirm() {
       class="fixed inset-0 z-[9999] bg-black/35"
       @click.self="handleCancel"
     >
-      <div class="absolute left-1/2 top-1/2 w-[min(33rem,calc(100vw-1.5rem))] max-h-[calc(100vh-1.5rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white shadow-[0px_10px_20px_rgba(16,24,40,0.15)] border border-gray-200 overflow-hidden">
+      <div class="absolute left-0 top-0 w-full h-full  w-full h-full md:h-auto md:left-1/2 md:top-1/2 md:w-[min(33rem,calc(100vw-1.5rem))] md:max-h-[calc(100vh-1.5rem)] md:-translate-x-1/2 md:-translate-y-1/2 rounded-none md:rounded-lg bg-white shadow-none md:shadow-[0px_10px_20px_rgba(16,24,40,0.15)] border-0 md:border md:border-gray-200 overflow-hidden flex flex-col">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <button type="button" class="text-sm text-slate-600 hover:text-slate-800" @click="handleCancel">Cancel</button>
-          <div class="text-base font-semibold text-slate-800">Add Product</div>
-          <div class="text-xs text-slate-500">{{ draftSelected.length }} selected</div>
+          <button type="button" class="text-sm text-slate-700 hover:text-slate-800" @click="handleCancel">Cancel</button>
+          <div class="text-base font-medium text-slate-700">Add Product</div>
+          <div class="text-xs text-slate-600">{{ draftSelected.length }} selected</div>
         </div>
 
-        <div class="px-4 pt-3 pb-2">
+        <div class="px-4 pt-3 pb-2 flex flex-col gap-[0.625rem]">
           <div class="inline-flex w-full rounded border border-gray-200 bg-gray-50 overflow-hidden">
             <button
               v-for="tab in tabs"
@@ -163,16 +164,18 @@ function handleConfirm() {
               {{ tab.label }}
             </button>
           </div>
-
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search media by name and tags..."
-            class="mt-3 w-full rounded border border-gray-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-          />
+        <div class="relative w-full">
+            <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search media by name and tags..."
+              class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder:text-gray-900 rounded-t-[2px] border-b border-[#D0D5DD] bg-white/50 shadow-sm focus:bg-white/90 transition-colors"
+            />
+          </div>
         </div>
 
-        <div class="max-h-[24rem] overflow-y-auto px-4 pb-3" @scroll="handleListScroll">
+        <div class="md:max-h-[24rem] overflow-y-auto px-4 pb-16 md:pb-3" @scroll="handleListScroll">
           <div v-if="activeTabError" class="py-4 text-center text-sm text-rose-600">
             {{ activeTabError }}
           </div>
@@ -186,19 +189,31 @@ function handleConfirm() {
               v-for="item in filteredItems"
               :key="productKey(item)"
               type="button"
-              class="text-left rounded border overflow-hidden transition"
-              :class="isSelected(item) ? 'border-[#FF0080] ring-1 ring-[#FF0080]' : 'border-gray-200 hover:border-slate-300'"
+              class="text-left rounded overflow-hidden transition p-[0.375rem] flex flex-col gap-1"
+              :class="isSelected(item) ? 'border border-[#FF0080] bg-[rgba(255,0,102,0.10)]' : ''"
               @click="toggleSelect(item)"
             >
-              <img
-                :src="item.thumbnailUrl"
-                :alt="item.title"
-                class="w-full h-24 object-cover"
-              />
-              <div class="p-2 bg-white">
-                <div class="text-xs font-semibold text-slate-800 line-clamp-2">{{ item.title }}</div>
-                <div class="mt-1 text-[11px] text-slate-500">{{ item.type }}</div>
-                <div class="flex gap-3">
+              <div class="relative">
+                <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
+                  <img src="" alt="">
+                  <span class="text-xs text-white">Count</span>
+                </div>
+                <img
+                  :src="item.thumbnailUrl"
+                  :alt="item.title"
+                  class="w-full aspect-[179/103] object-cover"
+                />
+                <div class="absolute bottom-0 left-0 py-1 px-[0.375rem] bg-[#F06] h-[22px] flex items-center justify-center">
+                  <span class="text-xs text-white"> Subscribe or Buy </span>
+                </div>
+                <!--<div class="absolute bottom-0 left-0 bg-black/50 backdrop-blur-md py-1 px-[0.375rem] bg-black/70 h-[22px] flex items-center justify-center">
+                  <span class="text-xs text-white">Buy Now </span>
+                </div>-->
+              </div>
+              <div class="">
+                <div class="text-sm font-semibold text-gray-950 line-clamp-2">{{ item.title }}</div>
+                <!-- <div class="mt-1 text-[11px] text-slate-500">{{ item.type }}</div> -->
+                <!--<div class="flex gap-3">
                   <div v-if="item.buyPrice" class="mt-1 text-[11px] text-slate-700">
                     Buy USD${{ item.buyPrice }}
                   </div>
@@ -210,7 +225,7 @@ function handleConfirm() {
                   <div v-if="!item.buyPrice && !item.subscribePrice" class="mt-1 text-[11px] text-slate-700">
                     FREE
                   </div>
-                </div>
+                </div> -->
               </div>
             </button>
           </div>
@@ -220,7 +235,7 @@ function handleConfirm() {
           </div>
         </div>
 
-        <div class="p-3 border-t border-gray-200">
+        <div class="p-3 md:border-t md:border-gray-200 absolute bottom-0 w-full md:static">
           <button
             type="button"
             class="w-full h-10 bg-[#07F468] hover:bg-[#00dd5d] text-sm font-semibold text-slate-900 rounded"
