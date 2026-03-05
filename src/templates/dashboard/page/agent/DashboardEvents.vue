@@ -4,13 +4,15 @@
       <div class="flex w-full h-full">
 
         <MainCalendar
+          ref="mainCalendarRef"
           class="flex-1 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           variant="default" :focus-date="state.focus" :events="events1" :theme="theme1"
           :data-attrs="{ 'data-calendar': 'main' }" :console-overlaps="true" :highlight-today-column="true"
           time-start="00:00" time-end="24:00" :slot-minutes="60" :row-height-px="64" :min-event-height-px="0"
           @date-selected="onSelectFromMain"
           @approve-booking="onApprovePendingBooking"
-          @reject-booking="onRejectPendingBooking">
+          @reject-booking="onRejectPendingBooking"
+          @cancel-booking="onCancelBookingFromCalendar">
 
           <template #event="{ event, style, onClick, view }">
             <div :class="[
@@ -102,7 +104,13 @@
           </div>
 
           <div>
-            <EventsWidget :sections="eventsData" @join-click="handleJoin" @reply-click="handleReply" />
+            <EventsWidget
+              :sections="eventsData"
+              @join-click="handleJoin"
+              @reply-click="handleReply"
+              @event-click="handleWidgetEventClick"
+              @menu-action="handleWidgetMenuAction"
+            />
           </div>
         </div>
 
@@ -118,6 +126,37 @@
         <NewEventsPopup
           @create-private="goToCreateEvent('private')"
           @create-group="goToCreateEvent('group')" />
+      </PopupHandler>
+
+      <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
+        <div class="w-[22rem] max-w-[90vw] rounded-xl border border-[#EAECF0] bg-white p-5 shadow-xl">
+          <h3 class="text-[1rem] font-semibold text-gray-900">Cancel this call?</h3>
+          <p class="mt-2 text-[0.875rem] text-gray-600">
+            This will cancel the booking and refund the tokens back to the fan.
+          </p>
+          <div class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
+            <p class="font-semibold truncate">{{ cancelBookingCandidateTitle }}</p>
+            <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
+          </div>
+          <div class="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              class="h-9 rounded-md border border-gray-300 px-3 text-[0.875rem] font-medium text-gray-700 hover:bg-gray-50"
+              :disabled="cancelBookingLoading"
+              @click="closeCancelBookingPopup"
+            >
+              Keep Booking
+            </button>
+            <button
+              type="button"
+              class="h-9 rounded-md bg-[#F04438] px-3 text-[0.875rem] font-semibold text-white hover:bg-[#D92D20] disabled:opacity-60"
+              :disabled="cancelBookingLoading"
+              @click="confirmCancelBooking"
+            >
+              {{ cancelBookingLoading ? 'Cancelling...' : 'Confirm Cancel' }}
+            </button>
+          </div>
+        </div>
       </PopupHandler>
 
       <ToastHost />
@@ -147,6 +186,10 @@ import { showToast } from '@/utils/toastBus.js';
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
+const mainCalendarRef = ref(null);
+const cancelBookingPopupOpen = ref(false);
+const cancelBookingLoading = ref(false);
+const cancelBookingCandidate = ref(null);
 const route = useRoute();
 const router = useRouter();
 
@@ -183,6 +226,22 @@ const newEventsPopupConfig = {
   showOverlay: false,
   closeOnOutside: true,
   lockScroll: false,
+};
+
+const cancelBookingPopupConfig = {
+  actionType: "popup",
+  position: "center",
+  customEffect: "scale",
+  offset: "0px",
+  speed: "250ms",
+  effect: "ease-in-out",
+  showOverlay: true,
+  closeOnOutside: true,
+  lockScroll: true,
+  escToClose: true,
+  width: { default: "auto", "<480": "90%" },
+  height: "auto",
+  scrollable: false,
 };
 
 const updatePopupPosition = () => {
@@ -442,6 +501,23 @@ const goToCreateEvent = async (type) => {
   });
 };
 
+const cancelBookingCandidateTitle = computed(() => {
+  return cancelBookingCandidate.value?.event?.title || "Selected booking";
+});
+
+const cancelBookingCandidateTime = computed(() => {
+  const event = cancelBookingCandidate.value?.event;
+  const start = asDate(event?.start);
+  const end = asDate(event?.end);
+  if (!start || !end) return "";
+  return `${start.toLocaleDateString()} • ${hhmm(start)} - ${hhmm(end)}`;
+});
+
+const closeCancelBookingPopup = () => {
+  cancelBookingPopupOpen.value = false;
+  cancelBookingCandidate.value = null;
+};
+
 // Update position on scroll or resize to keep it attached
 onMounted(() => {
   dashboardEventsEngine.initialize({ fromUrl: false });
@@ -606,6 +682,7 @@ function toWidgetItem(event, options = {}) {
       showJoin: true,
       statusText: event.status === 'active' ? 'active' : event.status,
       avatars: makeAvatar(event),
+      sourceEvent: event,
     };
   }
 
@@ -620,6 +697,7 @@ function toWidgetItem(event, options = {}) {
     groupText: isGroup ? 'Group event' : undefined,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
+    sourceEvent: event,
   };
 }
 
@@ -714,4 +792,97 @@ onUnmounted(() => {
 // Helper stubs for EventsWidget
 const handleJoin = (item) => console.log('Join', item);
 const handleReply = (item) => console.log('Reply', item);
+const handleWidgetEventClick = (item) => {
+  const event = item?.sourceEvent;
+  if (!event) return;
+  mainCalendarRef.value?.openEventDetails?.(event);
+};
+
+const handleWidgetMenuAction = (payload) => {
+  const action = String(payload?.action || "");
+  const event = payload?.event?.sourceEvent || payload?.event || null;
+
+  if (action === "cancel_call") {
+    const bookingId = resolveBookingIdFromPayload({ event });
+    if (!bookingId) {
+      showToast({
+        type: "error",
+        title: "Cancel Failed",
+        message: "Could not find booking id for this call.",
+      });
+      return;
+    }
+    cancelBookingCandidate.value = { bookingId, event };
+    cancelBookingPopupOpen.value = true;
+    return;
+  }
+
+  if (action === "ask_more_time" || action === "ask_to_reschedule") {
+    showToast({
+      type: "info",
+      title: "Coming Soon",
+      message: "This action will be wired next.",
+    });
+  }
+};
+
+const onCancelBookingFromCalendar = (payload) => {
+  const bookingId = resolveBookingIdFromPayload(payload || {});
+  const event = payload?.event || null;
+  if (!bookingId) {
+    showToast({
+      type: "error",
+      title: "Cancel Failed",
+      message: "Could not find booking id for this call.",
+    });
+    return;
+  }
+  cancelBookingCandidate.value = { bookingId, event };
+  cancelBookingPopupOpen.value = true;
+};
+
+const confirmCancelBooking = async () => {
+  const bookingId = cancelBookingCandidate.value?.bookingId;
+  if (!bookingId || cancelBookingLoading.value) return;
+
+  cancelBookingLoading.value = true;
+  try {
+    const result = await dashboardEventsEngine.callFlow(
+      "bookings.cancelBooking",
+      {
+        bookingId,
+        actor: "creator",
+        reason: "creator_cancelled_from_events_widget",
+      },
+      {
+        context: {
+          stateEngine: dashboardEventsEngine,
+          creatorId: resolveCreatorId(),
+        },
+      },
+    );
+
+    if (!result?.ok) {
+      const message = result?.meta?.uiErrors?.[0]
+        || result?.error?.message
+        || "Could not cancel booking.";
+      showToast({
+        type: "error",
+        title: "Cancel Failed",
+        message,
+      });
+      return;
+    }
+
+    showToast({
+      type: "success",
+      title: "Booking Cancelled",
+      message: "The booking was cancelled successfully.",
+    });
+    closeCancelBookingPopup();
+    await fetchCreatorEvents(true);
+  } finally {
+    cancelBookingLoading.value = false;
+  }
+};
 </script>

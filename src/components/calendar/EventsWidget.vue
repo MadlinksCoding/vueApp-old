@@ -10,8 +10,9 @@
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
-        class="relative flex h-[4.125rem] pr-[0.25rem] justify-end rounded-[0.25rem] shadow-purple-glow"
+        class="relative flex h-[4.125rem] pr-[0.25rem] justify-end rounded-[0.25rem] shadow-purple-glow cursor-pointer"
         :class="event.bgClass || 'bg-customGrey'"
+        @click="$emit('event-click', event)"
       >
         <div 
           class="absolute w-[0.25rem] left-[0] h-full rounded-l-[0.25rem]"
@@ -80,7 +81,7 @@
               </span>
 
               <button 
-                @click="$emit('join-click', event)" 
+                @click.stop="$emit('join-click', event)" 
                 class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
               >
                 <span class="w-[1rem] h-[1rem]">
@@ -94,19 +95,71 @@
 
             <span v-else-if="event.showReply" class="flex flex-col justify-end h-[2.875rem]">
               <button 
-                @click="$emit('reply-click', event)"
+                @click.stop="$emit('reply-click', event)"
                 class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold px-[0.5rem] py-[0.1875rem] border border-gray-500 rounded-[0.25rem] hover:bg-gray-50"
               >
                 REPLY
               </button>
             </span>
             
-            <span class="flex items-center justify-center w-[1rem] h-[1rem]">
-              <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <span class="relative flex items-center justify-center w-[1rem] h-[1rem]">
+              <button
+                type="button"
+                class="flex items-center justify-center w-[1rem] h-[1rem]"
+                :aria-expanded="openMenuId === `${sIndex}-${eIndex}`"
+                @click.stop="toggleMenu(`${sIndex}-${eIndex}`)"
+              >
+                <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div
+                v-if="openMenuId === `${sIndex}-${eIndex}`"
+                class="absolute right-0 top-[1.3rem] z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
+                  @click.stop="onMenuAction('ask_more_time', event)"
+                >
+                  <span class="inline-flex w-5 h-5 items-center justify-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  Ask for more time
+                </button>
+
+                <button
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
+                  @click.stop="onMenuAction('ask_to_reschedule', event)"
+                >
+                  <span class="inline-flex w-5 h-5 items-center justify-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  Ask to reschedule
+                </button>
+
+                <button
+                  type="button"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
+                  @click.stop="onMenuAction('cancel_call', event)"
+                >
+                  <span class="inline-flex w-5 h-5 items-center justify-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  Cancel Call
+                </button>
+              </div>
             </span>
           </div>
 
@@ -117,11 +170,41 @@
 </template>
 
 <script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+
+const openMenuId = ref(null);
+
+const closeMenu = () => {
+  openMenuId.value = null;
+};
+
+const toggleMenu = (menuId) => {
+  openMenuId.value = openMenuId.value === menuId ? null : menuId;
+};
+
+const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
+
+const onMenuAction = (action, event) => {
+  emit('menu-action', { action, event });
+  closeMenu();
+};
+
+const handleDocumentClick = () => {
+  closeMenu();
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick);
+});
+
 defineProps({
   sections: {
     type: Array,
     default: () => []
   }
 });
-defineEmits(['join-click', 'reply-click']);
 </script>
