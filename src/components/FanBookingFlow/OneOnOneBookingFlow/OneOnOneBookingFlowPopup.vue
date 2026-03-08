@@ -5,7 +5,13 @@ import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { showToast } from "@/utils/toastBus.js";
-import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
+import {
+  buildBookedSlotsIndex,
+  buildCandidateSlotsForEventDate,
+  createSlotUiModel,
+  hmToLabel,
+} from "@/services/bookings/utils/bookingSlotUtils.js";
+import { addMinutesToHm } from "@/services/events/eventsApiUtils.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
@@ -138,6 +144,72 @@ function buildPreviewBookedSlotsIndex(previewEventId, bookedSlots = []) {
 
   index[previewEventId] = mergedByDate;
   return index;
+}
+
+function toLocalDateMidnight(dateIso) {
+  const parsed = new Date(`${String(dateIso || "").trim()}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getPreviewDurationMinutes(event) {
+  const raw = event?.raw || {};
+  const parsed = Number(raw.sessionDurationMinutes ?? event?.sessionDurationMinutes ?? 15);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 15;
+  return Math.floor(parsed);
+}
+
+function toPreviewDurationObject(event, durationMinutes) {
+  const raw = event?.raw || {};
+  const baseMinutes = Number(raw.sessionDurationMinutes ?? event?.sessionDurationMinutes ?? 15);
+  const basePrice = Number(raw.basePriceTokens ?? event?.basePriceTokens ?? 0);
+  const unitPrice = Number.isFinite(baseMinutes) && baseMinutes > 0 ? (basePrice / baseMinutes) : 0;
+  const total = Math.ceil(Math.max(0, unitPrice * durationMinutes));
+  return {
+    value: durationMinutes,
+    price: Number.isFinite(total) ? total : 0,
+  };
+}
+
+function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45) {
+  const eventId = String(event?.eventId || event?.id || "");
+  if (!eventId) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let offset = 0; offset <= daysAhead; offset += 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    const dateIso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    const candidates = buildCandidateSlotsForEventDate(event, dateIso, {
+      eventId,
+      bookedSlotsIndex,
+      applyBufferAfterBooked: true,
+    });
+    if (!Array.isArray(candidates) || candidates.length === 0) continue;
+
+    const uiSlots = candidates.map((slot) => createSlotUiModel({
+      eventId,
+      localDateIso: dateIso,
+      slot,
+      bookedSlotsIndex,
+    }));
+    const preferred = uiSlots.find((slot) => !slot.disabled) || uiSlots[0];
+    if (!preferred) continue;
+
+    return {
+      selectedDateIso: dateIso,
+      selectedDate: toLocalDateMidnight(dateIso),
+      selectedSlot: {
+        ...preferred,
+        value: preferred.startHm || preferred.value,
+        label: preferred.label || hmToLabel(preferred.startHm || preferred.value || "00:00"),
+      },
+    };
+  }
+
+  return null;
 }
 
 function resolveCreatorId() {
@@ -291,6 +363,39 @@ async function loadPreviewContext() {
     engine.setState("fanBooking.context.selectedEventId", previewEventId, { reason: "preview-load", silent: true });
     engine.setState("fanBooking.context.selectedEvent", previewEvent, { reason: "preview-load", silent: true });
   }
+
+  const defaultDurationMinutes = getPreviewDurationMinutes(previewEvent);
+  const defaultSelection = resolvePreviewDefaultSelection(previewEvent, previewBookedSlotsIndex);
+  const selectedDateIso = defaultSelection?.selectedDateIso || null;
+  const selectedDate = defaultSelection?.selectedDate || null;
+  const selectedSlot = defaultSelection?.selectedSlot || null;
+  const selectedDuration = toPreviewDurationObject(previewEvent, defaultDurationMinutes);
+
+  const formattedTimeRange = selectedSlot
+    ? `${hmToLabel(selectedSlot.startHm || selectedSlot.value)}-${hmToLabel(addMinutesToHm(selectedSlot.startHm || selectedSlot.value, defaultDurationMinutes))}`
+    : "-";
+  const selectedDateDisplay = selectedDate
+    ? selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "";
+
+  engine.setState("bookingDetails", {
+    selectedDate,
+    selectedTime: selectedSlot,
+    selectedDuration,
+    addons: [],
+    otherRequest: "",
+    totalPrice: Number(selectedDuration?.price || 0),
+    walletBalance: 0,
+    formattedTimeRange,
+    headerDateDisplay: selectedDateDisplay,
+    selectedDateDisplay,
+  }, { reason: "preview-load-selection", silent: true });
+
+  engine.setState("fanBooking.selection.selectedDate", selectedDateIso, { reason: "preview-load-selection", silent: true });
+  engine.setState("fanBooking.selection.selectedSlot", selectedSlot, { reason: "preview-load-selection", silent: true });
+  engine.setState("fanBooking.selection.selectedDurationMinutes", defaultDurationMinutes, { reason: "preview-load-selection", silent: true });
+  engine.setState("fanBooking.selection.selectedAddOns", [], { reason: "preview-load-selection", silent: true });
+  engine.setState("fanBooking.selection.personalRequestText", "", { reason: "preview-load-selection", silent: true });
 
   engine.setState("fanBooking.temporaryHold", {
     temporaryHoldId: null,

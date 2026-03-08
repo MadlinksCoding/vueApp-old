@@ -95,7 +95,7 @@
               <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events
               </h2>
               <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
-                20
+                {{ filteredBookedSlotsCount }}
               </p>
             </span>
 
@@ -586,6 +586,11 @@ const dropdownFilters = ref({
   audio: true,
   groupCall: false,
   showSchedule: true,
+  colorByType: {
+    video: '#4F46E5',
+    audio: '#06B6D4',
+    groupCall: '#E11D48',
+  },
 });
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -915,6 +920,12 @@ const normalized = computed(() => {
     }));
 });
 
+const filteredBookedSlotsCount = computed(() => {
+  // Count only real booked slots (not availability background blocks),
+  // after current dropdown filters (video/audio/group/showSchedule) are applied.
+  return normalized.value.filter((event) => !event?.isAvailabilityBlock).length;
+});
+
 const title = computed(() => {
   const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
   if (effectiveView.value === 'week') return `${monthNames[m]} ${y}`;
@@ -1001,8 +1012,11 @@ const shift = (n) => {
   const v = effectiveView.value;
   if (v === 'month') {
     cursor.value = addMonths(cursor.value, n);
-  } else {
+  } else if (v === 'week') {
     cursor.value = addDays(cursor.value, n * 7);
+  } else {
+    // day view
+    cursor.value = addDays(cursor.value, n);
   }
   // NEW: Emit the updated date so Mini Calendar can sync
   emit('date-selected', new Date(cursor.value));

@@ -130,11 +130,75 @@ watch(formData, (newVal) => {
 }, { deep: true });
 
 const subscriptionTierOptions = ref([]);
+const ALL_TIERS_OPTION_VALUE = "__all_tiers__";
+
+function getNormalizedSelectedSubscriptionTierIds(values) {
+  const selected = Array.isArray(values) ? values : [];
+  return subscriptionTierOptions.value
+    .map((tier) => tier.id)
+    .filter((tierId) => selected.some((item) => String(item) === String(tierId)));
+}
+
+function hasAllSubscriptionTiersSelected(values) {
+  const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
+  if (tierIds.length === 0) return false;
+  const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(values);
+  return selectedTierIds.length === tierIds.length;
+}
+
 const subscriptionTierDropdownOptions = computed(() => {
-  return subscriptionTierOptions.value.map(tier => ({
+  return [{
+    label: "All Tiers",
+    value: ALL_TIERS_OPTION_VALUE,
+  }, ...subscriptionTierOptions.value.map((tier) => ({
     label: tier.label,
-    value: tier.id
-  }));
+    value: tier.id,
+  }))];
+});
+
+const subscriptionTierDropdownModel = computed({
+  get() {
+    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers);
+    if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) {
+      return [ALL_TIERS_OPTION_VALUE, ...selectedTierIds];
+    }
+    return selectedTierIds;
+  },
+  set(nextValues) {
+    const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
+    const hasAllInNext = Array.isArray(nextValues) && nextValues.includes(ALL_TIERS_OPTION_VALUE);
+    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(nextValues);
+    const hadAllPreviously = hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers);
+
+    if (hasAllInNext) {
+      // Clicking a single tier while "All Tiers" is currently selected should
+      // remove that tier and drop "All Tiers" state.
+      if (hadAllPreviously && selectedTierIds.length < tierIds.length) {
+        formData.value.subscriptionTiers = selectedTierIds;
+        return;
+      }
+      // Selecting "All Tiers" (or selecting everything) should normalize to full list.
+      formData.value.subscriptionTiers = [...tierIds];
+      return;
+    }
+
+    // If "All Tiers" was toggled off while previously all were selected,
+    // clear everything.
+    if (hadAllPreviously && selectedTierIds.length === tierIds.length) {
+      formData.value.subscriptionTiers = [];
+      return;
+    }
+
+    formData.value.subscriptionTiers = selectedTierIds;
+  },
+});
+
+const subscriptionTierTriggerLabel = computed(() => {
+  const selectedCount = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers).length;
+  if (selectedCount === 0) return "Select tiers";
+  if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) return "All Tiers";
+  if (selectedCount === 1) return "1 Tier selected";
+  return `${selectedCount} Tiers selected`;
 });
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
@@ -260,8 +324,13 @@ const toggleSection = (key) => {
   sectionsState.value[key] = !sectionsState.value[key];
 };
 
-const goToBack = () => {
-  props.engine.goToStep(1);
+const goToBack = async () => {
+  // Back navigation should not be blocked by current-step validation.
+  if (typeof props.engine.forceStep === "function") {
+    await props.engine.forceStep(1, { intent: "back" });
+    return;
+  }
+  await props.engine.goToStep(1, { intent: "back", force: true });
 };
 
 function setInviteUserLookup(users = []) {
@@ -1008,14 +1077,14 @@ const createEvent = async () => {
               </div>
               <div v-else class="w-full">
                 <CustomDropdown
-                  v-model="formData.subscriptionTiers"
+                  v-model="subscriptionTierDropdownModel"
                   :options="subscriptionTierDropdownOptions"
                   :multiple="true"
                   :hasCheckboxes="true"
                 >
-                  <template #trigger="{ selected }">
+                  <template #trigger>
                     <span class="text-slate-900 font-medium">
-                      {{ selected && selected.length > 0 ? `${selected.length} Tiers selected` : 'Select tiers' }}
+                      {{ subscriptionTierTriggerLabel }}
                     </span>
                   </template>
                 </CustomDropdown>

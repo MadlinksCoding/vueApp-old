@@ -7,6 +7,7 @@
         :disabled="disabled"
         class="flex-shrink-0"
         :class="checkboxClass"
+        :style="checkboxStyle"
         @change="$emit('update:modelValue', $event.target.checked)"
       />
 
@@ -46,6 +47,7 @@ export default {
     label: { type: String, default: "" },
     disabled: { type: Boolean, default: false },
     checkboxClass: { type: String, default: "" },
+    checkboxStyle: { type: [Object, String], default: "" },
     labelClass: { type: String, default: "" },
     wrapperClass: { type: String, default: "" },
     tags: { type: Array, default: () => [] },

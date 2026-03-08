@@ -183,6 +183,13 @@ import { createFlowStateEngine } from '@/utils/flowStateEngine.js';
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { showToast } from '@/utils/toastBus.js';
 
+const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
+const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
+  video: '#4F46E5',
+  audio: '#06B6D4',
+  groupCall: '#E11D48',
+});
+
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
@@ -190,6 +197,7 @@ const mainCalendarRef = ref(null);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const eventTypeColors = ref({ ...DEFAULT_EVENT_TYPE_COLORS });
 const route = useRoute();
 const router = useRouter();
 
@@ -314,11 +322,22 @@ const buildCalendarSlotsFromContext = ({ creatorEvents = [], bookedSlotsRaw = []
       ])
       .filter(([eventId]) => Boolean(eventId))
   );
+  const eventTypeByEventId = new Map(
+    creatorEvents
+      .map((event) => [
+        String(event?.eventId || event?.id || ''),
+        String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || '').toLowerCase(),
+      ])
+      .filter(([eventId]) => Boolean(eventId))
+  );
 
   const bookedCalendarSlots = calendarSlots.map((slot) => ({
     ...slot,
     eventCallType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || '').toLowerCase(),
-    color: colorByEventId.get(String(slot?.eventId || '')) || DEFAULT_EVENT_COLOR,
+    color: resolveTypeColor({
+      callType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || ''),
+      eventType: eventTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventType || slot?.type || ''),
+    }) || colorByEventId.get(String(slot?.eventId || '')) || DEFAULT_EVENT_COLOR,
     raw: {
       ...(slot?.raw || {}),
       eventCallType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || '').toLowerCase(),
@@ -354,13 +373,14 @@ const rebuildAvailabilityForFocusDate = () => {
   if (!Array.isArray(creatorEvents) || creatorEvents.length === 0) return;
   if (!Array.isArray(bookedSlotsRaw)) return;
 
-  const { calendarSlots } = buildCalendarSlotsFromContext({
+  const { bookedCalendarSlots, calendarSlots } = buildCalendarSlotsFromContext({
     creatorEvents,
     bookedSlotsRaw,
     bookedSlotsIndex: bookedSlotsIndex || {},
     focusDate: state.focus,
   });
 
+  dashboardEventsEngine.setState('events.bookedList', bookedCalendarSlots, { reason: 'events-focus', silent: true });
   dashboardEventsEngine.setState('events.list', calendarSlots, { reason: 'events-focus', silent: true });
 };
 
@@ -518,11 +538,24 @@ const closeCancelBookingPopup = () => {
   cancelBookingCandidate.value = null;
 };
 
+const handleEventTypeColorsChanged = () => {
+  eventTypeColors.value = loadEventTypeColorsFromStorage();
+  rebuildAvailabilityForFocusDate();
+};
+
+const handleEventTypeColorsStorageChanged = (event) => {
+  if (event?.key !== EVENT_TYPE_COLOR_STORAGE_KEY) return;
+  handleEventTypeColorsChanged();
+};
+
 // Update position on scroll or resize to keep it attached
 onMounted(() => {
+  eventTypeColors.value = loadEventTypeColorsFromStorage();
   dashboardEventsEngine.initialize({ fromUrl: false });
   window.addEventListener('resize', handlePositionUpdate);
   window.addEventListener('scroll', handlePositionUpdate, true); // Capture phase for scrolling of parent containers
+  window.addEventListener('event-type-colors:changed', handleEventTypeColorsChanged);
+  window.addEventListener('storage', handleEventTypeColorsStorageChanged);
   document.addEventListener('click', handleClickOutside);
 
   const shouldForceRefresh = route.query?.refresh === '1';
@@ -539,6 +572,8 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handlePositionUpdate);
   window.removeEventListener('scroll', handlePositionUpdate, true);
+  window.removeEventListener('event-type-colors:changed', handleEventTypeColorsChanged);
+  window.removeEventListener('storage', handleEventTypeColorsStorageChanged);
   document.removeEventListener('click', handleClickOutside);
 });
 
@@ -582,6 +617,36 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
   const normalized = color.trim();
   if (/^#([0-9a-fA-F]{3}){1,2}$/.test(normalized)) return normalized;
   return fallback;
+}
+
+function loadEventTypeColorsFromStorage() {
+  if (typeof window === 'undefined') return { ...DEFAULT_EVENT_TYPE_COLORS };
+  try {
+    const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_EVENT_TYPE_COLORS };
+    const parsed = JSON.parse(raw);
+    return {
+      video: normalizeHexColor(parsed?.video, DEFAULT_EVENT_TYPE_COLORS.video),
+      audio: normalizeHexColor(parsed?.audio, DEFAULT_EVENT_TYPE_COLORS.audio),
+      groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall),
+    };
+  } catch (_error) {
+    return { ...DEFAULT_EVENT_TYPE_COLORS };
+  }
+}
+
+function resolveTypeColor({ callType = '', eventType = '' } = {}) {
+  const normalizedEventType = String(eventType || '').toLowerCase();
+  if (normalizedEventType.includes('group')) {
+    return normalizeHexColor(eventTypeColors.value?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall);
+  }
+
+  const normalizedCallType = String(callType || '').toLowerCase();
+  if (normalizedCallType.includes('audio')) {
+    return normalizeHexColor(eventTypeColors.value?.audio, DEFAULT_EVENT_TYPE_COLORS.audio);
+  }
+
+  return normalizeHexColor(eventTypeColors.value?.video, DEFAULT_EVENT_TYPE_COLORS.video);
 }
 
 function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
@@ -667,6 +732,10 @@ function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
   const isGroup = event.type === 'group-event';
+  const accentColor = resolveTypeColor({
+    callType: event?.eventCallType || event?.raw?.eventCallType || '',
+    eventType: event?.type || event?.raw?.eventType || event?.raw?.type || '',
+  });
 
   const styles = isGroup
     ? { titleColorClass: 'text-activePink', borderClass: 'bg-brightPink' }
@@ -683,6 +752,7 @@ function toWidgetItem(event, options = {}) {
       statusText: event.status === 'active' ? 'active' : event.status,
       avatars: makeAvatar(event),
       sourceEvent: event,
+      accentColor,
     };
   }
 
@@ -698,6 +768,7 @@ function toWidgetItem(event, options = {}) {
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
+    accentColor,
   };
 }
 

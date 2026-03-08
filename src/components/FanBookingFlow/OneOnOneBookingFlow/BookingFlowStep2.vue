@@ -53,7 +53,7 @@ const theme1 = {
     outside: 'opacity-0',
     expired: 'opacity-40 cursor-not-allowed pointer-events-none',
     today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
-    selected: 'rounded-full',
+    selected: 'rounded-full !bg-[#07F468] !text-[#0C111D] font-semibold',
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   }
 };
@@ -376,20 +376,14 @@ function hydrateAddons() {
 
 function hydrateFromState() {
   const existing = props.engine.getState('bookingDetails') || {};
+  const fallbackSelectedDateIso = props.engine.getState('fanBooking.selection.selectedDate');
 
-  if (existing.selectedDate) {
-    const existingDate = new Date(existing.selectedDate);
+  if (existing.selectedDate || fallbackSelectedDateIso) {
+    const existingDate = new Date(existing.selectedDate || `${fallbackSelectedDateIso}T00:00:00`);
     if (!Number.isNaN(existingDate.getTime())) {
       state.selected = existingDate;
       state.focus = new Date(existingDate);
     }
-  }
-
-  if (existing.selectedDuration) {
-    const matchedDuration = durationOptions.value.find((d) => d.value === existing.selectedDuration.value);
-    selectedDurationObj.value = matchedDuration || null;
-  } else {
-    selectedDurationObj.value = null;
   }
 
   if (existing.selectedTime?.value) {
@@ -397,6 +391,13 @@ function hydrateFromState() {
     selectedTime.value = matchedSlot || null;
   } else {
     selectedTime.value = null;
+  }
+
+  if (existing.selectedDuration) {
+    const matchedDuration = durationOptions.value.find((d) => d.value === existing.selectedDuration.value && !d.disabled);
+    selectedDurationObj.value = matchedDuration || null;
+  } else {
+    selectedDurationObj.value = null;
   }
 
   otherRequest.value = existing.otherRequest
