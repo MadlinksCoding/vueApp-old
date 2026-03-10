@@ -29,6 +29,11 @@ function hasAtLeastOneOneTimeSlot(state = {}) {
   return oneTime.some((entry) => hasAnyValidSlots(entry?.slots));
 }
 
+function hasAtLeastOneMonthlySlot(state = {}) {
+  const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
+  return hasAnyValidSlots(monthly);
+}
+
 function asArray(value) {
   if (Array.isArray(value)) return value.filter((item) => item !== null && item !== undefined && item !== "");
   if (typeof value === "string") {
@@ -69,6 +74,13 @@ export function step1Validator(state = {}) {
   if (repeatRule === "doesNotRepeat") {
     if (!hasAtLeastOneOneTimeSlot(state)) {
       errors.push(asError("oneTimeAvailability", "Add at least one available slot before continuing."));
+    }
+  } else if (repeatRule === "monthly") {
+    if (!state?.dateFrom || String(state.dateFrom).trim().length === 0) {
+      errors.push(asError("dateFrom", "Start date is required for monthly repeat."));
+    }
+    if (!hasAtLeastOneMonthlySlot(state)) {
+      errors.push(asError("monthlyAvailability", "Add at least one monthly slot before continuing."));
     }
   } else if (!hasAtLeastOneWeeklySlot(state)) {
     errors.push(asError("weeklyAvailability", "Add at least one available slot before continuing."));

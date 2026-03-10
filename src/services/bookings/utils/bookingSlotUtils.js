@@ -41,6 +41,20 @@ function daysDiff(fromDateIso, toDateIso) {
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function parseDateParts(dateIso) {
+  const match = String(dateIso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  return { year, month, day };
+}
+
+function getLastDayOfMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
 function hmToLabel(hm = "00:00") {
   const [hourRaw = "0", minuteRaw = "0"] = String(hm).split(":");
   const hour = Number(hourRaw);
@@ -231,6 +245,26 @@ function normalizeOneTimeSlots(rawSlots = []) {
   return normalized;
 }
 
+function normalizeMonthlySlots(rawSlots = []) {
+  const normalized = [];
+
+  rawSlots.forEach((slot) => {
+    if (!slot || typeof slot !== "object") return;
+    const startHm = toHm(slot.startTime, "");
+    const endHm = toHm(slot.endTime, "");
+    if (!startHm || !endHm) return;
+
+    normalized.push({
+      kind: "monthly",
+      startTime: startHm,
+      endTime: endHm,
+      offHours: !!slot.offHours,
+    });
+  });
+
+  return normalized;
+}
+
 function shouldIncludeWeeklyDate({ repeatRule, repeatX, dateFrom, candidateHktDateIso, slotDayIndex }) {
   const weekday = new Date(`${candidateHktDateIso}T00:00:00`).getDay();
   if (weekday !== slotDayIndex) return false;
@@ -332,6 +366,35 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
       if (!mapped) return;
       if (mapped.localDateIso !== localDateIso) return;
       built.push(mapped);
+    });
+  } else if (repeatRule === "monthly") {
+    const monthlySlots = normalizeMonthlySlots(rawSlots);
+    hasExplicitScheduleSlots = monthlySlots.length > 0;
+
+    const anchorDate = extractDateIso(raw.dateFrom, null);
+    const anchorParts = parseDateParts(anchorDate);
+    const fallbackParts = parseDateParts(centerHktDateIso);
+    const anchorDay = anchorParts?.day || fallbackParts?.day || 1;
+
+    monthlySlots.forEach((slot) => {
+      hktDateCandidates.forEach((candidateHktDateIso) => {
+        const parts = parseDateParts(candidateHktDateIso);
+        if (!parts) return;
+
+        const targetDay = Math.min(anchorDay, getLastDayOfMonth(parts.year, parts.month));
+        if (parts.day !== targetDay) return;
+
+        const mapped = buildLocalSlotFromHkt({
+          hktDateIso: candidateHktDateIso,
+          startHm: slot.startTime,
+          endHm: slot.endTime,
+          offHours: slot.offHours,
+        });
+
+        if (!mapped) return;
+        if (mapped.localDateIso !== localDateIso) return;
+        built.push(mapped);
+      });
     });
   } else {
     const weeklySlots = normalizeWeeklySlots(rawSlots);

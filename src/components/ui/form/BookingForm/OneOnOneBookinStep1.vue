@@ -22,8 +22,8 @@
 
   const repeatRuleOptions = [
     { label: 'Repeat Weekly', value: 'weekly' },
-    { label: 'Does not repeat', value: 'doesNotRepeat' },
-    { label: 'Repeats every 2 weeks', value: 'everyXWeeks' }
+    { label: 'Repeat Monthly', value: 'monthly' },
+    { label: 'Custom', value: 'doesNotRepeat' },
   ];
 
   const lateStartActionOptions = [
@@ -38,11 +38,16 @@
   // Refs
   // Refs
   // Initialize from engine state (deep copy to avoid reactivity issues with v-model on props)
+  const initialRepeatRuleRaw = props.engine.state.repeatRule || "weekly";
+  const initialRepeatRule = initialRepeatRuleRaw === "everyXWeeks"
+    ? "weekly"
+    : initialRepeatRuleRaw;
+
   const formData = ref({
     eventTitle: props.engine.state.eventTitle || "",
     eventDescription: props.engine.state.eventDescription || "",
     eventColorSkin: props.engine.state.eventColorSkin || "#5549FF",
-    repeatRule: props.engine.state.repeatRule || "weekly",
+    repeatRule: initialRepeatRule,
     repeatX: Number(props.engine.state.repeatX) || 2,
     eventCallType: props.engine.state.eventCallType || "video",
     eventRingtoneUrl: props.engine.state.eventRingtoneUrl || "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
@@ -53,6 +58,9 @@
     dateTo: props.engine.state.dateTo || "",
     weeklyAvailability: Array.isArray(props.engine.state.weeklyAvailability)
       ? JSON.parse(JSON.stringify(props.engine.state.weeklyAvailability))
+      : [],
+    monthlyAvailability: Array.isArray(props.engine.state.monthlyAvailability)
+      ? JSON.parse(JSON.stringify(props.engine.state.monthlyAvailability))
       : [],
     oneTimeAvailability: Array.isArray(props.engine.state.oneTimeAvailability)
       ? JSON.parse(JSON.stringify(props.engine.state.oneTimeAvailability))
@@ -215,6 +223,20 @@
     return { startTime, endTime, offHours: Boolean(offHours) };
   }
 
+  function normalizeMonthlyAvailability(input = []) {
+    if (!Array.isArray(input) || input.length === 0) {
+      return [makeSlot("00:00", "03:00", false)];
+    }
+
+    return input
+      .map((slot) => ({
+        startTime: typeof slot?.startTime === "string" ? slot.startTime : null,
+        endTime: typeof slot?.endTime === "string" ? slot.endTime : null,
+        offHours: Boolean(slot?.offHours),
+      }))
+      .filter((slot) => slot.startTime && slot.endTime);
+  }
+
   function getTodayIsoDate() {
     return new Date().toISOString().slice(0, 10);
   }
@@ -272,7 +294,7 @@
   const DAY_INDEX_TO_KEY = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
   function isWeeklyRepeatRule() {
-    return formData.value.repeatRule === "weekly" || formData.value.repeatRule === "everyXWeeks";
+    return formData.value.repeatRule === "weekly";
   }
 
   function parseIsoDateToLocalNoon(isoDate) {
@@ -380,9 +402,11 @@
   }
 
   formData.value.weeklyAvailability = normalizeAvailability(formData.value.weeklyAvailability);
+  formData.value.monthlyAvailability = normalizeMonthlyAvailability(formData.value.monthlyAvailability);
   formData.value.oneTimeAvailability = normalizeOneTimeAvailability(formData.value.oneTimeAvailability);
 
   const weekDays = ref(formData.value.weeklyAvailability);
+  const monthlySlots = ref(formData.value.monthlyAvailability);
   const oneTimeDates = ref(formData.value.oneTimeAvailability);
 
   function to12HourLabel(time24 = "00:00") {
@@ -425,6 +449,12 @@
       })),
     }));
 
+    formData.value.monthlyAvailability = monthlySlots.value.map((slot) => ({
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      offHours: Boolean(slot.offHours),
+    }));
+
     if (formData.value.repeatRule === "doesNotRepeat") {
       const firstDate = oneTimeDates.value[0];
       if (firstDate && firstDate.slots.length > 0) {
@@ -433,6 +463,19 @@
         formData.value.dateTo = firstDate.date;
         formData.value.selectedStartTime = firstDate.slots[0].startTime;
         formData.value.selectedEndTime = firstDate.slots[0].endTime;
+      }
+      return;
+    }
+
+    if (formData.value.repeatRule === "monthly") {
+      if (!formData.value.dateFrom) {
+        formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
+      }
+      const firstMonthlySlot = monthlySlots.value[0];
+      if (firstMonthlySlot) {
+        formData.value.selectedDate = formData.value.dateFrom;
+        formData.value.selectedStartTime = firstMonthlySlot.startTime;
+        formData.value.selectedEndTime = firstMonthlySlot.endTime;
       }
       return;
     }
@@ -455,6 +498,10 @@
     return oneTimeDates.value.reduce((count, entry) => (
       count + (Array.isArray(entry?.slots) ? entry.slots.length : 0)
     ), 0);
+  }
+
+  function getTotalMonthlySlotCount() {
+    return Array.isArray(monthlySlots.value) ? monthlySlots.value.length : 0;
   }
 
   function addDayAvailability(dayIndex) {
@@ -503,6 +550,24 @@
     syncAvailabilityToForm();
   }
 
+  function addMonthlySlot() {
+    monthlySlots.value.push(makeSlot("00:00", "03:00", false));
+    syncAvailabilityToForm();
+  }
+
+  function removeMonthlySlot(slotIndex) {
+    if (getTotalMonthlySlotCount() <= 1) return;
+    monthlySlots.value.splice(slotIndex, 1);
+    syncAvailabilityToForm();
+  }
+
+  function toggleMonthlySlotOffHours(slotIndex) {
+    const slot = monthlySlots.value?.[slotIndex];
+    if (!slot) return;
+    slot.offHours = !slot.offHours;
+    syncAvailabilityToForm();
+  }
+
   function addOneTimeDate() {
     oneTimeDates.value.push(createOneTimeDate(formData.value.dateFrom || getTodayIsoDate()));
     syncAvailabilityToForm();
@@ -531,11 +596,11 @@
   }
 
   function onRepeatRuleChange() {
-    if (formData.value.repeatRule === "everyXWeeks") {
-      formData.value.repeatX = 2;
-    }
     if (formData.value.repeatRule === "doesNotRepeat" && oneTimeDates.value.length === 0) {
       oneTimeDates.value = normalizeOneTimeAvailability([]);
+    }
+    if (formData.value.repeatRule === "monthly" && monthlySlots.value.length === 0) {
+      monthlySlots.value = normalizeMonthlyAvailability([]);
     }
     syncAvailabilityToForm();
   }
@@ -954,9 +1019,9 @@
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start">
                     <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                      {{ formData.repeatRule === 'everyXWeeks' ? 'Start date' : 'Duration' }}
+                      {{ formData.repeatRule === 'monthly' ? 'Start date' : 'Duration' }}
                     </span>
-                    <span v-if="formData.repeatRule !== 'everyXWeeks'"
+                    <span v-if="formData.repeatRule !== 'monthly'"
                       class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> Optional</span>
                   </div>
                   <input
@@ -972,7 +1037,7 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                    {{ formData.repeatRule === 'everyXWeeks' ? `End date` : '' }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
+                    End date <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
                   </div>
                   <input
                     type="date"
@@ -989,7 +1054,7 @@
           </div>
 
 
-          <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule === 'weekly'" class="flex flex-col gap-4 w-full">
 
             <div v-for="(day, index) in weekDays" :key="index"
               class="self-stretch inline-flex justify-start items-start gap-1"
@@ -1081,6 +1146,82 @@
                 </div>
               </template>
 
+            </div>
+          </div>
+
+          <div v-if="formData.repeatRule === 'monthly'" class="flex flex-col gap-4 w-full">
+            <div
+              v-for="(slot, slotIndex) in monthlySlots"
+              :key="`monthly-slot-${slotIndex}`"
+              class="self-stretch inline-flex justify-start items-center gap-1"
+            >
+              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
+                  <select
+                    v-model="slot.startTime"
+                    @change="onSlotChanged"
+                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
+                  >
+                    <option
+                      v-for="timeOption in timeOptions"
+                      :key="`monthly-start-${slotIndex}-${timeOption.value}`"
+                      :value="timeOption.value"
+                    >
+                      {{ timeOption.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal">
+                -
+              </div>
+
+              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                <select
+                  v-model="slot.endTime"
+                  @change="onSlotChanged"
+                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
+                >
+                  <option
+                    v-for="timeOption in timeOptions"
+                    :key="`monthly-end-${slotIndex}-${timeOption.value}`"
+                    :value="timeOption.value"
+                  >
+                    {{ timeOption.label }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="pl-1 flex justify-start items-center gap-2">
+                <button
+                  type="button"
+                  @click="removeMonthlySlot(slotIndex)"
+                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  :disabled="getTotalMonthlySlotCount() <= 1"
+                  :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalMonthlySlotCount() <= 1 }"
+                  title="Remove availability"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  @click="addMonthlySlot()"
+                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  title="Add another monthly period"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  @click="toggleMonthlySlotOffHours(slotIndex)"
+                  class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                  :class="slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500'"
+                  title="Mark as off hours"
+                >
+                  ⛅
+                </button>
+              </div>
             </div>
           </div>
 

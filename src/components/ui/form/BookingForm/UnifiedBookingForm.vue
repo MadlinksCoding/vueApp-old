@@ -62,6 +62,7 @@ const bookingFlow = createFlowStateEngine({
         dateFrom: "",
         dateTo: "",
         weeklyAvailability: [],
+        monthlyAvailability: [],
         oneTimeAvailability: [],
         duration: "",
         maxSessionDuration: "",
@@ -442,6 +443,23 @@ function shouldIncludeEveryXWeeksDate({ candidateDateIso, anchorDateIso, repeatX
     return weekIndex % interval === 0;
 }
 
+function getLastDayOfMonth(year, monthIndex) {
+    return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function shouldIncludeMonthlyDate({ candidateDateIso, anchorDateIso }) {
+    const candidate = dateFromIso(candidateDateIso);
+    const anchor = dateFromIso(anchorDateIso);
+    if (!candidate || !anchor) return false;
+
+    const targetDay = Math.min(
+        anchor.getDate(),
+        getLastDayOfMonth(candidate.getFullYear(), candidate.getMonth()),
+    );
+
+    return candidate.getDate() === targetDay;
+}
+
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
@@ -493,6 +511,30 @@ const previewDraftEvents = computed(() => {
                     title: eventTitle,
                     color: eventColor,
                     index: `${rowIndex}_${slotIndex}`,
+                });
+                if (preview) events.push(preview);
+            });
+        });
+    } else if (repeatRule === "monthly") {
+        const monthlyAvailability = Array.isArray(stateSnapshot.monthlyAvailability)
+            ? stateSnapshot.monthlyAvailability
+            : [];
+        const monthlySlots = monthlyAvailability.length > 0
+            ? monthlyAvailability
+            : [{ startTime: selectedStartTime, endTime: selectedEndTime }];
+
+        weekDateIsos.forEach((dateIso) => {
+            if (!inRange(dateIso)) return;
+            if (!shouldIncludeMonthlyDate({ candidateDateIso: dateIso, anchorDateIso: dateFrom })) return;
+
+            monthlySlots.forEach((slot, slotIndex) => {
+                const preview = createPreviewEvent({
+                    dateIso,
+                    startTime: toHm(slot?.startTime, selectedStartTime),
+                    endTime: toHm(slot?.endTime, selectedEndTime),
+                    title: eventTitle,
+                    color: eventColor,
+                    index: `monthly_${slotIndex}`,
                 });
                 if (preview) events.push(preview);
             });

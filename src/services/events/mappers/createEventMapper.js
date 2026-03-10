@@ -94,7 +94,7 @@ function localDateIsoToHktDateIso(localDateIso, anchorHm = "12:00") {
 }
 
 function normalizeRepeatRule(value) {
-  const allowed = new Set(["doesNotRepeat", "weekly", "everyXWeeks", "daily"]);
+  const allowed = new Set(["doesNotRepeat", "weekly", "everyXWeeks", "daily", "monthly"]);
   if (!allowed.has(value)) return "weekly";
   return value;
 }
@@ -250,9 +250,43 @@ function buildOneTimeSlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
   return Array.from(outputMap.values());
 }
 
+function buildMonthlySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
+  const source = Array.isArray(payload.monthlyAvailability) ? payload.monthlyAvailability : [];
+  const fallbackStart = primarySlot?.local?.startTime || "15:00";
+  const fallbackEnd = primarySlot?.local?.endTime || addMinutesToHm(fallbackStart, duration);
+  const anchorDate = nonEmptyString(payload.dateFrom, "")
+    || primarySlot?.local?.dateIso
+    || nextDateIso(1);
+
+  const monthlyRows = source.length > 0 ? source : [{ startTime: fallbackStart, endTime: fallbackEnd, offHours: false }];
+
+  return monthlyRows
+    .map((slot) => {
+      const startLocalHm = toHm(slot?.startTime, fallbackStart);
+      const endLocalHm = toHm(slot?.endTime, fallbackEnd);
+      const endLocalDate = hmToMinutes(endLocalHm) <= hmToMinutes(startLocalHm)
+        ? addDaysToDateIso(anchorDate, 1)
+        : anchorDate;
+
+      const startHkt = localDateTimeToHkt(anchorDate, startLocalHm);
+      const endHkt = localDateTimeToHkt(endLocalDate, endLocalHm);
+
+      return {
+        startTime: startHkt.hm,
+        endTime: endHkt.hm,
+        offHours: asBoolean(slot?.offHours, false),
+      };
+    })
+    .filter((slot) => slot.startTime && slot.endTime);
+}
+
 function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration = 15) {
   if (repeatRule === "doesNotRepeat") {
     return buildOneTimeSlotsInHkt(payload, primarySlot, duration);
+  }
+
+  if (repeatRule === "monthly") {
+    return buildMonthlySlotsInHkt(payload, primarySlot, duration);
   }
 
   const weeklySlots = buildWeeklySlotsInHkt(payload, primarySlot, duration);
