@@ -134,19 +134,19 @@
       </PopupHandler>
 
       <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
-        <div class="w-[22rem] max-w-[90vw] rounded-xl border border-[#EAECF0] bg-white p-5 shadow-xl">
-          <h3 class="text-[1rem] font-semibold text-gray-900">Cancel this call?</h3>
-          <p class="mt-2 text-[0.875rem] text-gray-600">
+        <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
+          <h3 class="text-[1rem] font-semibold text-gray-700">Are you sure you want to cancel this call?</h3>
+          <p class="mt-2 text-black">
             This will cancel the booking and refund the tokens back to the fan.
           </p>
-          <div class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
+          <div class="mt-2 bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
             <p class="font-semibold truncate">{{ cancelBookingCandidateTitle }}</p>
             <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
           </div>
-          <div class="mt-4 flex items-center justify-end gap-2">
+          <div class="mt-2 flex items-center justify-center gap-2">
             <button
               type="button"
-              class="h-9 rounded-md border border-gray-300 px-3 text-[0.875rem] font-medium text-gray-700 hover:bg-gray-50"
+              class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50"
               :disabled="cancelBookingLoading"
               @click="closeCancelBookingPopup"
             >
@@ -154,11 +154,11 @@
             </button>
             <button
               type="button"
-              class="h-9 rounded-md bg-[#F04438] px-3 text-[0.875rem] font-semibold text-white hover:bg-[#D92D20] disabled:opacity-60"
+              class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60"
               :disabled="cancelBookingLoading"
               @click="confirmCancelBooking"
             >
-              {{ cancelBookingLoading ? 'Cancelling...' : 'Confirm Cancel' }}
+              {{ cancelBookingLoading ? 'Cancelling...' : 'Cancel Booking' }}
             </button>
           </div>
         </div>

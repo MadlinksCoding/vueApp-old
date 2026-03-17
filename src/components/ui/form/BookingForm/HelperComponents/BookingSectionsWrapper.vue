@@ -8,15 +8,16 @@
     <!-- Title + Body + Optional Accordion Icon -->
     <div class="flex w-full relative">
       <div class='w-full'>
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <div
             class="justify-start text-slate-700 text-base font-medium leading-normal"
           >
             {{ title }}
           </div>
-          <div v-if="titleIcon">
+          <div v-if="titleIcon && !tooltipText">
             <img :src="titleIcon" alt="titleIcon" />
           </div>
+          <TooltipIcon v-if="tooltipText" :text="tooltipText" />
         </div>
 
         <!-- Slot for body content -->
@@ -33,8 +34,13 @@
 </template>
 
 <script>
+import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
+
 export default {
   name: "WrapperContainer",
+  components: {
+    TooltipIcon,
+  },
   props: {
     title: {
       type: String,
@@ -54,6 +60,10 @@ export default {
     },
     leftIconClass:{
        type: String,
+      default: null,
+    },
+    tooltipText: {
+      type: String,
       default: null,
     }
   },

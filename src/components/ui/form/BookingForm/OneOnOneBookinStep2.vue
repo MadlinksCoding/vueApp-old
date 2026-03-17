@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
@@ -220,6 +220,21 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
+
+const blockedUserDropdownRef = ref(null);
+const handleBlockedUserClickOutside = (event) => {
+  if (blockedUserDropdownRef.value && !blockedUserDropdownRef.value.contains(event.target)) {
+    blockedUserOptions.value = [];
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("click", handleBlockedUserClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleBlockedUserClickOutside);
+});
 const INVITE_LINK_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/event-invite";
 const spendingProductPopupOpen = ref(false);
 const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
@@ -940,10 +955,10 @@ const createEvent = async () => {
               <CheckboxGroup v-model="formData.allowPersonalRequest" label="Allow personal request"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
+                wrapperClass="flex items-center gap-2 mb-1" />
               <TooltipIcon text="If enabled, fans can include a personal request in the booking form. You can review it and adjust the price before confirming the booking." />
             </div>
-            <div class="h-10 inline-flex justify-start items-center gap-2">
+            <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6" />
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
@@ -1299,7 +1314,7 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Blocked user
             </div>
-            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative">
+            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative" ref="blockedUserDropdownRef">
               <div class="relative w-full">
                 <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input

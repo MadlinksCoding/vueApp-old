@@ -10,6 +10,10 @@
   import videoIcon from '@/assets/images/icons/video-recorder.webp'
   import phoneIcon from '@/assets/images/icons/phone.webp'
   import musicIcon from '@/assets/images/icons/music-note.webp'
+  import minusIcon from '@/assets/images/icons/minus-circle.webp'
+  import plusIcon from '@/assets/images/icons/plus-circle.webp'
+  import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
+  import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
 
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
@@ -984,11 +988,11 @@
       </BookingSectionsWrapper>
 
       <BookingSectionsWrapper title="Off-hour Surcharge" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
-        titleIcon="https://i.ibb.co/HD78k3Sf/Icon.png">
+        tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" label="Add"
             checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-            labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
+            labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
           <div class="flex-1 inline-flex flex-col justify-start items-start">
             <div class="inline-flex justify-end items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
@@ -1073,11 +1077,11 @@
                   Not Available
                 </div>
                 <button type="button" @click="addDayAvailability(index)"
-                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="isWeeklyDayLocked(day.key || day.name)"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                   title="Add availability">
-                  +
+                  <img :src="plusIcon" alt="plus icon" />
                 </button>
               </template>
 
@@ -1089,14 +1093,14 @@
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                        <select v-model="slot.startTime" @change="onSlotChanged"
+                        <CustomDropdown
+                          v-model="slot.startTime"
+                          :options="timeOptions"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
-                          class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                          <option v-for="timeOption in timeOptions" :key="`start-${day.key}-${sIdx}-${timeOption.value}`"
-                            :value="timeOption.value">
-                            {{ timeOption.label }}
-                          </option>
-                        </select>
+                          @update:modelValue="onSlotChanged"
+                          buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                          dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                        />
                       </div>
                     </div>
 
@@ -1105,41 +1109,44 @@
                     </div>
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                      <select v-model="slot.endTime" @change="onSlotChanged"
+                      <CustomDropdown
+                        v-model="slot.endTime"
+                        :options="timeOptions"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                        <option v-for="timeOption in timeOptions" :key="`end-${day.key}-${sIdx}-${timeOption.value}`"
-                          :value="timeOption.value">
-                          {{ timeOption.label }}
-                        </option>
-                      </select>
+                        @update:modelValue="onSlotChanged"
+                        buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                        dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                      />
                     </div>
 
                     <div class="pl-1 flex justify-start items-center gap-2">
-                      <button type="button" @click="removeWeeklySlot(index, sIdx)"
-                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
-                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }"
-                        title="Remove availability">
-                        -
-                      </button>
-                      <button type="button" @click="addWeeklySlot(index)"
-                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
-                        title="Add another period to this day">
-                        +
-                      </button>
-                      <button v-if="formData.repeatRule === 'weekly'" type="button" @click="toggleSlotOffHours(index, sIdx)"
-                        class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        :class="[
-                          slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500',
-                          isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
-                        ]"
-                        title="Mark as off hours">
-                        ⛅
-                      </button>
+                      <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4">
+                        <button type="button" @click="removeWeeklySlot(index, sIdx)"
+                          class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
+                          :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }">
+                          <img :src="minusIcon" alt="minus icon" />
+                        </button>
+                      </TooltipIcon>
+                      <TooltipIcon text="Add another period to this day" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                        <button type="button" @click="addWeeklySlot(index)"
+                          class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          :disabled="isWeeklyDayLocked(day.key || day.name)"
+                          :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }">
+                          <img :src="plusIcon" alt="plus icon" />
+                        </button>
+                      </TooltipIcon>
+                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                        <button type="button" @click="toggleSlotOffHours(index, sIdx)"
+                          class="w-6 h-6 rounded-full flex items-center justify-center"
+                          :disabled="isWeeklyDayLocked(day.key || day.name)"
+                          :class="[
+                            slot.offHours ? '' : '',
+                            isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
+                          ]">
+                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                        </button>
+                      </TooltipIcon>
                     </div>
 
                   </div>
@@ -1157,19 +1164,13 @@
             >
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <select
+                  <CustomDropdown
                     v-model="slot.startTime"
-                    @change="onSlotChanged"
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  >
-                    <option
-                      v-for="timeOption in timeOptions"
-                      :key="`monthly-start-${slotIndex}-${timeOption.value}`"
-                      :value="timeOption.value"
-                    >
-                      {{ timeOption.label }}
-                    </option>
-                  </select>
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                  />
                 </div>
               </div>
 
@@ -1178,56 +1179,56 @@
               </div>
 
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                <select
+                <CustomDropdown
                   v-model="slot.endTime"
-                  @change="onSlotChanged"
-                  class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                >
-                  <option
-                    v-for="timeOption in timeOptions"
-                    :key="`monthly-end-${slotIndex}-${timeOption.value}`"
-                    :value="timeOption.value"
-                  >
-                    {{ timeOption.label }}
-                  </option>
-                </select>
+                  :options="timeOptions"
+                  @update:modelValue="onSlotChanged"
+                  buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                  dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                />
               </div>
 
               <div class="pl-1 flex justify-start items-center gap-2">
+              <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4"> 
                 <button
                   type="button"
                   @click="removeMonthlySlot(slotIndex)"
-                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="getTotalMonthlySlotCount() <= 1"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalMonthlySlotCount() <= 1 }"
                   title="Remove availability"
                 >
-                  -
+                  <img :src="minusIcon" alt="minus icon" />
                 </button>
+                </TooltipIcon>
+                <TooltipIcon text="Add another monthly period" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                 <button
                   type="button"
                   @click="addMonthlySlot()"
-                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   title="Add another monthly period"
                 >
-                  +
+                  <img :src="plusIcon" alt="plus icon" />
                 </button>
+                </TooltipIcon>
+                <TooltipIcon text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                 <button
                   type="button"
                   @click="toggleMonthlySlotOffHours(slotIndex)"
-                  class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                  :class="slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500'"
+                  class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
+                  :class="slot.offHours ? '' : ''"
                   title="Mark as off hours"
                 >
-                  ⛅
+                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
                 </button>
+                </TooltipIcon>
               </div>
             </div>
           </div>
 
           <div v-if="formData.repeatRule === 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
-              class="border border-gray-200 rounded-md p-3 bg-white/30">
+              class="p-3">
               <div class="flex items-center gap-2 mb-3">
                 <input
                   type="date"
@@ -1256,27 +1257,33 @@
 
                 <div v-for="(slot, slotIndex) in entry.slots" :key="`${entry.id}-${slotIndex}`"
                   class="flex items-center gap-1">
-                  <select v-model="slot.startTime" @change="onSlotChanged"
-                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
-                    <option v-for="timeOption in timeOptions" :key="`one-start-${entry.id}-${slotIndex}-${timeOption.value}`"
-                      :value="timeOption.value">
-                      {{ timeOption.label }}
-                    </option>
-                  </select>
+                  <CustomDropdown
+                    v-model="slot.startTime"
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
+                  />
                   <div class="text-gray-500">-</div>
-                  <select v-model="slot.endTime" @change="onSlotChanged"
-                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
-                    <option v-for="timeOption in timeOptions" :key="`one-end-${entry.id}-${slotIndex}-${timeOption.value}`"
-                      :value="timeOption.value">
-                      {{ timeOption.label }}
-                    </option>
-                  </select>
+                  <CustomDropdown
+                    v-model="slot.endTime"
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
+                  />
+                  <div class="flex items-center gap-2">
                   <button type="button" @click="removeOneTimeSlot(entryIndex, slotIndex)"
                     :disabled="getTotalOneTimeSlotCount() <= 1"
                     :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalOneTimeSlotCount() <= 1 }"
-                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">-</button>
+                    class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
+                    <img :src="minusIcon" alt="minus icon" />
+                  </button>
                   <button type="button" @click="addOneTimeSlot(entryIndex)"
-                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">+</button>
+                    class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
+                    <img :src="plusIcon" alt="plus icon" />
+                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1302,7 +1309,8 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">Offer discount if call
                   starts
-                  late</div><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+                  late</div>
+                  <TooltipIcon text="You and your fan can join within a 15-minute buffer after the scheduled time. If you join late, you may compensate your fan." />
               </div>
             </div>
             <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -1335,7 +1343,7 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">
                   Fan can request to extend session in call</div>
-                 <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." />
+                 <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" />
               </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup v-model="formData.requestExtendSession"
@@ -1378,8 +1386,8 @@
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
                   <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
                     :disabled="!formData.setReminders"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">minutes before
+                    inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">minutes before
                     a
                   </div>
                 </div>
@@ -1395,7 +1403,7 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="Set a buffer time between appointment slots." />
+              <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" />
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1436,7 +1444,7 @@
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
-                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments."/>
+                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments." tooltipClass="translate-x-[-90%]"/>
               </div>
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
