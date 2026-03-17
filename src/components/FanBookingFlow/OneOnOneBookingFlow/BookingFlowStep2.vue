@@ -582,7 +582,7 @@ onMounted(() => {
     style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
   >
     <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">
-      <div class="rounded-b-[20px] h-full rounded-t-[20px] flex flex-col bg-black/50">
+      <div class="rounded-b-[20px] h-full rounded-t-[20px] flex bg-black/50">
 
         <OneOnOneBookingFlowHeader
           :time-display="formattedTimeRange"
@@ -593,7 +593,7 @@ onMounted(() => {
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="flex-1 flex w-full lg:flex-row flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+        <div class="flex-1 flex w-full flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
           <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden">
              <div class="flex items-center justify-between w-full mb-2">
