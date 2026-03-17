@@ -1,6 +1,6 @@
 <script setup>
 import TopUpForm from '../HelperComponents/TopUpForm.vue';
-import OneOnOneBookingFlowHeader from '../HelperComponents/OneOnOneBookingFlowHeader.vue';
+import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -714,7 +714,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="rounded-[20px] h-[556px] max-h-full lg:w-[852px] overflow-hidden"
+      class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
       style="
         background-image: url('/images/background.png');
         background-size: cover;
@@ -722,11 +722,10 @@ onBeforeUnmount(() => {
         background-position: left 50% center;
       "
     >
-      <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">
+      <div class="backdrop-blur-[10px] h-full md:rounded-[20px] bg-[#0C111D96]">
+      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/50 flex-col md:flex-row">
 
-        <div class="rounded-b-[20px] h-full rounded-t-[20px] flex flex-col bg-black/50">
-
-            <OneOnOneBookingFlowHeader
+            <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
               :date-display="headerDateDisplay"
               :subtotal="totalPrice"
@@ -737,7 +736,7 @@ onBeforeUnmount(() => {
 
           <div class="flex-1 flex w-full lg:flex-row h-full flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
-            <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden">
+            <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden hidden">
               <div class="flex flex-col gap-3">
                 <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING POLICY</h3>
                 <ul class="text-sm text-[#EAECF0] list-disc list-outside pl-6">
@@ -910,7 +909,7 @@ onBeforeUnmount(() => {
           </div>
 
 
-          <div class="flex-none flex w-full justify-end">
+          <div class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
             <button
               v-if="!isTopUpSubstep"
               type="button"
