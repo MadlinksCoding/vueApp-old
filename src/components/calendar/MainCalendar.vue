@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-2 md:pl-0 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-0 md:pl-0 backdrop-blur-md">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -298,7 +298,7 @@
 
     <div v-if="effectiveView === 'month'" class="flex flex-col h-full">
 
-      <div class="grid grid-cols-7 shrink-0 mt-[-3rem]">
+      <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
         <div v-for="w in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="w"
           class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[10px]"
           :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">

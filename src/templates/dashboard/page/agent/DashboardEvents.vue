@@ -114,11 +114,16 @@
           </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50 lg:hidden" @click="newEventsPopupOpen = true">
+        <div class="fixed bottom-5 right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
           <button
             class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-            <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
+            <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" @click="toggleFloatingPopup" />
           </button>
+          <div v-show="isFloatingPopupOpen" class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto" :style="floatingPopupStyle">
+              <CreateEventPopup
+                @create-private="goToCreateEvent('private')"
+                @create-group="goToCreateEvent('group')" />
+            </div>
         </div>
       </div>
 
@@ -185,7 +190,7 @@ import { showToast } from '@/utils/toastBus.js';
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
 const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
-  video: '#4F46E5',
+  video: '#5549FF',
   audio: '#06B6D4',
   groupCall: '#E11D48',
 });
@@ -200,6 +205,12 @@ const cancelBookingCandidate = ref(null);
 const eventTypeColors = ref({ ...DEFAULT_EVENT_TYPE_COLORS });
 const route = useRoute();
 const router = useRouter();
+
+const isFloatingPopupOpen = ref(false)
+
+const toggleFloatingPopup = () => {
+  isFloatingPopupOpen.value = !isFloatingPopupOpen.value
+}
 
 const popupTrigger = ref(null);
 const popupStyle = reactive({ top: '0px', left: '0px' });
@@ -590,7 +601,7 @@ const theme1 = {
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   },
   main: {
-    wrapper: 'relative flex flex-col gap-0 overflow-hidden rounded-xl h-full',
+    wrapper: 'relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0',
     title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
     xHeader: 'text-[11px] uppercase tracking-wide text-slate-500 top-[3.3rem] xl:top-[4rem] sticky w-full backdrop-blur-md z-10',
     axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
