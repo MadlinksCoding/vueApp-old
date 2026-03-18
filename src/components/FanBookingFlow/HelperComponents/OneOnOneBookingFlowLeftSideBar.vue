@@ -70,7 +70,6 @@ defineProps({
         <div class="flex flex-col w-full gap-3">
             <div class="flex gap-2">
               <h3 class="text-sm text-white/50">BOOKING POLICY</h3>
-              <img class="lg:hidden" src="../assets/double-down.svg" alt="">
             </div>
             <ul class="list-disc pl-5 text-sm text-[#EAECF0] w-full list-outside wrap leading-5">
               <li>
