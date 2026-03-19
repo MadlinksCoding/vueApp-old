@@ -734,7 +734,7 @@ onBeforeUnmount(() => {
               :show-approval-needed="showApprovalNeeded"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] max-h-[27.4rem] md:max-h-[40.625rem]">
 
             <div class="flex-1 flex-col px-3 pt-3 pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
               <template v-if="!isTopUpSubstep">
@@ -830,12 +830,12 @@ onBeforeUnmount(() => {
                             <div class="flex flex-col gap-1">
                               <h4 class="text-base font-semibold text-white">Session Total</h4>
                               <p class="text-xs font-semibold leading-[18px] text-[#98A2B3] flex">
-                                <span>A non-refundable</span>
+                                <span class="whitespace-nowrap">A non-refundable</span>
                                 <span class="flex items-center gap-[2px]">
                                   <img src="/images/token.svg" alt="token-icon" class="w-4 h-4" />
                                   <span class="">100</span>
                                 </span>
-                                <span>booking fee included</span>
+                                <span class="whitespace-nowrap">booking fee included</span>
                               </p>
                             </div>
                             <div class="flex flex-col">
@@ -843,7 +843,7 @@ onBeforeUnmount(() => {
                                 <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
                                 <p class="text-base lfont-semibold text-white">3,000</p>
                               </div>
-                              <span class="text-xs font-medium text-[#98A2B3]">=USD$ 224.99</span>
+                              <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ 224.99</span>
                             </div>
                           </div>
                         </div>
@@ -857,7 +857,7 @@ onBeforeUnmount(() => {
                               <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
                               <p class="text-xl font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
                             </div>
-                            <span class="text-xs font-medium text-[#98A2B3]">=USD$ 224.99</span>
+                            <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ 224.99</span>
                           </div>
                         </div>
                       </div>
@@ -932,7 +932,7 @@ onBeforeUnmount(() => {
               class="w-4/5 lg:w-auto flex justify-start items-center"
               :class="(isCheckingBalance || isSubmitting) ? 'pointer-events-none' : 'cursor-pointer'"
             >
-              <div class="relative w-full p-[12px] rounded-br-[20px] flex justify-between items-center
+              <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
                 gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                   after:border-b-0"
@@ -953,7 +953,7 @@ onBeforeUnmount(() => {
               class="w-4/5 lg:w-auto flex justify-start items-center"
               :class="(isSubmitting || holdLoading || !hasActiveHold) ? 'pointer-events-none opacity-70' : 'cursor-pointer'"
             >
-              <div class="relative w-full p-[12px] rounded-br-[20px] flex justify-between items-center
+              <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
                 gap-2 bg-[#07F468] after:content-[''] after:absolute after:right-full after:top-0 after:w-0
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                 after:border-r-[#07F468] after:border-b-0">
