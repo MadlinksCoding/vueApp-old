@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
                           <div class="flex flex-col">
                             <div class="flex justify-end items-center gap-0.5">
                               <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                              <p class="text-2xl leading-[32px] font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
+                              <p class="text-xl font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
                             </div>
                             <span class="text-xs font-medium text-[#98A2B3]">=USD$ 224.99</span>
                           </div>
