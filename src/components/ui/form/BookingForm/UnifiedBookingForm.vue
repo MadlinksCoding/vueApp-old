@@ -672,7 +672,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </div>
                 </div>
 
-                <div class="w-full">
+                <div class="w-full h-dvh max-h-dvh overflow-y-auto">
                     <!-- Private Form -->
                     <template v-if="currentType === 'private'">
                         <OneOnOneBookinStep1 v-if="currentStep === 1" :engine="bookingFlow" />

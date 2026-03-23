@@ -862,7 +862,7 @@
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.enableBookingFee" label="Enable booking fee"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
@@ -886,7 +886,7 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant booking"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
@@ -915,7 +915,7 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.enableRescheduleFee" label="Enable reschedule  fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
@@ -942,7 +942,7 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.enableCancellationFee" label="Enable cancellation fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
@@ -1344,10 +1344,13 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-                  Fan can request to extend session in call</div>
-                 <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" />
+              <div class="self-stretch inline-flex justify-start items-center gap-1 relative">
+                <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
+                  Fan can request to extend session in call
+                  <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." 
+                  tooltipClass="translate-x-[-80%] sm:translate-x-[-70%]" 
+                  class="ml-1 !mt-0 !absolute z-[9] top-1/2 -translate-y-1/2 -right-2 md:-right-6" />
+                </div>
               </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup v-model="formData.requestExtendSession"
@@ -1402,12 +1405,30 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2">
+            <!-- <div class="flex gap-2">
               <CheckboxGroup v-model="formData.setBufferTime" label="Set buffer time between booked appointments"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" />
+              <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" class="ml-1 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6" />
+            </div> -->
+            <div class="flex gap-2">
+              <CheckboxGroup
+                v-model="formData.setBufferTime"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                wrapperClass="flex items-center gap-2"
+              >
+                <template #label>
+                  <span>Set buffer time between booked appointments</span>
+
+                  <TooltipIcon
+                    text="Set a buffer time between appointment slots."
+                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[200px]" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  />
+                </template>
+              </CheckboxGroup>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1424,12 +1445,31 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2 items-center">
+            <!-- <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.setMaxBookings" label="Set maximum bookings per day"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="Set a daily limit for how many appointments you can accept."/>
+            </div> -->
+
+            <div class="flex gap-2">
+              <CheckboxGroup
+                v-model="formData.setMaxBookings"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                wrapperClass="flex items-center gap-2"
+              >
+                <template #label>
+                  <span>Set maximum bookings per day</span>
+
+                  <TooltipIcon
+                    text="Set a daily limit for how many appointments you can accept."
+                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  />
+                </template>
+              </CheckboxGroup>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1442,13 +1482,31 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <!-- <div class="flex gap-2">
                 <CheckboxGroup v-model="formData.allowWaitlist"
                   label="If booking slots are full, allow fans to join waitlist"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
                 <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments." tooltipClass="translate-x-[-90%]"/>
+              </div> -->
+              <div class="flex gap-2">
+                <CheckboxGroup
+                  v-model="formData.allowWaitlist"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                  wrapperClass="flex items-center gap-2"
+                >
+                  <template #label>
+                    <span>If booking slots are full, allow fans to join waitlist</span>
+
+                    <TooltipIcon
+                      text="An on-screen reminder will appear before your upcoming appointments."
+                      tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
+                      class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                    />
+                  </template>
+                </CheckboxGroup>
               </div>
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
@@ -1470,7 +1528,7 @@
 
 
     </form>
-    <div class="flex justify-end">
+    <div class="flex justify-end fixed bottom-0 right-0">
       <ButtonComponent @click="goToNext" text="Next" variant="polygonLeft"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200
