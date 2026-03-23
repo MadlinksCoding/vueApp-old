@@ -61,7 +61,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
         </div>
       </slot>
       
-      <img src="@/assets/images/icons/chevron-down-gray.webp" alt="" :class="{'rotate-180': isOpen}" class="w-5 h-5 text-slate-500 transition-transform ml-2" />
+      <img src="@/assets/images/icons/chevron-down-gray.webp" alt="" :class="{'rotate-180': isOpen}" class="w-5 h-5 text-slate-500 transition-transform" />
     </div>
 
     <!-- Dropdown Options Panel -->
@@ -77,14 +77,16 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
           class="cursor-pointer hover:bg-[#EAECF0] transition-colors"
         >
           <slot name="option" :option="option" :isSelected="multiple ? modelValue.includes(option.value) : modelValue === option.value">
-            <div :class="[optionClass, 'flex items-center gap-3']">
+            <div :class="[optionClass, 'flex items-center gap-2']">
               <div v-if="hasCheckboxes" class="flex items-center justify-center w-4 h-4 rounded-sm border" :class="(multiple ? modelValue.includes(option.value) : modelValue === option.value) ? 'bg-[#00e676] border-[#00e676]' : 'border-gray-300 bg-white'">
-                <svg v-if="(multiple ? modelValue.includes(option.value) : modelValue === option.value)" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                <svg v-if="(multiple ? modelValue.includes(option.value) : modelValue === option.value)" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M10 3L4.5 8.5L2 6" stroke="#0C111D" stroke-width="1.6666" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </div>
               <img v-if="option.image" :src="option.image" class="w-5 h-5 object-contain" />
               <component v-else-if="option.icon" :is="option.icon" class="w-5 h-5 text-slate-700" />
               <div v-if="option.color" class="w-6 h-6 rounded-full shadow-sm" :style="{ backgroundColor: option.color }"></div>
-              <span class="text-slate-700">{{ option.label }}</span>
+              <span class="text-gray-950">{{ option.label }}</span>
             </div>
           </slot>
         </div>

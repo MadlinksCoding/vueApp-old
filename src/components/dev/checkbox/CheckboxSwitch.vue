@@ -4,7 +4,7 @@
       {{ wrapperLabel }}
     </label>
 
-    <div class="flex gap-4">
+    <div class="flex gap-2">
       <label :class="['relative inline-block mt-1 shrink-0', switchWrapperClass || 'w-8 h-4 ']">
         <input
           type="checkbox"
@@ -17,7 +17,7 @@
         <span
           :class="[
             'absolute cursor-pointer transition-all duration-100 ease-in-out', // Structural Classes (Fixed)
-            trackClass || 'top-0 left-0 right-0 bottom-0 bg-[#98A2B3] rounded-[0.75rem] peer-checked:bg-[#101828]' // Default Visuals (Overridable)
+            trackClass || 'top-0 left-0 right-0 bottom-0 bg-[rgba(152,162,179,0.5)] rounded-[0.75rem] peer-checked:bg-[#101828]' // Default Visuals (Overridable)
           ]"
         ></span>
 
