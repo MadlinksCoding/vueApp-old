@@ -14,6 +14,7 @@
   import plusIcon from '@/assets/images/icons/plus-circle.webp'
   import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
   import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
+  import alignLeftIcon from '@/assets/images/icons/align-left.webp'
 
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
@@ -666,14 +667,17 @@
   <template>
     <form class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
 
-      <div class=" self-stretch inline-flex justify-start items-start gap-4">
-        <div class="w-6 h-6 relative overflow-hidden">
-          <svg width="19" height="14" viewBox="0 0 19 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14 5H1M18 1H1M18 9H1M14 13H1" stroke="#344054" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
+      <div class=" self-stretch inline-flex flex-col md:flex-row justify-start items-start gap-4">
+        <div class="w-6 h-6 relative overflow-hidden hidden md:block">
+          <img :src="alignLeftIcon" alt="" class="w-6 h-6" />
         </div>
-        <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
+        <div class="flex-1  flex md:hidden justify-start items-start gap-2 ">
+          <div class="w-6 h-6 relative overflow-hidden block md:hidden">
+            <img :src="alignLeftIcon" alt="" class="w-6 h-6"/>
+          </div>
+          <p class="text-gray-950 text-base font-normal">Basic Settings</p>
+        </div>
+        <div class="flex-1 inline-flex flex-col justify-start items-start gap-4 self-stretch">
           <div class="flex w-full">
             <div class="flex-1">
               <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
@@ -724,7 +728,7 @@
             </div>
             <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
               <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
-              <div class="justify-start text-slate-700 text-sm font-medium leading-tight">Preview</div>
+              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">Preview</div>
             </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -751,14 +755,14 @@
               </div>
               <ThumbnailUploaderNay
                 v-if="!formData.eventImageUrl"
-                custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-2 h-[12.1875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
-                input-wrapper-class="border-2 border-dashed border-transparent"
+                custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-4 h-[7.875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
+                input-wrapper-class="border-2 border-dashed border-transparent !gap-1"
                 button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
                 button-icon-wrapper-class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-green-500 rounded-lg h-10 w-10 flex justify-center items-center hover:bg-black"
                 button-parent-wrapper-class="flex flex-col items-center justify-center gap-3"
                 button-text="Click to upload"
                 button-text-class="font-semibold text-gray-900 cursor-pointer"
-                drop-text="or drag and drop"
+                drop-text=" or drag and drop"
                 drop-text-class="text-sm font-normal leading-5 text-gray-500 text-center"
                 custom-allowed-types="SVG, PNG, JPG or GIF"
                 custom-max-size="800x400px"
@@ -772,7 +776,7 @@
       </div>
 
       <BookingSectionsWrapper title="Session Duration" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
-        <div class='flex flex-col gap-[30px]'>
+        <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
@@ -781,7 +785,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
             <CheckboxGroup v-model="formData.allowLongerSessions" label="Allow user to book longer sessions"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
+              labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
             <div :class="['ml-6 transition-opacity duration-200',
                         !formData.allowLongerSessions ? 'opacity-50' : 'opacity-100']">
               <div class="w-full text-gray-500 text-sm font-medium leading-tight">Maximum Session Allowed</div>
@@ -862,7 +866,7 @@
               <CheckboxGroup v-model="formData.enableBookingFee" label="Enable booking fee"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
+                wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment." />
             </div>
 
@@ -904,7 +908,7 @@
                   <CheckboxGroup v-model="formData.disableChatBeforeCall" label="Disable chat before call"
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-[16px] leading-normal"
-                    wrapperClass="flex items-center gap-2 mb-3 mt-2" />
+                    wrapperClass="flex items-center gap-2 mb-2 mt-2" />
                 </div>
               </div>
             </div>
@@ -915,7 +919,7 @@
                 <CheckboxGroup v-model="formData.enableRescheduleFee" label="Enable reschedule  fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2 mb-3" />
+                  wrapperClass="flex items-center gap-2" />
 
                 <TooltipIcon text="A rescheduling fee will be charged if a confirmed booking is changed." />
               </div>
@@ -942,7 +946,7 @@
                 <CheckboxGroup v-model="formData.enableCancellationFee" label="Enable cancellation fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2 mb-3" />
+                  wrapperClass="flex items-center gap-2" />
 
                 <TooltipIcon text="A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call." />
               </div>
@@ -966,7 +970,7 @@
                 label="User can cancel in advance to void minimum charge"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
+                wrapperClass="flex items-center gap-2" />
               <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
                 <div class="flex items-center">
                   <BaseInput type="number" placeholder="15" v-model="formData.advanceVoid"
@@ -999,8 +1003,8 @@
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-gray-700 text-base font-medium leading-normal">% from base price</div>
-                <div class="justify-center text-gray-700 text-xs font-medium leading-none">(1,600 tokens/session)</div>
+                <div class="justify-center text-black text-base font-medium leading-normal">% from base price</div>
+                <div class="justify-center text-black text-xs font-medium leading-none">(1,600 tokens/session)</div>
               </div>
             </div>
           </div>
@@ -1374,12 +1378,12 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">Call reminder</div>
+                <div class="justify-start text-gray-700 text-base font-normal leading-normal">Call reminder</div>
                 <TooltipIcon text="Reminders will be sent to notify you of upcoming appointments." />
               </div>
               <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-2 mt-2" />
               <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
                 <div class=" inline-flex justify-end items-center gap-2">
@@ -1401,7 +1405,7 @@
             <div class="flex gap-2">
               <CheckboxGroup v-model="formData.setBufferTime" label="Set buffer time between booked appointments"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" />
             </div>
@@ -1423,7 +1427,7 @@
             <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.setMaxBookings" label="Set maximum bookings per day"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="Set a daily limit for how many appointments you can accept."/>
             </div>
@@ -1442,7 +1446,7 @@
                 <CheckboxGroup v-model="formData.allowWaitlist"
                   label="If booking slots are full, allow fans to join waitlist"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
                 <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments." tooltipClass="translate-x-[-90%]"/>
               </div>

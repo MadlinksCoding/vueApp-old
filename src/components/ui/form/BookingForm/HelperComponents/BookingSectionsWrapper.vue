@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-4 relative">
     <!-- Left Icon -->
-    <div v-if="leftIcon" :class="leftIconClass">
+    <div v-if="leftIcon" :class="leftIconClass + ' hidden md:block'">
       <img :src="leftIcon" alt="left icon" />
     </div>
 
@@ -9,8 +9,11 @@
     <div class="flex w-full relative">
       <div class='w-full'>
         <div class="flex gap-2 items-center">
+          <div v-if="leftIcon" :class="leftIconClass + 'block md:hidden'">
+            <img :src="leftIcon" alt="left icon" />
+          </div>
           <div
-            class="justify-start text-slate-700 text-base font-medium leading-normal"
+            class="justify-start text-gray-700 text-base font-medium leading-normal"
           >
             {{ title }}
           </div>
