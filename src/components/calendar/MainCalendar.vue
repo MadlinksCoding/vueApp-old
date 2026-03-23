@@ -522,6 +522,8 @@
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
         :event="selectedEvent"
+        :can-review-pending="props.canReviewPending"
+        @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
         @cancel-booking="handleCancelBooking"
@@ -560,6 +562,7 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
+  canReviewPending: { type: Boolean, default: true },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
   highlightTodayColumn: { type: Boolean, default: false },
@@ -570,7 +573,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -979,6 +982,11 @@ const closeEventDetails = () => {
 const handleApproveBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('approve-booking', payload);
+};
+
+const handleJoin = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('join-call', payload);
 };
 
 const handleRejectBooking = (payload) => {

@@ -655,6 +655,7 @@ function onConfirmSpendingProducts(selectedItems = []) {
 }
 
 function resolveCreatorId() {
+  return 1407;
   const routeCreatorId = Number(route.query?.creatorId);
   if (Number.isFinite(routeCreatorId)) return routeCreatorId;
 

@@ -174,6 +174,7 @@ bookingFlow.addValidator(1, step1Validator);
 bookingFlow.addValidator(2, step2Validator);
 
 const resolveCreatorId = () => {
+    return 1407;
     const creatorFromRoute = Number(route.query?.creatorId);
     const creatorFromStorage = typeof window !== "undefined"
         ? Number(window.localStorage?.getItem("creatorId"))

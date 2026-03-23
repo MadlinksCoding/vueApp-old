@@ -7,9 +7,11 @@
           ref="mainCalendarRef"
           class="flex-1 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           variant="default" :focus-date="state.focus" :events="events1" :theme="theme1"
+          :can-review-pending="isCreator"
           :data-attrs="{ 'data-calendar': 'main' }" :console-overlaps="true" :highlight-today-column="true"
           time-start="00:00" time-end="24:00" :slot-minutes="60" :row-height-px="64" :min-event-height-px="0"
           @date-selected="onSelectFromMain"
+          @join-call="handleJoin"
           @approve-booking="onApprovePendingBooking"
           @reject-booking="onRejectPendingBooking"
           @cancel-booking="onCancelBookingFromCalendar">
@@ -90,7 +92,7 @@
             Loading booked slots...
           </div>
 
-          <div class="relative w-full z-[999]" ref="popupTrigger">
+          <div v-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
             <ButtonComponent text="NEW EVENTS" variant="none"
               customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
               :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
@@ -114,7 +116,7 @@
           </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
+        <div v-if="isCreator" class="fixed bottom-5 right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
           <button
             class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
             <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" @click="toggleFloatingPopup" />
@@ -127,7 +129,7 @@
         </div>
       </div>
 
-      <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
+      <PopupHandler v-if="isCreator" v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
         <NewEventsPopup
           @create-private="goToCreateEvent('private')"
           @create-group="goToCreateEvent('group')" />
@@ -187,6 +189,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { createFlowStateEngine } from '@/utils/flowStateEngine.js';
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { showToast } from '@/utils/toastBus.js';
+import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
 const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
@@ -211,6 +214,11 @@ const isFloatingPopupOpen = ref(false)
 const toggleFloatingPopup = () => {
   isFloatingPopupOpen.value = !isFloatingPopupOpen.value
 }
+
+const resolveUserRole = () => 'creator';
+const userRole = ref(resolveUserRole());
+const isCreator = computed(() => userRole.value === 'creator');
+const isFan = computed(() => userRole.value === 'fan');
 
 const popupTrigger = ref(null);
 const popupStyle = reactive({ top: '0px', left: '0px' });
@@ -296,7 +304,7 @@ const handleClickOutside = (event) => {
 };
 
 const resolveCreatorId = () => {
-  return 1;
+  return 1407;
   const fromQuery = Number(route.query?.creatorId);
   if (Number.isFinite(fromQuery)) return fromQuery;
 
@@ -456,6 +464,7 @@ const resolveBookingIdFromPayload = (payload) => {
 };
 
 const reviewPendingBooking = async (payload, decision) => {
+  if (!isCreator.value) return;
   const bookingId = resolveBookingIdFromPayload(payload);
   if (!bookingId) {
     showToast({
@@ -561,6 +570,7 @@ const handleEventTypeColorsStorageChanged = (event) => {
 
 // Update position on scroll or resize to keep it attached
 onMounted(() => {
+  userRole.value = resolveUserRole();
   eventTypeColors.value = loadEventTypeColorsFromStorage();
   dashboardEventsEngine.initialize({ fromUrl: false });
   window.addEventListener('resize', handlePositionUpdate);
@@ -577,6 +587,12 @@ onMounted(() => {
     const nextQuery = { ...route.query };
     delete nextQuery.refresh;
     router.replace({ path: route.path, query: nextQuery });
+  }
+
+  if (isFan.value) {
+    isCreatePopupOpen.value = false;
+    isFloatingPopupOpen.value = false;
+    newEventsPopupOpen.value = false;
   }
 });
 
@@ -743,6 +759,13 @@ function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
   const isGroup = event.type === 'group-event';
+  const bookingId = event?.bookingId || event?.raw?.bookingId || null;
+  const joinState = getBookingJoinState({
+    bookingId,
+    startAt: event?.start,
+    endAt: event?.end,
+    status: event?.status || event?.raw?.status || '',
+  });
   const accentColor = resolveTypeColor({
     callType: event?.eventCallType || event?.raw?.eventCallType || '',
     eventType: event?.type || event?.raw?.eventType || event?.raw?.type || '',
@@ -759,7 +782,8 @@ function toWidgetItem(event, options = {}) {
       titleColorClass: styles.titleColorClass,
       borderClass: styles.borderClass,
       bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-      showJoin: true,
+      showJoin: joinState.canJoin,
+      joinUrl: joinState.joinUrl,
       statusText: event.status === 'active' ? 'active' : event.status,
       avatars: makeAvatar(event),
       sourceEvent: event,
@@ -872,7 +896,27 @@ onUnmounted(() => {
 });
 
 // Helper stubs for EventsWidget
-const handleJoin = (item) => console.log('Join', item);
+const handleJoin = (item) => {
+  const sourceEvent = item?.sourceEvent || item?.event || item || null;
+  const bookingId = item?.bookingId || sourceEvent?.bookingId || sourceEvent?.raw?.bookingId || null;
+  const joinState = getBookingJoinState({
+    bookingId,
+    startAt: sourceEvent?.start,
+    endAt: sourceEvent?.end,
+    status: sourceEvent?.status || sourceEvent?.raw?.status || '',
+  });
+
+  if (!joinState.canJoin || !joinState.joinUrl) {
+    showToast({
+      type: 'error',
+      title: 'Join Unavailable',
+      message: 'You can join only within 5 minutes of the meeting start time and before it ends.',
+    });
+    return;
+  }
+
+  window.location.assign(joinState.joinUrl);
+};
 const handleReply = (item) => console.log('Reply', item);
 const handleWidgetEventClick = (item) => {
   const event = item?.sourceEvent;

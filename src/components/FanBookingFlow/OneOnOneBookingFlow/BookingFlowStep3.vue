@@ -208,7 +208,7 @@ function preflightBookingPayload() {
 }
 
 function resolveFanUserId() {
-  return localStorage.getItem('userId') ?? 2;
+  return 2615;
   return Number(
     props.engine.getState('fanBooking.context.fanUserId')
     || props.engine.getState('userId')
@@ -217,7 +217,7 @@ function resolveFanUserId() {
 }
 
 function resolveCreatorId() {
-  return 1;
+  return 1407;
   return Number(
     selectedEvent.value?.creatorId
     || props.engine.getState('fanBooking.context.creatorId')
