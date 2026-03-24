@@ -25,7 +25,7 @@ const emit = defineEmits(['back']);
   <div class="flex flex-col w-full h-full">
     
     <div 
-      class="inline-flex justify-start items-center gap-0.5 cursor-pointer mb-4"
+      class="inline-flex justify-start items-center gap-0.5 cursor-pointer"
       @click="emit('back')"
     >
       <div class="w-4 h-4 relative overflow-hidden">
@@ -36,9 +36,8 @@ const emit = defineEmits(['back']);
       </div>
     </div>
 
-    <div class="flex flex-col gap-6">
-      <div class="rounded-[10px] flex flex-col gap-4">
-          
+    <div class="flex flex-col gap-3 md:pb-10">
+      <div class="flex flex-col gap-6 py-3">
           <div class="flex flex-col gap-1">
             <div class="opacity-70 justify-start text-white text-xs font-normal font-['Poppins'] leading-4">
                 TOP UP AMOUNT
@@ -111,66 +110,199 @@ const emit = defineEmits(['back']);
             </div>
           </div>
 
-          <div class="flex flex-col justify-center items-start gap-2">
-            
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Original balance</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
-                  <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ walletBalance.toLocaleString() }}</div>
+          <div class="flex flex-col gap-4">
+            <div class="h-6 inline-flex justify-start items-center gap-2">
+                <div class="w-5 h-5 relative overflow-hidden"><img src="/images/maps-travel-icon.svg" alt=""></div>
+                <div class="justify-center text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">SHIPPING ADDRESS</div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <div class="w-full flex gap-4">
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">Last name</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="Last name" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">First name</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="First name" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                </div>
+                <div class="w-full flex">
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">Address Line 1</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="Address Line 1" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                </div>
+                <div class="w-full flex">
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">Address Line 2</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="Address Line 2" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                </div>
+                <div class="w-full flex gap-4">
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">Postal Code</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="Postal Code" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">City</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="City" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                </div>
+                <div class="w-full flex gap-4">
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">Country</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="Country" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
+                  <div class="w-full flex flex-col gap-[6px] flex-1">
+                    <span class="text-sm font-medium leading-tight text-white">State</span>
+                    <div class="flex py-2 px-3 border-b border-gray-300 bg-white/10">
+                      <input type="text" placeholder="State" class="flex-1 bg-transparent focus:outline-none focus:ring-0 text-white text-sm">
+                    </div>
+                  </div>
                 </div>
             </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-none flex items-center">
+                <input type="checkbox" checked class="w-4 h-4
+                        appearance-none
+                        border border-white
+                        rounded
+                        focus:outline-none focus:ring-0
+                        bg-transparent
+                        cursor-pointer
+                        checked:bg-green
+                        checked:border-green
+                        checked:bg-[url('../assets/check.svg')]
+                        checked:bg-center
+                        checked:bg-no-repeat
+                        checked:bg-[length:10px_10px]" />
 
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Top up amount</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">+</div>
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
-                  <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ topUpAmount.toLocaleString() }}</div>
-                </div>
-            </div>
-
-            <div class="h-0 outline outline-1 outline-offset-[-0.50px] outline-white w-full"></div>
-
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Balance after top up</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
-                  <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ (walletBalance + topUpAmount).toLocaleString() }}</div>
-                </div>
-            </div>
-
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Subtotal</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">-</div>
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
-                  <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ totalPrice }}</div>
-                </div>
-            </div>
-
-            <div class="w-full h-0 outline outline-1 outline-offset-[-0.50px] outline-white"></div>
-
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Balance after booking</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="w-4 h-4 relative"><img src="/images/token.svg" alt=""></div>
-                  <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ remainingBalance.toLocaleString() }}</div>
-                </div>
-            </div>
-
-            <div class="inline-flex justify-between w-full">
-                <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Top up payment</div>
-                <div class="flex justify-start items-center gap-1">
-                  <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">USD$ 23.45</div>
-                </div>
-            </div>
-
-            <div class="opacity-70 inline-flex justify-start items-center gap-0.5">
-                <div class="w-4 h-4 relative overflow-hidden flex justify-center items-center"><img src="/images/doubleDropdown.png" alt=""></div>
-                <div class="justify-start text-white text-xs font-medium font-['Poppins'] leading-4">Payment Summary</div>
+              </div>
+              <span class="text-sm leading-tight text-gray-400">Save this address for future use.</span>
             </div>
           </div>
+
+          <div class="flex flex-col gap-4">
+            <div class="h-6 inline-flex justify-start items-center gap-2">
+                <div class="w-5 h-5 relative overflow-hidden"><img src="/images/maps-travel-icon.svg" alt=""></div>
+                <div class="justify-center text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">BILLING ADDRESS</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-none flex items-center">
+                <input type="checkbox" checked class="w-4 h-4
+                        appearance-none
+                        border border-white
+                        rounded
+                        focus:outline-none focus:ring-0
+                        bg-transparent
+                        cursor-pointer
+                        checked:bg-green
+                        checked:border-green
+                        checked:bg-[url('../assets/check.svg')]
+                        checked:bg-center
+                        checked:bg-no-repeat
+                        checked:bg-[length:10px_10px]" />
+
+              </div>
+              <span class="text-sm leading-tight text-gray-400">Same as Shipping Address</span>
+            </div>
+          </div>
+      </div>
+
+      <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
+        <div class="flex flex-col gap-3 w-full p-5">
+          <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-col gap-2">
+                <h4 class="text-xs leading-[18px] text-[#98A2B3]">WALLET TOP UP</h4>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Original balance</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ walletBalance.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Top up amount</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <span class="text-sm font-medium text-white">+</span>
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ topUpAmount.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Balance after top up</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ (walletBalance + topUpAmount).toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-normal text-white">Session total</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <span class="text-sm font-medium text-white">-</span>
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                    <p class="text-sm font-medium text-white">{{ totalPrice }}</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-semibold text-white">Balance after booking</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                    <p class="text-sm font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-sm font-semibold text-white">Top up payment</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-4 h-4 flex justify-center items-center"></div>
+                    <p class="text-sm font-semibold text-white">USD$ 23.45</p>
+                  </div>
+                </div>
+                <hr class="border-[#F2F4F7] opacity-50" />
+                <div class="flex flex-row justify-between items-start text-white">
+                  <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                  <div class="flex flex-col">
+                    <div class="flex justify-end items-center gap-0.5">
+                      <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                      <p class="text-xl font-semibold">USD$256.44</p>
+                    </div>
+                    <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ 224.99</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
