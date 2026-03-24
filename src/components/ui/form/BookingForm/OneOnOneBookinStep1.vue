@@ -1349,7 +1349,7 @@
                   Fan can request to extend session in call
                   <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." 
                   tooltipClass="translate-x-[-80%] sm:translate-x-[-70%]" 
-                  class="ml-1 !mt-0 !absolute z-[9] top-1/2 -translate-y-1/2 -right-2 md:-right-6" />
+                  class="relative group inline-block mt-[2px] ml-1   z-[9]  top-1" />
                 </div>
               </div>
               <div class="inline-flex justify-start items-center gap-2">

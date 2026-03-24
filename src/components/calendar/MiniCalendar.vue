@@ -7,7 +7,7 @@
       :data-year="cursor.getFullYear()">
 
       <div class="grid grid-cols-7 text-[0.75rem] font-bold  uppercase tracking-wide ">
-        <div v-for="(w, idx) in ['S','M','T','W','T','F','S']" :key="idx" :class="['text-center w-[37.43px] h-[20px]', idx===0 ? 'text-red-500' : '']">{{ w }}</div>
+        <div v-for="(w, idx) in ['S','M','T','W','T','F','S']" :key="idx" :class="['text-center w-[37.43px] h-[20px]', idx===0 ? 'text-[#FF6A6A]' : '']">{{ w }}</div>
       </div>
 
       <div class="grid grid-cols-7 gap-0  ">
@@ -25,7 +25,7 @@
             sameDay(d, today) ? theme.mini.today : 'hover:bg-slate-50', 
             
             sameDay(d, selectedDate) ? theme.mini.selected : '',
-            d.getDay() === 0 ? 'text-red-500' : ''
+            d.getDay() === 0 ? 'text-[#FF6A6A]' : ''
           ]">
           <span class="text-[0.75rem] font-medium ">{{ d.getDate() }}</span>
           <span v-if="dotMap[d.toISOString().slice(0,10)]" :class="theme.mini.dot" data-has-events="true"></span>
