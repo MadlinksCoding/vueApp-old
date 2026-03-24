@@ -578,11 +578,11 @@ onMounted(() => {
 
 <template>
   <div
-    class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+    class="lg:rounded-[20px] h-full lg:w-[852px] md:!bg-none overflow-hidden"
     style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
   >
-    <div class="backdrop-blur-[10px] h-full md:rounded-[20px] bg-[#0C111D96]">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/50 flex-col md:flex-row">
+    <div class="h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 md:bg-black lg:bg-transparent lg:p-0">
+      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
@@ -593,7 +593,7 @@ onMounted(() => {
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto max-h-[27.4rem] md:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-3 pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-3 pt-3 pb-0 backdrop-blur-sm">
 
           <div class="flex-1 flex-col w-full p-5">
              <div class="flex items-center justify-between w-full mb-2">

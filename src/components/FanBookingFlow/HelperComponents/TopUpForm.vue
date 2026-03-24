@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
   <div class="flex flex-col w-full h-full">
 
     <div 
-      class="inline-flex justify-start items-center gap-0.5 cursor-pointer mb-4"
+      class="inline-flex justify-start items-center gap-0.5 cursor-pointer"
       @click="emit('back')"
     >
       <div class="w-4 h-4 relative overflow-hidden">
