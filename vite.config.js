@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: false,
       assetsInlineLimit: 0,
       rollupOptions: {
+        external: (id) => id.includes('__tests__') || id.includes('.spec.'),
         output: {
           manualChunks(id) {
             // Bundle components by section

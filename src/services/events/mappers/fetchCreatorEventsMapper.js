@@ -48,6 +48,13 @@ function formatLocalHm(date) {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
+function addDaysToDateIso(dateIso, days) {
+  const base = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return dateIso;
+  base.setDate(base.getDate() + days);
+  return formatLocalDateIso(base) || dateIso;
+}
+
 function toLocalDateIsoFromHktDate(hktDateLike, fallback = null) {
   const dateIso = extractDateIso(hktDateLike, null);
   if (!dateIso) return fallback;
@@ -62,11 +69,25 @@ function buildSlotFromWeekly(item) {
   const firstSlot = firstArrayItem(item?.slots);
   if (!firstSlot) return null;
 
+  const resolveEndDayOffset = (slotLike = {}) => {
+    const explicit = Number(slotLike?.endDayOffset);
+    if (Number.isFinite(explicit)) {
+      return explicit > 0 ? 1 : 0;
+    }
+
+    const startHm = toHm(slotLike?.startTime, "15:00");
+    const endHm = toHm(slotLike?.endTime, "16:00");
+    const startMinutes = Number(startHm.slice(0, 2)) * 60 + Number(startHm.slice(3, 5));
+    const endMinutes = Number(endHm.slice(0, 2)) * 60 + Number(endHm.slice(3, 5));
+    return endMinutes < startMinutes ? 1 : 0;
+  };
+
   if (firstSlot.day && firstSlot.startTime && firstSlot.endTime) {
     const dateIso = extractDateIso(item?.dateFrom, null) || nextDateIso(1);
+    const endDayOffset = resolveEndDayOffset(firstSlot);
     return {
       dateIso,
-      endDateIso: dateIso,
+      endDateIso: endDayOffset > 0 ? addDaysToDateIso(dateIso, endDayOffset) : dateIso,
       startHm: toHm(firstSlot.startTime, "15:00"),
       endHm: toHm(firstSlot.endTime, "16:00"),
     };

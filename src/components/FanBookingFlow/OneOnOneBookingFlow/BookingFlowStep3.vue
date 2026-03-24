@@ -1,6 +1,6 @@
 <script setup>
 import TopUpForm from '../HelperComponents/TopUpForm.vue';
-import OneOnOneBookingFlowHeader from '../HelperComponents/OneOnOneBookingFlowHeader.vue';
+import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -209,7 +209,7 @@ function preflightBookingPayload() {
 }
 
 function resolveFanUserId() {
-  return localStorage.getItem('userId') ?? 2;
+  return 2615;
   return Number(
     props.engine.getState('fanBooking.context.fanUserId')
     || props.engine.getState('userId')
@@ -218,7 +218,7 @@ function resolveFanUserId() {
 }
 
 function resolveCreatorId() {
-  return 1;
+  return 1407;
   return Number(
     selectedEvent.value?.creatorId
     || props.engine.getState('fanBooking.context.creatorId')
@@ -666,7 +666,7 @@ const handleButtonClick = async () => {
 const actionLabel = computed(() => {
   if (isCheckingBalance.value) return 'CHECKING BALANCE';
   if (!hasCheckedBalance.value) return 'CHECK BALANCE';
-  return isTopUpNeeded.value ? 'TOP-UP AND COMPLETE BOOKING' : 'COMPLETE BOOKING';
+  return isTopUpNeeded.value ? 'TOP-UP AND PAY' : 'COMPLETE BOOKING';
 });
 
 const actionButtonClass = computed(() => {
@@ -727,7 +727,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="rounded-[20px] h-[556px] max-h-full lg:w-[852px] overflow-hidden"
+      class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
       style="
         background-image: url('/images/background.png');
         background-size: cover;
@@ -735,11 +735,10 @@ onBeforeUnmount(() => {
         background-position: left 50% center;
       "
     >
-      <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">
+      <div class="h-full md:rounded-[20px]">
+      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
-        <div class="rounded-b-[20px] h-full rounded-t-[20px] flex flex-col bg-black/50">
-
-            <OneOnOneBookingFlowHeader
+            <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
               :date-display="headerDateDisplay"
               :subtotal="totalPrice"
@@ -748,149 +747,163 @@ onBeforeUnmount(() => {
               :show-approval-needed="showApprovalNeeded"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-full flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] max-h-[27.4rem] md:max-h-[40.625rem]">
 
-            <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden">
-              <div class="flex flex-col gap-3">
-                <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING POLICY</h3>
-                <ul class="text-sm text-[#EAECF0] list-disc list-outside pl-6">
-                  <li>A booking fee of 100 tokens will be on hold in your balance until the call starts.</li>
-                  <li>If Princess Carrot Pop does not show up to the confirm call on time, you will be refund partially.</li>
-                  <li>If Princess Carrot Pop does not show up to the confirm call within a buffer time of 5 minutes, you will be refunded fully.</li>
-                  <li>If you do to show up to the confirm call within a buffer time of 5 minutes, the session will be canceled and minimum charge will be deducted from your account. Cancel the session 1 day in advance to avoid panelty.</li>
-                </ul>
-              </div>
-            </div>
-
-
-            <div class="flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+            <div class="flex-1 flex-col px-3 pt-3 pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
               <template v-if="!isTopUpSubstep">
-              <div>
-                  <div class="flex flex-col gap-6 w-full">
-                    <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
-                    <div class="flex flex-col gap-3">
-
-                      <div class="flex flex-col gap-2">
-                        <h4 class="text-xs leading-[18px] text-[#D0D5DD]">SESSION COST</h4>
-                        <div class="flex flex-row justify-between items-center text-white">
-                          <p class="text-base font-normal leading-[24px]">{{ sessionDuration }} Minute x 1 session</p>
-                          <div class="flex justify-center items-center gap-0.5">
-                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                            <p class="text-sm leading-[20px]">{{ formatTokenCompact(sessionCost) }}</p>
-                          </div>
-                        </div>
+                <div class="flex flex-col gap-3">
+                  <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
+                      <div class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15">
+                        <span class="text-white text-xs font-medium leading-4">Change Schedule</span>
                       </div>
-
-                      <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
-                        <h4 class="text-xs leading-[18px] text-[#D0D5DD]">ADD-ON SERVICE</h4>
-                        <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
-                          <p class="text-base font-normal leading-[24px]">{{ addon.name }}</p>
-                          <div class="flex justify-center items-center gap-0.5">
-                            <p class="text-sm leading-[20px]">+</p>
-                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                            <p class="text-sm leading-[20px]">{{ formatTokenCompact(addon.price) }}</p>
-                          </div>
-                        </div>
+                    </div>
+                    <p class="text-[#FCE40D] text-sm leading-5">This booking needs to be approved by @model before your session is confirmed.</p>
+                    <div class="flex gap-2 justify-between">
+                      <div class="flex flex-col flex-1">
+                        <span class="text-xs text-[#98A2B3]">DATE</span>
+                        <span class="text-base text-white">09 Dec 2026</span>
                       </div>
-
-                      <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
-                        <h4 class="text-xs leading-[18px] text-[#D0D5DD]">OFF-HOUR SURCHARGE</h4>
-                        <div class="flex flex-row justify-between items-center text-white">
-                          <p class="text-base font-normal leading-[24px]">Off-hour surcharge</p>
-                          <div class="flex justify-center items-center gap-0.5">
-                            <p class="text-sm leading-[20px]">+</p>
-                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                            <p class="text-sm leading-[20px]">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
-                        <h4 class="text-xs leading-[18px] text-[#D0D5DD]">BOOKING FEE</h4>
-                        <div class="flex flex-row justify-between items-center text-white">
-                          <p class="text-base font-normal leading-[24px]">Booking Fee</p>
-                          <div class="flex justify-center items-center gap-0.5">
-                            <p class="text-sm leading-[20px]">+</p>
-                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                            <p class="text-sm leading-[20px]">{{ formatTokenCompact(bookingFeeAmount) }}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div v-if="discountAmount > 0" class="flex flex-col gap-2">
-                        <h4 class="text-xs leading-[18px] text-[#D0D5DD]">DISCOUNT</h4>
-                        <div class="flex flex-row justify-between items-center text-white">
-                          <p class="text-base font-normal leading-[24px]">Longer Session Discount</p>
-                          <div class="flex justify-center items-center gap-0.5">
-                            <p class="text-sm leading-[20px]">-</p>
-                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                            <p class="text-sm leading-[20px]">{{ formatTokenCompact(discountAmount) }}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <hr class="border-[#D0D5DD]" />
-
-                      <div class="flex flex-row justify-between items-center text-white">
-                        <p class="text-lg font-medium leading-[28px]">TOTAL</p>
-                        <div class="flex justify-center items-center gap-0.5">
-                          <div class="w-6 h-6 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                          <p class="text-2xl leading-[32px] font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
-                        </div>
+                      <div class="flex flex-col flex-1">
+                        <span class="text-xs text-[#98A2B3]">TIME</span>
+                        <span class="text-base text-white">GMT+8 9:00-9:30pm (30 min)</span>
                       </div>
                     </div>
                   </div>
 
-                  <div class="rounded-[8px] text-white mt-4" style="background-image: url('/images/ex-balance.png'); background-position: right; background-repeat: no-repeat; background-size: 48% 100%; background-color: #FF76DD;">
-                    <div class="flex flex-col gap-3 p-2 rounded-[8px]" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(0.5rem);">
-
-                      <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2"><p class="text-sm font-medium leading-[20px]">Wallet Balance</p></div>
-                        <div class="flex justify-center items-center gap-0.5">
-
-                          <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#0C111D] border border-[#1D2939]">
-                              <span class="text-yellow-300 text-[10px] leading-[10px] relative top-[-2px]">...</span>
-                              <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">TOP UP NEEDED</p>
-                              <div class="w-3 h-3 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                              <p class="text-[10px] font-bold text-[#FFED29] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
-                          </div>
-
-                          <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                          <p class="text-base leading-[24px] font-semibold">{{ formatTokenCompact(walletBalance) }}</p>
-                        </div>
-                      </div>
-
-                      <div class="flex justify-between items-center">
-                        <div class="relative flex items-center gap-2">
-                          <p class="text-sm font-medium leading-[20px]">Total</p>
-                          <div class="w-4 h-4 flex justify-center items-center cursor-pointer relative group">
-                            <img src="/images/Help icon.svg" alt="help-icon" />
-                            <div class="absolute -top-[122px] left-[20px] hidden group-hover:flex rounded-[8px] w-[242px] z-10" style="box-shadow: 0px 2px 4px -2px #1018280F; box-shadow: 0px 4px 8px -2px #1018281A; backdrop-filter: blur(50px)">
-                              <div class="py-2 px-3 rounded-[8px] bg-black/70">
-                                <p class="text-xs font-medium leading-[18px]"> This amount will be on hold in your wallet until event start date...</p>
+                  <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
+                    <div class="flex flex-col gap-3 w-full p-5">
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+                      <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-3">
+                          <div class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">SESSION COST</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <div class="flex items-center">
+                                <img src="/images/token.svg" alt="token-icon" class="w-4 h-4" />
+                                <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ sessionDuration }} Minute x 2 sessions (30 Min.)</p>
+                              </div>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(sessionCost) }}</p>
                               </div>
                             </div>
                           </div>
+
+                          <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">ADD-ON SERVICE</h4>
+                            <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ addon.name }}</p>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <p class="text-sm leading-[20px]">+</p>
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(addon.price) }}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">OFF-HOUR SURCHARGE</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Off-hour surcharge</p>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <p class="text-sm leading-[20px]">+</p>
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">BOOKING FEE</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Booking Fee</p>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <p class="text-sm leading-[20px]">+</p>
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(bookingFeeAmount) }}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div v-if="discountAmount > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">DISCOUNT</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Longer Session Discount</p>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <p class="text-sm leading-[20px]">-</p>
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(discountAmount) }}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="flex gap-3 justify-between">
+                            <div class="flex flex-col gap-1">
+                              <h4 class="text-base font-semibold text-white">Session Total</h4>
+                              <p class="text-xs font-semibold leading-[18px] text-[#98A2B3] flex">
+                                <span class="whitespace-nowrap">A non-refundable</span>
+                                <span class="flex items-center gap-[2px]">
+                                  <img src="/images/token.svg" alt="token-icon" class="w-4 h-4" />
+                                  <span class="">100</span>
+                                </span>
+                                <span class="whitespace-nowrap">booking fee included</span>
+                              </p>
+                            </div>
+                            <div class="flex flex-col">
+                              <div class="flex justify-end items-center gap-0.5">
+                                <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-base lfont-semibold text-white">3,000</p>
+                              </div>
+                              <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ 224.99</span>
+                            </div>
+                          </div>
                         </div>
-                        <div class="flex justify-center items-center gap-0.5">
-                          <p class="text-lg leading-[20px]">-</p>
-                          <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                          <p class="text-base leading-[24px] font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
-                        </div>
-                      </div>
-                      <hr class="border-white/20" />
-                      <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2"><p class="text-sm font-medium leading-[20px]">Available Balance after booking</p></div>
-                        <div class="flex justify-center items-center gap-0.5">
-                          <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
-                          <p class="text-base leading-[24px] font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
+
+                        <hr class="border-[#F2F4F7] opacity-50" />
+
+                        <div class="flex flex-row justify-between items-start text-white">
+                          <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                          <div class="flex flex-col">
+                            <div class="flex justify-end items-center gap-0.5">
+                              <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                              <p class="text-xl font-semibold">{{ formatTokenCompact(totalPrice) }}</p>
+                            </div>
+                            <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ 224.99</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="mt-2">
-                    <p class="text-xs text-white font-normal leading-[18px]">Completeing this booking means you agree to the event's booking policy</p>
+                    <div class="text-white" style="background-image: url('/images/ex-balance.png'); background-position: right; background-repeat: no-repeat; background-size: 48% 100%; background-color: #FF76DD;">
+                      <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
+
+                        <div class="flex justify-between items-center">
+                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">Your Token Balance</p></div>
+                          <div class="flex justify-center items-center gap-0.5">
+
+                            <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#0C111D] border border-[#1D2939]">
+                                <span class="text-yellow-300 text-[10px] leading-[10px] relative top-[-2px]">...</span>
+                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">TOP UP NEEDED</p>
+                                <div class="w-3 h-3 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                                <p class="text-[10px] font-bold text-[#FFED29] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
+                            </div>
+
+                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                            <p class="text-xl font-semibold">{{ formatTokenCompact(walletBalance) }}</p>
+                          </div>
+                        </div>
+                        <hr class="border-white/20" />
+                        <div class="flex justify-between items-center">
+                          <div class="flex items-center gap-2"><p class="text-xl font-semibold">Balance After Booking</p></div>
+                          <div class="flex justify-center items-center gap-0.5">
+                            <div class="w-4 h-4 flex justify-center items-center"><img src="/images/token.svg" alt="token-icon" /></div>
+                            <p class="text-2xl font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -927,16 +940,16 @@ onBeforeUnmount(() => {
           </div>
 
 
-          <div class="flex-none flex w-full justify-end">
+          <div class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
             <button
               v-if="!isTopUpSubstep"
               type="button"
               :disabled="isCheckingBalance || isSubmitting"
               @click="handleButtonClick"
-              class="w-4/5 lg:w-1/2 flex justify-start items-center"
+              class="w-4/5 lg:w-auto flex justify-start items-center"
               :class="(isCheckingBalance || isSubmitting) ? 'pointer-events-none' : 'cursor-pointer'"
             >
-              <div class="relative w-full p-[12px] rounded-br-[20px] flex justify-between items-center
+              <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
                 gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                   after:border-b-0"

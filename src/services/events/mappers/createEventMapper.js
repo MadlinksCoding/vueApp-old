@@ -88,13 +88,26 @@ function addDaysToDateIso(dateIso, days) {
   return `${y}-${m}-${d}`;
 }
 
+function diffDateIsoDays(fromDateIso, toDateIso) {
+  const from = new Date(`${fromDateIso}T00:00:00`);
+  const to = new Date(`${toDateIso}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function normalizeEndDayOffset(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return 1;
+}
+
 function localDateIsoToHktDateIso(localDateIso, anchorHm = "12:00") {
   const converted = localDateTimeToHkt(localDateIso, anchorHm);
   return converted?.dateIso || localDateIso;
 }
 
 function normalizeRepeatRule(value) {
-  const allowed = new Set(["doesNotRepeat", "weekly", "everyXWeeks", "daily"]);
+  const allowed = new Set(["doesNotRepeat", "weekly", "everyXWeeks", "daily", "monthly"]);
   if (!allowed.has(value)) return "weekly";
   return value;
 }
@@ -156,6 +169,7 @@ function derivePrimarySlot(payload = {}, duration) {
         day: startHkt.weekday,
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
       },
     },
   };
@@ -198,6 +212,7 @@ function buildWeeklySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
         day: startHkt.weekday,
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
         offHours: asBoolean(slotEntry?.offHours, asBoolean(dayEntry?.offHours, false)),
       });
     });
@@ -250,9 +265,44 @@ function buildOneTimeSlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
   return Array.from(outputMap.values());
 }
 
+function buildMonthlySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
+  const source = Array.isArray(payload.monthlyAvailability) ? payload.monthlyAvailability : [];
+  const fallbackStart = primarySlot?.local?.startTime || "15:00";
+  const fallbackEnd = primarySlot?.local?.endTime || addMinutesToHm(fallbackStart, duration);
+  const anchorDate = nonEmptyString(payload.dateFrom, "")
+    || primarySlot?.local?.dateIso
+    || nextDateIso(1);
+
+  const monthlyRows = source.length > 0 ? source : [{ startTime: fallbackStart, endTime: fallbackEnd, offHours: false }];
+
+  return monthlyRows
+    .map((slot) => {
+      const startLocalHm = toHm(slot?.startTime, fallbackStart);
+      const endLocalHm = toHm(slot?.endTime, fallbackEnd);
+      const endLocalDate = hmToMinutes(endLocalHm) <= hmToMinutes(startLocalHm)
+        ? addDaysToDateIso(anchorDate, 1)
+        : anchorDate;
+
+      const startHkt = localDateTimeToHkt(anchorDate, startLocalHm);
+      const endHkt = localDateTimeToHkt(endLocalDate, endLocalHm);
+
+      return {
+        startTime: startHkt.hm,
+        endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
+        offHours: asBoolean(slot?.offHours, false),
+      };
+    })
+    .filter((slot) => slot.startTime && slot.endTime);
+}
+
 function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration = 15) {
   if (repeatRule === "doesNotRepeat") {
     return buildOneTimeSlotsInHkt(payload, primarySlot, duration);
+  }
+
+  if (repeatRule === "monthly") {
+    return buildMonthlySlotsInHkt(payload, primarySlot, duration);
   }
 
   const weeklySlots = buildWeeklySlotsInHkt(payload, primarySlot, duration);
@@ -265,6 +315,7 @@ function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration =
         byTime.set(key, {
           startTime: slot.startTime,
           endTime: slot.endTime,
+          endDayOffset: normalizeEndDayOffset(slot?.endDayOffset),
           offHours: asBoolean(slot?.offHours, false),
         });
         return;
@@ -279,6 +330,7 @@ function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration =
       : [{
         startTime: primarySlot?.hkt?.slot?.startTime,
         endTime: primarySlot?.hkt?.slot?.endTime,
+        endDayOffset: normalizeEndDayOffset(primarySlot?.hkt?.slot?.endDayOffset),
         offHours: false,
       }];
   }

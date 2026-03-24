@@ -7,9 +7,11 @@
           ref="mainCalendarRef"
           class="flex-1 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           variant="default" :focus-date="state.focus" :events="events1" :theme="theme1"
+          :can-review-pending="isCreator"
           :data-attrs="{ 'data-calendar': 'main' }" :console-overlaps="true" :highlight-today-column="true"
           time-start="00:00" time-end="24:00" :slot-minutes="60" :row-height-px="64" :min-event-height-px="0"
           @date-selected="onSelectFromMain"
+          @join-call="handleJoin"
           @approve-booking="onApprovePendingBooking"
           @reject-booking="onRejectPendingBooking"
           @cancel-booking="onCancelBookingFromCalendar">
@@ -90,7 +92,7 @@
             Loading booked slots...
           </div>
 
-          <div class="relative w-full z-[999]" ref="popupTrigger">
+          <div v-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
             <ButtonComponent text="NEW EVENTS" variant="none"
               customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
               :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'" :leftIconClass="`
@@ -114,34 +116,39 @@
           </div>
         </div>
 
-        <div class="fixed bottom-5 right-5 z-50 lg:hidden" @click="newEventsPopupOpen = true">
+        <div v-if="isCreator" class="fixed bottom-5 right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
           <button
             class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-            <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" />
+            <img src="https://i.ibb.co.com/RpWmJkcb/plus.webp" class="w-6 h-6 filter brightness-0 invert" alt="Add" @click="toggleFloatingPopup" />
           </button>
+          <div v-show="isFloatingPopupOpen" class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto" :style="floatingPopupStyle">
+              <CreateEventPopup
+                @create-private="goToCreateEvent('private')"
+                @create-group="goToCreateEvent('group')" />
+            </div>
         </div>
       </div>
 
-      <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
+      <PopupHandler v-if="isCreator" v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
         <NewEventsPopup
           @create-private="goToCreateEvent('private')"
           @create-group="goToCreateEvent('group')" />
       </PopupHandler>
 
       <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
-        <div class="w-[22rem] max-w-[90vw] rounded-xl border border-[#EAECF0] bg-white p-5 shadow-xl">
-          <h3 class="text-[1rem] font-semibold text-gray-900">Cancel this call?</h3>
-          <p class="mt-2 text-[0.875rem] text-gray-600">
+        <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
+          <h3 class="text-[1rem] font-semibold text-gray-700">Are you sure you want to cancel this call?</h3>
+          <p class="mt-2 text-black">
             This will cancel the booking and refund the tokens back to the fan.
           </p>
-          <div class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
+          <div class="mt-2 bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
             <p class="font-semibold truncate">{{ cancelBookingCandidateTitle }}</p>
             <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
           </div>
-          <div class="mt-4 flex items-center justify-end gap-2">
+          <div class="mt-2 flex items-center justify-center gap-2">
             <button
               type="button"
-              class="h-9 rounded-md border border-gray-300 px-3 text-[0.875rem] font-medium text-gray-700 hover:bg-gray-50"
+              class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50"
               :disabled="cancelBookingLoading"
               @click="closeCancelBookingPopup"
             >
@@ -149,11 +156,11 @@
             </button>
             <button
               type="button"
-              class="h-9 rounded-md bg-[#F04438] px-3 text-[0.875rem] font-semibold text-white hover:bg-[#D92D20] disabled:opacity-60"
+              class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60"
               :disabled="cancelBookingLoading"
               @click="confirmCancelBooking"
             >
-              {{ cancelBookingLoading ? 'Cancelling...' : 'Confirm Cancel' }}
+              {{ cancelBookingLoading ? 'Cancelling...' : 'Cancel Booking' }}
             </button>
           </div>
         </div>
@@ -182,6 +189,14 @@ import { useRoute, useRouter } from 'vue-router';
 import { createFlowStateEngine } from '@/utils/flowStateEngine.js';
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { showToast } from '@/utils/toastBus.js';
+import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+
+const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
+const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
+  video: '#5549FF',
+  audio: '#06B6D4',
+  groupCall: '#E11D48',
+});
 
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -190,8 +205,20 @@ const mainCalendarRef = ref(null);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const eventTypeColors = ref({ ...DEFAULT_EVENT_TYPE_COLORS });
 const route = useRoute();
 const router = useRouter();
+
+const isFloatingPopupOpen = ref(false)
+
+const toggleFloatingPopup = () => {
+  isFloatingPopupOpen.value = !isFloatingPopupOpen.value
+}
+
+const resolveUserRole = () => 'creator';
+const userRole = ref(resolveUserRole());
+const isCreator = computed(() => userRole.value === 'creator');
+const isFan = computed(() => userRole.value === 'fan');
 
 const popupTrigger = ref(null);
 const popupStyle = reactive({ top: '0px', left: '0px' });
@@ -277,7 +304,7 @@ const handleClickOutside = (event) => {
 };
 
 const resolveCreatorId = () => {
-  return 1;
+  return 1407;
   const fromQuery = Number(route.query?.creatorId);
   if (Number.isFinite(fromQuery)) return fromQuery;
 
@@ -314,11 +341,22 @@ const buildCalendarSlotsFromContext = ({ creatorEvents = [], bookedSlotsRaw = []
       ])
       .filter(([eventId]) => Boolean(eventId))
   );
+  const eventTypeByEventId = new Map(
+    creatorEvents
+      .map((event) => [
+        String(event?.eventId || event?.id || ''),
+        String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || '').toLowerCase(),
+      ])
+      .filter(([eventId]) => Boolean(eventId))
+  );
 
   const bookedCalendarSlots = calendarSlots.map((slot) => ({
     ...slot,
     eventCallType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || '').toLowerCase(),
-    color: colorByEventId.get(String(slot?.eventId || '')) || DEFAULT_EVENT_COLOR,
+    color: resolveTypeColor({
+      callType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || ''),
+      eventType: eventTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventType || slot?.type || ''),
+    }) || colorByEventId.get(String(slot?.eventId || '')) || DEFAULT_EVENT_COLOR,
     raw: {
       ...(slot?.raw || {}),
       eventCallType: callTypeByEventId.get(String(slot?.eventId || '')) || String(slot?.raw?.eventCallType || '').toLowerCase(),
@@ -354,13 +392,14 @@ const rebuildAvailabilityForFocusDate = () => {
   if (!Array.isArray(creatorEvents) || creatorEvents.length === 0) return;
   if (!Array.isArray(bookedSlotsRaw)) return;
 
-  const { calendarSlots } = buildCalendarSlotsFromContext({
+  const { bookedCalendarSlots, calendarSlots } = buildCalendarSlotsFromContext({
     creatorEvents,
     bookedSlotsRaw,
     bookedSlotsIndex: bookedSlotsIndex || {},
     focusDate: state.focus,
   });
 
+  dashboardEventsEngine.setState('events.bookedList', bookedCalendarSlots, { reason: 'events-focus', silent: true });
   dashboardEventsEngine.setState('events.list', calendarSlots, { reason: 'events-focus', silent: true });
 };
 
@@ -425,6 +464,7 @@ const resolveBookingIdFromPayload = (payload) => {
 };
 
 const reviewPendingBooking = async (payload, decision) => {
+  if (!isCreator.value) return;
   const bookingId = resolveBookingIdFromPayload(payload);
   if (!bookingId) {
     showToast({
@@ -518,11 +558,25 @@ const closeCancelBookingPopup = () => {
   cancelBookingCandidate.value = null;
 };
 
+const handleEventTypeColorsChanged = () => {
+  eventTypeColors.value = loadEventTypeColorsFromStorage();
+  rebuildAvailabilityForFocusDate();
+};
+
+const handleEventTypeColorsStorageChanged = (event) => {
+  if (event?.key !== EVENT_TYPE_COLOR_STORAGE_KEY) return;
+  handleEventTypeColorsChanged();
+};
+
 // Update position on scroll or resize to keep it attached
 onMounted(() => {
+  userRole.value = resolveUserRole();
+  eventTypeColors.value = loadEventTypeColorsFromStorage();
   dashboardEventsEngine.initialize({ fromUrl: false });
   window.addEventListener('resize', handlePositionUpdate);
   window.addEventListener('scroll', handlePositionUpdate, true); // Capture phase for scrolling of parent containers
+  window.addEventListener('event-type-colors:changed', handleEventTypeColorsChanged);
+  window.addEventListener('storage', handleEventTypeColorsStorageChanged);
   document.addEventListener('click', handleClickOutside);
 
   const shouldForceRefresh = route.query?.refresh === '1';
@@ -534,11 +588,19 @@ onMounted(() => {
     delete nextQuery.refresh;
     router.replace({ path: route.path, query: nextQuery });
   }
+
+  if (isFan.value) {
+    isCreatePopupOpen.value = false;
+    isFloatingPopupOpen.value = false;
+    newEventsPopupOpen.value = false;
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handlePositionUpdate);
   window.removeEventListener('scroll', handlePositionUpdate, true);
+  window.removeEventListener('event-type-colors:changed', handleEventTypeColorsChanged);
+  window.removeEventListener('storage', handleEventTypeColorsStorageChanged);
   document.removeEventListener('click', handleClickOutside);
 });
 
@@ -555,7 +617,7 @@ const theme1 = {
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   },
   main: {
-    wrapper: 'relative flex flex-col gap-0 overflow-hidden rounded-xl h-full',
+    wrapper: 'relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0',
     title: 'sm:text-[1.5rem] text-[16px] font-semibold text-slate-800 ',
     xHeader: 'text-[11px] uppercase tracking-wide text-slate-500 top-[3.3rem] xl:top-[4rem] sticky w-full backdrop-blur-md z-10',
     axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
@@ -582,6 +644,36 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
   const normalized = color.trim();
   if (/^#([0-9a-fA-F]{3}){1,2}$/.test(normalized)) return normalized;
   return fallback;
+}
+
+function loadEventTypeColorsFromStorage() {
+  if (typeof window === 'undefined') return { ...DEFAULT_EVENT_TYPE_COLORS };
+  try {
+    const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_EVENT_TYPE_COLORS };
+    const parsed = JSON.parse(raw);
+    return {
+      video: normalizeHexColor(parsed?.video, DEFAULT_EVENT_TYPE_COLORS.video),
+      audio: normalizeHexColor(parsed?.audio, DEFAULT_EVENT_TYPE_COLORS.audio),
+      groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall),
+    };
+  } catch (_error) {
+    return { ...DEFAULT_EVENT_TYPE_COLORS };
+  }
+}
+
+function resolveTypeColor({ callType = '', eventType = '' } = {}) {
+  const normalizedEventType = String(eventType || '').toLowerCase();
+  if (normalizedEventType.includes('group')) {
+    return normalizeHexColor(eventTypeColors.value?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall);
+  }
+
+  const normalizedCallType = String(callType || '').toLowerCase();
+  if (normalizedCallType.includes('audio')) {
+    return normalizeHexColor(eventTypeColors.value?.audio, DEFAULT_EVENT_TYPE_COLORS.audio);
+  }
+
+  return normalizeHexColor(eventTypeColors.value?.video, DEFAULT_EVENT_TYPE_COLORS.video);
 }
 
 function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
@@ -667,6 +759,17 @@ function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
   const isGroup = event.type === 'group-event';
+  const bookingId = event?.bookingId || event?.raw?.bookingId || null;
+  const joinState = getBookingJoinState({
+    bookingId,
+    startAt: event?.start,
+    endAt: event?.end,
+    status: event?.status || event?.raw?.status || '',
+  });
+  const accentColor = resolveTypeColor({
+    callType: event?.eventCallType || event?.raw?.eventCallType || '',
+    eventType: event?.type || event?.raw?.eventType || event?.raw?.type || '',
+  });
 
   const styles = isGroup
     ? { titleColorClass: 'text-activePink', borderClass: 'bg-brightPink' }
@@ -679,10 +782,12 @@ function toWidgetItem(event, options = {}) {
       titleColorClass: styles.titleColorClass,
       borderClass: styles.borderClass,
       bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-      showJoin: true,
+      showJoin: joinState.canJoin,
+      joinUrl: joinState.joinUrl,
       statusText: event.status === 'active' ? 'active' : event.status,
       avatars: makeAvatar(event),
       sourceEvent: event,
+      accentColor,
     };
   }
 
@@ -698,6 +803,7 @@ function toWidgetItem(event, options = {}) {
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
+    accentColor,
   };
 }
 
@@ -790,7 +896,27 @@ onUnmounted(() => {
 });
 
 // Helper stubs for EventsWidget
-const handleJoin = (item) => console.log('Join', item);
+const handleJoin = (item) => {
+  const sourceEvent = item?.sourceEvent || item?.event || item || null;
+  const bookingId = item?.bookingId || sourceEvent?.bookingId || sourceEvent?.raw?.bookingId || null;
+  const joinState = getBookingJoinState({
+    bookingId,
+    startAt: sourceEvent?.start,
+    endAt: sourceEvent?.end,
+    status: sourceEvent?.status || sourceEvent?.raw?.status || '',
+  });
+
+  if (!joinState.canJoin || !joinState.joinUrl) {
+    showToast({
+      type: 'error',
+      title: 'Join Unavailable',
+      message: 'You can join only within 5 minutes of the meeting start time and before it ends.',
+    });
+    return;
+  }
+
+  window.location.assign(joinState.joinUrl);
+};
 const handleReply = (item) => console.log('Reply', item);
 const handleWidgetEventClick = (item) => {
   const event = item?.sourceEvent;

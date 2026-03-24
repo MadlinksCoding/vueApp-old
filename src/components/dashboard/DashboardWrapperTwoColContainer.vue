@@ -2,7 +2,7 @@
   <!--Mobile Header -->
   <HeaderResponsive class="block md:hidden" />
 
-  <div class="dashboard-two-col-container min-h-screen flex md:gap-6">
+  <div class="dashboard-two-col-container min-h-screen flex">
     <!--Desktop Sidebar -->
     <DashboardSidebar class="hidden md:block" />
 

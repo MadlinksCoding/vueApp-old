@@ -10,6 +10,11 @@
   import videoIcon from '@/assets/images/icons/video-recorder.webp'
   import phoneIcon from '@/assets/images/icons/phone.webp'
   import musicIcon from '@/assets/images/icons/music-note.webp'
+  import minusIcon from '@/assets/images/icons/minus-circle.webp'
+  import plusIcon from '@/assets/images/icons/plus-circle.webp'
+  import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
+  import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
+  import alignLeftIcon from '@/assets/images/icons/align-left.webp'
 
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
@@ -22,8 +27,8 @@
 
   const repeatRuleOptions = [
     { label: 'Repeat Weekly', value: 'weekly' },
-    { label: 'Does not repeat', value: 'doesNotRepeat' },
-    { label: 'Repeats every 2 weeks', value: 'everyXWeeks' }
+    { label: 'Repeat Monthly', value: 'monthly' },
+    { label: 'Custom', value: 'doesNotRepeat' },
   ];
 
   const lateStartActionOptions = [
@@ -38,11 +43,16 @@
   // Refs
   // Refs
   // Initialize from engine state (deep copy to avoid reactivity issues with v-model on props)
+  const initialRepeatRuleRaw = props.engine.state.repeatRule || "weekly";
+  const initialRepeatRule = initialRepeatRuleRaw === "everyXWeeks"
+    ? "weekly"
+    : initialRepeatRuleRaw;
+
   const formData = ref({
     eventTitle: props.engine.state.eventTitle || "",
     eventDescription: props.engine.state.eventDescription || "",
     eventColorSkin: props.engine.state.eventColorSkin || "#5549FF",
-    repeatRule: props.engine.state.repeatRule || "weekly",
+    repeatRule: initialRepeatRule,
     repeatX: Number(props.engine.state.repeatX) || 2,
     eventCallType: props.engine.state.eventCallType || "video",
     eventRingtoneUrl: props.engine.state.eventRingtoneUrl || "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
@@ -53,6 +63,9 @@
     dateTo: props.engine.state.dateTo || "",
     weeklyAvailability: Array.isArray(props.engine.state.weeklyAvailability)
       ? JSON.parse(JSON.stringify(props.engine.state.weeklyAvailability))
+      : [],
+    monthlyAvailability: Array.isArray(props.engine.state.monthlyAvailability)
+      ? JSON.parse(JSON.stringify(props.engine.state.monthlyAvailability))
       : [],
     oneTimeAvailability: Array.isArray(props.engine.state.oneTimeAvailability)
       ? JSON.parse(JSON.stringify(props.engine.state.oneTimeAvailability))
@@ -209,10 +222,24 @@
     if (formData.value.eventDescription) {
       quillEditor.value.firstChild.innerHTML = formData.value.eventDescription;
     }
-
+  });
 
   function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
     return { startTime, endTime, offHours: Boolean(offHours) };
+  }
+
+  function normalizeMonthlyAvailability(input = []) {
+    if (!Array.isArray(input) || input.length === 0) {
+      return [makeSlot("00:00", "03:00", false)];
+    }
+
+    return input
+      .map((slot) => ({
+        startTime: typeof slot?.startTime === "string" ? slot.startTime : null,
+        endTime: typeof slot?.endTime === "string" ? slot.endTime : null,
+        offHours: Boolean(slot?.offHours),
+      }))
+      .filter((slot) => slot.startTime && slot.endTime);
   }
 
   function getTodayIsoDate() {
@@ -272,7 +299,7 @@
   const DAY_INDEX_TO_KEY = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
   function isWeeklyRepeatRule() {
-    return formData.value.repeatRule === "weekly" || formData.value.repeatRule === "everyXWeeks";
+    return formData.value.repeatRule === "weekly";
   }
 
   function parseIsoDateToLocalNoon(isoDate) {
@@ -380,9 +407,11 @@
   }
 
   formData.value.weeklyAvailability = normalizeAvailability(formData.value.weeklyAvailability);
+  formData.value.monthlyAvailability = normalizeMonthlyAvailability(formData.value.monthlyAvailability);
   formData.value.oneTimeAvailability = normalizeOneTimeAvailability(formData.value.oneTimeAvailability);
 
   const weekDays = ref(formData.value.weeklyAvailability);
+  const monthlySlots = ref(formData.value.monthlyAvailability);
   const oneTimeDates = ref(formData.value.oneTimeAvailability);
 
   function to12HourLabel(time24 = "00:00") {
@@ -425,6 +454,12 @@
       })),
     }));
 
+    formData.value.monthlyAvailability = monthlySlots.value.map((slot) => ({
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      offHours: Boolean(slot.offHours),
+    }));
+
     if (formData.value.repeatRule === "doesNotRepeat") {
       const firstDate = oneTimeDates.value[0];
       if (firstDate && firstDate.slots.length > 0) {
@@ -433,6 +468,19 @@
         formData.value.dateTo = firstDate.date;
         formData.value.selectedStartTime = firstDate.slots[0].startTime;
         formData.value.selectedEndTime = firstDate.slots[0].endTime;
+      }
+      return;
+    }
+
+    if (formData.value.repeatRule === "monthly") {
+      if (!formData.value.dateFrom) {
+        formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
+      }
+      const firstMonthlySlot = monthlySlots.value[0];
+      if (firstMonthlySlot) {
+        formData.value.selectedDate = formData.value.dateFrom;
+        formData.value.selectedStartTime = firstMonthlySlot.startTime;
+        formData.value.selectedEndTime = firstMonthlySlot.endTime;
       }
       return;
     }
@@ -455,6 +503,10 @@
     return oneTimeDates.value.reduce((count, entry) => (
       count + (Array.isArray(entry?.slots) ? entry.slots.length : 0)
     ), 0);
+  }
+
+  function getTotalMonthlySlotCount() {
+    return Array.isArray(monthlySlots.value) ? monthlySlots.value.length : 0;
   }
 
   function addDayAvailability(dayIndex) {
@@ -503,6 +555,24 @@
     syncAvailabilityToForm();
   }
 
+  function addMonthlySlot() {
+    monthlySlots.value.push(makeSlot("00:00", "03:00", false));
+    syncAvailabilityToForm();
+  }
+
+  function removeMonthlySlot(slotIndex) {
+    if (getTotalMonthlySlotCount() <= 1) return;
+    monthlySlots.value.splice(slotIndex, 1);
+    syncAvailabilityToForm();
+  }
+
+  function toggleMonthlySlotOffHours(slotIndex) {
+    const slot = monthlySlots.value?.[slotIndex];
+    if (!slot) return;
+    slot.offHours = !slot.offHours;
+    syncAvailabilityToForm();
+  }
+
   function addOneTimeDate() {
     oneTimeDates.value.push(createOneTimeDate(formData.value.dateFrom || getTodayIsoDate()));
     syncAvailabilityToForm();
@@ -531,11 +601,11 @@
   }
 
   function onRepeatRuleChange() {
-    if (formData.value.repeatRule === "everyXWeeks") {
-      formData.value.repeatX = 2;
-    }
     if (formData.value.repeatRule === "doesNotRepeat" && oneTimeDates.value.length === 0) {
       oneTimeDates.value = normalizeOneTimeAvailability([]);
+    }
+    if (formData.value.repeatRule === "monthly" && monthlySlots.value.length === 0) {
+      monthlySlots.value = normalizeMonthlyAvailability([]);
     }
     syncAvailabilityToForm();
   }
@@ -597,14 +667,17 @@
   <template>
     <form class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
 
-      <div class=" self-stretch inline-flex justify-start items-start gap-4">
-        <div class="w-6 h-6 relative overflow-hidden">
-          <svg width="19" height="14" viewBox="0 0 19 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14 5H1M18 1H1M18 9H1M14 13H1" stroke="#344054" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
+      <div class=" self-stretch inline-flex flex-col md:flex-row justify-start items-start gap-4">
+        <div class="w-6 h-6 relative overflow-hidden hidden md:block">
+          <img :src="alignLeftIcon" alt="" class="w-6 h-6" />
         </div>
-        <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
+        <div class="flex-1  flex md:hidden justify-start items-start gap-2 ">
+          <div class="w-6 h-6 relative overflow-hidden block md:hidden">
+            <img :src="alignLeftIcon" alt="" class="w-6 h-6"/>
+          </div>
+          <p class="text-gray-950 text-base font-normal">Basic Settings</p>
+        </div>
+        <div class="flex-1 inline-flex flex-col justify-start items-start gap-4 self-stretch">
           <div class="flex w-full">
             <div class="flex-1">
               <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
@@ -655,7 +728,7 @@
             </div>
             <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
               <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
-              <div class="justify-start text-slate-700 text-sm font-medium leading-tight">Preview</div>
+              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">Preview</div>
             </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -682,14 +755,14 @@
               </div>
               <ThumbnailUploaderNay
                 v-if="!formData.eventImageUrl"
-                custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-2 h-[12.1875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
-                input-wrapper-class="border-2 border-dashed border-transparent"
+                custom-class="cursor-pointer border-2 border-transparent bg-black/5 rounded-xl p-4 h-[7.875rem] flex flex-col items-center justify-center hover:border-gray-900 hover:bg-black/10"
+                input-wrapper-class="border-2 border-dashed border-transparent !gap-1"
                 button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
                 button-icon-wrapper-class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-green-500 rounded-lg h-10 w-10 flex justify-center items-center hover:bg-black"
                 button-parent-wrapper-class="flex flex-col items-center justify-center gap-3"
                 button-text="Click to upload"
                 button-text-class="font-semibold text-gray-900 cursor-pointer"
-                drop-text="or drag and drop"
+                drop-text=" or drag and drop"
                 drop-text-class="text-sm font-normal leading-5 text-gray-500 text-center"
                 custom-allowed-types="SVG, PNG, JPG or GIF"
                 custom-max-size="800x400px"
@@ -703,7 +776,7 @@
       </div>
 
       <BookingSectionsWrapper title="Session Duration" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
-        <div class='flex flex-col gap-[30px]'>
+        <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
@@ -712,7 +785,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
             <CheckboxGroup v-model="formData.allowLongerSessions" label="Allow user to book longer sessions"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
+              labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
             <div :class="['ml-6 transition-opacity duration-200',
                         !formData.allowLongerSessions ? 'opacity-50' : 'opacity-100']">
               <div class="w-full text-gray-500 text-sm font-medium leading-tight">Maximum Session Allowed</div>
@@ -789,12 +862,11 @@
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.enableBookingFee" label="Enable booking fee"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
-              <
+                wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment." />
             </div>
 
@@ -814,8 +886,8 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
-              <div class="flex gap-2">
-                <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant ooking"
+              <div class="flex gap-2 items-center">
+                <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant booking"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
@@ -836,18 +908,18 @@
                   <CheckboxGroup v-model="formData.disableChatBeforeCall" label="Disable chat before call"
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-[16px] leading-normal"
-                    wrapperClass="flex items-center gap-2 mb-3 mt-2" />
+                    wrapperClass="flex items-center gap-2 mb-2 mt-2" />
                 </div>
               </div>
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.enableRescheduleFee" label="Enable reschedule  fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2 mb-3" />
+                  wrapperClass="flex items-center gap-2" />
 
                 <TooltipIcon text="A rescheduling fee will be charged if a confirmed booking is changed." />
               </div>
@@ -870,11 +942,11 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.enableCancellationFee" label="Enable cancellation fee"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2 mb-3" />
+                  wrapperClass="flex items-center gap-2" />
 
                 <TooltipIcon text="A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call." />
               </div>
@@ -898,7 +970,7 @@
                 label="User can cancel in advance to void minimum charge"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
+                wrapperClass="flex items-center gap-2" />
               <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
                 <div class="flex items-center">
                   <BaseInput type="number" placeholder="15" v-model="formData.advanceVoid"
@@ -920,19 +992,19 @@
       </BookingSectionsWrapper>
 
       <BookingSectionsWrapper title="Off-hour Surcharge" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
-        titleIcon="https://i.ibb.co/HD78k3Sf/Icon.png">
+        tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" label="Add"
             checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-            labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
+            labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
           <div class="flex-1 inline-flex flex-col justify-start items-start">
             <div class="inline-flex justify-end items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-gray-700 text-base font-medium leading-normal">% from base price</div>
-                <div class="justify-center text-gray-700 text-xs font-medium leading-none">(1,600 tokens/session)</div>
+                <div class="justify-center text-black text-base font-medium leading-normal">% from base price</div>
+                <div class="justify-center text-black text-xs font-medium leading-none">(1,600 tokens/session)</div>
               </div>
             </div>
           </div>
@@ -955,9 +1027,9 @@
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start">
                     <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                      {{ formData.repeatRule === 'everyXWeeks' ? 'Start date' : 'Duration' }}
+                      {{ formData.repeatRule === 'monthly' ? 'Start date' : 'Duration' }}
                     </span>
-                    <span v-if="formData.repeatRule !== 'everyXWeeks'"
+                    <span v-if="formData.repeatRule !== 'monthly'"
                       class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> Optional</span>
                   </div>
                   <input
@@ -973,7 +1045,7 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                    {{ formData.repeatRule === 'everyXWeeks' ? `End date` : '' }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
+                    End date <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
                   </div>
                   <input
                     type="date"
@@ -990,7 +1062,7 @@
           </div>
 
 
-          <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule === 'weekly'" class="flex flex-col gap-4 w-full">
 
             <div v-for="(day, index) in weekDays" :key="index"
               class="self-stretch inline-flex justify-start items-start gap-1"
@@ -1009,11 +1081,11 @@
                   Not Available
                 </div>
                 <button type="button" @click="addDayAvailability(index)"
-                  class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="isWeeklyDayLocked(day.key || day.name)"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                   title="Add availability">
-                  +
+                  <img :src="plusIcon" alt="plus icon" />
                 </button>
               </template>
 
@@ -1025,14 +1097,14 @@
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                        <select v-model="slot.startTime" @change="onSlotChanged"
+                        <CustomDropdown
+                          v-model="slot.startTime"
+                          :options="timeOptions"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
-                          class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                          <option v-for="timeOption in timeOptions" :key="`start-${day.key}-${sIdx}-${timeOption.value}`"
-                            :value="timeOption.value">
-                            {{ timeOption.label }}
-                          </option>
-                        </select>
+                          @update:modelValue="onSlotChanged"
+                          buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                          dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                        />
                       </div>
                     </div>
 
@@ -1041,41 +1113,44 @@
                     </div>
 
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-                      <select v-model="slot.endTime" @change="onSlotChanged"
+                      <CustomDropdown
+                        v-model="slot.endTime"
+                        :options="timeOptions"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal">
-                        <option v-for="timeOption in timeOptions" :key="`end-${day.key}-${sIdx}-${timeOption.value}`"
-                          :value="timeOption.value">
-                          {{ timeOption.label }}
-                        </option>
-                      </select>
+                        @update:modelValue="onSlotChanged"
+                        buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                        dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                      />
                     </div>
 
                     <div class="pl-1 flex justify-start items-center gap-2">
-                      <button type="button" @click="removeWeeklySlot(index, sIdx)"
-                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
-                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }"
-                        title="Remove availability">
-                        -
-                      </button>
-                      <button type="button" @click="addWeeklySlot(index)"
-                        class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
-                        title="Add another period to this day">
-                        +
-                      </button>
-                      <button v-if="formData.repeatRule === 'weekly'" type="button" @click="toggleSlotOffHours(index, sIdx)"
-                        class="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                        :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        :class="[
-                          slot.offHours ? 'border-pink-500 text-pink-500' : 'border-gray-400 text-gray-500',
-                          isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
-                        ]"
-                        title="Mark as off hours">
-                        ⛅
-                      </button>
+                      <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4">
+                        <button type="button" @click="removeWeeklySlot(index, sIdx)"
+                          class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
+                          :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }">
+                          <img :src="minusIcon" alt="minus icon" />
+                        </button>
+                      </TooltipIcon>
+                      <TooltipIcon text="Add another period to this day" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                        <button type="button" @click="addWeeklySlot(index)"
+                          class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          :disabled="isWeeklyDayLocked(day.key || day.name)"
+                          :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }">
+                          <img :src="plusIcon" alt="plus icon" />
+                        </button>
+                      </TooltipIcon>
+                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                        <button type="button" @click="toggleSlotOffHours(index, sIdx)"
+                          class="w-6 h-6 rounded-full flex items-center justify-center"
+                          :disabled="isWeeklyDayLocked(day.key || day.name)"
+                          :class="[
+                            slot.offHours ? '' : '',
+                            isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
+                          ]">
+                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                        </button>
+                      </TooltipIcon>
                     </div>
 
                   </div>
@@ -1085,9 +1160,79 @@
             </div>
           </div>
 
+          <div v-if="formData.repeatRule === 'monthly'" class="flex flex-col gap-4 w-full">
+            <div
+              v-for="(slot, slotIndex) in monthlySlots"
+              :key="`monthly-slot-${slotIndex}`"
+              class="self-stretch inline-flex justify-start items-center gap-1"
+            >
+              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
+                  <CustomDropdown
+                    v-model="slot.startTime"
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div class="justify-start text-gray-500 text-base font-medium font-['Poppins'] leading-normal">
+                -
+              </div>
+
+              <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
+                <CustomDropdown
+                  v-model="slot.endTime"
+                  :options="timeOptions"
+                  @update:modelValue="onSlotChanged"
+                  buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
+                  dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
+                />
+              </div>
+
+              <div class="pl-1 flex justify-start items-center gap-2">
+              <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4"> 
+                <button
+                  type="button"
+                  @click="removeMonthlySlot(slotIndex)"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  :disabled="getTotalMonthlySlotCount() <= 1"
+                  :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalMonthlySlotCount() <= 1 }"
+                  title="Remove availability"
+                >
+                  <img :src="minusIcon" alt="minus icon" />
+                </button>
+                </TooltipIcon>
+                <TooltipIcon text="Add another monthly period" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <button
+                  type="button"
+                  @click="addMonthlySlot()"
+                  class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                  title="Add another monthly period"
+                >
+                  <img :src="plusIcon" alt="plus icon" />
+                </button>
+                </TooltipIcon>
+                <TooltipIcon text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <button
+                  type="button"
+                  @click="toggleMonthlySlotOffHours(slotIndex)"
+                  class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
+                  :class="slot.offHours ? '' : ''"
+                  title="Mark as off hours"
+                >
+                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                </button>
+                </TooltipIcon>
+              </div>
+            </div>
+          </div>
+
           <div v-if="formData.repeatRule === 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
-              class="border border-gray-200 rounded-md p-3 bg-white/30">
+              class="p-3">
               <div class="flex items-center gap-2 mb-3">
                 <input
                   type="date"
@@ -1116,27 +1261,33 @@
 
                 <div v-for="(slot, slotIndex) in entry.slots" :key="`${entry.id}-${slotIndex}`"
                   class="flex items-center gap-1">
-                  <select v-model="slot.startTime" @change="onSlotChanged"
-                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
-                    <option v-for="timeOption in timeOptions" :key="`one-start-${entry.id}-${slotIndex}-${timeOption.value}`"
-                      :value="timeOption.value">
-                      {{ timeOption.label }}
-                    </option>
-                  </select>
+                  <CustomDropdown
+                    v-model="slot.startTime"
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
+                  />
                   <div class="text-gray-500">-</div>
-                  <select v-model="slot.endTime" @change="onSlotChanged"
-                    class="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none">
-                    <option v-for="timeOption in timeOptions" :key="`one-end-${entry.id}-${slotIndex}-${timeOption.value}`"
-                      :value="timeOption.value">
-                      {{ timeOption.label }}
-                    </option>
-                  </select>
+                  <CustomDropdown
+                    v-model="slot.endTime"
+                    :options="timeOptions"
+                    @update:modelValue="onSlotChanged"
+                    buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
+                    dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
+                  />
+                  <div class="flex items-center gap-2">
                   <button type="button" @click="removeOneTimeSlot(entryIndex, slotIndex)"
                     :disabled="getTotalOneTimeSlotCount() <= 1"
                     :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalOneTimeSlotCount() <= 1 }"
-                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">-</button>
+                    class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
+                    <img :src="minusIcon" alt="minus icon" />
+                  </button>
                   <button type="button" @click="addOneTimeSlot(entryIndex)"
-                    class="w-6 h-6 rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100">+</button>
+                    class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
+                    <img :src="plusIcon" alt="plus icon" />
+                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1162,7 +1313,8 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal">Offer discount if call
                   starts
-                  late</div><img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+                  late</div>
+                  <TooltipIcon text="You and your fan can join within a 15-minute buffer after the scheduled time. If you join late, you may compensate your fan." />
               </div>
             </div>
             <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -1192,10 +1344,13 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-                  Fan can request to extend session in call</div>
-                 <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." />
+              <div class="self-stretch inline-flex justify-start items-center gap-1 relative">
+                <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
+                  Fan can request to extend session in call
+                  <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." 
+                  tooltipClass="translate-x-[-80%] sm:translate-x-[-70%]" 
+                  class="ml-1 !mt-0 !absolute z-[9] top-1/2 -translate-y-1/2 -right-2 md:-right-6" />
+                </div>
               </div>
               <div class="inline-flex justify-start items-center gap-2">
                 <CheckboxGroup v-model="formData.requestExtendSession"
@@ -1226,20 +1381,20 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">Call reminder</div>
+                <div class="justify-start text-gray-700 text-base font-normal leading-normal">Call reminder</div>
                 <TooltipIcon text="Reminders will be sent to notify you of upcoming appointments." />
               </div>
               <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-2 mt-2" />
               <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
                 <div class=" inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
                   <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
                     :disabled="!formData.setReminders"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">minutes before
+                    inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">minutes before
                     a
                   </div>
                 </div>
@@ -1250,12 +1405,30 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2">
+            <!-- <div class="flex gap-2">
               <CheckboxGroup v-model="formData.setBufferTime" label="Set buffer time between booked appointments"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="Set a buffer time between appointment slots." />
+              <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" class="ml-1 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6" />
+            </div> -->
+            <div class="flex gap-2">
+              <CheckboxGroup
+                v-model="formData.setBufferTime"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                wrapperClass="flex items-center gap-2"
+              >
+                <template #label>
+                  <span>Set buffer time between booked appointments</span>
+
+                  <TooltipIcon
+                    text="Set a buffer time between appointment slots."
+                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[200px]" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  />
+                </template>
+              </CheckboxGroup>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1272,12 +1445,31 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="flex gap-2 items-center">
+            <!-- <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.setMaxBookings" label="Set maximum bookings per day"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon text="Set a daily limit for how many appointments you can accept."/>
+            </div> -->
+
+            <div class="flex gap-2">
+              <CheckboxGroup
+                v-model="formData.setMaxBookings"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                wrapperClass="flex items-center gap-2"
+              >
+                <template #label>
+                  <span>Set maximum bookings per day</span>
+
+                  <TooltipIcon
+                    text="Set a daily limit for how many appointments you can accept."
+                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  />
+                </template>
+              </CheckboxGroup>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
@@ -1290,13 +1482,31 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2">
+              <!-- <div class="flex gap-2">
                 <CheckboxGroup v-model="formData.allowWaitlist"
                   label="If booking slots are full, allow fans to join waitlist"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
-                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments."/>
+                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments." tooltipClass="translate-x-[-90%]"/>
+              </div> -->
+              <div class="flex gap-2">
+                <CheckboxGroup
+                  v-model="formData.allowWaitlist"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
+                  wrapperClass="flex items-center gap-2"
+                >
+                  <template #label>
+                    <span>If booking slots are full, allow fans to join waitlist</span>
+
+                    <TooltipIcon
+                      text="An on-screen reminder will appear before your upcoming appointments."
+                      tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
+                      class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                    />
+                  </template>
+                </CheckboxGroup>
               </div>
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
@@ -1318,7 +1528,7 @@
 
 
     </form>
-    <div class="flex justify-end">
+    <div class="flex justify-end fixed bottom-0 right-0">
       <ButtonComponent @click="goToNext" text="Next" variant="polygonLeft"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200

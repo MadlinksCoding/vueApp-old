@@ -17,9 +17,12 @@
         <div 
           class="absolute w-[0.25rem] left-[0] h-full rounded-l-[0.25rem]"
           :class="event.borderClass"
+          :style="section.title === 'PENDING EVENTS'
+            ? { background: 'rgba(0, 0, 0, 0.20)' }
+            : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
         ></div>
 
-        <section class="flex gap-[0.25rem] h-[4.125rem] px-[0.5rem] py-[0.5rem] w-full">
+        <section class="flex gap-1 h-[4.125rem] px-[0.5rem] py-[0.5rem] w-full">
           
           <span v-if="event.time" class="flex items-center justify-center w-[3.4375rem] h-auto shrink-0">
             <p class="text-[0.6875rem] text-gray-700 font-medium leading-[1rem]">{{ event.time }}</p>
@@ -32,7 +35,13 @@
 
           <span class="flex flex-col gap-[0.25rem] h-auto flex-1 min-w-0"> 
             
-            <h3 class="text-[0.875rem] font-semibold leading-[1.25rem] truncate pr-1" :class="event.titleColorClass">
+            <h3
+              class="text-[0.875rem] font-semibold leading-[1.25rem] truncate pr-1"
+              :class="event.titleColorClass"
+              :style="section.title === 'PENDING EVENTS'
+                ? { color: '#101828' }
+                : (event.accentColor ? { color: event.accentColor } : null)"
+            >
               {{ event.title }}
             </h3>
 
@@ -76,7 +85,11 @@
             
             <div v-if="event.showJoin" class="flex flex-col items-end justify-between w-[5.4375rem]">
               <span class="flex items-center gap-[0.25rem]">
-                <div class="bg-lightViolet w-[0.375rem] h-[0.375rem] rounded-[50%]"></div>
+                <div
+                  class="w-[0.375rem] h-[0.375rem] rounded-[50%]"
+                  :style="event.accentColor ? { backgroundColor: event.accentColor } : null"
+                  :class="event.accentColor ? '' : 'bg-lightViolet'"
+                ></div>
                 <p class="text-[0.75rem] text-gray-500 font-medium leading-[1.125rem]">{{ event.statusText }}</p>
               </span>
 

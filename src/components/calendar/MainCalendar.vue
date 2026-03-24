@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-2 md:pl-0 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-0 md:pl-0 backdrop-blur-md">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -95,7 +95,7 @@
               <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events
               </h2>
               <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
-                20
+                {{ filteredBookedSlotsCount }}
               </p>
             </span>
 
@@ -298,7 +298,7 @@
 
     <div v-if="effectiveView === 'month'" class="flex flex-col h-full">
 
-      <div class="grid grid-cols-7 shrink-0 mt-[-3rem]">
+      <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
         <div v-for="w in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="w"
           class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[10px]"
           :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">
@@ -522,6 +522,8 @@
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
         :event="selectedEvent"
+        :can-review-pending="props.canReviewPending"
+        @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
         @cancel-booking="handleCancelBooking"
@@ -560,6 +562,7 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
+  canReviewPending: { type: Boolean, default: true },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
   highlightTodayColumn: { type: Boolean, default: false },
@@ -570,7 +573,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -586,6 +589,11 @@ const dropdownFilters = ref({
   audio: true,
   groupCall: false,
   showSchedule: true,
+  colorByType: {
+    video: '#4F46E5',
+    audio: '#06B6D4',
+    groupCall: '#E11D48',
+  },
 });
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -915,6 +923,12 @@ const normalized = computed(() => {
     }));
 });
 
+const filteredBookedSlotsCount = computed(() => {
+  // Count only real booked slots (not availability background blocks),
+  // after current dropdown filters (video/audio/group/showSchedule) are applied.
+  return normalized.value.filter((event) => !event?.isAvailabilityBlock).length;
+});
+
 const title = computed(() => {
   const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
   if (effectiveView.value === 'week') return `${monthNames[m]} ${y}`;
@@ -970,6 +984,11 @@ const handleApproveBooking = (payload) => {
   emit('approve-booking', payload);
 };
 
+const handleJoin = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('join-call', payload);
+};
+
 const handleRejectBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('reject-booking', payload);
@@ -1001,8 +1020,11 @@ const shift = (n) => {
   const v = effectiveView.value;
   if (v === 'month') {
     cursor.value = addMonths(cursor.value, n);
-  } else {
+  } else if (v === 'week') {
     cursor.value = addDays(cursor.value, n * 7);
+  } else {
+    // day view
+    cursor.value = addDays(cursor.value, n);
   }
   // NEW: Emit the updated date so Mini Calendar can sync
   emit('date-selected', new Date(cursor.value));

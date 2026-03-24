@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
@@ -12,6 +12,7 @@ import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
 import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
+import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
@@ -130,11 +131,75 @@ watch(formData, (newVal) => {
 }, { deep: true });
 
 const subscriptionTierOptions = ref([]);
+const ALL_TIERS_OPTION_VALUE = "__all_tiers__";
+
+function getNormalizedSelectedSubscriptionTierIds(values) {
+  const selected = Array.isArray(values) ? values : [];
+  return subscriptionTierOptions.value
+    .map((tier) => tier.id)
+    .filter((tierId) => selected.some((item) => String(item) === String(tierId)));
+}
+
+function hasAllSubscriptionTiersSelected(values) {
+  const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
+  if (tierIds.length === 0) return false;
+  const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(values);
+  return selectedTierIds.length === tierIds.length;
+}
+
 const subscriptionTierDropdownOptions = computed(() => {
-  return subscriptionTierOptions.value.map(tier => ({
+  return [{
+    label: "All Tiers",
+    value: ALL_TIERS_OPTION_VALUE,
+  }, ...subscriptionTierOptions.value.map((tier) => ({
     label: tier.label,
-    value: tier.id
-  }));
+    value: tier.id,
+  }))];
+});
+
+const subscriptionTierDropdownModel = computed({
+  get() {
+    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers);
+    if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) {
+      return [ALL_TIERS_OPTION_VALUE, ...selectedTierIds];
+    }
+    return selectedTierIds;
+  },
+  set(nextValues) {
+    const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
+    const hasAllInNext = Array.isArray(nextValues) && nextValues.includes(ALL_TIERS_OPTION_VALUE);
+    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(nextValues);
+    const hadAllPreviously = hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers);
+
+    if (hasAllInNext) {
+      // Clicking a single tier while "All Tiers" is currently selected should
+      // remove that tier and drop "All Tiers" state.
+      if (hadAllPreviously && selectedTierIds.length < tierIds.length) {
+        formData.value.subscriptionTiers = selectedTierIds;
+        return;
+      }
+      // Selecting "All Tiers" (or selecting everything) should normalize to full list.
+      formData.value.subscriptionTiers = [...tierIds];
+      return;
+    }
+
+    // If "All Tiers" was toggled off while previously all were selected,
+    // clear everything.
+    if (hadAllPreviously && selectedTierIds.length === tierIds.length) {
+      formData.value.subscriptionTiers = [];
+      return;
+    }
+
+    formData.value.subscriptionTiers = selectedTierIds;
+  },
+});
+
+const subscriptionTierTriggerLabel = computed(() => {
+  const selectedCount = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers).length;
+  if (selectedCount === 0) return "Select tiers";
+  if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) return "All Tiers";
+  if (selectedCount === 1) return "1 Tier selected";
+  return `${selectedCount} Tiers selected`;
 });
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
@@ -156,6 +221,22 @@ const blockedUsersError = ref("");
 const blockedUserLookup = ref({});
 let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
+
+const blockedUserDropdownRef = ref(null);
+const blockedUserDropdownOpen = ref(false);
+const handleBlockedUserClickOutside = (event) => {
+  if (blockedUserDropdownRef.value && !blockedUserDropdownRef.value.contains(event.target)) {
+    blockedUserDropdownOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("click", handleBlockedUserClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", handleBlockedUserClickOutside);
+});
 const INVITE_LINK_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/event-invite";
 const spendingProductPopupOpen = ref(false);
 const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
@@ -260,8 +341,13 @@ const toggleSection = (key) => {
   sectionsState.value[key] = !sectionsState.value[key];
 };
 
-const goToBack = () => {
-  props.engine.goToStep(1);
+const goToBack = async () => {
+  // Back navigation should not be blocked by current-step validation.
+  if (typeof props.engine.forceStep === "function") {
+    await props.engine.forceStep(1, { intent: "back" });
+    return;
+  }
+  await props.engine.goToStep(1, { intent: "back", force: true });
 };
 
 function setInviteUserLookup(users = []) {
@@ -569,6 +655,7 @@ function onConfirmSpendingProducts(selectedItems = []) {
 }
 
 function resolveCreatorId() {
+  return 1407;
   const routeCreatorId = Number(route.query?.creatorId);
   if (Number.isFinite(routeCreatorId)) return routeCreatorId;
 
@@ -720,6 +807,7 @@ watch(inviteSearchQuery, (query) => {
 });
 
 watch(blockedUserSearchQuery, (query) => {
+  blockedUserDropdownOpen.value = true;
   if (blockedUserSearchTimeoutId) {
     clearTimeout(blockedUserSearchTimeoutId);
   }
@@ -848,7 +936,7 @@ const createEvent = async () => {
             <CheckboxGroup v-model="formData.allowRecording" label="Allow fan record the session"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
-              wrapperClass="flex items-center gap-2 mb-3" />
+              wrapperClass="flex items-center gap-2" />
             <TooltipIcon text="If enabled, fans can purchase a session recording as an add-on. The recording includes the creator’s full video feed and will be available after the booking ends" />
           </div>
           <div class="inline-flex gap-2">
@@ -871,11 +959,11 @@ const createEvent = async () => {
               <CheckboxGroup v-model="formData.allowPersonalRequest" label="Allow personal request"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3" />
+                wrapperClass="flex items-center gap-2 mb-1" />
               <TooltipIcon text="If enabled, fans can include a personal request in the booking form. You can review it and adjust the price before confirming the booking." />
             </div>
-            <div class="h-10 inline-flex justify-start items-center gap-2">
-              <div class="w-6" />
+            <div class="inline-flex justify-start items-center gap-2">
+              <div class="w-4" />
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
                   <div class="justify-start text-slate-700 text-base font-normal leading-normal">
@@ -920,28 +1008,31 @@ const createEvent = async () => {
                 <div class="text-[#667085] text-base font-semibold leading-normal">
                   Add-on service {{ index + 1 }}
                 </div>
-                <button
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="flex flex-col flex-1"> 
+                  <BaseInput
+                    type="text"
+                    placeholder="Record the session"
+                    v-model="addOn.title"
+                    inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
+                  />
+
+                  <textarea
+                    v-model="addOn.description"
+                    rows="3"
+                    placeholder="Description (Optional)"
+                    class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
+                  />
+                </div>
+                 <button
                   type="button"
                   class="text-[#f15a24] text-[22px] leading-none"
                   @click="removeAddOnService(index)"
                 >
-                  -
+                  <img :src="OrangeMinusIcon" alt="" class="w-5 h-5" />
                 </button>
               </div>
-
-              <BaseInput
-                type="text"
-                placeholder="Record the session"
-                v-model="addOn.title"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
-              />
-
-              <textarea
-                v-model="addOn.description"
-                rows="3"
-                placeholder="Description (Optional)"
-                class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
-              />
 
               <div class="inline-flex items-center gap-2">
                 <BaseInput
@@ -950,7 +1041,7 @@ const createEvent = async () => {
                   step="1"
                   placeholder=""
                   v-model="addOn.priceTokens"
-                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+                  inputClass="bg-white/75 w-full px-3 py-2 flex-1 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
                 />
                 <div class="text-black text-[16px] font-medium whitespace-nowrap">
                   Tokens
@@ -993,10 +1084,7 @@ const createEvent = async () => {
               :options="whoCanBookOptions" 
             />
 
-            <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2 relative">
-              <div class="text-slate-700 text-sm font-medium">
-                Select subscription tiers
-              </div>
+            <div v-if="formData.whoCanBook === 'subscribersOnly'" class=" flex flex-col gap-2 relative">
               <div v-if="subscriptionTiersLoading" class="text-slate-500 text-sm">
                 Loading active tiers...
               </div>
@@ -1008,14 +1096,14 @@ const createEvent = async () => {
               </div>
               <div v-else class="w-full">
                 <CustomDropdown
-                  v-model="formData.subscriptionTiers"
+                  v-model="subscriptionTierDropdownModel"
                   :options="subscriptionTierDropdownOptions"
                   :multiple="true"
                   :hasCheckboxes="true"
                 >
-                  <template #trigger="{ selected }">
+                  <template #trigger>
                     <span class="text-slate-900 font-medium">
-                      {{ selected && selected.length > 0 ? `${selected.length} Tiers selected` : 'Select tiers' }}
+                      {{ subscriptionTierTriggerLabel }}
                     </span>
                   </template>
                 </CustomDropdown>
@@ -1168,15 +1256,6 @@ const createEvent = async () => {
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
             </div>
             <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
-              <ButtonComponent
-                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? 'Switch Product' : 'Add Product'"
-                variant="none"
-                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-green-500 text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
-                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
-                @click="openSpendingProductPopup"
-              />
-
               <div
                 v-if="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0"
                 class="flex flex-col gap-2"
@@ -1184,29 +1263,37 @@ const createEvent = async () => {
                 <div
                   v-for="product in formData.requiredProducts"
                   :key="getRequiredProductKey(product)"
-                  class="flex items-center gap-2 rounded border border-gray-200 bg-white/70 p-2"
+                  class="flex items-start gap-2 pt-2"
                 >
-                  <img
+                  <div class="relative">
+                    <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
+                      <img src="" alt="">
+                      <span class="text-xs text-white">Count</span>
+                    </div>
+                    <img
                     :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
                     :alt="product.title || 'Product'"
-                    class="h-10 w-14 rounded object-cover"
+                    class="w-[8.5rem] h-[4.875rem] aspect-[136.00/78.34] object-cover"
                   />
-                  <div class="flex-1 min-w-0">
+                  </div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-0">
                     <div class="text-xs font-semibold text-slate-800 truncate">
                       {{ product.title || `${product.type} ${product.id}` }}
                     </div>
                     <div class="flex gap-2">
-                      <div class="text-[11px] text-slate-500 capitalize">
+                     <!-- <div class="text-[11px] text-slate-500 capitalize">
                         {{ product.type }}
+                      </div> -->
+                      <div v-if="product.subscribePrice" class="text-xs text-white capitalize flex gap-1 bg-[#F06] px-[0.375rem] py-[0.125rem]">
+                        <span>Subscribe</span> 
+                        <span class="font-semibold">${{ product.subscribePrice || 0 }}</span>
                       </div>
 
-                      <div v-if="product.buyPrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> Buy USD${{ product.buyPrice || 0 }}
+                      <div v-if="product.buyPrice" class="text-xs text-white capitalize flex gap-1 bg-[#0133FB] px-[0.375rem] py-[0.125rem]">
+                        <span>Buy</span> 
+                        <span class="font-semibold">${{ product.buyPrice || 0 }}</span>
                       </div>
 
-                      <div v-if="product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> Subscribe USD${{ product.subscribePrice || 0 }}
-                      </div>
 
                       <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
                         <span>·</span> FREE
@@ -1215,6 +1302,14 @@ const createEvent = async () => {
                   </div>
                 </div>
               </div>
+              <ButtonComponent
+                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? 'Switch Product' : 'Add Product'"
+                variant="none"
+                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
+                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
+                @click="openSpendingProductPopup"
+              />
             </div>
           </div>
         </div>
@@ -1223,7 +1318,7 @@ const createEvent = async () => {
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               Blocked user
             </div>
-            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative">
+            <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative" ref="blockedUserDropdownRef">
               <div class="relative w-full">
                 <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
@@ -1231,51 +1326,55 @@ const createEvent = async () => {
                   type="text"
                   placeholder="Search by username & email"
                   class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                  @focus="blockedUserDropdownOpen = true"
+                  @click="blockedUserDropdownOpen = true"
                 />
               </div>
 
-              <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
-                Searching users...
-              </div>
-              <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
-                {{ blockedUsersError }}
-              </div>
-              <div
-                v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
-                class="px-4 py-3 text-slate-500 text-sm"
-              >
-                No users found.
-              </div>
-              <div
-                v-else-if="blockedUserOptions.length > 0"
-                class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
-              >
+              <template v-if="blockedUserDropdownOpen">
+                <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
+                  Searching users...
+                </div>
+                <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
+                  {{ blockedUsersError }}
+                </div>
                 <div
-                  v-for="user in blockedUserOptions"
-                  :key="`blocked-${user.id}`"
-                  class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
-                  @click="toggleBlockedUser(user)"
+                  v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
+                  class="px-4 py-3 text-slate-500 text-sm"
                 >
-                  <div class="flex items-center gap-2">
-                    <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
-                    <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
-                      {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                  No users found.
+                </div>
+                <div
+                  v-else-if="blockedUserOptions.length > 0"
+                  class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
+                >
+                  <div
+                    v-for="user in blockedUserOptions"
+                    :key="`blocked-${user.id}`"
+                    class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
+                    @click="toggleBlockedUser(user)"
+                  >
+                    <div class="flex items-center gap-2">
+                      <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
+                      <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                        {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                        <span class="text-gray-950 text-[16px]">{{ user.label }}</span>
+                      <!-- <span class="text-slate-500 text-[16px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
+                      </div>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                      <span class="text-gray-950 text-[16px]">{{ user.label }}</span>
-                     <!-- <span class="text-slate-500 text-[16px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
-                    </div>
-                  </div>
 
-                  <div class="flex items-center justify-center pl-3">
-                    <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
-                          class="text-[#FF4405] text-[12px] font-medium">
-                      blocked
-                    </span>
-                    <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
+                    <div class="flex items-center justify-center pl-3">
+                      <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
+                            class="text-[#FF4405] text-[12px] font-medium">
+                        blocked
+                      </span>
+                      <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              </template>
             </div>
 
             <div
@@ -1336,7 +1435,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostLive" label="Post to X when my booking schedule is live"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1344,7 +1443,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostBooked" label="Post to X when a booking is received"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1352,7 +1451,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostInSession" label="Post to X when I am in a session" version="dashboard"
             wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1360,7 +1459,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostTipped" label="Post to X when I am tipped in a session"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1368,7 +1467,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostPurchase" label="Post to X when someone made a purchase in a session"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
       </div>

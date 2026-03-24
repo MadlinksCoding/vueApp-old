@@ -41,6 +41,20 @@ function daysDiff(fromDateIso, toDateIso) {
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function parseDateParts(dateIso) {
+  const match = String(dateIso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  return { year, month, day };
+}
+
+function getLastDayOfMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
 function hmToLabel(hm = "00:00") {
   const [hourRaw = "0", minuteRaw = "0"] = String(hm).split(":");
   const hour = Number(hourRaw);
@@ -71,6 +85,22 @@ function normalizePositiveMinutes(value, fallback = 15) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.floor(parsed);
+}
+
+function normalizeEndDayOffset(value, startHm = "", endHm = "") {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed)) {
+    if (parsed <= 0) return 0;
+    return 1;
+  }
+
+  const startMinutes = Number(startHm.slice(0, 2)) * 60 + Number(startHm.slice(3, 5));
+  const endMinutes = Number(endHm.slice(0, 2)) * 60 + Number(endHm.slice(3, 5));
+  if (Number.isFinite(startMinutes) && Number.isFinite(endMinutes) && endMinutes < startMinutes) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function sliceWindowIntoSessionSlots(windowSlot, sessionMinutes, bufferMinutes = 0) {
@@ -194,6 +224,7 @@ function normalizeWeeklySlots(rawSlots = []) {
       dayIndex,
       startTime: toHm(slot.startTime, "15:00"),
       endTime: toHm(slot.endTime, "16:00"),
+      endDayOffset: normalizeEndDayOffset(slot.endDayOffset, slot.startTime, slot.endTime),
       offHours: !!slot.offHours,
     });
   });
@@ -223,8 +254,30 @@ function normalizeOneTimeSlots(rawSlots = []) {
         hktDate,
         startTime: startHm,
         endTime: endHm,
+        endDayOffset: normalizeEndDayOffset(timeEntry.endDayOffset, startHm, endHm),
         offHours: !!timeEntry.offHours,
       });
+    });
+  });
+
+  return normalized;
+}
+
+function normalizeMonthlySlots(rawSlots = []) {
+  const normalized = [];
+
+  rawSlots.forEach((slot) => {
+    if (!slot || typeof slot !== "object") return;
+    const startHm = toHm(slot.startTime, "");
+    const endHm = toHm(slot.endTime, "");
+    if (!startHm || !endHm) return;
+
+    normalized.push({
+      kind: "monthly",
+      startTime: startHm,
+      endTime: endHm,
+      endDayOffset: normalizeEndDayOffset(slot.endDayOffset, startHm, endHm),
+      offHours: !!slot.offHours,
     });
   });
 
@@ -246,15 +299,17 @@ function shouldIncludeWeeklyDate({ repeatRule, repeatX, dateFrom, candidateHktDa
   return gapWeeks % interval === 0;
 }
 
-function buildLocalSlotFromHkt({ hktDateIso, startHm, endHm, offHours = false }) {
+function buildLocalSlotFromHkt({
+  hktDateIso,
+  startHm,
+  endHm,
+  endDayOffset = null,
+  offHours = false,
+}) {
   const startDate = hktDateTimeToLocalDate(hktDateIso, startHm);
 
-  let endHktDateIso = hktDateIso;
-  const startMinutes = Number(startHm.slice(0, 2)) * 60 + Number(startHm.slice(3, 5));
-  const endMinutes = Number(endHm.slice(0, 2)) * 60 + Number(endHm.slice(3, 5));
-  if (endMinutes <= startMinutes) {
-    endHktDateIso = addDays(hktDateIso, 1);
-  }
+  const safeEndDayOffset = normalizeEndDayOffset(endDayOffset, startHm, endHm);
+  const endHktDateIso = safeEndDayOffset > 0 ? addDays(hktDateIso, safeEndDayOffset) : hktDateIso;
 
   const endDate = hktDateTimeToLocalDate(endHktDateIso, endHm);
 
@@ -270,6 +325,7 @@ function buildLocalSlotFromHkt({ hktDateIso, startHm, endHm, offHours = false })
     localDateIso,
     startHm: localStartHm,
     endHm: localEndHm,
+    endDayOffset: safeEndDayOffset,
     offHours: !!offHours,
     startMs: startDate.getTime(),
     endMs: endDate.getTime(),
@@ -327,11 +383,42 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         hktDateIso: slot.hktDate,
         startHm: slot.startTime,
         endHm: slot.endTime,
+        endDayOffset: slot.endDayOffset,
         offHours: slot.offHours,
       });
       if (!mapped) return;
       if (mapped.localDateIso !== localDateIso) return;
       built.push(mapped);
+    });
+  } else if (repeatRule === "monthly") {
+    const monthlySlots = normalizeMonthlySlots(rawSlots);
+    hasExplicitScheduleSlots = monthlySlots.length > 0;
+
+    const anchorDate = extractDateIso(raw.dateFrom, null);
+    const anchorParts = parseDateParts(anchorDate);
+    const fallbackParts = parseDateParts(centerHktDateIso);
+    const anchorDay = anchorParts?.day || fallbackParts?.day || 1;
+
+    monthlySlots.forEach((slot) => {
+      hktDateCandidates.forEach((candidateHktDateIso) => {
+        const parts = parseDateParts(candidateHktDateIso);
+        if (!parts) return;
+
+        const targetDay = Math.min(anchorDay, getLastDayOfMonth(parts.year, parts.month));
+        if (parts.day !== targetDay) return;
+
+        const mapped = buildLocalSlotFromHkt({
+          hktDateIso: candidateHktDateIso,
+          startHm: slot.startTime,
+          endHm: slot.endTime,
+          endDayOffset: slot.endDayOffset,
+          offHours: slot.offHours,
+        });
+
+        if (!mapped) return;
+        if (mapped.localDateIso !== localDateIso) return;
+        built.push(mapped);
+      });
     });
   } else {
     const weeklySlots = normalizeWeeklySlots(rawSlots);
@@ -357,6 +444,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
           hktDateIso: candidateHktDateIso,
           startHm: slot.startTime,
           endHm: slot.endTime,
+          endDayOffset: slot.endDayOffset,
           offHours: slot.offHours,
         });
 

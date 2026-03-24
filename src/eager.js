@@ -5,16 +5,11 @@ if (eagerSection) {
   const imports = [];
   switch (eagerSection) {
     case "auth":
-      imports.push(import("@/components/auth/log-in.vue"));
-      imports.push(import("@/components/auth/sign-up.vue"));
-      imports.push(import("@/components/auth/sign-up-onboarding.vue"));
-      imports.push(import("@/components/auth/sign-up-onboarding-kyc.vue"));
-      imports.push(
-        import("@/components/auth/sign-up/onboarding-kyc-status.vue")
-      );
-      imports.push(import("@/components/auth/lost-password.vue"));
-      imports.push(import("@/components/auth/reset-password.vue"));
-      imports.push(import("@/components/auth/confirm-email.vue"));
+      imports.push(import("@/components/auth/forms/LoginForm.vue"));
+      imports.push(import("@/components/auth/forms/SignupForm.vue"));
+      imports.push(import("@/components/auth/forms/LostPasswordForm.vue"));
+      imports.push(import("@/components/auth/forms/ResetPasswordForm.vue"));
+      imports.push(import("@/components/auth/authWrapper/AuthWrapper.vue"));
       break;
     case "dashboard":
       // imports.push(import("@/components/dashboard/index.vue"));

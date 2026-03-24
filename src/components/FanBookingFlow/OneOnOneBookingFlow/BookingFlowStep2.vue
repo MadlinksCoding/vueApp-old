@@ -1,6 +1,6 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
-import OneOnOneBookingFlowHeader from '../HelperComponents/OneOnOneBookingFlowHeader.vue';
+import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { addMonths, monthNames } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -53,7 +53,7 @@ const theme1 = {
     outside: 'opacity-0',
     expired: 'opacity-40 cursor-not-allowed pointer-events-none',
     today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
-    selected: 'rounded-full',
+    selected: 'rounded-full !bg-[#07F468] !text-[#0C111D] font-semibold',
     dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
   }
 };
@@ -376,20 +376,14 @@ function hydrateAddons() {
 
 function hydrateFromState() {
   const existing = props.engine.getState('bookingDetails') || {};
+  const fallbackSelectedDateIso = props.engine.getState('fanBooking.selection.selectedDate');
 
-  if (existing.selectedDate) {
-    const existingDate = new Date(existing.selectedDate);
+  if (existing.selectedDate || fallbackSelectedDateIso) {
+    const existingDate = new Date(existing.selectedDate || `${fallbackSelectedDateIso}T00:00:00`);
     if (!Number.isNaN(existingDate.getTime())) {
       state.selected = existingDate;
       state.focus = new Date(existingDate);
     }
-  }
-
-  if (existing.selectedDuration) {
-    const matchedDuration = durationOptions.value.find((d) => d.value === existing.selectedDuration.value);
-    selectedDurationObj.value = matchedDuration || null;
-  } else {
-    selectedDurationObj.value = null;
   }
 
   if (existing.selectedTime?.value) {
@@ -397,6 +391,13 @@ function hydrateFromState() {
     selectedTime.value = matchedSlot || null;
   } else {
     selectedTime.value = null;
+  }
+
+  if (existing.selectedDuration) {
+    const matchedDuration = durationOptions.value.find((d) => d.value === existing.selectedDuration.value && !d.disabled);
+    selectedDurationObj.value = matchedDuration || null;
+  } else {
+    selectedDurationObj.value = null;
   }
 
   otherRequest.value = existing.otherRequest
@@ -577,13 +578,13 @@ onMounted(() => {
 
 <template>
   <div
-    class="rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+    class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
     style="background-image: url('/images/background.png'); background-size: cover; background-repeat: no-repeat; background-position: left 50% center;"
   >
-    <div class="backdrop-blur-[10px] h-full rounded-[20px] bg-[#0C111D96]">
-      <div class="rounded-b-[20px] h-full rounded-t-[20px] flex flex-col bg-black/50">
+    <div class="backdrop-blur-[10px] h-full md:rounded-[20px] bg-[#0C111D96]">
+      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/50 flex-col md:flex-row">
 
-        <OneOnOneBookingFlowHeader
+        <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
           :date-display="headerDateDisplay"
           :subtotal="totalPrice"
@@ -592,9 +593,9 @@ onMounted(() => {
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="h-[80vh] flex-1 flex w-full lg:flex-row flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto max-h-[27.4rem] md:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-3 pt-3 pb-0 backdrop-blur-sm">
 
-          <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden">
+          <div class="flex-1 flex-col w-full p-5">
              <div class="flex items-center justify-between w-full mb-2">
               <span class="flex items-center gap-2">
                 <div :class="theme1.mini.header">{{ header }}</div>
@@ -624,15 +625,15 @@ onMounted(() => {
             />
           </div>
 
-          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 h-full">
-            <p class="text-sm flex justify-center leading-20 text-center py-16 px-8 items-center text-gray-400">
+          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 p-5 h-full">
+            <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
               Select a date from calendar to see available time slots.
             </p>
           </div>
 
           <div
             v-else
-            class="h-[80vh] flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="flex-1 flex flex-col px-5 gap-6 pb-14 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -767,7 +768,7 @@ onMounted(() => {
 
         </div>
 
-        <div v-if="state.selected && hasAvailableSlots" class="flex-none flex justify-end">
+        <div v-if="state.selected && hasAvailableSlots" class="flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full">
           <button
             :disabled="bottomActionDisabled"
             @click="goToNextStep"
@@ -776,10 +777,10 @@ onMounted(() => {
               class="relative w-[14.625rem] p-[12px] rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
               :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
-                : 'bg-[#07F468]/40 cursor-not-allowed after:border-r-[1rem] after:border-r-[#07F468]/40'"
+                : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
             >
               <p class="text-lg leading-[28px] text-black text-center font-medium">
-                {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'CONTINUE' }}
+                {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'PAYMENT SUMMARY' }}
               </p>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img src="/images/arrow-right.svg" alt="arrow-right-icon" />

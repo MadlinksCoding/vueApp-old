@@ -1,5 +1,5 @@
 <template>
-  <label class="cursor-pointer" :class="wrapperClass">
+  <label class="cursor-pointer !mb-0" :class="wrapperClass">
     <div class="flex items-center gap-2 flex-1 min-w-0">
       <input
         type="checkbox"
@@ -7,13 +7,14 @@
         :disabled="disabled"
         class="flex-shrink-0"
         :class="checkboxClass"
+        :style="checkboxStyle"
         @change="$emit('update:modelValue', $event.target.checked)"
       />
 
       <img v-if="midImg" :src="midImg" alt="">
       
       <span :class="labelClass">
-        <slot>
+        <slot name="label">
           {{ label }}
         </slot>
       </span>
@@ -46,6 +47,7 @@ export default {
     label: { type: String, default: "" },
     disabled: { type: Boolean, default: false },
     checkboxClass: { type: String, default: "" },
+    checkboxStyle: { type: [Object, String], default: "" },
     labelClass: { type: String, default: "" },
     wrapperClass: { type: String, default: "" },
     tags: { type: Array, default: () => [] },
