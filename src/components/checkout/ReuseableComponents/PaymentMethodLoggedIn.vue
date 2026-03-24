@@ -14,7 +14,7 @@ const props = defineProps({
   expiry: { type: String, default: "" },
 });
 
-const emit = defineEmits(["remove"]);
+const emit = defineEmits(["remove", "chosen"]);
 
 // Logic: Always format as **** **** **** 3507 (Last 4)
 // Agar card number nahi hai, toh default **** 0000 dikhaye
@@ -48,7 +48,7 @@ const maskedNumber = computed(() => {
               />
               <span
                 class="text-xs leading-normal font-medium text-[#EAECF0] dark:text-[#dddad5]"
-                >Edit Card</span
+                >Delete Card</span
               >
             </button>
 
@@ -105,7 +105,10 @@ const maskedNumber = computed(() => {
       class="flex items-center gap-6 bg-black/25 rounded-md px-4 py-2 border border-[#EAECF080]"
     >
       <div class="flex justify-between items-center gap-2 py-2 w-full">
-        <div class="flex items-center gap-2 flex-grow">
+        <div
+          class="flex items-center gap-2 flex-grow cursor-pointer"
+          @click="$emit('chosen')"
+        >
           <div class="flex items-center gap-2 flex-grow">
             <span
               class="text-base font-medium truncate whitespace-nowrap text-white flex-grow max-w-[100px] sm:max-w-none"
@@ -134,7 +137,7 @@ const maskedNumber = computed(() => {
         <img
           src="https://i.ibb.co.com/3YVrnBJz/trash-bin.webp"
           alt="delete"
-          @click="$emit('remove')"
+          @click.stop="$emit('remove')"
           class="w-[1.125rem] [filter:brightness(0)_saturate(100%)_invert(98%)_sepia(2%)_saturate(335%)_hue-rotate(184deg)_brightness(97%)_contrast(95%)] cursor-pointer hover:opacity-80"
         />
       </div>

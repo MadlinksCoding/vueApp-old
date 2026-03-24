@@ -47,6 +47,20 @@ export default defineConfig(({ mode }) => {
     define: {
       global: "globalThis",
     },
+    server: {
+      proxy: {
+        "/wp-admin": {
+          target: "https://localhost:8443",
+          changeOrigin: true,
+          secure: false,
+        },
+        "/wp-json": {
+          target: "https://localhost:8443",
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

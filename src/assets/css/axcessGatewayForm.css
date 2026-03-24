@@ -1,0 +1,436 @@
+/* ============================================================
+   axcessGatewayForm.css
+   Styles for the AxcessGatewayFormHandler iframe and card form.
+   Mirrors template-payment-iframe.php and existing wpwl conventions.
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   Custom 3DS iframe wrapper
+   Hidden by default; revealed by JS adding
+   .show-3d-secure.use-custom-iframe to <body>.
+   ---------------------------------------------------------- */
+#checkoutCustomIframe,
+.checkoutCustomIframe {
+  display: none !important;
+  margin: 0 auto;
+}
+
+.show-3d-secure.use-custom-iframe #checkoutCustomIframe,
+.show-3d-secure.use-custom-iframe .checkoutCustomIframe {
+  display: block !important;
+}
+
+#checkoutCustomIframe,
+.show-3d-secure.use-custom-iframe #checkoutCustomIframe {
+  height: 580px;
+  max-height: 25rem;
+  max-width: 25rem;
+  box-shadow:
+    0px 12px 16px -4px rgba(16, 24, 40, 0.08),
+    0px  4px  6px -2px rgba(16, 24, 40, 0.03);
+  background-color: #fff;
+  position: fixed;
+  z-index: 9999999999;
+  left: 0;
+  right: 0;
+  top: 20%;
+  width: 100%;
+  bottom: 0;
+}
+
+#checkoutCustomIframe::-webkit-scrollbar {
+  display: none;
+}
+
+/* ----------------------------------------------------------
+   Skeleton loading state
+   .axcess-loading is added to the container after payment_content is injected.
+   Removed when paymentFormReady fires.
+   ---------------------------------------------------------- */
+
+/* Hide real content while skeleton is active (scoped to content wrapper) */
+.axcess-content-wrap.axcess-loading [data-hide-on-skeleton] {
+  display: none !important;
+}
+
+/* Keep existing checkout-skeleton blocks visible while loading */
+.axcess-content-wrap.axcess-loading .checkout-skeleton {
+  display: block !important;
+}
+
+/* Hide skeleton blocks once loading is done */
+.axcess-content-wrap:not(.axcess-loading) .checkout-skeleton {
+  display: none !important;
+}
+
+/* ----------------------------------------------------------
+   Pre-fetch skeleton animation
+   Uses the same @keyframes and .skeleton class as the existing
+   checkout templates (template-checkout-popup-skeleton.php).
+   ---------------------------------------------------------- */
+@keyframes skeleton-loading {
+  0%   { background: rgba(173, 173, 173, 1); }
+  50%  { background: rgba(173, 173, 173, 0.7); }
+  100% { background: rgba(173, 173, 173, 1); }
+}
+
+.axcess-payment-skeleton .skeleton {
+  animation: skeleton-loading 1.5s infinite ease-in-out;
+  background-color: rgba(0, 0, 0, 0.1);
+  display: block !important;
+}
+
+.axcess-payment-skeleton {
+  padding: 16px;
+}
+
+/* Fallback spinner — shown when no template or skeleton markup is available */
+.axcess-spinner-fallback {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 0;
+}
+
+/* ----------------------------------------------------------
+   Amount selector buttons (used in card-payment-demo.html
+   and any other page embedding the handler)
+   ---------------------------------------------------------- */
+.axcess-amount-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.axcess-amount-btn {
+  flex: 1;
+  padding: 12px 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.axcess-amount-btn:hover {
+  border-color: #555;
+}
+
+.axcess-amount-btn.active {
+  border-color: #1a1a1a;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* ----------------------------------------------------------
+   Payment form container
+   ---------------------------------------------------------- */
+.axcess-payment-form-container {
+  min-height: 0;
+}
+
+/* ----------------------------------------------------------
+   Inline error banner
+   ---------------------------------------------------------- */
+.axcess-error {
+  display: none;
+  background: #fff0f0;
+  border: 1px solid #ffc0c0;
+  color: #c00;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+}
+
+.axcess-error.visible {
+  display: block;
+}
+
+/* ----------------------------------------------------------
+   Loading spinner
+   ---------------------------------------------------------- */
+.axcess-loader {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+.axcess-loader.visible {
+  display: flex;
+}
+
+.axcess-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ccc;
+  border-top-color: #1a1a1a;
+  border-radius: 50%;
+  animation: axcess-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes axcess-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ----------------------------------------------------------
+   Inline success state
+   ---------------------------------------------------------- */
+.axcess-success {
+  display: none;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.axcess-success.visible {
+  display: block;
+}
+
+.axcess-success-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+.axcess-success-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.axcess-success-detail {
+  font-size: 0.875rem;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+#wpwl-registrations,
+div.wpwl-form.wpwl-form-registrations.wpwl-clearfix,
+
+.wpwl-label-brand,
+.wpwl-wrapper-brand,
+.wpwl-container-card::before,
+.wpwl-container-card::after,
+.wpwl-group-submit,
+.wpwl-container .spinner,
+.wpwl-container .spinner div,
+.axcess-content-wrap .spinner,
+.dn {
+  display: none !important;
+}
+
+[payment-form-container],
+.axcess-skeleton-wrap {
+  height: 277px;
+}
+
+.axcess-skeleton-wrap {
+  text-align: center;
+    justify-content: center;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    background: #1D1D1D;
+    color: white;
+}
+
+.axcess-content-wrap.axcess-loading .wpwl-container,
+.axcess-content-wrap.axcess-loading {
+  opacity: 0;
+  min-height: 0px!Important;
+}
+
+.axcess-content-wrap:not(.axcess-loading) {
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* card form design */
+[data-card-dark-ui] .wpwl-wrapper>.wpwl-icon,
+[data-card-dark-ui] .wpwl-form.wpwl-form-card .wpwl-group.wpwl-group-brand {
+  display: none;
+}
+
+[data-card-dark-ui] div.wpwl-container.wpwl-container-card,
+[data-card-dark-ui] .axcess-content-wrap {
+  min-height: 277px;
+  background: #1D1D1D;
+  background-size: cover;
+  border: 1px solid rgba(251, 251, 251, 0.37);
+  border-radius: 10px;
+}
+
+
+[data-card-dark-ui] div.wpwl-container.wpwl-container-card {
+    width: 100%;
+    padding: 1.5rem;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: flex-end;
+}
+
+[data-card-dark-ui] .wpwl-form.wpwl-form-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    flex-direction: row;
+    width: 100%;
+    /* align-items: center; */
+    justify-content: center;
+    margin-bottom: 0;
+    justify-content: space-between;
+}
+
+[data-card-dark-ui] .wpwl-form-card {
+    display: flex !important;
+    padding: 0;
+    gap: 0.5rem 1rem;
+}
+
+body [data-card-dark-ui] .wpwl-form-card, body [data-card-dark-ui] .wpwl-form-card {
+    background: transparent;
+    box-shadow: none;
+    height: 100%;
+    border: 0px solid #ccc;
+}
+
+[data-card-dark-ui] .wpwl-group.wpwl-group-brand.wpwl-clearfix {
+    position: absolute !important;
+    display: block !important;
+    top: 1.8rem !important;
+    right: 1.5rem !important;
+}
+
+[data-card-dark-ui] .wpwl-form.wpwl-form-card .wpwl-group {
+    width: 47%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    order: 2;
+    margin-bottom: 0;
+}
+
+[data-card-dark-ui] .wpwl-group-expiry, 
+[data-card-dark-ui] .wpwl-group-cvv {
+    padding-right: 0 !important;
+    max-width: unset !important;
+    width: 35% !important;
+}
+
+[data-card-dark-ui] .wpwl-group-cardNumber, 
+[data-card-dark-ui] .wpwl-group-cardHolder {
+    padding-right: 0 !important;
+    width: 60% !important;
+    max-width: unset !important;
+}
+
+
+[data-card-dark-ui] .wpwl-group, 
+[data-card-dark-ui] .wpwl-label-brand, 
+[data-card-dark-ui] .wpwl-wrapper-brand, 
+[data-card-dark-ui] .wpwl-wrapper-registration {
+  float: left;
+}
+
+[data-card-dark-ui] .wpwl-clearfix::after,
+[data-card-dark-ui] .wpwl-clearfix::before {
+  display: none;
+}
+
+[data-card-dark-ui] .wpwl-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  color: var(--color-gray-light, #F9FAFB);
+}
+
+[data-card-dark-ui]  .wpwl-form.wpwl-form-card .wpwl-wrapper, 
+[data-card-dark-ui]  .wpwl-form.wpwl-form-card .wpwl-label, 
+[data-card-dark-ui]  .wpwl-form.wpwl-form-card .wpwl-wrapper-brand, 
+[data-card-dark-ui]  .wpwl-form.wpwl-form-card .wpwl-brand-card {
+    width: 100%;
+}
+
+[data-card-dark-ui] .wpwl-form-card .wpwl-wrapper-cardNumber .wpwl-control-cardNumber {
+    padding-left: calc(0.75rem - 2px) !important;
+}
+
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper:not(.wpwl-wrapper-submit) input, 
+[data-card-dark-ui] .woocommerce-input-wrapper, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cvv iframe, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cardNumber iframe {
+    border-color: var(--color-mischka, #D0D5DD) !important;
+}
+
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cvv iframe, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cardNumber iframe {
+  font-family: "Poppins", "Inter", "Montserrat", "Open Sans", arial, sans-serif;
+  font-size: 1rem;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper:not(.wpwl-wrapper-submit) input, 
+[data-card-dark-ui] .woocommerce-input-wrapper, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cvv iframe, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cardNumber iframe {
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  border-radius: 0rem;
+  box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  border-color: var(--color-mischka, #D0D5DD);
+  gap: 0.5rem;
+  align-items: center;
+  display: flex;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  position: relative;
+  height: 40px;
+  padding: 0.5rem 0.75rem !important;
+  z-index: 2;
+}
+
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper:not(.wpwl-wrapper-submit) input, 
+[data-card-dark-ui] .woocommerce-input-wrapper {
+  background-color: hsla(0, 0%, 100%, .1);
+}
+
+[data-card-dark-ui] .wpwl-control-iframe,
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper input {
+    background: transparent;
+    border: 0;
+    color: #f9fafb;
+    font-size: 1rem;
+    line-height: 1.5rem;
+}
+
+[data-card-dark-ui] .wpwl-control-iframe html input, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper input::placeholder{
+  font-size: 1rem !important;
+  font-weight: 400 !important;
+  line-height: 1.5rem !important;
+}
+
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cvv:after, 
+[data-card-dark-ui] .wpwl-group .wpwl-wrapper.wpwl-wrapper-cardNumber:after {
+  content: '';
+  width: 100%;
+  height: 40px;
+  background-color: hsla(0, 0%, 100%, .1);
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+}
+
+[data-card-dark-ui] .wpwl-brand.wpwl-brand-svg-MASTER.wpwl-brand-card, 
+[data-card-dark-ui] .wpwl-brand.wpwl-brand-svg-VISA.wpwl-brand-card {
+    width: 54px !important;
+    height: 32px !important;
+}

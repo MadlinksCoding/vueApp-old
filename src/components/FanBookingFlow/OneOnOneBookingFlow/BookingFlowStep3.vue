@@ -21,6 +21,7 @@ const bookingData = computed(() => {
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const paymentSubstep = computed(() => props.engine.substep || null);
 
+const topUpFormRef = ref(null);
 const isSubmitting = ref(false);
 const isCheckingBalance = ref(false);
 const hasCheckedBalance = ref(false);
@@ -31,7 +32,7 @@ const secondsRemaining = ref(0);
 let holdTimerId = null;
 
 const PAYMENT_SUBSTEP_SUMMARY = 'summary';
-const PAYMENT_SUBSTEP_TOPUP = 'topup';
+const PAYMENT_SUBSTEP_TOPUP   = 'topup';
 
 function toBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;
@@ -197,7 +198,7 @@ function preflightBookingPayload() {
     userId: resolveFanUserId(),
   });
 
-  const requiredFields = ['eventId', 'userId', 'creatorId', 'startIso', 'endIso'];
+  const requiredFields = ['eventId', 'creatorId', 'startIso', 'endIso'];
   const missingFields = requiredFields.filter((field) => !previewPayload?.[field]);
 
   return {
@@ -529,6 +530,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
         title: 'Booking Failed',
         message: extractBackendMessage(result),
       });
+      if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
       return;
     }
 
@@ -579,6 +581,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       title: 'Booking Failed',
       message: error?.message || 'Could not complete booking.',
     });
+    if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
   } finally {
     isSubmitting.value = false;
   }
@@ -599,31 +602,41 @@ const enterTopUpSubstep = async () => {
   return true;
 };
 
-const goBackToPaymentSummary = async () => {
-  if (isSubmitting.value || holdLoading.value) return;
-  await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-back' });
-};
-
-const finalizeBookingFromTopUp = async () => {
-  if (isSubmitting.value || holdLoading.value || hasBookingCreated.value) return;
-
+function validateBeforeTopUpSubmit() {
+  if (isSubmitting.value || holdLoading.value || hasBookingCreated.value) return false;
   if (!hasActiveHold.value) {
     showToast({
       type: 'error',
       title: 'Slot Hold Expired',
       message: 'Your slot hold expired. Please go back and reserve the slot again.',
     });
-    return;
+    return false;
   }
+  console.log('Top-up form validation passed');
+  return true;
+}
 
+const goBackToPaymentSummary = async () => {
+  if (isSubmitting.value || holdLoading.value) return;
+  await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-back' });
+};
+
+const onTopUpPaymentFailed = () => {
+  props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
+};
+
+const onTopUpPaymentSuccess = async () => {
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
-
-  await finalizeBooking({
-    isTopUpDone: true,
-    nextWalletBalance: toppedUpBalance - totalPrice.value,
-  });
+  try {
+    await finalizeBooking({
+      isTopUpDone: true,
+      nextWalletBalance: toppedUpBalance - totalPrice.value,
+    });
+  } finally {
+    topUpFormRef.value?.setProcessingPayment(false);
+  }
 };
 
 // --- BUTTON HANDLERS ---
@@ -752,7 +765,7 @@ onBeforeUnmount(() => {
 
             <div class="flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
               <template v-if="!isTopUpSubstep">
-                <div>
+              <div>
                   <div class="flex flex-col gap-6 w-full">
                     <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
                     <div class="flex flex-col gap-3">
@@ -898,11 +911,15 @@ onBeforeUnmount(() => {
                 </div>
 
                 <TopUpForm
+                  ref="topUpFormRef"
                   :wallet-balance="walletBalance"
                   :top-up-amount="topUpAmount"
                   :total-price="totalPrice"
                   :remaining-balance="remainingBalanceAfterBooking"
+                  :before-submit="validateBeforeTopUpSubmit"
                   @back="goBackToPaymentSummary"
+                  @success="onTopUpPaymentSuccess"
+                  @payment-failed="onTopUpPaymentFailed"
                 />
               </template>
             </div>
@@ -930,27 +947,6 @@ onBeforeUnmount(() => {
                 <img src="/images/arrow-right.svg" alt="arrow-right-icon" />
               </div>
             </div>
-            </button>
-
-            <button
-              v-else
-              type="button"
-              :disabled="isSubmitting || holdLoading || !hasActiveHold"
-              @click="finalizeBookingFromTopUp"
-              class="w-4/5 lg:w-1/2 flex justify-start items-center"
-              :class="(isSubmitting || holdLoading || !hasActiveHold) ? 'pointer-events-none opacity-70' : 'cursor-pointer'"
-            >
-              <div class="relative w-full p-[12px] rounded-br-[20px] flex justify-between items-center
-                gap-2 bg-[#07F468] after:content-[''] after:absolute after:right-full after:top-0 after:w-0
-                after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
-                after:border-r-[#07F468] after:border-b-0">
-                <p class="text-lg w-full leading-[28px] text-black text-center font-medium">
-                  {{ isSubmitting ? 'PROCESSING...' : (holdLoading ? 'HOLDING SLOT...' : 'TOP UP & COMPLETE BOOKING') }}
-                </p>
-                <div class="w-6 h-6 flex justify-center items-center">
-                  <img src="/images/arrow-right.svg" alt="arrow-right-icon" />
-                </div>
-              </div>
             </button>
 
           </div>

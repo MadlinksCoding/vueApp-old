@@ -592,7 +592,7 @@ onMounted(() => {
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="flex-1 flex w-full lg:flex-row flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+        <div class="h-[80vh] flex-1 flex w-full lg:flex-row flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
           <div class="flex-1 flex-col w-full p-4 lg:overflow-hidden">
              <div class="flex items-center justify-between w-full mb-2">
@@ -632,7 +632,7 @@ onMounted(() => {
 
           <div
             v-else
-            class="flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="h-[80vh] flex-1 flex-col p-[1.5rem_1rem] gap-2 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
           >
             <div
               v-if="!hasAvailableSlots"
