@@ -715,6 +715,11 @@
   "componentPath": "@/components/ui/global/media/uploader/MediaUploader.vue"
   },
   {
+    "slug": "/chats",
+          "componentPath": "@/templates/dashboard/page/demo/DemoChats.vue"
+
+  },
+  {
     "slug": "/plan",
   "componentPath": "@/components/ui/global/plan/Plan.vue"
   },

@@ -2,6 +2,9 @@ import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
+import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
+import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
+import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
@@ -530,6 +533,54 @@ export const flowRegistry = {
         { type: "object", key: "rental.lastClientFlushAt", value: "@now" },
         { type: "return", value: { ok: true, flushedAt: "@now" } },
       ],
+    },
+  },
+
+    "chat.createChat": {
+    flowKind: "write",
+    flow: createChatFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [
+        { type: "stateEngine", key: "chat.createResult", mode: "set", select: "chatId" }
+      ],
+      uiErrorMap: {
+        CREATE_CHAT_FAILED: "Could not create chat right now.",
+      },
+    },
+  },
+  "chat.sendMessage": {
+    flowKind: "write",
+    flow: sendMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 3000, jitterRatio: 0.2 },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "addMessageAction" },
+      ],
+      uiErrorMap: {
+        SEND_MESSAGE_MISSING_CHAT_ID: "Chat ID is missing.",
+        SEND_MESSAGE_FAILED: "Message could not be sent.",
+      },
+    },
+  },
+  "chat.fetchMessages": {
+    flowKind: "read",
+    flow: fetchMessagesFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "prependMessagesAction" },
+      ],
+      uiErrorMap: {
+        FETCH_MESSAGES_MISSING_CHAT_ID: "Chat ID is required.",
+        FETCH_MESSAGES_FAILED: "Could not load messages.",
+      },
     },
   },
 };
