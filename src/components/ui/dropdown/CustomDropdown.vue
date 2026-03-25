@@ -57,7 +57,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
           <img v-if="options.find(o => o.value === modelValue)?.image" :src="options.find(o => o.value === modelValue)?.image" class="w-5 h-5 object-contain" />
           <component v-else-if="options.find(o => o.value === modelValue)?.icon" :is="options.find(o => o.value === modelValue)?.icon" class="w-5 h-5 text-slate-700" />
           <div v-if="options.find(o => o.value === modelValue)?.color" class="w-5 h-5 rounded-full" :style="{ backgroundColor: options.find(o => o.value === modelValue)?.color }"></div>
-          <span class="text-slate-900">{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (options.find(o => o.value === modelValue)?.label || placeholder) }}</span>
+          <span class="text-slate-900 whitespace-nowrap">{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (options.find(o => o.value === modelValue)?.label || placeholder) }}</span>
         </div>
       </slot>
       
