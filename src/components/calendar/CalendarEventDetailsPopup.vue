@@ -245,11 +245,16 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
+import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
 
 const props = defineProps({
     event: {
         type: Object,
         default: () => ({})
+    },
+    canReviewPending: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -382,25 +387,27 @@ const statusDotColor = computed(() => {
     return '#6B7280';
 });
 
-const showJoinButton = computed(() => {
-    if (joinUrl.value) return true;
-    const label = statusLabel.value;
-    return label === 'confirmed' || label === 'completed' || label === 'pending_hold' || statusHint.value === 'live now';
-});
+const bookingId = computed(() => raw.value?.bookingId || props.event?.bookingId || null);
+const eventId = computed(() => raw.value?.eventId || props.event?.eventId || null);
+const joinState = computed(() => getBookingJoinState({
+    bookingId: bookingId.value,
+    startAt: startDate.value,
+    endAt: endDate.value,
+    status: statusLabel.value,
+}));
+const showJoinButton = computed(() => joinState.value.canJoin);
 
 function handleJoin() {
     menuOpen.value = false;
     emit('join-call', {
-        bookingId: raw.value?.bookingId || props.event?.bookingId || null,
-        eventId: raw.value?.eventId || props.event?.eventId || null,
-        joinUrl: joinUrl.value || null,
+        bookingId: bookingId.value,
+        eventId: eventId.value,
+        joinUrl: joinState.value.joinUrl || null,
         event: props.event,
     });
 }
 
-const bookingId = computed(() => raw.value?.bookingId || props.event?.bookingId || null);
-const eventId = computed(() => raw.value?.eventId || props.event?.eventId || null);
-const canReviewPending = computed(() => statusLabel.value === 'pending');
+const canReviewPending = computed(() => props.canReviewPending && statusLabel.value === 'pending');
 const showRejectConfirm = ref(false);
 
 watch(
@@ -551,7 +558,8 @@ const chatUrl = computed(() => (
 ));
 
 const joinUrl = computed(() => (
-    raw.value?.joinUrl
+    joinState.value.joinUrl
+    || raw.value?.joinUrl
     || raw.value?.callUrl
     || mergedEvent.value?.joinUrl
     || mergedEvent.value?.callUrl

@@ -88,6 +88,19 @@ function addDaysToDateIso(dateIso, days) {
   return `${y}-${m}-${d}`;
 }
 
+function diffDateIsoDays(fromDateIso, toDateIso) {
+  const from = new Date(`${fromDateIso}T00:00:00`);
+  const to = new Date(`${toDateIso}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function normalizeEndDayOffset(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return 1;
+}
+
 function localDateIsoToHktDateIso(localDateIso, anchorHm = "12:00") {
   const converted = localDateTimeToHkt(localDateIso, anchorHm);
   return converted?.dateIso || localDateIso;
@@ -156,6 +169,7 @@ function derivePrimarySlot(payload = {}, duration) {
         day: startHkt.weekday,
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
       },
     },
   };
@@ -198,6 +212,7 @@ function buildWeeklySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
         day: startHkt.weekday,
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
         offHours: asBoolean(slotEntry?.offHours, asBoolean(dayEntry?.offHours, false)),
       });
     });
@@ -274,6 +289,7 @@ function buildMonthlySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
       return {
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
         offHours: asBoolean(slot?.offHours, false),
       };
     })
@@ -299,6 +315,7 @@ function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration =
         byTime.set(key, {
           startTime: slot.startTime,
           endTime: slot.endTime,
+          endDayOffset: normalizeEndDayOffset(slot?.endDayOffset),
           offHours: asBoolean(slot?.offHours, false),
         });
         return;
@@ -313,6 +330,7 @@ function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration =
       : [{
         startTime: primarySlot?.hkt?.slot?.startTime,
         endTime: primarySlot?.hkt?.slot?.endTime,
+        endDayOffset: normalizeEndDayOffset(primarySlot?.hkt?.slot?.endDayOffset),
         offHours: false,
       }];
   }

@@ -12,6 +12,7 @@ import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
 import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
+import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
 import { showToast } from "@/utils/toastBus.js";
 import {
   fetchActiveSubscriptionTiers,
@@ -222,9 +223,10 @@ let blockedUserSearchAbortController = null;
 let blockedUserSearchTimeoutId = null;
 
 const blockedUserDropdownRef = ref(null);
+const blockedUserDropdownOpen = ref(false);
 const handleBlockedUserClickOutside = (event) => {
   if (blockedUserDropdownRef.value && !blockedUserDropdownRef.value.contains(event.target)) {
-    blockedUserOptions.value = [];
+    blockedUserDropdownOpen.value = false;
   }
 };
 
@@ -654,6 +656,7 @@ function onConfirmSpendingProducts(selectedItems = []) {
 }
 
 function resolveCreatorId() {
+  return 1407;
   const routeCreatorId = Number(route.query?.creatorId);
   if (Number.isFinite(routeCreatorId)) return routeCreatorId;
 
@@ -805,6 +808,7 @@ watch(inviteSearchQuery, (query) => {
 });
 
 watch(blockedUserSearchQuery, (query) => {
+  blockedUserDropdownOpen.value = true;
   if (blockedUserSearchTimeoutId) {
     clearTimeout(blockedUserSearchTimeoutId);
   }
@@ -918,7 +922,7 @@ const createEvent = async () => {
 
 <template>
   <div class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
-    <div class="flex items-center gap-2 cursor-pointer px-2" @click="goToBack">
+    <div class="flex items-center gap-2 cursor-pointer" @click="goToBack">
       <img src="https://i.ibb.co/CsWd11xX/Icon-2.png" alt="" />
       <div class="text-[12px] font-medium">Back</div>
     </div>
@@ -933,7 +937,7 @@ const createEvent = async () => {
             <CheckboxGroup v-model="formData.allowRecording" label="Allow fan record the session"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
-              wrapperClass="flex items-center gap-2 mb-3" />
+              wrapperClass="flex items-center gap-2" />
             <TooltipIcon text="If enabled, fans can purchase a session recording as an add-on. The recording includes the creator’s full video feed and will be available after the booking ends" />
           </div>
           <div class="inline-flex gap-2">
@@ -960,7 +964,7 @@ const createEvent = async () => {
               <TooltipIcon text="If enabled, fans can include a personal request in the booking form. You can review it and adjust the price before confirming the booking." />
             </div>
             <div class="inline-flex justify-start items-center gap-2">
-              <div class="w-6" />
+              <div class="w-4" />
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
                   <div class="justify-start text-slate-700 text-base font-normal leading-normal">
@@ -1005,28 +1009,31 @@ const createEvent = async () => {
                 <div class="text-[#667085] text-base font-semibold leading-normal">
                   Add-on service {{ index + 1 }}
                 </div>
-                <button
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="flex flex-col flex-1"> 
+                  <BaseInput
+                    type="text"
+                    placeholder="Record the session"
+                    v-model="addOn.title"
+                    inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
+                  />
+
+                  <textarea
+                    v-model="addOn.description"
+                    rows="3"
+                    placeholder="Description (Optional)"
+                    class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
+                  />
+                </div>
+                 <button
                   type="button"
                   class="text-[#f15a24] text-[22px] leading-none"
                   @click="removeAddOnService(index)"
                 >
-                  -
+                  <img :src="OrangeMinusIcon" alt="" class="w-5 h-5" />
                 </button>
               </div>
-
-              <BaseInput
-                type="text"
-                placeholder="Record the session"
-                v-model="addOn.title"
-                inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
-              />
-
-              <textarea
-                v-model="addOn.description"
-                rows="3"
-                placeholder="Description (Optional)"
-                class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
-              />
 
               <div class="inline-flex items-center gap-2">
                 <BaseInput
@@ -1035,7 +1042,7 @@ const createEvent = async () => {
                   step="1"
                   placeholder=""
                   v-model="addOn.priceTokens"
-                  inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
+                  inputClass="bg-white/75 w-full px-3 py-2 flex-1 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
                 />
                 <div class="text-black text-[16px] font-medium whitespace-nowrap">
                   Tokens
@@ -1078,10 +1085,7 @@ const createEvent = async () => {
               :options="whoCanBookOptions" 
             />
 
-            <div v-if="formData.whoCanBook === 'subscribersOnly'" class="mt-3 flex flex-col gap-2 relative">
-              <div class="text-slate-700 text-sm font-medium">
-                Select subscription tiers
-              </div>
+            <div v-if="formData.whoCanBook === 'subscribersOnly'" class=" flex flex-col gap-2 relative">
               <div v-if="subscriptionTiersLoading" class="text-slate-500 text-sm">
                 Loading active tiers...
               </div>
@@ -1242,7 +1246,7 @@ const createEvent = async () => {
               <div class="text-slate-700 text-base font-normal leading-normal">
                 Spending requirement
               </div>
-              <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
+              <TooltipIcon text="User must spend at least minimum amount in your shop to book this event" />
             </div>
             <CustomDropdown 
               v-model="formData.spendingRequirement" 
@@ -1323,51 +1327,55 @@ const createEvent = async () => {
                   type="text"
                   placeholder="Search by username & email"
                   class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder-slate-500 focus:bg-white/90 transition-colors"
+                  @focus="blockedUserDropdownOpen = true"
+                  @click="blockedUserDropdownOpen = true"
                 />
               </div>
 
-              <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
-                Searching users...
-              </div>
-              <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
-                {{ blockedUsersError }}
-              </div>
-              <div
-                v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
-                class="px-4 py-3 text-slate-500 text-sm"
-              >
-                No users found.
-              </div>
-              <div
-                v-else-if="blockedUserOptions.length > 0"
-                class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
-              >
+              <template v-if="blockedUserDropdownOpen">
+                <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
+                  Searching users...
+                </div>
+                <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
+                  {{ blockedUsersError }}
+                </div>
                 <div
-                  v-for="user in blockedUserOptions"
-                  :key="`blocked-${user.id}`"
-                  class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
-                  @click="toggleBlockedUser(user)"
+                  v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
+                  class="px-4 py-3 text-slate-500 text-sm"
                 >
-                  <div class="flex items-center gap-2">
-                    <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
-                    <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
-                      {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                  No users found.
+                </div>
+                <div
+                  v-else-if="blockedUserOptions.length > 0"
+                  class="max-h-60 overflow-y-auto w-full bg-white top-12 absolute z-10"
+                >
+                  <div
+                    v-for="user in blockedUserOptions"
+                    :key="`blocked-${user.id}`"
+                    class="flex items-center justify-between p-3 hover:bg-black/5 transition-colors cursor-pointer"
+                    @click="toggleBlockedUser(user)"
+                  >
+                    <div class="flex items-center gap-2">
+                      <img v-if="user.avatar" :src="user.avatar" class="w-[1.375rem] h-[1.375rem] rounded-full object-cover bg-gray-100 shadow-sm" />
+                      <div v-else class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-[#FF5B22] font-bold text-sm shadow-sm">
+                        {{ (user.displayName || user.username || '?').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+                        <span class="text-gray-950 text-[16px]">{{ user.label }}</span>
+                      <!-- <span class="text-slate-500 text-[16px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
+                      </div>
                     </div>
-                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                      <span class="text-gray-950 text-[16px]">{{ user.label }}</span>
-                     <!-- <span class="text-slate-500 text-[16px]">{{ user.raw?.user_email || user.raw?.email || `${user.username}@email.com` }}</span> -->
-                    </div>
-                  </div>
 
-                  <div class="flex items-center justify-center pl-3">
-                    <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
-                          class="text-[#FF4405] text-[12px] font-medium">
-                      blocked
-                    </span>
-                    <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
+                    <div class="flex items-center justify-center pl-3">
+                      <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
+                            class="text-[#FF4405] text-[12px] font-medium">
+                        blocked
+                      </span>
+                      <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              </template>
             </div>
 
             <div
@@ -1428,7 +1436,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostLive" label="Post to X when my booking schedule is live"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1436,7 +1444,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostBooked" label="Post to X when a booking is received"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1444,7 +1452,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostInSession" label="Post to X when I am in a session" version="dashboard"
             wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1452,7 +1460,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostTipped" label="Post to X when I am tipped in a session"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1460,7 +1468,7 @@ const createEvent = async () => {
           <CheckboxSwitch v-model="formData.xPostPurchase" label="Post to X when someone made a purchase in a session"
             version="dashboard" wrapper-label="Dark Mode" />
           <div class="flex justify-end">
-            <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
       </div>

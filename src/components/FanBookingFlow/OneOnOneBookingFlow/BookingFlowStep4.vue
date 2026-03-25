@@ -89,7 +89,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-      
+
           <div class="w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
             <div class="flex flex-col justify-start items-center gap-2 w-full">
               <div class="flex flex-col justify-start items-center gap-4">
@@ -125,7 +125,7 @@ onMounted(() => {
             <div class="w-full flex flex-col justify-start items-center gap-2 mt-[50px]">
               <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer">
                 <div class="w-6 h-6 relative overflow-hidden">
-                  <img src="/images/message-green.svg" alt="message-icon" />        
+                  <img src="/images/message-green.svg" alt="message-icon" />
                 </div>
                 <div class="text-center justify-start text-green-500 text-base font-medium leading-6">Message {{ creatorLabel }}</div>
               </div>
@@ -134,8 +134,8 @@ onMounted(() => {
       </div>
 
 
-      <div 
-        @click="emit('close-popup')" 
+      <div
+        @click="emit('close-popup')"
         class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
         <img src="/images/cross-white.svg" alt="cross-white" class="w-4 h-4" />

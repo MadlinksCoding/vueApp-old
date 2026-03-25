@@ -1,5 +1,5 @@
 <template>
-  <label class="cursor-pointer" :class="wrapperClass">
+  <label class="cursor-pointer !mb-0" :class="wrapperClass">
     <div class="flex items-center gap-2 flex-1 min-w-0">
       <input
         type="checkbox"
@@ -14,7 +14,7 @@
       <img v-if="midImg" :src="midImg" alt="">
       
       <span :class="labelClass">
-        <slot>
+        <slot name="label">
           {{ label }}
         </slot>
       </span>

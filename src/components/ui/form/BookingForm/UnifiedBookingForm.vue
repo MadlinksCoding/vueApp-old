@@ -174,6 +174,7 @@ bookingFlow.addValidator(1, step1Validator);
 bookingFlow.addValidator(2, step2Validator);
 
 const resolveCreatorId = () => {
+    return 1407;
     const creatorFromRoute = Number(route.query?.creatorId);
     const creatorFromStorage = typeof window !== "undefined"
         ? Number(window.localStorage?.getItem("creatorId"))
@@ -672,7 +673,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </div>
                 </div>
 
-                <div class="w-full">
+                <div class="w-full h-dvh max-h-dvh overflow-y-auto overflow-x-hidden">
                     <!-- Private Form -->
                     <template v-if="currentType === 'private'">
                         <OneOnOneBookinStep1 v-if="currentStep === 1" :engine="bookingFlow" />
@@ -706,7 +707,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     @preview-schedule="previewSchedule = true">
 
                     <template #event="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden"
+                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
                             :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
                             <div class="flex items-center gap-1 font-normal truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
@@ -722,7 +723,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </template>
 
                     <template #event-custom="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden"
+                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
                             :style="[style, getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
                             @click.stop="onClick(event)">
                             <div class="flex items-center gap-1 font-normal leading-4 truncate">

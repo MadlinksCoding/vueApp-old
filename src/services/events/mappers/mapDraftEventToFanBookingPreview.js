@@ -30,6 +30,14 @@ function hasExplicitDraftSchedule(draftState = {}) {
   if (repeatRule === "doesNotRepeat") {
     return hasAnySlotRows(draftState?.oneTimeAvailability);
   }
+  if (repeatRule === "monthly") {
+    return Array.isArray(draftState?.monthlyAvailability)
+      && draftState.monthlyAvailability.some((slot) => {
+        const start = typeof slot?.startTime === "string" ? slot.startTime.trim() : "";
+        const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
+        return Boolean(start && end);
+      });
+  }
   return hasAnySlotRows(draftState?.weeklyAvailability);
 }
 

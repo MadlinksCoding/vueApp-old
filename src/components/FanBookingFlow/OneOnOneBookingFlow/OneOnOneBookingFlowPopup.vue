@@ -213,7 +213,7 @@ function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45)
 }
 
 function resolveCreatorId() {
-  return 1;
+  return 1407;
   return (
     toNumber(props.creatorId, null)
     ?? toNumber(route.query?.creatorId, null)
@@ -224,7 +224,7 @@ function resolveCreatorId() {
 }
 
 function resolveFanUserId() {
-  return localStorage.getItem('userId') ?? 2;
+  return 2615;
   return (
     toNumber(props.fanUserId, null)
     ?? toNumber(route.query?.userId, null)
@@ -523,7 +523,7 @@ const oneOnOneBookingFlowPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: "auto", "<500px": "90%" },
+  width: { default: "auto", "<1009px": "100%" },
   height: { default: "auto" },
   scrollable: true,
   closeSpeed: "250ms",

@@ -20,7 +20,11 @@ defineProps({
 </script>
 
 <template>
-  <div :class="['relative group inline-block', wrapperClass]">
+  <div :class="['relative group inline-block', wrapperClass]"
+  @click.stop.prevent
+  @mousedown.stop
+  @touchstart.stop
+  >
     <slot>
       <img :src="iconSrc" alt="" class="cursor-pointer" />
     </slot>

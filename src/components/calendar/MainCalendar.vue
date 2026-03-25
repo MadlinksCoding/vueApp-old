@@ -90,8 +90,8 @@
 
           <div @click="toggleDropdown"
             :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
-            class="h-[2.5rem] w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
-            <span class="flex items-center justify-center h-full">
+            class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
+            <span class="flex items-center justify-center h-full py-2">
               <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events
               </h2>
               <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
@@ -110,7 +110,7 @@
             </button>
           </div>
 
-          <div v-if="isDropdownOpen" class="absolute top-full left-0 mt-2 z-50 origin-top-left">
+          <div v-if="isDropdownOpen" class="absolute top-full right-0 mt-2 z-50 origin-top-left">
             <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
@@ -120,14 +120,14 @@
           class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
 
           <button @click="setView('day')"
-            class="w-[4.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
+            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
             Day
           </button>
 
           <button @click="setView('week')"
-            class="w-[4.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
+            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
             :class="view === 'week'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
@@ -135,7 +135,7 @@
           </button>
 
           <button @click="setView('month')"
-            class="w-[4.875rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+            class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
             :class="view === 'month'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
@@ -217,7 +217,7 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col">
+    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
@@ -240,7 +240,7 @@
           <div v-for="(d, i) in days" :key="'xh-' + i" class="text-center flex flex-col items-center justify-center"
             :class="[
               theme.main.axisXDay,
-              (sd(d).getDay() === 0 && variant === 'default') ? 'text-red-500' : ''
+              (sd(d).getDay() === 0 && variant === 'default') ? 'text-[#FF6A6A]' : ''
             ]" :data-date="d.toISOString().slice(0, 10)">
 
             <div class="text-[11px] font-semibold leading-[1.25rem] uppercase"
@@ -258,7 +258,7 @@
       </div>
 
       <div
-        class="flex gap-2 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        class="flex gap-2 flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div class="flex flex-col">
           <div v-for="(t) in range.labels" :key="'slot-label-' + t"
             :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']">
@@ -522,6 +522,8 @@
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
         :event="selectedEvent"
+        :can-review-pending="props.canReviewPending"
+        @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
         @cancel-booking="handleCancelBooking"
@@ -560,6 +562,7 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
+  canReviewPending: { type: Boolean, default: true },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
   highlightTodayColumn: { type: Boolean, default: false },
@@ -570,7 +573,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -979,6 +982,11 @@ const closeEventDetails = () => {
 const handleApproveBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('approve-booking', payload);
+};
+
+const handleJoin = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('join-call', payload);
 };
 
 const handleRejectBooking = (payload) => {
