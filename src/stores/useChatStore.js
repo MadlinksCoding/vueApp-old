@@ -1,30 +1,11 @@
 import { defineStore } from "pinia";
 
-// Helper function to load data from localStorage
-const loadState = (key, defaultState) => {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaultState;
-  } catch (e) {
-    console.warn(`Error loading ${key} from localStorage`, e);
-    return defaultState;
-  }
-};
-
-// Helper function to save data to localStorage
-const saveState = (key, state) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(state));
-  } catch (e) {
-    console.warn(`Error saving ${key} to localStorage`, e);
-  }
-};
-
 export const useChatStore = defineStore("chat", {
   state: () => ({
-    // Initialize with empty arrays to trigger the UI spinner
     messages: {},
     pagingStates: {},
+    userChats: [],
+    chatParticipants: {},
   }),
 
   getters: {
@@ -34,41 +15,23 @@ export const useChatStore = defineStore("chat", {
   },
 
   actions: {
-    // Manually trigger hydration to simulate latency on persisted data
-    async hydrate() {
-      // Artificially delay loading from local storage to display the center spinner
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const persistedMessages = loadState("chat_messages", {});
-      const persistedPaging = loadState("chat_paging", {});
-
-      // Merge persisted messages into the reactive state
-      for (const [chatId, messages] of Object.entries(persistedMessages)) {
-        this.messages[chatId] = messages;
-      }
-      for (const [chatId, state] of Object.entries(persistedPaging)) {
-        this.pagingStates[chatId] = state;
-      }
-    },
-
     setMessages(chatId, messagesList) {
       this.messages[chatId] = messagesList;
-      saveState("chat_messages", this.messages);
     },
 
     addMessage(chatId, message) {
       if (!this.messages[chatId]) {
         this.messages[chatId] = [];
       }
-      // Check if message already exists (e.g. optimistic update vs actual received)
       const existingIdx = this.messages[chatId].findIndex(
         (m) => (m.id || m.message_id) === (message.id || message.message_id),
       );
+      console.error
       if (existingIdx !== -1) {
         this.messages[chatId][existingIdx] = message;
       } else {
         this.messages[chatId].push(message);
       }
-      saveState("chat_messages", this.messages);
     },
 
     addMessageAction({ chatId, item }) {
@@ -79,33 +42,59 @@ export const useChatStore = defineStore("chat", {
       if (!this.messages[chatId]) {
         this.messages[chatId] = [];
       }
+      // Build a lookup of fetched messages so we can update existing entries (e.g. fill in message_ts)
+      const fetchedById = new Map(
+        historicalMessages.map((m) => [m.message_id || m.id, m])
+      );
+      const existingIds = new Set(this.messages[chatId].map((m) => m.message_id || m.id));
 
-      // Avoid duplicates based on ID
-      const existingIds = new Set(this.messages[chatId].map((m) => (m.id || m.message_id)));
+      // Update existing messages with fresh data from the fetch
+      const updated = this.messages[chatId].map((m) => {
+        const fresh = fetchedById.get(m.message_id || m.id);
+        return fresh ? { ...m, ...fresh } : m;
+      });
+
+      // Append messages not yet in the store
       const newMessages = historicalMessages.filter(
-        (m) => !existingIds.has(m.id || m.message_id),
+        (m) => !existingIds.has(m.message_id || m.id)
       );
 
-      this.messages[chatId] = [...newMessages, ...this.messages[chatId]];
-      saveState("chat_messages", this.messages);
+      const merged = [...updated, ...newMessages];
+      // Use MAX_SAFE_INTEGER fallback so messages missing message_ts sort to the end
+      merged.sort((a, b) =>
+        (a.message_ts ?? Number.MAX_SAFE_INTEGER) - (b.message_ts ?? Number.MAX_SAFE_INTEGER)
+      );
+      this.messages[chatId] = merged;
     },
 
     prependMessagesAction({ chatId, items, pagingState }) {
       if (Array.isArray(items) && items.length > 0) {
-        // Reverse array because historical messages arrive descending typically
-        this.prependMessages(chatId, items.slice().reverse());
+        this.prependMessages(chatId, items);
       }
       if (pagingState !== undefined) {
         this.pagingStates[chatId] = pagingState;
-        saveState("chat_paging", this.pagingStates);
       }
+    },
+
+    setUserChats(items) {
+      this.userChats = items;
+    },
+
+    fetchUserChatsAction({ items }) {
+      const list = Array.isArray(items) ? items : [];
+      this.userChats = list;
+      list.forEach((c) => {
+        if (c.chat_id && Array.isArray(c.participants)) {
+          this.chatParticipants[c.chat_id] = c.participants;
+        }
+      });
     },
 
     clearCache() {
       this.messages = {};
       this.pagingStates = {};
-      localStorage.removeItem("chat_messages");
-      localStorage.removeItem("chat_paging");
-    }
+      this.userChats = [];
+      this.chatParticipants = {};
+    },
   },
 });

@@ -5,6 +5,7 @@ import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fet
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
 import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
+import { fetchUserChatsFlow } from "@/services/chat/flows/fetchUserChatsFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
@@ -580,6 +581,21 @@ export const flowRegistry = {
       uiErrorMap: {
         FETCH_MESSAGES_MISSING_CHAT_ID: "Chat ID is required.",
         FETCH_MESSAGES_FAILED: "Could not load messages.",
+      },
+    },
+  },
+  "chat.fetchUserChats": {
+    flowKind: "read",
+    flow: fetchUserChatsFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: false },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "fetchUserChatsAction" },
+      ],
+      uiErrorMap: {
+        FETCH_USER_CHATS_FAILED: "Could not load your chats.",
       },
     },
   },

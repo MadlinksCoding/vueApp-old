@@ -9,6 +9,8 @@ import { useEnterpriseI18nStore } from "./stores/enterpriseI18n";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { authHandler } from "@/services/authHandler";
 import { useSectionsStore } from "./stores/sectionStore";
+import { useChatStore } from "./stores/useChatStore";
+import FlowHandler from "@/services/flow-system/FlowHandler";
 import { createCacheJanitor } from "./plugins/cacheJanitor";
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
 import 'lightgallery/css/lightgallery.css';
@@ -33,6 +35,13 @@ async function initializeApp() {
 
   auth.refreshFromStorage();
   sectionsStore.hydrate();
+
+  // Register Pinia stores with FlowHandler so piniaAction destinations work
+  FlowHandler.configure({
+    piniaStores: {
+      chat: useChatStore(),
+    },
+  });
 
   // Wait for router to be ready before restoring session
   router.isReady().then(() => {

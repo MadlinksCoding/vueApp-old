@@ -11,7 +11,7 @@ export async function fetchMessagesFlow({ payload, context, api }) {
     return fail({ code: "FETCH_MESSAGES_MISSING_CHAT_ID", message: "chatId is required." });
   }
   
-  let url = `${baseUrl}/chats/${chatId}/messages`;
+  let url = `${baseUrl}/chats/${encodeURIComponent(chatId)}/messages`;
   let query = { limit };
   if (pagingState) {
     query.pagingState = JSON.stringify(pagingState);
@@ -25,10 +25,17 @@ export async function fetchMessagesFlow({ payload, context, api }) {
       return fail({ code: "FETCH_MESSAGES_FAILED", message: response?.error || "Failed to fetch messages" }, { flow: "chat.fetchMessages", status });
     }
     
-    return ok({ 
-      items: response?.messages || [], 
-      pagingState: response?.pagingState, 
-      chatId 
+    const rawMessages = response?.messages || [];
+    const items = rawMessages.map((m) => ({
+      ...m,
+      senderId: m.sender_id,
+      text: m.content?.text ?? m.text ?? '',
+    }));
+
+    return ok({
+      items,
+      pagingState: response?.pagingState,
+      chatId
     }, { flow: "chat.fetchMessages", status });
   } catch (error) {
     return asFlowError(error, "FETCH_MESSAGES_UNEXPECTED");

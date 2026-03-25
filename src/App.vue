@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted,provide    } from "vue";
+import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue';
 import routesConfig from "@/router/routeConfig.json";
 
 const routes = ref([]);
@@ -49,6 +50,9 @@ provide("toggleTheme", toggleTheme);
     <main class="flex-1">
       <router-view />
     </main>
+
+    <!-- Chat floating widget -->
+    <ChatFloatingWidget />
 
     <!-- Footer with routes -->
     <!-- <footer class="bg-gray-900 text-gray-300 text-sm py-8 mt-8 border-t border-gray-700">
