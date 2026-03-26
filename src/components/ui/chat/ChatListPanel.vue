@@ -49,14 +49,22 @@ function getChatAvatar(chat) {
 function getLastMessageText(chat) {
   const msg = chat.last_message
   if (!msg) return null
-  if (typeof msg === 'string') return msg
-  return msg?.content?.text ?? null
+  const text = typeof msg === 'string' ? msg : (msg?.content?.text ?? null)
+  if (!text) return null
+
+  const senderId = msg.sender_id || msg.senderId
+  if (String(senderId) === String(props.currentUserId)) {
+    return `You: ${text}`
+  }
+  const senderData = chatStore.chatUsersData[String(senderId)]
+  const senderName = senderData?.display_name || senderData?.username || null
+  return senderName ? `${senderName}: ${text}` : text
 }
 </script>
 
 <template>
   <div
-    class="absolute bottom-full right-0 mb-2 w-72 rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
+    class="absolute bottom-full right-0 mb-2 w-72 h-[480px] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
     style="background-color: #F2F4F7;"
   >
 
@@ -72,7 +80,7 @@ function getLastMessageText(chat) {
     </div>
 
     <!-- Chat list -->
-    <div class="flex flex-col max-h-[340px] overflow-y-auto">
+    <div class="flex flex-col flex-1 overflow-y-auto">
 
       <!-- Empty state -->
       <div v-if="chatStore.userChats.length === 0" class="flex items-center justify-center w-full h-24 text-gray-500 text-sm font-['Poppins']">

@@ -224,7 +224,7 @@ function resolveCreatorId() {
 }
 
 function resolveFanUserId() {
-  return 2615;
+  return localStorage.getItem("userId") || 2615;
   return (
     toNumber(props.fanUserId, null)
     ?? toNumber(route.query?.userId, null)

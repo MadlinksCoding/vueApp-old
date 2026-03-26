@@ -12,7 +12,7 @@ export async function searchMessagesFlow({ payload, context, api }) {
 
   try {
     const query = { text, senderIds, types, since, until, limit, offset, sort };
-    const response = await api.get(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/search`, query);
+    const response = await api.get(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/search`, { params: query });
     const status = getHttpStatus(response, 200);
 
     if (response?.ok === false) {

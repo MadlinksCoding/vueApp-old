@@ -97,6 +97,33 @@ export const useChatStore = defineStore("chat", {
       }
     },
 
+    updateChatLastMessage(chatId, message) {
+      const chat = this.userChats.find((c) => c.chat_id === chatId);
+      if (chat) chat.last_message = message;
+    },
+
+    updateChatUnread(chatId, hasUnread) {
+      const chat = this.userChats.find((c) => c.chat_id === chatId);
+      if (!chat) return;
+      chat.unread_count = hasUnread ? Math.max((chat.unread_count || 0) + 1, 1) : 0;
+    },
+
+    setChatUnreadCount(chatId, count) {
+      const chat = this.userChats.find((c) => c.chat_id === chatId);
+      if (chat) chat.unread_count = count ?? 0;
+    },
+
+    updateMessageStatusAction({ chatId, messageId, status }) {
+      const msgs = this.messages[chatId];
+      if (!msgs) return;
+      const idx = msgs.findIndex(
+        (m) => (m.id || m.message_id) === messageId
+      );
+      if (idx !== -1) {
+        msgs[idx] = { ...msgs[idx], status };
+      }
+    },
+
     clearCache() {
       this.messages = {};
       this.pagingStates = {};

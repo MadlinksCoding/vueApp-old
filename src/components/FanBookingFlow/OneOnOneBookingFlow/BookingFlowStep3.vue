@@ -5,6 +5,8 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
+import FlowHandler from '@/services/flow-system/FlowHandler'
+import { useChatSocket } from '@/composables/useChatSocket';
 
 const props = defineProps({
   engine: {
@@ -209,7 +211,7 @@ function preflightBookingPayload() {
 }
 
 function resolveFanUserId() {
-  return 2615;
+  return localStorage.getItem("userId") || 2615;
   return Number(
     props.engine.getState('fanBooking.context.fanUserId')
     || props.engine.getState('userId')
@@ -323,6 +325,62 @@ function fireAndForgetBookingCreated() {
   }).catch(() => {
     // Fire-and-forget endpoint; ignore transport errors.
   });
+}
+
+async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null } = {}) {
+  try {
+    const allowInstantBooking    = toBoolean(selectedEvent.value?.allowInstantBooking    ?? selectedEvent.value?.raw?.allowInstantBooking,    false);
+    const allowPersonalRequest   = toBoolean(selectedEvent.value?.allowPersonalRequestRequired ?? selectedEvent.value?.raw?.allowPersonalRequestRequired, false);
+
+    const shouldCreateChat =
+      (allowInstantBooking && allowPersonalRequest) ||
+      (!allowInstantBooking);
+
+    if (!shouldCreateChat) return;
+
+    const fanUserId   = resolveFanUserId();
+    const creatorId   = resolveCreatorId();
+    const eventTitle  = selectedEvent.value?.title || selectedEvent.value?.raw?.title || null;
+    const slotDate    = props.engine.getState('fanBooking.booking.lastPreflightPayload')?.startIso
+      || null;
+
+    // Step 1 — create chat
+    const chatRes = await FlowHandler.run('chat.createChat', {
+      type:         'direct',
+      createdBy:    String(fanUserId),
+      participants: [String(fanUserId), String(creatorId)],
+      name:         eventTitle || 'Booking Chat',
+      description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+    });
+    if (!chatRes?.ok) return;
+    const chatId = chatRes.data?.chatId;
+    if (!chatId) return;
+
+    // Step 2 — send booking request message
+    const msgRes = await FlowHandler.run('chat.sendBookingRequestMessage', {
+      chatId,
+      bookingId,
+      action:     'pending',
+      senderId:   fanUserId,
+      eventId,
+      eventTitle,
+      slotDate,
+      text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
+    });
+    if (!msgRes?.ok) return;
+    const messageId = msgRes.data?.item?.message_id || msgRes.data?.item?.id;
+    if (!messageId) return;
+
+    // Notify participants via socket so their chat lists reload (chat:message → unknown chat_id → fetchUserChats)
+    const { sendChatMessage } = useChatSocket(fanUserId)
+    const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
+    sendChatMessage(msgRes.data.item, recipients)
+
+    // Step 3 — pin the message
+    await FlowHandler.run('chat.pinMessage', { chatId, messageId });
+  } catch (_) {
+    // Fire-and-forget — booking is already confirmed, don't surface chat errors
+  }
 }
 
 function clearHoldTimer() {
@@ -549,6 +607,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
 
     fireAndForgetCreateSchedule({ bookingId, eventId });
     fireAndForgetBookingCreated();
+    fireAndForgetPostBookingChat({ bookingId, eventId });
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))

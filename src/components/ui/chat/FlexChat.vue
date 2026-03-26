@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, defineExpose } from 'vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 
 /* PROPS */
@@ -226,6 +226,7 @@ watch(() => props.messages, async (newVal) => {
     cachedFirstId.value = currentFirstId
 }, { deep: true })
 
+defineExpose({ bodyEl })
 </script>
 
 <style scoped>

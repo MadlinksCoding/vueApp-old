@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
 
 const chatStore = useChatStore()
 
@@ -44,6 +45,19 @@ onMounted(async () => {
     s.init()
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
+
+    // Fetch unread counts for all chats in parallel
+    await Promise.all(
+      chatStore.userChats.map(async (chat) => {
+        const res = await FlowHandler.run('chat.getUnreadCount', {
+          chatId: chat.chat_id,
+          userId: currentUserId.value,
+        })
+        if (res?.ok) {
+          chatStore.setChatUnreadCount(chat.chat_id, res.data.count)
+        }
+      })
+    )
 
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [
@@ -97,10 +111,7 @@ onMounted(async () => {
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
-          <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <img :src="MessageTextIcon" alt="" class="w-6 h-6 filter brightness-0 cursor-pointer" />
           <span
             v-if="unreadCount > 0"
             class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none"

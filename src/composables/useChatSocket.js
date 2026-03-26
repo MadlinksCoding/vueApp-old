@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
+import FlowHandler from '@/services/flow-system/FlowHandler';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -17,10 +18,42 @@ let _ownSocketHandler = null;
 export function useChatSocket(userId) {
   const chatStore = useChatStore();
 
-  function _handleIncomingChatMessage(body) {
-    console.error('[ChatSocket] Received message:', body);
+  async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
+
+    // If this chat isn't in the list yet, re-fetch so it appears without a page refresh
+    const knownChat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
+    if (!knownChat && userId) {
+      await FlowHandler.run('chat.fetchUserChats', { userId: String(userId) })
+    }
+
     chatStore.addMessage(body.chat_id, body);
+    chatStore.updateChatLastMessage(body.chat_id, body);
+    chatStore.updateChatUnread(body.chat_id, true);
+
+    const messageId = body.message_id || body.id;
+    if (!messageId) return;
+
+    // Mark as delivered on the API side (fire-and-forget)
+    FlowHandler.run('chat.markMessageDelivered', {
+      chatId: body.chat_id,
+      messageId,
+    });
+
+    // Notify the sender that their message was delivered
+    const senderId = body.sender_id || body.senderId;
+    if (senderId) {
+      sendStatusUpdate(body.chat_id, messageId, 'delivered', senderId);
+    }
+  }
+
+  function _handleIncomingStatusUpdate(body) {
+    if (!body?.chat_id || !body?.message_id || !body?.status) return;
+    chatStore.updateMessageStatusAction({
+      chatId: body.chat_id,
+      messageId: body.message_id,
+      status: body.status,
+    });
   }
 
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
@@ -31,6 +64,7 @@ export function useChatSocket(userId) {
     _ownSocketHandler = (e) => {
       const { flag, body } = e.detail || {};
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
+      else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
     };
     window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
 
@@ -101,7 +135,11 @@ export function useChatSocket(userId) {
   }
 
   function _onParentIncoming(e) {
-    if (e.data?.type === PARENT_INCOMING_MSG && e.data.payload) {
+    if (e.data?.type !== PARENT_INCOMING_MSG || !e.data.payload) return;
+    const { flag, body } = e.data.payload;
+    if (flag === 'chat:status') {
+      _handleIncomingStatusUpdate(body ?? e.data.payload);
+    } else {
       _handleIncomingChatMessage(e.data.payload);
     }
   }
@@ -127,28 +165,33 @@ export function useChatSocket(userId) {
   }
 
   // ── Send ───────────────────────────────────────────────────────────────────
+  function sendSocket(flag, payload) {
+    if (_mode === 'parent') {
+      try {
+        window.parent.postMessage({ type: PARENT_SEND_MSG, flag, payload }, '*');
+      } catch {
+        console.warn('[ChatSocket] postMessage to parent failed.');
+      }
+    } else if (_mode === 'own') {
+      const SH = window.parent?.SocketHandler || window.SocketHandler;
+      if (SH && typeof SH.sendSocketMessage === 'function') {
+        SH.sendSocketMessage({ flag, payload }).catch(() => {
+          console.warn('[ChatSocket] sendSocketMessage failed.');
+        });
+      }
+    }
+  }
+
   function sendChatMessage(item, recipients) {
     const list = Array.isArray(recipients) ? recipients : [];
     const targets = list.length > 0 ? list : [null];
-
     targets.forEach((to) => {
-      const payload = { ...item, ...(to !== null && { to }) };
-
-      if (_mode === 'parent') {
-        try {
-          window.parent.postMessage({ type: PARENT_SEND_MSG, payload }, '*');
-        } catch {
-          console.warn('[ChatSocket] postMessage to parent failed.');
-        }
-      } else if (_mode === 'own') {
-        const SH = window.parent?.SocketHandler || window.SocketHandler;
-        if (SH && typeof SH.sendSocketMessage === 'function') {
-          SH.sendSocketMessage({ flag: 'chat:message', payload }).catch(() => {
-            console.warn('[ChatSocket] sendSocketMessage failed.');
-          });
-        }
-      }
+      sendSocket('chat:message', { ...item, ...(to !== null && { to }) });
     });
+  }
+
+  function sendStatusUpdate(chatId, messageId, status, recipientId) {
+    sendSocket('chat:status', { chat_id: chatId, message_id: messageId, status, to: recipientId });
   }
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
@@ -165,5 +208,5 @@ export function useChatSocket(userId) {
     _isReady.value = false;
   });
 
-  return { init, sendChatMessage, isReady: _isReady };
+  return { init, sendChatMessage, sendStatusUpdate, isReady: _isReady };
 }
