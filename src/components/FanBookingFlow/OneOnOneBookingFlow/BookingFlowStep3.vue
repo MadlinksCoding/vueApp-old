@@ -727,7 +727,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="md:rounded-[20px] h-full lg:w-[852px] overflow-hidden"
+      class="lg:rounded-[20px] h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       style="
         background-image: url('/images/background.png');
         background-size: cover;
@@ -735,8 +735,8 @@ onBeforeUnmount(() => {
         background-position: left 50% center;
       "
     >
-      <div class="h-full md:rounded-[20px]">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
+      <div class="h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 md:bg-black lg:bg-transparent">
+      <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
             <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
@@ -747,11 +747,11 @@ onBeforeUnmount(() => {
               :show-approval-needed="showApprovalNeeded"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 overflow-y-auto lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] max-h-[27.4rem] md:max-h-[40.625rem]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
-            <div class="flex-1 flex-col px-3 pt-3 pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+            <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
                   <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
@@ -772,7 +772,7 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
 
-                  <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
+                  <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
                     <div class="flex flex-col gap-3 w-full p-5">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
                       <div class="flex flex-col gap-4">
@@ -876,7 +876,7 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
 
-                    <div class="text-white" style="background-image: url('/images/ex-balance.png'); background-position: right; background-repeat: no-repeat; background-size: 48% 100%; background-color: #FF76DD;">
+                    <div class="text-white rounded-bl-lg rounded-br-lg overflow-hidden" style="background-image: url('/images/ex-balance.png'); background-position: right; background-repeat: no-repeat; background-size: 48% 100%; background-color: #FF76DD;">
                       <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
@@ -946,7 +946,7 @@ onBeforeUnmount(() => {
               type="button"
               :disabled="isCheckingBalance || isSubmitting"
               @click="handleButtonClick"
-              class="w-4/5 lg:w-auto flex justify-start items-center"
+              class="w-auto flex justify-start items-center"
               :class="(isCheckingBalance || isSubmitting) ? 'pointer-events-none' : 'cursor-pointer'"
             >
               <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
