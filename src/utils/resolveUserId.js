@@ -20,5 +20,6 @@ export function resolveUserId() {
   } catch {
     // Pinia not ready
   }
+  alert('Unable to resolve user ID. Please run localStorage.setItem("userId", "123") in the console to set a test user ID.');
   return null;
 }
