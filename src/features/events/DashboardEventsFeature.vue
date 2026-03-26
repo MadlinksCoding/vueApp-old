@@ -118,7 +118,7 @@
       </MainCalendar>
 
       <div
-        class="hidden lg:flex flex-col gap-[16px] pt-12 px-[24px] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        :class="['hidden lg:flex flex-col gap-[16px] px-[24px] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -373,7 +373,7 @@ const state = reactive({
   view: "week",
 });
 
-const theme1 = {
+const theme1 = computed(() => ({
   mini: {
     wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]",
     header: "font-semibold",
@@ -385,7 +385,7 @@ const theme1 = {
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: "relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6",
+    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 ${props.embedded ? '' : 'pt-6'}`,
     title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
     xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-[1px] sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
@@ -403,7 +403,7 @@ const theme1 = {
     today: "border-2 border-emerald-500",
     cellEvent: "w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer",
   },
-};
+}));
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
 
