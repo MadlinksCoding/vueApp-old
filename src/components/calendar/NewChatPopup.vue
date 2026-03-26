@@ -5,7 +5,7 @@
     <div class="self-stretch min-h-14 px-2 inline-flex justify-between items-center">
         <div class="justify-start text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">New Message</div>
         <div  class="relative">
-            <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 filter brightness-0">
+            <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 filter brightness-0 cursor-pointer">
         </div>
     </div>
     <!-- To -->
@@ -17,7 +17,7 @@
                 <input type="text" placeholder="Search fans and models by username..." class="w-full h-full bg-transparent border-none outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-6 line-clamp-1">
                 </div>
                 <div data-svg-wrapper class="relative">
-                    <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-2.5 h-2.5">
+                    <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-2.5 h-2.5 cursor-pointer">
                 </div>
             </div>
         </div>
@@ -46,7 +46,7 @@
                                 <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@userA</div>
                             </div>
                             </div>
-                            <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2">
+                            <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                             <div data-svg-wrapper>
                                 <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
                             </div>
@@ -69,7 +69,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@userA</div>
                             </div>
                         </div>
-                        <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2">
+                        <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                         <div data-svg-wrapper>
                             <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
                         </div>
@@ -92,7 +92,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@userA</div>
                         </div>
                     </div>
-                    <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2">
+                    <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                     <div data-svg-wrapper >
                         <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
                     </div>
@@ -115,7 +115,7 @@
                         <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@userA</div>
                     </div>
                 </div>
-                <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2">
+                <div  class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                 <div data-svg-wrapper>
                     <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
                 </div>
@@ -165,7 +165,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@peach, @pear and 86 more...</div>
                             </div>
                         </div>
-                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2">
+                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                             <div data-svg-wrapper>
                                 <img :src="MessageCircleIcon" alt="" class="w-4 h-4 object-fit"/>
                             </div>
@@ -203,7 +203,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@peach, @pear and 86 more...</div>
                             </div>
                         </div>
-                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2">
+                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                             <div data-svg-wrapper>
                                 <img :src="MessageCircleIcon" alt="" class="w-4 h-4 object-fit"/>
                             </div>
@@ -241,7 +241,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@peach, @pear and 86 more...</div>
                             </div>
                         </div>
-                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2">
+                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                             <div data-svg-wrapper>
                                 <img :src="MessageCircleIcon" alt="" class="w-4 h-4 object-fit"/>
                             </div>
@@ -279,7 +279,7 @@
                             <div class="self-stretch text-center justify-start text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">@peach, @pear and 86 more...</div>
                             </div>
                         </div>
-                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2">
+                        <div  class="self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
                             <div data-svg-wrapper>
                                 <img :src="MessageCircleIcon" alt="" class="w-4 h-4 object-fit"/>
                             </div>
@@ -296,7 +296,7 @@
 
     <div class="self-stretch py-1 inline-flex justify-between items-center">
     <div class="flex-1 justify-start text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Top Followers</div>
-    <div class="size- min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2">
+    <div class="size- min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer">
         <div data-svg-wrapper>
             <img :src="MessageCircleIcon" alt="" class="w-4 h-4 object-fit"/>
         </div>
@@ -320,7 +320,7 @@
                 <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@sammisjelly187</div>
             </div>
         </div>
-        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2">
+        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2 cursor-pointer">
         <div data-svg-wrapper class="relative">
             <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
         </div>
@@ -340,28 +340,7 @@
                 <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@sammisjelly187</div>
             </div>
         </div>
-        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2">
-        <div data-svg-wrapper class="relative">
-            <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
-        </div>
-        <div class="text-center justify-start text-rose-600 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</div>
-    </div>
-    </div>
-    </div>
-    <div class="flex flex-col gap-2 self-stretch">
-    <div class="self-stretch px-1 inline-flex justify-between items-center">
-        <div class="size- flex justify-start items-center gap-2">
-            <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-                <img :src="SmilingPeachIcon" class="w-[3.625rem] h-[3.625rem] object-cover" />
-            </div>
-            <div class="size- inline-flex flex-col justify-center items-start gap-1">
-                <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">Peachman</div>
-                </div>
-                <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@sammisjelly187</div>
-            </div>
-        </div>
-        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2">
+        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2 cursor-pointer">
         <div data-svg-wrapper class="relative">
             <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
         </div>
@@ -382,7 +361,28 @@
                 <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@sammisjelly187</div>
             </div>
         </div>
-        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2">
+        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2 cursor-pointer">
+        <div data-svg-wrapper class="relative">
+            <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
+        </div>
+        <div class="text-center justify-start text-rose-600 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</div>
+    </div>
+    </div>
+    </div>
+    <div class="flex flex-col gap-2 self-stretch">
+    <div class="self-stretch px-1 inline-flex justify-between items-center">
+        <div class="size- flex justify-start items-center gap-2">
+            <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
+                <img :src="SmilingPeachIcon" class="w-[3.625rem] h-[3.625rem] object-cover" />
+            </div>
+            <div class="size- inline-flex flex-col justify-center items-start gap-1">
+                <div class="self-stretch inline-flex justify-start items-center gap-1">
+                <div class="justify-start text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">Peachman</div>
+                </div>
+                <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@sammisjelly187</div>
+            </div>
+        </div>
+        <div  class="size- min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2 cursor-pointer">
         <div data-svg-wrapper class="relative">
             <img :src="MessageCircleIconPink" alt="" class="w-4 h-4 object-fit"/>
         </div>
