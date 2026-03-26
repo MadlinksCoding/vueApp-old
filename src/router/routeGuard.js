@@ -14,7 +14,7 @@ function getRouteBySlug(path) {
       normalize(route.slug) === cleanPath ||
       (route.dynamicRoute &&
         route.slug.includes("/:") &&
-        cleanPath.match(new RegExp(route.slug.replace(/:[^/]+/g, "[^/]+"))))
+        cleanPath.match(new RegExp(route.slug.replace(/:[^/]+/g, "[^/]+")))),
   );
 
   // Inherit config from parent (like dashboard)
@@ -69,7 +69,9 @@ export default function routeGuard(to, from, next) {
 
   // 1. Route existence check
   if (!route) {
-    console.error(`[GUARD] No matching route for "${to.path}" → redirect to /404`);
+    console.error(
+      `[GUARD] No matching route for "${to.path}" → redirect to /404`,
+    );
     return next("/404");
   }
 
@@ -86,7 +88,7 @@ export default function routeGuard(to, from, next) {
     console.log(`[GUARD] Route ${to.path} requires auth`);
     if (!user) {
       console.warn(
-        `[GUARD] No user session -> redirect to ${route.redirectIfNotAuth || "/log-in"}`
+        `[GUARD] No user session -> redirect to ${route.redirectIfNotAuth || "/log-in"}`,
       );
       return next(route.redirectIfNotAuth || "/log-in");
     }
@@ -98,7 +100,7 @@ export default function routeGuard(to, from, next) {
   // 4. Redirect if logged in
   if (route?.redirectIfLoggedIn && user) {
     console.warn(
-      `[GUARD] User already logged in -> redirect to ${route.redirectIfLoggedIn}`
+      `[GUARD] User already logged in -> redirect to ${route.redirectIfLoggedIn}`,
     );
     return next(route.redirectIfLoggedIn);
   }
@@ -112,10 +114,12 @@ export default function routeGuard(to, from, next) {
       console.warn(`[GUARD] User role undefined → redirect to /404`);
       return next("/404");
     }
-    console.log(`[GUARD] Route supports roles: ${route.supportedRoles.join(", ")}`);
+    console.log(
+      `[GUARD] Route supports roles: ${route.supportedRoles.join(", ")}`,
+    );
     if (!route.supportedRoles.includes(user.role)) {
       console.warn(
-        `[GUARD] User role "${user.role}" not allowed → redirect to /404`
+        `[GUARD] User role "${user.role}" not allowed → redirect to /404`,
       );
       return next("/404"); // FIX: redirect to /404 not dashboard anymore
     }
@@ -130,7 +134,7 @@ export default function routeGuard(to, from, next) {
     const roleDeps = deps.roles?.[user?.role] || {};
 
     console.log(
-      `[GUARD] 🔎 Checking dependencies for route "${r.slug}" with role="${user?.role}"`
+      `[GUARD] 🔎 Checking dependencies for route "${r.slug}" with role="${user?.role}"`,
     );
 
     // Role-based deps
@@ -139,11 +143,11 @@ export default function routeGuard(to, from, next) {
       if (val?.required) {
         if (userValue) {
           console.log(
-            `[GUARD][PASS] Role-based dep "${key}" required=true, user.${key}=${userValue}`
+            `[GUARD][PASS] Role-based dep "${key}" required=true, user.${key}=${userValue}`,
           );
         } else {
           console.warn(
-            `[GUARD][FAIL] Role-based dep "${key}" required=true but missing → redirect to ${val.fallbackSlug || "/404"}`
+            `[GUARD][FAIL] Role-based dep "${key}" required=true but missing → redirect to ${val.fallbackSlug || "/404"}`,
           );
           if (val.fallbackSlug === to.path || from.path === to.path) {
             console.error("[GUARD] Infinite loop detected → redirect to /404");
@@ -161,11 +165,11 @@ export default function routeGuard(to, from, next) {
       if (val?.required) {
         if (userValue) {
           console.log(
-            `[GUARD][PASS] General dep "${key}" required=true, user.${key}=${userValue}`
+            `[GUARD][PASS] General dep "${key}" required=true, user.${key}=${userValue}`,
           );
         } else {
           console.warn(
-            `[GUARD][FAIL] General dep "${key}" required=true but missing → redirect to ${val.fallbackSlug || "/404"}`
+            `[GUARD][FAIL] General dep "${key}" required=true but missing → redirect to ${val.fallbackSlug || "/404"}`,
           );
           if (val.fallbackSlug === to.path || from.path === to.path) {
             console.error("[GUARD] Infinite loop detected → redirect to /404");
@@ -182,12 +186,14 @@ export default function routeGuard(to, from, next) {
   // Only block exact no-op navigations.
   if (to.fullPath === from.fullPath) {
     console.warn(
-      `[GUARD] No-op navigation detected for "${to.fullPath}" -> cancelling navigation`
+      `[GUARD] No-op navigation detected for "${to.fullPath}" -> cancelling navigation`,
     );
     return next(false);
   }
 
   // 8. Allow navigation
-  console.log(`[GUARD] ✅ All checks passed → allow navigation to "${to.path}"`);
+  console.log(
+    `[GUARD] ✅ All checks passed → allow navigation to "${to.path}"`,
+  );
   next();
 }

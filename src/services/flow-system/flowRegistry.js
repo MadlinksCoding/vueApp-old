@@ -2,6 +2,16 @@ import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
+import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
+import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
+import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
+import { fetchUserChatsFlow } from "@/services/chat/flows/fetchUserChatsFlow.js";
+import { fetchChatUsersDataFlow } from "@/services/chat/flows/fetchChatUsersDataFlow.js";
+import { markMessageDeliveredFlow } from "@/services/chat/flows/markMessageDeliveredFlow.js";
+import { markMessageReadFlow } from "@/services/chat/flows/markMessageReadFlow.js";
+import { getUnreadCountFlow } from "@/services/chat/flows/getUnreadCountFlow.js";
+import { sendBookingRequestMessageFlow } from "@/services/chat/flows/sendBookingRequestMessageFlow.js";
+import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
@@ -530,6 +540,139 @@ export const flowRegistry = {
         { type: "object", key: "rental.lastClientFlushAt", value: "@now" },
         { type: "return", value: { ok: true, flushedAt: "@now" } },
       ],
+    },
+  },
+
+    "chat.createChat": {
+    flowKind: "write",
+    flow: createChatFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [
+        { type: "stateEngine", key: "chat.createResult", mode: "set", select: "chatId" }
+      ],
+      uiErrorMap: {
+        CREATE_CHAT_FAILED: "Could not create chat right now.",
+      },
+    },
+  },
+  "chat.sendMessage": {
+    flowKind: "write",
+    flow: sendMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 3000, jitterRatio: 0.2 },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "addMessageAction" },
+      ],
+      uiErrorMap: {
+        SEND_MESSAGE_MISSING_CHAT_ID: "Chat ID is missing.",
+        SEND_MESSAGE_FAILED: "Message could not be sent.",
+      },
+    },
+  },
+  "chat.fetchMessages": {
+    flowKind: "read",
+    flow: fetchMessagesFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "prependMessagesAction" },
+      ],
+      uiErrorMap: {
+        FETCH_MESSAGES_MISSING_CHAT_ID: "Chat ID is required.",
+        FETCH_MESSAGES_FAILED: "Could not load messages.",
+      },
+    },
+  },
+  "chat.fetchChatUsersData": {
+    flowKind: "read",
+    flow: fetchChatUsersDataFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: false },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "setChatUsersDataAction" },
+      ],
+      uiErrorMap: {
+        FETCH_CHAT_USERS_FAILED: "Could not load chat user data.",
+      },
+    },
+  },
+  "chat.fetchUserChats": {
+    flowKind: "read",
+    flow: fetchUserChatsFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: false },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "fetchUserChatsAction" },
+      ],
+      uiErrorMap: {
+        FETCH_USER_CHATS_FAILED: "Could not load your chats.",
+      },
+    },
+  },
+  "chat.getUnreadCount": {
+    flowKind: "read",
+    flow: getUnreadCountFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: false },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.sendBookingRequestMessage": {
+    flowKind: "write",
+    flow: sendBookingRequestMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.pinMessage": {
+    flowKind: "write",
+    flow: pinMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.markMessageDelivered": {
+    flowKind: "write",
+    flow: markMessageDeliveredFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: false },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.markMessageRead": {
+    flowKind: "write",
+    flow: markMessageReadFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: false },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
     },
   },
 };

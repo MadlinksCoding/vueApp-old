@@ -191,7 +191,6 @@
     </div>
     <br />
 
-    <LatestEventCard />
     <br />
 
     <div class="flex flex-wrap gap-8">
@@ -266,7 +265,7 @@ import GuestPurchaseFlowPopup from "@/components/checkout/purchase/GuestPurchase
 import UpgradeTierPopup from "@/components/checkout/purchase/UpgradeTierPopup.vue";
 import TierCard from "@/components/ui/card/dashboard/TierCard.vue";
 import { tierData } from "/public/data/TierData.js";
-import LatestEventCard from "@/components/ui/card/dashboard/LatestEventCard.vue";
+// import LatestEventCard from "@/components/ui/card/dashboard/LatestEventCard.vue";
 import DashboardEventStaticPopup from "@/components/calendar/DashboardEventStaticPopup.vue";
 import AdjustEventDetailsPopup from "@/components/calendar/AdjustEventDetailsPopup.vue";
 import AdjustCostBooking from "@/components/calendar/AdjustCostBooking.vue";

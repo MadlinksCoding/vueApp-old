@@ -241,6 +241,7 @@ const INVITE_LINK_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/event-invite"
 const spendingProductPopupOpen = ref(false);
 const SPENDING_REQUIREMENT_PAGE_SIZE = 20;
 
+
 function emptySpendingCatalogState() {
   return {
     media: {

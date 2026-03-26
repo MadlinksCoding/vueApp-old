@@ -79,7 +79,7 @@ router.beforeEach((to, from, next) => {
   const section = matchedRoute.meta?.section;
   if (section) {
     console.log(
-      `[SECTION] Route "${to.path}" belongs to section "${section}".`
+      `[SECTION] Route "${to.path}" belongs to section "${section}".`,
     );
   } else {
     console.log(`[SECTION] Route "${to.path}" does not specify a section.`);

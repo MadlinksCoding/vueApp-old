@@ -19,11 +19,14 @@
           <div class="size-2 rounded-full bg-[#14E04D]"></div>
         </div>
       </div>
+
       <div class="flex-1 inline-flex flex-col justify-start items-start">
         <div class="justify-start text-gray-900 text-sm font-medium font-['Poppins'] leading-5">Olivia Rhye</div>
+
+        <!-- lastmessage -->
         <div class="self-stretch inline-flex justify-start items-center gap-1">
           <div class="flex-1 justify-start text-gray-900 text-xs font-medium font-['Poppins'] leading-4 line-clamp-1">Jenny: Jenny is back! Tonight I will eat mostly fruits.-> 8pm EST time👅! </div>
-          <div data-svg-wrapper data-online="True" data-size="sm" class="relative">
+          <div data-svg-wrapper data-unread-message="True" data-size="sm" class="relative">
             <div class="size-2 rounded-full bg-[#FF0464]"></div>
           </div>
         </div>
