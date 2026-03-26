@@ -1348,7 +1348,7 @@
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
                   Fan can request to extend session in call
                   <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." 
-                  tooltipClass="translate-x-[-80%] sm:translate-x-[-70%]" 
+                  tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
                   class="relative group inline-block mt-[2px] ml-1   z-[9]  top-1" />
                 </div>
               </div>

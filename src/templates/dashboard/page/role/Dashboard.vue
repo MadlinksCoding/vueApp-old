@@ -24,6 +24,9 @@
     <AskToSchedule />
     <br />
     <br />
+    <ChatSection />
+    <br />
+    <br />
 
     <Cookies />
 
@@ -258,6 +261,7 @@ import { tierData } from "/public/data/TierData.js";
 import DashboardEventStaticPopup from "@/components/calendar/DashboardEventStaticPopup.vue";
 import AdjustEventDetailsPopup from "@/components/calendar/AdjustEventDetailsPopup.vue";
 import AdjustCostBooking from "@/components/calendar/AdjustCostBooking.vue";
+import ChatSection from "@/components/calendar/ChatSection.vue"
 import CallSoonChat from "@/components/calendar/CallSoonChat.vue";
 import AskForMoreTime from "@/components/calendar/AskForMoreTime.vue";
 import AskToSchedule from "@/components/calendar/AskToSchedule.vue";
