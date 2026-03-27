@@ -1,5 +1,7 @@
 import { useAuthStore } from '@/stores/useAuthStore';
 
+let hasWarnedMissingUserId = false;
+
 /**
  * Resolves the current user ID from available sources.
  * 1. window.userData?.userID  — injected by WordPress
@@ -20,6 +22,13 @@ export function resolveUserId() {
   } catch {
     // Pinia not ready
   }
-  alert('Unable to resolve user ID. Please run localStorage.setItem("userId", "123") in the console to set a test user ID.');
+
+  if (!hasWarnedMissingUserId && typeof window !== 'undefined') {
+    hasWarnedMissingUserId = true;
+    console.warn(
+      '[resolveUserId] Unable to resolve user ID. For local testing you can run localStorage.setItem("userId", "123").'
+    );
+  }
+
   return null;
 }

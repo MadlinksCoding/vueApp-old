@@ -77,7 +77,10 @@ onMounted(async () => {
 
 <template>
   <!-- Fixed bottom-right anchor -->
-  <div class="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2">
+  <div
+    v-if="currentUserId"
+    class="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2"
+  >
 
     <!-- Open chat windows (stack left of the trigger) -->
     <div class="flex items-end gap-2">

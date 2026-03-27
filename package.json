@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:wordpress": "vite build",
+    "build:wordpress": "VITE_PUBLIC_BASE=/wp-content/plugins/fansocial/ vite build",
+    "build:vercel": "VITE_PUBLIC_BASE=/ vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
     "build:lazy": "vite build --mode lazy --outDir dist-lazy",

@@ -52,7 +52,11 @@ export default defineConfig(({ command, mode }) => {
     local:   'https://localhost:8443',
   };
   const proxyTarget = PROXY_TARGETS[env.PROXY_MODE] ?? PROXY_TARGETS.staging;
-  const base = command === "serve" ? "/" : FAN_SOCIAL_PLUGIN_BASE;
+  const explicitBase = typeof env.VITE_PUBLIC_BASE === "string" ? env.VITE_PUBLIC_BASE.trim() : "";
+  const isVercelBuild = env.VERCEL === "1" || process.env.VERCEL === "1";
+  const base = command === "serve"
+    ? "/"
+    : (explicitBase || (isVercelBuild ? "/" : FAN_SOCIAL_PLUGIN_BASE));
   return {
     base,
     plugins: [vue(), vueDevTools()],
