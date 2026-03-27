@@ -1042,7 +1042,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="relative lg:rounded-[20px] h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
+      class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       :style="popupBackgroundStyle"
     >
       <div class="h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 md:bg-black lg:bg-transparent">
@@ -1062,7 +1062,7 @@ onBeforeUnmount(() => {
 
           <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
-            <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-14 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
+            <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
                 <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
                   <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">

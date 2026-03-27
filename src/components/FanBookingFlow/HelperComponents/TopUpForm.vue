@@ -471,7 +471,7 @@ onBeforeUnmount(() => {
 
       </div>
 
-      <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem] lg:mb-[5rem]">
+      <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem]">
         <div class="flex flex-col gap-3 w-full p-5">
           <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
           <div class="flex flex-col gap-4">
@@ -564,7 +564,7 @@ onBeforeUnmount(() => {
           >
           <div class="relative h-full px-4 lg:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-16 after:border-t-[4rem] after:border-t-transparent after:border-b-0 bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]"
           :class="canSubmit ? 'bg-[#07F468] text-black cursor-pointer' : 'bg-[#6c7280] text-black/60 cursor-not-allowed after:border-r-[#6c7280]'">
-            <span class="whitespace-nowrap text-xl font-medium text-[#0C111D]">{{ isProcessing ? 'PROCESSING...' : isFormLoading ? 'LOADING FORM...' : 'TOP UP & COMPLETE BOOKING' }}</span>
+            <span class="whitespace-nowrap text-lg font-medium text-[#0C111D]">{{ isProcessing ? 'PROCESSING...' : isFormLoading ? 'LOADING FORM...' : 'TOP UP & COMPLETE BOOKING' }}</span>
             <img :src="bookingFlowArrowRightIcon" alt="" class="w-4 h-4" />
           </div>
           </button>

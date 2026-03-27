@@ -38,7 +38,7 @@ const currentEvent = computed(() => {
 const outerClass = computed(() => (
   props.embedded
     ? "h-full w-full max-h-full overflow-auto scrollbar-hide p-4 md:p-6 flex items-center justify-center"
-    : "h-screen w-full max-h-full overflow-auto scrollbar-hide py-8"
+    : "h-screen w-full max-h-full overflow-auto scrollbar-hide md:py-8 flex justify-center items-center"
 ));
 
 const cardBackgroundStyle = computed(() => ({
@@ -136,7 +136,7 @@ watch(
 <template>
   <div :class="outerClass">
     <div
-      class="sm:w-[25rem] h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center rounded-3xl backdrop-blur-md"
+      class="w-full md:w-[25rem] h-dvh md:h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center md:rounded-3xl backdrop-blur-md"
       :style="cardBackgroundStyle"
     >
       <div v-if="isLoading" class="h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
@@ -181,7 +181,7 @@ watch(
         </div>
 
         <div
-          class="card-header flex flex-col justify-center items-center w-[5.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] rounded-tl-3xl rounded-br-[4px]"
+          class="card-header flex flex-col justify-center items-center w-[5.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] md:rounded-tl-3xl rounded-br-[4px]"
         >
           <p class="header-content p-[0.25rem 0.375rem 0.25rem 1rem]">
             {{ callTypeLabel(currentEvent || {}) }}
@@ -234,7 +234,7 @@ watch(
 
         <button
           @click="selectEvent(currentEvent)"
-          class="card-footer flex flex-row justify-between items-center text-[#0C111D] bg-[#22CCEE] rounded-b-3xl cursor-pointer transition-colors"
+          class="card-footer flex flex-row justify-between items-center text-[#0C111D] bg-[#22CCEE] md:rounded-b-3xl cursor-pointer transition-colors"
         >
           <div
             class="left flex flex-col justify-center items-center grow gap-[0.5rem] py-2 px-6 mr-[-3px]"

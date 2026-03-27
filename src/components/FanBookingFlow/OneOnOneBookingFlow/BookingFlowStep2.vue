@@ -606,7 +606,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="relative lg:rounded-[20px] h-dvh lg:h-full lg:w-[852px] md:!bg-none overflow-hidden"
+    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] md:!bg-none overflow-hidden"
     :style="popupBackgroundStyle"
   >
     <div class="h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 md:bg-black lg:bg-transparent lg:p-0">

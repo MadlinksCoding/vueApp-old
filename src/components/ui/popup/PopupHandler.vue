@@ -496,7 +496,7 @@ function applyInitialStyles(panel) {
     // ... (Popup logic same as before) ...
     panel.style.height = (normalizedH ?? '500px'); // Restore popup height logic
     
-    const pos = cfg.value.position || 'center';
+    const pos = resolveResponsive(cfg.value.position) || 'center';
     if (isFullW) { panel.style.left = '0'; panel.style.right = '0'; } else { panel.style.left = '50%'; }
     if (isFullH) { panel.style.top = '0'; panel.style.bottom = '0'; } 
     else {

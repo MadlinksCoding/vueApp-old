@@ -1,7 +1,7 @@
 <template>
     <!-- New Chat Popup -->
     <!-- Header -->
-    <div class="w-[42.188rem] h-screen overflow-y-auto flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
+    <div class="w-full md:w-[42.188rem] h-screen overflow-y-auto flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
     <div class="self-stretch min-h-14 px-2 inline-flex justify-between items-center">
         <div class="justify-start text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">New Message</div>
         <div  class="relative">

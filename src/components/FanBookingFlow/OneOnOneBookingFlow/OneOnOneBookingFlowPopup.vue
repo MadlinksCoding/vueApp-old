@@ -20,7 +20,7 @@ const emit = defineEmits(["update:modelValue", "booking-created", "booking-faile
 
 const oneOnOneBookingFlowPopupConfig = {
   actionType: "popup",
-  position: "center",
+  position: { default: "center", "<1009px": "top-center" },
   customEffect: "scale",
   offset: "0px",
   speed: "250ms",
