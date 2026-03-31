@@ -2,8 +2,8 @@
     <div class="w-screen h-screen md:w-[493px] md:h-auto overflow-y-auto p-2 md:p-4 pb-16 md:pb-4 bg-white/90 md:rounded-[10px] inline-flex flex-col justify-start items-start gap-4 relative">
   <div class="self-stretch bg-white/5 backdrop-blur-[5px] inline-flex justify-between items-start">
     <div class="justify-start text-slate-700 text-base font-medium font-['Poppins'] leading-6">X Repost Settings</div>
-    <div  class="relative">
-      <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 cursor-pointer">
+    <div class="relative">
+      <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close" class="w-3 h-3 cursor-pointer" data-popup-close>
     </div>
   </div>
   <div class="self-stretch py-2 flex flex-col justify-center items-start gap-6">
@@ -99,7 +99,7 @@
     </div>
   </div>
   <div class="self-stretch flex fixed md:relative left-0 px-2 md:px-0 bottom-2 w-full md:w-auto">
-    <div class="self-stretch h-10 min-w-24 px-6 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2.5 cursor-pointer w-full">
+    <div class="self-stretch h-10 min-w-24 px-6 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2.5 cursor-pointer w-full" data-popup-close>
       <div class="justify-start text-gray-900 text-base font-medium font-['Poppins'] leading-6">SAVE</div>
     </div>
   </div>
