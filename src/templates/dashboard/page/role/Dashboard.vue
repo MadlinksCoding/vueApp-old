@@ -1,6 +1,11 @@
 <template>
   <DashboardWrapperTwoColContainer>
   
+    
+    <TwitterRepostSettings />
+    <br />
+    <br />
+    
     <NewChatPopup />
     <br />
     <br />
@@ -288,6 +293,7 @@ import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPopup.vue";
 import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
+import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);

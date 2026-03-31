@@ -199,20 +199,12 @@
                     </div>
 
                     <div v-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
-                        <button
-                            type="button"
-                            class="px-3 py-2 rounded text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
-                            @click="handleApprove"
-                        >
-                            Accept
-                        </button>
-                        <button
-                            type="button"
-                            class="px-3 py-2 rounded text-xs font-semibold text-white bg-red-500 hover:bg-red-600 cursor-pointer"
-                            @click="handleReject"
-                        >
-                            Reject
-                        </button>
+                    <button type="button" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
+                        ACCEPT
+                    </button>
+                    <button type="button" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
+                        DECLINE
+                    </button>
                     </div>
 
                     <div v-if="showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
