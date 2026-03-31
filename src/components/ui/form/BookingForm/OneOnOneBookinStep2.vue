@@ -6,6 +6,8 @@ import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import InputComponentDashbaord from "../../../dev/input/InputComponentDashboard.vue";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
+import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
@@ -345,6 +347,17 @@ const spendingRequirementErrorByType = computed(() => ({
   subscription: String(spendingRequirementCatalog.value?.subscription?.error || ""),
   product: String(spendingRequirementCatalog.value?.product?.error || ""),
 }));
+
+const xRepostPopupOpen = ref(false);
+const xRepostPopupConfig = {
+  actionType: 'popup',
+  width: { default: '493px' },
+  height: { default: 'auto' },
+  showOverlay: true,
+  closeOnOutside: true,
+  customEffect: 'scale',
+  speed: '200ms',
+};
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
@@ -1440,7 +1453,7 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostLive" label="Post to X when my booking schedule is live"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end">
+          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1448,7 +1461,7 @@ const createEvent = async () => {
         <div class="inline-flex gap-2  justify-between">
           <CheckboxSwitch v-model="formData.xPostBooked" label="Post to X when a booking is received"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end">
+          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1456,7 +1469,7 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostInSession" label="Post to X when I am in a session" version="dashboard"
             wrapper-label="Dark Mode" />
-          <div class="flex justify-end">
+          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1464,7 +1477,7 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between">
           <CheckboxSwitch v-model="formData.xPostTipped" label="Post to X when I am tipped in a session"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end">
+          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1472,7 +1485,7 @@ const createEvent = async () => {
         <div class="inline-flex gap-2 justify-between w-full">
           <CheckboxSwitch v-model="formData.xPostPurchase" label="Post to X when someone made a purchase in a session"
             version="dashboard" wrapper-label="Dark Mode" />
-          <div class="flex justify-end">
+          <div class="flex justify-end cursor-pointer" @click="xRepostPopupOpen = true">
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
@@ -1482,6 +1495,10 @@ const createEvent = async () => {
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
   </div>
+  <PopupHandler v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
+    <TwitterRepostSettings />
+  </PopupHandler>
+
   <SpendingRequirementProductPopup
     v-model="spendingProductPopupOpen"
     :items="spendingRequirementProductItems"
