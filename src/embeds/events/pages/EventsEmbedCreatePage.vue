@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full overflow-hidden bg-[#F9FAFBE5]">
+  <div class="h-full overflow-y-auto bg-[#F9FAFBE5]">
     <UnifiedBookingForm
       :type="normalizedType"
       :creator-id="bootstrap.creatorId"

@@ -703,9 +703,9 @@ useBodyOverflowHidden({ minWidth: 1010 });
 </script>
 
 <template>
-    <component :is="embedded ? 'div' : DashboardWrapperTwoColContainer" :class="embedded ? 'h-full overflow-hidden' : ''">
+    <component :is="embedded ? 'div' : DashboardWrapperTwoColContainer" :class="embedded ? 'h-full' : ''">
         <ToastHost />
-        <div :class="[embedded ? 'h-full overflow-hidden' : '', 'flex w-full flex-col lg:flex-row gap-4 lg:gap-0']">
+        <div :class="[embedded ? '' : '', 'flex w-full flex-col lg:flex-row gap-4 lg:gap-0']">
             <div
                 :class="[
                     embedded
