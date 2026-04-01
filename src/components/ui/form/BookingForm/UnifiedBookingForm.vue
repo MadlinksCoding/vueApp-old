@@ -709,7 +709,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'flex h-full min-h-0 flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl overflow-x-hidden lg:overflow-y-auto lg:no-scrollbar'
+                        ? 'flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
                         : 'flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
                 ]">
 
@@ -772,7 +772,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'w-full min-h-0 lg:h-full lg:overflow-y-auto lg:no-scrollbar lg:pb-4'
+                        ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                         : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
                 <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
