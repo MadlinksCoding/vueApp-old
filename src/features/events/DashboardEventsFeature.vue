@@ -385,7 +385,7 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 ${props.embedded ? '' : 'pt-6'}`,
+    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
     title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
     xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-[1px] sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",

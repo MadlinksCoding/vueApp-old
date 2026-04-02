@@ -67,10 +67,10 @@
     //   return "sticky bottom-0 z-20 flex justify-end border-t border-slate-200/70 bg-[linear-gradient(180deg,rgba(249,250,251,0.6)_0%,rgba(249,250,251,0.96)_35%,rgba(249,250,251,1)_100%)] px-2 pt-3 md:px-4 lg:px-6";
     // }
     if (props.embedded) {
-       return "flex justify-end fixed bottom-0 right-0";
+       return "flex justify-end fixed bottom-0 right-0 z-10";
     }
 
-    return "flex justify-end fixed bottom-0 right-0";
+    return "flex justify-end fixed bottom-0 right-0 z-10";
   });
 
   // Refs
