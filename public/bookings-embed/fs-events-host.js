@@ -191,7 +191,6 @@
     iframe.title = settings.iframeTitle;
     iframe.loading = "lazy";
     iframe.style.width = "100%";
-    iframe.style.minHeight = String(settings.minHeight) + "px";
     iframe.style.border = "0";
     iframe.style.display = "block";
     iframe.setAttribute("scrolling", "no");
@@ -224,7 +223,7 @@
       }
 
       if (data.type === FS_EVENTS_RESIZE) {
-        var nextHeight = safeNumber(data.payload && data.payload.height, settings.minHeight);
+        var nextHeight = safeNumber(data.payload && data.payload.height, null);
         var resizeMode = data.payload && data.payload.mode;
 
         if (resizeMode === "viewport") {

@@ -3,7 +3,7 @@
     ref="rootRef"
     :class="[
       useViewportHeight ? 'h-screen overflow-hidden' : 'min-h-screen',
-      'bg-[#F9FAFBE5] text-slate-900'
+      ' text-slate-900'
     ]"
   >
     <div v-if="bootstrap.bootstrapped" :class="useViewportHeight ? 'h-full overflow-hidden' : 'min-h-screen'">

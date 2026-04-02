@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full overflow-y-auto bg-[#F9FAFBE5] px-3 md:px-4">
+  <div class="h-full overflow-y-auto px-3 md:px-4">
     <DashboardEventsFeature
       :creator-id="bootstrap.creatorId"
       :fan-id="bootstrap.fanId"
