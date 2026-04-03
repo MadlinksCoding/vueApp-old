@@ -48,7 +48,7 @@
       default: false,
     },
   });
-  const DEFAULT_VUE_CREATOR_ID = 1407;
+  const DEFAULT_VUE_CREATOR_ID = 432;
 
   function ensureVueCreatorIdFallback() {
     if (props.embedded) return;

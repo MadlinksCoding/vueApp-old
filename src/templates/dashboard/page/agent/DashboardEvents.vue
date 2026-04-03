@@ -21,7 +21,7 @@ import { resolveCreatorIdFromContext, resolveFanIdFromContext } from "@/utils/co
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const DEFAULT_VUE_CREATOR_ID = 1407;
+const DEFAULT_VUE_CREATOR_ID = 432;
 
 const userRole = computed(() => auth.simulate?.role || auth.currentUser?.role || "creator");
 const creatorId = computed(() => resolveCreatorIdFromContext({

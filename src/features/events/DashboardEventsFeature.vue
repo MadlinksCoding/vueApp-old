@@ -858,7 +858,20 @@ const reviewPendingBooking = async (payload, decision) => {
 
         if (notify.shouldFire && notify.payload) {
           fireAndForgetCreateScheduleNotify(notify.payload);
+        } else {
+          console.warn("[create-schedule][approval] payload-not-ready", {
+            approvedBooking,
+            approvedEvent,
+            bookingId,
+            notify,
+          });
         }
+      } else {
+        console.warn("[create-schedule][approval] gate-skipped", {
+          approvedBooking,
+          approvedEvent,
+          bookingId,
+        });
       }
     }
 
