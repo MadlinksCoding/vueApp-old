@@ -36,7 +36,7 @@ const creatorId = computed(() => {
 
 const newChatPopupConfig = {
   actionType: 'popup',
-  position: { default: 'top-center', '>768': 'center' },
+  position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
   customEffect: 'scale',
   speed: '250ms',
   effect: 'ease-in-out',
@@ -45,8 +45,8 @@ const newChatPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: { default: '100%', '>768': '675px' },
-  height: { default: '100vh', '>768': '90vh' },
+  width: window.__fsChatEmbed ? '675px' : { default: '100%', '>768': '675px' },
+  height: window.__fsChatEmbed ? '90vh' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }
@@ -70,6 +70,7 @@ function getOtherParticipantId(chatId) {
 }
 
 function getChatDisplayName(chat) {
+  if (chat?.metadata?.is_booking_request) return chat.name || 'Chat'
   const otherId = getOtherParticipantId(chat.chat_id)
   if (otherId) {
     const userData = chatStore.chatUsersData[String(otherId)]

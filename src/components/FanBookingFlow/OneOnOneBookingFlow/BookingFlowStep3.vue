@@ -560,12 +560,28 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       participants: [String(fanUserId), String(creatorId)],
       name:         eventTitle || 'Booking Chat',
       description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+      metadata: {
+        bookingId: String(bookingId || props.engine.getState('fanBooking.booking.bookingId') || ''),
+        eventId: String(eventId || selectedEvent.value?.eventId || selectedEvent.value?.raw?.eventId || ''),
+        is_booking_request: true,
+        description: eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+      },
     });
     if (!chatRes?.ok) return;
     const chatId = chatRes.data?.chatId;
     if (!chatId) return;
 
-    // Step 2 — send booking request message
+    // Step 2a — activity log: fan sent a live call request
+    const fanUsername = props.engine.getState?.('fanBooking.fan.username')
+      || String(fanUserId)
+    await FlowHandler.run('chat.sendChatActivityLog', {
+      chatId,
+      senderId: fanUserId,
+      text: `@${fanUsername} has just sent you a live call request:`,
+      meta: { bookingId, eventTitle },
+    })
+
+    // Step 2b — send booking request message
     const msgRes = await FlowHandler.run('chat.sendBookingRequestMessage', {
       chatId,
       bookingId,
@@ -869,12 +885,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       || selectedEvent.value?.eventId
       || null;
 
+    fireAndForgetPostBookingChat({ bookingId, eventId });
+    console.error('[finalizeBooking] fired post-booking chat creation');
     fireAndForgetCreateSchedule({ bookingId, eventId });
     console.error('[finalizeBooking] booking created successfully', { bookingId, eventId, result });
     fireAndForgetBookingCreated();
     console.error('[finalizeBooking] fired booking created analytics');
-    fireAndForgetPostBookingChat({ bookingId, eventId });
-    console.error('[finalizeBooking] fired post-booking chat creation');
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))

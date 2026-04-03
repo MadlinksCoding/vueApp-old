@@ -249,6 +249,11 @@ defineExpose({ bodyEl })
             <slot name="header"></slot>
         </div>
 
+        <!-- PINNED BANNER SLOT (sits between header and scrollable body, full-width sticky) -->
+        <div v-if="$slots['pinned-banner']" class="shrink-0 w-full">
+            <slot name="pinned-banner"></slot>
+        </div>
+
         <!-- MAIN CHAT BODY -->
         <div ref="bodyEl" :class="[theme.body, 'no-scrollbar']">
 
