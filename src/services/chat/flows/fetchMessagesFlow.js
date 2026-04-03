@@ -5,7 +5,7 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 export async function fetchMessagesFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
   const headers = context.requestHeaders || {};
-  const { chatId, limit = 20, pagingState } = payload;
+  const { chatId, limit = 20, pagingState, currentUserId } = payload;
   
   if (!chatId) {
     return fail({ code: "FETCH_MESSAGES_MISSING_CHAT_ID", message: "chatId is required." });
@@ -26,11 +26,16 @@ export async function fetchMessagesFlow({ payload, context, api }) {
     }
     
     const rawMessages = response?.messages || [];
-    const items = rawMessages.map((m) => ({
-      ...m,
-      senderId: m.sender_id,
-      text: m.content?.text ?? m.text ?? '',
-    }));
+    const items = rawMessages.map((m) => {
+      const receipts = Array.isArray(m.read_receipts) ? m.read_receipts : [];
+      const alreadyRead = currentUserId && receipts.some(r => String(r.user_id) === String(currentUserId));
+      return {
+        ...m,
+        senderId: m.sender_id,
+        text: m.content?.text ?? m.text ?? '',
+        status: alreadyRead ? 'read' : (m.status || 'sent'),
+      };
+    });
 
     return ok({
       items,
