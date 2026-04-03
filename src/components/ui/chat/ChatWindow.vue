@@ -4,27 +4,74 @@ import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import EmojiPicker from 'vue3-emoji-picker'
+import 'vue3-emoji-picker/css'
 
 const MAX_MESSAGE_LENGTH = 2000
 
 const props = defineProps({
-  chatId:   { type: String, required: true },
-  chatName: { type: String, default: 'Chat' },
-  avatar:   { type: String, default: null },
-  socket:   { type: Object, default: null },
+  chatId:        { type: String, default: null },
+  chatName:      { type: String, default: 'Chat' },
+  avatar:        { type: String, default: null },
+  socket:        { type: Object, default: null },
+  targetUserId:  { type: [String, Number], default: null },
+  targetUserIds: { type: Array, default: () => [] },
+  groupType:     { type: String, default: null },
 })
 
-const emit = defineEmits(['close', 'minimize'])
+const emit = defineEmits(['close', 'minimize', 'chat-created'])
 
 const chatStore     = useChatStore()
 const currentUserId = resolveUserId()
 
-const composeText = ref('')
-const loading     = ref(false)
-const hasMore     = ref(true)
-const isSending   = ref(false)
+const composeText     = ref('')
+const loading         = ref(false)
+const hasMore         = ref(true)
+const isSending       = ref(false)
+const activeChatId    = ref(props.chatId)
+const showEmojiPicker = ref(false)
+const inputRef        = ref(null)
+const currentUserAvatar = computed(() => chatStore.chatUsersData[String(currentUserId)]?.avatar || null)
+const currentUserInitial = computed(() => {
+  const d = chatStore.chatUsersData[String(currentUserId)]
+  return (d?.display_name || d?.username || '?').charAt(0).toUpperCase()
+})
 
-const messages = computed(() => chatStore.getMessagesByChatId(props.chatId))
+// Returns true only when every non-sender participant has a read receipt
+function allParticipantsRead(msg) {
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const others = participants.map(String).filter(id => id !== String(currentUserId))
+  if (others.length === 0) return false
+  const receipts = Array.isArray(msg.read_receipts) ? msg.read_receipts : []
+  const readerIds = new Set(receipts.map(r => String(r.user_id || r.userId || '')))
+  return others.every(id => readerIds.has(id))
+}
+
+// Readers of a message — returns array of { id, avatar, initial } for all non-current-user readers
+function getMessageReaders(msg) {
+  const receipts = msg.read_receipts
+  if (!receipts) return []
+
+  let readerIds = []
+  if (Array.isArray(receipts)) {
+    readerIds = receipts
+      .map(r => String(r.user_id || r.userId || ''))
+      .filter(id => id && id !== String(currentUserId))
+  } else if (typeof receipts === 'object') {
+    readerIds = Object.keys(receipts).filter(id => id !== String(currentUserId))
+  }
+
+  return readerIds.map(id => {
+    const d = chatStore.chatUsersData[id]
+    return {
+      id,
+      avatar: d?.avatar || null,
+      initial: (d?.display_name || d?.username || '?').charAt(0).toUpperCase(),
+    }
+  })
+}
+
+const messages = computed(() => activeChatId.value ? chatStore.getMessagesByChatId(activeChatId.value) : [])
 
 // ── Read receipts via IntersectionObserver ────────────────────────────────────
 const flexChatRef  = ref(null)
@@ -33,7 +80,7 @@ const _observedIds    = new Set()
 let   _observer       = null
 
 function _onMessageVisible(entries) {
-  entries.forEach((entry) => {
+  entries.forEach(async (entry) => {
     if (!entry.isIntersecting) return
     const el        = entry.target
     const messageId = el.dataset.messageId
@@ -45,17 +92,19 @@ function _onMessageVisible(entries) {
     _markedReadIds.add(messageId)
     _observer?.unobserve(el)
 
-    chatStore.updateMessageStatusAction({ chatId: props.chatId, messageId, status: 'read' })
-    chatStore.updateChatUnread(props.chatId, false)
+    chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
+    chatStore.updateChatUnread(activeChatId.value, false)
 
-    FlowHandler.run('chat.markMessageRead', {
-      chatId: props.chatId,
+    const res = await FlowHandler.run('chat.markMessageRead', {
+      chatId: activeChatId.value,
       messageId,
       userId: currentUserId,
     })
 
     if (senderId) {
-      props.socket?.sendStatusUpdate(props.chatId, messageId, 'read', senderId)
+      console.error("Marking message as read", { chatId: activeChatId.value, messageId, senderId, res })
+      const readReceipts = res?.data?.result?.read_receipts ?? []
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
     }
   })
 }
@@ -115,13 +164,14 @@ const chatTheme = {
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchMore() {
-  if (loading.value || !hasMore.value) return
+  if (loading.value || !hasMore.value || !activeChatId.value) return
   loading.value = true
-  const pagingState = chatStore.pagingStates[props.chatId] || null
+  const pagingState = chatStore.pagingStates[activeChatId.value] || null
   const res = await FlowHandler.run('chat.fetchMessages', {
-    chatId: props.chatId,
+    chatId: activeChatId.value,
     limit: 20,
     pagingState,
+    currentUserId,
   })
   if (!res?.ok || !res.data?.pagingState) {
     hasMore.value = false
@@ -136,9 +186,38 @@ async function sendMessage() {
 
   isSending.value = true
   composeText.value = ''
+  showEmojiPicker.value = false
+
+  // Pending chat: create it first on the first message
+  if (!activeChatId.value) {
+    const isGroup = props.targetUserIds && props.targetUserIds.length > 0
+    const createRes = isGroup
+      ? await FlowHandler.run('chat.createGroupChat', {
+          type:         props.groupType,
+          createdBy:    String(currentUserId),
+          participants: [String(currentUserId), ...props.targetUserIds],
+          name:         props.chatName,
+        })
+      : await FlowHandler.run('chat.createChat', {
+          type:         'direct',
+          createdBy:    String(currentUserId),
+          participants: [String(currentUserId), String(props.targetUserId)],
+          name:         props.chatName,
+        })
+
+    if (createRes?.ok) {
+      activeChatId.value = createRes.data.chatId
+      emit('chat-created', createRes.data.chatId)
+      FlowHandler.run('chat.fetchUserChats', { userId: currentUserId })
+    } else {
+      composeText.value = text
+      isSending.value = false
+      return
+    }
+  }
 
   const tempId = 'temp-' + Date.now()
-  chatStore.addMessage(props.chatId, {
+  chatStore.addMessage(activeChatId.value, {
     id: tempId,
     message_id: tempId,
     senderId: currentUserId,
@@ -149,24 +228,24 @@ async function sendMessage() {
   })
 
   const res = await FlowHandler.run('chat.sendMessage', {
-    chatId:   props.chatId,
+    chatId:   activeChatId.value,
     senderId: currentUserId,
     text,
     type:     'text',
   })
 
   // Remove optimistic placeholder once real message arrives via addMessageAction
-  const msgs = chatStore.messages[props.chatId]
+  const msgs = chatStore.messages[activeChatId.value]
   if (msgs) {
-    chatStore.messages[props.chatId] = msgs.filter(
+    chatStore.messages[activeChatId.value] = msgs.filter(
       (m) => m.id !== tempId && m.message_id !== tempId
     )
   }
 
   if (res?.ok) {
-    chatStore.updateChatLastMessage(props.chatId, res.data.item)
+    chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
 
-    const allParticipants = chatStore.chatParticipants[props.chatId] || []
+    const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
     const recipients = allParticipants
       .map((id) => parseInt(id, 10))
       .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
@@ -186,6 +265,26 @@ function onKeydown(e) {
   }
 }
 
+function onEmojiSelect(emoji) {
+  const char = emoji.i
+  const el = inputRef.value
+  if (el && el.selectionStart !== undefined) {
+    const start = el.selectionStart
+    const end   = el.selectionEnd
+    composeText.value = composeText.value.slice(0, start) + char + composeText.value.slice(end)
+    nextTick(() => {
+      el.focus()
+      el.setSelectionRange(start + char.length, start + char.length)
+    })
+  } else {
+    composeText.value += char
+  }
+}
+
+function onEmojiPickerOutside(e) {
+  if (showEmojiPicker.value) showEmojiPicker.value = false
+}
+
 watch(() => messages.value.length, () => {
   observeNewRows()
 })
@@ -200,10 +299,15 @@ onMounted(async () => {
     threshold: 0.5,
   })
 
-  chatStore.pagingStates[props.chatId] = null
-  hasMore.value = true
-  await fetchMore()
-  observeNewRows()
+  const isPending = !activeChatId.value && (props.targetUserId || props.targetUserIds?.length > 0)
+  if (activeChatId.value) {
+    chatStore.pagingStates[activeChatId.value] = null
+    hasMore.value = true
+    await fetchMore()
+    observeNewRows()
+  } else if (isPending) {
+    hasMore.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -270,25 +374,36 @@ onUnmounted(() => {
           <svg v-else-if="message.status === 'sent'" style="width:10px;height:10px;color:#9ca3af" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
           </svg>
-          <!-- delivered: double check (gray) -->
-          <svg v-else-if="message.status === 'delivered'" style="width:14px;height:10px;color:#9ca3af" fill="none" stroke="currentColor" viewBox="0 0 28 24">
+          <!-- delivered or partial read: double check (gray) -->
+          <svg v-else-if="message.status === 'delivered' || (message.status === 'read' && !allParticipantsRead(message))" style="width:14px;height:10px;color:#9ca3af" fill="none" stroke="currentColor" viewBox="0 0 28 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M2 13l4 4L16 7"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 13l4 4L23 7"/>
           </svg>
-          <!-- read: double check (blue) -->
-          <svg v-else-if="message.status === 'read'" style="width:14px;height:10px;color:#38bdf8" fill="none" stroke="currentColor" viewBox="0 0 28 24">
+          <!-- all participants read: double check (blue) -->
+          <svg v-else-if="message.status === 'read' && allParticipantsRead(message)" style="width:14px;height:10px;color:#38bdf8" fill="none" stroke="currentColor" viewBox="0 0 28 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M2 13l4 4L16 7"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 13l4 4L23 7"/>
           </svg>
         </span>
       </template>
 
-      <!-- My avatar -->
+      <!-- My avatar — shows reader avatars from read_receipts -->
       <template #message.avatar.me="{ message }">
-        <img v-if="message.time && avatar" :src="avatar" class="w-[16px] h-[16px] rounded-full object-cover" />
-        <div v-else-if="message.time" class="w-[16px] h-[16px] rounded-full bg-slate-500 flex items-center justify-center text-white text-[8px] font-semibold">
-          {{ chatName.charAt(0).toUpperCase() }}
-        </div>
+        <template v-if="message.time || message.message_ts">
+          <div v-if="getMessageReaders(message).length > 0" class="flex items-center gap-0.5">
+            <div
+              v-for="reader in getMessageReaders(message)"
+              :key="reader.id"
+              class="overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
+            >
+              <img v-if="reader.avatar" :src="reader.avatar" class="w-[16px] h-[16px] object-cover" alt="" />
+              <div v-else class="w-[16px] h-[16px] bg-zinc-400 flex items-center justify-center text-white text-[7px] font-semibold">
+                {{ reader.initial }}
+              </div>
+            </div>
+          </div>
+          <div v-else class="w-[16px] h-[16px]"></div>
+        </template>
         <div v-else class="w-[16px] h-[16px]"></div>
       </template>
 
@@ -303,8 +418,16 @@ onUnmounted(() => {
 
       <!-- Compose -->
       <template #compose>
-        <div class="flex items-center gap-2 my-1 w-full">
+        <div class="relative flex items-center gap-2 my-1 w-full">
+          <!-- Current user avatar -->
+          <div class="shrink-0 overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
+            <img v-if="currentUserAvatar" :src="currentUserAvatar" class="w-7 h-7 object-cover" alt="" />
+            <div v-else class="w-7 h-7 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
+              {{ currentUserInitial }}
+            </div>
+          </div>
           <input
+            ref="inputRef"
             v-model="composeText"
             type="text"
             maxlength="2000"
@@ -317,12 +440,40 @@ onUnmounted(() => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 00-5.656-5.656L5.757 10.757a6 6 0 008.486 8.486L20 13" />
             </svg>
-            <svg class="w-[18px] h-[18px] cursor-pointer hover:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Emoji toggle button -->
+            <svg
+              @click.stop="showEmojiPicker = !showEmojiPicker"
+              class="w-[18px] h-[18px] cursor-pointer hover:text-zinc-600"
+              :class="showEmojiPicker ? 'text-zinc-600' : ''"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
               <circle cx="12" cy="12" r="10" stroke-width="2"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
             </svg>
           </div>
+
+          <!-- Emoji picker -->
+          <div
+            v-if="showEmojiPicker"
+            class="absolute bottom-full right-0 mb-2 z-50"
+            @click.stop
+          >
+            <EmojiPicker
+              :native="true"
+              :hide-group-icons="false"
+              :disable-skin-tones="false"
+              theme="light"
+              @select="onEmojiSelect"
+            />
+          </div>
         </div>
+
+        <!-- Outside click overlay to close picker -->
+        <div
+          v-if="showEmojiPicker"
+          class="fixed inset-0 z-40"
+          @click="showEmojiPicker = false"
+        />
       </template>
 
     </FlexChat>

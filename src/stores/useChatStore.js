@@ -124,6 +124,22 @@ export const useChatStore = defineStore("chat", {
       }
     },
 
+    updateMessageReadReceiptsAction({ chatId, messageId, readReceipts }) {
+      console.error("Updating read receipts for message", { chatId, messageId, readReceipts });
+      const msgs = this.messages[chatId];
+      if (!msgs) return;
+      const idx = msgs.findIndex((m) => (m.id || m.message_id) === messageId);
+      if (idx === -1) return;
+      const existing = Array.isArray(msgs[idx].read_receipts) ? msgs[idx].read_receipts : [];
+      const merged = [...existing];
+      for (const receipt of readReceipts) {
+        if (!merged.some((r) => String(r.user_id) === String(receipt.user_id))) {
+          merged.push(receipt);
+        }
+      }
+      msgs[idx] = { ...msgs[idx], status: 'read', read_receipts: merged };
+    },
+
     clearCache() {
       this.messages = {};
       this.pagingStates = {};

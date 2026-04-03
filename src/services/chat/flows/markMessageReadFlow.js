@@ -18,7 +18,7 @@ export async function markMessageReadFlow({ payload, context, api }) {
       return fail({ code: "MARK_MESSAGE_READ_FAILED", message: response?.error || "Failed to mark message as read." }, { flow: "chat.markMessageRead", status });
     }
 
-    return ok({ result: response?.result }, { flow: "chat.markMessageRead", status });
+    return ok({ result: response?.result, read_receipts: response?.read_receipts ?? [] }, { flow: "chat.markMessageRead", status });
   } catch (error) {
     return asFlowError(error, "MARK_MESSAGE_READ_UNEXPECTED");
   }

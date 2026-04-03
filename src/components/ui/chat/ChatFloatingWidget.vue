@@ -12,6 +12,7 @@ const chatStore = useChatStore()
 
 const isListOpen = ref(false)
 const currentUserId = ref(null)
+const chatListRef = ref(null)
 // openChats: [{ chatId, chatName, avatar }]
 const openChats = ref([])
 
@@ -26,14 +27,88 @@ function toggleList() {
 
 function openChatWindow(chat) {
   isListOpen.value = false
-  // Avoid duplicates
-  if (!openChats.value.find((c) => c.chatId === chat.chatId)) {
-    openChats.value.push(chat)
-  }
+  // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
+  const isDupe = openChats.value.find((c) =>
+    (chat.chatId && c.chatId === chat.chatId) ||
+    (chat.targetUserId && c.targetUserId === chat.targetUserId) ||
+    (chat.groupType && c.groupType === chat.groupType)
+  )
+  if (isDupe) return
+  openChats.value.push({ ...chat, uid: Date.now() })
 }
 
-function closeChatWindow(chatId) {
-  openChats.value = openChats.value.filter((c) => c.chatId !== chatId)
+function closeChatWindow(uid) {
+  openChats.value = openChats.value.filter((c) => c.uid !== uid)
+}
+
+function onChatCreated(uid, newChatId) {
+  const entry = openChats.value.find((c) => c.uid === uid)
+  if (entry) entry.chatId = newChatId
+}
+
+function findExistingDirectChat(targetUserId) {
+  const targetId = Number(targetUserId)
+  const myId = Number(currentUserId.value)
+  return chatStore.userChats.find(chat => {
+    const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
+    return parts.length === 2 && parts.includes(myId) && parts.includes(targetId)
+  })
+}
+
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType }) {
+  // --- Group chat (Message All) ---
+  if (userIds && userIds.length > 0) {
+    // Check for existing group with same type
+    const existing = groupType
+      ? chatStore.userChats.find((c) => c.type === groupType)
+      : null
+
+    if (existing) {
+      // Add new participants to existing group
+      FlowHandler.run('chat.addChatParticipant', {
+        chatId: existing.chat_id,
+        userIds: userIds.map(String),
+        invitedBy: String(currentUserId.value),
+      })
+      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType })
+    } else {
+      // Open pending group window — chat created on first message
+      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType })
+    }
+    chatListRef.value?.chatReady?.()
+    isListOpen.value = false
+    return
+  }
+
+  // --- 1-on-1: reuse existing ---
+  const existing = findExistingDirectChat(userId)
+  if (existing) {
+    if (userId && !chatStore.chatUsersData[String(userId)]) {
+      chatStore.chatUsersData[String(userId)] = {
+        display_name: displayName,
+        username: username || '',
+        avatar: avatar || '',
+      }
+    }
+    openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: avatar || null })
+    chatListRef.value?.chatReady?.()
+    isListOpen.value = false
+    return
+  }
+
+  // Store user data immediately so ChatListPanel can display name/avatar without an extra API call
+  if (userId) {
+    chatStore.chatUsersData[String(userId)] = {
+      display_name: displayName,
+      username: username || '',
+      avatar: avatar || '',
+    }
+  }
+
+  // --- 1-on-1: open pending window, chat created on first message ---
+  openChatWindow({ chatId: null, chatName: displayName, avatar: avatar || null, targetUserId: String(userId) })
+  chatListRef.value?.chatReady?.()
+  isListOpen.value = false
 }
 
 const socket = ref(null)
@@ -86,13 +161,17 @@ onMounted(async () => {
     <div class="flex items-end gap-2">
       <ChatWindow
         v-for="chat in openChats"
-        :key="chat.chatId"
+        :key="chat.uid"
         :chat-id="chat.chatId"
         :chat-name="chat.chatName"
         :avatar="chat.avatar"
+        :target-user-id="chat.targetUserId"
+        :target-user-ids="chat.targetUserIds"
+        :group-type="chat.groupType"
         :socket="socket"
-        @close="closeChatWindow(chat.chatId)"
-        @minimize="closeChatWindow(chat.chatId)"
+        @close="closeChatWindow(chat.uid)"
+        @minimize="closeChatWindow(chat.uid)"
+        @chat-created="(id) => onChatCreated(chat.uid, id)"
       />
     </div>
 
@@ -102,9 +181,11 @@ onMounted(async () => {
       <!-- Chat list panel (floats above trigger) -->
       <ChatListPanel
         v-if="isListOpen"
+        ref="chatListRef"
         :current-user-id="currentUserId"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
+        @start-chat="onStartChat"
       />
 
       <!-- Trigger button (UI-01.0) -->

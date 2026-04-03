@@ -3,6 +3,9 @@ import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEven
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
+import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
+import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
+import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
 import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
 import { fetchUserChatsFlow } from "@/services/chat/flows/fetchUserChatsFlow.js";
@@ -745,6 +748,45 @@ export const flowRegistry = {
       concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
       destinations: [],
       uiErrorMap: {},
+    },
+  },
+  "chat.createGroupChat": {
+    flowKind: "write",
+    flow: createGroupChatFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {
+        CREATE_GROUP_CHAT_FAILED: "Could not create group chat right now.",
+      },
+    },
+  },
+  "chat.addChatParticipant": {
+    flowKind: "write",
+    flow: addChatParticipantFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {
+        ADD_CHAT_PARTICIPANT_FAILED: "Could not add participant to chat.",
+      },
+    },
+  },
+  "chat.fetchGroupUserIds": {
+    flowKind: "read",
+    flow: fetchGroupUserIdsFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {
+        FETCH_GROUP_USER_IDS_FAILED: "Could not load users for this group.",
+      },
     },
   },
 };

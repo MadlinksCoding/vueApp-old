@@ -49,11 +49,19 @@ export function useChatSocket(userId) {
 
   function _handleIncomingStatusUpdate(body) {
     if (!body?.chat_id || !body?.message_id || !body?.status) return;
-    chatStore.updateMessageStatusAction({
-      chatId: body.chat_id,
-      messageId: body.message_id,
-      status: body.status,
-    });
+    if (body.status === 'read' && Array.isArray(body.read_receipts) && body.read_receipts.length > 0) {
+      chatStore.updateMessageReadReceiptsAction({
+        chatId: body.chat_id,
+        messageId: body.message_id,
+        readReceipts: body.read_receipts,
+      });
+    } else {
+      chatStore.updateMessageStatusAction({
+        chatId: body.chat_id,
+        messageId: body.message_id,
+        status: body.status,
+      });
+    }
   }
 
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
@@ -190,8 +198,15 @@ export function useChatSocket(userId) {
     });
   }
 
-  function sendStatusUpdate(chatId, messageId, status, recipientId) {
-    sendSocket('chat:status', { chat_id: chatId, message_id: messageId, status, to: recipientId });
+  function sendStatusUpdate(chatId, messageId, status, recipientId, readReceipts = []) {
+    console.error("Sending status update", { chatId, messageId, status, recipientId, readReceipts });
+    sendSocket('chat:status', {
+      chat_id: chatId,
+      message_id: messageId,
+      status,
+      to: recipientId,
+      read_receipts: Array.isArray(readReceipts) && readReceipts.length > 0 ? readReceipts : undefined,
+    });
   }
 
   // ── Cleanup ────────────────────────────────────────────────────────────────

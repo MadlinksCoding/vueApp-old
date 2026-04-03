@@ -1,5 +1,78 @@
 # Changelog
 
+## 2026-04-02 (Session 2)
+
+### Bug Fixes
+- **`markMessageRead` called again on chat window reload** — on remount, `_markedReadIds` is a fresh empty `Set` and `observeNewRows()` checks `msg?.status === 'read'` to skip already-read messages. However, `fetchMessagesFlow` was not normalizing `status` from the API response, so fetched messages arrived without a `status` field and the guard never triggered. Fixed by deriving `status: 'read'` from `read_receipts[].user_id` in the flow.
+
+### Changes (`fetchMessagesFlow.js`)
+- Accepts optional `currentUserId` in payload
+- Each fetched message: if `read_receipts` contains `currentUserId`, sets `status: 'read'`; otherwise uses `m.status` from API or defaults to `'sent'`
+
+### Changes (`ChatWindow.vue`)
+- `fetchMore()` passes `currentUserId` to `chat.fetchMessages` flow
+
+---
+
+## 2026-04-02
+
+### Features
+
+- **New Message popup** — creators can now start chats directly from the chat widget. Edit icon in `ChatListPanel` header opens a `PopupHandler`-based popup (`NewChatPopup.vue`) with four sections:
+  - **Missed Call Users** — random audience users
+  - **Subscribers** — grouped by subscription tier, with per-tier "Message All" button
+  - **Top Followers** — paginated, sorted by follower count, with "Message All" button
+  - **Unsubscribed Users** — followers without a paid subscription, paginated, with "Message All" button
+  - **Search** — debounced (300ms) username/display name search across all fans
+
+- **Pending chat pattern** — clicking "Message" opens a `ChatWindow` instantly with no API call. The chat (`createChat` or `createGroupChat`) is only created when the user sends their first message. Eliminates empty chat creation.
+
+- **Group chat (Message All)** — "Message All" buttons fetch the complete user ID list for their section via a new `GET /wp-json/api/chat/new-message-users/group-ids` endpoint, then open a pending group chat window. On first message send, `createGroupChat` is called with `type` set to the group type string (`subscribers_<tier_id>`, `top_followers`, `unsubscribed`).
+
+- **Group chat duplicate detection** — before creating a new group, `chatStore.userChats` is scanned for an existing chat where `c.type === groupType`. If found, new participants are added to the existing group (using the updated multi-user `addChatParticipant` endpoint) instead of creating a duplicate.
+
+- **User data pre-population** — when a 1-on-1 chat is opened from the popup, the user's `{ display_name, username, avatar }` is written directly into `chatStore.chatUsersData` from the popup's existing response. No extra `GET /get-users-data` API call needed.
+
+- **Multi-participant add** — `addChatParticipantFlow.js` updated to support `userIds: string[]` in payload. Backend already supported `POST /chats/:chatId/participants` with `{ userIds }` body.
+
+### New Files
+- `vueApp/src/components/ui/chat/NewChatPopup.vue` — full popup component
+- `vueApp/src/utils/resolveParentUserData.js` — safely reads `window.parent.userData` for iframe context
+- `vueApp/src/services/chat/flows/fetchGroupUserIdsFlow.js` — fetches all user IDs for a section (no pagination)
+
+### New Flow Registrations (`flowRegistry.js`)
+- `chat.createGroupChat`
+- `chat.addChatParticipant`
+- `chat.fetchGroupUserIds`
+
+### New WordPress REST Endpoints (`includes/class-api-chat-users.php`)
+- `GET /wp-json/api/chat/new-message-users` — default, search, and load-more modes
+- `GET /wp-json/api/chat/new-message-users/group-ids` — returns all IDs for a section (subscribers, top_followers, unsubscribed)
+
+### Changes (`ChatWindow.vue`)
+- `chatId` prop changed from required to `default: null`
+- New props: `targetUserId` (1-on-1 pending), `targetUserIds[]` (group pending), `groupType`
+- Internal `activeChatId` ref replaces direct `props.chatId` usage throughout — updated in place when pending chat is created on first send
+- `fetchMore` and `onMounted` skip when `activeChatId` is null (pending state)
+- `sendMessage` handles both pending 1-on-1 (`createChat`) and pending group (`createGroupChat`) before sending
+- Emits `chat-created` event with new chatId so parent can update `openChats` entry
+
+### Changes (`ChatFloatingWidget.vue`)
+- `openChats` entries have stable `uid: Date.now()` — prevents component remount when `chatId` updates from null to real ID
+- `openChatWindow` deduplicates by `chatId`, `targetUserId`, and `groupType`
+- `closeChatWindow(uid)` and `onChatCreated(uid, newChatId)` use `uid` instead of `chatId`
+- `chatListRef` template ref on `<ChatListPanel>`; `chatListRef.value?.chatReady?.()` called in all `onStartChat` paths to close popup after window opens
+- Group path checks for existing group by type before creating
+
+### Changes (`ChatListPanel.vue`)
+- Edit button (creator-only) opens `NewChatPopup` via `PopupHandler`
+- `isCreator` and `creatorId` computed from `resolveParentUserData()` for iframe compatibility
+- `onNewChatMessage` emits `start-chat` without closing popup; `onChatReady()` closes it
+- `defineExpose({ chatReady: onChatReady })` for parent template ref access
+
+### Changes (`addChatParticipantFlow.js`)
+- Accepts `userIds: string[]` for multi-add; sends `{ userIds }` body to backend
+- Returns `{ results: [...] }` for multi, existing single shape otherwise
 ## 2026-03-30
 
 ### Features

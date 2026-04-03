@@ -1,12 +1,55 @@
 <script setup>
+import { ref, computed } from 'vue'
 import { useChatStore } from '@/stores/useChatStore'
 import EditIcon from '@/assets/images/icons/edit-05-pink.webp'
 import DropdownIcon from '@/assets/images/icons/chevron-down-gray.webp'
+import NewChatPopup from '@/components/ui/chat/NewChatPopup.vue'
+import PopupHandler from '@/components/ui/popup/PopupHandler.vue'
+import { resolveParentUserData } from '@/utils/resolveParentUserData.js'
 
 const props = defineProps({
   currentUserId: { type: [String, Number], default: null },
 })
-const emit = defineEmits(['open-chat', 'close'])
+const emit = defineEmits(['open-chat', 'close', 'start-chat', 'chat-ready'])
+
+const showNewChatPopup = ref(false)
+
+function onNewChatMessage(payload) {
+  emit('start-chat', payload)
+}
+
+function onChatReady() {
+  showNewChatPopup.value = false
+}
+
+defineExpose({ chatReady: onChatReady })
+
+const isCreator = computed(() => {
+  const ud = resolveParentUserData()
+  return ud?.accountType === 'creator' || window.userSpecifiData?.currentUser?.isCreator === true || localStorage.getItem('isCreator') === 'true'
+})
+
+const creatorId = computed(() => {
+  const ud = resolveParentUserData()
+  return isCreator.value ? (ud?.userID ?? props.currentUserId) : null || props.currentUserId
+})
+
+const newChatPopupConfig = {
+  actionType: 'popup',
+  position: { default: 'top-center', '>768': 'center' },
+  customEffect: 'scale',
+  speed: '250ms',
+  effect: 'ease-in-out',
+  closeSpeed: '250ms',
+  showOverlay: true,
+  closeOnOutside: true,
+  lockScroll: false,
+  escToClose: true,
+  width: { default: '100%', '>768': '675px' },
+  height: { default: '100vh', '>768': '90vh' },
+  scrollable: false,
+  zIndex: 10000,
+}
 
 const chatStore = useChatStore()
 
@@ -71,7 +114,7 @@ function getLastMessageText(chat) {
     <!-- Header -->
     <div class="px-2 py-1 flex justify-center items-center gap-2.5">
       <div class="flex-1 text-gray-500 text-sm font-medium font-['Poppins'] leading-5">Chat</div>
-      <button title="New chat">
+      <button v-if="isCreator" title="New chat" @click="showNewChatPopup = true">
         <img :src="EditIcon" alt="edit" class="w-5 h-5" />
       </button>
       <button @click="emit('close')" title="Close">
@@ -143,4 +186,20 @@ function getLastMessageText(chat) {
     </div>
 
   </div>
+
+  <!-- New Chat Popup — slide-in via PopupHandler -->
+  <PopupHandler
+    v-if="isCreator"
+    v-model="showNewChatPopup"
+    :config="newChatPopupConfig"
+    @closed="showNewChatPopup = false"
+  >
+    <NewChatPopup
+      :creator-id="creatorId"
+      :current-user-id="currentUserId"
+      @start-chat="onNewChatMessage"
+      @close="showNewChatPopup = false"
+    />
+  </PopupHandler>
+
 </template>
