@@ -34,6 +34,8 @@ const props = defineProps({
     required: true
   },
   beforeSubmit: { type: Function, default: null },
+  fanId:        { type: Number, default: 0 },
+  creatorId:    { type: Number, default: 0 },
 });
 
 const emit = defineEmits(['back', 'success', 'payment-failed']);
@@ -91,10 +93,10 @@ const canSubmit = computed(() =>
 );
 
 function resolveFanUserId() {
-  return localStorage.getItem('userId') ?? 2;
+  return props.fanId || Number(window?.userData?.userID) || 0;
 }
 function resolveCreatorId() {
-  return 1;
+  return props.creatorId || 0;
 }
 
 // Dev helper — patch window.userData from localStorage so guest form reflects logged-in state.
@@ -225,7 +227,14 @@ function handlePaymentSuccess(_response) {
     || 
     (_response?.order_status && ( _response.order_status == 'completed' || _response.order_status == 'processing' )) 
   ) {
-    emit('success');
+    emit('success', { userId: _response.user_id || null });
+
+    // guestCheckout.checkGuestAuthAfterPayment
+    // guestCheckouth 
+    if( window?.parent?.guestCheckout ) {
+      window.parent.preventReloadOnCheckoutClose = true;
+      window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
+    }
   } else {
     emit('payment-failed', _response);
     showToast({

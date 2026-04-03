@@ -27,6 +27,7 @@ import { mapCreateBookingToRequest } from "@/services/bookings/mappers/createBoo
 import { createTemporaryHoldFlow } from "@/services/bookings/flows/createTemporaryHoldFlow.js";
 import { getTemporaryHoldStatusFlow } from "@/services/bookings/flows/getTemporaryHoldStatusFlow.js";
 import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTemporaryHoldFlow.js";
+import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTemporaryHoldUserFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
@@ -345,6 +346,21 @@ export const flowRegistry = {
       uiErrorMap: {
         RELEASE_TEMPORARY_HOLD_MISSING_ID: "Temporary hold id is missing.",
         RELEASE_TEMPORARY_HOLD_FAILED: "Could not release temporary hold.",
+      },
+    },
+  },
+  "bookings.updateTemporaryHoldUser": {
+    flowKind: "write",
+    flow: updateTemporaryHoldUserFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 16000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {
+        UPDATE_TEMPORARY_HOLD_USER_MISSING_ID: "Temporary hold id is missing.",
+        UPDATE_TEMPORARY_HOLD_USER_MISSING_USER: "User id is missing.",
+        UPDATE_TEMPORARY_HOLD_USER_FAILED: "Could not update temporary hold user.",
       },
     },
   },

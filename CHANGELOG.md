@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-03-30
+
+### Features
+
+- **Guest session ID for temporary holds** — `resolveGuestSessionId.js` utility generates a unique per-tab guest ID (`12345` + 7 random digits) stored in `sessionStorage`. Used as `userId`/`fanId` fallback when fan is not logged in, replacing the shared static `userId = 1`.
+
+### Bug Fixes
+
+- **`BookingFlowStep3` — guest fan hold** — `ensureTemporaryHold` now passes `resolveFanId() || resolveGuestSessionId()` as `userId`/`fanId` in the flow context, preventing "Missing required fields: userId" for unauthenticated fans.
+
+- **`BookingFlowStep3` — temporary hold userId mismatch** — `finalizeBooking` now calls `bookings.updateTemporaryHoldUser` before `createBooking` on all payment paths (topup and direct), replacing the guest placeholder userId with the real authenticated userId.
+
+- **`createBookingMapper` — fanId `??` vs `||`** — changed nullish coalescing to `||` so a falsy `fanId = 0` correctly falls through to the context fallback instead of being used as-is.
+
+- **`TopUpForm` — hardcoded `userId` and `creatorId`** — replaced `localStorage.getItem('userId') ?? 0` and hardcoded `creatorId = 1` with props received from `BookingFlowStep3`. `resolveFanUserId()` now returns `props.fanId || window.userData.userID || 0`; `resolveCreatorId()` returns `props.creatorId || 0`. Guest session ID is intentionally not forwarded to the payment form.
+
+### New Files
+
+- `src/utils/resolveGuestSessionId.js` — guest session ID generator
+
+### New Flow Registrations (`flowRegistry.js`)
+
+- `bookings.updateTemporaryHoldUser`
+
+### New Flows
+
+- `src/services/bookings/flows/updateTemporaryHoldUserFlow.js` — `PATCH /temporary-holds/:id/user`
+
+---
+
 ## 2026-03-26
 
 ### Features

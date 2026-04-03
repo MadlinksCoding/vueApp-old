@@ -21,6 +21,7 @@ import {
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
+import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
 
 const props = defineProps({
   engine: {
@@ -627,6 +628,8 @@ async function ensureTemporaryHold() {
       context: {
         stateEngine: props.engine,
         apiBaseUrl: props.apiBaseUrl || undefined,
+        userId: resolveFanId() || resolveGuestSessionId(),
+        fanId: resolveFanId() || resolveGuestSessionId(),
       },
     });
 
@@ -919,7 +922,24 @@ const onTopUpPaymentFailed = () => {
   props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
 };
 
-const onTopUpPaymentSuccess = async () => {
+const onTopUpPaymentSuccess = async ({ userId } = {}) => {
+  if (userId) {
+    props.engine.setState('fanBooking.context.fanId', Number(userId), { reason: 'topup-user-id', silent: true });
+
+    // Update the temporary hold's userId from guest placeholder (1) to the real userId
+    const temporaryHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+    if (temporaryHoldId) {
+      await FlowHandler.run('bookings.updateTemporaryHoldUser', {
+        temporaryHoldId,
+        userId: Number(userId),
+      }, {
+        context: {
+          stateEngine: props.engine,
+          apiBaseUrl: props.apiBaseUrl || undefined,
+        },
+      });
+    }
+  }
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
@@ -1247,6 +1267,8 @@ onBeforeUnmount(() => {
                   :total-price="totalPrice"
                   :remaining-balance="remainingBalanceAfterBooking"
                   :before-submit="validateBeforeTopUpSubmit"
+                  :fan-id="resolveFanId()"
+                  :creator-id="resolveCreatorId()"
                   @back="goBackToPaymentSummary"
                   @success="onTopUpPaymentSuccess"
                   @payment-failed="onTopUpPaymentFailed"

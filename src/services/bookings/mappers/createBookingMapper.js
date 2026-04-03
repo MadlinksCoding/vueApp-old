@@ -257,8 +257,8 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   const event = resolveSelectedEvent(state);
   const fanId = safeNumber(
     state?.fanBooking?.context?.fanId
-      ?? context?.fanId
-      ?? context?.userId,
+      || context?.fanId
+      || context?.userId,
     0,
   );
 
