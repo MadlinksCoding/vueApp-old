@@ -376,8 +376,8 @@ const xRepostPopupState = ref({
 });
 const xRepostPopupConfig = {
   actionType: 'popup',
-  width: { default: '493px' },
-  height: { default: 'auto' },
+  width: { default: "493px", "<768": "100%" },
+  height: { default: "auto", "<768": "100%" },
   showOverlay: true,
   closeOnOutside: true,
   customEffect: 'scale',

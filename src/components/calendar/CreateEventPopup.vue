@@ -38,7 +38,7 @@
                         event for
                         fans to join.</div>
                 </div>
-                <img class="w-20 h-20" src="/images/neonDoor.png" />
+                <img class="w-20 h-20" :src="NeonDoorIcon" />
             </div>
         </div>
     </div>
@@ -46,6 +46,7 @@
 
 <script setup>
 import cartoonFeetIcon from "@/assets/images/icons/cartoonfeet.webp";
+import NeonDoorIcon from "@/assets/images/icons/neonDoor.png";
 
 const emit = defineEmits(["create-private", "create-group"]);
 
