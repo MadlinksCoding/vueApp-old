@@ -609,7 +609,7 @@ onMounted(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full lg:w-[852px] md:!bg-none overflow-hidden"
     :style="popupBackgroundStyle"
   >
-    <div class="h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 md:bg-black lg:bg-transparent lg:p-0">
+    <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 lg:bg-transparent lg:p-0', !embedded && 'md:bg-black']">
       <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
 
         <OneOnOneBookingFlowLeftSideBar
