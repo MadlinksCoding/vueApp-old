@@ -1,50 +1,18 @@
 <template>
-  <div 
-    class="inline-flex justify-center items-center" 
-    :class="[wrapperClass]"
-  >
+  <div class="inline-flex justify-center items-center" :class="[wrapperClass]">
     <!-- Use img if src provided -->
-    <img 
-      v-if="src" 
-      :src="src" 
-      class="animate-spin"
-      :class="[sizeClass, customClass]" 
-      :style="[dynamicStyle, { filter: imgFilter }]"
-      alt="Loading..."
-    />
-    
+    <img v-if="src" :src="src" class="animate-spin" :class="[sizeClass, customClass]"
+      :style="[dynamicStyle, { filter: imgFilter }]" alt="Loading..." />
+
     <!-- Otherwise use inline SVG -->
-    <svg 
-      v-else 
-      class="animate-spin"
-      :class="[sizeClass, customClass, color]" 
-      :style="dynamicStyle"
-      xmlns="http://www.w3.org/2000/svg" 
-      fill="none" 
-      viewBox="0 0 24 24"
-    >
+    <svg v-else class="animate-spin" :class="[sizeClass, customClass, color]" :style="dynamicStyle"
+      xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <!-- Background Track -->
-      <circle 
-        v-if="showTrack"
-        class="opacity-25" 
-        cx="12" 
-        cy="12" 
-        :r="radius" 
-        stroke="currentColor" 
-        :stroke-width="strokeWidth"
-        :class="trackColor"
-      ></circle>
+      <circle v-if="showTrack" class="opacity-25" cx="12" cy="12" :r="radius" stroke="currentColor"
+        :stroke-width="strokeWidth" :class="trackColor"></circle>
       <!-- Spinning Segment -->
-      <circle 
-        class="opacity-75"
-        cx="12"
-        cy="12"
-        :r="radius"
-        stroke="currentColor"
-        :stroke-width="strokeWidth"
-        stroke-linecap="round"
-        :stroke-dasharray="dasharray"
-      ></circle>
+      <circle class="opacity-75" cx="12" cy="12" :r="radius" stroke="currentColor" :stroke-width="strokeWidth"
+        stroke-linecap="round" :stroke-dasharray="dasharray"></circle>
     </svg>
     <span v-if="text" :class="['ml-2', textClass]">{{ text }}</span>
   </div>

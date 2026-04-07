@@ -244,7 +244,7 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
             <div :class="[theme.row, 'w-full']" v-bind="rowAttrs ? rowAttrs(row, rIdx) : {}"
                  @click="onRowClick(row)" @contextmenu="onRowContext($event, row)">
               <template v-for="(col, cIdx) in columns" :key="(row[rowKey] ?? rIdx)+'-'+col.key">
-                <div :class="[theme.cell, colClass(col), 'overflow-hidden']" @click.stop="$emit('cell-click', { row, col })">
+                <div :class="[theme.cell, colClass(col), 'overflow-hidden']" @click="$emit('cell-click', { row, col })">
                   <slot :name="'cell.'+col.key" :value="row[col.key]" :row="row" :col="col">
                     
                     <div v-if="col.type === 'rich-icon'" class="flex items-center p-0 h-full">
@@ -271,16 +271,24 @@ function onRowContext(e, row) { e?.preventDefault?.(); emit('row-context', row) 
                     </div>
 
                     <div v-else-if="col.type === 'status'" class="flex items-center p-2.5 h-full">
-                       <div class="flex items-start">
-                          <span class="flex justify-center items-center backdrop-blur-[10px] rounded mr-1.5"
+                       <div class="flex items-center">
+                          <!-- Status Icon -->
+                          <span class="flex justify-center items-center h-6 w-6 shrink-0"
                                 :class="col.config?.styles?.[row[col.key]]?.iconBg || 'bg-gray-100'">
-                             <img v-if="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon"
+                             <svg v-if="col.config?.styles?.[row[col.key]]?.isCompleted" width="14" height="10" viewBox="0 0 14 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12.3333 1L4.99996 8.33333L1.66663 5" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                             </svg>
+                             <svg v-else-if="col.config?.styles?.[row[col.key]]?.isCancelled" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11 1L1 11M1 1L11 11" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                             </svg>
+                             <img v-else-if="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon"
                                   :src="col.config?.styles?.[row[col.key]]?.iconSrc || col.config?.defaultIcon" 
                                   class="w-4 h-4 object-contain dark:[filter:invert(1)]"/>
                           </span>
-                          <span class="flex justify-center items-center text-xs font-medium backdrop-blur-[10px] whitespace-nowrap rounded"
+                          <!-- Status Text -->
+                          <span class="flex justify-center items-center text-[11px] font-semibold h-6 px-2 whitespace-nowrap"
                                 :class="col.config?.styles?.[row[col.key]]?.textClass || 'text-gray-800'">
-                             {{ row[col.key] }}
+                             {{ col.config?.styles?.[row[col.key]]?.label || row[col.key] }}
                           </span>
                        </div>
                     </div>

@@ -39,9 +39,10 @@ export const overlayClick = {
 
 export function usePopupStack() {
   function registerPanel(elRef, callbacks) {
-    const el = elRef?.value || elRef?.el || elRef;
-    if (!el) {
-      console.error('[usePopupStack] registerPanel: invalid element.');
+    const el = (elRef && typeof elRef === 'object' && 'value' in elRef) ? elRef.value : (elRef?.el || elRef);
+    
+    if (!el || typeof el.style === 'undefined') {
+      console.warn('[usePopupStack] registerPanel: element not ready or invalid.', el);
       return;
     }
     const baseZ = Number(el.style.zIndex || 2000);
