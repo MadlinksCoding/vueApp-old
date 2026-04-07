@@ -49,8 +49,8 @@ const tabList = [
           </div>
         </div>
       </div>
-      <div v-if="currentTab === 'progress'">
-        <UpdatedTableDemo />
+      <div>
+        <UpdatedTableDemo :active-tab="currentTab" />
       </div>
     </div>
   </DashboardWrapperTwoColContainer>

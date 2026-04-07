@@ -13,7 +13,14 @@ A single, reusable Vue 3 SFC that handles BOTH centered popups and slide-ins.
 - NEW: Optional scrollable content with hidden scrollbar
 ================================================================= -->
 <template>
-  <Teleport to="body">
+  <Teleport :to="props.teleportTo || 'body'" :disabled="cfg.isAbsolute">
+    <!-- Local overlay for absolute popups to avoid dimming whole screen -->
+    <div 
+      v-if="isVisible && cfg.isAbsolute && cfg.showOverlay"
+      class="absolute inset-0 bg-black/5 backdrop-blur-[7.5px] z-[1999] cursor-pointer"
+      @click="onEsc"
+    ></div>
+
     <!-- Panel wrapper (modal container) -->
     <div
       v-show="isVisible"
@@ -113,6 +120,13 @@ const props = defineProps({
   isLoading: {
     type: Boolean,
     default: false
+  },
+  /**
+   * Target for teleportation. Defaults to body.
+   */
+  teleportTo: {
+    type: String,
+    default: 'body'
   }
 });
 
@@ -146,7 +160,8 @@ const defaults = {
   escToClose: true,
   position: 'center', // popup: center | top-center | full (inferred if width/height=100%)
   scrollable: true ,// NEW: default scrollable with hidden scrollbar
-  verticalAlign: 'stretch'
+  verticalAlign: 'stretch',
+  isAbsolute: false // NEW: Support for absolute positioning within relative parent
 };
 
 // -------------------- State & Refs --------------------
@@ -293,16 +308,30 @@ async function openPanel() {
 
   // z-index calc & overlay
   const baseZ = (cfg.value.forceZIndex != null) ? cfg.value.forceZIndex : (cfg.value.zIndex ?? defaults.zIndex);
+  
+  // Register with stack after nextTick ensures panelRef.value is not null
+  registerPanel(panelRef, {
+    onBecomeTop: () => { 
+      registerOverlayHandler();
+    },
+    onAllClosed: () => {
+      setOverlayVisible(false);
+      setOverlayActive(false);
+      bodyScrollLock(false);
+    }
+  });
+
   currentZ.value = bringToFront(panel, baseZ);
-  if (cfg.value.showOverlay) {
+  if (cfg.value.showOverlay && !cfg.value.isAbsolute) {
     setOverlayZ(currentZ.value - 1);
     setOverlayActive(true);
     setOverlayVisible(true);
     registerOverlayHandler();
   } else if (cfg.value.closeOnOutside) {
-    // Even without overlay, set up outside click detection
+    // Even without global overlay, set up outside click detection
     registerOverlayHandler();
   }
+
 
   // Body scroll lock
   if (cfg.value.lockScroll) bodyScrollLock(true);
@@ -436,9 +465,9 @@ function validateSizeValue(value, name) {
   
   if (typeof value === 'string') {
     // String values: px, %, vw, vh, auto
-    const validStringPattern = /^(auto|\d+(\.\d+)?(px|%|vw|vh))$/i;
+    const validStringPattern = /^(auto|\d+(\.\d+)?(px|%|vw|vh|rem|em))$/i;
     if (!validStringPattern.test(value.trim())) {
-      errorAndThrow(`Invalid ${name} string value "${value}". Use format like "600px", "50%", "100vw", "100vh", or "auto".`);
+      errorAndThrow(`Invalid ${name} string value "${value}". Use format like "600px", "50%", "100vw", "100vh", "30rem", "2em", or "auto".`);
     }
   } else if (typeof value === 'number') {
     // Number values: treated as pixels
@@ -483,7 +512,7 @@ function applyInitialStyles(panel) {
   const isFullH = ['100%', '100vh'].includes(normalizedH);
 
   // Base styles
-  panel.style.position = 'fixed';
+  panel.style.position = cfg.value.isAbsolute ? 'absolute' : 'fixed';
   panel.style.zIndex = String(currentZ.value);
   panel.style.visibility = 'visible';
   panel.style.width = (normalizedW ?? 'auto');
@@ -721,19 +750,6 @@ function registerOverlayHandler() {
 // -------------------- Watchers & lifecycle --------------------
 watch(() => props.modelValue, (nv) => {
   if (nv) {
-    registerPanel(panelRef, {
-      onBecomeTop: () => { 
-        // When this panel becomes top-most again (e.g. child closed), 
-        // restore its overlay click handler
-        registerOverlayHandler();
-      },
-      onAllClosed: () => {
-        // When all closed: hide overlay & unlock scroll
-        setOverlayVisible(false);
-        setOverlayActive(false);
-        bodyScrollLock(false);
-      }
-    });
     openPanel();
   } else {
     if (isVisible.value) closePanel();
