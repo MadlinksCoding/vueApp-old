@@ -143,9 +143,24 @@ const bookingFeeAmount = computed(() => {
   const amount = findLineAmount("booking_fee");
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
-const discountAmount = computed(() => {
-  const amount = findLineAmount("discount");
-  return amount < 0 ? Math.abs(amount) : 0;
+const discountLines = computed(() => (
+  mappedPaymentLines.value
+    .filter((row) => {
+      const code = String(row?.code || '');
+      return (code === 'discount' || code === 'first_time_discount') && Number(row?.amount || 0) < 0;
+    })
+    .map((row) => ({
+      code: String(row?.code || ''),
+      label: String(row?.label || 'Discount'),
+      amount: Math.abs(Number(row?.amount || 0)),
+    }))
+));
+const totalDiscountAmount = computed(() => (
+  discountLines.value.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+));
+const firstTimeDiscountAmount = computed(() => {
+  const row = discountLines.value.find((item) => item.code === 'first_time_discount');
+  return Number(row?.amount || 0);
 });
 const offHourSurchargeAmount = computed(() => {
   const amount = findLineAmount("off_hour_surcharge");
@@ -1227,14 +1242,18 @@ onBeforeUnmount(() => {
                             </div>
                           </div>
 
-                          <div v-if="discountAmount > 0" class="flex flex-col gap-2">
+                          <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs leading-[18px] text-[#98A2B3]">DISCOUNT</h4>
-                            <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Longer Session Discount</p>
+                            <div
+                              v-for="row in discountLines"
+                              :key="row.code"
+                              class="flex flex-row justify-between items-center text-white"
+                            >
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ row.label }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm leading-[20px]">-</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(discountAmount) }}</p>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(row.amount) }}</p>
                               </div>
                             </div>
                           </div>
