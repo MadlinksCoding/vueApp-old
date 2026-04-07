@@ -38,9 +38,12 @@ import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTem
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
+import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
 import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
+import { mapRenegotiateBookingToRequest } from "@/services/bookings/mappers/renegotiateBookingMapper.js";
+import { mapRescheduleBookingToRequest } from "@/services/bookings/mappers/rescheduleBookingMapper.js";
 import {
   validateFetchCatalogPayload,
   validateFetchCatalogResponse,
@@ -422,12 +425,58 @@ export const flowRegistry = {
         { type: "stateEngine", key: "events.lastCancel", mode: "set" },
         { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastCancelAt: "@now" } },
         { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
       ],
       uiErrorMap: {
         CANCEL_BOOKING_MISSING_ID: "Booking id is required.",
         CANCEL_BOOKING_FAILED: "Could not cancel booking.",
         HTTP_400: "This booking cannot be cancelled in its current status.",
         HTTP_402: "Could not reverse token hold for cancellation.",
+      },
+    },
+  },
+  "bookings.renegotiateBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRenegotiateBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastRenegotiate", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRenegotiateAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not renegotiate booking.",
+        HTTP_400: "This booking update is invalid in the current state.",
+        HTTP_402: "Could not update held payment for this booking.",
+      },
+    },
+  },
+  "bookings.rescheduleBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRescheduleBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastReschedule", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRescheduleAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not reschedule booking.",
+        HTTP_400: "This booking cannot be rescheduled with the selected time.",
       },
     },
   },
