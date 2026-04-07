@@ -93,7 +93,21 @@ function getChatAvatar(chat) {
 function getLastMessageText(chat) {
   const msg = chat.last_message
   if (!msg) return null
-  const text = typeof msg === 'string' ? msg : (msg?.content?.text ?? null)
+
+  const contentType = msg.content_type
+
+  // System / special message types — show fixed label or system text, no sender prefix
+  if (contentType === 'activity_log') {
+    return msg.content?.text || 'Activity update'
+  }
+  if (contentType === 'requestJoinCallNotification') {
+    return 'Session starting soon'
+  }
+  // if (contentType === 'booking_request') {
+  //   return 'Booking request'
+  // }
+
+  const text = typeof msg === 'string' ? msg : (msg?.content?.text ?? msg?.text)
   if (!text) return null
 
   const senderId = msg.sender_id || msg.senderId
@@ -133,7 +147,7 @@ function getLastMessageText(chat) {
 
       <!-- Chat rows -->
       <button
-        v-for="(chat, index) in chatStore.userChats"
+        v-for="(chat, index) in chatStore.sortedUserChats"
         :key="chat.chat_id"
         class="pl-3 pr-2 py-3 flex justify-start items-center gap-2 text-left w-full border-b border-gray-200/60 last:border-0 transition-colors"
         :style="rowBg(index)"
