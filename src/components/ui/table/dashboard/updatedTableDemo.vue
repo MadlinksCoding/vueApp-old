@@ -1,122 +1,68 @@
 <script setup>
-import { reactive, ref, computed } from "vue";
+import { reactive, ref, computed, watch, onMounted } from "vue";
 import FlexTable from "../FlexTable.vue";
 import OrderDetailsPopup from "../../popup/OrderDetailsPopup.vue";
+import { useOrdersStore } from "@/stores/useOrdersStore";
+import FlowHandler from "@/services/flow-system/FlowHandler";
+
+const ordersStore = useOrdersStore();
 const state = reactive({
-  rows: [],
-  loading: false,
-  hasMore: false,
   selectedOrder: null,
   isPopupOpen: false,
   isPopupLoading: false,
 });
 
-// Update rows with diverse statuses for demo
-state.rows = [
-  {
-    id: 1,
-    type: "Merch",
-    orderNum: "#8281",
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "In Progress",
-    date: "8 Apr 2025",
-    total: "USD$ 9.99",
-  },
-  {
-    id: 2,
-    type: "Merch",
-    orderNum: "#6565",
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "Completed",
-    date: "20 Sep 2024",
-    total: "USD$ 9.99",
-  },
-  {
-    id: 3,
-    type: "Merch",
-    orderNum: "#7721",
-    icon: "/images/cartIcon.png",
-    iconBg: "#07F468",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "In Progress",
-    date: "15 Oct 2024",
-    total: "USD$ 9.99",
-  },
-  {
-    id: 4,
-    type: "Merch",
-    orderNum: "#9102",
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "Cancelled",
-    date: "12 Dec 2024",
-    total: "USD$ 9.99",
-  },
-  {
-    id: 5,
-    type: "Merch",
-    orderNum: "#5543",
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "Completed",
-    date: "05 Jan 2025",
-    total: "USD$ 9.99",
-  },
-  {
-    id: 6,
-    type: "Merch",
-    orderNum: "#1122",
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "Cancelled",
-    date: "18 Feb 2025",
-    total: "USD$ 19.99",
-  },
-  // Adding more In Progress data for scroll
-  ...Array.from({ length: 15 }, (_, i) => ({
-    id: 10 + i,
-    type: "Merch",
-    orderNum: `#${8000 + i}`,
-    icon: "/images/merchIcon.png",
-    iconBg: "#000",
-    from: "@Mangoes4eva",
-    fromAvatar: "https://i.ibb.co.com/jkjtwC9C/svgviewer-png-output-17.webp",
-    status: "In Progress",
-    date: "12 May 2025",
-    total: "USD$ 9.99",
-  }))
-];
-
-// FILTERING LOGIC
 const props = defineProps({
   activeTab: {
     type: String,
     default: 'All'
+  },
+  activeOrderType: {
+    type: String,
+    default: 'all'
+  },
+  searchQuery: {
+    type: String,
+    default: ''
+  },
+  ownerId: {
+    type: String,
+    default: 'creator_1' // For "Orders Received" view
   }
 });
 
+const isTransitioning = ref(false);
+
+const fetchOrders = async () => {
+  isTransitioning.value = true;
+  try {
+    await FlowHandler.run("orders.fetchOrders", {
+      status: props.activeTab,
+      type: props.activeOrderType,
+      search: props.searchQuery,
+      ownerId: props.ownerId,
+      page: ordersStore.meta.pagination.currentPage,
+      perPage: ordersStore.meta.pagination.perPage
+    });
+  } finally {
+    // Keep skeleton slightly longer for smooth transition
+    setTimeout(() => {
+      isTransitioning.value = false;
+    }, 400);
+  }
+};
+
+onMounted(() => {
+  fetchOrders();
+});
+
+watch(() => [props.activeTab, props.activeOrderType, props.searchQuery], () => {
+  fetchOrders();
+});
+
 const filteredRows = computed(() => {
-  const tab = props.activeTab.toLowerCase();
-  
-  if (tab === 'all') return state.rows;
-  if (tab === 'progress') return state.rows.filter(r => r.status === 'In Progress');
-  if (tab === 'completed') return state.rows.filter(r => r.status === 'Completed');
-  if (tab === 'canceled') return state.rows.filter(r => r.status === 'Cancelled');
-  
-  return state.rows;
+  return Array.isArray(ordersStore.orders) ? ordersStore.orders : 
+         (ordersStore.orders?.items ? ordersStore.orders.items : []);
 });
 
 // STATUS CONFIGURATION
@@ -235,6 +181,7 @@ function handleRowClick(row) {
     <FlexTable 
       :columns="columns" 
       :rows="filteredRows" 
+      :skeleton="isTransitioning"
       row-key="id" 
       :theme="theme" 
       :inner-scroll="true"
@@ -243,7 +190,12 @@ function handleRowClick(row) {
       @row-click="handleRowClick"
       max-height="30rem" 
       :sticky-header="true" 
-    />
+    >
+      <template #empty>
+        You haven't received any <span v-if="activeTab !== 'All'">{{ activeTab }}</span> orders yet
+        <span v-if="searchQuery">matching "{{ searchQuery }}"</span>
+      </template>
+    </FlexTable>
 
     <OrderDetailsPopup
       v-model="state.isPopupOpen"
