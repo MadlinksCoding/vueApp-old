@@ -139,8 +139,8 @@ export function getCreateScheduleNotifyPayload({
     booking_id: pickString(bookingId, bookingSnapshot.bookingId),
     event_id: pickString(eventId, bookingSnapshot.eventId, eventSnapshot.eventId),
     number_of_participants: Math.max(1, Math.round(Number(participantCount || 1))),
-    fan_id: pickString(fanId, bookingSnapshot.userId),
-    creator_id: pickString(creatorId, bookingSnapshot.creatorId, eventSnapshot.creatorId),
+    fan_id: pickNumber(fanId, bookingSnapshot.userId),
+    creator_id: pickNumber(creatorId, bookingSnapshot.creatorId, eventSnapshot.creatorId),
     remind_at: remindAt,
     reminder_minutes: reminderMinutes,
   };

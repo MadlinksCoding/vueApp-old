@@ -855,7 +855,7 @@ const reviewPendingBooking = async (payload, decision) => {
           creatorId: approvedBooking?.creatorId || approvedEvent?.creatorId || approvedEvent?.raw?.creatorId || normalizedCreatorId.value || "",
           participantCount: approvedBooking?.guestCount || 1,
         });
-
+        
         if (notify.shouldFire && notify.payload) {
           fireAndForgetCreateScheduleNotify(notify.payload);
         }
