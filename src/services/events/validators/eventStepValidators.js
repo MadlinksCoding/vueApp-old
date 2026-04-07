@@ -70,6 +70,13 @@ export function step1Validator(state = {}) {
     errors.push(asError("basePrice", "Base price must be 0 or higher."));
   }
 
+  if (state?.enableFirstTimeDiscount) {
+    const firstTimeDiscount = asNumber(state?.firstTimeDiscount);
+    if (firstTimeDiscount == null || firstTimeDiscount <= 0 || firstTimeDiscount > 100) {
+      errors.push(asError("firstTimeDiscount", "First-time discount must be greater than 0 and no more than 100."));
+    }
+  }
+
   const repeatRule = state?.repeatRule || "weekly";
   if (repeatRule === "doesNotRepeat") {
     if (!hasAtLeastOneOneTimeSlot(state)) {

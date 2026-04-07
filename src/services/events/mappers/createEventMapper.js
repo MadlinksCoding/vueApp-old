@@ -504,6 +504,7 @@ function mapBasePayload(payload = {}, context = {}) {
 
     allowLongerSessions: asBoolean(payload.allowLongerSessions, false),
     enableDiscountForLonger: asBoolean(payload.enableLongerDiscount, false),
+    enableFirstTimeDiscount: asBoolean(payload.enableFirstTimeDiscount, false),
     enableBookingFee: asBoolean(payload.enableBookingFee, false),
     allowInstantBooking: asBoolean(payload.allowInstantBooking, false),
     disableChatBeforeCall: asBoolean(payload.disableChatBeforeCall, false),
@@ -548,6 +549,10 @@ function mapBasePayload(payload = {}, context = {}) {
   if (mapped.enableDiscountForLonger) {
     withOptionalField(mapped, "discountMinSessions", pickNumeric(payload.sessionMinimum || payload.discountMinSessions || payload.discountEventsCount, 2));
     withOptionalField(mapped, "discountPercentOfBase", pickNumeric(payload.discountPercentage || payload.discountPercentOfBase, 0));
+  }
+
+  if (mapped.enableFirstTimeDiscount) {
+    withOptionalField(mapped, "firstTimeDiscount", pickNumeric(payload.firstTimeDiscount, 0));
   }
 
   if (mapped.enableBookingFee) {

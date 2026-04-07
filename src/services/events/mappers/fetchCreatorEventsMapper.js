@@ -155,6 +155,8 @@ function normalizeEventItem(item = {}) {
     sessionDurationMinutes: normalizeNumber(item.sessionDurationMinutes, 15),
     basePriceTokens: normalizeNumber(item.basePriceTokens, 0),
     allowLongerSessions: normalizeBoolean(item.allowLongerSessions, false),
+    enableFirstTimeDiscount: normalizeBoolean(item.enableFirstTimeDiscount, false),
+    firstTimeDiscount: normalizeNumber(item.firstTimeDiscount, 0),
     eventColorSkin: item.eventColorSkin || "#5549FF",
     start,
     end,
