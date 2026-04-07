@@ -35,6 +35,8 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
+const totalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
+const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTimeDiscountAmount || 0));
 
 const eventTitle = computed(() => (
   bookingItem.value?.eventSnapshot?.title
@@ -134,6 +136,14 @@ onMounted(() => {
                         <div class="justify-end text-gray-400 text-lg font-normal leading-7">
                           {{ duration }} min.
                         </div>
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                      <div class="text-sm font-medium leading-5 text-[#EAECF0]">
+                        Total: {{ totalPrice }} tokens
+                      </div>
+                      <div v-if="firstTimeDiscountAmount > 0" class="text-xs font-medium leading-5 text-[#07F468]">
+                        First-time discount applied: saved {{ firstTimeDiscountAmount }} tokens
                       </div>
                     </div>
                   </div>

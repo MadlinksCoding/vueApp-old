@@ -43,6 +43,12 @@ function readCachedRawEvents(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function shouldFetchFirstTimeDiscountStatus(payload = {}) {
+  const creatorId = toNumber(payload.creatorId, null);
+  const fanId = toNumber(payload.fanId, null);
+  return creatorId != null && fanId != null;
+}
+
 export async function fetchCreatorBookingContextFlow({ payload, context, api }) {
   const baseUrl = getBookingsApiBaseUrl(context);
   const headers = context.requestHeaders || {};
@@ -94,11 +100,35 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
     }
 
     const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
+    let isFirstBookingForCreator = null;
+
+    if (shouldFetchFirstTimeDiscountStatus(payload)) {
+      const creatorId = toNumber(payload.creatorId, null);
+      const fanId = toNumber(payload.fanId, null);
+      const eligibilityResponse = await api.get(
+        `${baseUrl}/bookings/creators/${creatorId}/fans/${fanId}/first-time-discount-status`,
+        {
+          signal: context.signal,
+          timeoutMs: context.requestTimeoutMs,
+        },
+      );
+
+      if (eligibilityResponse?.ok === false) {
+        return fail({
+          code: "FETCH_FIRST_TIME_DISCOUNT_STATUS_FAILED",
+          message: eligibilityResponse?.error || "Failed to fetch first-time discount status.",
+          details: eligibilityResponse,
+        });
+      }
+
+      isFirstBookingForCreator = Boolean(eligibilityResponse?.isFirstBookingForCreator);
+    }
 
     return ok(
       {
         rawEvents,
         bookedSlots,
+        isFirstBookingForCreator,
         stats: bookedSlotsResponse?.stats || {},
       },
       {

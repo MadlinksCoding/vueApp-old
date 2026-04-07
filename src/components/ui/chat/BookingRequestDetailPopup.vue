@@ -121,7 +121,7 @@
             </div>
 
             <!-- Actions (creator + pending) -->
-            <div v-if="isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+            <div v-if="!loading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
                 :disabled="actionLoading"
@@ -149,7 +149,7 @@
             </div>
 
             <!-- Counter offer: fan actions -->
-            <div v-else-if="!isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+            <div v-else-if="!loading && !isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <div class="w-full text-sm font-semibold text-[#5549FF] mb-1">Counter offer received</div>
               <button
                 type="button"
@@ -170,7 +170,7 @@
             </div>
 
             <!-- Creator + counter_offer: waiting -->
-            <div v-else-if="isCreator && currentAction === 'counter_offer'" class="pt-1">
+            <div v-else-if="!loading && isCreator && currentAction === 'counter_offer'" class="pt-1">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
                 <img :src="HourglassIcon" class="w-4 h-4" alt="" />
                 Waiting for fan response
@@ -178,7 +178,7 @@
             </div>
 
             <!-- Accepted / declined badge -->
-            <div v-else-if="currentAction === 'accepted' || currentAction === 'declined'" class="pt-1">
+            <div v-else-if="!loading && (currentAction === 'accepted' || currentAction === 'declined')" class="pt-1">
               <div
                 class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold"
                 :style="currentAction === 'accepted'
@@ -211,6 +211,8 @@ import HourglassIcon      from '@/assets/images/icons/hourglass-03.webp'
 
 const props = defineProps({
   message:       { type: Object, required: true },
+  booking:       { type: Object, default: null },
+  event:         { type: Object, default: null },
   isCreator:     { type: Boolean, default: false },
   chatId:        { type: String, default: null },
   currentUserId: { type: [String, Number], default: null },
@@ -219,9 +221,9 @@ const props = defineProps({
 const emit = defineEmits(['action-complete', 'adjust', 'open-chat', 'close', 'confirm-counter', 'cancel-booking'])
 
 // ── State ────────────────────────────────────────────────────────────────────
-const loading      = ref(true)
-const fetchError   = ref(null)
-const booking      = ref(null)
+const loading       = ref(true)
+const fetchError    = ref(null)
+const booking       = ref(props.booking || null)
 const actionLoading = ref(false)
 
 const messageContent = computed(() => props.message?.content || {})
@@ -236,6 +238,12 @@ function deriveAction(apiStatus) {
   return null
 }
 
+function applyBookingData(data) {
+  booking.value = data
+  const derived = deriveAction(data?.status)
+  if (derived && derived !== 'pending') currentAction.value = derived
+}
+
 // ── Fetch booking on mount ───────────────────────────────────────────────────
 onMounted(async () => {
   const bookingId = messageContent.value.booking_id
@@ -245,6 +253,18 @@ onMounted(async () => {
     return
   }
 
+  // If pre-fetched booking was passed via prop — show immediately, no spinner
+  if (props.booking) {
+    applyBookingData(props.booking)
+    loading.value = false
+    // Silently refresh in background to get latest status
+    FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
+      if (res?.ok) applyBookingData(res.data?.item || null)
+    })
+    return
+  }
+
+  // No pre-fetched data — fetch with loading spinner
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
   loading.value = false
 
@@ -253,11 +273,7 @@ onMounted(async () => {
     return
   }
 
-  booking.value = res.data?.item || null
-
-  // Sync currentAction with live booking status — message.content.action may be stale
-  const derived = deriveAction(booking.value?.status)
-  if (derived && derived !== 'pending') currentAction.value = derived
+  applyBookingData(res.data?.item || null)
 })
 
 // ── Display computed ─────────────────────────────────────────────────────────
@@ -354,9 +370,15 @@ const minimumChargeLabel = computed(() => {
 })
 
 const reminderLabel = computed(() => {
-  if (!booking.value) return null
-  console.log('Booking raw data for reminder:', booking, raw.value)
-  const mins = Number(raw.value.reminderMinutes ?? raw.value.reminder_minutes ?? 5)
+  if (!props.event) return null
+  const eventRaw = props.event?.raw || props.event || {}
+  const merged = { ...(eventRaw.eventCurrent || {}), ...(eventRaw.eventSnapshot || {}), ...eventRaw }
+  const mins = Number(
+    merged.callReminderMinutesBefore
+    ?? merged.remindBeforeMinutes
+    ?? merged.reminderMinutes
+    ?? merged.reminder_minutes
+  )
   if (!Number.isFinite(mins) || mins <= 0) return null
   return `${mins} minutes before`
 })

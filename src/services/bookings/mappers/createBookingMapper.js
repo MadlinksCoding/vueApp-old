@@ -165,8 +165,35 @@ function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal 
   };
 }
 
-function buildPaymentAndSelections(event = {}, durationMinutes = 15, selectedAddOns = [], selectedSlot = {}) {
+function computeFirstTimeDiscount({ raw = {}, sessionSubtotal = 0, isFirstBookingForCreator = false }) {
+  if (!isFirstBookingForCreator) return { percent: 0, discountTokens: 0 };
+  if (!toBoolean(raw.enableFirstTimeDiscount, false)) return { percent: 0, discountTokens: 0 };
+
+  const percent = safeNumber(raw.firstTimeDiscount, 0);
+  if (percent <= 0 || percent > 100 || sessionSubtotal <= 0) {
+    return { percent, discountTokens: 0 };
+  }
+
+  return {
+    percent,
+    discountTokens: toWholeTokens(sessionSubtotal * percent / 100),
+  };
+}
+
+export function buildBookingPaymentPreview(
+  event = {},
+  durationMinutes = 15,
+  selectedAddOns = [],
+  selectedSlot = {},
+  options = {},
+) {
   const raw = event?.raw || {};
+  const isFirstBookingForCreator = toBoolean(
+    options?.isFirstBookingForCreator
+      ?? event?.isFirstBookingForCreator
+      ?? raw?.isFirstBookingForCreator,
+    false,
+  );
 
   const basePrice = safeNumber(raw.basePriceTokens ?? event.basePriceTokens, 0);
   const baseSessionMinutes = safeNumber(raw.sessionDurationMinutes ?? event.sessionDurationMinutes, 0);
@@ -222,6 +249,19 @@ function buildPaymentAndSelections(event = {}, durationMinutes = 15, selectedAdd
     });
   }
 
+  const firstTimeDiscount = computeFirstTimeDiscount({
+    raw,
+    sessionSubtotal,
+    isFirstBookingForCreator,
+  });
+  if (firstTimeDiscount.discountTokens > 0) {
+    lines.push({
+      code: "first_time_discount",
+      label: `First Time Discount (${firstTimeDiscount.percent}%)`,
+      amount: -1 * firstTimeDiscount.discountTokens,
+    });
+  }
+
   const offHoursSelected = toBoolean(selectedSlot?.offHours, false);
   const offHourSurchargeEnabled = toBoolean(raw.offHourSurcharge, false);
   const offHourSurchargePercent = safeNumber(raw.offHourSurchargePercent, 0);
@@ -250,6 +290,10 @@ function buildPaymentAndSelections(event = {}, durationMinutes = 15, selectedAdd
       recording: recordingRequested,
       offHours: offHoursSelected,
     },
+    discounts: {
+      longerDiscount,
+      firstTimeDiscount,
+    },
   };
 }
 
@@ -276,7 +320,9 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   const endHkt = localDateTimeToHkt(endDateIso, endHm);
   const selectedAddOns = resolveAddOnSelections(state);
   const selectedSlot = resolveSelectedSlot(state);
-  const computed = buildPaymentAndSelections(event, duration, selectedAddOns, selectedSlot);
+  const computed = buildBookingPaymentPreview(event, duration, selectedAddOns, selectedSlot, {
+    isFirstBookingForCreator: state?.fanBooking?.context?.isFirstBookingForCreator,
+  });
 
   return {
     eventId,

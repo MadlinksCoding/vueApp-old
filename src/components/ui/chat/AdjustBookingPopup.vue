@@ -176,7 +176,6 @@ onMounted(async () => {
     event.value = eventRes.data.item
   }
 
-  console.error('[AdjustBookingPopup] fetched booking and event data', { booking: booking.value, event: event.value })
 })
 
 const raw = computed(() => booking.value || {})

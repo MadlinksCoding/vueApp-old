@@ -59,6 +59,7 @@ const engine = createFlowStateEngine({
       context: {
         creatorId: null,
         fanId: null,
+        isFirstBookingForCreator: null,
         creatorPresentation: {
           avatar: null,
           name: null,
@@ -325,7 +326,7 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
 
   const result = await engine.callFlow(
     "bookings.fetchCreatorBookingContext",
-    { creatorId, status: "active", limit: 100, periodMonths: 6, slotLimit: 2000 },
+    { creatorId, fanId, status: "active", limit: 100, periodMonths: 6, slotLimit: 2000 },
     {
       forceRefresh,
       context: {
@@ -417,6 +418,7 @@ async function loadPreviewContext() {
     rawEvents: [previewEvent.raw || {}],
     bookedSlots: previewBookedSlots,
     bookedSlotsIndex: previewBookedSlotsIndex,
+    isFirstBookingForCreator: true,
     meta: { fetchedAt: Date.now(), source: "preview" },
   }, { reason: "preview-load", silent: true });
   engine.setState("fanBooking.catalog.events", [previewEvent], { reason: "preview-load", silent: true });
@@ -434,6 +436,7 @@ async function loadPreviewContext() {
   engine.setState("fanBooking.ui.catalogError", "", { reason: "preview-load", silent: true });
   engine.setState("fanBooking.ui.previewMode", true, { reason: "preview-load", silent: true });
   engine.setState("fanBooking.ui.previewReadOnly", isReadOnlyPreview, { reason: "preview-load", silent: true });
+  engine.setState("fanBooking.context.isFirstBookingForCreator", true, { reason: "preview-load", silent: true });
 
   if (startStep <= 1) {
     clearSelectedEvent("preview-load");

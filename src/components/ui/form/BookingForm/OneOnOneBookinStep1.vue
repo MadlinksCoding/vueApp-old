@@ -127,6 +127,8 @@
     extendSessionMax: props.engine.state.extendSessionMax || "",
     allowLongerSessions: props.engine.state.allowLongerSessions || false,
     enableLongerDiscount: props.engine.state.enableLongerDiscount || false,
+    enableFirstTimeDiscount: props.engine.state.enableFirstTimeDiscount || false,
+    firstTimeDiscount: props.engine.state.firstTimeDiscount || "",
     enableBookingFee: props.engine.state.enableBookingFee || false,
     allowInstantBooking: props.engine.state.allowInstantBooking || false,
     disableChatBeforeCall: props.engine.state.disableChatBeforeCall || false,
@@ -889,6 +891,35 @@
                     </div>
                     <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
                       ({{ Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }} tokens/session)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          
+
+          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+            <CheckboxGroup v-model="formData.enableFirstTimeDiscount" label="First time discount"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+              wrapperClass="flex items-center gap-2 mb-3" />
+
+            <div class="self-stretch inline-flex justify-start items-start gap-2">
+              <div class="w-6 h-10" />
+              <div class="inline-flex flex-col justify-start items-start gap-2">
+                <div :class="['relative inline-flex justify-end items-center gap-2',!formData.enableFirstTimeDiscount? 'opacity-50':'opacity-100']">
+                  <span class="absolute left-28 top-2 justify-center text-black text-base font-medium font-['Poppins'] leading-normal">%</span>
+                  <BaseInput type="number" placeholder="" v-model="formData.firstTimeDiscount"
+                    :disabled="!formData.enableFirstTimeDiscount"
+                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                  <div class="h-10 inline-flex flex-col justify-between items-start">
+                    <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
+                      off entire session
+                    </div>
+                    <div v-if="formData.basePrice && formData.firstTimeDiscount" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
+                      ({{ Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }} tokens/session)
                     </div>
                   </div>
                 </div>

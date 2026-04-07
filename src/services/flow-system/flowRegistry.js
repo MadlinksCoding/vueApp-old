@@ -16,6 +16,7 @@ import { markMessageReadFlow } from "@/services/chat/flows/markMessageReadFlow.j
 import { getUnreadCountFlow } from "@/services/chat/flows/getUnreadCountFlow.js";
 import { sendBookingRequestMessageFlow } from "@/services/chat/flows/sendBookingRequestMessageFlow.js";
 import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBookingRequestMessageFlow.js";
+import { updateMessageFlow } from "@/services/chat/flows/updateMessageFlow.js";
 import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
@@ -37,6 +38,7 @@ import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTem
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
+import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
 import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
@@ -53,6 +55,8 @@ import { mergeGuestCartFlow } from "@/services/cart/flows/mergeGuestCartFlow.js"
 import { attachLiveDataFlow } from "@/services/cart/flows/attachLiveDataFlow.js";
 import { getAllCartsFlow } from "@/services/cart/flows/getAllCartsFlow.js";
 import { remindAbandonedCartsFlow } from "@/services/cart/flows/remindAbandonedCartsFlow.js";
+import { mapRenegotiateBookingToRequest } from "@/services/bookings/mappers/renegotiateBookingMapper.js";
+import { mapRescheduleBookingToRequest } from "@/services/bookings/mappers/rescheduleBookingMapper.js";
 import {
   validateFetchCatalogPayload,
   validateFetchCatalogResponse,
@@ -85,6 +89,17 @@ import {
 } from "@/services/orders/mappers/ordersMapper.js";
 
 export const flowRegistry = {
+  "events.fetchEvent": {
+    flowKind: "read",
+    flow: fetchEventFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 10000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
   "events.fetchCreatorEvents": {
     flowKind: "read",
     flow: fetchCreatorEventsFlow,
@@ -305,61 +320,15 @@ export const flowRegistry = {
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.cachedResponse",
-          mode: "set",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.events",
-          mode: "set",
-          select: "events",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.rawEvents",
-          mode: "set",
-          select: "rawEvents",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.bookedSlots",
-          mode: "set",
-          select: "bookedSlots",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.bookedSlotsIndex",
-          mode: "set",
-          select: "bookedSlotsIndex",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.meta",
-          mode: "set",
-          select: "meta",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.meta",
-          mode: "merge",
-          value: { updatedAt: "@now" },
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "local",
-          key: "fan-booking:creator-context",
-          ttlMs: 30000,
-          version: 1,
-          hydrateOnReadHit: true,
-        },
+        { type: "stateEngine", key: "fanBooking.catalog.cachedResponse", mode: "set", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.events", mode: "set", select: "events", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.rawEvents", mode: "set", select: "rawEvents", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.bookedSlots", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.context.isFirstBookingForCreator", mode: "set", select: "isFirstBookingForCreator", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
+        { type: "local", key: "fan-booking:creator-context", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
       ],
       onNotModified: [
         {
@@ -373,8 +342,8 @@ export const flowRegistry = {
         MISSING_CREATOR_ID:
           "Creator id is required before loading booking context.",
         FETCH_CREATOR_EVENTS_FAILED: "Could not load events right now.",
-        FETCH_CREATOR_BOOKED_SLOTS_FAILED:
-          "Could not load booked slots right now.",
+        FETCH_CREATOR_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
+        FETCH_FIRST_TIME_DISCOUNT_STATUS_FAILED: "Could not load first-time discount status right now.",
       },
     },
   },
@@ -748,12 +717,58 @@ export const flowRegistry = {
           value: { lastCancelAt: "@now" },
         },
         { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
       ],
       uiErrorMap: {
         CANCEL_BOOKING_MISSING_ID: "Booking id is required.",
         CANCEL_BOOKING_FAILED: "Could not cancel booking.",
         HTTP_400: "This booking cannot be cancelled in its current status.",
         HTTP_402: "Could not reverse token hold for cancellation.",
+      },
+    },
+  },
+  "bookings.renegotiateBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRenegotiateBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastRenegotiate", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRenegotiateAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not renegotiate booking.",
+        HTTP_400: "This booking update is invalid in the current state.",
+        HTTP_402: "Could not update held payment for this booking.",
+      },
+    },
+  },
+  "bookings.rescheduleBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRescheduleBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastReschedule", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRescheduleAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not reschedule booking.",
+        HTTP_400: "This booking cannot be rescheduled with the selected time.",
       },
     },
   },
@@ -1281,6 +1296,17 @@ export const flowRegistry = {
   "chat.updateBookingRequestMessage": {
     flowKind: "write",
     flow: updateBookingRequestMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.updateMessage": {
+    flowKind: "write",
+    flow: updateMessageFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
       retry: { enabled: false },

@@ -4,6 +4,7 @@ import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingF
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { addMonths, monthNames } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
+import { buildBookingPaymentPreview } from '@/services/bookings/mappers/createBookingMapper.js';
 import {
   buildCandidateSlotsForEventDate,
   createSlotUiModel,
@@ -145,6 +146,9 @@ const showApprovalNeeded = computed(() => {
 const isPreviewReadOnly = computed(() => (
   Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
 ));
+const isFirstBookingForCreator = computed(() => (
+  toBoolean(props.engine.getState('fanBooking.context.isFirstBookingForCreator'), false)
+));
 
 function toWholeTokens(value) {
   const numeric = Number(value || 0);
@@ -219,56 +223,54 @@ const offHourSurchargePercent = computed(() => {
   return percent;
 });
 
-const offHourSurchargeAmount = computed(() => {
-  if (!state.selected) return 0;
-  const basePrice = Number(selectedDurationObj.value?.price || 0);
-  const addonsPrice = selectedAddons.value.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  const subtotal = basePrice + addonsPrice;
-  const percent = offHourSurchargePercent.value;
-  if (percent <= 0) return 0;
-  return toWholeTokens(subtotal * percent / 100);
+const pricingPreview = computed(() => {
+  if (!selectedEvent.value || !selectedDurationObj.value) return null;
+  return buildBookingPaymentPreview(
+    selectedEvent.value,
+    Number(selectedDurationObj.value?.value || 0),
+    selectedAddons.value.map((item) => ({ title: item.name || item.title || '', price: Number(item.price || 0) })),
+    selectedTime.value || {},
+    {
+      isFirstBookingForCreator: isFirstBookingForCreator.value,
+    },
+  );
 });
 
 const longerDiscountAmount = computed(() => {
-  const raw = selectedEvent.value?.raw || {};
-  const enabled = toBoolean(raw.enableDiscountForLonger, false);
-  const percent = Number(raw.discountPercentOfBase || 0);
-  const selectedDuration = Number(selectedDurationObj.value?.value || 0);
-  const sessionSubtotal = Number(selectedDurationObj.value?.price || 0);
-  const baseSessionMinutes = Number(raw.sessionDurationMinutes || selectedEvent.value?.sessionDurationMinutes || 0);
-  const minSessions = Number(raw.discountMinSessions);
-  const legacyMinMinutes = Number(raw.discountMinSessionMinutes);
+  return Number(pricingPreview.value?.discounts?.longerDiscount?.discountTokens || 0);
+});
 
-  let minimumMinutes = legacyMinMinutes;
-  if (Number.isFinite(minSessions) && minSessions > 0 && baseSessionMinutes > 0) {
-    minimumMinutes = baseSessionMinutes * minSessions;
+const firstTimeDiscountAmount = computed(() => {
+  return Number(pricingPreview.value?.discounts?.firstTimeDiscount?.discountTokens || 0);
+});
+
+const offHourSurchargeAmount = computed(() => {
+  const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
+  const line = lines.find((row) => String(row?.code) === 'off_hour_surcharge');
+  return Number(line?.amount || 0);
+});
+
+const discountRows = computed(() => {
+  const rows = [];
+  if (longerDiscountAmount.value > 0) {
+    rows.push({
+      code: 'discount',
+      label: 'Longer Session Discount',
+      amount: longerDiscountAmount.value,
+    });
   }
-
-  if (
-    !enabled
-    || !Number.isFinite(percent)
-    || percent <= 0
-    || !Number.isFinite(minimumMinutes)
-    || minimumMinutes <= 0
-    || selectedDuration < minimumMinutes
-    || sessionSubtotal <= 0
-  ) {
-    return 0;
+  if (firstTimeDiscountAmount.value > 0) {
+    rows.push({
+      code: 'first_time_discount',
+      label: 'First Time Discount',
+      amount: firstTimeDiscountAmount.value,
+    });
   }
-
-  return toWholeTokens(sessionSubtotal * percent / 100);
+  return rows;
 });
 
 const totalPrice = computed(() => {
-  if (!state.selected) return 0;
-  const basePrice = Number(selectedDurationObj.value?.price || 0);
-  const addonsPrice = selectedAddons.value.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  return toWholeTokens(
-    basePrice
-    + addonsPrice
-    + offHourSurchargeAmount.value
-    - longerDiscountAmount.value
-  );
+  return Number(pricingPreview.value?.payment?.total || 0);
 });
 
 const canProceedToPayment = computed(() => {
@@ -500,6 +502,8 @@ const goToNextStep = () => {
     headerDateDisplay: headerDateDisplay.value,
     totalPrice: totalPrice.value,
     longerDiscountAmount: longerDiscountAmount.value,
+    firstTimeDiscountAmount: firstTimeDiscountAmount.value,
+    discountRows: discountRows.value,
     offHourSurchargeAmount: offHourSurchargeAmount.value,
     offHourSurchargePercent: offHourSurchargePercent.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
@@ -747,6 +751,46 @@ onMounted(() => {
               <p class="text-sm leading-[20px] text-[#07F468]">
                 Your session will be on {{ selectedDateDisplay }} {{ formattedTimeRange !== '-' ? formattedTimeRange : '' }}
               </p>
+
+              <div
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
+                class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div class="flex flex-col gap-2">
+                  <div
+                    v-for="row in discountRows"
+                    :key="row.code"
+                    class="flex items-center justify-between text-sm text-white"
+                  >
+                    <p class="text-[#EAECF0]">{{ row.label }}</p>
+                    <div class="flex items-center gap-1 text-[#07F468]">
+                      <span>-</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ row.amount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="offHourSurchargeAmount > 0"
+                    class="flex items-center justify-between text-sm text-white"
+                  >
+                    <p class="text-[#EAECF0]">Off-hour Surcharge</p>
+                    <div class="flex items-center gap-1 text-[#FF9F43]">
+                      <span>+</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ offHourSurchargeAmount }}</span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white">
+                    <p>Current Total</p>
+                    <div class="flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ totalPrice }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="addons.length > 0">

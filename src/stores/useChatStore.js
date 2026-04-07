@@ -7,11 +7,30 @@ export const useChatStore = defineStore("chat", {
     userChats: [],
     chatParticipants: {},
     chatUsersData: {},
+    chatPinnedMessages: {},
+    chatBookings: {},
+    chatEvents: {},
   }),
 
   getters: {
     getMessagesByChatId: (state) => {
       return (chatId) => state.messages[chatId] || [];
+    },
+    getPinnedMessageByChatId: (state) => {
+      return (chatId) => state.chatPinnedMessages[chatId] ?? null;
+    },
+    getBookingById: (state) => {
+      return (bookingId) => state.chatBookings[bookingId] ?? null;
+    },
+    getEventById: (state) => {
+      return (eventId) => state.chatEvents[eventId] ?? null;
+    },
+    sortedUserChats: (state) => {
+      return [...state.userChats].sort((a, b) => {
+        const tsA = a.last_message?.message_ts ?? a.last_message?.time ?? a.last_activity ?? 0
+        const tsB = b.last_message?.message_ts ?? b.last_message?.time ?? b.last_activity ?? 0
+        return tsB - tsA
+      })
     },
   },
 
@@ -88,7 +107,25 @@ export const useChatStore = defineStore("chat", {
         if (c.chat_id && Array.isArray(c.participants)) {
           this.chatParticipants[c.chat_id] = c.participants;
         }
+        if (c.chat_id && c.pinned_message) {
+          this.chatPinnedMessages[c.chat_id] = c.pinned_message;
+        }
       });
+    },
+
+    setPinnedMessage(chatId, message) {
+      if (!chatId) return;
+      this.chatPinnedMessages[chatId] = message ?? null;
+    },
+
+    setBooking(bookingId, data) {
+      if (!bookingId) return;
+      this.chatBookings[bookingId] = data ?? null;
+    },
+
+    setEvent(eventId, data) {
+      if (!eventId) return;
+      this.chatEvents[eventId] = data ?? null;
     },
 
     setChatUsersDataAction({ users }) {
@@ -98,8 +135,16 @@ export const useChatStore = defineStore("chat", {
     },
 
     updateChatLastMessage(chatId, message) {
-      const chat = this.userChats.find((c) => c.chat_id === chatId);
-      if (chat) chat.last_message = message;
+      const idx = this.userChats.findIndex((c) => c.chat_id === chatId)
+      if (idx === -1) return
+      this.userChats[idx].last_message = message
+      const ts = message?.message_ts ?? message?.time ?? null
+      if (ts) this.userChats[idx].last_activity = ts
+      // Move chat to front so the array mutation triggers Vue re-render
+      if (idx > 0) {
+        const [moved] = this.userChats.splice(idx, 1)
+        this.userChats.unshift(moved)
+      }
     },
 
     updateChatUnread(chatId, hasUnread) {
@@ -146,6 +191,9 @@ export const useChatStore = defineStore("chat", {
       this.userChats = [];
       this.chatParticipants = {};
       this.chatUsersData = {};
+      this.chatPinnedMessages = {};
+      this.chatBookings = {};
+      this.chatEvents = {};
     },
   },
 });
