@@ -1,5 +1,142 @@
 # Changelog
 
+## 2026-04-04 (Session 5)
+
+### Features
+
+#### Chat Embed — `vueApp/src/embeds/chat/`
+- New embed entry: `vueApp/src/embeds/chat/main.js` — creates Vue app, registers Pinia, calls `FlowHandler.configure` before `app.mount` so stores are available when `ChatFloatingWidget.onMounted` fires.
+- New embed root: `vueApp/src/embeds/chat/ChatEmbedApp.vue` — parses URL params (`currentUserId`, `userRole`, `apiBaseUrl`) synchronously in `setup()` before children mount; sets `window.userData.userID`, `window.userSpecifiData.currentUser.isCreator`, `window.__fsChatApiBaseUrl`, and `window.__fsChatEmbed = true`.
+- New iframe HTML: `vueApp/bookings-embed/chat.html` — minimal page mounting `#chat-embed-app`.
+- Registered new Vite entry `chatEmbed` in `vite.config.js`.
+
+#### Chat Embed — Auto-Resizing (`ChatEmbedApp.vue`)
+- `ResizeObserver` on `widgetEl` — debounced via shared `resizeTimer`; handles in-flow layout changes (chat windows opening).
+- `MutationObserver` on `widgetEl` subtree — debounced; handles absolute-positioned children (chat list panel).
+- `MutationObserver` on `document.body` childList — detects `data-fs-chat-popup` elements (BookingDetailPopup, AdjustPopup) added/removed via Teleport; sets `popupOpen` flag.
+- `MutationObserver` on `[data-popup-overlay]` style — detects NewChatPopup open/close via `visibility: visible`; set up lazily when overlay element is first added to body.
+- `FS_CHAT_RESIZE` postMessage — widget-sized dimensions sent to host.
+- `FS_CHAT_FULLSCREEN` postMessage — sent when a popup opens; host uses its own `window.innerWidth/innerHeight` (not iframe's).
+- While `popupOpen = true`, `notifyResize` is suppressed so mutation/resize events cannot race-override the full-viewport state.
+- All resize/mutation timers share a single `resizeTimer` (debounce); `clearTimeout` on unmount.
+
+#### Chat Embed — Host Script (`public/bookings-embed/fs-chat-host.js`)
+- New standalone host script exposing `window.FSChatEmbed.mountChatEmbed(target, options)`.
+- Chat embed code extracted out of `fs-events-host.js` (which now only handles events/booking).
+- Handles `FS_CHAT_RESIZE` and `FS_CHAT_FULLSCREEN` messages from iframe; resizes container div accordingly.
+- Options: `src`, `currentUserId` (required), `userRole`, `apiBaseUrl`, `openChatId`, `iframeTitle`, `width`, `height`.
+- Returns `{ iframe, container, destroy() }`.
+
+#### Demo Page (`public/bookings-embed/chat-iframe.html`)
+- Demo page with header, hero section, and 4 content cards; loads `fs-chat-host.js` and calls `FSChatEmbed.mountChatEmbed`.
+- Open at: `http://localhost:5173/bookings-embed/chat-iframe.html?currentUserId=4424&userRole=creator`
+
+#### `ChatFloatingWidget.vue`
+- Added optional `userId` prop; if provided, skips `resolveUserId()` entirely (avoids pulling `useAuthStore` → `authHandler` into embed bundle).
+- `resolveUserId` is now loaded via dynamic `import()` inside `onMounted` only when `userId` prop is absent.
+- Added `widgetEl` ref on root div + `defineExpose({ widgetEl })` so `ChatEmbedApp` can attach observers.
+- Passes `:current-user-id="currentUserId"` down to `ChatWindow`.
+
+#### `ChatWindow.vue`
+- Added `currentUserId` prop; uses prop value directly when present, falls back to `resolveUserId()` otherwise (sync, no async setup).
+- Removed top-level `await import` to avoid Vue Suspense requirement.
+
+#### `ChatListPanel.vue`
+- `newChatPopupConfig`: when `window.__fsChatEmbed`, uses fixed `position: 'center'`, `width: '675px'`, `height: '90vh'` (bypasses responsive breakpoints that resolve incorrectly inside a small iframe).
+
+#### `BookingRequestDetailPopup.vue` / `AdjustBookingPopup.vue`
+- Added `data-fs-chat-popup` attribute on root backdrop div so `ChatEmbedApp` bodyObserver can reliably detect these popups (not confused with PopupHandler's persistent overlay).
+
+### Documentation
+- New: `vueApp/docs/wordpress/chat-embed-wordpress-integration.md` — full integration guide (build, deploy, mount call, options reference, auto-resize behavior, URL params, smoke test checklist, troubleshooting).
+
+---
+
+## 2026-04-03 (Session 4)
+
+### Features
+
+#### `BookingRequestBubble.vue` — counter_offer UI
+- **Price row**: when `counter_offer`, shows original tokens (strikethrough, gray) + new `meta.totalTokens` (blue).
+- **Remarks expand/collapse**: "View detail ∨" button toggles `line-clamp-2` → full text; chevron rotates 180° when expanded. Shared `remarksExpanded` ref used by both creator and fan sides.
+- **Creator side** (`isCreator + counter_offer`): shows "Your remarks" label + collapsed remarks + hourglass "waiting for response" + "View Details ↗".
+- **Fan side** (`!isCreator + counter_offer`): removed "Counter offer received" header; shows `@senderName's remarks:` with inline expand toggle; "Accept" renamed to "Accept New Cost"; removed separate "View Details" link (replaced by inline "View detail ∨").
+
+#### `AdjustBookingPopup.vue` — event add-ons fetch
+- On mount, now fetches booking **and** event in parallel via `Promise.all([bookings.fetchBooking, events.fetchEvent])`.
+- Add-on options sourced from `event.addOns` (shape: `{ title, description, priceTokens }`), falling back to `booking.addOnsCatalog`.
+- Added missing imports: `BaseInput`, `CheckboxGroup`, `ButtonComponent`.
+
+#### `ChatWindow.vue` — counter_offer activity log
+- `onAdjustSubmitted` now calls `sendChatActivityLog('Counter offer sent', { is_booking_request: true, decision: 'counter_offer', bookingId })` after broadcasting the updated message.
+- `ActivityLogTexts` extended with `counter_offer` entry:
+  - creator: `"You sent a counter offer to @{audience}"`
+  - audience: `"@{creator} sent you a counter offer"`
+- `resolveActivityLogText` `decisionMap` updated to include `counter_offer → counter_offer`.
+- Fixed duplicate `decision` key in `performBookingDecision` meta object.
+
+#### New Flow — `events.fetchEvent`
+- New file: `vueApp/src/services/events/flows/fetchEventFlow.js` — `GET /events/:eventId`, returns `{ item }`.
+- Registered as `events.fetchEvent` in `flowRegistry.js`.
+
+---
+
+## 2026-04-03 (Session 3)
+
+### Features
+
+- **Booking request chat UI** — full end-to-end booking negotiation flow inside the chat widget.
+
+#### Architecture
+- Single `booking_request` message per booking; status changes are PATCH updates (no new messages for accept/decline/counter_offer).
+- Booking card is **filtered out** of the scroll list and rendered as a **full-width sticky banner** at the top of the chat via a new `pinned-banner` slot in `FlexChat.vue`.
+- Separate `activity_log` messages appear in the thread for key events (fan sent request, creator accepted/declined).
+
+#### New Components
+- **`BookingRequestBubble.vue`** — compact booking card with 6 states: creator-pending (Accept/Decline/Adjust), creator-counter_offer (waiting), fan-counter_offer (Accept/Cancel), accepted (✓ badge + View in Calendar), declined (✗ badge + View Details), fan-pending (waiting + View Details). `pinned` prop makes it full-width.
+- **`BookingRequestDetailPopup.vue`** — full booking detail popup. On mount fetches live booking status and syncs `currentAction` so stale `content.action = 'pending'` is corrected when booking is already `confirmed`. Handles all action states including counter_offer fan buttons.
+- **`AdjustBookingPopup.vue`** — creator counter-offer form (session duration, add-ons, remarks, adjustment tokens, total). Submits via `chat.updateBookingRequestMessage` with `action: 'counter_offer'` and structured `meta`.
+
+#### New Flows (all registered in `flowRegistry.js`)
+- `chat.sendBookingRequestMessage` — `POST /chats/:chatId/messages/booking`
+- `chat.updateBookingRequestMessage` — `PATCH /chats/:chatId/messages/:messageId/booking`
+- `chat.sendChatActivityLog` — `POST /chats/:chatId/messages` with `contentType: 'activity_log'`
+- `bookings.fetchBooking` — `GET /bookings/:bookingId`
+
+#### Backend Changes (`bookings/`)
+- **`ChatManager.js`**: `sendBookingRequestMessage` — added `counter_offer` to valid actions, added `meta` object field to content. New `updateBookingRequestMessage(chatId, messageId, updates)` — resolves `message_ts` via `MessageIdIndex` GSI, merges content, calls `ScyllaDb.updateItem`.
+- **`chats.js` routes**: `POST /:chatId/messages/booking` now accepts `counter_offer` + `meta`. New `PATCH /:chatId/messages/:messageId/booking` route.
+
+#### `ChatWindow.vue` Changes
+- `allMessages` / `messages` (booking_request filtered) / `pinnedBookingMessage` computed.
+- `variantForMessage` returns `'system'` for both `booking_request` and `activity_log`.
+- Pinned banner slot renders `BookingRequestBubble` with full action wiring.
+- Accept/Decline buttons call `performBookingDecision` directly (no popup). Up-arrow opens detail popup.
+- `performBookingDecision` → `bookings.reviewPendingBooking` + `chat.updateBookingRequestMessage` + `sendChatActivityLog`.
+- `broadcastBookingUpdate` → `chatStore.addMessage` (in-place update) + socket broadcast.
+- `onCancelBooking` → `bookings.cancelBooking` + update message to `declined`.
+- Watch on `pinnedBookingMessage` marks it read immediately (banner is outside `IntersectionObserver` scope).
+- `ActivityLogTexts` map + `resolveActivityLogText` with two-step resolution: template pick by role (`isCreatorAccount`) + generic token replacer (`@{creator}`, `@{audience}`, `@digits`).
+- `sendChatActivityLog(text, meta)` helper — fire-and-forget, broadcasts via socket.
+- Activity log messages rendered as centered italic text (no bubble).
+
+#### `BookingFlowStep3.vue` Changes
+- Before `sendBookingRequestMessage`: sends `sendChatActivityLog` with `"@{fanUsername} has just sent you a live call request:"`.
+
+#### `ChatListPanel.vue` Changes
+- `getChatDisplayName`: if `chat.metadata?.is_booking_request`, return `chat.name` directly (bypasses user data lookup that showed username instead of display name on reload).
+
+#### `FlexChat.vue` Changes
+- Added `pinned-banner` slot between header and scrollable body (`shrink-0 w-full`).
+
+### Bug Fixes
+- **Detail popup showing Accept/Decline on already-confirmed booking** — `currentAction` was initialized from stale `message.content.action = 'pending'`. Fixed by running `deriveAction(booking.status)` after fetch and overwriting `currentAction` if result is non-pending.
+- **Bubble showing wrong action after PATCH** — `resolvedAction` was overridden by `deriveAction('pending')` from the bookings API, shadowing `content.action = 'counter_offer'`. Fixed by prioritizing any non-`pending` `content.action` over the API status.
+- **Activity log showing `@4424` instead of username** — `resolveActivityLogText` now replaces all `@{digits}` tokens with usernames from `chatStore.chatUsersData`.
+- **Booking chat showing username in chat list on reload** — fixed via `metadata.is_booking_request` guard in `getChatDisplayName`.
+
+---
+
 ## 2026-04-02 (Session 2)
 
 ### Bug Fixes

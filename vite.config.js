@@ -89,6 +89,7 @@ export default defineConfig(({ command, mode }) => {
           main: join(__dirname, "index.html"),
           eventsEmbed: join(__dirname, "bookings-embed/dashboard.html"),
           bookingsEmbed: join(__dirname, "bookings-embed/fan-booking.html"),
+          chatEmbed: join(__dirname, "bookings-embed/chat.html"),  // vueApp/bookings-embed/chat.html
         },
         external: (id) => id.includes('__tests__') || id.includes('.spec.'),
         output: {

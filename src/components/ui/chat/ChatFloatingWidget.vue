@@ -3,10 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import ChatListPanel from '@/components/ui/chat/ChatListPanel.vue'
 import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
-import { resolveUserId } from '@/utils/resolveUserId'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
+
+const props = defineProps({
+  userId: { type: [String, Number], default: null },
+})
 
 const chatStore = useChatStore()
 
@@ -111,10 +114,18 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
   isListOpen.value = false
 }
 
-const socket = ref(null)
+const socket    = ref(null)
+const widgetEl  = ref(null)
+
+defineExpose({ widgetEl })
 
 onMounted(async () => {
-  currentUserId.value = resolveUserId()
+  if (props.userId) {
+    currentUserId.value = String(props.userId)
+  } else {
+    const { resolveUserId } = await import('@/utils/resolveUserId')
+    currentUserId.value = resolveUserId()
+  }
   if (currentUserId.value) {
     const s = useChatSocket(currentUserId.value)
     s.init()
@@ -154,6 +165,7 @@ onMounted(async () => {
   <!-- Fixed bottom-right anchor -->
   <div
     v-if="currentUserId"
+    ref="widgetEl"
     class="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2"
   >
 
@@ -169,6 +181,7 @@ onMounted(async () => {
         :target-user-ids="chat.targetUserIds"
         :group-type="chat.groupType"
         :socket="socket"
+        :current-user-id="currentUserId"
         @close="closeChatWindow(chat.uid)"
         @minimize="closeChatWindow(chat.uid)"
         @chat-created="(id) => onChatCreated(chat.uid, id)"

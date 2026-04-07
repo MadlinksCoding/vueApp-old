@@ -1,5 +1,6 @@
 import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
+import { fetchEventFlow } from "@/services/events/flows/fetchEventFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
@@ -14,6 +15,8 @@ import { markMessageDeliveredFlow } from "@/services/chat/flows/markMessageDeliv
 import { markMessageReadFlow } from "@/services/chat/flows/markMessageReadFlow.js";
 import { getUnreadCountFlow } from "@/services/chat/flows/getUnreadCountFlow.js";
 import { sendBookingRequestMessageFlow } from "@/services/chat/flows/sendBookingRequestMessageFlow.js";
+import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBookingRequestMessageFlow.js";
+import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
@@ -33,6 +36,7 @@ import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTempo
 import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTemporaryHoldUserFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
+import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
 import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
@@ -177,6 +181,11 @@ export const flowRegistry = {
       intervalMs: 60000,
       scopeKey: "events.fetchCreatorEvents",
     },
+  },
+
+  "events.fetchEvent": {
+    flowKind: "read",
+    flow: fetchEventFlow,
   },
 
   "events.createEvent": {
@@ -744,6 +753,16 @@ export const flowRegistry = {
     },
   },
 
+  "bookings.fetchBooking": {
+    flowKind: "read",
+    flow: fetchBookingFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+    },
+  },
+
   "rental.fetchCatalog": {
     flowKind: "read",
     flow: fetchRentalCatalogFlow,
@@ -1248,6 +1267,28 @@ export const flowRegistry = {
     flow: sendBookingRequestMessageFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.updateBookingRequestMessage": {
+    flowKind: "write",
+    flow: updateBookingRequestMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.sendChatActivityLog": {
+    flowKind: "write",
+    flow: sendChatActivityLogFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
       destinations: [],

@@ -67,7 +67,7 @@ const PAYMENT_SUBSTEP_SUMMARY = 'summary';
 const PAYMENT_SUBSTEP_TOPUP   = 'topup';
 
 const popupBackgroundStyle = computed(() => ({
-  backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  // backgroundImage: `url('${bookingFlowBackgroundImage}')`,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'left 50% center',
@@ -560,12 +560,28 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       participants: [String(fanUserId), String(creatorId)],
       name:         eventTitle || 'Booking Chat',
       description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+      metadata: {
+        bookingId: String(bookingId || props.engine.getState('fanBooking.booking.bookingId') || ''),
+        eventId: String(eventId || selectedEvent.value?.eventId || selectedEvent.value?.raw?.eventId || ''),
+        is_booking_request: true,
+        description: eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+      },
     });
     if (!chatRes?.ok) return;
     const chatId = chatRes.data?.chatId;
     if (!chatId) return;
 
-    // Step 2 — send booking request message
+    // Step 2a — activity log: fan sent a live call request
+    const fanUsername = props.engine.getState?.('fanBooking.fan.username')
+      || String(fanUserId)
+    await FlowHandler.run('chat.sendChatActivityLog', {
+      chatId,
+      senderId: fanUserId,
+      text: `@${fanUsername} has just sent you a live call request:`,
+      meta: { bookingId, eventTitle },
+    })
+
+    // Step 2b — send booking request message
     const msgRes = await FlowHandler.run('chat.sendBookingRequestMessage', {
       chatId,
       bookingId,
@@ -869,12 +885,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       || selectedEvent.value?.eventId
       || null;
 
+    fireAndForgetPostBookingChat({ bookingId, eventId });
+    console.error('[finalizeBooking] fired post-booking chat creation');
     fireAndForgetCreateSchedule({ bookingId, eventId });
     console.error('[finalizeBooking] booking created successfully', { bookingId, eventId, result });
     fireAndForgetBookingCreated();
     console.error('[finalizeBooking] fired booking created analytics');
-    fireAndForgetPostBookingChat({ bookingId, eventId });
-    console.error('[finalizeBooking] fired post-booking chat creation');
 
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
@@ -1112,7 +1128,7 @@ onBeforeUnmount(() => {
       class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       :style="popupBackgroundStyle"
     >
-      <div class="h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 md:bg-black lg:bg-transparent">
+      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
       <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
             <OneOnOneBookingFlowLeftSideBar

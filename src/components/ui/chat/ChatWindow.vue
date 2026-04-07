@@ -1,8 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
+import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
+import BookingRequestDetailPopup from '@/components/ui/chat/BookingRequestDetailPopup.vue'
+import AdjustBookingPopup        from '@/components/ui/chat/AdjustBookingPopup.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
+import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -17,12 +21,241 @@ const props = defineProps({
   targetUserId:  { type: [String, Number], default: null },
   targetUserIds: { type: Array, default: () => [] },
   groupType:     { type: String, default: null },
+  currentUserId: { type: [String, Number], default: null },
 })
 
 const emit = defineEmits(['close', 'minimize', 'chat-created'])
 
-const chatStore     = useChatStore()
-const currentUserId = resolveUserId()
+const chatStore = useChatStore()
+const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
+const isCreatorAccount = computed(() => {
+  const ud = resolveParentUserData()
+  return ud?.accountType === 'creator'
+    || window.userSpecifiData?.currentUser?.isCreator === true
+    || localStorage.getItem('isCreator') === 'true'
+})
+
+// Resolve the other participant's username for "@name" in the booking bubble
+const bookingSenderName = computed(() => {
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const otherId = participants.map(String).find(id => id !== String(currentUserId))
+  if (otherId) {
+    const ud = chatStore.chatUsersData[otherId]
+    if (ud?.username) return ud.username
+    if (ud?.display_name) return ud.display_name
+  }
+  return props.chatName
+})
+
+// ── Booking request popup ─────────────────────────────────────────────────────
+const showBookingPopup    = ref(false)
+const showAdjustPopup     = ref(false)
+const activeBookingMessage = ref(null)
+const bookingActionLoading = ref(false)
+
+function openBookingDetail(message) {
+  activeBookingMessage.value = message
+  showBookingPopup.value = true
+}
+
+function openAdjustPopup(message) {
+  activeBookingMessage.value = message
+  showBookingPopup.value = false
+  showAdjustPopup.value = true
+}
+
+// ── Activity log ──────────────────────────────────────────────────────────────
+async function sendChatActivityLog(text, meta) {
+  if (!activeChatId.value || !text) return
+  const res = await FlowHandler.run('chat.sendChatActivityLog', {
+    chatId:   activeChatId.value,
+    senderId: currentUserId,
+    text,
+    meta,
+  })
+  if (res?.ok) {
+    chatStore.addMessage(activeChatId.value, res.data.item)
+    const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
+    const recipients = allParticipants
+      .map((id) => parseInt(id, 10))
+      .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
+    props.socket?.sendChatMessage(res.data.item, recipients)
+  }
+}
+
+function broadcastBookingUpdate(item) {
+  if (!item || !activeChatId.value) return
+  // Update the message in the chat list in-place so the bubble re-renders
+  chatStore.addMessage(activeChatId.value, item)
+  chatStore.updateChatLastMessage(activeChatId.value, item)
+  const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
+  const recipients = allParticipants
+    .map((id) => parseInt(id, 10))
+    .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
+  props.socket?.sendChatMessage(item, recipients)
+}
+
+async function performBookingDecision(message, decision) {
+  if (!activeChatId.value || !message) return
+  const messageId = message.message_id
+  const bookingId = message.content?.booking_id
+  if (!bookingId || !messageId) return
+
+  bookingActionLoading.value = true
+
+  await FlowHandler.run('bookings.reviewPendingBooking', {
+    bookingId,
+    decision,
+    actor: 'creator',
+  })
+
+  const newAction = decision === 'approve' ? 'accepted' : 'declined'
+  const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+    chatId:    activeChatId.value,
+    messageId,
+    action:    newAction,
+  })
+
+  bookingActionLoading.value = false
+
+  if (res?.ok) {
+    broadcastBookingUpdate(res.data?.item)
+    const eventTitle = message.content?.event_title || ''
+    const logText = decision === 'approve'
+      ? `Booking accepted${eventTitle ? `: ${eventTitle}` : ''}`
+      : `Booking declined${eventTitle ? `: ${eventTitle}` : ''}`
+    sendChatActivityLog(logText, {
+      is_booking_request: true,
+      decision,
+      bookingId,
+    })
+  }
+}
+
+function onDirectAccept(message) {
+  performBookingDecision(message, 'approve')
+}
+
+function onDirectDecline(message) {
+  performBookingDecision(message, 'reject')
+}
+
+async function onBookingActionComplete({ decision, bookingId }) {
+  showBookingPopup.value = false
+  if (!activeChatId.value) return
+
+  const messageId = activeBookingMessage.value?.message_id
+  const newAction = decision === 'approve' ? 'accepted' : 'declined'
+
+  const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+    chatId:    activeChatId.value,
+    messageId,
+    action:    newAction,
+  })
+
+  if (res?.ok) broadcastBookingUpdate(res.data?.item)
+}
+
+function onAdjustSubmitted({ item }) {
+  showAdjustPopup.value = false
+  broadcastBookingUpdate(item)
+  const msg = activeBookingMessage.value
+  sendChatActivityLog('Counter offer sent', {
+    is_booking_request: true,
+    decision: 'counter_offer',
+    bookingId: msg?.content?.booking_id,
+  })
+}
+
+function onConfirmCounter(message) {
+  showBookingPopup.value = false
+  // Fan accepts the counter offer — just notify for now
+  alert('Counter offer accepted! The creator will be notified.')
+}
+
+async function onCancelBooking(message) {
+  showBookingPopup.value = false
+  const content   = message?.content || {}
+  const messageId = message?.message_id
+  if (!content.booking_id || !messageId || !activeChatId.value) return
+
+  const res = await FlowHandler.run('bookings.cancelBooking', {
+    bookingId: content.booking_id,
+    actor:     'user',
+  })
+
+  if (res?.ok) {
+    const updateRes = await FlowHandler.run('chat.updateBookingRequestMessage', {
+      chatId:    activeChatId.value,
+      messageId,
+      action:    'declined',
+    })
+    if (updateRes?.ok) broadcastBookingUpdate(updateRes.data?.item)
+  }
+}
+
+function variantForMessage(msg) {
+  if (msg.content_type === 'booking_request') return 'system'
+  if (msg.content_type === 'activity_log') return 'system'
+  return null
+}
+const ActivityLogTexts = {
+  'accepted': {
+    'creator': "You have just confirmed @{audience}'s booking",
+    'audience': "@{creator} has just confirmed your booking",
+  },
+  'declined': {
+    'creator': "You have just declined @{audience}'s booking",
+    'audience': "@{creator} has just declined your booking",
+  },
+  'counter_offer': {
+    'creator': "You have adjust the cost of the booking",
+    'audience': "@{creator} has adjust the cost of the booking",
+  },
+};
+
+function resolveActivityLogText(message) {
+  const rawText   = message.content?.text || message.text || ''
+  const meta      = message.content?.meta  || message.meta || {}
+  const senderId  = String(message.sender_id || message.senderId || '')
+
+  // ── Step 1: template resolution for booking activity logs ────────────────
+  let workingText = rawText
+  if (meta.is_booking_request) {
+    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer' }
+    const action   = decisionMap[meta.decision] || null
+    const role     = isCreatorAccount.value ? 'creator' : 'audience'
+    const template = action ? ActivityLogTexts[action]?.[role] : null
+    if (template) workingText = template
+  }
+
+  // ── Step 2: generic token replacer ───────────────────────────────────────
+  // Resolve creator/audience token placeholders
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const otherParticipantId = participants.map(String).find(id => id !== String(currentUserId)) || ''
+
+  const getName = (id) => {
+    if (!id) return null
+    const ud = chatStore.chatUsersData[String(id)]
+    return ud?.username || ud?.display_name || null
+  }
+
+  const nameForOther = getName(otherParticipantId);
+  const nameFormat   = nameForOther ? `@${nameForOther}` : `@${otherParticipantId}`
+
+  workingText = workingText
+    .replace('@{creator}',  nameFormat)
+    .replace('@{audience}', nameFormat)
+
+  // Replace any remaining @{digits},@digits tokens with @username or @userId
+  workingText = workingText.replace(/@{?(\d+)}?/g, (match, userId) => {
+    const name = getName(userId);
+    return name ? `@${name}` : `@${userId}`;
+  });
+  console.log('Final resolved activity log text:', workingText)
+
+  return workingText
+}
 
 const composeText     = ref('')
 const loading         = ref(false)
@@ -71,7 +304,19 @@ function getMessageReaders(msg) {
   })
 }
 
-const messages = computed(() => activeChatId.value ? chatStore.getMessagesByChatId(activeChatId.value) : [])
+const allMessages = computed(() => activeChatId.value ? chatStore.getMessagesByChatId(activeChatId.value) : [])
+
+// Exclude booking_request messages from the scroll list — they are shown in the pinned banner instead
+const messages = computed(() => allMessages.value.filter(m => m.content_type !== 'booking_request'))
+
+// The most recent booking_request message — shown as a pinned banner at the top
+const pinnedBookingMessage = computed(() => {
+  const list = allMessages.value
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].content_type === 'booking_request') return list[i]
+  }
+  return null
+})
 
 // ── Read receipts via IntersectionObserver ────────────────────────────────────
 const flexChatRef  = ref(null)
@@ -148,7 +393,7 @@ const chatTheme = {
   compose:          'bg-white px-4 py-3 shrink-0',
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
-  systemMessageRow: 'flex w-full justify-center my-3',
+  systemMessageRow: 'flex w-full justify-center my-1',
   myBubble:         'text-white text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-slate-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
   otherBubble:      'text-[#344054] text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
   systemBubble:     'w-full',
@@ -289,6 +534,32 @@ watch(() => messages.value.length, () => {
   observeNewRows()
 })
 
+// Mark the pinned booking message as read as soon as it becomes visible
+// (it lives outside the IntersectionObserver's scrollable root)
+watch(pinnedBookingMessage, async (msg) => {
+  if (!msg) return
+  const messageId = msg.message_id
+  const senderId  = String(msg.sender_id || msg.senderId || '')
+  if (!messageId) return
+  if (senderId === String(currentUserId)) return   // own message
+  if (_markedReadIds.has(messageId)) return        // already handled
+
+  _markedReadIds.add(messageId)
+  chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
+  chatStore.updateChatUnread(activeChatId.value, false)
+
+  const res = await FlowHandler.run('chat.markMessageRead', {
+    chatId:    activeChatId.value,
+    messageId,
+    userId:    currentUserId,
+  })
+
+  if (senderId) {
+    const readReceipts = res?.data?.result?.read_receipts ?? []
+    props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+  }
+}, { immediate: true })
+
 onMounted(async () => {
   const root = await new Promise((resolve) => {
     // Wait one tick for FlexChat to mount and expose bodyEl
@@ -328,8 +599,26 @@ onUnmounted(() => {
       :infinite="true"
       row-key="message_id"
       :message-attrs="messageAttrs"
+      :variant-for-message="variantForMessage"
       @load-more="fetchMore"
     >
+      <!-- Pinned booking banner -->
+      <template v-if="pinnedBookingMessage" #pinned-banner>
+        <BookingRequestBubble
+          :message="pinnedBookingMessage"
+          :is-creator="isCreatorAccount"
+          :disabled="bookingActionLoading"
+          :sender-name="bookingSenderName"
+          pinned
+          @view-details="openBookingDetail(pinnedBookingMessage)"
+          @accept="onDirectAccept(pinnedBookingMessage)"
+          @decline="onDirectDecline(pinnedBookingMessage)"
+          @adjust="openAdjustPopup(pinnedBookingMessage)"
+          @confirm-counter="onConfirmCounter(pinnedBookingMessage)"
+          @cancel-booking="onCancelBooking(pinnedBookingMessage)"
+        />
+      </template>
+
       <!-- Header -->
       <template #header>
         <div class="flex items-center gap-2.5">
@@ -355,6 +644,28 @@ onUnmounted(() => {
             </svg>
           </div>
         </div>
+      </template>
+
+      <!-- Booking request & other system messages -->
+      <template #message.system="{ message }">
+        <BookingRequestBubble
+          v-if="message.content_type === 'booking_request'"
+          :message="message"
+          :is-creator="isCreatorAccount"
+          :disabled="bookingActionLoading"
+          :sender-name="bookingSenderName"
+          @view-details="openBookingDetail(message)"
+          @accept="onDirectAccept(message)"
+          @decline="onDirectDecline(message)"
+          @adjust="openAdjustPopup(message)"
+          @confirm-counter="onConfirmCounter(message)"
+          @cancel-booking="onCancelBooking(message)"
+        />
+        <!-- Activity log: centered italic text + divider -->
+        <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
+          <span class="text-xs text-zinc-400 italic text-center">{{ resolveActivityLogText(message) }}</span>
+        </div>
+        <div v-else class="text-xs text-zinc-400 text-center px-2 py-1 w-full">{{ message.text }}</div>
       </template>
 
       <!-- Message content -->
@@ -478,4 +789,28 @@ onUnmounted(() => {
 
     </FlexChat>
   </div>
+
+  <!-- Booking request detail popup -->
+  <BookingRequestDetailPopup
+    v-if="showBookingPopup && activeBookingMessage"
+    :message="activeBookingMessage"
+    :is-creator="isCreatorAccount"
+    :chat-id="activeChatId"
+    :current-user-id="currentUserId"
+    @action-complete="onBookingActionComplete"
+    @adjust="openAdjustPopup(activeBookingMessage)"
+    @confirm-counter="onConfirmCounter(activeBookingMessage)"
+    @cancel-booking="onCancelBooking(activeBookingMessage)"
+    @open-chat="showBookingPopup = false"
+    @close="showBookingPopup = false"
+  />
+
+  <!-- Adjust booking popup -->
+  <AdjustBookingPopup
+    v-if="showAdjustPopup && activeBookingMessage"
+    :message="activeBookingMessage"
+    :chat-id="activeChatId"
+    @submitted="onAdjustSubmitted"
+    @close="showAdjustPopup = false"
+  />
 </template>

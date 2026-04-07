@@ -4,18 +4,18 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 
 export async function sendBookingRequestMessageFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
-  const { chatId, bookingId, action, senderId, slotDate, eventId, eventTitle, text } = payload;
+  const { chatId, bookingId, action, senderId, slotDate, eventId, eventTitle, text, meta } = payload;
 
   if (!chatId || !bookingId || !action) {
     return fail({ code: "SEND_BOOKING_REQUEST_MISSING_FIELDS", message: "chatId, bookingId, and action are required." });
   }
 
-  if (!["pending", "accepted", "declined"].includes(action)) {
-    return fail({ code: "SEND_BOOKING_REQUEST_INVALID_ACTION", message: "action must be \"pending\", \"accepted\", or \"declined\"." });
+  if (!["pending", "accepted", "declined", "counter_offer"].includes(action)) {
+    return fail({ code: "SEND_BOOKING_REQUEST_INVALID_ACTION", message: "action must be \"pending\", \"accepted\", \"declined\", or \"counter_offer\"." });
   }
 
   try {
-    const response = await api.post(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/booking`, { bookingId, action, senderId, slotDate, eventId, eventTitle, text });
+    const response = await api.post(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/booking`, { bookingId, action, senderId, slotDate, eventId, eventTitle, text, meta });
     const status = getHttpStatus(response, 201);
 
     if (response?.ok === false) {
