@@ -26,8 +26,13 @@ export async function updateBookingFlow({ payload, context, api }) {
 
   const {
     bookingId: _bookingId,
+    addons,
     ...requestBody
   } = payload || {};
+
+  if (requestBody.requestedAddOns === undefined && addons !== undefined) {
+    requestBody.requestedAddOns = addons;
+  }
 
   try {
     const response = await api.post(
