@@ -12,6 +12,8 @@ import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import TokenHandler from '@/utils/TokenHandler.js'
+import { showToast } from '@/utils/toastBus.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 
@@ -50,6 +52,10 @@ const bookingSenderName = computed(() => {
   }
   return props.chatName
 })
+
+// ── Topup flow state (iframe → parent communication) ─────────────────────────
+const _pendingTopupBookingId = ref(null)
+const _pendingTopupMessage   = ref(null)
 
 // ── Booking request popup ─────────────────────────────────────────────────────
 const showBookingPopup        = ref(false)
@@ -251,10 +257,108 @@ async function onRejectCounter(message) {
   }
 }
 
-function onConfirmCounter(message) {
+async function _doConfirmCounter(bookingId, message) {
+  bookingActionLoading.value = true
+  const res = await FlowHandler.run('bookings.reviewPendingBooking', {
+    bookingId,
+    decision: 'approve',
+    actor:    'fan',
+  })
+
+  if (!res?.ok) {
+    bookingActionLoading.value = false
+    showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not confirm booking.' })
+    return
+  }
+
+  // Keep cached booking fresh
+  if (res.data?.item) chatStore.setBooking(bookingId, res.data.item)
+
+  // Update the chat message action to 'accepted' (mirrors performBookingDecision)
+  const messageId = message?.message_id
+  const updateRes = messageId
+    ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+        chatId:    activeChatId.value,
+        messageId,
+        action:    'accepted',
+      })
+    : null
+
+  bookingActionLoading.value = false
+
+  broadcastBookingUpdate(updateRes?.data?.item || message)
+  sendChatActivityLog('Counter offer accepted', {
+    is_booking_request: true,
+    decision:           'accepted',
+    bookingId,
+  })
+}
+
+async function onConfirmCounter(message) {
   showBookingPopup.value = false
-  // Fan accepts the counter offer — just notify for now
-  alert('Counter offer accepted! The creator will be notified.')
+
+  const bookingId = message?.content?.booking_id
+  if (!bookingId) return
+
+  // Resolve token amounts
+  const cachedBooking = chatStore.getBookingById(bookingId)
+  const newTokens     = Number(cachedBooking?.payment?.total ?? message?.content?.meta?.totalTokens ?? 0)
+  const prevTokens    = Number(message?.content?.meta?.prevTotalTokens ?? 0)
+  const diffTokens    = Math.max(0, newTokens - prevTokens)
+
+  // Fan already covered this amount (same or cheaper counter-offer) — confirm directly
+  if (diffTokens === 0) {
+    await _doConfirmCounter(bookingId, message)
+    return
+  }
+
+  // Resolve creator ID (the other participant)
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const creatorId    = participants.map(String).find(id => id !== String(currentUserId)) || null
+
+  // Fetch fan's spendable token balance
+  let userBalance = 0
+  if (creatorId) {
+    const balance = await TokenHandler.get({ userId: currentUserId, receiverId: creatorId })
+    userBalance = typeof balance === 'number' ? balance : 0
+  } else {
+    const res = await TokenHandler.get({ userId: currentUserId })
+    userBalance = Number(res?.data?.paidTokens ?? res?.data?.balance ?? 0)
+  }
+
+  // DEV-only: override balance via localStorage for testing topup flow
+  if (import.meta.env.DEV) {
+    const mock = localStorage.getItem('mockTokenBalance')
+    if (mock !== null) userBalance = Number(mock)
+  }
+  
+  // Fan has enough balance to cover the difference — confirm directly
+  if (userBalance >= diffTokens) {
+    await _doConfirmCounter(bookingId, message)
+    return
+  }
+
+  // Insufficient tokens — need topup for the difference only
+  const isInIframe = window.self !== window.top
+  if (!isInIframe) {
+    alert('The topup checkout is not available.')
+    return
+  }
+
+  // Store pending state and ask parent to open the topup popup
+  _pendingTopupBookingId.value = bookingId
+  _pendingTopupMessage.value   = message
+
+  window.parent.postMessage({
+    type:    'FS_CHAT_TOPUP_REQUIRED',
+    payload: {
+      bookingId,
+      requiredTokens: diffTokens,
+      currentUserId:  String(currentUserId),
+      creatorUserId:  String(creatorId || ''),
+      topupFor:       'booking_confirm',
+    },
+  }, '*')
 }
 
 async function onCancelBooking(message) {
@@ -268,14 +372,17 @@ async function onCancelBooking(message) {
     actor:     'user',
   })
 
-  if (res?.ok) {
-    const updateRes = await FlowHandler.run('chat.updateBookingRequestMessage', {
-      chatId:    activeChatId.value,
-      messageId,
-      action:    'declined',
-    })
-    if (updateRes?.ok) broadcastBookingUpdate(updateRes.data?.item)
+  if (!res?.ok) {
+    showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not cancel booking.' })
+    return
   }
+
+  const updateRes = await FlowHandler.run('chat.updateBookingRequestMessage', {
+    chatId:    activeChatId.value,
+    messageId,
+    action:    'declined',
+  })
+  if (updateRes?.ok) broadcastBookingUpdate(updateRes.data?.item)
 }
 
 function variantForMessage(msg) {
@@ -285,8 +392,10 @@ function variantForMessage(msg) {
 }
 const ActivityLogTexts = {
   'accepted': {
-    'creator': "You have just confirmed @{audience}'s booking",
-    'audience': "@{creator} has just confirmed your booking",
+    // 'creator': "You have just confirmed @{audience}'s booking",
+    // 'audience': "@{creator} has just confirmed your booking",
+    'audience': "You have just confirmed @{creator}'s booking",
+    'creator': "@{audience} has just confirmed your booking",
   },
   'declined': {
     'creator': "You have just declined @{audience}'s booking",
@@ -330,6 +439,7 @@ function resolveActivityLogText(message) {
   workingText = workingText
     .replace('@{creator}',  nameFormat)
     .replace('@{audience}', nameFormat)
+    .replace('@{current_user}', `@${getName(currentUserId)}`);
 
   // Replace any remaining @{digits},@digits tokens with @username or @userId
   workingText = workingText.replace(/@{?(\d+)}?/g, (match, userId) => {
@@ -716,7 +826,24 @@ watch(pinnedBookingMessage, async (msg) => {
   }
 }, { immediate: true })
 
+function _onTopupMessage(e) {
+  if (!e.data || typeof e.data !== 'object') return
+  if (e.data.type === 'FS_CHAT_TOPUP_SUCCESS') {
+    const bookingId = _pendingTopupBookingId.value
+    const message   = _pendingTopupMessage.value
+    _pendingTopupBookingId.value = null
+    _pendingTopupMessage.value   = null
+    if (bookingId) _doConfirmCounter(bookingId, message)
+  } else if (e.data.type === 'FS_CHAT_TOPUP_FAILED') {
+    _pendingTopupBookingId.value = null
+    _pendingTopupMessage.value   = null
+    showToast({ type: 'error', title: 'Top-up failed', message: 'Booking was not confirmed.' })
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('message', _onTopupMessage)
+
   const root = await new Promise((resolve) => {
     // Wait one tick for FlexChat to mount and expose bodyEl
     nextTick(() => resolve(flexChatRef.value?.bodyEl))
@@ -738,6 +865,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('message', _onTopupMessage)
   _observer?.disconnect()
   _observer = null
 })
@@ -992,6 +1120,7 @@ onUnmounted(() => {
     :message="activeBookingMessage"
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
+    :event="activeEventData"
     @submitted="broadcastBookingUpdate($event)"
     @close="showMoreTimePopup = false"
   />
@@ -1002,6 +1131,7 @@ onUnmounted(() => {
     :message="activeBookingMessage"
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
+    :event="activeEventData"
     @submitted="broadcastBookingUpdate($event)"
     @close="showReschedulePopup = false"
   />
@@ -1011,6 +1141,7 @@ onUnmounted(() => {
     v-if="showCancelCallPopup && activeBookingMessage"
     :message="activeBookingMessage"
     :chat-id="activeChatId"
+    :is-creator="isCreatorAccount"
     @cancelled="broadcastBookingUpdate(activeBookingMessage)"
     @close="showCancelCallPopup = false"
   />

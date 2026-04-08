@@ -150,7 +150,7 @@
 
             <!-- Counter offer: fan actions -->
             <div v-else-if="!loading && !isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
-              <div class="w-full text-sm font-semibold text-[#5549FF] mb-1">Counter offer received</div>
+              <!-- <div class="w-full text-sm font-semibold text-[#5549FF] mb-1">Counter offer received</div> -->
               <button
                 type="button"
                 :disabled="actionLoading"
@@ -203,11 +203,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import { useChatStore } from '@/stores/useChatStore'
 import DotVerticalIcon    from '@/assets/images/icons/dots-vertical.webp'
 import MessageTextIconBlue from '@/assets/images/icons/messageblue.webp'
 import ArrowRightIcon     from '@/assets/images/icons/arrow-up-right.webp'
 import EditIcon           from '@/assets/images/icons/edit-05.webp'
 import HourglassIcon      from '@/assets/images/icons/hourglass-03.webp'
+
+const chatStore = useChatStore()
 
 const props = defineProps({
   message:       { type: Object, required: true },
@@ -320,12 +323,18 @@ const duration = computed(() => {
   return Math.max(0, Math.floor((endDate.value - startDate.value) / 60000))
 })
 
-const guestLabel = computed(() =>
-  raw.value.userDisplayName
-  || raw.value.userName
-  || raw.value.userUsername
-  || (raw.value.userId ? `User #${raw.value.userId}` : null)
-)
+const guestLabel = computed(() => {
+  if (raw.value.userDisplayName) return raw.value.userDisplayName
+  if (raw.value.userName)        return raw.value.userName
+  if (raw.value.userUsername)    return raw.value.userUsername
+  const userId = raw.value.userId
+  if (userId) {
+    const ud = chatStore.chatUsersData[String(userId)]
+    if (ud?.username || ud?.display_name) return "@"+ud.username || ud.display_name
+    return `User #${userId}`
+  }
+  return null
+})
 
 const guestAvatar = computed(() => raw.value.userAvatarUrl || null)
 

@@ -38,7 +38,7 @@
             </div>
           </div>
 
-          <!-- Session Duration -->
+          <!-- Session Duration (read-only) -->
           <div class="flex flex-col gap-2">
             <label class="text-gray-700 text-base font-medium">Session duration</label>
             <div class="flex items-center gap-2 mt-3">
@@ -46,29 +46,32 @@
                 v-model="form.durationMinutes"
                 type="number"
                 placeholder=""
-                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300"
+                :disabled="true"
+                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 cursor-default"
               />
               <div class="text-black text-base font-medium leading-normal">Minutes</div>
             </div>
           </div>
 
-          <!-- Additional Requests -->
-          <div v-if="addOnOptions.length" class="flex flex-col gap-3">
+          <!-- Additional Requests (read-only) -->
+          <div v-if="selectedAddOnOptions.length" class="flex flex-col gap-3">
             <label class="text-gray-700 text-base font-medium">Additional request</label>
             <div class="flex flex-col gap-3.5 mt-0.5">
-              <label
-                v-for="opt in addOnOptions"
+              <div
+                v-for="opt in selectedAddOnOptions"
                 :key="opt.key"
-                class="flex items-center justify-between cursor-pointer group"
+                class="flex items-center justify-between"
               >
-                <div class="flex items-center gap-2.5">
-                  <CheckboxGroup v-model="form.selectedAddOns" :value="opt.key" />
-                  <span class="text-gray-950 text-base font-medium transition-colors">{{ opt.label }}</span>
-                </div>
+                <span class="text-gray-950 text-base font-medium">{{ opt.label }}</span>
                 <span class="text-[#4640FF] font-semibold text-[14px] tracking-wide">+ {{ opt.tokens }} Tokens</span>
-              </label>
+              </div>
             </div>
           </div>
+
+
+          <!-- New event date / time (optional) -->
+          <EventSlotDateTimePicker v-model="slotPickerValue" :event="event" :duration-ms="originalDurationMs"
+            :original-event-date="originalEventDate" :original-start-time="originalStartTime" :optional="true" />
 
           <!-- Creator's Remarks -->
           <div class="flex flex-col gap-2 mt-1">
@@ -113,7 +116,7 @@
                 btnHoverBg="black"
                 btnText="black"
                 btnHoverText="#07f468"
-                :disabled="submitting"
+                :disabled="isSubmitDisabled"
                 @click="handleSubmit"
               />
             </div>
@@ -128,10 +131,11 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
-import CloseIcon      from '@/assets/images/icons/cross-white.webp'
-import BaseInput      from '@/components/dev/input/BaseInput.vue'
-import CheckboxGroup  from '@/components/ui/form/checkbox/CheckboxGroup.vue'
-import ButtonComponent from '@/components/dev/button/ButtonComponent.vue'
+import BaseInput               from '@/components/dev/input/BaseInput.vue'
+import CloseIcon               from '@/assets/images/icons/cross-white.webp'
+import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue'
+import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
+import { showToast }           from '@/utils/toastBus.js'
 
 const props = defineProps({
   message:   { type: Object, required: true },
@@ -146,10 +150,11 @@ const booking    = ref(null)
 const event      = ref(null)
 
 const form = reactive({
-  durationMinutes: 30,
-  selectedAddOns:  [],
-  remarks:         '',
+  durationMinutes:  30,
+  remarks:          '',
   adjustmentTokens: 0,
+  newDate:          '',
+  newStartTime:     '',
 })
 
 const messageContent = computed(() => props.message?.content || {})
@@ -168,7 +173,14 @@ onMounted(async () => {
 
   if (bookingRes?.ok && bookingRes.data?.item) {
     booking.value = bookingRes.data.item
-    const mins = Number(bookingRes.data.item.durationMinutes || 0)
+    const item = bookingRes.data.item
+
+    // Resolve duration: top-level → meta paymentPayload → calculate from start/end
+    let mins = Number(item.durationMinutes || item.sessionDurationMinutes || 0)
+    if (!mins) mins = Number(item.meta?.validation?.paymentPayload?.durationMinutes || 0)
+    if (!mins && item.startAtIso && item.endAtIso) {
+      mins = Math.round((Date.parse(item.endAtIso) - Date.parse(item.startAtIso)) / 60000)
+    }
     if (mins > 0) form.durationMinutes = mins
   }
 
@@ -180,9 +192,44 @@ onMounted(async () => {
 
 const raw = computed(() => booking.value || {})
 
+// ── Original date/time helpers ────────────────────────────────────────────────
+function parseOriginalStartMs() {
+  const iso = raw.value.startIso || raw.value.startAtIso || messageContent.value.slot_date
+  if (!iso) return null
+  const ms = Date.parse(iso)
+  return isNaN(ms) ? null : ms
+}
+
+const originalEventDate = computed(() => {
+  const ms = parseOriginalStartMs()
+  if (!ms) return null
+  return new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+})
+
+const originalStartTime = computed(() => {
+  const ms = parseOriginalStartMs()
+  if (!ms) return null
+  return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
+})
+
+const originalDurationMs = computed(() => {
+  const endIso = raw.value.endIso || raw.value.endAtIso
+  if (!endIso) return null
+  const endMs   = Date.parse(endIso)
+  const startMs = parseOriginalStartMs()
+  if (!startMs || isNaN(endMs)) return null
+  return endMs - startMs
+})
+
+
 const personalRequestText = computed(() =>
   String(raw.value.personalRequestText || '').trim() || null
 )
+
+const slotPickerValue = computed({
+  get: () => ({ date: form.newDate, startTime: form.newStartTime }),
+  set: (val) => { form.newDate = val.date; form.newStartTime = val.startTime },
+})
 
 // Add-ons come from the event; fall back to booking's addOnsCatalog
 const addOnOptions = computed(() => {
@@ -196,45 +243,115 @@ const addOnOptions = computed(() => {
   }))
 })
 
+const selectedAddOnOptions = computed(() => {
+  const requested = Array.isArray(raw.value.requestedAddOns) ? raw.value.requestedAddOns : []
+  return requested.map(addon => {
+    const title = addon?.title || addon?.name || String(addon)
+    const match = addOnOptions.value.find(o => o.label === title)
+    return { label: title, tokens: match?.tokens ?? 0 }
+  })
+})
+
 const baseTokens = computed(() => {
   const payment = raw.value.payment || {}
   const total = Number(payment.total ?? raw.value.paymentTotal ?? 0)
   return Number.isFinite(total) ? Math.ceil(total) : 0
 })
 
-const addOnTokens = computed(() =>
-  addOnOptions.value
-    .filter(o => form.selectedAddOns.includes(o.key))
-    .reduce((sum, o) => sum + o.tokens, 0)
+const totalTokens = computed(() =>
+  Math.max(0, baseTokens.value + (Number(form.adjustmentTokens) || 0))
 )
 
-const totalTokens = computed(() =>
-  Math.max(0, baseTokens.value + addOnTokens.value + (Number(form.adjustmentTokens) || 0))
+const isDateTimeValid = computed(() => {
+  const hasDate = !!form.newDate
+  const hasTime = !!form.newStartTime
+  if (!hasDate && !hasTime) return true
+  if (hasDate && !hasTime) return false
+  if (hasTime && !hasDate) return false
+  if (hasDate && event.value?.slots?.length) {
+    const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const [y, m, d] = form.newDate.split('-').map(Number)
+    const dayName = DAY_NAMES[new Date(y, m - 1, d).getDay()]
+    const allowed = new Set(event.value.slots.map(s => String(s?.day || '').toLowerCase()).filter(Boolean))
+    if (allowed.size > 0 && !allowed.has(dayName)) return false
+  }
+  return true
+})
+
+const isSubmitDisabled = computed(() =>
+  submitting.value ||
+  !isDateTimeValid.value ||
+  (!form.newDate && !form.newStartTime && Number(form.adjustmentTokens) === 0)
 )
 
 async function handleSubmit() {
-  if (submitting.value) return
+  if (isSubmitDisabled.value) return
   submitting.value = true
 
-  const meta = {
-    adjustedDurationMinutes: form.durationMinutes,
-    selectedAddOns:          form.selectedAddOns,
-    creatorRemarks:          form.remarks.trim() || null,
-    adjustmentTokens:        Number(form.adjustmentTokens) || 0,
-    totalTokens:             totalTokens.value,
-  }
+  const bookingId = messageContent.value.booking_id
 
-  const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
-    chatId:    props.chatId,
-    messageId: props.message.message_id,
-    action:    'counter_offer',
-    meta,
-  })
+  try {
+    // 1. Compute new slot ISO (used for reschedule + meta)
+    let newSlotDate = null
+    if (form.newDate && form.newStartTime) {
+      const [h, m] = form.newStartTime.split(':').map(Number)
+      const d      = new Date(form.newDate)
+      d.setHours(h, m, 0, 0)
+      newSlotDate = d.toISOString()
+    }
 
-  submitting.value = false
+    // Capture previous values before renegotiation overwrites them
+    const prevStartAtIso  = newSlotDate ? (raw.value.startIso || raw.value.startAtIso || null) : null
+    const prevTotalTokens = baseTokens.value > 0 ? baseTokens.value : null
 
-  if (res?.ok) {
-    emit('submitted', { item: res.data?.item, meta })
+    // 2. Renegotiate cost + optional reschedule in one call
+    if (bookingId) {
+      const renegotiateRes = await FlowHandler.run('bookings.renegotiateBooking', {
+        bookingId,
+        startAtIso:          newSlotDate || undefined,
+        costTokens:          totalTokens.value > 0 ? totalTokens.value : undefined,
+        personalRequestText: form.remarks.trim() || undefined,
+        actor: 'system',
+        args: {
+          source:    'chat_adjust',
+          action:    'counter_offer',
+          chatId:    props.chatId,
+          messageId: props.message.message_id,
+          prevTotalTokens,
+          prevStartAtIso
+        },
+      })
+      if (!renegotiateRes?.ok) {
+        console.error('Renegotiation failed', renegotiateRes)
+        showToast({ type: 'error', title: 'Failed', message:  renegotiateRes?.message || renegotiateRes?.error || 'Could not adjust booking.' })
+        return
+      }
+    }
+
+    // 4. Update chat message
+    const meta = {
+      adjustedDurationMinutes: form.durationMinutes,
+      selectedAddOns:          selectedAddOnOptions.value.map(o => o.label),
+      creatorRemarks:          form.remarks.trim() || null,
+      adjustmentTokens:        Number(form.adjustmentTokens) || 0,
+      totalTokens:             totalTokens.value,
+      newSlotDate,
+      prevStartAtIso,
+      prevTotalTokens,
+    }
+
+    const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+      chatId:    props.chatId,
+      messageId: props.message.message_id,
+      action:    'counter_offer',
+      meta,
+    })
+
+    if (res?.ok) {
+      emit('submitted', { item: res.data?.item, meta })
+    }
+  } finally {
+    submitting.value = false
   }
 }
 </script>

@@ -22,21 +22,30 @@
 
       <!-- Slot date + time range (skeleton while loading) -->
       <div v-if="loading" class="h-3 w-36 bg-gray-200 rounded animate-pulse" />
-      <div v-else-if="resolvedDateTime" class="text-slate-600 text-xs font-medium">
-        {{ resolvedDateTime }}
-      </div>
+      <template v-else-if="resolvedDateTime">
+        <!-- Date change row (counter_offer with new slot) -->
+        <div v-if="resolvedAction === 'counter_offer' && counterSlotDate && prevSlotDateTime" class="flex flex-col gap-0.5">
+          <span class="line-through text-gray-400 text-xs">{{ prevSlotDateTime }}</span>
+          <span class="text-[#5549FF] font-semibold text-xs">{{ counterSlotDate }}</span>
+        </div>
+        <!-- Normal date row -->
+        <div v-else class="text-slate-600 text-xs font-medium">
+          {{ resolvedDateTime }}
+        </div>
+      </template>
 
       <!-- Price row -->
       <div v-if="resolvedAction === 'counter_offer' && counterTokens" class="flex items-baseline gap-1.5">
-        <span v-if="originalTokens" class="line-through text-gray-400 text-sm">{{ originalTokens }}</span>
+        <span v-if="prevTokens" class="line-through text-gray-400 text-sm">{{ prevTokens }}</span>
         <span class="text-[#5549FF] font-semibold text-sm">{{ counterTokens }} Token</span>
       </div>
 
       <!-- Remarks (counter_offer, creator side only) -->
       <div v-if="isCreator && resolvedAction === 'counter_offer' && counterRemarks" class="flex flex-col gap-0.5">
         <span class="text-gray-700 text-xs font-medium">Your remarks</span>
-        <span class="text-[#5549FF] text-xs leading-relaxed" :class="remarksExpanded ? '' : 'line-clamp-2'">{{ counterRemarks }}</span>
+        <span ref="remarksRef" class="text-[#5549FF] text-xs leading-relaxed" :class="remarksExpanded ? '' : 'line-clamp-2'">{{ counterRemarks }}</span>
         <button
+          v-if="isRemarksClamped || remarksExpanded"
           type="button"
           class="flex items-center gap-0.5 text-[#5549FF] text-xs font-medium hover:opacity-80 self-start mt-0.5"
           @click.stop="remarksExpanded = !remarksExpanded"
@@ -105,8 +114,9 @@
         <!-- Sender's remarks (truncated) + expand/collapse toggle -->
         <div v-if="counterRemarks" class="flex flex-col gap-0.5">
           <span class="text-gray-700 text-xs font-medium">@{{ senderName }}'s remarks:</span>
-          <span class="text-[#5549FF] text-xs leading-relaxed" :class="remarksExpanded ? '' : 'line-clamp-2'">{{ counterRemarks }}</span>
+          <span ref="remarksRef" class="text-[#5549FF] text-xs leading-relaxed" :class="remarksExpanded ? '' : 'line-clamp-2'">{{ counterRemarks }}</span>
           <button
+            v-if="isRemarksClamped || remarksExpanded"
             type="button"
             class="flex items-center gap-0.5 text-[#5549FF] text-xs font-medium hover:opacity-80 self-start mt-0.5"
             @click.stop="remarksExpanded = !remarksExpanded"
@@ -128,7 +138,7 @@
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click.stop="$emit('confirm-counter')"
           >
-            Accept New Cost
+            Accept Changes
           </button>
           <button
             type="button"
@@ -201,15 +211,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
+import { useChatStore } from '@/stores/useChatStore'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
 import EditIcon        from '@/assets/images/icons/edit-05.webp'
 
-// ── Per-session cache shared across all bubble instances ──────────────────────
-const _bookingCache = new Map() // bookingId → booking item
+const chatStore = useChatStore()
 
 const props = defineProps({
   message:    { type: Object, required: true },
@@ -223,27 +233,40 @@ defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', '
 
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
-const booking = ref(null)
 const remarksExpanded = ref(false)
+const remarksRef = ref(null)
+const isRemarksClamped = ref(false)
 
-// ── Fetch booking on mount (cached) ──────────────────────────────────────────
+// ── Booking — reactive from store so socket updates reflect immediately ────────
+const booking = computed(() => {
+  const bookingId = content.value.booking_id
+  return bookingId ? chatStore.getBookingById(bookingId) : null
+})
+
+function checkClamped() {
+  nextTick(() => {
+    const el = remarksRef.value
+    isRemarksClamped.value = !!el && el.scrollHeight > el.clientHeight
+  })
+}
+
+// ── Fetch booking on mount if not already in store ────────────────────────────
 onMounted(async () => {
   const bookingId = content.value.booking_id
   if (!bookingId) return
 
-  if (_bookingCache.has(bookingId)) {
-    booking.value = _bookingCache.get(bookingId)
-    return
-  }
+  // Already pre-fetched by ChatWindow watcher or socket handler — skip
+  if (chatStore.getBookingById(bookingId)) return
 
   loading.value = true
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
   loading.value = false
 
   if (res?.ok && res.data?.item) {
-    booking.value = res.data.item
-    _bookingCache.set(bookingId, res.data.item)
+    chatStore.setBooking(bookingId, res.data.item)
   }
+
+  checkClamped()
 })
 
 // ── Resolved display values (fetched data > message.content fallback) ─────────
@@ -290,8 +313,8 @@ const resolvedDateTime = computed(() => {
 })
 
 // ── Price / counter-offer data ────────────────────────────────────────────────
-const originalTokens = computed(() => {
-  const t = booking.value?.payment?.total ?? booking.value?.paymentTotal
+const prevTokens = computed(() => {
+  const t = content.value.meta?.prevTotalTokens
   return Number.isFinite(Number(t)) ? Math.ceil(Number(t)) : null
 })
 
@@ -301,6 +324,37 @@ const counterTokens = computed(() => {
 })
 
 const counterRemarks = computed(() => content.value.meta?.creatorRemarks || null)
+
+const prevSlotDateTime = computed(() => {
+  const iso = content.value.meta?.prevStartAtIso
+  if (!iso) return null
+  const start = parseDate(iso)
+  if (!start) return null
+  const datePart = start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const raw = booking.value
+  const durationMs = raw?.durationMinutes ? raw.durationMinutes * 60000 : null
+  const end = durationMs ? new Date(start.getTime() + durationMs) : null
+  return end
+    ? `${datePart} ${fmtTime(start)}-${fmtTime(end)}`
+    : `${datePart} ${fmtTime(start)}`
+})
+
+const counterSlotDate = computed(() => {
+  const iso = content.value.meta?.newSlotDate
+  if (!iso) return null
+  const start = parseDate(iso)
+  if (!start) return null
+  const datePart = start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  // Derive end time from booking duration (endAtIso - startAtIso)
+  const raw = booking.value
+  const origStart = parseDate(raw?.startIso || raw?.startAtIso)
+  const origEnd   = parseDate(raw?.endIso   || raw?.endAtIso)
+  const durMs = (origStart && origEnd) ? (origEnd.getTime() - origStart.getTime()) : null
+  const end = durMs ? new Date(start.getTime() + durMs) : null
+  return end
+    ? `${datePart} ${fmtTime(start)}-${fmtTime(end)}`
+    : `${datePart} ${fmtTime(start)}`
+})
 
 // Map booking API status to bubble action
 function deriveAction(apiStatus) {
@@ -324,4 +378,6 @@ const resolvedAction = computed(() => {
 
   return chatAction || 'pending'
 })
+
+watch([counterRemarks, resolvedAction], checkClamped, { flush: 'post' })
 </script>
