@@ -156,6 +156,14 @@
         >
           Test with Zero Tokens
         </button>
+
+        <button
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          :disabled="isClearingAllData"
+          @click="handleClearAllData"
+        >
+          {{ isClearingAllData ? "Clearing data..." : "Clear all data" }}
+        </button>
       </div>
     </div>
 
@@ -294,6 +302,7 @@ import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPo
 import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
+import { showToast } from "@/utils/toastBus.js";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
@@ -320,6 +329,8 @@ const tipPopupOpen = ref(false);
 const profileLoginPopupOpen = ref(false);
 const profileMerchPopupOpen = ref(false);
 const topUpPopupOpen = ref(false);
+const isClearingAllData = ref(false);
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
 const handleImageSave = (data) => {
   console.log("Cropped Data Received:", data);
@@ -329,6 +340,56 @@ const uploadPercentage = ref(0);
 function openOneOnOneBookingFlowForFan(fanId) {
   selectedFanId.value = fanId;
   oneOnOneBookingFlowPopupOpen.value = true;
+}
+
+async function handleClearAllData() {
+  if (isClearingAllData.value) return;
+
+  const confirmed = window.confirm("This will permanently delete all events and bookings. Are you sure?");
+  if (!confirmed) return;
+
+  const token = window.prompt("Enter JWT master key");
+  if (token == null) return;
+
+  const trimmedToken = String(token || "").trim();
+  if (!trimmedToken) {
+    showToast({
+      type: "error",
+      title: "Missing Token",
+      message: "A bearer token is required to clear all data.",
+    });
+    return;
+  }
+
+  isClearingAllData.value = true;
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/bookings/admin/clear-data`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${trimmedToken}`,
+      },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.message || payload?.error || "Could not clear data.");
+    }
+
+    showToast({
+      type: "success",
+      title: "Data Cleared",
+      message: `Deleted ${Number(payload?.bookingsDeleted || 0)} bookings and ${Number(payload?.eventsDeleted || 0)} events.`,
+    });
+  } catch (error) {
+    showToast({
+      type: "error",
+      title: "Clear Failed",
+      message: error?.message || "Could not clear data.",
+    });
+  } finally {
+    isClearingAllData.value = false;
+  }
 }
 
 // This function is only for demo purposes to show the progress bar in action.

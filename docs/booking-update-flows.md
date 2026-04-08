@@ -29,6 +29,10 @@ const result = await FlowHandler.run("bookings.renegotiateBooking", {
   personalRequestText: "Updated request",
   sessionDurationMinutes: 30,
   costTokens: 150,
+  requestedAddOns: [
+    { title: "Record our session" },
+    { title: "Follow-up notes" },
+  ],
   actor: "system",
   args: {
     source: "calendar_adjustment",
@@ -42,8 +46,18 @@ Accepted payload fields:
 - `personalRequestText` optional
 - `sessionDurationMinutes` optional
 - `costTokens` optional
+- `requestedAddOns` optional
 - `actor` optional, defaults to `"system"`
 - `args` optional
+
+Renegotiate add-on notes:
+
+- add-ons replace the full selected set for the booking
+- the canonical request field is `requestedAddOns`
+- recommended item shape is `{ title: string }`
+- add-on prices are recalculated on the backend from the event's `addOns` catalog
+- if add-ons change, the backend uses one replacement hold only
+- if `costTokens` is also provided, it is treated as the renegotiated non-add-on amount and the add-on total is layered on top
 
 ### Reschedule
 
@@ -127,6 +141,7 @@ Renegotiate / reschedule can surface backend errors such as:
 - `duration_change_exceeds_max`
 - `cost_change_requires_held_payment`
 - `cost_change_not_allowed_for_captured_payment`
+- `booking_update_unknown_addon`
 - `booking_not_in_slot`
 - `booking_overlaps_existing`
 
