@@ -27,39 +27,15 @@
         <!-- Body -->
         <div class="px-5 pb-5 flex flex-col gap-5">
 
-          <!-- New event date -->
-          <div class="flex flex-col gap-2">
-            <span class="text-gray-500 text-xs">New event date</span>
-            <div class="flex items-center gap-2 border border-gray-300 rounded-md px-3 py-2 focus-within:border-[#07F468] transition-colors">
-              <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
-              </svg>
-              <input
-                v-model="newDate"
-                type="date"
-                class="flex-1 text-sm text-gray-900 font-medium outline-none bg-transparent"
-              />
-            </div>
-            <span v-if="originalEventDate" class="text-gray-400 text-xs">
-              Original event date: {{ originalEventDate }}
-            </span>
-          </div>
-
-          <!-- New start time -->
-          <div class="flex flex-col gap-2">
-            <span class="text-gray-500 text-xs">New start time</span>
-            <div class="flex items-center gap-3">
-              <input
-                v-model="newStartTime"
-                type="time"
-                class="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07F468] transition-colors w-32"
-              />
-              <span v-if="newEndTime" class="text-gray-600 text-sm font-medium">–{{ newEndTime }}</span>
-            </div>
-            <span v-if="originalStartTime" class="text-gray-400 text-xs">
-              Original start time: {{ originalStartTime }}
-            </span>
-          </div>
+          <!-- New event date / time -->
+          <EventSlotDateTimePicker
+            v-model="slotPickerValue"
+            :event="event"
+            :duration-ms="durationMs"
+            :original-event-date="originalEventDate"
+            :original-start-time="originalStartTime"
+            :compact="true"
+          />
 
           <!-- Send button -->
           <button
@@ -82,11 +58,14 @@
 <script setup>
 import { computed, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
+import { showToast } from '@/utils/toastBus.js'
 
 const props = defineProps({
   message:       { type: Object, required: true },
   chatId:        { type: String, required: true },
   otherUserName: { type: String, default: 'creator' },
+  event:         { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'submitted'])
@@ -133,7 +112,7 @@ function getInitialTime() {
 const newDate      = ref(getInitialDate())
 const newStartTime = ref(getInitialTime())
 
-// ── Original session duration for auto end-time calc ─────────────────────────
+// ── Original session duration ─────────────────────────────────────────────────
 const durationMs = computed(() => {
   const endRaw = content.value.end_at
   if (!endRaw) return null
@@ -143,16 +122,9 @@ const durationMs = computed(() => {
   return endMs - startMs
 })
 
-const newEndTime = computed(() => {
-  if (!newStartTime.value || !durationMs.value) return null
-  const [h, m] = newStartTime.value.split(':').map(Number)
-  const startMs = h * 3600000 + m * 60000
-  const endMs   = startMs + durationMs.value
-  const endH    = Math.floor(endMs / 3600000) % 24
-  const endM    = Math.floor((endMs % 3600000) / 60000)
-  const suffix  = endH >= 12 ? 'pm' : 'am'
-  const h12     = endH % 12 || 12
-  return `${h12}:${String(endM).padStart(2, '0')}${suffix}`
+const slotPickerValue = computed({
+  get: () => ({ date: newDate.value, startTime: newStartTime.value }),
+  set: (val) => { newDate.value = val.date; newStartTime.value = val.startTime },
 })
 
 // ── Submit ────────────────────────────────────────────────────────────────────
@@ -168,13 +140,40 @@ async function handleSubmit() {
   d.setHours(h, m, 0, 0)
   const slotDate = d.toISOString()
 
+  const bookingId    = props.message?.content?.booking_id
+  const prevStartAtIso = content.value.start_at || null
+
   try {
-    const res = await FlowHandler.run('chat.updateMessage', {
+    // 1. Reschedule booking to new date/time
+    if (bookingId) {
+      const bookingRes = await FlowHandler.run('bookings.rescheduleBooking', {
+        bookingId,
+        startAtIso: slotDate,
+        actor: 'system',
+        args: {
+          source:       'chat_reschedule',
+          action:       'counter_offer',
+          chatId:       props.chatId,
+          messageId:    props.message.message_id,
+          prevStartAtIso,
+        },
+      })
+      if (!bookingRes?.ok) {
+        showToast({ type: 'error', title: 'Failed', message: bookingRes?.error || 'Could not reschedule booking.' })
+        submitting.value = false
+        return
+      }
+    }
+
+    // 2. Update chat message to reflect counter_offer state
+    const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
       chatId:    props.chatId,
       messageId: props.message.message_id,
-      updates: {
-        action:    'counter_offer',
-        slot_date: slotDate,
+      action:    'counter_offer',
+      slotDate,
+      meta: {
+        newSlotDate:   slotDate,
+        prevStartAtIso,
       },
     })
     if (res?.ok) {

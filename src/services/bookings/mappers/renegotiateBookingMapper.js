@@ -14,6 +14,7 @@ export function mapRenegotiateBookingToRequest(input = {}) {
     ...(input?.personalRequestText !== undefined ? { personalRequestText: input.personalRequestText } : {}),
     ...(input?.sessionDurationMinutes !== undefined ? { sessionDurationMinutes: input.sessionDurationMinutes } : {}),
     ...(input?.costTokens !== undefined ? { costTokens: input.costTokens } : {}),
+    ...(input?.startAtIso !== undefined ? { startAtIso: input.startAtIso } : {}),
     actor: input?.actor || "system",
     args: input?.args && typeof input.args === "object" ? input.args : {},
   };

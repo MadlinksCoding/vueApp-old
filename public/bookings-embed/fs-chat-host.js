@@ -35,7 +35,7 @@
       src:           "/wp-content/plugins/fansocial/bookings-embed/chat.html",
       currentUserId: null,
       userRole:      "fan",
-      apiBaseUrl:    "",
+      apiBaseUrl:    "https://fs-bookings-backend.onrender.com",
       openChatId:    null,
       iframeTitle:   "Chat",
       width:         CHAT_EMBED_WIDTH,
@@ -90,6 +90,25 @@
         var h = data.payload.height;
         if (w > 0) chatContainer.style.width  = String(w) + "px";
         if (h > 0) chatContainer.style.height = String(h) + "px";
+      } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
+        var p = data.payload || {};
+        if (typeof window.openTipPopup === "function") {
+          window.openTipPopup({
+            creator_id:            p.creatorUserId  || 0,
+            user_id:               p.currentUserId  || 0,
+            tip_type:              "token",
+            topup_amount:          p.requiredTokens || 0,
+            is_call_topup_and_tip: true,
+            is_tip_from_php:       true,
+            topupFor:              p.topupFor || "booking_confirm",
+            successCallback: function () {
+              iframe.contentWindow.postMessage({ type: "FS_CHAT_TOPUP_SUCCESS", payload: { bookingId: p.bookingId } }, "*");
+            },
+            failureCallback: function () {
+              iframe.contentWindow.postMessage({ type: "FS_CHAT_TOPUP_FAILED" }, "*");
+            },
+          });
+        }
       }
     }
 

@@ -45,6 +45,33 @@ export function useChatSocket(userId) {
     if (senderId) {
       sendStatusUpdate(body.chat_id, messageId, 'delivered', senderId);
     }
+
+    // Refetch booking + event when a booking-related message arrives so cached
+    // data stays fresh regardless of which view is currently mounted.
+    const BOOKING_REFETCH_TYPES = new Set(['booking_request', 'requestJoinCallNotification']);
+    if (BOOKING_REFETCH_TYPES.has(body.content_type)) {
+      // Keep the pinned message store in sync so pinnedBookingMessage computed
+      // in ChatWindow immediately reflects the updated action/meta from the new message.
+      if (body.content_type === 'booking_request' && body.is_pinned !== false) {
+        chatStore.setPinnedMessage(body.chat_id, body);
+      }
+
+      const bookingId = body.content?.booking_id;
+      if (bookingId) {
+        FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
+          if (!res?.ok) return;
+          const bookingItem = res.data?.item || null;
+          chatStore.setBooking(bookingId, bookingItem);
+
+          const eventId = bookingItem?.eventId ?? bookingItem?.event_id;
+          if (eventId) {
+            FlowHandler.run('events.fetchEvent', { eventId }).then((evRes) => {
+              if (evRes?.ok) chatStore.setEvent(eventId, evRes.data?.item || null);
+            });
+          }
+        });
+      }
+    }
   }
 
   function _handleIncomingStatusUpdate(body) {
