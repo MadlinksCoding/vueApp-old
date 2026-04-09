@@ -72,6 +72,12 @@ const activeBookingData = computed(() => {
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
 
+// Pre-fetched booking for the pinned banner message
+const pinnedBookingData = computed(() => {
+  const bookingId = pinnedBookingMessage.value?.content?.booking_id
+  return bookingId ? chatStore.getBookingById(bookingId) : null
+})
+
 // Pre-fetched event for the active popup message
 const activeEventData = computed(() => {
   const booking = activeBookingData.value
@@ -131,7 +137,7 @@ function broadcastBookingUpdate(item) {
       if (current?.message_id === item.message_id) {
         chatStore.setPinnedMessage(activeChatId.value, null)
       }
-    } else if (item.is_pinned) {
+    } else {
       chatStore.setPinnedMessage(activeChatId.value, item)
     }
   }
@@ -188,9 +194,39 @@ function onDirectDecline(message) {
   performBookingDecision(message, 'reject')
 }
 
-function onAdjustSubmitted({ item }) {
+function onMoreTimeSubmitted({ item, booking: updatedBooking }) {
+  showMoreTimePopup.value = false
+  broadcastBookingUpdate(item)
+  if (updatedBooking) {
+    const bookingId = activeBookingMessage.value?.content?.booking_id
+    if (bookingId) chatStore.setBooking(bookingId, updatedBooking)
+  }
+  sendChatActivityLog('More time requested', {
+    is_booking_request: true,
+    decision: 'more_time_request_sent',
+  })
+}
+
+function onRescheduleSubmitted({ item, booking: updatedBooking }) {
+  showReschedulePopup.value = false
+  broadcastBookingUpdate(item)
+  if (updatedBooking) {
+    const bookingId = activeBookingMessage.value?.content?.booking_id
+    if (bookingId) chatStore.setBooking(bookingId, updatedBooking)
+  }
+  sendChatActivityLog('Reschedule requested', {
+    is_booking_request: true,
+    decision: 'reschedule_request_sent',
+  })
+}
+
+function onAdjustSubmitted({ item, booking: updatedBooking }) {
   showAdjustPopup.value = false
   broadcastBookingUpdate(item)
+  if (updatedBooking) {
+    const bookingId = activeBookingMessage.value?.content?.booking_id
+    if (bookingId) chatStore.setBooking(bookingId, updatedBooking)
+  }
   const msg = activeBookingMessage.value
   sendChatActivityLog('Counter offer sent', {
     is_booking_request: true,
@@ -199,43 +235,115 @@ function onAdjustSubmitted({ item }) {
   })
 }
 
-// ── requestJoinCallNotification counter_offer responses (creator) ─────────────
+// ── counter_offer responses for requestJoinCallNotification + booking_request ──
 async function onAcceptCounter(message) {
   if (!activeChatId.value || !message?.message_id) return
-  const res = await FlowHandler.run('chat.updateMessage', {
-    chatId:    activeChatId.value,
-    messageId: message.message_id,
-    updates:   { action: 'accepted' },
-  })
-  if (res?.ok) {
-    broadcastBookingUpdate(res.data?.item)
-    sendChatActivityLog('New time accepted', {
-      is_booking_request: true,
-      decision: 'accepted',
-      bookingId: message.content?.booking_id,
-    })
+  bookingActionLoading.value = true
+  try {
+    const res = message.content_type === 'booking_request'
+      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+          chatId:    activeChatId.value,
+          messageId: message.message_id,
+          action:    'accepted',
+        })
+      : await FlowHandler.run('chat.updateMessage', {
+          chatId:    activeChatId.value,
+          messageId: message.message_id,
+          updates:   { action: 'accepted' },
+        })
+    if (res?.ok) {
+      broadcastBookingUpdate(res.data?.item)
+      const bookingId = message.content?.booking_id
+
+      // Read proposed values from booking meta (stored by popup via updateMeta)
+      const cachedBooking = chatStore.getBookingById(bookingId)
+      const offerType = cachedBooking?.meta?.currentCounterOffer  // 'moretime' | 'reschedule'
+      const proposed  = (offerType ? cachedBooking?.meta?.[offerType] : null) || {}
+      const newSlot   = proposed.proposedSlotDate
+
+      // Call booking API now that fan has accepted
+      if (bookingId && newSlot) {
+        const flow = offerType === 'reschedule' ? 'bookings.rescheduleBooking' : 'bookings.renegotiateBooking'
+        FlowHandler.run(flow, { bookingId, startAtIso: newSlot, actor: 'user' })
+      }
+
+      const decision = offerType === 'reschedule' ? 'reschedule_request_accepted' : 'more_time_request_accepted'
+      sendChatActivityLog('New time accepted', {
+        is_booking_request: true,
+        decision,
+        bookingId,
+      })
+
+      showBookingPopup.value = false
+    }
+  } finally {
+    bookingActionLoading.value = false
   }
 }
 
 async function onRejectCounter(message) {
   if (!activeChatId.value || !message?.message_id) return
-  const res = await FlowHandler.run('chat.updateMessage', {
-    chatId:    activeChatId.value,
-    messageId: message.message_id,
-    updates:   { action: 'declined' },
-  })
-  if (res?.ok) {
-    broadcastBookingUpdate(res.data?.item)
-    sendChatActivityLog('New time rejected', {
-      is_booking_request: true,
-      decision: 'declined',
-      bookingId: message.content?.booking_id,
-    })
+
+  const bookingId = message.content?.booking_id
+  bookingActionLoading.value = true
+  try {
+    // Cancel the booking first
+    if (bookingId) {
+      const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
+        bookingId,
+        actor: 'user',
+      })
+      if (!cancelRes?.ok) {
+        showToast({ type: 'error', title: 'Failed', message: cancelRes?.error || 'Could not cancel booking.' })
+        return
+      }
+    }
+
+    const res = message.content_type === 'booking_request'
+      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+          chatId:    activeChatId.value,
+          messageId: message.message_id,
+          action:    'declined',
+        })
+      : await FlowHandler.run('chat.updateMessage', {
+          chatId:    activeChatId.value,
+          messageId: message.message_id,
+          updates:   { action: 'declined' },
+        })
+    if (res?.ok) {
+      broadcastBookingUpdate(res.data?.item)
+      const cachedBooking = chatStore.getBookingById(bookingId)
+      const offerType = cachedBooking?.meta?.currentCounterOffer
+      const decision  = offerType === 'reschedule' ? 'reschedule_request_rejected' : 'more_time_request_rejected'
+      sendChatActivityLog('New time rejected', {
+        is_booking_request: true,
+        decision,
+        bookingId,
+      })
+      showBookingPopup.value = false
+    }
+  } finally {
+    bookingActionLoading.value = false
   }
 }
 
 async function _doConfirmCounter(bookingId, message) {
   bookingActionLoading.value = true
+
+  // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
+  const cachedBooking = chatStore.getBookingById(bookingId)
+  const adjustMeta    = cachedBooking?.meta?.adjust || {}
+  await FlowHandler.run('bookings.renegotiateBooking', {
+    bookingId,
+    startAtIso:          adjustMeta.proposedSlotDate  || undefined,
+    costTokens:          adjustMeta.proposedTokens    || undefined,
+    personalRequestText: adjustMeta.proposedRemarks   || undefined,
+    actor: 'user',
+    meta: {
+      currentCounterOffer: '',
+    }
+  })
+
   const res = await FlowHandler.run('bookings.reviewPendingBooking', {
     bookingId,
     decision: 'approve',
@@ -272,20 +380,20 @@ async function _doConfirmCounter(bookingId, message) {
 }
 
 async function onConfirmCounter(message) {
-  showBookingPopup.value = false
-
   const bookingId = message?.content?.booking_id
   if (!bookingId) return
 
-  // Resolve token amounts
+  // Resolve token amounts from booking meta (stored by AdjustBookingPopup via updateMeta)
   const cachedBooking = chatStore.getBookingById(bookingId)
-  const newTokens     = Number(cachedBooking?.payment?.total ?? message?.content?.meta?.totalTokens ?? 0)
-  const prevTokens    = Number(message?.content?.meta?.prevTotalTokens ?? 0)
+  const adjustMeta    = cachedBooking?.meta?.adjust || {}
+  const newTokens     = Number(cachedBooking?.payment?.total ?? adjustMeta.proposedTokens ?? 0)
+  const prevTokens    = Number(adjustMeta.prevTotalTokens ?? 0)
   const diffTokens    = Math.max(0, newTokens - prevTokens)
 
   // Fan already covered this amount (same or cheaper counter-offer) — confirm directly
   if (diffTokens === 0) {
     await _doConfirmCounter(bookingId, message)
+    showBookingPopup.value = false
     return
   }
 
@@ -308,10 +416,11 @@ async function onConfirmCounter(message) {
     const mock = localStorage.getItem('mockTokenBalance')
     if (mock !== null) userBalance = Number(mock)
   }
-  
+
   // Fan has enough balance to cover the difference — confirm directly
   if (userBalance >= diffTokens) {
     await _doConfirmCounter(bookingId, message)
+    showBookingPopup.value = false
     return
   }
 
@@ -322,7 +431,8 @@ async function onConfirmCounter(message) {
     return
   }
 
-  // Store pending state and ask parent to open the topup popup
+  // Close popup and ask parent to open the topup popup
+  showBookingPopup.value = false
   _pendingTopupBookingId.value = bookingId
   _pendingTopupMessage.value   = message
 
@@ -339,7 +449,6 @@ async function onConfirmCounter(message) {
 }
 
 async function onCancelBooking(message) {
-  showBookingPopup.value = false
   const content   = message?.content || {}
   const messageId = message?.message_id
   if (!content.booking_id || !messageId || !activeChatId.value) return
@@ -360,6 +469,7 @@ async function onCancelBooking(message) {
     action:    'declined',
   })
   if (updateRes?.ok) {
+    showBookingPopup.value = false
     broadcastBookingUpdate(updateRes.data?.item)
     sendChatActivityLog('Counter offer declined', {
       is_booking_request: true,
@@ -367,6 +477,17 @@ async function onCancelBooking(message) {
       bookingId:          content.booking_id,
     })
   }
+}
+
+function onCallCancelled(updatedItem) {
+  const msg = activeBookingMessage.value
+  showCancelCallPopup.value = false
+  broadcastBookingUpdate(updatedItem || msg)
+  sendChatActivityLog('Call cancelled', {
+    is_booking_request: true,
+    decision:           'call_cancelled',
+    bookingId:          msg?.content?.booking_id,
+  })
 }
 
 function variantForMessage(msg) {
@@ -395,6 +516,34 @@ const ActivityLogTexts = {
     'creator': "You have adjust the cost of the booking",
     'audience': "@{creator} has adjust the cost of the booking",
   },
+  'more_time_request_accepted': {
+    'audience': "You have accepted @{creator}'s more time request",
+    'creator': "@{audience} has accepted your more time request",
+  },
+  'more_time_request_rejected': {
+    'audience': "You have rejected @{creator}'s more time request",
+    'creator': "@{audience} has rejected your more time request",
+  },
+  'reschedule_request_accepted': {
+    'audience': "You have accepted @{creator}'s reschedule request",
+    'creator': "@{audience} has accepted your reschedule request",
+  },
+  'reschedule_request_rejected': {
+    'audience': "You have rejected @{creator}'s reschedule request",
+    'creator': "@{audience} has rejected your reschedule request",
+  },
+  'more_time_request_sent': {
+    'creator': "You have requested more time",
+    'audience': "@{creator} has requested more time",
+  },
+  'reschedule_request_sent': {
+    'creator': "You have requested a reschedule",
+    'audience': "@{creator} has requested a reschedule",
+  },
+  'call_cancelled': {
+    'creator': "You have cancelled the call",
+    'audience': "@{creator} has cancelled the call",
+  },
 };
 
 function resolveActivityLogText(message) {
@@ -405,9 +554,9 @@ function resolveActivityLogText(message) {
   // ── Step 1: template resolution for booking activity logs ────────────────
   let workingText = rawText
   if (meta.is_booking_request) {
-    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer', counter_offer_declined: 'counter_offer_declined', counter_offer_accepted: 'counter_offer_accepted' }
-    const action   = decisionMap[meta.decision] || null
+    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer', counter_offer_declined: 'counter_offer_declined', counter_offer_accepted: 'counter_offer_accepted', more_time_request_accepted: 'more_time_request_accepted', more_time_request_rejected: 'more_time_request_rejected', reschedule_request_accepted: 'reschedule_request_accepted', reschedule_request_rejected: 'reschedule_request_rejected', more_time_request_sent: 'more_time_request_sent', reschedule_request_sent: 'reschedule_request_sent', call_cancelled: 'call_cancelled' }
     const role     = isCreatorAccount.value ? 'creator' : 'audience'
+    let action   = decisionMap[meta.decision] || null;
     const template = action ? ActivityLogTexts[action]?.[role] : null
     if (template) workingText = template
   }
@@ -882,6 +1031,7 @@ onUnmounted(() => {
         <LiveCallRequest
           v-if="pinnedBookingMessage.content_type === 'requestJoinCallNotification'"
           :message="pinnedBookingMessage"
+          :booking="pinnedBookingData"
           :is-creator="isCreatorAccount"
           @ask-more-time="activeBookingMessage = pinnedBookingMessage; showMoreTimePopup = true"
           @reschedule="activeBookingMessage = pinnedBookingMessage; showReschedulePopup = true"
@@ -1093,6 +1243,8 @@ onUnmounted(() => {
     @adjust="openAdjustPopup(activeBookingMessage)"
     @confirm-counter="onConfirmCounter(activeBookingMessage)"
     @cancel-booking="onCancelBooking(activeBookingMessage)"
+    @accept-counter="onAcceptCounter(activeBookingMessage)"
+    @reject-counter="onRejectCounter(activeBookingMessage)"
     @open-chat="showBookingPopup = false"
     @close="showBookingPopup = false"
   />
@@ -1113,7 +1265,7 @@ onUnmounted(() => {
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
     :event="activeEventData"
-    @submitted="broadcastBookingUpdate($event)"
+    @submitted="onMoreTimeSubmitted($event)"
     @close="showMoreTimePopup = false"
   />
 
@@ -1124,7 +1276,7 @@ onUnmounted(() => {
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
     :event="activeEventData"
-    @submitted="broadcastBookingUpdate($event)"
+    @submitted="onRescheduleSubmitted($event)"
     @close="showReschedulePopup = false"
   />
 
@@ -1134,7 +1286,7 @@ onUnmounted(() => {
     :message="activeBookingMessage"
     :chat-id="activeChatId"
     :is-creator="isCreatorAccount"
-    @cancelled="broadcastBookingUpdate(activeBookingMessage)"
+    @cancelled="onCallCancelled"
     @close="showCancelCallPopup = false"
   />
 </template>

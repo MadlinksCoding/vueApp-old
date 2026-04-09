@@ -79,12 +79,12 @@ async function handleConfirm() {
       actor: props.isCreator ? 'creator' : 'fan',
     })
     if (cancelRes?.ok) {
-      await FlowHandler.run('chat.updateMessage', {
+      const updateRes = await FlowHandler.run('chat.updateMessage', {
         chatId:    props.chatId,
         messageId: props.message.message_id,
         updates:   { action: 'cancelled' },
       })
-      emit('cancelled')
+      emit('cancelled', updateRes?.data?.item || null)
       emit('close')
     }
   } finally {

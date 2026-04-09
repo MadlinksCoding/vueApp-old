@@ -3,9 +3,9 @@
     <div
       class="fixed inset-0 z-[10002] flex items-center justify-center p-4"
       data-fs-chat-popup
-      @click.self="$emit('close')"
+      @click.self="!submitting && $emit('close')"
     >
-      <div class="absolute inset-0 bg-black/40" @click="$emit('close')" />
+      <div class="absolute inset-0 bg-black/40" @click="!submitting && $emit('close')" />
 
       <div
         class="relative z-10 p-4 gap-6 rounded-lg shadow-xl w-full max-w-[460px] bg-white flex flex-col font-['Poppins']"
@@ -304,30 +304,7 @@ async function handleSubmit() {
     const prevStartAtIso  = newSlotDate ? (raw.value.startIso || raw.value.startAtIso || null) : null
     const prevTotalTokens = baseTokens.value > 0 ? baseTokens.value : null
 
-    // 2. Renegotiate cost + optional reschedule in one call
-    if (bookingId) {
-      const renegotiateRes = await FlowHandler.run('bookings.renegotiateBooking', {
-        bookingId,
-        startAtIso:          newSlotDate || undefined,
-        costTokens:          totalTokens.value > 0 ? totalTokens.value : undefined,
-        personalRequestText: form.remarks.trim() || undefined,
-        actor: 'system',
-        args: {
-          source:    'chat_adjust',
-          action:    'counter_offer',
-          chatId:    props.chatId,
-          messageId: props.message.message_id,
-          prevTotalTokens,
-          prevStartAtIso
-        },
-      })
-      if (!renegotiateRes?.ok) {
-        console.error('Renegotiation failed', renegotiateRes)
-        showToast({ type: 'error', title: 'Failed', message:  renegotiateRes?.message || renegotiateRes?.error || 'Could not adjust booking.' })
-        return
-      }
-    }
-
+    // Update chat message (booking API called on fan accept)
     // 4. Update chat message
     const meta = {
       adjustedDurationMinutes: form.durationMinutes,
@@ -348,7 +325,23 @@ async function handleSubmit() {
     })
 
     if (res?.ok) {
-      emit('submitted', { item: res.data?.item, meta })
+      // Store proposed values in booking meta so fan-side display + accept flow can read them
+      let updatedBooking = null
+      const metaRes = await FlowHandler.run('bookings.updateMeta', {
+        bookingId,
+        meta: {
+          adjust: {
+            proposedSlotDate: newSlotDate,
+            proposedTokens:   totalTokens.value,
+            proposedRemarks:  form.remarks.trim() || null,
+            prevTotalTokens:  baseTokens.value,
+          },
+          currentCounterOffer: 'adjust',
+        },
+      })
+      if (metaRes?.ok) updatedBooking = metaRes.data?.item
+
+      emit('submitted', { item: res.data?.item, meta, booking: updatedBooking })
     }
   } finally {
     submitting.value = false

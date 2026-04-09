@@ -4,9 +4,9 @@
     <div
       class="fixed inset-0 z-[10001] flex items-center justify-center p-4"
       data-fs-chat-popup
-      @click.self="$emit('close')"
+      @click.self="!loading && $emit('close')"
     >
-      <div class="absolute inset-0 bg-black/40" @click="$emit('close')" />
+      <div class="absolute inset-0 bg-black/40" @click="!loading && $emit('close')" />
 
       <!-- Panel — mirrors DashboardEventStaticPopup layout -->
       <div
@@ -128,7 +128,7 @@
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
                 @click="$emit('accept')"
               >
-                ACCEPT
+                {{ loading ? 'Saving...' : 'ACCEPT' }}
               </button>
               <button
                 type="button"
@@ -136,7 +136,7 @@
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
                 @click="$emit('decline')"
               >
-                DECLINE
+                {{ loading ? 'Saving...' : 'DECLINE' }}
               </button>
               <button
                 type="button"
@@ -148,16 +148,15 @@
               </button>
             </div>
 
-            <!-- Counter offer: fan actions -->
-            <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
-              <!-- <div class="w-full text-sm font-semibold text-[#5549FF] mb-1">Counter offer received</div> -->
+            <!-- Counter offer: fan actions — adjust type (cost change) -->
+            <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer' && (!activeOfferType || activeOfferType === 'adjust')" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
                 :disabled="loading"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
                 @click="$emit('confirm-counter')"
               >
-                ACCEPT NEW COST
+                {{ loading ? 'Accepting...' : 'ACCEPT NEW Changes' }}
               </button>
               <button
                 type="button"
@@ -165,7 +164,27 @@
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
                 @click="$emit('cancel-booking')"
               >
-                CANCEL BOOKING
+                {{ loading ? 'Cancelling...' : 'CANCEL BOOKING' }}
+              </button>
+            </div>
+
+            <!-- Counter offer: fan actions — moretime / reschedule type -->
+            <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer' && (activeOfferType === 'moretime' || activeOfferType === 'reschedule')" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+              <button
+                type="button"
+                :disabled="loading"
+                class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
+                @click="$emit('accept-counter')"
+              >
+                {{ loading ? 'Accepting...' : 'ACCEPT NEW TIME' }}
+              </button>
+              <button
+                type="button"
+                :disabled="loading"
+                class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
+                @click="$emit('reject-counter')"
+              >
+                {{ loading ? 'Rejecting...' : 'REJECT' }}
               </button>
             </div>
 
@@ -177,8 +196,8 @@
               </div>
             </div>
 
-            <!-- Accepted / declined badge -->
-            <div v-else-if="!fetchLoading && (currentAction === 'accepted' || currentAction === 'declined')" class="pt-1">
+            <!-- Accepted / declined cancelled_creator(cancelled) badge -->
+            <div v-else-if="!fetchLoading && (currentAction === 'accepted' || currentAction === 'cancelled' || currentAction === 'cancelled_creator')" class="pt-1">
               <div
                 class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold"
                 :style="currentAction === 'accepted'
@@ -189,7 +208,7 @@
                   <circle cx="8" cy="8" r="6.5" />
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l2 2 4-4" />
                 </svg>
-                {{ currentAction === 'accepted' ? 'Accepted' : 'Declined' }}
+                {{ currentAction === 'accepted' ? 'Accepted' : currentAction === 'cancelled' ? 'Cancelled' : 'Declined' }}
               </div>
             </div>
 
@@ -222,7 +241,7 @@ const props = defineProps({
   loading:       { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['accept', 'decline', 'adjust', 'open-chat', 'close', 'confirm-counter', 'cancel-booking'])
+const emit = defineEmits(['accept', 'decline', 'adjust', 'open-chat', 'close', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter'])
 
 // ── State ────────────────────────────────────────────────────────────────────
 const fetchLoading  = ref(true)
@@ -244,7 +263,12 @@ function deriveAction(apiStatus) {
 function applyBookingData(data) {
   booking.value = data
   const derived = deriveAction(data?.status)
-  if (derived && derived !== 'pending') currentAction.value = derived
+  // Don't let API-derived status override a message-set action like 'counter_offer'
+  const msgAction = messageContent.value.action
+  const skipOverride = msgAction && msgAction !== 'pending' && msgAction !== 'accepted'
+  if (!skipOverride && derived && derived !== 'pending') {
+    currentAction.value = derived
+  }
 }
 
 // ── Fetch booking on mount ───────────────────────────────────────────────────
@@ -298,9 +322,19 @@ function fmtTime(d) {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
 }
 
-const startDate = computed(() =>
-  parseDate(raw.value.startIso || raw.value.startAtIso || messageContent.value.slot_date)
+// During counter_offer, read proposed values from booking.meta (written by updateMeta in each popup)
+const activeOfferType = computed(() => {
+  if (currentAction.value !== 'counter_offer') return null
+  return raw.value.meta?.currentCounterOffer || null
+})
+const proposedValues = computed(() =>
+  activeOfferType.value ? (raw.value.meta?.[activeOfferType.value] || {}) : {}
 )
+
+const startDate = computed(() => {
+  const proposed = proposedValues.value.proposedSlotDate
+  return parseDate(proposed || raw.value.startIso || raw.value.startAtIso || messageContent.value.slot_date)
+})
 const endDate = computed(() =>
   parseDate(raw.value.endIso || raw.value.endAtIso)
 )
@@ -372,7 +406,8 @@ const minimumChargeLabel = computed(() => {
   const lineTotal = Array.isArray(payment.lines)
     ? payment.lines.reduce((sum, l) => sum + Number(l?.amount || 0), 0)
     : 0
-  const total = Number(payment.total ?? raw.value.paymentTotal ?? lineTotal ?? 0)
+  const proposedTotal = proposedValues.value.proposedTokens
+  const total = Number(proposedTotal ?? payment.total ?? raw.value.paymentTotal ?? lineTotal ?? 0)
   if (!Number.isFinite(total) || total <= 0) return null
   const currency = String(payment.currency || raw.value.paymentCurrency || 'TOKENS').toUpperCase()
   return currency === 'TOKENS' ? `${Math.ceil(total)} Tokens` : `${currency} ${total}`

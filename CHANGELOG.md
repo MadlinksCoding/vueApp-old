@@ -1,5 +1,65 @@
 # Changelog
 
+## 2026-04-09 — Booking Counter-Offer Meta, UI Polish & Bug Fixes
+
+### Features
+
+#### `src/components/ui/chat/AdjustBookingPopup.vue`
+- After sending a counter offer, calls `bookings.updateMeta` with type-based keys: `meta.adjust = { proposedSlotDate, proposedTokens, proposedRemarks, prevTotalTokens }` and `meta.currentCounterOffer = 'adjust'`. Emits updated booking back to `ChatWindow`.
+- Backdrop click blocked while `submitting` is true.
+
+#### `src/components/ui/chat/MoreTimeRequestPopup.vue`
+- After sending, calls `bookings.updateMeta` with `meta.moretime = { proposedSlotDate }` and `meta.currentCounterOffer = 'moretime'`. Emits `{ item, booking }`.
+
+#### `src/components/ui/chat/RescheduleRequestPopup.vue`
+- After sending, calls `bookings.updateMeta` with `meta.reschedule = { proposedSlotDate }` and `meta.currentCounterOffer = 'reschedule'`. Emits `{ item, booking }`.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `onAdjustSubmitted`, `onMoreTimeSubmitted`, `onRescheduleSubmitted` now destructure `{ item, booking }` and call `chatStore.setBooking` when an updated booking is returned.
+- `_doConfirmCounter` reads `booking.meta.adjust` for renegotiation params instead of `message.content.meta`.
+- `onConfirmCounter` reads `booking.meta.adjust.prevTotalTokens` for token diff calculation. `showBookingPopup` closed after each async path completes (removed early close).
+- `onAcceptCounter` and `onRejectCounter` wrapped with `bookingActionLoading` guard; handle both `booking_request` and `requestJoinCallNotification` message types using the correct update endpoint each.
+- `onAcceptCounter` reads `booking.meta.currentCounterOffer` + `booking.meta[type].proposedSlotDate` for the booking API call.
+- `onRejectCounter` reads `booking.meta.currentCounterOffer` for the activity log decision key.
+- `onCancelBooking` — `showBookingPopup` closed only on full success (not eagerly).
+- Added `pinnedBookingData` computed for the pinned banner message booking.
+- Added `onCallCancelled(updatedItem)` handler — broadcasts updated message, sends `call_cancelled` activity log.
+- Added `call_cancelled` to `ActivityLogTexts` and `decisionMap`.
+- `BookingRequestDetailPopup` wired with `@accept-counter` / `@reject-counter` events.
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- `counterOfferMeta` replaced with `activeOfferType` + `proposedValues` — reads proposed slot/tokens from `booking.meta[currentCounterOffer]` instead of `message.content.meta`.
+- `applyBookingData` skips API-derived status override when `message.content.action` is already a definitive non-pending value (fixes "Accepted" badge showing during `counter_offer`).
+- Backdrop click blocked while `loading` prop is true.
+- Counter-offer fan actions split by type: `adjust` shows "ACCEPT NEW Changes" + "CANCEL BOOKING"; `moretime`/`reschedule` shows "ACCEPT NEW TIME" + "REJECT".
+- Added `accept-counter` and `reject-counter` emits.
+- All action buttons show loading label while `loading` is true.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- Added `booking` prop. `isCancelled` now also checks `booking.status` from the store — hides 3-dot menu, disables Join Call, shows Canceled state when booking is cancelled externally.
+
+#### `src/components/ui/chat/CancelCallConfirmPopup.vue`
+- Captures `chat.updateMessage` response and emits updated item with `'cancelled'` event so `ChatWindow` can broadcast the correct updated message.
+
+### Bug Fixes
+
+#### `src/composables/useChatSocket.js`
+- On every incoming message, fetches user data for any participant IDs not yet in `chatStore.chatUsersData` (fire-and-forget via `chat.fetchChatUsersData`). Includes the message `sender_id` as a fallback. Fixed duplicate `senderId` variable declaration.
+
+---
+
+## 2026-04-09 — `bookings.updateMeta` Flow
+
+### Added
+
+#### `src/services/bookings/mappers/updateBookingMetaMapper.js`
+- **`mapUpdateBookingMetaToRequest`** — new mapper. Resolves `bookingId` from the standard input paths (`bookingId`, `event.bookingId`, `booking.bookingId`, etc.), sets `actionType: "update_meta"`, and forwards `meta`, `actor`, and `args`.
+
+#### `src/services/flow-system/flowRegistry.js`
+- **`bookings.updateMeta`** — new write flow entry. Reuses `updateBookingFlow` with `mapUpdateBookingMetaToRequest` as the `toRequest` mapper. `latestWins` concurrency, no retry, 10 s request / 15 s total timeout.
+
+---
+
 ## 2026-04-09 — Booking Action Unification & Activity Log Improvements
 
 ### Refactor

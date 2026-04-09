@@ -27,6 +27,18 @@ export function useChatSocket(userId) {
       await FlowHandler.run('chat.fetchUserChats', { userId: String(userId) })
     }
 
+    // Fetch user data for any participant not yet in the store (fire-and-forget)
+    const chat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
+    const participants = chatStore.chatParticipants[body.chat_id] || chat?.participants || []
+    const msgSenderId = String(body.sender_id || body.senderId || '')
+    const candidateIds = [...new Set([...participants.map(String), msgSenderId].filter(Boolean))]
+    const missingIds = candidateIds.filter(id => !chatStore.chatUsersData[id])
+    if (missingIds.length > 0) {
+      FlowHandler.run('chat.fetchChatUsersData', { userIds: missingIds }).then((res) => {
+        if (res?.ok) chatStore.setChatUsersDataAction({ users: res.data?.users })
+      })
+    }
+
     chatStore.addMessage(body.chat_id, body);
     chatStore.updateChatLastMessage(body.chat_id, body);
     chatStore.updateChatUnread(body.chat_id, true);
@@ -52,7 +64,7 @@ export function useChatSocket(userId) {
     if (BOOKING_REFETCH_TYPES.has(body.content_type)) {
       // Keep the pinned message store in sync so pinnedBookingMessage computed
       // in ChatWindow immediately reflects the updated action/meta from the new message.
-      if (body.content_type === 'booking_request' && body.is_pinned !== false) {
+      if (body.is_pinned !== false) {
         chatStore.setPinnedMessage(body.chat_id, body);
       }
 

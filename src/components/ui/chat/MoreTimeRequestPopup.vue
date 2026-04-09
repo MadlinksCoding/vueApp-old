@@ -145,40 +145,34 @@ async function handleSubmit() {
   const prevStartAtIso = content.value.start_at || null
 
   try {
-    // 1. Update booking with new proposed start time
-    if (bookingId) {
-      const bookingRes = await FlowHandler.run('bookings.renegotiateBooking', {
-        bookingId,
-        startAtIso: slotDate,
-        actor: 'system',
-        args: {
-          source:       'chat_more_time',
-          action:       'counter_offer',
-          chatId:       props.chatId,
-          messageId:    props.message.message_id,
-          prevStartAtIso,
-        },
-      })
-      if (!bookingRes?.ok) {
-        showToast({ type: 'error', title: 'Failed', message: bookingRes?.error || 'Could not update booking time.' })
-        submitting.value = false
-        return
-      }
-    }
-
-    // 2. Update chat message to reflect counter_offer state
-    const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+    // Update chat message to reflect counter_offer state (booking API called on fan accept)
+    const res = await FlowHandler.run('chat.updateMessage', {
       chatId:    props.chatId,
       messageId: props.message.message_id,
-      action:    'counter_offer',
-      slotDate,
-      meta: {
-        newSlotDate:   slotDate,
-        prevStartAtIso,
+      updates: {
+        action:   'counter_offer',
+        slotDate,
+        meta: {
+          newSlotDate:   slotDate,
+          prevStartAtIso,
+          source:        'more_time',
+        },
       },
     })
     if (res?.ok) {
-      emit('submitted', res.data?.item)
+      // Store proposed values in booking meta for fan-side display + accept flow
+      let updatedBooking = null
+      if (bookingId) {
+        const metaRes = await FlowHandler.run('bookings.updateMeta', {
+          bookingId,
+          meta: {
+            moretime: { proposedSlotDate: slotDate },
+            currentCounterOffer: 'moretime',
+          },
+        })
+        if (metaRes?.ok) updatedBooking = metaRes.data?.item
+      }
+      emit('submitted', { item: res.data?.item, booking: updatedBooking })
       emit('close')
     }
   } finally {
