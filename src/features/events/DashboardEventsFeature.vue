@@ -252,11 +252,6 @@ import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 import { getBookingJoinState } from "@/utils/bookingJoinUtils.js";
-import {
-  fireAndForgetCreateScheduleNotify,
-  getCreateScheduleNotifyPayload,
-  shouldFireCreateScheduleAfterApproval,
-} from "@/utils/bookingScheduleNotify.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 
 const props = defineProps({
@@ -778,15 +773,6 @@ const resolveBookingIdFromPayload = (payload) => {
   return id ? String(id) : null;
 };
 
-const resolveEventForApprovalNotification = (payload, result) => (
-  payload?.event
-  || payload?.sourceEvent
-  || result?.data?.item?.eventSnapshot
-  || result?.data?.item?.eventCurrent
-  || result?.data?.item
-  || null
-);
-
 const reviewPendingBooking = async (payload, decision) => {
   if (!isCreator.value) return;
   const bookingId = resolveBookingIdFromPayload(payload);
@@ -839,28 +825,6 @@ const reviewPendingBooking = async (payload, decision) => {
       title: "Booking Updated",
       message: `Booking ${actionLabel} successfully.`,
     });
-
-    if (decision === "approve") {
-      const approvedBooking = result?.data?.item || null;
-      const approvedEvent = resolveEventForApprovalNotification(payload, result);
-
-      if (shouldFireCreateScheduleAfterApproval(approvedEvent)) {
-        const notify = getCreateScheduleNotifyPayload({
-          event: approvedEvent,
-          booking: approvedBooking,
-          bookingId: approvedBooking?.bookingId || bookingId,
-          eventId: approvedBooking?.eventId || approvedEvent?.eventId || approvedEvent?.raw?.eventId || null,
-          startIso: approvedBooking?.startAtIso || approvedBooking?.startIso || approvedBooking?.start || payload?.event?.start || "",
-          fanId: approvedBooking?.userId || payload?.event?.raw?.userId || "",
-          creatorId: approvedBooking?.creatorId || approvedEvent?.creatorId || approvedEvent?.raw?.creatorId || normalizedCreatorId.value || "",
-          participantCount: approvedBooking?.guestCount || 1,
-        });
-        
-        if (notify.shouldFire && notify.payload) {
-          fireAndForgetCreateScheduleNotify(notify.payload);
-        }
-      }
-    }
 
     await fetchDashboardContext(true);
   } finally {
