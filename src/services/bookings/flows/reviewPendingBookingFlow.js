@@ -1,21 +1,45 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError } from "@/services/bookings/bookingsApiUtils.js";
+import { getEventsApiBaseUrl } from "@/services/events/eventsApiUtils.js";
 import {
   fireAndForgetCreateScheduleNotify,
   getCreateScheduleNotifyPayload,
   shouldFireCreateScheduleAfterApproval,
 } from "@/utils/bookingScheduleNotify.js";
 
-function resolveEventForApprovalNotification(originalPayload = {}, responseItem = null) {
+function resolveEventForApprovalNotification(originalPayload = {}, responseItem = null, freshEvent = null) {
   return (
-    originalPayload?.event
+    freshEvent
+    || originalPayload?.event
     || originalPayload?.sourceEvent
-    || responseItem?.eventSnapshot
     || responseItem?.eventCurrent
+    || responseItem?.eventSnapshot
     || responseItem
     || null
   );
+}
+
+async function fetchFreshEventForApprovalNotification({ api, context, headers, eventId }) {
+  const normalizedEventId = typeof eventId === "string" ? eventId.trim() : String(eventId || "").trim();
+  if (!normalizedEventId) return null;
+
+  try {
+    const baseUrl = getEventsApiBaseUrl(context);
+    const response = await api.get(`${baseUrl}/events/${encodeURIComponent(normalizedEventId)}`, {
+      headers,
+      signal: context.signal,
+      timeoutMs: context.requestTimeoutMs,
+    });
+
+    if (response?.ok === false) {
+      return null;
+    }
+
+    return response?.item || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 export async function reviewPendingBookingFlow({ payload, context, api }) {
@@ -65,7 +89,17 @@ export async function reviewPendingBookingFlow({ payload, context, api }) {
     if (decision === "approve") {
       try {
         const approvedBooking = response?.item || null;
-        const approvedEvent = resolveEventForApprovalNotification(context?.originalPayload || {}, approvedBooking);
+        const freshEvent = await fetchFreshEventForApprovalNotification({
+          api,
+          context,
+          headers,
+          eventId: approvedBooking?.eventId || context?.originalPayload?.eventId,
+        });
+        const approvedEvent = resolveEventForApprovalNotification(
+          context?.originalPayload || {},
+          approvedBooking,
+          freshEvent,
+        );
 
         if (shouldFireCreateScheduleAfterApproval(approvedEvent)) {
           const notify = getCreateScheduleNotifyPayload({
