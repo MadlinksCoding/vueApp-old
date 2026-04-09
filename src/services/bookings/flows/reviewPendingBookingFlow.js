@@ -1,6 +1,22 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError } from "@/services/bookings/bookingsApiUtils.js";
+import {
+  fireAndForgetCreateScheduleNotify,
+  getCreateScheduleNotifyPayload,
+  shouldFireCreateScheduleAfterApproval,
+} from "@/utils/bookingScheduleNotify.js";
+
+function resolveEventForApprovalNotification(originalPayload = {}, responseItem = null) {
+  return (
+    originalPayload?.event
+    || originalPayload?.sourceEvent
+    || responseItem?.eventSnapshot
+    || responseItem?.eventCurrent
+    || responseItem
+    || null
+  );
+}
 
 export async function reviewPendingBookingFlow({ payload, context, api }) {
   const baseUrl = getBookingsApiBaseUrl(context);
@@ -46,6 +62,35 @@ export async function reviewPendingBookingFlow({ payload, context, api }) {
       });
     }
 
+    if (decision === "approve") {
+      try {
+        const approvedBooking = response?.item || null;
+        const approvedEvent = resolveEventForApprovalNotification(context?.originalPayload || {}, approvedBooking);
+
+        if (shouldFireCreateScheduleAfterApproval(approvedEvent)) {
+          const notify = getCreateScheduleNotifyPayload({
+            event: approvedEvent,
+            booking: approvedBooking,
+            bookingId: approvedBooking?.bookingId || bookingId,
+            eventId: approvedBooking?.eventId || approvedEvent?.eventId || approvedEvent?.raw?.eventId || null,
+            startIso: approvedBooking?.startAtIso || approvedBooking?.startIso || approvedBooking?.start || context?.originalPayload?.event?.start || "",
+            fanId: approvedBooking?.userId || context?.originalPayload?.event?.raw?.userId || "",
+            creatorId: approvedBooking?.creatorId || approvedEvent?.creatorId || approvedEvent?.raw?.creatorId || "",
+            participantCount: approvedBooking?.guestCount || 1,
+          });
+
+          if (notify.shouldFire && notify.payload) {
+            fireAndForgetCreateScheduleNotify(notify.payload);
+          }
+        }
+      } catch (notifyError) {
+        console.warn("[reviewPendingBookingFlow] create schedule notify skipped", {
+          bookingId,
+          error: notifyError?.message || String(notifyError),
+        });
+      }
+    }
+
     return ok(
       {
         bookingId: response?.bookingId || bookingId,
@@ -66,4 +111,3 @@ export async function reviewPendingBookingFlow({ payload, context, api }) {
     );
   }
 }
-
