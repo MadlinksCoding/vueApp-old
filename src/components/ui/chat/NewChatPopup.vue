@@ -299,7 +299,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import SmilingPeachIcon from '@/assets/images/icons/smiling-peach.png'
 import MessageCircleIcon from '@/assets/images/icons/message-circle.webp'
 import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle.webp'
@@ -309,6 +309,7 @@ import { fetchGroupUserIdsFlow } from '@/services/chat/flows/fetchGroupUserIdsFl
 const props = defineProps({
     creatorId: { type: [String, Number], required: true },
     currentUserId: { type: [String, Number], default: null },
+    visible: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['start-chat', 'close'])
@@ -496,7 +497,7 @@ function buildApi() {
     }
 }
 
-onMounted(() => {
-    fetchData()
+watch(() => props.visible, (val) => {
+    if (val) fetchData()
 })
 </script>

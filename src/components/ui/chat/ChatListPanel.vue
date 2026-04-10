@@ -212,6 +212,7 @@ function getLastMessageText(chat) {
     <NewChatPopup
       :creator-id="creatorId"
       :current-user-id="currentUserId"
+      :visible="showNewChatPopup"
       @start-chat="onNewChatMessage"
       @close="showNewChatPopup = false"
     />
