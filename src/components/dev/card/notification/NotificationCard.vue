@@ -66,7 +66,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: "notice",
-    validator: (value) => ["notice", "alert", "success", "error", "info", "warning", "limit-exceeded"].includes(value),
+    validator: (value) => ["notice", "alert", "success", "error", "info", "warning", "limit-exceeded", "success-teal"].includes(value),
   },
   title: {
     type: String,
@@ -140,6 +140,14 @@ const palettes = {
     iconBg: "bg-[rgba(7,244,104,0.15)]",
     iconStroke: " text-[#07f468]",
     // stroke-[#07f468]
+  },
+  "success-teal": {
+    left: "bg-teal-400",
+    bg: "[background:linear-gradient(90deg,rgba(255,255,255,0)_0,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(45,212,191,0.15)_0,rgba(45,212,191,0.15)_100%),rgba(255,255,255,0.9)]",
+    title: "text-teal-700 font-semibold",
+    link: "text-teal-400",
+    iconBg: "bg-teal-400/10",
+    iconStroke: "text-teal-400 stroke-teal-400",
   },
   error: {
     left: "bg-[#FF4405] ",

@@ -1,0 +1,44 @@
+# Technical Report: Media Uploader Architecture & Logic
+
+This document summarizes the core logic and architectural structure implemented for the Media Uploader system.
+
+## 1. Architectural Overview
+The Media Uploader follows a **State-Driven Pipeline Architecture**. The primary goal was to decouple the UI from the business logic, ensuring that all 5 steps of the uploader operate within a synchronized global context.
+
+## 2. Core Logic Components & File Structure
+
+### A. Centralized State Manager (`src/stores/useMediaUploaderStore.js`)
+At the heart of the system is a Pinia-based store that manages the entire lifecycle of the upload process.
+- **Unified Form State:** Tracks all media metadata (titles, descriptions, pricing) and binary file references.
+- **Step Persistence:** Uses `media_step` and `media_sub` state variables to track the user's progress through the uploader.
+- **Sync Mechanism (`syncToUrl`):** Implements a two-way synchronization between the internal store state and the browser's URL parameters. This allows for persistent navigation and prevents data loss on page interactions.
+
+### B. Validation Engine (`src/services/media/validators/mediaStepValidators.js`)
+We implemented a dedicated validation service that performs step-specific checks before allowing navigation progress. This ensures that the final payload sent to the backend is complete and verified.
+
+### C. Pipeline Structure (`src/components/ui/global/media/uploader/`)
+The uploader is split into modular components, each representing a logical step in the pipeline:
+- `MediaUploaderStepPreviewSettings.vue`
+- `MediaUploaderStepSubscriptionP2v.vue`
+- `MediaUploaderStepMediaDetails.vue`
+- `MediaUploaderStepPublishAndSharing.vue`
+- `MediaUploaderStepSubmit.vue`
+
+## 3. Implementation Details
+
+### Media Handling & Previews
+- **Binary Stream Management:** When a user selects a file (Trailer/Thumbnail), the logic utilizes `URL.createObjectURL(file)` to generate instant local previews without waiting for a server upload.
+- **Refresh Protection:** Implemented a "Keyed" rendering logic for video components. This forces the browser to re-evaluate the media stream when the source changes, preventing persistent black screens in the UI.
+
+### Navigation Guardians
+The logic includes a "Substep Guardian." When a main step (e.g., Preview Settings) is invoked, the store automatically resolves and resets any invalid substeps. This ensures that the uploader flow remains coherent and follows the defined technical pipeline.
+
+### Dynamic Interaction Logic
+- **Blur Engine:** Implemented a mapping logic that translates user-friendly labels (`20px`, `50px`, `100px`) into real-time CSS filters applied directly to the media stream.
+- **Live Post Sync:** Integrated a reactive listener in the "Publish & Sharing" step. As the user prepares their social message, the logic dynamically updates a preview payload to mock exactly how the content will appear on external platforms.
+
+## 4. Backend Readiness
+The system is designed to handle **multi-part payloads**. Upon final submission, the store aggregates all metadata and file references, ready for transmission to **S3 and Cloudflare**. The logic is fully prepared to transition from mock API calls to real production endpoints.
+
+---
+*Report Prepared by: Antigravity AI Engineering Team*

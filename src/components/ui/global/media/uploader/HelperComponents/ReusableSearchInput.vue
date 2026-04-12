@@ -43,9 +43,10 @@
 
           <!-- Language/Filter Icon (Optional) -->
           <button
-            v-if="showLanguageIcon"
-            class="flex items-center gap-1 text-sm text-[#667085]"
+          v-if="showLanguageIcon"
+          class="flex items-center gap-1 text-sm text-[#667085]"
           >
+          <img src="/images/globe-Icon.png" alt="globe-icon">
             繁體中文
             <svg
               class="h-4 w-4 text-gray-400 transition-transform duration-200"
@@ -64,6 +65,21 @@
     </div>
 
     <!-- Selected Items (Tags/Co-performers) -->
+    <div v-if="selectedItems.length > 0" class="flex flex-wrap gap-2 mb-3 mt-2">
+      <div 
+        v-for="item in selectedItems" 
+        :key="item.id"
+        class="flex items-center gap-1.5 px-2.5 py-1 bg-[#0C111D] text-white text-xs font-medium rounded-full"
+      >
+        <img v-if="type === 'performer' && item.avatar" :src="item.avatar" class="w-4 h-4 rounded-full" />
+        <span>{{ item.name }}</span>
+        <button @click.stop="removeItem(item.id)" class="text-white/70 hover:text-white ml-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+      </div>
+    </div>
 
     <!-- Search Results Dropdown -->
     <div
@@ -88,7 +104,7 @@
             @click="activeTab = tab.id"
             :class="[
               'flex flex-col items-center justify-center w-full gap-0.5 whitespace-nowrap pt-[.563rem] pb-[.563rem] px-4 min-w-[5rem]',
-              activeTab !== tab.id ? 'opacity-70' : 'opacity-100',
+              activeTab !== tab.id ? 'opacity-70' : 'opacity-100'
             ]"
           >
             <img :src="tab.icon" :alt="tab.label" class="w-5 h-5" />
