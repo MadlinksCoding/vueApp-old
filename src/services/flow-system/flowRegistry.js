@@ -42,6 +42,19 @@ import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.j
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
 import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
+import { fetchCartFlow } from "@/services/cart/flows/fetchCartFlow.js";
+import { addItemToCartFlow } from "@/services/cart/flows/addItemToCartFlow.js";
+import { removeItemFromCartFlow } from "@/services/cart/flows/removeItemFromCartFlow.js";
+import { updateItemQuantityFlow } from "@/services/cart/flows/updateItemQuantityFlow.js";
+import { renameCartFlow } from "@/services/cart/flows/renameCartFlow.js";
+import { applyCouponFlow } from "@/services/cart/flows/applyCouponFlow.js";
+import { removeCouponFlow } from "@/services/cart/flows/removeCouponFlow.js";
+import { applyFeesFlow } from "@/services/cart/flows/applyFeesFlow.js";
+import { setAsDefaultFlow } from "@/services/cart/flows/setAsDefaultFlow.js";
+import { mergeGuestCartFlow } from "@/services/cart/flows/mergeGuestCartFlow.js";
+import { attachLiveDataFlow } from "@/services/cart/flows/attachLiveDataFlow.js";
+import { getAllCartsFlow } from "@/services/cart/flows/getAllCartsFlow.js";
+import { remindAbandonedCartsFlow } from "@/services/cart/flows/remindAbandonedCartsFlow.js";
 import { mapRenegotiateBookingToRequest } from "@/services/bookings/mappers/renegotiateBookingMapper.js";
 import { mapRescheduleBookingToRequest } from "@/services/bookings/mappers/rescheduleBookingMapper.js";
 import { mapUpdateBookingMetaToRequest } from "@/services/bookings/mappers/updateBookingMetaMapper.js";
@@ -70,6 +83,11 @@ import {
   mapConfirmReservationToRequest,
   mapCancelReservationToRequest,
 } from "@/services/rental/mappers/rentalWriteMappers.js";
+import { fetchOrdersFlow } from "@/services/orders/flows/fetchOrdersFlow.js";
+import {
+  mapOrdersFromResponse,
+  mapOrderToRequest,
+} from "@/services/orders/mappers/ordersMapper.js";
 
 export const flowRegistry = {
   "events.fetchEvent": {
@@ -93,9 +111,20 @@ export const flowRegistry = {
     },
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 22000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 2000, jitterRatio: 0.15 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 2000,
+        jitterRatio: 0.15,
+      },
       etag: { enabled: true, varyByPayload: true },
-      localCache: { enabled: true, ttlMs: 30000, version: 1, varyByPayload: true },
+      localCache: {
+        enabled: true,
+        ttlMs: 30000,
+        version: 1,
+        varyByPayload: true,
+      },
       readFrom: {
         enabled: true,
         ttlMs: 30000,
@@ -120,21 +149,59 @@ export const flowRegistry = {
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "events.cachedResponse", mode: "set", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.list", mode: "set", select: "items", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
-        { type: "local", key: "events:creator:list", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
+        {
+          type: "stateEngine",
+          key: "events.cachedResponse",
+          mode: "set",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.list",
+          mode: "set",
+          select: "items",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "set",
+          select: "meta",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { updatedAt: "@now" },
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "local",
+          key: "events:creator:list",
+          ttlMs: 30000,
+          version: 1,
+          hydrateOnReadHit: true,
+        },
       ],
       onNotModified: [
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { checkedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { checkedAt: "@now" },
+        },
       ],
       uiErrorMap: {
         MISSING_CREATOR_ID: "Creator id is required before loading events.",
         FETCH_CREATOR_EVENTS_FAILED: "Could not load events right now.",
       },
     },
-    refresh: { enabled: true, intervalMs: 60000, scopeKey: "events.fetchCreatorEvents" },
+    refresh: {
+      enabled: true,
+      intervalMs: 60000,
+      scopeKey: "events.fetchCreatorEvents",
+    },
   },
 
   "events.fetchEvent": {
@@ -150,11 +217,30 @@ export const flowRegistry = {
       timeouts: { requestMs: 15000, totalFlowMs: 24000 },
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
-      idempotency: { enabled: true, headerName: "Idempotency-Key", keyFrom: "idempotencyKey" },
+      idempotency: {
+        enabled: true,
+        headerName: "Idempotency-Key",
+        keyFrom: "idempotencyKey",
+      },
       destinations: [
-        { type: "stateEngine", key: "events.lastCreated", mode: "set", select: "item" },
-        { type: "stateEngine", key: "events.list", mode: "push", select: "item" },
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastCreateAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "events.lastCreated",
+          mode: "set",
+          select: "item",
+        },
+        {
+          type: "stateEngine",
+          key: "events.list",
+          mode: "push",
+          select: "item",
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { lastCreateAt: "@now" },
+        },
         { type: "localFlush", key: "events:creator:list" },
       ],
       uiErrorMap: {
@@ -170,13 +256,23 @@ export const flowRegistry = {
     mapper: { fromResponse: mapFetchSpendingRequirementItemsFromResponse },
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 22000 },
-      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1200, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 250,
+        maxDelayMs: 1200,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       uiErrorMap: {
-        MISSING_CREATOR_ID: "Creator id is required before loading spending requirement items.",
-        MISSING_SPENDING_REQUIREMENT_TYPE: "Item type is required before loading spending requirement items.",
-        FETCH_SPENDING_REQUIREMENT_ITEMS_FAILED: "Could not load spending requirement items right now.",
-        FETCH_SPENDING_REQUIREMENT_ITEMS_UNEXPECTED: "Unexpected error while loading spending requirement items.",
+        MISSING_CREATOR_ID:
+          "Creator id is required before loading spending requirement items.",
+        MISSING_SPENDING_REQUIREMENT_TYPE:
+          "Item type is required before loading spending requirement items.",
+        FETCH_SPENDING_REQUIREMENT_ITEMS_FAILED:
+          "Could not load spending requirement items right now.",
+        FETCH_SPENDING_REQUIREMENT_ITEMS_UNEXPECTED:
+          "Unexpected error while loading spending requirement items.",
       },
     },
   },
@@ -187,9 +283,20 @@ export const flowRegistry = {
     mapper: { fromResponse: mapFetchCreatorBookingContextFromResponse },
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 22000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 2000, jitterRatio: 0.15 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 2000,
+        jitterRatio: 0.15,
+      },
       etag: { enabled: true, varyByPayload: true },
-      localCache: { enabled: true, ttlMs: 30000, version: 1, varyByPayload: true },
+      localCache: {
+        enabled: true,
+        ttlMs: 30000,
+        version: 1,
+        varyByPayload: true,
+      },
       readFrom: {
         enabled: true,
         ttlMs: 30000,
@@ -225,10 +332,16 @@ export const flowRegistry = {
         { type: "local", key: "fan-booking:creator-context", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
       ],
       onNotModified: [
-        { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { checkedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "fanBooking.catalog.meta",
+          mode: "merge",
+          value: { checkedAt: "@now" },
+        },
       ],
       uiErrorMap: {
-        MISSING_CREATOR_ID: "Creator id is required before loading booking context.",
+        MISSING_CREATOR_ID:
+          "Creator id is required before loading booking context.",
         FETCH_CREATOR_EVENTS_FAILED: "Could not load events right now.",
         FETCH_CREATOR_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
         FETCH_FIRST_TIME_DISCOUNT_STATUS_FAILED: "Could not load first-time discount status right now.",
@@ -241,9 +354,20 @@ export const flowRegistry = {
     mapper: { fromResponse: mapFetchDashboardBookingContextFromResponse },
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 22000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 2000, jitterRatio: 0.15 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 2000,
+        jitterRatio: 0.15,
+      },
       etag: { enabled: true, varyByPayload: true },
-      localCache: { enabled: true, ttlMs: 30000, version: 1, varyByPayload: true },
+      localCache: {
+        enabled: true,
+        ttlMs: 30000,
+        version: 1,
+        varyByPayload: true,
+      },
       readFrom: {
         enabled: true,
         ttlMs: 30000,
@@ -268,24 +392,79 @@ export const flowRegistry = {
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "events.cachedResponse", mode: "set", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.catalogEvents", mode: "set", select: "events", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.rawEvents", mode: "set", select: "rawEvents", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.bookedSlotsRaw", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
-        { type: "local", key: "dashboard-events:context", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
+        {
+          type: "stateEngine",
+          key: "events.cachedResponse",
+          mode: "set",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.catalogEvents",
+          mode: "set",
+          select: "events",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.rawEvents",
+          mode: "set",
+          select: "rawEvents",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.bookedSlotsRaw",
+          mode: "set",
+          select: "bookedSlots",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.bookedSlotsIndex",
+          mode: "set",
+          select: "bookedSlotsIndex",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "set",
+          select: "meta",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { updatedAt: "@now" },
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "local",
+          key: "dashboard-events:context",
+          ttlMs: 30000,
+          version: 1,
+          hydrateOnReadHit: true,
+        },
       ],
       onNotModified: [
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { checkedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { checkedAt: "@now" },
+        },
       ],
       uiErrorMap: {
-        MISSING_CREATOR_ID: "Creator id is required before loading dashboard events.",
+        MISSING_CREATOR_ID:
+          "Creator id is required before loading dashboard events.",
         MISSING_FAN_ID: "Fan id is required before loading dashboard events.",
-        UNSUPPORTED_DASHBOARD_USER_ROLE: "Unsupported user role for dashboard events.",
+        UNSUPPORTED_DASHBOARD_USER_ROLE:
+          "Unsupported user role for dashboard events.",
         FETCH_DASHBOARD_EVENTS_FAILED: "Could not load events right now.",
-        FETCH_DASHBOARD_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
+        FETCH_DASHBOARD_BOOKED_SLOTS_FAILED:
+          "Could not load booked slots right now.",
       },
     },
   },
@@ -297,20 +476,51 @@ export const flowRegistry = {
       timeouts: { requestMs: 15000, totalFlowMs: 24000 },
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
-      idempotency: { enabled: true, headerName: "Idempotency-Key", keyFrom: "idempotencyKey" },
+      idempotency: {
+        enabled: true,
+        headerName: "Idempotency-Key",
+        keyFrom: "idempotencyKey",
+      },
       destinations: [
         { type: "stateEngine", key: "fanBooking.booking.result", mode: "set" },
-        { type: "stateEngine", key: "fanBooking.booking.bookingId", mode: "set", select: "bookingId" },
-        { type: "stateEngine", key: "fanBooking.booking.paymentStatus", mode: "set", select: "item.paymentStatus" },
-        { type: "stateEngine", key: "fanBooking.booking.txId", mode: "set", select: "item.txId" },
-        { type: "stateEngine", key: "fanBooking.booking.validation", mode: "set", select: "validation" },
-        { type: "stateEngine", key: "fanBooking.booking.meta", mode: "merge", value: { createdAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "fanBooking.booking.bookingId",
+          mode: "set",
+          select: "bookingId",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.booking.paymentStatus",
+          mode: "set",
+          select: "item.paymentStatus",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.booking.txId",
+          mode: "set",
+          select: "item.txId",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.booking.validation",
+          mode: "set",
+          select: "validation",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.booking.meta",
+          mode: "merge",
+          value: { createdAt: "@now" },
+        },
         { type: "localFlush", key: "fan-booking:creator-context" },
       ],
       uiErrorMap: {
-        CREATE_BOOKING_MISSING_REQUIRED_FIELDS: "Booking request is missing required fields.",
+        CREATE_BOOKING_MISSING_REQUIRED_FIELDS:
+          "Booking request is missing required fields.",
         CREATE_BOOKING_FAILED: "Could not create booking. Please try again.",
-        HTTP_422: "Booking validation failed. Please review your selection and balance.",
+        HTTP_422:
+          "Booking validation failed. Please review your selection and balance.",
         HTTP_402: "Insufficient token balance for this booking.",
       },
     },
@@ -324,15 +534,42 @@ export const flowRegistry = {
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "merge", select: "temporaryHold" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.temporaryHoldId", mode: "set", select: "temporaryHoldId" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.expiresAt", mode: "set", select: "expiresAt" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.status", mode: "set", value: "active" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.createdAt", mode: "set", value: "@now" },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold",
+          mode: "merge",
+          select: "temporaryHold",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.temporaryHoldId",
+          mode: "set",
+          select: "temporaryHoldId",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.expiresAt",
+          mode: "set",
+          select: "expiresAt",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.status",
+          mode: "set",
+          value: "active",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.createdAt",
+          mode: "set",
+          value: "@now",
+        },
       ],
       uiErrorMap: {
-        CREATE_TEMPORARY_HOLD_MISSING_REQUIRED_FIELDS: "Missing booking data for temporary hold.",
-        CREATE_TEMPORARY_HOLD_FAILED: "Could not hold this slot. Please try another time.",
+        CREATE_TEMPORARY_HOLD_MISSING_REQUIRED_FIELDS:
+          "Missing booking data for temporary hold.",
+        CREATE_TEMPORARY_HOLD_FAILED:
+          "Could not hold this slot. Please try another time.",
       },
     },
   },
@@ -341,19 +578,56 @@ export const flowRegistry = {
     flow: getTemporaryHoldStatusFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 16000 },
-      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 200, maxDelayMs: 800, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 200,
+        maxDelayMs: 800,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "merge", select: "temporaryHold" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.temporaryHoldId", mode: "set", select: "temporaryHoldId" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.status", mode: "set", select: "status" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.expiresAt", mode: "set", select: "expiresAt" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.secondsRemaining", mode: "set", select: "secondsRemaining" },
-        { type: "stateEngine", key: "fanBooking.temporaryHold.checkedAt", mode: "set", value: "@now" },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold",
+          mode: "merge",
+          select: "temporaryHold",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.temporaryHoldId",
+          mode: "set",
+          select: "temporaryHoldId",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.status",
+          mode: "set",
+          select: "status",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.expiresAt",
+          mode: "set",
+          select: "expiresAt",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.secondsRemaining",
+          mode: "set",
+          select: "secondsRemaining",
+        },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold.checkedAt",
+          mode: "set",
+          value: "@now",
+        },
       ],
       uiErrorMap: {
         GET_TEMPORARY_HOLD_STATUS_MISSING_ID: "Temporary hold id is missing.",
-        GET_TEMPORARY_HOLD_STATUS_FAILED: "Could not refresh temporary hold status.",
+        GET_TEMPORARY_HOLD_STATUS_FAILED:
+          "Could not refresh temporary hold status.",
       },
     },
   },
@@ -365,13 +639,18 @@ export const flowRegistry = {
       retry: { enabled: false },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "set", value: {
-          temporaryHoldId: null,
-          status: "cancelled",
-          expiresAt: null,
-          secondsRemaining: 0,
-          checkedAt: "@now",
-        } },
+        {
+          type: "stateEngine",
+          key: "fanBooking.temporaryHold",
+          mode: "set",
+          value: {
+            temporaryHoldId: null,
+            status: "cancelled",
+            expiresAt: null,
+            secondsRemaining: 0,
+            checkedAt: "@now",
+          },
+        },
       ],
       uiErrorMap: {
         RELEASE_TEMPORARY_HOLD_MISSING_ID: "Temporary hold id is missing.",
@@ -390,7 +669,8 @@ export const flowRegistry = {
       uiErrorMap: {
         UPDATE_TEMPORARY_HOLD_USER_MISSING_ID: "Temporary hold id is missing.",
         UPDATE_TEMPORARY_HOLD_USER_MISSING_USER: "User id is missing.",
-        UPDATE_TEMPORARY_HOLD_USER_FAILED: "Could not update temporary hold user.",
+        UPDATE_TEMPORARY_HOLD_USER_FAILED:
+          "Could not update temporary hold user.",
       },
     },
   },
@@ -404,7 +684,12 @@ export const flowRegistry = {
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
         { type: "stateEngine", key: "events.lastReview", mode: "set" },
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastReviewAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { lastReviewAt: "@now" },
+        },
         { type: "localFlush", key: "fan-booking:creator-context" },
       ],
       uiErrorMap: {
@@ -426,7 +711,12 @@ export const flowRegistry = {
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
         { type: "stateEngine", key: "events.lastCancel", mode: "set" },
-        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastCancelAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { lastCancelAt: "@now" },
+        },
         { type: "localFlush", key: "fan-booking:creator-context" },
         { type: "localFlush", key: "dashboard-events:context" },
       ],
@@ -520,9 +810,20 @@ export const flowRegistry = {
     },
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 25000 },
-      retry: { enabled: true, maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 2000, jitterRatio: 0.2 },
+      retry: {
+        enabled: true,
+        maxAttempts: 3,
+        baseDelayMs: 250,
+        maxDelayMs: 2000,
+        jitterRatio: 0.2,
+      },
       etag: { enabled: true, varyByPayload: true },
-      localCache: { enabled: true, ttlMs: 45000, version: 2, varyByPayload: true },
+      localCache: {
+        enabled: true,
+        ttlMs: 45000,
+        version: 2,
+        varyByPayload: true,
+      },
       readFrom: {
         enabled: true,
         ttlMs: 45000,
@@ -555,25 +856,69 @@ export const flowRegistry = {
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
         { type: "stateEngine", key: "rental.catalogEnvelope", mode: "set" },
-        { type: "stateEngine", key: "rental.catalog.items", mode: "set", select: "items" },
-        { type: "stateEngine", key: "rental.catalog.meta", mode: "merge", value: { updatedAt: "@now" } },
-        { type: "stateEngine", key: "rental.audit.trail", mode: "push", value: { at: "@now", action: "catalog_loaded" } },
-        { type: "piniaAction", storeId: "rental", action: "setCatalog", select: "items" },
-        { type: "piniaAction", storeId: "rental", action: "mergeCatalogMeta", value: { updatedAt: "@now" } },
-        { type: "piniaPatch", storeId: "rental", patch: (data) => ({ catalogEnvelope: data }), hydrateOnReadHit: true },
+        {
+          type: "stateEngine",
+          key: "rental.catalog.items",
+          mode: "set",
+          select: "items",
+        },
+        {
+          type: "stateEngine",
+          key: "rental.catalog.meta",
+          mode: "merge",
+          value: { updatedAt: "@now" },
+        },
+        {
+          type: "stateEngine",
+          key: "rental.audit.trail",
+          mode: "push",
+          value: { at: "@now", action: "catalog_loaded" },
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "setCatalog",
+          select: "items",
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "mergeCatalogMeta",
+          value: { updatedAt: "@now" },
+        },
+        {
+          type: "piniaPatch",
+          storeId: "rental",
+          patch: (data) => ({ catalogEnvelope: data }),
+          hydrateOnReadHit: true,
+        },
         { type: "local", key: "rental:catalog", ttlMs: 45000, version: 2 },
         { type: "object", key: "rental.lastCatalogRun", value: { at: "@now" } },
       ],
       onNotModified: [
-        { type: "stateEngine", key: "rental.catalog.meta", mode: "merge", value: { checkedAt: "@now" } },
-        { type: "piniaAction", storeId: "rental", action: "mergeCatalogMeta", value: { checkedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "rental.catalog.meta",
+          mode: "merge",
+          value: { checkedAt: "@now" },
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "mergeCatalogMeta",
+          value: { checkedAt: "@now" },
+        },
       ],
       uiErrorMap: {
         MISSING_CREATOR_ID: "Creator id is required before loading rentals.",
         FETCH_RENTAL_CATALOG_FAILED: "Could not load rental catalog right now.",
       },
     },
-    refresh: { enabled: true, intervalMs: 60000, scopeKey: "rental.fetchCatalog" },
+    refresh: {
+      enabled: true,
+      intervalMs: 60000,
+      scopeKey: "rental.fetchCatalog",
+    },
   },
   "rental.fetchAvailability": {
     flowKind: "read",
@@ -585,9 +930,20 @@ export const flowRegistry = {
     },
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 18000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200, maxDelayMs: 1000, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 200,
+        maxDelayMs: 1000,
+        jitterRatio: 0.1,
+      },
       etag: { enabled: true, varyByPayload: true },
-      localCache: { enabled: true, ttlMs: 15000, version: 1, varyByPayload: true },
+      localCache: {
+        enabled: true,
+        ttlMs: 15000,
+        version: 1,
+        varyByPayload: true,
+      },
       readFrom: {
         enabled: true,
         ttlMs: 15000,
@@ -612,18 +968,33 @@ export const flowRegistry = {
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "stateEngine", key: "rental.availability.current", mode: "set" },
-        { type: "stateEngine", key: "rental.availability.meta", mode: "merge", value: { updatedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "rental.availability.current",
+          mode: "set",
+        },
+        {
+          type: "stateEngine",
+          key: "rental.availability.meta",
+          mode: "merge",
+          value: { updatedAt: "@now" },
+        },
         { type: "piniaAction", storeId: "rental", action: "setAvailability" },
         { type: "local", key: "rental:availability", ttlMs: 15000, version: 1 },
       ],
       onNotModified: [
-        { type: "stateEngine", key: "rental.availability.meta", mode: "merge", value: { checkedAt: "@now" } },
+        {
+          type: "stateEngine",
+          key: "rental.availability.meta",
+          mode: "merge",
+          value: { checkedAt: "@now" },
+        },
       ],
       uiErrorMap: {
         MISSING_RENTAL_ID: "Please select a rental first.",
         MISSING_DATE: "Please select a date first.",
-        FETCH_RENTAL_AVAILABILITY_FAILED: "Could not load availability right now.",
+        FETCH_RENTAL_AVAILABILITY_FAILED:
+          "Could not load availability right now.",
       },
     },
   },
@@ -637,19 +1008,53 @@ export const flowRegistry = {
     },
     pipeline: {
       timeouts: { requestMs: 15000, totalFlowMs: 22000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1200, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1200,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
-      idempotency: { enabled: true, headerName: "Idempotency-Key", keyFrom: "idempotencyKey" },
+      idempotency: {
+        enabled: true,
+        headerName: "Idempotency-Key",
+        keyFrom: "idempotencyKey",
+      },
       destinations: [
         { type: "stateEngine", key: "rental.reservation.pending", mode: "set" },
-        { type: "stateEngine", key: "rental.audit.trail", mode: "push", value: { at: "@now", action: "reservation_created" } },
-        { type: "piniaAction", storeId: "rental", action: "setActiveReservation" },
-        { type: "piniaAction", storeId: "rental", action: "pushAction", value: { at: "@now", action: "reservation_created" } },
-        { type: "local", key: "rental:lastReservation", ttlMs: 300000, version: 1 },
-        { type: "object", key: "rental.lastCreateReservation", value: { at: "@now" } },
+        {
+          type: "stateEngine",
+          key: "rental.audit.trail",
+          mode: "push",
+          value: { at: "@now", action: "reservation_created" },
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "setActiveReservation",
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "pushAction",
+          value: { at: "@now", action: "reservation_created" },
+        },
+        {
+          type: "local",
+          key: "rental:lastReservation",
+          ttlMs: 300000,
+          version: 1,
+        },
+        {
+          type: "object",
+          key: "rental.lastCreateReservation",
+          value: { at: "@now" },
+        },
       ],
       uiErrorMap: {
-        CREATE_RENTAL_RESERVATION_FAILED: "Could not create reservation. Please retry.",
+        CREATE_RENTAL_RESERVATION_FAILED:
+          "Could not create reservation. Please retry.",
       },
     },
   },
@@ -664,15 +1069,34 @@ export const flowRegistry = {
       timeouts: { requestMs: 15000, totalFlowMs: 20000 },
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
-      idempotency: { enabled: true, headerName: "Idempotency-Key", keyFrom: "idempotencyKey" },
+      idempotency: {
+        enabled: true,
+        headerName: "Idempotency-Key",
+        keyFrom: "idempotencyKey",
+      },
       destinations: [
-        { type: "stateEngine", key: "rental.reservation.pending", mode: "merge", value: { status: "confirmed", confirmedAt: "@now" } },
-        { type: "piniaPatch", storeId: "rental", patch: (data) => ({ activeReservation: data }) },
-        { type: "piniaAction", storeId: "rental", action: "pushAction", value: { at: "@now", action: "reservation_confirmed" } },
+        {
+          type: "stateEngine",
+          key: "rental.reservation.pending",
+          mode: "merge",
+          value: { status: "confirmed", confirmedAt: "@now" },
+        },
+        {
+          type: "piniaPatch",
+          storeId: "rental",
+          patch: (data) => ({ activeReservation: data }),
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "pushAction",
+          value: { at: "@now", action: "reservation_confirmed" },
+        },
         { type: "localFlush", key: "rental:availability" },
       ],
       uiErrorMap: {
-        CONFIRM_RENTAL_RESERVATION_FAILED: "Could not confirm reservation. Please retry.",
+        CONFIRM_RENTAL_RESERVATION_FAILED:
+          "Could not confirm reservation. Please retry.",
       },
     },
   },
@@ -686,14 +1110,29 @@ export const flowRegistry = {
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 18000 },
       retry: { enabled: false },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: true,
+      },
       destinations: [
-        { type: "stateEngine", key: "rental.reservation.pending", mode: "merge", value: { status: "cancelled", cancelledAt: "@now" } },
-        { type: "piniaAction", storeId: "rental", action: "pushAction", value: { at: "@now", action: "reservation_cancelled" } },
+        {
+          type: "stateEngine",
+          key: "rental.reservation.pending",
+          mode: "merge",
+          value: { status: "cancelled", cancelledAt: "@now" },
+        },
+        {
+          type: "piniaAction",
+          storeId: "rental",
+          action: "pushAction",
+          value: { at: "@now", action: "reservation_cancelled" },
+        },
         { type: "localFlush", key: "rental:lastReservation" },
       ],
       uiErrorMap: {
-        CANCEL_RENTAL_RESERVATION_FAILED: "Could not cancel reservation right now.",
+        CANCEL_RENTAL_RESERVATION_FAILED:
+          "Could not cancel reservation right now.",
       },
     },
   },
@@ -717,15 +1156,26 @@ export const flowRegistry = {
     },
   },
 
-    "chat.createChat": {
+  "chat.createChat": {
     flowKind: "write",
     flow: createChatFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
-      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 250,
+        maxDelayMs: 1000,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
       destinations: [
-        { type: "stateEngine", key: "chat.createResult", mode: "set", select: "chatId" }
+        {
+          type: "stateEngine",
+          key: "chat.createResult",
+          mode: "set",
+          select: "chatId",
+        },
       ],
       uiErrorMap: {
         CREATE_CHAT_FAILED: "Could not create chat right now.",
@@ -737,8 +1187,18 @@ export const flowRegistry = {
     flow: sendMessageFlow,
     pipeline: {
       timeouts: { requestMs: 15000, totalFlowMs: 20000 },
-      retry: { enabled: true, maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 3000, jitterRatio: 0.2 },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      retry: {
+        enabled: true,
+        maxAttempts: 3,
+        baseDelayMs: 500,
+        maxDelayMs: 3000,
+        jitterRatio: 0.2,
+      },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: true,
+      },
       destinations: [
         { type: "piniaAction", storeId: "chat", action: "addMessageAction" },
       ],
@@ -753,10 +1213,20 @@ export const flowRegistry = {
     flow: fetchMessagesFlow,
     pipeline: {
       timeouts: { requestMs: 12000, totalFlowMs: 20000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        { type: "piniaAction", storeId: "chat", action: "prependMessagesAction" },
+        {
+          type: "piniaAction",
+          storeId: "chat",
+          action: "prependMessagesAction",
+        },
       ],
       uiErrorMap: {
         FETCH_MESSAGES_MISSING_CHAT_ID: "Chat ID is required.",
@@ -769,10 +1239,20 @@ export const flowRegistry = {
     flow: fetchChatUsersDataFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: false },
       destinations: [
-        { type: "piniaAction", storeId: "chat", action: "setChatUsersDataAction" },
+        {
+          type: "piniaAction",
+          storeId: "chat",
+          action: "setChatUsersDataAction",
+        },
       ],
       uiErrorMap: {
         FETCH_CHAT_USERS_FAILED: "Could not load chat user data.",
@@ -784,10 +1264,20 @@ export const flowRegistry = {
     flow: fetchUserChatsFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: false },
       destinations: [
-        { type: "piniaAction", storeId: "chat", action: "fetchUserChatsAction" },
+        {
+          type: "piniaAction",
+          storeId: "chat",
+          action: "fetchUserChatsAction",
+        },
       ],
       uiErrorMap: {
         FETCH_USER_CHATS_FAILED: "Could not load your chats.",
@@ -800,7 +1290,11 @@ export const flowRegistry = {
     pipeline: {
       timeouts: { requestMs: 8000, totalFlowMs: 12000 },
       retry: { enabled: false },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: true,
+      },
       destinations: [],
       uiErrorMap: {},
     },
@@ -866,7 +1360,11 @@ export const flowRegistry = {
     pipeline: {
       timeouts: { requestMs: 8000, totalFlowMs: 12000 },
       retry: { enabled: false },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: true,
+      },
       destinations: [],
       uiErrorMap: {},
     },
@@ -877,7 +1375,11 @@ export const flowRegistry = {
     pipeline: {
       timeouts: { requestMs: 8000, totalFlowMs: 12000 },
       retry: { enabled: false },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: true,
+      },
       destinations: [],
       uiErrorMap: {},
     },
@@ -887,7 +1389,13 @@ export const flowRegistry = {
     flow: createGroupChatFlow,
     pipeline: {
       timeouts: { requestMs: 15000, totalFlowMs: 20000 },
-      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 250,
+        maxDelayMs: 1000,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
       destinations: [],
       uiErrorMap: {
@@ -901,7 +1409,11 @@ export const flowRegistry = {
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
       retry: { enabled: false },
-      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: false },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: false,
+      },
       destinations: [],
       uiErrorMap: {
         ADD_CHAT_PARTICIPANT_FAILED: "Could not add participant to chat.",
@@ -913,12 +1425,217 @@ export const flowRegistry = {
     flow: fetchGroupUserIdsFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
-      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250, maxDelayMs: 1500, jitterRatio: 0.1 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        jitterRatio: 0.1,
+      },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [],
       uiErrorMap: {
         FETCH_GROUP_USER_IDS_FAILED: "Could not load users for this group.",
       },
+    },
+  },
+
+  // Cart Flows
+  "cart.fetch": {
+    flowKind: "read",
+    flow: fetchCartFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2 },
+      etag: { enabled: true, varyByPayload: true },
+      concurrency: { policy: "latestWins", dedupe: true },
+      readFrom: {
+        enabled: true,
+        priority: ["pinia"],
+        sources: [{ type: "pinia", storeId: "cart" }],
+      },
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+      uiErrorMap: {
+        FETCH_CART_FAILED: "Could not load your cart.",
+      },
+      onNotModified: [
+        {
+          type: "piniaPatch",
+          storeId: "cart",
+          patch: (state) => {
+            state.metadata.checkedAt = new Date().toISOString();
+          },
+        },
+      ],
+    },
+    refresh: { enabled: true, intervalMs: 60000, scopeKey: "cart.fetch" },
+  },
+
+  "cart.addItem": {
+    flowKind: "write",
+    flow: addItemToCartFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 18000 },
+      concurrency: { policy: "firstWins" },
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+      uiErrorMap: {
+        ADD_ITEM_FAILED: "Failed to add item.",
+      },
+    },
+  },
+
+  "cart.removeItem": {
+    flowKind: "write",
+    flow: removeItemFromCartFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+
+  "cart.updateQuantity": {
+    flowKind: "write",
+    flow: updateItemQuantityFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      concurrency: { policy: "latestWins" },
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.rename": {
+    flowKind: "write",
+    flow: renameCartFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.applyCoupon": {
+    flowKind: "write",
+    flow: applyCouponFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.removeCoupon": {
+    flowKind: "write",
+    flow: removeCouponFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.applyFees": {
+    flowKind: "write",
+    flow: applyFeesFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.setAsDefault": {
+    flowKind: "write",
+    flow: setAsDefaultFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.mergeGuest": {
+    flowKind: "write",
+    flow: mergeGuestCartFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.attachLiveData": {
+    flowKind: "write",
+    flow: attachLiveDataFlow,
+    pipeline: {
+      destinations: [
+        { type: "piniaAction", storeId: "cart", action: "setCartAction" },
+      ],
+    },
+  },
+  "cart.remind": {
+    flowKind: "write",
+    flow: remindAbandonedCartsFlow,
+  },
+  "orders.fetchOrders": {
+    flowKind: "read",
+    flow: fetchOrdersFlow,
+    mapper: {
+      fromResponse: mapOrdersFromResponse,
+      toRequest: mapOrderToRequest,
+    },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 25000 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 2000,
+        jitterRatio: 0.15,
+      },
+      etag: { enabled: false },
+      localCache: {
+        enabled: false,
+      },
+      readFrom: {
+        enabled: false,
+      },
+
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        {
+          type: "piniaAction",
+          storeId: "orders",
+          action: "setOrders",
+          map: (data) => [
+            data.items,
+            {
+              etag: data.etag,
+              totalCount: data.totalCount,
+              pagination: data.pagination,
+            },
+          ],
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "local",
+          key: "dash:orders:list",
+          ttlMs: 60000,
+          version: 1,
+          hydrateOnReadHit: true,
+        },
+      ],
+      uiErrorMap: {
+        FETCH_ORDERS_FAILED:
+          "Could not load orders. Please check your connection.",
+        FETCH_ORDERS_UNEXPECTED:
+          "An unexpected error occurred while loading orders.",
+      },
+    },
+    refresh: {
+      enabled: true,
+      intervalMs: 1800000, // 30 minutes as requested
+      scopeKey: "orders.fetchOrders",
     },
   },
 };

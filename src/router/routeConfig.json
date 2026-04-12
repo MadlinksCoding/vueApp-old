@@ -748,6 +748,10 @@
   "componentPath": "@/templates/home/Home.vue"
   },
   {
+    "slug": "/cart",
+  "componentPath": "@/components/ui/Cart.vue"
+  },
+  {
     "slug": "/dev/datepicker-showcase",
     "requiresAuth": false,
     "section": "dev",

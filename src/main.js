@@ -10,6 +10,10 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { authHandler } from "@/services/authHandler";
 import { useSectionsStore } from "./stores/sectionStore";
 import { useChatStore } from "./stores/useChatStore";
+import { useCartStore } from "./stores/useCartStore";
+import { initMockCartApi } from "./services/cart/mockCartBackend";
+import { initMockOrdersApi } from "./services/orders/mockOrdersBackend";
+import { useOrdersStore } from "./stores/useOrdersStore";
 import FlowHandler from "@/services/flow-system/FlowHandler";
 import { createCacheJanitor } from "./plugins/cacheJanitor";
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
@@ -40,8 +44,14 @@ async function initializeApp() {
   FlowHandler.configure({
     piniaStores: {
       chat: useChatStore(),
+      cart: useCartStore(),
+      orders: useOrdersStore(),
     },
   });
+
+  // Initialize Mock Cart API (for testing Flows + ETag)
+  initMockCartApi();
+  initMockOrdersApi();
 
   // Wait for router to be ready before restoring session
   router.isReady().then(() => {
