@@ -13,7 +13,9 @@ import { useChatStore } from "./stores/useChatStore";
 import { useCartStore } from "./stores/useCartStore";
 import { initMockCartApi } from "./services/cart/mockCartBackend";
 import { initMockOrdersApi } from "./services/orders/mockOrdersBackend";
+import { initMockMediaApi } from "./services/media/mockMediaBackend";
 import { useOrdersStore } from "./stores/useOrdersStore";
+import { useMediaUploaderStore } from "./stores/useMediaUploaderStore";
 import FlowHandler from "@/services/flow-system/FlowHandler";
 import { createCacheJanitor } from "./plugins/cacheJanitor";
 import { Splide, SplideSlide } from '@splidejs/vue-splide';
@@ -46,12 +48,14 @@ async function initializeApp() {
       chat: useChatStore(),
       cart: useCartStore(),
       orders: useOrdersStore(),
+      mediaUploader: useMediaUploaderStore(),
     },
   });
 
-  // Initialize Mock Cart API (for testing Flows + ETag)
+  // Initialize Mock APIs
   initMockCartApi();
   initMockOrdersApi();
+  initMockMediaApi();
 
   // Wait for router to be ready before restoring session
   router.isReady().then(() => {

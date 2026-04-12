@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative sm:w-[415px]"
+    class="relative w-full"
   >
     <div class="flex overflow-hidden">
       <input

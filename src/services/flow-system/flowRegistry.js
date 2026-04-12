@@ -87,6 +87,10 @@ import {
   mapOrdersFromResponse,
   mapOrderToRequest,
 } from "@/services/orders/mappers/ordersMapper.js";
+import {
+  uploadMediaFlow,
+  submitUploaderFlow,
+} from "@/services/orders/flows/mediaUploaderFlows.js";
 
 export const flowRegistry = {
   "events.fetchEvent": {
@@ -1619,6 +1623,27 @@ export const flowRegistry = {
       enabled: true,
       intervalMs: 1800000, // 30 minutes as requested
       scopeKey: "orders.fetchOrders",
+    },
+  },
+
+  // --- MEDIA UPLOADER FLOWS ---
+  "media.uploadFile": {
+    flowKind: "write",
+    flow: uploadMediaFlow,
+    pipeline: {
+      retry: { enabled: false },
+      uiErrorMap: {
+        UPLOAD_FAILED: "Media upload failed. Please try again.",
+      },
+    },
+  },
+  "media.submitUploader": {
+    flowKind: "write",
+    flow: submitUploaderFlow,
+    pipeline: {
+      uiErrorMap: {
+        SUBMIT_FAILED: "Registration failed. Please check form data.",
+      },
     },
   },
 };
