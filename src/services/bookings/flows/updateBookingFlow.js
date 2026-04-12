@@ -16,7 +16,7 @@ export async function updateBookingFlow({ payload, context, api }) {
     });
   }
 
-  if (!["renegotiate", "reschedule"].includes(actionType)) {
+  if (!["renegotiate", "reschedule", "update_meta"].includes(actionType)) {
     return fail({
       code: "BOOKING_UPDATE_INVALID_ACTION",
       message: "actionType must be renegotiate or reschedule.",
@@ -26,8 +26,13 @@ export async function updateBookingFlow({ payload, context, api }) {
 
   const {
     bookingId: _bookingId,
+    addons,
     ...requestBody
   } = payload || {};
+
+  if (requestBody.requestedAddOns === undefined && addons !== undefined) {
+    requestBody.requestedAddOns = addons;
+  }
 
   try {
     const response = await api.post(

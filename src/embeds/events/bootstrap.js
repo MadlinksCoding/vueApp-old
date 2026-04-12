@@ -1,12 +1,14 @@
 import { reactive } from "vue";
 import { toNumberOr } from "@/utils/contextIds.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
+import { setBackendJwtToken } from "@/utils/backendJwt.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
   fanId: null,
   userRole: "creator",
   apiBaseUrl: "",
+  jwtToken: "",
   initialRoute: "events",
   creatorData: {
     avatar: null,
@@ -37,6 +39,7 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     fanId: normalizedFanId,
     userRole: normalizedUserRole,
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     initialRoute: normalizeInitialRoute(payload.initialRoute),
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
@@ -52,8 +55,10 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.fanId = normalized.fanId;
   bootstrapState.userRole = normalized.userRole;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
+  bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.creatorData = normalized.creatorData;
+  setBackendJwtToken(normalized.jwtToken);
   bootstrapState.bootstrapped = String(normalized.userRole || "").toLowerCase() === "fan"
     ? normalized.fanId != null
     : normalized.creatorId != null;
@@ -79,6 +84,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     fanId,
     userRole,
     apiBaseUrl: params.get("apiBaseUrl") || "",
+    jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),

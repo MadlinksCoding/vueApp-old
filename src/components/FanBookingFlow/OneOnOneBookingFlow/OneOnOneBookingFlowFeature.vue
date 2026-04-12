@@ -19,7 +19,7 @@ import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
 import BookingFlowStep3 from "./BookingFlowStep3.vue";
 import BookingFlowStep4 from "./BookingFlowStep4.vue";
-
+import { useChatSocket } from '@/composables/useChatSocket';
 const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
@@ -561,6 +561,11 @@ onMounted(async () => {
   if (props.previewMode) {
     await loadPreviewContext();
     return;
+  }
+
+  if(  props.fanId ) {
+    const s = useChatSocket(props.fanId)
+    s.init()
   }
 
   await engine.forceStep(1, { intent: "feature-mount" });

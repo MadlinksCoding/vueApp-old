@@ -2,12 +2,14 @@ import { reactive } from "vue";
 import { toNumberOr } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
+import { setBackendJwtToken } from "@/utils/backendJwt.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
   fanId: null,
   eventId: null,
   apiBaseUrl: "",
+  jwtToken: "",
   creatorData: {
     avatar: null,
     name: null,
@@ -30,6 +32,7 @@ export function normalizeOneOnOneBookingBootstrap(payload = {}) {
     fanId: toNumberOr(payload.fanId, null),
     eventId: normalizeEventId(payload.eventId),
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
       name: payload.creatorName,
@@ -48,7 +51,9 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.fanId = normalized.fanId;
   bootstrapState.eventId = normalized.eventId;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
+  bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
+  setBackendJwtToken(normalized.jwtToken);
   bootstrapState.bootstrapped = normalized.creatorId != null && normalized.fanId != null;
   logFanBookingDebug("bootstrap", "apply:end", {
     state: {
@@ -56,6 +61,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
       fanId: bootstrapState.fanId,
       eventId: bootstrapState.eventId,
       apiBaseUrl: bootstrapState.apiBaseUrl,
+      jwtToken: bootstrapState.jwtToken,
       creatorData: bootstrapState.creatorData,
       bootstrapped: bootstrapState.bootstrapped,
     },
@@ -83,6 +89,7 @@ export function readOneOnOneBookingBootstrapFromUrl() {
     fanId,
     eventId: params.get("eventId"),
     apiBaseUrl: params.get("apiBaseUrl") || "",
+    jwtToken: params.get("jwtToken") || "",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),

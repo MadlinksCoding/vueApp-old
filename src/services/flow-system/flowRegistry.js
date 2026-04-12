@@ -57,6 +57,7 @@ import { getAllCartsFlow } from "@/services/cart/flows/getAllCartsFlow.js";
 import { remindAbandonedCartsFlow } from "@/services/cart/flows/remindAbandonedCartsFlow.js";
 import { mapRenegotiateBookingToRequest } from "@/services/bookings/mappers/renegotiateBookingMapper.js";
 import { mapRescheduleBookingToRequest } from "@/services/bookings/mappers/rescheduleBookingMapper.js";
+import { mapUpdateBookingMetaToRequest } from "@/services/bookings/mappers/updateBookingMetaMapper.js";
 import {
   validateFetchCatalogPayload,
   validateFetchCatalogResponse,
@@ -773,6 +774,22 @@ export const flowRegistry = {
         BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
         BOOKING_UPDATE_FAILED: "Could not reschedule booking.",
         HTTP_400: "This booking cannot be rescheduled with the selected time.",
+      },
+    },
+  },
+
+  "bookings.updateMeta": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapUpdateBookingMetaToRequest },
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not update booking meta.",
       },
     },
   },

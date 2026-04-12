@@ -27,27 +27,15 @@
         <!-- Body -->
         <div class="px-5 pb-5 flex flex-col gap-5">
 
-          <!-- Event date -->
-          <div class="flex flex-col gap-1">
-            <span class="text-gray-500 text-xs">Event date</span>
-            <span class="text-gray-900 text-sm font-bold">{{ formattedEventDate }}</span>
-          </div>
-
-          <!-- New start time -->
-          <div class="flex flex-col gap-2">
-            <span class="text-gray-500 text-xs">New start time</span>
-            <div class="flex items-center gap-3">
-              <input
-                v-model="newStartTime"
-                type="time"
-                class="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07F468] transition-colors w-32"
-              />
-              <span v-if="newEndTime" class="text-gray-600 text-sm font-medium">–{{ newEndTime }}</span>
-            </div>
-            <span v-if="originalStartTime" class="text-gray-400 text-xs">
-              Original start time: {{ originalStartTime }}
-            </span>
-          </div>
+          <!-- New start time (date fixed) -->
+          <EventSlotDateTimePicker
+            v-model="slotPickerValue"
+            :event="event"
+            :duration-ms="durationMs"
+            :original-start-time="originalStartTime"
+            :date-readonly="true"
+            :compact="true"
+          />
 
           <!-- Send button -->
           <button
@@ -70,11 +58,14 @@
 <script setup>
 import { computed, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
+import { showToast } from '@/utils/toastBus.js'
 
 const props = defineProps({
   message:       { type: Object, required: true },
   chatId:        { type: String, required: true },
   otherUserName: { type: String, default: 'creator' },
+  event:         { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'submitted'])
@@ -102,6 +93,14 @@ const originalStartTime = computed(() => {
   return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
 })
 
+// Pre-fill initial date as YYYY-MM-DD
+function getInitialDate() {
+  const ms = parseStartMs()
+  if (!ms) return ''
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Pre-fill new start time input (HH:MM for <input type="time">)
 function getInitialStartTime() {
   const ms = parseStartMs()
@@ -111,27 +110,21 @@ function getInitialStartTime() {
 }
 const newStartTime = ref(getInitialStartTime())
 
-// Original session duration in minutes (if end_at is available)
+// Original session duration (if end_at is available)
 const durationMs = computed(() => {
   const endRaw = content.value.end_at
   if (!endRaw) return null
-  const endMs = Date.parse(endRaw)
+  const endMs   = Date.parse(endRaw)
   const startMs = parseStartMs()
   if (!startMs || isNaN(endMs)) return null
   return endMs - startMs
 })
 
-// Auto-calculated new end time based on original duration
-const newEndTime = computed(() => {
-  if (!newStartTime.value || !durationMs.value) return null
-  const [h, m] = newStartTime.value.split(':').map(Number)
-  const startMs = h * 3600000 + m * 60000
-  const endMs   = startMs + durationMs.value
-  const endH    = Math.floor(endMs / 3600000) % 24
-  const endM    = Math.floor((endMs % 3600000) / 60000)
-  const suffix  = endH >= 12 ? 'pm' : 'am'
-  const h12     = endH % 12 || 12
-  return `${h12}:${String(endM).padStart(2, '0')}${suffix}`
+const fixedDate = getInitialDate()
+
+const slotPickerValue = computed({
+  get: () => ({ date: fixedDate, startTime: newStartTime.value }),
+  set: (val) => { newStartTime.value = val.startTime },
 })
 
 // ── Submit ────────────────────────────────────────────────────────────────────
@@ -148,17 +141,38 @@ async function handleSubmit() {
   base.setHours(h, m, 0, 0)
   const slotDate = base.toISOString()
 
+  const bookingId    = props.message?.content?.booking_id
+  const prevStartAtIso = content.value.start_at || null
+
   try {
+    // Update chat message to reflect counter_offer state (booking API called on fan accept)
     const res = await FlowHandler.run('chat.updateMessage', {
       chatId:    props.chatId,
       messageId: props.message.message_id,
       updates: {
-        action:    'counter_offer',
-        slot_date: slotDate,
+        action:   'counter_offer',
+        slotDate,
+        meta: {
+          newSlotDate:   slotDate,
+          prevStartAtIso,
+          source:        'more_time',
+        },
       },
     })
     if (res?.ok) {
-      emit('submitted', res.data?.item)
+      // Store proposed values in booking meta for fan-side display + accept flow
+      let updatedBooking = null
+      if (bookingId) {
+        const metaRes = await FlowHandler.run('bookings.updateMeta', {
+          bookingId,
+          meta: {
+            moretime: { proposedSlotDate: slotDate },
+            currentCounterOffer: 'moretime',
+          },
+        })
+        if (metaRes?.ok) updatedBooking = metaRes.data?.item
+      }
+      emit('submitted', { item: res.data?.item, booking: updatedBooking })
       emit('close')
     }
   } finally {

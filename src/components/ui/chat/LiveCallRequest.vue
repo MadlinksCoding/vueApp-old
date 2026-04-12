@@ -179,6 +179,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps({
   message:   { type: Object,  required: true },
+  booking:   { type: Object,  default: null },
   isCreator: { type: Boolean, default: false },
 })
 
@@ -189,7 +190,11 @@ const content = computed(() => props.message?.content || {})
 const eventName    = computed(() => content.value.event_name   || 'Upcoming Session')
 const sessionLink  = computed(() => content.value.session_link || null)
 const isCounterOffer = computed(() => content.value.action === 'counter_offer')
-const isCancelled    = computed(() => ['cancelled', 'declined'].includes(content.value.action))
+const isCancelled    = computed(() => {
+  if (['cancelled', 'declined'].includes(content.value.action)) return true
+  const status = String(props.booking?.status || '').toLowerCase()
+  return status.startsWith('cancel') || status === 'rejected' || status === 'declined'
+})
 const isAccepted     = computed(() => content.value.action === 'accepted')
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────

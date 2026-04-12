@@ -1,5 +1,177 @@
 # Changelog
 
+## 2026-04-09 — Booking Counter-Offer Meta, UI Polish & Bug Fixes
+
+### Features
+
+#### `src/components/ui/chat/AdjustBookingPopup.vue`
+- After sending a counter offer, calls `bookings.updateMeta` with type-based keys: `meta.adjust = { proposedSlotDate, proposedTokens, proposedRemarks, prevTotalTokens }` and `meta.currentCounterOffer = 'adjust'`. Emits updated booking back to `ChatWindow`.
+- Backdrop click blocked while `submitting` is true.
+
+#### `src/components/ui/chat/MoreTimeRequestPopup.vue`
+- After sending, calls `bookings.updateMeta` with `meta.moretime = { proposedSlotDate }` and `meta.currentCounterOffer = 'moretime'`. Emits `{ item, booking }`.
+
+#### `src/components/ui/chat/RescheduleRequestPopup.vue`
+- After sending, calls `bookings.updateMeta` with `meta.reschedule = { proposedSlotDate }` and `meta.currentCounterOffer = 'reschedule'`. Emits `{ item, booking }`.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `onAdjustSubmitted`, `onMoreTimeSubmitted`, `onRescheduleSubmitted` now destructure `{ item, booking }` and call `chatStore.setBooking` when an updated booking is returned.
+- `_doConfirmCounter` reads `booking.meta.adjust` for renegotiation params instead of `message.content.meta`.
+- `onConfirmCounter` reads `booking.meta.adjust.prevTotalTokens` for token diff calculation. `showBookingPopup` closed after each async path completes (removed early close).
+- `onAcceptCounter` and `onRejectCounter` wrapped with `bookingActionLoading` guard; handle both `booking_request` and `requestJoinCallNotification` message types using the correct update endpoint each.
+- `onAcceptCounter` reads `booking.meta.currentCounterOffer` + `booking.meta[type].proposedSlotDate` for the booking API call.
+- `onRejectCounter` reads `booking.meta.currentCounterOffer` for the activity log decision key.
+- `onCancelBooking` — `showBookingPopup` closed only on full success (not eagerly).
+- Added `pinnedBookingData` computed for the pinned banner message booking.
+- Added `onCallCancelled(updatedItem)` handler — broadcasts updated message, sends `call_cancelled` activity log.
+- Added `call_cancelled` to `ActivityLogTexts` and `decisionMap`.
+- `BookingRequestDetailPopup` wired with `@accept-counter` / `@reject-counter` events.
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- `counterOfferMeta` replaced with `activeOfferType` + `proposedValues` — reads proposed slot/tokens from `booking.meta[currentCounterOffer]` instead of `message.content.meta`.
+- `applyBookingData` skips API-derived status override when `message.content.action` is already a definitive non-pending value (fixes "Accepted" badge showing during `counter_offer`).
+- Backdrop click blocked while `loading` prop is true.
+- Counter-offer fan actions split by type: `adjust` shows "ACCEPT NEW Changes" + "CANCEL BOOKING"; `moretime`/`reschedule` shows "ACCEPT NEW TIME" + "REJECT".
+- Added `accept-counter` and `reject-counter` emits.
+- All action buttons show loading label while `loading` is true.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- Added `booking` prop. `isCancelled` now also checks `booking.status` from the store — hides 3-dot menu, disables Join Call, shows Canceled state when booking is cancelled externally.
+
+#### `src/components/ui/chat/CancelCallConfirmPopup.vue`
+- Captures `chat.updateMessage` response and emits updated item with `'cancelled'` event so `ChatWindow` can broadcast the correct updated message.
+
+### Bug Fixes
+
+#### `src/composables/useChatSocket.js`
+- On every incoming message, fetches user data for any participant IDs not yet in `chatStore.chatUsersData` (fire-and-forget via `chat.fetchChatUsersData`). Includes the message `sender_id` as a fallback. Fixed duplicate `senderId` variable declaration.
+
+---
+
+## 2026-04-09 — `bookings.updateMeta` Flow
+
+### Added
+
+#### `src/services/bookings/mappers/updateBookingMetaMapper.js`
+- **`mapUpdateBookingMetaToRequest`** — new mapper. Resolves `bookingId` from the standard input paths (`bookingId`, `event.bookingId`, `booking.bookingId`, etc.), sets `actionType: "update_meta"`, and forwards `meta`, `actor`, and `args`.
+
+#### `src/services/flow-system/flowRegistry.js`
+- **`bookings.updateMeta`** — new write flow entry. Reuses `updateBookingFlow` with `mapUpdateBookingMetaToRequest` as the `toRequest` mapper. `latestWins` concurrency, no retry, 10 s request / 15 s total timeout.
+
+---
+
+## 2026-04-09 — Booking Action Unification & Activity Log Improvements
+
+### Refactor
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- Removed `handleAccept`, `handleDecline`, `actionLoading` ref and the duplicate `bookings.reviewPendingBooking` calls — the popup no longer owns the decision logic.
+- Accept and Decline buttons now emit `'accept'` / `'decline'` (same events as `BookingRequestBubble`), letting `ChatWindow` handle the full flow via the shared `performBookingDecision`.
+- Added `loading` prop (Boolean) — passed from `ChatWindow.bookingActionLoading` to disable buttons while the API call is in flight.
+- Renamed internal fetch spinner state from `loading` to `fetchLoading` to avoid conflict with the new `loading` prop.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `performBookingDecision` now closes `showBookingPopup` after the API call completes — popup closes only on success/failure, not immediately on click.
+- Removed `onBookingActionComplete` — no longer needed; popup uses `@accept` / `@decline` → `onDirectAccept` / `onDirectDecline`.
+- `BookingRequestDetailPopup` binding updated: `@action-complete` replaced with `@accept` / `@decline`; `:loading="bookingActionLoading"` added.
+
+### Features
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **`_doConfirmCounter`**: activity log `decision` field updated to `'counter_offer_accepted'`.
+- **`onCancelBooking`**: added `sendChatActivityLog` with `decision: 'counter_offer_declined'` after the message update succeeds — fan-side counter-offer decline is now tracked in the activity log.
+
+---
+
+## 2026-04-08 — Fan Counter-Offer Accept: Token Check, Topup Flow & Message Update
+
+### Features
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **`onConfirmCounter`** (fan "Accept Changes" for booking counter-offer):
+  - Computes `newTokens` (from cached booking or `message.content.meta.totalTokens`) and `prevTokens` (from `message.content.meta.prevTotalTokens`).
+  - Calculates `diffTokens = Math.max(0, newTokens - prevTokens)` — only the incremental amount owed.
+  - If `diffTokens === 0` (same or cheaper counter-offer), confirms directly without any balance check.
+  - If `diffTokens > 0`, fetches fan's spendable balance via `TokenHandler.get`; confirms directly if balance is sufficient.
+  - If insufficient, fires `FS_CHAT_TOPUP_REQUIRED` postMessage to parent (iframe mode) with `requiredTokens: diffTokens`; shows alert in non-iframe context.
+  - DEV-only: `import.meta.env.DEV` guard allows overriding balance via `localStorage.setItem('mockTokenBalance', N)` for testing the topup flow without real tokens (stripped from production builds by Vite).
+- **`_doConfirmCounter`**: after `reviewPendingBooking` approves, stores updated booking via `chatStore.setBooking`, then calls `chat.updateBookingRequestMessage` with `action: 'accepted'` and passes the result to `broadcastBookingUpdate` — mirrors the creator-side `performBookingDecision` flow so the bubble action updates to "accepted" immediately.
+- **`_onTopupMessage`**: listens for `FS_CHAT_TOPUP_SUCCESS` / `FS_CHAT_TOPUP_FAILED` from parent window; on success resumes `_doConfirmCounter`, on failure shows error toast. Listener registered in `onMounted`, removed in `onUnmounted`.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- Added `FS_CHAT_TOPUP_REQUIRED` handler in `onMessage` — calls `window.openTipPopup` with `creator_id`, `user_id`, `topup_amount: diffTokens`, `topupFor: 'booking_confirm'`.
+- `successCallback` posts `FS_CHAT_TOPUP_SUCCESS` back to iframe; `failureCallback` posts `FS_CHAT_TOPUP_FAILED`.
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **`guestLabel`**: falls back to `chatStore.chatUsersData[userId].username / display_name` before showing `User #ID`, so the fan's username is shown when the booking API doesn't embed display name fields.
+
+#### `src/composables/useChatSocket.js`
+- On incoming `booking_request` or `requestJoinCallNotification` socket message: refetches booking via `bookings.fetchBooking` and event via `events.fetchEvent`, updating `chatStore` so all views reflect the latest data without a page refresh.
+- For pinned `booking_request` messages, immediately calls `chatStore.setPinnedMessage` so `pinnedBookingMessage` in `ChatWindow` reflects the new action/tokens/time from the socket message.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- `booking` changed from a module-level `Map` cache to a reactive `computed` reading `chatStore.getBookingById` — all bubble instances auto-update when the store is refreshed by the socket handler.
+- `isRemarksClamped` watcher now uses `flush: 'post'` and watches `[counterRemarks, resolvedAction]` — fires after DOM update and when the remarks element becomes visible due to async booking status changes.
+
+#### `src/components/ui/chat/EventSlotDateTimePicker.vue`
+- Replaced custom slot-matching logic with `buildCandidateSlotsForEventDate` from `bookingSlotUtils.js` — correctly handles all repeat rules (`weekly`, `monthly`, `everyXWeeks`, `doesNotRepeat`, `daily`).
+- `isValidDay` — `true` when the candidate slot list for the selected date is non-empty.
+- `timeSlotOptions` — derived directly from `rebuildAvailabilityPreview` slot labels.
+- `invalidDayWarning` — rule-specific messages: monthly shows ordinal day ("not the 15th of the month"), everyXWeeks shows interval info.
+- `dateRangeLabel` — for monthly events, shows ordinal day-of-month ("the 15th of each month").
+- `availableDayLabels` — for everyXWeeks, prefixes "every N weeks on …".
+
+---
+
+## 2026-04-08 — Booking Counter-Offer UX: Date/Time Picker, Meta Tracking & Error Toasts
+
+### Features
+
+#### `src/components/ui/chat/EventSlotDateTimePicker.vue` (new)
+- New reusable component for picking a new event slot date and time within booking flows.
+- **Date input**: native `<input type="date">` with underline style, `min`/`max` from event `dateFrom`/`dateTo`, available day hint, invalid-day amber warning.
+- **Time input**: `CustomDropdown` (50% width) generating time options as session-duration intervals within the slot's `startTime`–`endTime` window; shows computed end time alongside selected start.
+- Supports `dateReadonly` mode (date shown as text, only time is editable — used in MoreTimeRequestPopup).
+- `isValidDay`: validates selected date's weekday against `event.slots[].day` for weekly/custom events; always valid for monthly/daily.
+- `activeSlot`: for `monthly`/`daily` repeatRule, returns `slots[0]` directly (no weekday match needed); for `weekly`/`custom`, matches by day name with `slots[0]` fallback.
+- `dateRangeLabel`: for monthly events, shows `"Available: April 8, 2026 – May 8, 2026"` or `"Available: From April 8, 2026"` when `dateTo` is absent.
+- Props: `event`, `modelValue({date,startTime})`, `durationMs`, `originalEventDate`, `originalStartTime`, `dateReadonly`, `compact`, `optional`.
+
+#### `src/components/ui/chat/AdjustBookingPopup.vue`
+- Integrated `EventSlotDateTimePicker` for new event date/time selection (optional).
+- **`prevStartAtIso`**: captured from `booking.startIso/startAtIso` before renegotiation; stored in message `meta.prevStartAtIso` and booking `args`.
+- **`prevTotalTokens`**: captured from `baseTokens` (booking's current `payment.total`) before renegotiation; stored in message `meta.prevTotalTokens`.
+- Added-on section is now read-only — shows only selected add-ons matched by title from event catalog, no checkboxes.
+- Session duration resolved via fallback chain: `durationMinutes` → `sessionDurationMinutes` → `meta.validation.paymentPayload.durationMinutes` → `endAtIso - startAtIso`.
+- `isDateTimeValid`: skips weekday check for monthly events (filters empty strings from `allowed` set before checking).
+- Submit disabled when: nothing to submit (no date/time change and adjustment = 0), date without time or vice versa, or invalid slot day.
+- Shows error toast on `bookings.renegotiateBooking` failure.
+
+#### `src/components/ui/chat/RescheduleRequestPopup.vue`
+- Added `event` prop; replaced custom date/time inputs with `EventSlotDateTimePicker`.
+- Captures `prevStartAtIso` from `content.start_at`; passes it in booking `args` (audit trail).
+- Switched message update from `chat.updateMessage` → `chat.updateBookingRequestMessage` with `meta: { newSlotDate, prevStartAtIso }` — enables strikethrough date display in bubble.
+- Shows error toast on `bookings.rescheduleBooking` failure.
+
+#### `src/components/ui/chat/MoreTimeRequestPopup.vue`
+- Added `event` prop; replaced time input with `EventSlotDateTimePicker` in `dateReadonly` mode.
+- Captures `prevStartAtIso` from `content.start_at`; passes it in booking `args` (audit trail).
+- Switched message update from `chat.updateMessage` → `chat.updateBookingRequestMessage` with `meta: { newSlotDate, prevStartAtIso }`.
+- Shows error toast on `bookings.renegotiateBooking` failure.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **`prevSlotDateTime`**: computed from `content.meta.prevStartAtIso` — formats original start + derived end (using `booking.durationMinutes`) as the strikethrough date when a counter offer includes a date change. Replaces unreliable `resolvedDateTime` (which reflects the already-updated booking API value).
+- **`prevTokens`**: computed from `content.meta.prevTotalTokens` — replaces `originalTokens` (which read from `booking.payment.total`, already overwritten after renegotiation) as the strikethrough price.
+- Date change row: only rendered when both `counterSlotDate` (new date) and `prevSlotDateTime` (original date) are present.
+- **"View detail" button**: hidden when remark text does not overflow 2 lines. Uses `remarksRef` template ref + `isRemarksClamped` (checked via `scrollHeight > clientHeight` after mount and on `counterRemarks` change). Button reappears when already expanded so user can collapse.
+
+### Fixes
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- Shows error toast on `bookings.cancelBooking` failure instead of silently no-oping.
+
+---
+
 ## 2026-04-07 — Pinned Message Pre-loading, Booking/Event Caching & LiveCallRequest Fixes
 
 ### Features
