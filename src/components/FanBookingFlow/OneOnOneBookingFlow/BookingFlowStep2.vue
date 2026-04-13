@@ -21,6 +21,7 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 
 const props = defineProps({
   engine: {
@@ -40,6 +41,7 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 // --- CALENDAR LOGIC ---
 const now = new Date();
@@ -67,12 +69,12 @@ const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
     header: 'text-lg font-medium text-white',
-    dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
+    dayBase: 'relative w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
     outside: 'opacity-0',
     expired: 'opacity-40 cursor-not-allowed pointer-events-none',
     today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
     selected: 'rounded-full !bg-[#07F468] !text-[#0C111D] font-semibold',
-    dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
+    dot: 'absolute top-[3px] right-[3px] w-1 h-1 rounded-full bg-[#07F468]'
   }
 };
 
@@ -83,7 +85,7 @@ const otherRequest = ref('');
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const popupBackgroundStyle = computed(() => ({
-  backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'left 50% center',

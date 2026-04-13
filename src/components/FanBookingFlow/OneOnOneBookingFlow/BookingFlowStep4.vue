@@ -8,6 +8,7 @@ import {
   bookingFlowVerifiedIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 
 const props = defineProps({
   engine: {
@@ -31,6 +32,7 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: bookingResult.value,
 }));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
@@ -76,7 +78,7 @@ const topMessage = computed(() => (
 ));
 
 const successBackgroundStyle = computed(() => ({
-  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${resolvedBackgroundImageUrl.value}')`,
   backgroundPosition: 'center',
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
