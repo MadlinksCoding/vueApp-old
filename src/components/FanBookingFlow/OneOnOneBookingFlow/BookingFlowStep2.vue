@@ -616,7 +616,7 @@ onMounted(() => {
     :style="popupBackgroundStyle"
   >
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-8 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
+      <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
