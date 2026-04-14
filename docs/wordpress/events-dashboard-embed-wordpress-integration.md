@@ -37,6 +37,7 @@ After a successful build, confirm these exist:
 - [`./dist/bookings-embed/dashboard.html`](./dist/bookings-embed/dashboard.html)
 - [`./dist/bookings-embed/fan-booking.html`](./dist/bookings-embed/fan-booking.html)
 - [`./dist/bookings-embed/fs-events-host.js`](./dist/bookings-embed/fs-events-host.js)
+- [`./dist/bookings-embed/fs-events-host.css`](./dist/bookings-embed/fs-events-host.css)
 - [`./dist/assets/booking`](./dist/assets/booking)
 
 ## 2. Copy Files Into The WordPress Plugin
@@ -63,6 +64,7 @@ wp-content/
         dashboard.html
         fan-booking.html
         fs-events-host.js
+        fs-events-host.css
       assets/
         booking/
           *.js
@@ -130,6 +132,7 @@ mountFSEventsEmbed();
 
 Then in `/wp-content/plugins/fansocial/includes/class-templates.php`, Function `write_configurations`, search for `'/dashboard/events'` index in both the creator array and the fan array and add these following to the assets array:
 - /wp-content/plugins/fansocial/bookings-embed/fs-events-host.js
+- /wp-content/plugins/fansocial/bookings-embed/fs-events-host.css
 - /wp-content/plugins/fansocial/assets/dashboard-v2/js/pages/events.js
 
 ## 5. Bootstrap Values
@@ -168,6 +171,7 @@ These must be accessible in the browser:
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/dashboard.html`
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fan-booking.html`
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.js`
+- `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.css`
 - `https://your-site.com/wp-content/plugins/fansocial/assets/booking/...`
 
 If any of those 404, the embed will fail.
@@ -225,6 +229,7 @@ Check:
 
 Check:
 
+- `fs-events-host.css` was also copied and enqueued, not just `fs-events-host.js`
 - the built asset folder was copied to `wp-content/plugins/fansocial/assets/booking`
 - the files were not copied to `assets` instead of `assets/booking`
 

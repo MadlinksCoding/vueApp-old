@@ -77,6 +77,7 @@ The build emits:
 - `dist/bookings-embed/dashboard.html`
 - `dist/bookings-embed/fan-booking.html`
 - `dist/bookings-embed/fs-events-host.js`
+- `dist/bookings-embed/fs-events-host.css`
 - `dist/assets/booking/*`
 
 Assets are forced into `assets/booking` via:
@@ -167,11 +168,20 @@ The parent-side host script is:
 
 - [`frontend/public/bookings-embed/fs-events-host.js`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/public/bookings-embed/fs-events-host.js)
 
+The companion host stylesheet is:
+
+- [`frontend/public/bookings-embed/fs-events-host.css`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/public/bookings-embed/fs-events-host.css)
+
 This is the bridge between WordPress and the iframe apps.
 
 It exposes a global:
 
 - `window.FSEventsEmbed`
+
+WordPress is expected to load both:
+
+- `fs-events-host.js`
+- `fs-events-host.css`
 
 ### Current public APIs
 
@@ -183,6 +193,7 @@ Responsibilities:
 
 - resolve the mount target
 - create the iframe
+- create a wrapper with stable class names
 - build the iframe URL with query-string bootstrap fallback
 - listen for `postMessage` events from the child
 - send `FS_EVENTS_BOOTSTRAP`
@@ -198,6 +209,7 @@ Responsibilities:
 - destroy any previous active popup
 - create overlay and modal shell in the parent document
 - create the iframe
+- assign stable public class names for styling
 - append query-string bootstrap fallback to the iframe URL
 - listen for child messages
 - send `FS_FAN_BOOKING_BOOTSTRAP`
@@ -220,6 +232,39 @@ Reason:
 - `postMessage` is still the primary structured parent-child contract
 
 If one layer fails, the other often still allows the embed to boot.
+
+### Styling contract
+
+Static host styling now lives in:
+
+- `fs-events-host.css`
+
+The host script only sets:
+
+- class names
+- event listeners
+- runtime CSS custom properties for measured values
+
+Stable public classes:
+
+- `.fs-events-embed`
+- `.fs-events-embed__iframe`
+- `.fs-events-embed__iframe--content`
+- `.fs-events-embed__iframe--viewport`
+- `.fs-fan-booking-popup`
+- `.fs-fan-booking-popup__overlay`
+- `.fs-fan-booking-popup__modal`
+- `.fs-fan-booking-popup__iframe`
+- `.fs-fan-booking-popup__close`
+
+Stable runtime CSS variables:
+
+- `--fs-events-embed-height`
+- `--fs-events-embed-min-height`
+- `--fs-fan-booking-popup-width`
+- `--fs-fan-booking-popup-height`
+
+This was done so WordPress/frontend developers can restyle and override layout behavior in CSS without editing the host JS.
 
 ### Normalized data in host script
 

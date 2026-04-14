@@ -18,6 +18,7 @@ Inside `bookings-embed`, the important files for this popup are:
 
 - [`./dist/bookings-embed/fan-booking.html`](./dist/bookings-embed/fan-booking.html)
 - [`./dist/bookings-embed/fs-events-host.js`](./dist/bookings-embed/fs-events-host.js)
+- [`./dist/bookings-embed/fs-events-host.css`](./dist/bookings-embed/fs-events-host.css)
 
 ## 1. Build The Frontend
 
@@ -49,6 +50,7 @@ wp-content/
         dashboard.html
         fan-booking.html
         fs-events-host.js
+        fs-events-host.css
       assets/
         booking/
           *.js
@@ -80,7 +82,10 @@ Expected behavior:
 
 ## 4. WordPress Integration
 
-In `/wp-content/plugins/fansocial/includes/class-templates.php`, Function `write_configurations`, search for `'/@([A-z0-9]+)/hero-right-buttons'` index and add this following to the assets array: `/wp-content/plugins/fansocial/bookings-embed/fs-events-host.js`.
+In `/wp-content/plugins/fansocial/includes/class-templates.php`, Function `write_configurations`, search for `'/@([A-z0-9]+)/hero-right-buttons'` index and add these to the assets array:
+
+- `/wp-content/plugins/fansocial/bookings-embed/fs-events-host.js`
+- `/wp-content/plugins/fansocial/bookings-embed/fs-events-host.css`
 
 Then open `/wp-content/plugins/fansocial/assets/new-profile/hero-right-buttons.js` and add this code to mount the embed:
 
