@@ -101,9 +101,9 @@ onMounted(() => {
   <!-- overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -->
   <div class="relative w-full max-w-[24rem] min-h-0 rounded-[10px] ">
 
-      <div class="backdrop-blur-[1rem]" :style="successBackgroundStyle">
+      <div class="backdrop-blur-[1rem] rounded-[10px]" :style="successBackgroundStyle">
 
-          <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6">
+          <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 rounded-tl-[10px] rounded-tr-[10px]">
             <div class="flex flex-col justify-center items-center gap-6">
               <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
               <div class="flex flex-col justify-start items-start gap-2">

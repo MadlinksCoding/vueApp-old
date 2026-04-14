@@ -1145,7 +1145,7 @@ onBeforeUnmount(() => {
       class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       :style="popupBackgroundStyle"
     >
-      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
+      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
       <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
             <OneOnOneBookingFlowLeftSideBar
