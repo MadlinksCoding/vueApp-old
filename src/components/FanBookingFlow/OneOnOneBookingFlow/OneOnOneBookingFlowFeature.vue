@@ -596,7 +596,7 @@ const currentStepComponent = computed(() => {
 </script>
 
 <template>
-  <div class="relative flex w-full items-center justify-center overflow-hidden">
+  <div class="relative flex w-full items-center justify-center overflow-hidden h-full">
     <component
       :is="currentStepComponent"
       :engine="engine"
