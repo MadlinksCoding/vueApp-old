@@ -19,6 +19,7 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
@@ -52,6 +53,7 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 const topUpFormRef = ref(null);
 const isSubmitting = ref(false);
@@ -67,7 +69,7 @@ const PAYMENT_SUBSTEP_SUMMARY = 'summary';
 const PAYMENT_SUBSTEP_TOPUP   = 'topup';
 
 const popupBackgroundStyle = computed(() => ({
-  // backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'left 50% center',

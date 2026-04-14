@@ -7,6 +7,7 @@ import {
   bookingFlowTokenIcon,
   bookingFlowUnionIcon,
 } from "./oneOnOneBookingFlowAssets.js";
+import { useEventBackgroundImage } from "./useEventBackgroundImage.js";
 
 const emit = defineEmits(["retry-catalog"]);
 
@@ -41,15 +42,19 @@ const outerClass = computed(() => (
     : "h-screen w-full max-h-full overflow-auto scrollbar-hide md:py-8 flex justify-center items-center"
 ));
 
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(currentEvent, bookingFlowBackgroundImage);
+
 const cardBackgroundStyle = computed(() => ({
-  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${resolvedBackgroundImageUrl.value}')`,
   backgroundPosition: "center",
   backgroundSize: "cover",
   backgroundRepeat: "no-repeat",
 }));
 
 function callTypeLabel(event = {}) {
-  return event.type === "group-event" ? "Group event" : "1 on 1 call";
+  const eventTypeLabel = event.type === "group-event" ? "Group" : "1on1";
+  const mediaTypeLabel = event.eventCallType === "audio" ? "Audio" : "Video";
+  return `${eventTypeLabel} ${mediaTypeLabel} Call`;
 }
 
 function safeNumber(value, fallback = 0) {
@@ -181,7 +186,7 @@ watch(
         </div>
 
         <div
-          class="card-header flex flex-col justify-center items-center w-[5.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] md:rounded-tl-3xl rounded-br-[4px]"
+          class="card-header flex flex-col justify-center items-center w-[8.438rem] h-[1.75rem] text-sm text-[#0C111D] font-bold bg-[#22CCEE] md:rounded-tl-3xl rounded-br-[4px]"
         >
           <p class="header-content p-[0.25rem 0.375rem 0.25rem 1rem]">
             {{ callTypeLabel(currentEvent || {}) }}

@@ -619,7 +619,16 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
 }
 
 export function createSlotUiModel({ eventId, localDateIso, slot, bookedSlotsIndex }) {
-  const disabled = isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex });
+  const bookedDisabled = isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex });
+  const today = new Date();
+  const todayIso = toLocalDateIsoFromDate(today);
+  const pastDisabled = (
+    Boolean(localDateIso)
+    && localDateIso === todayIso
+    && Number.isFinite(slot?.startMs)
+    && slot.startMs < today.getTime()
+  );
+  const disabled = bookedDisabled || pastDisabled;
   return {
     ...slot,
     disabled,
