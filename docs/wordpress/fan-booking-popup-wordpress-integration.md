@@ -17,6 +17,7 @@ You still only need to copy these 2 build outputs:
 Inside `bookings-embed`, the important files for this popup are:
 
 - [`./dist/bookings-embed/fan-booking.html`](./dist/bookings-embed/fan-booking.html)
+- [`./dist/bookings-embed/fan-booking-loading-skeleton.html`](./dist/bookings-embed/fan-booking-loading-skeleton.html)
 - [`./dist/bookings-embed/fs-events-host.js`](./dist/bookings-embed/fs-events-host.js)
 - [`./dist/bookings-embed/fs-events-host.css`](./dist/bookings-embed/fs-events-host.css)
 
@@ -49,6 +50,7 @@ wp-content/
       bookings-embed/
         dashboard.html
         fan-booking.html
+        fan-booking-loading-skeleton.html
         fs-events-host.js
         fs-events-host.css
       assets/
@@ -338,6 +340,11 @@ window.FSEventsEmbed.openFanBookingPopup({
   fanUserId: 25,
   eventId: "evt_0e8082d4-9df0-42fb-a7eb-37e9b6311826",
   apiBaseUrl: "https://bookings-backend-live.onrender.com",
+  creatorData: {
+    avatar: "https://example.com/avatar.webp",
+    name: "Creator Name",
+    isVerified: true,
+  },
   onClose: function () {
     console.log("Booking popup closed");
   },
@@ -359,7 +366,12 @@ The parent sends this bootstrap payload into the iframe:
   creatorId: number,
   fanUserId: number,
   eventId?: string | number | null,
-  apiBaseUrl?: string
+  apiBaseUrl?: string,
+  creatorData?: {
+    avatar?: string
+    name?: string
+    isVerified?: boolean
+  }
 }
 ```
 
@@ -377,6 +389,13 @@ The parent sends this bootstrap payload into the iframe:
 - `apiBaseUrl`
   Optional API base override. Leave it empty if the default app API resolution should be used.
 
+- `creatorData`
+  Optional creator presentation metadata used by the popup header, sidebar, and success surfaces.
+  It supports:
+  - `avatar`
+  - `name`
+  - `isVerified`
+
 ## 7. Host Script Behavior
 
 `openFanBookingPopup(...)` creates the popup for you and returns a controller:
@@ -393,17 +412,27 @@ The parent sends this bootstrap payload into the iframe:
 Default behavior:
 
 - creates a fresh iframe every time you open the popup
+- preloads and caches `fan-booking-loading-skeleton.html` when the host script initializes
+- shows the parent-side loading skeleton immediately while the iframe boots
+- hides the parent-side loading skeleton when the child iframe sends `FS_FAN_BOOKING_CHILD_READY`
 - locks body scroll while the popup is open
 - closes on overlay click
 - closes on `Escape`
 - destroys the iframe on close so each session starts clean
+
+Frontend developers can restyle the loading state without touching JS by editing:
+
+- `bookings-embed/fan-booking-loading-skeleton.html`
+- `bookings-embed/fs-events-host.css`
 
 ## 8. Required URLs
 
 These must load successfully:
 
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fan-booking.html`
+- `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fan-booking-loading-skeleton.html`
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.js`
+- `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.css`
 - `https://your-site.com/wp-content/plugins/fansocial/assets/booking/...`
 
 If any of these return 404, the popup will fail.
@@ -422,14 +451,16 @@ After deployment, verify:
 
 1. The host script loads on the WordPress page.
 2. Clicking the trigger opens the popup overlay.
-3. The iframe loads without 404 errors.
-4. With no `eventId`, the popup opens on step 1.
-5. With a valid `eventId`, the popup opens on step 2.
-6. With an invalid `eventId`, the popup stays on step 1 and shows an error toast.
-7. Closing on overlay click works.
-8. Closing on `Escape` works.
-9. Completing a booking reaches the success step.
-10. `onBookingCreated` fires in the parent page.
+3. The parent-side loading skeleton appears immediately.
+4. The iframe loads without 404 errors.
+5. The parent-side loading skeleton hides after `FS_FAN_BOOKING_CHILD_READY`.
+6. With no `eventId`, the popup opens on step 1.
+7. With a valid `eventId`, the popup opens on step 2.
+8. With an invalid `eventId`, the popup stays on step 1 and shows an error toast.
+9. Closing on overlay click works.
+10. Closing on `Escape` works.
+11. Completing a booking reaches the success step.
+12. `onBookingCreated` fires in the parent page.
 
 ## 11. Troubleshooting
 

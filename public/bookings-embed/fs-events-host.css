@@ -18,6 +18,8 @@
   height: 100vh;
 }
 
+/* Skeleton CSS starts here */
+
 .fs-fan-booking-popup.fs-fan-booking-popup__overlay {
   position: fixed;
   inset: 0;
@@ -46,6 +48,29 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+.fs-fan-booking-popup__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.fs-fan-booking-popup__loading--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.fs-fan-booking-popup__loading--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .fs-fan-booking-popup__close {
@@ -78,6 +103,110 @@
   outline-offset: 2px;
 }
 
+.fs-fan-booking-skeleton {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(12, 17, 29, 0.2) 0%, rgba(12, 17, 29, 0.72) 100%),
+    radial-gradient(circle at top right, rgba(34, 204, 238, 0.22), transparent 38%),
+    #0c111d;
+  color: #ffffff;
+}
+
+.fs-fan-booking-skeleton__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fs-fan-booking-skeleton__chip,
+.fs-fan-booking-skeleton__pager,
+.fs-fan-booking-skeleton__line,
+.fs-fan-booking-skeleton__button {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fs-fan-booking-skeleton__chip::after,
+.fs-fan-booking-skeleton__pager::after,
+.fs-fan-booking-skeleton__line::after,
+.fs-fan-booking-skeleton__button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: fs-fan-booking-skeleton-shimmer 1.6s infinite;
+}
+
+.fs-fan-booking-skeleton__chip {
+  width: 132px;
+  height: 28px;
+}
+
+.fs-fan-booking-skeleton__pager {
+  width: 72px;
+  height: 20px;
+}
+
+.fs-fan-booking-skeleton__hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 14px;
+  min-height: 180px;
+}
+
+.fs-fan-booking-skeleton__title {
+  width: 78%;
+  height: 28px;
+}
+
+.fs-fan-booking-skeleton__price {
+  width: 56%;
+  height: 46px;
+}
+
+.fs-fan-booking-skeleton__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fs-fan-booking-skeleton__line {
+  width: 100%;
+  height: 14px;
+}
+
+.fs-fan-booking-skeleton__line--short {
+  width: 68%;
+}
+
+.fs-fan-booking-skeleton__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.fs-fan-booking-skeleton__button {
+  width: min(280px, 100%);
+  height: 54px;
+}
+
+@keyframes fs-fan-booking-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (max-width: 768px) {
   .fs-fan-booking-popup.fs-fan-booking-popup__overlay {
     padding: 0;
@@ -89,5 +218,18 @@
     max-width: 100vw;
     max-height: 100vh;
     border-radius: 0;
+  }
+
+  .fs-fan-booking-skeleton {
+    padding: 20px 16px;
+  }
+
+  .fs-fan-booking-skeleton__title {
+    width: 92%;
+  }
+
+  .fs-fan-booking-skeleton__price,
+  .fs-fan-booking-skeleton__button {
+    width: 100%;
   }
 }

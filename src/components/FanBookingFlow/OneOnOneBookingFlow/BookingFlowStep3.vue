@@ -1,7 +1,6 @@
 <script setup>
-import TopUpForm from '../HelperComponents/TopUpForm.vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
@@ -23,6 +22,52 @@ import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
+
+const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
+let topUpFormPrefetchPromise = null;
+
+function prefetchTopUpForm(reason = 'unknown') {
+  if (topUpFormPrefetchPromise) return topUpFormPrefetchPromise;
+
+  logFanBookingDebug('step3', 'topup-prefetch:start', { reason });
+  topUpFormPrefetchPromise = loadTopUpForm()
+    .then((module) => {
+      logFanBookingDebug('step3', 'topup-prefetch:resolved', { reason });
+      return module;
+    })
+    .catch((error) => {
+      topUpFormPrefetchPromise = null;
+      logFanBookingDebug('step3', 'topup-prefetch:error', {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return topUpFormPrefetchPromise;
+}
+
+function scheduleTopUpPrefetch(reason) {
+  const run = () => Promise.resolve().then(() => prefetchTopUpForm(reason)).catch(() => {});
+
+  if (typeof window === 'undefined') {
+    run();
+    return;
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 800 });
+    return;
+  }
+
+  window.setTimeout(run, 0);
+}
+
+const TopUpForm = defineAsyncComponent({
+  loader: () => prefetchTopUpForm('topup-render'),
+  delay: 120,
+  suspensible: false,
+});
 
 const props = defineProps({
   engine: {
@@ -614,9 +659,17 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     if (!messageId) return;
 
     // Notify participants via socket so their chat lists reload (chat:message → unknown chat_id → fetchUserChats)
-    const { sendChatMessage } = useChatSocket(fanUserId)
-    const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
-    sendChatMessage(msgRes.data.item, recipients)
+    try {
+      const { sendChatMessage } = useChatSocket(fanUserId)
+      const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
+      sendChatMessage(msgRes.data.item, recipients)
+    } catch (socketError) {
+      logFanBookingDebug('step3', 'chat-socket-send:error', {
+        fanId: fanUserId,
+        creatorId,
+        message: socketError?.message || String(socketError),
+      });
+    }
 
     // Step 3 — pin the message
     await FlowHandler.run('chat.pinMessage', { chatId, messageId });
@@ -1107,6 +1160,7 @@ onMounted(() => {
     props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'step3-default' });
   }
 
+  scheduleTopUpPrefetch('step3-mounted');
   refreshWalletBalance();
 });
 

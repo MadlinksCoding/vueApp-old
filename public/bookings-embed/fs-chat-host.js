@@ -22,7 +22,7 @@
     return pathname + (nextSearch ? "?" + nextSearch : "") + hash;
   }
 
-  function mountChatEmbed(target, options) {
+  function mountChatEmbed(target, options) {return;
     var container = typeof target === "string"
       ? document.querySelector(target)
       : (target && target.nodeType === 1 ? target : null);

@@ -20,6 +20,13 @@
   var FAN_BOOKING_POPUP_MODAL_CLASS = "fs-fan-booking-popup__modal";
   var FAN_BOOKING_POPUP_IFRAME_CLASS = "fs-fan-booking-popup__iframe";
   var FAN_BOOKING_POPUP_CLOSE_CLASS = "fs-fan-booking-popup__close";
+  var FAN_BOOKING_POPUP_LOADING_CLASS = "fs-fan-booking-popup__loading";
+  var FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS = "fs-fan-booking-popup__loading--visible";
+  var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
+  var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
+  var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
+  var fanBookingSkeletonTemplateCache = null;
+  var fanBookingSkeletonTemplatePromise = null;
 
   function isFanBookingDebugEnabled(options) {
     if (options && options.debug === true) return true;
@@ -80,6 +87,12 @@
   function safeNumber(value, fallback) {
     var parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function safePositiveNumber(value, fallback) {
+    var parsed = safeNumber(value, fallback);
+    if (parsed === null || parsed === undefined) return fallback;
+    return parsed > 0 ? parsed : fallback;
   }
 
   function normalizeCreatorData(value) {
@@ -151,6 +164,117 @@
     }
 
     return element;
+  }
+
+  function getHostScriptUrl() {
+    if (typeof document === "undefined") return "";
+
+    if (document.currentScript && document.currentScript.src) {
+      return document.currentScript.src;
+    }
+
+    var scripts = document.getElementsByTagName("script");
+    for (var index = scripts.length - 1; index >= 0; index -= 1) {
+      var src = scripts[index] && scripts[index].src;
+      if (typeof src === "string" && src.indexOf("fs-events-host.js") !== -1) {
+        return src;
+      }
+    }
+
+    return "";
+  }
+
+  function resolveHostAssetUrl(fileName) {
+    if (typeof fileName !== "string" || !fileName) return "";
+
+    var hostScriptUrl = getHostScriptUrl();
+    if (!hostScriptUrl) return fileName;
+
+    try {
+      return new URL(fileName, hostScriptUrl).toString();
+    } catch (_error) {
+      return fileName;
+    }
+  }
+
+  function getFallbackFanBookingSkeletonHtml() {
+    return [
+      '<div class="fs-fan-booking-skeleton" aria-hidden="true">',
+      '  <div class="fs-fan-booking-skeleton__header">',
+      '    <div class="fs-fan-booking-skeleton__chip"></div>',
+      '    <div class="fs-fan-booking-skeleton__pager"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__hero">',
+      '    <div class="fs-fan-booking-skeleton__title fs-fan-booking-skeleton__line"></div>',
+      '    <div class="fs-fan-booking-skeleton__price fs-fan-booking-skeleton__line"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__content">',
+      '    <div class="fs-fan-booking-skeleton__line"></div>',
+      '    <div class="fs-fan-booking-skeleton__line fs-fan-booking-skeleton__line--short"></div>',
+      '    <div class="fs-fan-booking-skeleton__line"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__footer">',
+      '    <div class="fs-fan-booking-skeleton__button"></div>',
+      "  </div>",
+      "</div>",
+    ].join("");
+  }
+
+  function preloadFanBookingSkeletonTemplate() {
+    if (fanBookingSkeletonTemplatePromise) return fanBookingSkeletonTemplatePromise;
+
+    if (typeof fetch !== "function") {
+      fanBookingSkeletonTemplatePromise = Promise.resolve(null);
+      return fanBookingSkeletonTemplatePromise;
+    }
+
+    fanBookingSkeletonTemplatePromise = fetch(resolveHostAssetUrl(FAN_BOOKING_SKELETON_TEMPLATE_PATH), {
+      credentials: "same-origin",
+    })
+      .then(function (response) {
+        if (!response.ok) return null;
+        return response.text();
+      })
+      .then(function (html) {
+        var normalized = typeof html === "string" ? html.trim() : "";
+        fanBookingSkeletonTemplateCache = normalized || null;
+        return fanBookingSkeletonTemplateCache;
+      })
+      .catch(function () {
+        fanBookingSkeletonTemplateCache = null;
+        return null;
+      });
+
+    return fanBookingSkeletonTemplatePromise;
+  }
+
+  function createFanBookingLoadingLayer() {
+    var loadingLayer = createElement("div", [
+      FAN_BOOKING_POPUP_LOADING_CLASS,
+      FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS,
+    ]);
+    loadingLayer.innerHTML = fanBookingSkeletonTemplateCache || getFallbackFanBookingSkeletonHtml();
+    return loadingLayer;
+  }
+
+  function applyFanBookingSkeletonTemplate(loadingLayer, html) {
+    if (!loadingLayer || !loadingLayer.parentNode) return;
+    if (loadingLayer.classList.contains(FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS)) return;
+    if (typeof html !== "string" || !html.trim()) return;
+    loadingLayer.innerHTML = html;
+  }
+
+  function hideFanBookingLoadingLayer(loadingLayer) {
+    if (!loadingLayer || !loadingLayer.parentNode) return;
+
+    loadingLayer.classList.remove(FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS);
+    loadingLayer.classList.add(FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS);
+
+    global.setTimeout(function () {
+      if (loadingLayer.parentNode) {
+        loadingLayer.parentNode.removeChild(loadingLayer);
+      }
+    }, 220);
   }
 
   function setIframeHeightMode(iframe, mode, nextHeight) {
@@ -254,8 +378,8 @@
       iframe.contentWindow.postMessage({
         type: FS_EVENTS_BOOTSTRAP,
         payload: {
-          creatorId: safeNumber(settings.creatorId, null),
-          fanId: safeNumber(settings.fanId, null),
+          creatorId: safePositiveNumber(settings.creatorId, null),
+          fanId: safePositiveNumber(settings.fanId, null),
           userRole: settings.userRole || "creator",
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
@@ -324,12 +448,12 @@
       escToClose: true,
     }, options || {});
 
-    if (safeNumber(settings.creatorId, null) == null) {
-      throw new Error("FSEventsEmbed.openFanBookingPopup requires a creatorId.");
+    if (safePositiveNumber(settings.creatorId, null) == null) {
+      throw new Error("FSEventsEmbed.openFanBookingPopup requires a positive creatorId.");
     }
 
-    if (safeNumber(settings.fanId, null) == null) {
-      throw new Error("FSEventsEmbed.openFanBookingPopup requires a fanId.");
+    if (safePositiveNumber(settings.fanId, null) == null) {
+      throw new Error("FSEventsEmbed.openFanBookingPopup requires a positive fanId.");
     }
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
@@ -337,6 +461,9 @@
     var unlockBodyScroll = lockBodyScroll();
     var isDestroyed = false;
     var closeInvoked = false;
+    var isChildReady = false;
+    var isLoadingLayerHidden = false;
+    var loadingFallbackTimer = null;
 
     var overlay = createElement("div", [
       FAN_BOOKING_POPUP_CLASS,
@@ -353,9 +480,14 @@
     closeButton.textContent = "×";
 
     var iframe = createElement("iframe", FAN_BOOKING_POPUP_IFRAME_CLASS);
-    iframe.src = buildIframeSrcWithQuery(settings.src, {
-      creatorId: safeNumber(settings.creatorId, null),
-      fanId: safeNumber(settings.fanId, null),
+    var loadingLayer = createFanBookingLoadingLayer();
+    iframe.title = settings.iframeTitle;
+    iframe.loading = "eager";
+    iframe.setAttribute("scrolling", "no");
+
+    var iframeSrc = buildIframeSrcWithQuery(settings.src, {
+      creatorId: safePositiveNumber(settings.creatorId, null),
+      fanId: safePositiveNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       apiBaseUrl: settings.apiBaseUrl || "",
       jwtToken: settings.jwtToken || "",
@@ -364,16 +496,13 @@
       creatorVerified: creatorData.isVerified,
       debugFanBooking: isFanBookingDebugEnabled(settings) ? 1 : null,
     });
-    iframe.title = settings.iframeTitle;
-    iframe.loading = "eager";
-    iframe.setAttribute("scrolling", "no");
 
     function sendBootstrap() {
       if (!iframe.contentWindow) return;
 
       logFanBookingDebug("host", "sendBootstrap", {
-        creatorId: safeNumber(settings.creatorId, null),
-        fanId: safeNumber(settings.fanId, null),
+        creatorId: safePositiveNumber(settings.creatorId, null),
+        fanId: safePositiveNumber(settings.fanId, null),
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         apiBaseUrl: settings.apiBaseUrl || "",
         jwtToken: settings.jwtToken || "",
@@ -384,8 +513,8 @@
       iframe.contentWindow.postMessage({
         type: FS_FAN_BOOKING_BOOTSTRAP,
         payload: {
-          creatorId: safeNumber(settings.creatorId, null),
-          fanId: safeNumber(settings.fanId, null),
+          creatorId: safePositiveNumber(settings.creatorId, null),
+          fanId: safePositiveNumber(settings.fanId, null),
           eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
@@ -402,12 +531,38 @@
       }
     }
 
+    function clearLoadingFallbackTimer() {
+      if (loadingFallbackTimer != null) {
+        global.clearTimeout(loadingFallbackTimer);
+        loadingFallbackTimer = null;
+      }
+    }
+
+    function hideLoadingLayer(reason) {
+      if (isLoadingLayerHidden) return;
+      isLoadingLayerHidden = true;
+      clearLoadingFallbackTimer();
+      logFanBookingDebug("host", "hideLoadingLayer", { reason: reason }, settings);
+      hideFanBookingLoadingLayer(loadingLayer);
+    }
+
+    function scheduleLoadingFallbackHide() {
+      if (isChildReady || isLoadingLayerHidden || isDestroyed) return;
+      clearLoadingFallbackTimer();
+      loadingFallbackTimer = global.setTimeout(function () {
+        if (isDestroyed || isChildReady || isLoadingLayerHidden) return;
+        hideLoadingLayer("iframe-load-fallback");
+      }, FAN_BOOKING_LOADING_FALLBACK_DELAY_MS);
+    }
+
     function destroy(options) {
       var destroyOptions = Object.assign({ invokeOnClose: true }, options || {});
       if (isDestroyed) return;
       isDestroyed = true;
+      clearLoadingFallbackTimer();
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown);
+      iframe.removeEventListener("load", onIframeLoad);
       unlockBodyScroll();
 
       if (overlay.parentNode) {
@@ -428,6 +583,15 @@
       destroy({ invokeOnClose: true });
     }
 
+    function onIframeLoad() {
+      logFanBookingDebug("host", "iframe-load", {
+        iframeSrc: iframe.src,
+        isChildReady: isChildReady,
+      }, settings);
+      sendBootstrap();
+      scheduleLoadingFallbackHide();
+    }
+
     function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
 
@@ -443,6 +607,8 @@
         origin: event.origin,
       }, settings);
       if (data.type === FS_FAN_BOOKING_CHILD_READY) {
+        isChildReady = true;
+        hideLoadingLayer("child-ready");
         sendBootstrap();
         return;
       }
@@ -486,21 +652,27 @@
       event.stopPropagation();
     });
 
-    modal.appendChild(closeButton);
+    // modal.appendChild(closeButton);
     modal.appendChild(iframe);
+    modal.appendChild(loadingLayer);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    iframe.addEventListener("load", sendBootstrap);
+    window.addEventListener("message", onMessage);
+    window.addEventListener("keydown", onKeyDown);
+    iframe.addEventListener("load", onIframeLoad);
     logFanBookingDebug("host", "popup-open", {
-      iframeSrc: iframe.src,
-      creatorId: safeNumber(settings.creatorId, null),
-      fanId: safeNumber(settings.fanId, null),
+      iframeSrc: iframeSrc,
+      creatorId: safePositiveNumber(settings.creatorId, null),
+      fanId: safePositiveNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       creatorData: creatorData,
     }, settings);
-    window.addEventListener("message", onMessage);
-    window.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(overlay);
+
+    preloadFanBookingSkeletonTemplate().then(function (html) {
+      applyFanBookingSkeletonTemplate(loadingLayer, html);
+    });
+
+    iframe.src = iframeSrc;
 
     activeOneOnOnePopup = {
       iframe: iframe,
@@ -517,4 +689,6 @@
     mount: mount,
     openFanBookingPopup: openFanBookingPopup,
   };
+
+  preloadFanBookingSkeletonTemplate();
 })(window);

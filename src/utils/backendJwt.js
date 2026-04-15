@@ -1,13 +1,15 @@
-const GLOBAL_BACKEND_JWT_KEY = "__FSBackendJwtToken";
-
 function normalizeToken(value) {
   if (typeof value !== "string") return "";
   return value.trim();
 }
 
+function getBackendJwtStorageKey() {
+  return "__FSBackendJwtToken";
+}
+
 export function getBackendJwtToken() {
   if (typeof window !== "undefined") {
-    const globalToken = normalizeToken(window[GLOBAL_BACKEND_JWT_KEY]);
+    const globalToken = normalizeToken(window[getBackendJwtStorageKey()]);
     if (globalToken) return globalToken;
   }
 
@@ -17,11 +19,11 @@ export function getBackendJwtToken() {
 export function setBackendJwtToken(token = "") {
   if (typeof window === "undefined") return "";
   const normalized = normalizeToken(token);
-  window[GLOBAL_BACKEND_JWT_KEY] = normalized;
+  window[getBackendJwtStorageKey()] = normalized;
   return normalized;
 }
 
 export function clearBackendJwtToken() {
   if (typeof window === "undefined") return;
-  window[GLOBAL_BACKEND_JWT_KEY] = "";
+  window[getBackendJwtStorageKey()] = "";
 }

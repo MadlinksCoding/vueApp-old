@@ -1,6 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { showToast } from "@/utils/toastBus.js";
@@ -17,10 +16,121 @@ import { normalizeCreatorPresentationInput } from "./creatorPresentation.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
-import BookingFlowStep3 from "./BookingFlowStep3.vue";
-import BookingFlowStep4 from "./BookingFlowStep4.vue";
 import { useChatSocket } from '@/composables/useChatSocket';
 import { bookingFlowCrossWhiteIcon } from "./oneOnOneBookingFlowAssets.js";
+
+const BookingFlowStepLoading = defineComponent({
+  name: "BookingFlowStepLoading",
+  render() {
+    return h("div", {
+      class: "relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden bg-[#0C111D]",
+    }, [
+      h("div", {
+        class: "h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent",
+      }, [
+        h("div", {
+          class: "md:rounded-b-[20px] h-dvh md:h-full overflow-hidden md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75",
+        }, [
+          h("div", {
+            class: "hidden md:flex md:w-[280px] shrink-0 flex-col gap-4 border-r border-white/10 bg-white/5 p-6",
+          }, [
+            h("div", { class: "h-6 w-24 rounded-full bg-white/10 animate-pulse" }),
+            h("div", { class: "h-40 rounded-[20px] bg-white/10 animate-pulse" }),
+            h("div", { class: "h-4 w-3/4 rounded-full bg-white/10 animate-pulse" }),
+            h("div", { class: "h-4 w-1/2 rounded-full bg-white/10 animate-pulse" }),
+          ]),
+          h("div", {
+            class: "flex-1 flex flex-col gap-4 p-6 md:p-8",
+          }, [
+            h("div", { class: "h-6 w-40 rounded-full bg-white/10 animate-pulse" }),
+            h("div", { class: "h-28 rounded-[16px] bg-white/10 animate-pulse" }),
+            h("div", { class: "h-16 rounded-[16px] bg-white/10 animate-pulse" }),
+            h("div", { class: "h-16 rounded-[16px] bg-white/10 animate-pulse" }),
+            h("div", { class: "mt-auto h-14 w-full rounded-[16px] bg-white/10 animate-pulse" }),
+          ]),
+        ]),
+      ]),
+    ]);
+  },
+});
+
+const loadBookingFlowStep3 = () => import("./BookingFlowStep3.vue");
+const loadBookingFlowStep4 = () => import("./BookingFlowStep4.vue");
+
+let bookingFlowStep3PrefetchPromise = null;
+let bookingFlowStep4PrefetchPromise = null;
+
+function prefetchBookingFlowStep3(reason = "unknown") {
+  if (bookingFlowStep3PrefetchPromise) return bookingFlowStep3PrefetchPromise;
+
+  logFanBookingDebug("feature", "step3-prefetch:start", { reason });
+  bookingFlowStep3PrefetchPromise = loadBookingFlowStep3()
+    .then((module) => {
+      logFanBookingDebug("feature", "step3-prefetch:resolved", { reason });
+      return module;
+    })
+    .catch((error) => {
+      bookingFlowStep3PrefetchPromise = null;
+      logFanBookingDebug("feature", "step3-prefetch:error", {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return bookingFlowStep3PrefetchPromise;
+}
+
+function prefetchBookingFlowStep4(reason = "unknown") {
+  if (bookingFlowStep4PrefetchPromise) return bookingFlowStep4PrefetchPromise;
+
+  logFanBookingDebug("feature", "step4-prefetch:start", { reason });
+  bookingFlowStep4PrefetchPromise = loadBookingFlowStep4()
+    .then((module) => {
+      logFanBookingDebug("feature", "step4-prefetch:resolved", { reason });
+      return module;
+    })
+    .catch((error) => {
+      bookingFlowStep4PrefetchPromise = null;
+      logFanBookingDebug("feature", "step4-prefetch:error", {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return bookingFlowStep4PrefetchPromise;
+}
+
+function scheduleIdleWork(task) {
+  if (typeof window === "undefined") {
+    Promise.resolve().then(task).catch(() => {});
+    return;
+  }
+
+  const run = () => Promise.resolve().then(task).catch(() => {});
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 800 });
+    return;
+  }
+
+  window.setTimeout(run, 0);
+}
+
+const BookingFlowStep3 = defineAsyncComponent({
+  loader: () => prefetchBookingFlowStep3("step-render"),
+  delay: 120,
+  suspensible: false,
+  loadingComponent: BookingFlowStepLoading,
+});
+
+const BookingFlowStep4 = defineAsyncComponent({
+  loader: () => prefetchBookingFlowStep4("step-render"),
+  delay: 120,
+  suspensible: false,
+  loadingComponent: BookingFlowStepLoading,
+});
 const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
@@ -36,8 +146,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close-request", "booking-created", "booking-failed"]);
-const route = useRoute();
 const isReleasingHold = ref(false);
+const hasScheduledStep3Prefetch = ref(false);
+const hasScheduledStep4Prefetch = ref(false);
 
 const engine = createFlowStateEngine({
   flowId: "fan-one-on-one-booking-flow",
@@ -219,6 +330,7 @@ function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45)
 }
 
 function resolveCreatorId() {
+  const route = getRouteContext();
   return resolveCreatorIdFromContext({
     preferredId: props.creatorId,
     route,
@@ -228,6 +340,7 @@ function resolveCreatorId() {
 }
 
 function resolveFanId() {
+  const route = getRouteContext();
   return resolveFanIdFromContext({
     preferredId: props.fanId,
     route,
@@ -263,6 +376,20 @@ function syncBookingContext() {
   return { creatorId, fanId, creatorPresentation };
 }
 
+function getRouteContext() {
+  if (typeof window === "undefined") return null;
+
+  var params = new URLSearchParams(window.location.search || "");
+  return {
+    query: {
+      creatorId: params.get("creatorId"),
+      fanId: params.get("fanId"),
+      userId: params.get("userId"),
+      eventId: params.get("eventId"),
+    },
+  };
+}
+
 function clearSelectedEvent(reason = "event-clear") {
   engine.setState("fanBooking.context.selectedEventId", null, { reason, silent: true });
   engine.setState("fanBooking.context.selectedEvent", null, { reason, silent: true });
@@ -273,7 +400,7 @@ function resolveRequestedEventId() {
     return props.eventId;
   }
 
-  const queryEventId = route.query?.eventId;
+  const queryEventId = getRouteContext()?.query?.eventId;
   if (queryEventId !== null && queryEventId !== undefined && queryEventId !== "") {
     return queryEventId;
   }
@@ -509,6 +636,22 @@ function getActiveTemporaryHoldId() {
   return temporaryHoldId;
 }
 
+function initializeChatSocketSafely(fanId) {
+  if (fanId == null || fanId <= 0) return;
+
+  try {
+    const socket = useChatSocket(fanId);
+    if (socket && typeof socket.init === "function") {
+      socket.init();
+    }
+  } catch (error) {
+    logFanBookingDebug("feature", "chat-socket-init:error", {
+      fanId,
+      message: error?.message || String(error),
+    });
+  }
+}
+
 async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
   if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) return;
   if (isReleasingHold.value) return;
@@ -564,10 +707,7 @@ onMounted(async () => {
     return;
   }
 
-  if(  props.fanId ) {
-    const s = useChatSocket(props.fanId)
-    s.init()
-  }
+  initializeChatSocketSafely(resolveFanId());
 
   await engine.forceStep(1, { intent: "feature-mount" });
   await engine.forceSubstep(null, { intent: "feature-mount" });
@@ -579,6 +719,36 @@ onBeforeUnmount(() => {
   logFanBookingDebug("feature", "before-unmount");
   releaseTemporaryHoldIfNeeded({ silent: true });
 });
+
+function ensureStep3Prefetch(reason) {
+  if (hasScheduledStep3Prefetch.value) return;
+  hasScheduledStep3Prefetch.value = true;
+  logFanBookingDebug("feature", "step3-prefetch:scheduled", { reason });
+  scheduleIdleWork(() => prefetchBookingFlowStep3(reason));
+}
+
+function ensureStep4Prefetch(reason) {
+  if (hasScheduledStep4Prefetch.value) return;
+  hasScheduledStep4Prefetch.value = true;
+  logFanBookingDebug("feature", "step4-prefetch:scheduled", { reason });
+  scheduleIdleWork(() => prefetchBookingFlowStep4(reason));
+}
+
+watch(
+  () => engine.step,
+  (nextStep) => {
+    if (nextStep === 2) {
+      ensureStep3Prefetch("step-2-visible");
+      ensureStep4Prefetch("step-2-visible");
+      return;
+    }
+
+    if (nextStep === 3) {
+      ensureStep4Prefetch("step-3-visible");
+    }
+  },
+  { immediate: true },
+);
 
 const currentStepComponent = computed(() => {
   switch (engine.step) {
@@ -594,12 +764,15 @@ const currentStepComponent = computed(() => {
       return BookingFlowStep1;
   }
 });
+
+const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
 </script>
 
 <template>
   <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full items-center justify-center lg:w-[852px]">
     <div
-        @click="emit('close-popup')"
+        v-if="showWrapperCloseButton"
+        @click="emit('close-request')"
         class="absolute -top-4 -right-3 z-[999] p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />

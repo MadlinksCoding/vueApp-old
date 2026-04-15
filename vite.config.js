@@ -82,7 +82,7 @@ export default defineConfig(({ command, mode }) => {
     },
     build: {
       sourcemap: true,
-      cssCodeSplit: false,
+      cssCodeSplit: true,
       assetsInlineLimit: 0,
       rollupOptions: {
         input: {
@@ -94,6 +94,33 @@ export default defineConfig(({ command, mode }) => {
         external: (id) => id.includes('__tests__') || id.includes('.spec.'),
         output: {
           manualChunks(id) {
+            if (
+              id.includes("/src/embeds/fanBooking/") ||
+              id.includes("/src/components/FanBookingFlow/OneOnOneBookingFlow/")
+            ) {
+              return "embed-fan-booking";
+            }
+            if (
+              id.includes("/src/components/FanBookingFlow/HelperComponents/TopUpForm.vue") ||
+              id.includes("/src/components/FanBookingFlow/HelperComponents/CardForm.vue") ||
+              id.includes("/src/components/FanBookingFlow/HelperComponents/GuestCheckoutForm.vue") ||
+              id.includes("/src/utils/axcessGatewayFormHandler.js") ||
+              id.includes("/src/assets/css/axcessGatewayForm.css")
+            ) {
+              return "embed-fan-booking-payment";
+            }
+            if (
+              id.includes("/src/services/bookings/") ||
+              id.includes("/src/utils/flowStateEngine.js") ||
+              id.includes("/src/utils/contextIds.js") ||
+              id.includes("/src/utils/TokenHandler.js") ||
+              id.includes("/src/utils/backendJwt.js") ||
+              id.includes("/src/utils/bookingScheduleNotify.js") ||
+              id.includes("/src/utils/resolveGuestSessionId") ||
+              id.includes("/src/composables/useChatSocket")
+            ) {
+              return "embed-fan-booking-core";
+            }
             // Bundle components by section
             if (
               id.includes("/components/auth/") ||

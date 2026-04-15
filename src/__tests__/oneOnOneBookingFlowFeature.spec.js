@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let engine;
 let routeState;
 let availableEvents;
+let chatSocketInit;
 const callFlow = vi.fn();
 const showToast = vi.fn();
 
@@ -115,6 +116,12 @@ vi.mock("@/utils/contextIds.js", () => ({
   resolveFanIdFromContext: ({ preferredId, route, fallback }) => preferredId ?? route?.query?.userId ?? fallback,
 }));
 
+vi.mock("@/composables/useChatSocket", () => ({
+  useChatSocket: () => ({
+    init: chatSocketInit,
+  }),
+}));
+
 vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
   default: {
     name: "ToastHost",
@@ -154,6 +161,7 @@ describe("OneOnOneBookingFlowFeature", () => {
   beforeEach(() => {
     routeState = { query: {} };
     availableEvents = [];
+    chatSocketInit = vi.fn();
     showToast.mockReset();
     callFlow.mockReset();
 
@@ -251,6 +259,32 @@ describe("OneOnOneBookingFlowFeature", () => {
         type: "error",
         title: "Event Unavailable",
       }),
+    );
+  });
+
+  it("still fetches booking context when chat socket initialization throws", async () => {
+    availableEvents = [{ eventId: "evt_alpha", title: "Alpha Event" }];
+    chatSocketInit = vi.fn(() => {
+      throw new Error("socket init failed");
+    });
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 999,
+      },
+    });
+
+    await flushAsync();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.fetchCreatorBookingContext",
+      expect.objectContaining({
+        creatorId: 1407,
+        fanId: 999,
+      }),
+      expect.any(Object),
     );
   });
 });

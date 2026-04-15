@@ -72,6 +72,7 @@ describe("events embed bootstrap", () => {
       fanId: null,
       userRole: "agent",
       apiBaseUrl: "https://api.example.com",
+      jwtToken: "",
       initialRoute: "create-private",
       creatorData: {
         avatar: "https://example.com/avatar.webp",
@@ -96,6 +97,7 @@ describe("events embed bootstrap", () => {
       fanId: 2615,
       userRole: "fan",
       apiBaseUrl: "https://api.example.com",
+      jwtToken: "",
       initialRoute: "events",
       creatorData: {
         avatar: null,
@@ -103,5 +105,30 @@ describe("events embed bootstrap", () => {
         isVerified: null,
       },
     });
+  });
+
+  it("still bootstraps events embed when backend JWT caching throws", async () => {
+    vi.doMock("@/utils/backendJwt.js", () => ({
+      setBackendJwtToken: vi.fn(() => {
+        throw new ReferenceError("Cannot access '_e' before initialization");
+      }),
+    }));
+
+    const {
+      applyEventsEmbedBootstrap,
+      useEventsEmbedBootstrap,
+    } = await import("@/embeds/events/bootstrap.js");
+
+    applyEventsEmbedBootstrap({
+      creatorId: 55,
+      userRole: "creator",
+      apiBaseUrl: "https://api.example.com",
+      jwtToken: "jwt_live",
+    });
+
+    const state = useEventsEmbedBootstrap();
+    expect(state.creatorId).toBe(55);
+    expect(state.jwtToken).toBe("jwt_live");
+    expect(state.bootstrapped).toBe(true);
   });
 });

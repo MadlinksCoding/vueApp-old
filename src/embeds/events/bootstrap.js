@@ -20,6 +20,14 @@ const DEFAULT_BOOTSTRAP = {
 
 const bootstrapState = reactive({ ...DEFAULT_BOOTSTRAP });
 
+function applyBackendJwtTokenSafely(jwtToken = "") {
+  try {
+    setBackendJwtToken(jwtToken);
+  } catch (_error) {
+    // Keep the embed bootstrapped even if the host JWT cache cannot be written.
+  }
+}
+
 function normalizeInitialRoute(value) {
   const normalized = String(value || "events").trim().toLowerCase();
   if (["events", "create-private", "create-group"].includes(normalized)) {
@@ -58,10 +66,10 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.creatorData = normalized.creatorData;
-  setBackendJwtToken(normalized.jwtToken);
   bootstrapState.bootstrapped = String(normalized.userRole || "").toLowerCase() === "fan"
     ? normalized.fanId != null
     : normalized.creatorId != null;
+  applyBackendJwtTokenSafely(normalized.jwtToken);
   return normalized;
 }
 

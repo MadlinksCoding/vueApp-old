@@ -20,16 +20,32 @@ const DEFAULT_BOOTSTRAP = {
 
 const bootstrapState = reactive({ ...DEFAULT_BOOTSTRAP });
 
+function applyBackendJwtTokenSafely(jwtToken = "") {
+  try {
+    setBackendJwtToken(jwtToken);
+  } catch (error) {
+    logFanBookingDebug("bootstrap", "jwt:set-failed", {
+      message: error?.message || "Failed to set backend JWT token.",
+    });
+  }
+}
+
 function normalizeEventId(value) {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized ? normalized : null;
 }
 
+function toPositiveNumberOr(value, fallback = null) {
+  const numeric = toNumberOr(value, fallback);
+  if (numeric == null) return fallback;
+  return numeric > 0 ? numeric : fallback;
+}
+
 export function normalizeOneOnOneBookingBootstrap(payload = {}) {
   return {
-    creatorId: toNumberOr(payload.creatorId, null),
-    fanId: toNumberOr(payload.fanId, null),
+    creatorId: toPositiveNumberOr(payload.creatorId, null),
+    fanId: toPositiveNumberOr(payload.fanId, null),
     eventId: normalizeEventId(payload.eventId),
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
@@ -53,8 +69,8 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
-  setBackendJwtToken(normalized.jwtToken);
   bootstrapState.bootstrapped = normalized.creatorId != null && normalized.fanId != null;
+  applyBackendJwtTokenSafely(normalized.jwtToken);
   logFanBookingDebug("bootstrap", "apply:end", {
     state: {
       creatorId: bootstrapState.creatorId,
@@ -73,8 +89,8 @@ export function readOneOnOneBookingBootstrapFromUrl() {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
-  const creatorId = toNumberOr(params.get("creatorId"), null);
-  const fanId = toNumberOr(params.get("fanId"), null);
+  const creatorId = toPositiveNumberOr(params.get("creatorId"), null);
+  const fanId = toPositiveNumberOr(params.get("fanId"), null);
   if (creatorId == null || fanId == null) {
     logFanBookingDebug("bootstrap", "url:missing", {
       creatorId,

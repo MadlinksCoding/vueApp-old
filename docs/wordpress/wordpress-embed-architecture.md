@@ -76,6 +76,7 @@ The build emits:
 
 - `dist/bookings-embed/dashboard.html`
 - `dist/bookings-embed/fan-booking.html`
+- `dist/bookings-embed/fan-booking-loading-skeleton.html`
 - `dist/bookings-embed/fs-events-host.js`
 - `dist/bookings-embed/fs-events-host.css`
 - `dist/assets/booking/*`
@@ -130,6 +131,10 @@ They are intentionally minimal:
 
 - [`frontend/src/embeds/fanBooking/main.js`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/src/embeds/fanBooking/main.js)
 
+The parent-side loading skeleton template lives in:
+
+- [`frontend/public/bookings-embed/fan-booking-loading-skeleton.html`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/public/bookings-embed/fan-booking-loading-skeleton.html)
+
 ---
 
 ## Source Layout
@@ -158,7 +163,9 @@ This is the current structure:
 - `bootstrap.js`
 - `bridge.js`
 - `debug.js`
-- `router.js`
+
+The dedicated iframe entry path intentionally does not use Pinia or `vue-router`.
+Bootstrap resolution for ids, `eventId`, `creatorData`, and API base happens in the embed bootstrap layer instead of relying on route injection.
 
 ---
 
@@ -171,6 +178,10 @@ The parent-side host script is:
 The companion host stylesheet is:
 
 - [`frontend/public/bookings-embed/fs-events-host.css`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/public/bookings-embed/fs-events-host.css)
+
+The popup loading template is:
+
+- [`frontend/public/bookings-embed/fan-booking-loading-skeleton.html`](/Users/rehanadil/Local/rehan/fs-bookings/frontend/public/bookings-embed/fan-booking-loading-skeleton.html)
 
 This is the bridge between WordPress and the iframe apps.
 
@@ -209,10 +220,13 @@ Responsibilities:
 - destroy any previous active popup
 - create overlay and modal shell in the parent document
 - create the iframe
+- preload and cache the loading skeleton template
+- render an immediate parent-side loading layer above the iframe
 - assign stable public class names for styling
 - append query-string bootstrap fallback to the iframe URL
 - listen for child messages
 - send `FS_FAN_BOOKING_BOOTSTRAP`
+- hide the parent-side loading layer on `FS_FAN_BOOKING_CHILD_READY`
 - close/destroy popup on child request
 - propagate booking-created / booking-failed callbacks
 
@@ -256,6 +270,9 @@ Stable public classes:
 - `.fs-fan-booking-popup__modal`
 - `.fs-fan-booking-popup__iframe`
 - `.fs-fan-booking-popup__close`
+- `.fs-fan-booking-popup__loading`
+- `.fs-fan-booking-popup__loading--visible`
+- `.fs-fan-booking-popup__loading--hidden`
 
 Stable runtime CSS variables:
 
@@ -265,6 +282,11 @@ Stable runtime CSS variables:
 - `--fs-fan-booking-popup-height`
 
 This was done so WordPress/frontend developers can restyle and override layout behavior in CSS without editing the host JS.
+
+The popup loading markup is also editable without editing JS:
+
+- frontend developers can change the HTML skeleton structure in `fan-booking-loading-skeleton.html`
+- frontend developers can restyle it in `fs-events-host.css`
 
 ### Normalized data in host script
 
@@ -320,6 +342,8 @@ Child -> parent:
 - `FS_FAN_BOOKING_CLOSE_REQUEST`
 - `FS_FAN_BOOKING_CREATED`
 - `FS_FAN_BOOKING_FAILED`
+
+`FS_FAN_BOOKING_CHILD_READY` also acts as the signal for the parent host to hide the loading skeleton layer.
 
 ### Message design notes
 
@@ -378,6 +402,8 @@ Current state includes:
 - `apiBaseUrl`
 - `creatorData`
 - `bootstrapped`
+
+The fan-booking embed now resolves URL fallback and parent bootstrap entirely through this store, so the iframe entry does not need a router just to read query params.
 
 ---
 
