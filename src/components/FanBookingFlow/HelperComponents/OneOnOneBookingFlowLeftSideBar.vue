@@ -101,11 +101,11 @@ const props = defineProps({
                 <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If {{ props.creatorName }} does not show up to the confirm call on time, you will be refund partially.
               </li>
-              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden' : 'flex']">
+              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
                 <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If {{ props.creatorName }} does not show up to the confirm call within a buffer time of 5 minutes, you will be refunded fully.
               </li>
-              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden' : 'flex']">
+              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
                 <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If you do to show up to the confirm call within a buffer time of 5 minutes, the session will be canceled and minimum charge will be deducted from your account. Cancel the session 1 day in advance to avoid panelty.
               </li>
