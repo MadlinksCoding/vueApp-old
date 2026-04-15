@@ -1500,7 +1500,7 @@ const createEvent = async () => {
             </div>
             <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative" ref="blockedUserDropdownRef">
               <div class="relative w-full">
-                <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" />
                 <input
                   v-model="blockedUserSearchQuery"
                   type="text"
@@ -1697,7 +1697,7 @@ const createEvent = async () => {
               uploaderName: 'on_purchased_media_url',
             })"
           >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
       </div>
