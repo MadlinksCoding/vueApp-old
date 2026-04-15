@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,12 +150,18 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue", 
   },
 }));
 
-vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", () => ({
-  default: {
-    name: "BookingFlowStep4",
-    template: "<div data-test='step-4'>Step 4</div>",
-  },
-}));
+vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return {
+    ...actual,
+    default: {
+      name: "BookingFlowStep4",
+      emits: ["close-popup"],
+      template: "<button data-test='step-4-close' @click=\"$emit('close-popup')\">Step 4</button>",
+    },
+  };
+});
 
 describe("OneOnOneBookingFlowFeature", () => {
   beforeEach(() => {
@@ -286,5 +292,48 @@ describe("OneOnOneBookingFlowFeature", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("emits close-request when the wrapper close button is clicked", async () => {
+    availableEvents = [{ eventId: "evt_selected", title: "Selected Event" }];
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+        eventId: "evt_selected",
+      },
+    });
+
+    await flushAsync();
+    await wrapper.get("[data-test='booking-flow-close-button']").trigger("click");
+
+    expect(wrapper.emitted("close-request")).toHaveLength(1);
+  });
+
+  it("forwards step 4 close-popup as close-request", async () => {
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+      },
+    });
+
+    await flushAsync();
+    engine.step = 4;
+    await flushAsync();
+    await flushPromises();
+
+    const asyncWrapper = wrapper.findComponent({ name: "AsyncComponentWrapper" });
+    expect(asyncWrapper.exists()).toBe(true);
+
+    const onClosePopup = asyncWrapper.vm.$.vnode.props?.onClosePopup;
+    expect(typeof onClosePopup).toBe("function");
+    onClosePopup();
+
+    expect(wrapper.emitted("close-request")).toHaveLength(1);
   });
 });
