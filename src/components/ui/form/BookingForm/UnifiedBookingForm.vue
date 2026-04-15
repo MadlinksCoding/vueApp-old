@@ -782,10 +782,56 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
                     {{ calendarError }}
                 </div>
-                <div v-else-if="calendarLoading" class="mx-6 mt-3 px-3 py-2 rounded bg-gray-100 text-gray-600 text-xs font-medium">
-                    Loading booked slots...
+                <div v-else-if="calendarLoading" class="px-2 md:px-4 lg:px-6 pt-6">
+                    <div class="overflow-hidden rounded-[1rem] border border-[#EAECF0] bg-white shadow-sm animate-pulse">
+                        <div class="border-b border-[#EAECF0] px-4 py-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="h-6 w-40 rounded-full bg-[#101828]/10" />
+                                <div class="flex items-center gap-2">
+                                    <div class="h-8 w-8 rounded-full bg-[#101828]/10" />
+                                    <div class="h-8 w-8 rounded-full bg-[#101828]/10" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-[#EAECF0] bg-[#F8FAFC]">
+                            <div class="h-10 border-r border-[#EAECF0]" />
+                            <div
+                                v-for="day in 7"
+                                :key="`calendar-skeleton-day-${day}`"
+                                class="flex h-10 items-center justify-center border-r border-[#EAECF0] last:border-r-0"
+                            >
+                                <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                            </div>
+                        </div>
+                        <div>
+                            <div
+                                v-for="row in 7"
+                                :key="`calendar-skeleton-row-${row}`"
+                                class="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-[#EAECF0] last:border-b-0"
+                            >
+                                <div class="flex items-start justify-center border-r border-[#EAECF0] px-2 py-3">
+                                    <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                                </div>
+                                <div
+                                    v-for="day in 7"
+                                    :key="`calendar-skeleton-cell-${row}-${day}`"
+                                    class="relative h-20 border-r border-[#EAECF0] last:border-r-0"
+                                >
+                                    <div
+                                        v-if="(row === 2 && day === 3) || (row === 4 && day === 5) || (row === 5 && day === 2)"
+                                        class="absolute left-2 right-2 top-3 h-9 rounded-[0.5rem] bg-[#5549FF]/10"
+                                    >
+                                        <div class="flex h-full flex-col justify-center gap-2 px-3">
+                                            <div class="h-2.5 w-3/4 rounded-full bg-[#5549FF]/20" />
+                                            <div class="h-2 w-1/2 rounded-full bg-[#5549FF]/15" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <MainCalendar class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar v-else class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
                     :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
