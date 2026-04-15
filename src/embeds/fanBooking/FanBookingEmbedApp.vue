@@ -49,7 +49,9 @@ let removeBootstrapListener = () => {};
 
 function handleCloseRequest() {
   logFanBookingDebug("app", "close-request");
-  requestOneOnOneBookingClose();
+  if (isEmbeddedIframe()) {
+    requestOneOnOneBookingClose();
+  }
 }
 
 function handleBookingCreated(payload) {

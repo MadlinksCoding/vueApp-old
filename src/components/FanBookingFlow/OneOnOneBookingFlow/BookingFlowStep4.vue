@@ -167,6 +167,7 @@ onMounted(() => {
 
       <div
         @click="emit('close-popup')"
+        data-test="booking-flow-step4-close-button"
         class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />

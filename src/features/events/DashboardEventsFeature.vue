@@ -138,12 +138,64 @@
         </div>
         <div
           v-else-if="dashboardEventsEngine.state.events.loading"
-          class="px-3 py-2 rounded bg-gray-100 text-gray-600 text-xs font-medium"
+          class="flex flex-col gap-4"
         >
-          Loading booked slots...
+          <div
+            v-if="isCreator"
+            class="h-12 w-full rounded-[48px] bg-[#101828]/10 animate-pulse"
+          />
+
+          <div class="flex flex-col gap-3">
+            <div class="h-3 w-24 rounded-full bg-[#101828]/10 animate-pulse" />
+            <div
+              v-for="index in 3"
+              :key="`upcoming-skeleton-${index}`"
+              class="flex h-[4.125rem] items-center gap-3 rounded-[0.25rem] border border-[#EAECF0] bg-white/80 px-3 shadow-sm animate-pulse"
+            >
+              <div class="h-full w-1 rounded-full bg-[#07F468]/30" />
+              <div class="flex w-[3.4375rem] flex-col items-center justify-center gap-1 shrink-0">
+                <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                <div class="h-3 w-10 rounded-full bg-[#101828]/10" />
+              </div>
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <div class="h-3 w-3/4 rounded-full bg-[#101828]/10" />
+                <div class="flex items-center gap-2">
+                  <div class="h-5 w-5 rounded-full bg-[#101828]/10" />
+                  <div class="h-2.5 w-1/2 rounded-full bg-[#101828]/10" />
+                </div>
+              </div>
+              <div class="flex flex-col items-end justify-between self-stretch py-1">
+                <div class="h-2.5 w-12 rounded-full bg-[#101828]/10" />
+                <div class="h-6 w-16 rounded-[0.25rem] bg-[#101828]/10" />
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <div class="h-3 w-28 rounded-full bg-[#101828]/10 animate-pulse" />
+            <div
+              v-for="index in 2"
+              :key="`pending-skeleton-${index}`"
+              class="flex h-[4.125rem] items-center gap-3 rounded-[0.25rem] border border-[#EAECF0] bg-white/80 px-3 shadow-sm animate-pulse"
+            >
+              <div class="h-full w-1 rounded-full bg-[#FDB022]/30" />
+              <div class="flex w-[3.4375rem] flex-col items-center justify-center gap-1 shrink-0">
+                <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                <div class="h-3 w-10 rounded-full bg-[#101828]/10" />
+              </div>
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <div class="h-3 w-2/3 rounded-full bg-[#101828]/10" />
+                <div class="flex items-center gap-2">
+                  <div class="h-5 w-5 rounded-full bg-[#101828]/10" />
+                  <div class="h-2.5 w-1/3 rounded-full bg-[#101828]/10" />
+                </div>
+              </div>
+              <div class="h-4 w-4 rounded-full bg-[#101828]/10 shrink-0" />
+            </div>
+          </div>
         </div>
 
-        <div v-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
+        <div v-else-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
           <ButtonComponent
             text="NEW EVENTS"
             variant="none"
@@ -161,7 +213,7 @@
           </div>
         </div>
 
-        <div>
+        <div v-if="!dashboardEventsEngine.state.events.loading">
           <EventsWidget
             :sections="eventsData"
             @join-click="handleJoin"

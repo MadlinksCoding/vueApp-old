@@ -474,11 +474,6 @@
     modal.style.setProperty("--fs-fan-booking-popup-width", "min(960px, calc(100vw - 32px))");
     modal.style.setProperty("--fs-fan-booking-popup-height", "min(760px, calc(100vh - 32px))");
 
-    var closeButton = createElement("button", FAN_BOOKING_POPUP_CLOSE_CLASS);
-    closeButton.type = "button";
-    closeButton.setAttribute("aria-label", "Close booking popup");
-    closeButton.textContent = "×";
-
     var iframe = createElement("iframe", FAN_BOOKING_POPUP_IFRAME_CLASS);
     var loadingLayer = createFanBookingLoadingLayer();
     iframe.title = settings.iframeTitle;
@@ -573,6 +568,10 @@
         activeOneOnOnePopup = null;
       }
 
+      if (global.__FSFanBookingActivePopup && global.__FSFanBookingActivePopup.iframe === iframe) {
+        global.__FSFanBookingActivePopup = null;
+      }
+
       if (destroyOptions.invokeOnClose) {
         invokeOnClose();
       }
@@ -647,12 +646,10 @@
       });
     }
 
-    closeButton.addEventListener("click", close);
     modal.addEventListener("click", function (event) {
       event.stopPropagation();
     });
 
-    // modal.appendChild(closeButton);
     modal.appendChild(iframe);
     modal.appendChild(loadingLayer);
     overlay.appendChild(modal);
