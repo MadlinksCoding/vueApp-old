@@ -260,8 +260,9 @@
       <div
         class="flex gap-2 flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div class="flex flex-col">
-          <div v-for="(t) in range.labels" :key="'slot-label-' + t"
-            :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']">
+          <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
+            :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
+            :style="idx < gridMetrics.rows.length ? { height: gridMetrics.rows[idx].height + 'px' } : {}">
             {{ formatTime(t) }}
           </div>
         </div>
@@ -272,11 +273,11 @@
             :data-expired="sd(d) < today ? 'true' : 'false'" :class="theme.main.colBase" @click.self="emitDate(d)">
 
             <div class="absolute z-[0] inset-0 pointer-events-none">
-              <div v-for="i in range.rowCount" :key="'grid-' + i" :class="theme.main.gridRow"></div>
+              <div v-for="(metric, i) in gridMetrics.rows" :key="'grid-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
             </div>
 
             <div class="relative z-[0]" data-cal-scroll
-              :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
+              :style="{ height: gridMetrics.totalHeight + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
                 <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
                   :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
@@ -998,10 +999,137 @@ const handleCancelBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('cancel-booking', payload);
 };
-const eventsForDay = (day) => {
-  const s = SOD(day), e = addDays(s, 1);
-  return normalized.value.filter(ev => ev.start < e && ev.end > s).sort((a, b) => a.start - b.start);
+const getVisualBounds = (ev, sMin, eMin, step, minHeightPx) => {
+  const pixelsPerMinute = props.rowHeightPx / step;
+  const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
+  const endMin = ev.end.getHours() * 60 + ev.end.getMinutes();
+  const clippedStart = Math.max(startMin, sMin);
+  const clippedEnd = Math.max(clippedStart, Math.min(endMin, eMin));
+  
+  if (clippedEnd <= clippedStart) {
+    return { start: 0, end: 0, isValid: false };
+  }
+  
+  const startPx = clippedStart * pixelsPerMinute;
+  const durationPx = (clippedEnd - clippedStart) * pixelsPerMinute;
+  const endPx = startPx + Math.max(minHeightPx || 20, durationPx);
+  
+  return { start: startPx, end: endPx, isValid: true };
 };
+
+const processedEventsByDay = computed(() => {
+  const eventsByDay = {};
+  days.value.forEach(d => {
+    eventsByDay[SOD(d).getTime()] = [];
+  });
+  
+  normalized.value.forEach(ev => {
+    if (!ev || !ev.start || !ev.end) return;
+    days.value.forEach(d => {
+      const s = SOD(d);
+      const e = addDays(s, 1);
+      if (ev.start < e && ev.end > s) {
+        eventsByDay[s.getTime()].push(ev);
+      }
+    });
+  });
+
+  const { sMin, eMin, step } = range.value;
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const processed = {};
+  
+  for (const [dayKeyStr, dayEvents] of Object.entries(eventsByDay)) {
+    const dayKey = Number(dayKeyStr);
+    const sorted = [...dayEvents].sort((a,b) => a.start - b.start || b.end - a.end);
+    
+    const stacked = [];
+    sorted.forEach(ev => {
+      const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+      let order = 0;
+      
+      if (!boundsEv.isValid) {
+        stacked.push({...ev, stackOrder: 0});
+        return;
+      }
+
+      while (true) {
+        const overlappingInOrder = stacked.find(s => {
+          if (s.stackOrder !== order) return false;
+          if (s.isAvailabilityBlock || ev.isAvailabilityBlock) return false;
+          const boundsS = getVisualBounds(s, sMin, eMin, step, minHeightPx);
+          if (!boundsS.isValid) return false;
+          return boundsS.start < boundsEv.end && boundsS.end > boundsEv.start;
+        });
+        
+        if (!overlappingInOrder) {
+          stacked.push({...ev, stackOrder: order});
+          break;
+        }
+        order++;
+      }
+    });
+    processed[dayKey] = stacked;
+  }
+  
+  return processed;
+});
+
+const gridMetrics = computed(() => {
+  const rows = range.value.rowCount;
+  const metrics = [];
+  let currentOffset = 0;
+  const { sMin, eMin, step } = range.value;
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const pixelsPerMinute = props.rowHeightPx / step;
+  
+  // Use a smaller stacking offset to reduce gaps between overlapping events (2px gap).
+  const stackOffset = minHeightPx + 2;
+
+  for (let i = 0; i < rows; i++) {
+    let maxStackInRow = 0;
+    let maxVisualEnd = props.rowHeightPx;
+
+    for (const dayEvents of Object.values(processedEventsByDay.value)) {
+      for (const ev of dayEvents) {
+        if (ev.isAvailabilityBlock) continue;
+        
+        const bounds = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+        if (!bounds.isValid) continue;
+
+        const rowStartMin = sMin + i * step;
+        const rowEndMin = rowStartMin + step;
+        const rowStartPx = rowStartMin * pixelsPerMinute;
+        const rowEndPx = rowEndMin * pixelsPerMinute;
+
+        if (bounds.start < rowEndPx && bounds.end > rowStartPx) {
+          if (ev.stackOrder > maxStackInRow) {
+            maxStackInRow = ev.stackOrder;
+          }
+
+          // If the event starts within this row, ensure the row expands to contain 
+          // its full visual bottom (including shift and min-height offset).
+          if (bounds.start >= rowStartPx && bounds.start < rowEndPx) {
+            const relEnd = (bounds.end - rowStartPx) + ev.stackOrder * stackOffset;
+            if (relEnd > maxVisualEnd) maxVisualEnd = relEnd;
+          }
+        }
+      }
+    }
+    
+    // Total row height is the max of traditional lane-based expansion or the furthest visual end of starting events.
+    const height = Math.max(props.rowHeightPx + maxStackInRow * stackOffset, maxVisualEnd);
+    metrics.push({ height, offset: currentOffset });
+    currentOffset += height;
+  }
+  
+  return { rows: metrics, totalHeight: currentOffset };
+});
+
+const eventsForDay = (day) => {
+  const key = SOD(day).getTime();
+  return processedEventsByDay.value[key] || [];
+};
+
 const styleBlock = (ev) => {
   const { sMin, eMin, step } = range.value;
   const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
@@ -1009,10 +1137,26 @@ const styleBlock = (ev) => {
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.min(endMin, eMin);
   if (clippedEnd <= clippedStart) return 'display:none';
-  const rowsFromTop = (clippedStart - sMin) / step;
-  const rowsHeight = (clippedEnd - clippedStart) / step;
-  const topPx = rowsFromTop * props.rowHeightPx;
-  const heightPx = Math.max(props.minEventHeightPx, rowsHeight * props.rowHeightPx);
+  
+  const startRowFloat = (clippedStart - sMin) / step;
+  const startRowIdx = Math.floor(startRowFloat);
+  
+  const startMetric = gridMetrics.value.rows[startRowIdx];
+  let topPx = startMetric ? startMetric.offset : 0;
+  
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const stackOffset = minHeightPx + 2;
+
+  const fraction = startRowFloat - startRowIdx;
+  topPx += fraction * props.rowHeightPx; 
+  if (ev.stackOrder) {
+     topPx += ev.stackOrder * stackOffset;
+  }
+  
+  const durationRows = (clippedEnd - clippedStart) / step;
+  let heightPx = durationRows * props.rowHeightPx;
+  heightPx = Math.max(props.minEventHeightPx, heightPx);
+
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
 };
 const setView = (v) => { view.value = v; };

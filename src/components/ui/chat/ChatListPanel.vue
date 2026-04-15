@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useChatStore } from '@/stores/useChatStore'
-import EditIcon from '@/assets/images/icons/edit-05-pink.webp'
+import EditIcon from '@/assets/images/icons/edit-05-pink.svg'
 import DropdownIcon from '@/assets/images/icons/chevron-down-gray.webp'
 import NewChatPopup from '@/components/ui/chat/NewChatPopup.vue'
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue'

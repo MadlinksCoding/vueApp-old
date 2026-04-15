@@ -43,14 +43,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[2.375rem]'
+              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[20px]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center font-medium truncate">{{ event.title }}</div>
-              <div class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div hidden class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -77,14 +77,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[38px]'
+              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[20px]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div hidden class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -382,7 +382,7 @@ const theme1 = computed(() => ({
   main: {
     wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
     title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
-    xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-[1px] sticky w-full backdrop-blur-md z-10",
+    xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
     axisXDay: "py-1 text-center h-[63.92px]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",

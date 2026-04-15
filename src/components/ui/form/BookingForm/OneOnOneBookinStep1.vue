@@ -14,7 +14,7 @@
   import plusIcon from '@/assets/images/icons/plus-circle.webp'
   import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
   import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
-  import alignLeftIcon from '@/assets/images/icons/align-left.webp'
+  import alignLeftIcon from '@/assets/images/icons/align-left.svg'
 
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
@@ -963,7 +963,7 @@
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-6" />
-                <div :class="['flex-1 inline-flex flex-col justify-start items-start gap-2',!formData.allowInstantBooking ? 'opacity-50':'opacity-100']">
+                <div :class="['flex-1 inline-flex flex-col justify-start items-start gap-2',!formData.allowInstantBooking ? 'opacity-50 pointer-events-none':'opacity-100']">
                   <div class="self-stretch inline-flex justify-end items-center gap-2">
                     <div
                       class="flex-1 justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
@@ -1031,7 +1031,7 @@
               </div>
             </div>
 
-            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
+            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 label="User can cancel in advance to void minimum charge"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -1498,7 +1498,7 @@
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
-              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50':'opacity-100']">
+              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50 pointer-events-none':'opacity-100']">
                 <BaseInput type="number" placeholder="" v-model="formData.bufferTime"
                   :disabled="!formData.setBufferTime"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
