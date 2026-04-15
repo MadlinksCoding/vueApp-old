@@ -20,6 +20,7 @@ import BookingFlowStep2 from "./BookingFlowStep2.vue";
 import BookingFlowStep3 from "./BookingFlowStep3.vue";
 import BookingFlowStep4 from "./BookingFlowStep4.vue";
 import { useChatSocket } from '@/composables/useChatSocket';
+import { bookingFlowCrossWhiteIcon } from "./oneOnOneBookingFlowAssets.js";
 const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
@@ -596,7 +597,13 @@ const currentStepComponent = computed(() => {
 </script>
 
 <template>
-  <div class="relative flex w-full items-center justify-center overflow-hidden">
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full items-center justify-center lg:w-[852px]">
+    <div
+        @click="emit('close-popup')"
+        class="absolute -top-4 -right-3 z-[999] p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+      >
+        <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
+      </div>
     <component
       :is="currentStepComponent"
       :engine="engine"
