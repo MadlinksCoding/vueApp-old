@@ -92,17 +92,21 @@ const props = defineProps({
             <div class="flex gap-1 md:gap-2">
               <h3 class="text-sm text-white/50">BOOKING POLICY</h3>
             </div>
-            <ul class="list-disc pl-5 text-sm text-[#EAECF0] w-full list-outside wrap leading-5">
-              <li>
+            <ul class="text-sm pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
+              <li class="flex items-start gap-2">
+                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 Token equivalent of your session fee will be on hold in your balance until the call starts. A non-refundable booking fee of 100 tokens 
               </li>
-              <li>
+              <li class="flex items-start gap-2">
+                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If {{ props.creatorName }} does not show up to the confirm call on time, you will be refund partially.
               </li>
-              <li :class="[!showAllPolicy ? 'hidden md:flex' : '']">
+              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden' : 'flex']">
+                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If {{ props.creatorName }} does not show up to the confirm call within a buffer time of 5 minutes, you will be refunded fully.
               </li>
-              <li :class="[!showAllPolicy ? 'hidden md:flex' : '']">
+              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden' : 'flex']">
+                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 If you do to show up to the confirm call within a buffer time of 5 minutes, the session will be canceled and minimum charge will be deducted from your account. Cancel the session 1 day in advance to avoid panelty.
               </li>
             </ul>
