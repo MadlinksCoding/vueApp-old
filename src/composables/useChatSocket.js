@@ -10,13 +10,24 @@ const PARENT_TIMEOUT_MS = 1000;
 
 // Singleton: socket is initialised once for the widget lifetime
 let _mode = null; // 'parent' | 'own' | null
-const _isReady = ref(false);
+let _socketState = null;
 
 let _parentMessageHandler = null;
 let _ownSocketHandler = null;
 
+function getSocketState() {
+  if (_socketState) return _socketState;
+
+  _socketState = {
+    isReady: ref(false),
+  };
+
+  return _socketState;
+}
+
 export function useChatSocket(userId) {
   const chatStore = useChatStore();
+  const socketState = getSocketState();
 
   async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
@@ -116,7 +127,7 @@ export function useChatSocket(userId) {
     window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
 
     _mode = 'own';
-    _isReady.value = true;
+    socketState.isReady.value = true;
   }
 
   function _initOwnSocket() {
@@ -150,13 +161,13 @@ export function useChatSocket(userId) {
       } else {
         console.warn('[ChatSocket] SocketHandler script loaded but global not found. Real-time disabled.');
         _mode = 'own';
-        _isReady.value = true;
+        socketState.isReady.value = true;
       }
     };
     script.onerror = () => {
       console.warn('[ChatSocket] Failed to load SocketHandler script. Real-time disabled.');
       _mode = 'own';
-      _isReady.value = true;
+      socketState.isReady.value = true;
     };
     document.head.appendChild(script);
   }
@@ -173,7 +184,7 @@ export function useChatSocket(userId) {
         _parentMessageHandler = _onParentIncoming;
         window.addEventListener('message', _parentMessageHandler);
         _mode = 'parent';
-        _isReady.value = true;
+        socketState.isReady.value = true;
         console.log('[ChatSocket] Using parent window socket.');
       } else {
         _initOwnSocket();
@@ -259,8 +270,8 @@ export function useChatSocket(userId) {
       _parentMessageHandler = null;
     }
     _mode = null;
-    _isReady.value = false;
+    socketState.isReady.value = false;
   });
 
-  return { init, sendChatMessage, sendStatusUpdate, isReady: _isReady };
+  return { init, sendChatMessage, sendStatusUpdate, isReady: socketState.isReady };
 }

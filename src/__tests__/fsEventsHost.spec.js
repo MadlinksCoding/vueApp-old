@@ -137,4 +137,25 @@ describe("fs-events-host openFanBookingPopup", () => {
     vi.advanceTimersByTime(250);
     expect(popup.overlay.querySelector(".fs-fan-booking-popup__loading")).toBeNull();
   });
+
+  it("closes and tears down the popup when the iframe requests close", () => {
+    const onClose = vi.fn();
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 25,
+      onClose,
+    });
+
+    expect(document.body.contains(popup.overlay)).toBe(true);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_CLOSE_REQUEST", payload: {} },
+      origin: window.location.origin,
+    }));
+
+    expect(document.body.contains(popup.overlay)).toBe(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(window.__FSFanBookingActivePopup).toBeNull();
+  });
 });
