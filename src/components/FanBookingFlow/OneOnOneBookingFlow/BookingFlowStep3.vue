@@ -1165,7 +1165,7 @@ onBeforeUnmount(() => {
             <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
                 <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
-                  <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">
+                  <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
                       <button
@@ -1190,7 +1190,7 @@ onBeforeUnmount(() => {
                   </div>
 
                   <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
-                    <div class="flex flex-col gap-3 w-full p-5">
+                    <div class="flex flex-col gap-3 w-full p-3 md:p-5">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
                       <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-3">

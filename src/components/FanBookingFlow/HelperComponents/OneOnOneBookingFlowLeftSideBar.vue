@@ -68,7 +68,7 @@ const props = defineProps({
             </div>
           </div>
           
-          <div class="flex flex-col text-white w-full gap-2 px-2 pt-2">
+          <div class="flex flex-col text-white w-full gap-2 px-2 pt-2 md:p-0 lg:p-0">
             <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
             <div class="flex flex-row items-center gap-2">
               <div class="w-6 h-6 flex justify-center items-center">
@@ -88,7 +88,7 @@ const props = defineProps({
           </div>
         </div>
 
-        <div class="flex flex-col w-full gap-1 md:gap-3 px-2 pb-2">
+        <div class="flex flex-col w-full gap-1 md:gap-3 px-2 pb-2 md:p-0 lg:p-0">
             <div class="flex gap-1 md:gap-2">
               <h3 class="text-sm text-white/50">BOOKING POLICY</h3>
             </div>
