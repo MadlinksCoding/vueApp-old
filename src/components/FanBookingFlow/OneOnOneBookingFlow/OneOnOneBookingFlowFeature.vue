@@ -769,7 +769,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
 </script>
 
 <template>
-  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full items-center justify-center lg:w-[852px]">
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full h-full md:h-auto items-center justify-center lg:w-[852px]">
     <div
         v-if="showWrapperCloseButton"
         @click="emit('close-request')"

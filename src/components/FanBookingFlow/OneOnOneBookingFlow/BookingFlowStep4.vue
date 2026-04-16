@@ -99,11 +99,11 @@ onMounted(() => {
 
 <template>
   <!-- overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -->
-  <div class="relative w-full max-w-[27rem] min-h-0 rounded-[10px] ">
+  <div class="relative w-full h-full md:h-auto max-w-[27rem] min-h-0 rounded-[10px] ">
 
-      <div class="backdrop-blur-[1rem] rounded-[10px]" :style="successBackgroundStyle">
+      <div class="backdrop-blur-[1rem] rounded-[10px] h-full md:h-auto flex flex-col" :style="successBackgroundStyle">
 
-          <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 rounded-tl-[10px] rounded-tr-[10px]">
+          <div class="flex-1 p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 rounded-tl-[10px] rounded-tr-[10px]">
             <div class="flex flex-col justify-center items-center gap-6">
               <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
               <div class="flex flex-col justify-start items-start gap-2">
@@ -113,7 +113,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
+          <div class="flex-1 w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
             <div class="flex flex-col justify-start items-center gap-2 w-full">
               <div class="flex flex-col justify-start items-center gap-4">
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
@@ -168,7 +168,7 @@ onMounted(() => {
       <div
         @click="emit('close-popup')"
         data-test="booking-flow-step4-close-button"
-        class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-2 right-[2px] md:-top-4 md:-right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
       </div>
