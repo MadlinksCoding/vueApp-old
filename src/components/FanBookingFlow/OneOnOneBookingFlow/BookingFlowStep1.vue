@@ -144,7 +144,7 @@ watch(
       class="w-full md:w-[25rem] h-dvh md:h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center md:rounded-3xl backdrop-blur-md"
       :style="cardBackgroundStyle"
     >
-      <div v-if="isLoading" class="h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
+      <div v-if="isLoading" class="w-full h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
         Loading events...
       </div>
 
@@ -158,7 +158,7 @@ watch(
         </button>
       </div>
 
-      <div v-else-if="events.length === 0" class="h-full flex items-center justify-center rounded-3xl bg-black/15 px-6 text-center text-white text-sm">
+      <div v-else-if="events.length === 0" class="w-full h-full flex items-center justify-center rounded-3xl bg-black/15 px-6 text-center text-white text-sm">
         No active events available right now.
       </div>
 
