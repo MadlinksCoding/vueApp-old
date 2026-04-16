@@ -774,7 +774,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
         v-if="showWrapperCloseButton"
         @click="emit('close-request')"
         data-test="booking-flow-close-button"
-        class="absolute -top-4 -right-3 z-[999] p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-4 right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-[8px] w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
       </div>

@@ -631,7 +631,7 @@ onMounted(() => {
 
         <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
 
-          <div class="flex-none lg:flex-1 flex-col w-full lg:p-5">
+          <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
               <span class="flex items-center gap-2">
                 <div :class="theme1.mini.header">{{ header }}</div>
