@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-0 md:pl-0 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-1 md:px-0 md:pl-0">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -21,7 +21,12 @@
             class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
-                <div class="text-gray-900 text-base font-medium uppercase">{{ title }}</div>
+                <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
+                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <div class="text-gray-900 text-base font-medium uppercase">{{ currentYear }}</div>
                 <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
@@ -217,7 +222,7 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
@@ -932,10 +937,11 @@ const filteredBookedSlotsCount = computed(() => {
 
 const title = computed(() => {
   const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
-  if (effectiveView.value === 'week') return `${monthNames[m]} ${y}`;
-  if (effectiveView.value === 'month') return `${monthNames[m]} ${y}`;
-  return `${monthNames[m]} ${d.getDate()}, ${y}`;
+  return `${monthNames[m]} ${y}`;
 });
+
+const currentMonth = computed(() => monthNames[cursor.value.getMonth()]);
+const currentYear = computed(() => cursor.value.getFullYear());
 
 watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });
 

@@ -224,7 +224,7 @@
         </div>
       </div>
 
-      <div v-if="isCreator" class="fixed bottom-5 right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
+      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
         <button
           class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
@@ -348,6 +348,7 @@ const cancelBookingCandidate = ref(null);
 const eventTypeColors = ref({ ...DEFAULT_EVENT_TYPE_COLORS });
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
+const floatingPopupTrigger = ref(null);
 const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
 
@@ -432,7 +433,7 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-0 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
     title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
     xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
@@ -477,10 +478,13 @@ const handlePositionUpdate = () => {
 };
 
 const handleClickOutside = (event) => {
-  if (!isCreatePopupOpen.value) return;
+  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value) return;
   const path = event.composedPath ? event.composedPath() : [];
   if (popupTrigger.value && !path.includes(popupTrigger.value)) {
     isCreatePopupOpen.value = false;
+  }
+  if (floatingPopupTrigger.value && !path.includes(floatingPopupTrigger.value)) {
+    isFloatingPopupOpen.value = false;
   }
 };
 

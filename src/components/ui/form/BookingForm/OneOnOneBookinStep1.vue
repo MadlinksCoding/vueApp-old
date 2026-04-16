@@ -15,6 +15,8 @@
   import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
   import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
   import alignLeftIcon from '@/assets/images/icons/align-left.svg'
+  import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
+  import trashIcon from '@/assets/images/icons/trash-01.svg'
 
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
@@ -1300,26 +1302,32 @@
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
               class="p-3">
               <div class="flex items-center gap-2 mb-3">
-                <input
-                  type="date"
-                  v-model="entry.date"
-                  @change="onSlotChanged"
-                  :min="getOneTimeDateMin()"
-                  :max="formData.dateTo || undefined"
-                  class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                />
+                <div class="relative w-full">
+                  <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <img :src="calendarIcon" alt="calendar icon" class="w-5 h-5" />
+                  </div>
+                  <input
+                    type="date"
+                    v-model="entry.date"
+                    @change="onSlotChanged"
+                    :min="getOneTimeDateMin()"
+                    :max="formData.dateTo || undefined"
+                    class="bg-white/75 w-full pl-10 pr-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-datetime-edit]:text-gray-900"
+                  />
+                </div>
                 <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
-                  class="w-7 h-7 rounded text-red-500 hover:bg-red-50">
-                  🗑
+                  class="w-7 h-7 rounded text-red-500 hover:bg-red-50 flex-shrink-0 flex items-center justify-center">
+                  <img :src="trashIcon" alt="trash icon" class="w-5 h-5" />
                 </button>
               </div>
 
               <div class="flex flex-col gap-2">
+                <span class="text-sm font-medium text-gray-500">Available time slot</span>
                 <div v-if="entry.slots.length === 0" class="flex items-center">
                   <button
                     type="button"
                     @click="addOneTimeSlot(entryIndex)"
-                    class="px-2 py-1 text-xs rounded bg-gray-900 text-green-400 hover:bg-black"
+                    class="px-2 py-1 text-xs bg-gray-900 text-[#07F468] hover:bg-black"
                   >
                     Add time slot
                   </button>
@@ -1360,7 +1368,7 @@
 
             <div>
               <button type="button" @click="addOneTimeDate"
-                class="bg-gray-900 text-green-400 text-xs font-semibold px-2 py-1 rounded hover:bg-black">
+                class="bg-gray-900 text-[#07F468] text-xs font-semibold px-2 py-1 hover:bg-black">
                 Add A Date
               </button>
             </div>
