@@ -148,7 +148,7 @@ watch(
         Loading events...
       </div>
 
-      <div v-else-if="loadError" class="h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
+      <div v-else-if="loadError" class="w-full h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
         <p class="text-sm text-red-300">{{ loadError }}</p>
         <button
           @click="emit('retry-catalog')"
