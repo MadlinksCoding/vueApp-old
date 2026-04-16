@@ -99,7 +99,7 @@ onMounted(() => {
 
 <template>
   <!-- overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -->
-  <div class="relative w-full max-w-[24rem] min-h-0 rounded-[10px] ">
+  <div class="relative w-full max-w-[27rem] min-h-0 rounded-[10px] ">
 
       <div class="backdrop-blur-[1rem] rounded-[10px]" :style="successBackgroundStyle">
 

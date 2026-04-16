@@ -54,7 +54,7 @@ const props = defineProps({
 </script>
 
 <template>
-  <div class="flex-none md:max-w-[21.875rem] h-auto lg:h-[40.625rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0 md:p-4 lg:p-5">
+  <div class="flex-none md:max-w-[21.875rem] h-auto lg:h-[41.625rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0 md:p-4 lg:p-5">
      <!-- Gradient overlay -->
   <div class="absolute inset-0 bg-[#22ccee]/20 pointer-events-none"></div>
     <div class="w-full flex flex-col">
