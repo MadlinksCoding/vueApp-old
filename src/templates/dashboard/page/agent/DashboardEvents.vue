@@ -4,6 +4,7 @@
       :creator-id="creatorId"
       :user-role="userRole"
       :fan-id="fanId"
+      :refresh-signal="route.query?.refresh"
       @create-event="handleCreateEvent"
       @open-url="handleOpenUrl"
     />
@@ -11,7 +12,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import DashboardEventsFeature from "@/features/events/DashboardEventsFeature.vue";
@@ -45,6 +46,7 @@ const handleCreateEvent = async ({ type }) => {
     query: {
       type,
       creatorId: String(creatorId.value),
+      refresh: "1",
     },
   });
 };
@@ -67,6 +69,14 @@ const handleOpenUrl = ({ url, target = "_self" }) => {
 
 onMounted(() => {
   if (route.query?.refresh !== "1") return;
+
+  const nextQuery = { ...route.query };
+  delete nextQuery.refresh;
+  router.replace({ path: route.path, query: nextQuery });
+});
+
+watch(() => route.query?.refresh, (nextRefresh, previousRefresh) => {
+  if (nextRefresh !== "1" || nextRefresh === previousRefresh) return;
 
   const nextQuery = { ...route.query };
   delete nextQuery.refresh;

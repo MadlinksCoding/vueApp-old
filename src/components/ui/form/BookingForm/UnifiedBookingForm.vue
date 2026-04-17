@@ -166,6 +166,7 @@ const previewSchedule = ref(false);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
 const creatorEventsForCalendar = ref([]);
+const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
@@ -226,6 +227,18 @@ const previewBookedSlotsForFanFlow = computed(() => {
     return Array.isArray(slots) ? slots : [];
 });
 
+const clearRefreshQueryFlag = async () => {
+    if (route.query?.refresh == null) return;
+
+    const nextQuery = { ...route.query };
+    delete nextQuery.refresh;
+
+    await router.replace({
+        path: route.path,
+        query: nextQuery,
+    });
+};
+
 const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     const creatorId = resolveCreatorId();
     calendarLoading.value = true;
@@ -257,35 +270,25 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         creatorEventsForCalendar.value = [];
+        bookedSlotsRawForCalendar.value = [];
         bookedSlotsIndexForCalendar.value = {};
     } else {
         const creatorEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
+        const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
         const bookedSlotsIndex = result?.data?.bookedSlotsIndex || {};
 
         creatorEventsForCalendar.value = creatorEvents;
+        bookedSlotsRawForCalendar.value = bookedSlotsRaw;
         bookedSlotsIndexForCalendar.value = bookedSlotsIndex;
-
-        const mappedBooked = mapBookedSlotsToCalendarEvents(result?.data?.bookedSlots, {
-            includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
-            titleFallback: "Booked Slot",
+        const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+            creatorEvents,
+            bookedSlotsRaw,
+            bookedSlotsIndex,
+            focusDate: state.focus,
         });
 
-        const colorByEventId = new Map(
-            creatorEvents
-                .map((event) => [
-                    String(event?.eventId || event?.id || ""),
-                    event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-                ])
-                .filter(([eventId]) => Boolean(eventId))
-        );
-
-        calendarBookedSlots.value = mappedBooked.map((event) => ({
-            ...event,
-            isExistingSchedule: true,
-            color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
-        }));
-
-        rebuildAvailabilityPreview();
+        calendarBookedSlots.value = bookedCalendarSlots;
+        calendarAvailabilitySlots.value = availabilityCalendarSlots;
     }
 
     calendarLoading.value = false;
@@ -308,7 +311,11 @@ onMounted(() => {
         currentStep.value = next;
     });
 
-    fetchCreatorBookedSlots(route.query?.refresh === "1");
+    const shouldForceRefresh = route.query?.refresh === "1";
+    fetchCreatorBookedSlots(shouldForceRefresh);
+    if (shouldForceRefresh) {
+        clearRefreshQueryFlag();
+    }
 });
 
 watch(currentType, (nextType) => {
@@ -331,6 +338,15 @@ watch(
     () => props.apiBaseUrl,
     (nextValue) => {
         bookingFlow.setState("apiBaseUrl", nextValue || "", { reason: "api-base-url-sync", silent: true });
+    },
+);
+
+watch(
+    () => route.query?.refresh,
+    (nextRefresh, previousRefresh) => {
+        if (nextRefresh !== "1" || nextRefresh === previousRefresh) return;
+        fetchCreatorBookedSlots(true);
+        clearRefreshQueryFlag();
     },
 );
 
@@ -403,6 +419,79 @@ function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
 function rgba(hexColor, alpha = 1) {
     const { r, g, b } = hexToRgb(hexColor);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function buildCalendarSlotsFromContext({
+    creatorEvents = [],
+    bookedSlotsRaw = [],
+    bookedSlotsIndex = {},
+    focusDate = new Date(),
+}) {
+    const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
+        includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
+        titleFallback: "Booked Slot",
+    });
+
+    const colorByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const callTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const eventTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const bookedCalendarSlots = calendarSlots.map((event) => ({
+        ...event,
+        isExistingSchedule: true,
+        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
+        color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
+        raw: {
+            ...(event?.raw || {}),
+            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
+            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+        },
+    }));
+
+    const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(creatorEvents, {
+        bookedSlotsIndex,
+        focusDate,
+        rangeDaysBefore: 14,
+        rangeDaysAfter: 56,
+    }).map((event) => ({
+        ...event,
+        slot: "availability",
+        color: "#98A2B3",
+        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+        raw: {
+            ...(event?.raw || {}),
+            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+        },
+    }));
+
+    return {
+        bookedCalendarSlots,
+        availabilityCalendarSlots,
+    };
 }
 
 function getCalendarEventStyle(event, mode = "existing") {
@@ -655,24 +744,26 @@ function rebuildAvailabilityPreview() {
     const creatorEvents = Array.isArray(creatorEventsForCalendar.value)
         ? creatorEventsForCalendar.value
         : [];
+    const bookedSlotsRaw = Array.isArray(bookedSlotsRawForCalendar.value)
+        ? bookedSlotsRawForCalendar.value
+        : [];
     const bookedSlotsIndex = bookedSlotsIndexForCalendar.value || {};
 
     if (creatorEvents.length === 0) {
+        calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         return;
     }
 
-    calendarAvailabilitySlots.value = mapAvailabilityToCalendarEvents(creatorEvents, {
+    const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+        creatorEvents,
+        bookedSlotsRaw,
         bookedSlotsIndex,
         focusDate: state.focus,
-        rangeDaysBefore: 14,
-        rangeDaysAfter: 56,
-    }).map((event) => ({
-        ...event,
-        isExistingSchedule: true,
-        slot: "availability",
-        color: "#98A2B3",
-    }));
+    });
+
+    calendarBookedSlots.value = bookedCalendarSlots;
+    calendarAvailabilitySlots.value = availabilityCalendarSlots;
 }
 
 const onDebugSubmit = () => {

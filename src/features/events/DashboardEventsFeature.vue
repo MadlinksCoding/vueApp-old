@@ -327,11 +327,16 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  refreshSignal: {
+    type: [String, Number, Boolean],
+    default: "",
+  },
 });
 
 const emit = defineEmits(["create-event", "open-url"]);
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = "calendar:eventTypeColors";
+const NONE_COLOR_VALUE = "none";
 const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
   video: "#5549FF",
   audio: "#06B6D4",
@@ -345,7 +350,11 @@ const mainCalendarRef = ref(null);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
-const eventTypeColors = ref({ ...DEFAULT_EVENT_TYPE_COLORS });
+const eventTypeColors = ref({
+  video: null,
+  audio: null,
+  groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
+});
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
@@ -495,23 +504,61 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
   return fallback;
 }
 
+function isHexColor(color) {
+  return typeof color === "string" && /^#([0-9a-fA-F]{3}){1,2}$/.test(color.trim());
+}
+
+function normalizeColorChoice(color, fallback = null) {
+  const normalized = typeof color === "string" ? color.trim() : "";
+  if (!normalized) return fallback;
+  if (normalized.toLowerCase() === NONE_COLOR_VALUE) return NONE_COLOR_VALUE;
+  return isHexColor(normalized) ? normalized : fallback;
+}
+
+function resolveCalendarColorChoice(typeColor, eventColorSkin, defaultColor) {
+  if (isHexColor(typeColor)) return typeColor.trim();
+
+  const fallbackEventColor = normalizeHexColor(eventColorSkin, null);
+  if (typeColor === NONE_COLOR_VALUE || typeColor == null || typeColor === "") {
+    return fallbackEventColor || defaultColor;
+  }
+
+  return fallbackEventColor || defaultColor;
+}
+
 function loadEventTypeColorsFromStorage() {
-  if (typeof window === "undefined") return { ...DEFAULT_EVENT_TYPE_COLORS };
+  if (typeof window === "undefined") {
+    return {
+      video: null,
+      audio: null,
+      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
+    };
+  }
   try {
     const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_EVENT_TYPE_COLORS };
+    if (!raw) {
+      return {
+        video: null,
+        audio: null,
+        groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
+      };
+    }
     const parsed = JSON.parse(raw);
     return {
-      video: normalizeHexColor(parsed?.video, DEFAULT_EVENT_TYPE_COLORS.video),
-      audio: normalizeHexColor(parsed?.audio, DEFAULT_EVENT_TYPE_COLORS.audio),
+      video: normalizeColorChoice(parsed?.video, null),
+      audio: normalizeColorChoice(parsed?.audio, null),
       groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall),
     };
   } catch (_error) {
-    return { ...DEFAULT_EVENT_TYPE_COLORS };
+    return {
+      video: null,
+      audio: null,
+      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
+    };
   }
 }
 
-function resolveTypeColor({ callType = "", eventType = "" } = {}) {
+function resolveTypeColor({ callType = "", eventType = "", eventColorSkin = "" } = {}) {
   const normalizedEventType = String(eventType || "").toLowerCase();
   if (normalizedEventType.includes("group")) {
     return normalizeHexColor(eventTypeColors.value?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall);
@@ -519,10 +566,18 @@ function resolveTypeColor({ callType = "", eventType = "" } = {}) {
 
   const normalizedCallType = String(callType || "").toLowerCase();
   if (normalizedCallType.includes("audio")) {
-    return normalizeHexColor(eventTypeColors.value?.audio, DEFAULT_EVENT_TYPE_COLORS.audio);
+    return resolveCalendarColorChoice(
+      eventTypeColors.value?.audio,
+      eventColorSkin,
+      DEFAULT_EVENT_TYPE_COLORS.audio,
+    );
   }
 
-  return normalizeHexColor(eventTypeColors.value?.video, DEFAULT_EVENT_TYPE_COLORS.video);
+  return resolveCalendarColorChoice(
+    eventTypeColors.value?.video,
+    eventColorSkin,
+    DEFAULT_EVENT_TYPE_COLORS.video,
+  );
 }
 
 function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
@@ -616,6 +671,7 @@ function toWidgetItem(event, options = {}) {
   const accentColor = resolveTypeColor({
     callType: event?.eventCallType || event?.raw?.eventCallType || "",
     eventType: event?.type || event?.raw?.eventType || event?.raw?.type || "",
+    eventColorSkin: event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || "",
   });
 
   const styles = isGroup
@@ -707,7 +763,8 @@ function buildCalendarSlotsFromContext({
     color: resolveTypeColor({
       callType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || ""),
       eventType: eventTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventType || slot?.type || ""),
-    }) || colorByEventId.get(String(slot?.eventId || "")) || DEFAULT_EVENT_COLOR,
+      eventColorSkin: colorByEventId.get(String(slot?.eventId || "")) || slot?.raw?.eventColorSkin || "",
+    }),
     raw: {
       ...(slot?.raw || {}),
       eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || "").toLowerCase(),
@@ -1172,6 +1229,13 @@ watch([normalizedCreatorId, normalizedFanId, () => props.userRole], ([nextCreato
   if (nextCreatorId !== previousCreatorId || normalizedRole !== String(previousRole || "").toLowerCase()) {
     fetchDashboardContext(true);
   }
+});
+
+watch(() => props.refreshSignal, (nextSignal, previousSignal) => {
+  if (!isMounted.value) return;
+  if (!nextSignal || nextSignal === previousSignal) return;
+  if (!hasDashboardContext.value) return;
+  fetchDashboardContext(true);
 });
 
 watch(() => props.userRole, (nextRole) => {

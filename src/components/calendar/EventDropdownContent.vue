@@ -2,8 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import editIcon from '@/assets/images/icons/edit.webp';
+import slashCircleIcon from '@/assets/images/icons/slash-circle.webp';
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
+const NONE_COLOR_VALUE = 'none';
 const DEFAULT_TYPE_COLORS = Object.freeze({
   video: '#4F46E5',
   audio: '#06B6D4',
@@ -35,32 +37,86 @@ const emit = defineEmits(['update:modelValue']);
 const openColorPickerFor = ref('');
 const rootRef = ref(null);
 
-function normalizeHexColor(value, fallback) {
+function isHexColor(value) {
   const input = String(value || '').trim();
-  return /^#([0-9a-fA-F]{3}){1,2}$/.test(input) ? input : fallback;
+  return /^#([0-9a-fA-F]{3}){1,2}$/.test(input);
+}
+
+function normalizeHexColor(value, fallback) {
+  return isHexColor(value) ? String(value).trim() : fallback;
+}
+
+function normalizeColorChoice(value, fallback = null) {
+  const input = String(value || '').trim().toLowerCase();
+  if (input === NONE_COLOR_VALUE) return NONE_COLOR_VALUE;
+  return isHexColor(value) ? String(value).trim() : fallback;
+}
+
+function isNoneChoice(value) {
+  return normalizeColorChoice(value, null) === NONE_COLOR_VALUE;
+}
+
+function getDisplayDotColor(type) {
+  const choice = filters.value.colorByType[type];
+  return isHexColor(choice) ? choice : '#98A2B3';
+}
+
+function getCheckboxStyle(type) {
+  const accentColor = getDisplayDotColor(type);
+  return {
+    accentColor,
+    borderColor: accentColor,
+  };
+}
+
+function getPickerOptions(type) {
+  return [
+    { key: `${type}_${NONE_COLOR_VALUE}`, value: NONE_COLOR_VALUE, isNone: true },
+    ...COLOR_OPTIONS.map((color) => ({ key: `${type}_${color}`, value: color, isNone: false })),
+  ];
+}
+
+function isTypeColorSelected(type, color) {
+  return filters.value.colorByType[type] === color;
 }
 
 function loadPersistedTypeColors() {
-  if (typeof window === 'undefined') return { ...DEFAULT_TYPE_COLORS };
+  if (typeof window === 'undefined') {
+    return {
+      video: null,
+      audio: null,
+      groupCall: DEFAULT_TYPE_COLORS.groupCall,
+    };
+  }
   try {
     const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_TYPE_COLORS };
+    if (!raw) {
+      return {
+        video: null,
+        audio: null,
+        groupCall: DEFAULT_TYPE_COLORS.groupCall,
+      };
+    }
     const parsed = JSON.parse(raw);
     return {
-      video: normalizeHexColor(parsed?.video, DEFAULT_TYPE_COLORS.video),
-      audio: normalizeHexColor(parsed?.audio, DEFAULT_TYPE_COLORS.audio),
+      video: normalizeColorChoice(parsed?.video, null),
+      audio: normalizeColorChoice(parsed?.audio, null),
       groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_TYPE_COLORS.groupCall),
     };
   } catch (_error) {
-    return { ...DEFAULT_TYPE_COLORS };
+    return {
+      video: null,
+      audio: null,
+      groupCall: DEFAULT_TYPE_COLORS.groupCall,
+    };
   }
 }
 
 function persistTypeColors(colors = {}) {
   if (typeof window === 'undefined') return;
   const safeColors = {
-    video: normalizeHexColor(colors.video, DEFAULT_TYPE_COLORS.video),
-    audio: normalizeHexColor(colors.audio, DEFAULT_TYPE_COLORS.audio),
+    video: normalizeColorChoice(colors.video, null),
+    audio: normalizeColorChoice(colors.audio, null),
     groupCall: normalizeHexColor(colors.groupCall, DEFAULT_TYPE_COLORS.groupCall),
   };
   window.localStorage?.setItem(EVENT_TYPE_COLOR_STORAGE_KEY, JSON.stringify(safeColors));
@@ -73,8 +129,9 @@ const filters = computed(() => ({
   groupCall: props.modelValue?.groupCall === true,
   showSchedule: props.modelValue?.showSchedule !== false,
   colorByType: {
-    ...DEFAULT_TYPE_COLORS,
-    ...(props.modelValue?.colorByType || {}),
+    video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
+    audio: normalizeColorChoice(props.modelValue?.colorByType?.audio, null),
+    groupCall: normalizeHexColor(props.modelValue?.colorByType?.groupCall, DEFAULT_TYPE_COLORS.groupCall),
   },
 }));
 
@@ -89,7 +146,7 @@ function updateFilter(key, value) {
 function updateTypeColor(type, color) {
   const nextColorByType = {
     ...filters.value.colorByType,
-    [type]: normalizeHexColor(color, DEFAULT_TYPE_COLORS[type] || DEFAULT_TYPE_COLORS.video),
+    [type]: normalizeColorChoice(color, null),
   };
 
   emit('update:modelValue', {
@@ -118,8 +175,9 @@ function handleDocumentClick(event) {
 
 onMounted(() => {
   const colorByType = {
-    ...DEFAULT_TYPE_COLORS,
-    ...(props.modelValue?.colorByType || {}),
+    video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
+    audio: normalizeColorChoice(props.modelValue?.colorByType?.audio, null),
+    groupCall: normalizeHexColor(props.modelValue?.colorByType?.groupCall, DEFAULT_TYPE_COLORS.groupCall),
     ...loadPersistedTypeColors(),
   };
   emit('update:modelValue', {
@@ -143,13 +201,19 @@ onBeforeUnmount(() => {
         :model-value="filters.video"
         @update:modelValue="(value) => updateFilter('video', value)"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
-        :checkboxStyle="{ accentColor: filters.colorByType.video, borderColor: filters.colorByType.video }"
+        :checkboxStyle="getCheckboxStyle('video')"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
       <div class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
-          <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: filters.colorByType.video }" />
+          <div
+            v-if="isNoneChoice(filters.colorByType.video)"
+            class="w-3 h-3 rounded-full border border-gray-400 bg-white flex items-center justify-center overflow-hidden"
+          >
+            <img :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+          </div>
+          <div v-else class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('video') }" />
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('video')">
@@ -160,13 +224,18 @@ onBeforeUnmount(() => {
             class="absolute right-0 top-[1.7rem] z-[1200] bg-[#E5E7EB] rounded-[0.25rem] px-3 py-2 flex flex-col gap-3 shadow-lg"
           >
             <button
-              v-for="color in COLOR_OPTIONS"
-              :key="`video_${color}`"
+              v-for="option in getPickerOptions('video')"
+              :key="option.key"
               type="button"
-              class="w-4 h-4 rounded-full"
-              :style="{ backgroundColor: color }"
-              @click.stop="updateTypeColor('video', color)"
-            />
+              :class="[
+                'w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border',
+                isTypeColorSelected('video', option.value) ? 'ring-2 ring-slate-500 ring-offset-1' : 'border-transparent',
+              ]"
+              :style="option.isNone ? { backgroundColor: '#FFFFFF', borderColor: '#98A2B3' } : { backgroundColor: option.value }"
+              @click.stop="updateTypeColor('video', option.value)"
+            >
+              <img v-if="option.isNone" :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+            </button>
           </div>
         </div>
       </div>
@@ -178,13 +247,19 @@ onBeforeUnmount(() => {
         :model-value="filters.audio"
         @update:modelValue="(value) => updateFilter('audio', value)"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
-        :checkboxStyle="{ accentColor: filters.colorByType.audio, borderColor: filters.colorByType.audio }"
+        :checkboxStyle="getCheckboxStyle('audio')"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
       <div class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
-          <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: filters.colorByType.audio }" />
+          <div
+            v-if="isNoneChoice(filters.colorByType.audio)"
+            class="w-3 h-3 rounded-full border border-gray-400 bg-white flex items-center justify-center overflow-hidden"
+          >
+            <img :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+          </div>
+          <div v-else class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('audio') }" />
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('audio')">
@@ -195,13 +270,18 @@ onBeforeUnmount(() => {
             class="absolute right-0 top-[1.7rem] z-[1200] bg-[#E5E7EB] rounded-[0.25rem] px-3 py-2 flex flex-col gap-3 shadow-lg"
           >
             <button
-              v-for="color in COLOR_OPTIONS"
-              :key="`audio_${color}`"
+              v-for="option in getPickerOptions('audio')"
+              :key="option.key"
               type="button"
-              class="w-4 h-4 rounded-full"
-              :style="{ backgroundColor: color }"
-              @click.stop="updateTypeColor('audio', color)"
-            />
+              :class="[
+                'w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border',
+                isTypeColorSelected('audio', option.value) ? 'ring-2 ring-slate-500 ring-offset-1' : 'border-transparent',
+              ]"
+              :style="option.isNone ? { backgroundColor: '#FFFFFF', borderColor: '#98A2B3' } : { backgroundColor: option.value }"
+              @click.stop="updateTypeColor('audio', option.value)"
+            >
+              <img v-if="option.isNone" :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+            </button>
           </div>
         </div>
       </div>
@@ -212,13 +292,13 @@ onBeforeUnmount(() => {
         label="Group Call"
         :model-value="filters.groupCall"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
-        :checkboxStyle="{ accentColor: filters.colorByType.groupCall, borderColor: filters.colorByType.groupCall }"
+        :checkboxStyle="getCheckboxStyle('groupCall')"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
       <div class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
-          <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: filters.colorByType.groupCall }" />
+          <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('groupCall') }" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
             <img :src="editIcon" alt="editIcon" />

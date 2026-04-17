@@ -8,8 +8,8 @@
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
                         <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8">
-                            Create Private
-                            Booking</div>
+                            Create Private Booking
+                        </div>
                         <div
                             class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 text-nowrap">
                             by

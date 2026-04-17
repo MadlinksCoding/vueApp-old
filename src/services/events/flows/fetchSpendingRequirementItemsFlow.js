@@ -1,8 +1,7 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { asFlowError, toNumberOr } from "@/services/events/eventsApiUtils.js";
-
-const EXTERNAL_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api";
+import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
 const COLLECTION_CONFIG = {
   media: {
     path: "/media/list",
@@ -51,7 +50,7 @@ function mapPrimaryResponse(type, response = {}, payload = {}) {
 
 async function fetchPrimaryCollection({ type, payload, context, api }) {
   const config = COLLECTION_CONFIG[type];
-  const response = await api.get(`${EXTERNAL_API_BASE_URL}${config.path}`, {
+  const response = await api.get(buildWpApiUrl(config.path), {
     params: buildPrimaryParams(type, payload),
     headers: context.requestHeaders || {},
     signal: context.signal,
@@ -72,7 +71,7 @@ async function fetchPrimaryCollection({ type, payload, context, api }) {
 }
 
 async function fetchSubscriptionFallback({ payload, context, api }) {
-  const response = await api.get(`${EXTERNAL_API_BASE_URL}/users/active-tiers`, {
+  const response = await api.get(buildWpApiUrl("/users/active-tiers"), {
     params: {
       user_id: payload.creatorId,
     },
@@ -143,4 +142,3 @@ export async function fetchSpendingRequirementItemsFlow({ payload, context, api 
     );
   }
 }
-

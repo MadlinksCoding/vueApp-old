@@ -240,7 +240,9 @@ function normalizeOneTimeSlots(rawSlots = []) {
     const hktDate = extractDateIso(dateEntry.date, null);
     if (!hktDate) return;
 
-    const times = Array.isArray(dateEntry.times) ? dateEntry.times : [];
+    const times = Array.isArray(dateEntry.times)
+      ? dateEntry.times
+      : (Array.isArray(dateEntry.slots) ? dateEntry.slots : []);
     if (times.length === 0) return;
 
     times.forEach((timeEntry) => {
@@ -357,7 +359,9 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
   )
     ? [...bookedSlotsIndex[eventId][localDateIso]].sort((left, right) => left.startMs - right.startMs)
     : [];
-  const rawSlots = Array.isArray(raw.slots) ? raw.slots : [];
+  const rawSlots = Array.isArray(raw.slots) && raw.slots.length > 0
+    ? raw.slots
+    : (Array.isArray(raw.dates) ? raw.dates : []);
   let hasExplicitScheduleSlots = false;
 
   if (!localDateIso) return [];
@@ -756,14 +760,17 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
     const status = String(event?.status || "").toLowerCase();
     if (status && status !== "active") return;
 
+    const repeatRule = String(event?.raw?.repeatRule || event?.repeatRule || "");
     const dateFrom = event?.dateFrom || null;
     const dateTo = event?.dateTo || null;
     const callType = String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase();
 
     for (let day = new Date(start); day <= end; day = addDaysToDate(day, 1)) {
       const localDateIso = toLocalDateIsoFromDate(day);
-      if (dateFrom && localDateIso < dateFrom) continue;
-      if (dateTo && localDateIso > dateTo) continue;
+      if (repeatRule !== "doesNotRepeat") {
+        if (dateFrom && localDateIso < dateFrom) continue;
+        if (dateTo && localDateIso > dateTo) continue;
+      }
 
       const candidates = buildCandidateSlotsForEventDate(event, localDateIso, {
         eventId,
