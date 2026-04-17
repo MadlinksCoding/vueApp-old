@@ -41,7 +41,7 @@ export function getBookingJoinState({
     };
   }
 
-  if (normalizedStatus.startsWith('cancelled')) {
+  if (!normalizedStatus.startsWith('confirmed')) {
     return {
       canJoin: false,
       joinUrl: scheduledMeetingUrl,
