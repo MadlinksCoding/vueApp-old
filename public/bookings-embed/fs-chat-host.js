@@ -22,7 +22,7 @@
     return pathname + (nextSearch ? "?" + nextSearch : "") + hash;
   }
 
-  function mountChatEmbed(target, options) {return;
+  function mountChatEmbed(target, options) {
     var container = typeof target === "string"
       ? document.querySelector(target)
       : (target && target.nodeType === 1 ? target : null);
@@ -53,7 +53,7 @@
       right:         "0",
       width:         String(settings.width)  + "px",
       height:        String(settings.height) + "px",
-      zIndex:        "99999",
+      zIndex:        "9998",
       background:    "transparent",
       overflow:      "visible",
       pointerEvents: "none",

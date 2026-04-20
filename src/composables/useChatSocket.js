@@ -115,7 +115,7 @@ export function useChatSocket(userId) {
   }
 
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
-  function _attachOwnSocket(SH) {
+  function _attachOwnSocket(SH, fromParent = false) {
     SH.identifyCurrentUser(userId);
     if (typeof SH._initializeSocketConnection === 'function') SH._initializeSocketConnection();
 
@@ -124,7 +124,18 @@ export function useChatSocket(userId) {
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
       else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
     };
-    window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
+    if( fromParent ) {
+      SH.registerSocketListener({
+        flag: 'chat:message',
+        callback: (body) => _handleIncomingChatMessage(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:status',
+        callback: (body) => _handleIncomingStatusUpdate(body),
+      });
+    } else {
+      window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
+    }
 
     _mode = 'own';
     socketState.isReady.value = true;
@@ -136,7 +147,7 @@ export function useChatSocket(userId) {
       const parentSH = window.parent?.SocketHandler;
       if (parentSH) {
         console.log('[ChatSocket] Using parent window SocketHandler for user:', userId);
-        _attachOwnSocket(parentSH);
+        _attachOwnSocket(parentSH, true);
         return;
       }
     } catch {
