@@ -8,9 +8,11 @@ const props = defineProps({
 
 const emit = defineEmits(['update:email', 'login', 'logout']);
 
-const guestSection    = ref(Boolean(window?.userData?.userID) ? 'loggedin' : 'guest-register');
+const parentUserData  = window?.userData || window?.parent?.userData || null;
+const guestSection    = ref(Boolean(parentUserData?.userID) ? 'loggedin' : 'guest-register');
+const userData        = ref(parentUserData);
 const userExists      = ref(false);
-const guestEmail      = ref(props.initialEmail || '');
+const guestEmail      = ref(props.initialEmail || window?.custom_checkout_params?.user?.email);
 const guestPassword   = ref('');
 const isCheckingEmail = ref(false);
 const isLoggingIn     = ref(false);
@@ -83,6 +85,7 @@ async function login() {
     window.userData.userDisplayName = res.userData?.userDisplayName || res.userData?.display_name;
     window.userData.userEmail       = res.userData?.userEmail || guestEmail.value;
     window.userData.userAvatar      = res.userData?.userAvatar || res.userData?.avatar || '';
+    userData.value = { ...window.userData };
 
     guestSection.value = 'loggedin';
     emit('update:email', window.userData.userEmail || guestEmail.value);
@@ -115,6 +118,7 @@ async function logout() {
     }
 
     if (window.userData) window.userData.userID = 0;
+    userData.value = null;
     guestEmail.value = '';
     guestPassword.value = '';
     userExists.value = false;
@@ -254,16 +258,16 @@ async function sendForgotPassword() {
           <div class="w-9 h-9 relative flex-shrink-0">
             <img
               class="w-9 h-9 rounded-full object-cover"
-              :src="window?.userData?.user?.avatar || window?.userData?.userAvatar || '/images/ex-profile.png'"
+              :src="userData?.userAvatar || userData?.user?.avatar || '/images/ex-profile.png'"
               alt=""
             />
           </div>
           <div class="inline-flex flex-col justify-center items-start">
             <div class="justify-start text-white text-xs font-semibold font-['Poppins'] leading-4 line-clamp-1">
-              {{ window?.userData?.userDisplayName || window?.userData?.user?.display_name }}
+              {{ userData?.userDisplayName || userData?.user?.display_name }}
             </div>
             <div class="justify-start text-gray-400 text-xs font-medium font-['Poppins'] leading-4">
-              {{ guestEmail || window?.userData?.userEmail }}
+              {{ guestEmail || userData?.userEmail || window?.custom_checkout_params?.user?.email }}
             </div>
           </div>
         </div>
