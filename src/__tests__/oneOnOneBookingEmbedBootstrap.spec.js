@@ -60,6 +60,8 @@ describe("one-on-one booking embed bootstrap", () => {
         name: "Creator Name",
         isVerified: true,
       },
+      translations: {},
+      locale: "en",
     });
   });
 

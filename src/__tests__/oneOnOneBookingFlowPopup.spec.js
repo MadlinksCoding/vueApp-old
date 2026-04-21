@@ -157,6 +157,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", 
 describe("OneOnOneBookingFlowPopup", () => {
   beforeEach(() => {
     routeState = { query: {} };
+    window.history.replaceState({}, "", "/");
     availableEvents = [];
     showToast.mockReset();
     callFlow.mockReset();
@@ -212,6 +213,7 @@ describe("OneOnOneBookingFlowPopup", () => {
 
   it("uses the existing route query fallback to open on step 2", async () => {
     routeState.query = { eventId: "evt_query" };
+    window.history.replaceState({}, "", "/?eventId=evt_query");
     availableEvents = [{ id: "evt_query", title: "Query Event" }];
     const { default: OneOnOneBookingFlowPopup } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue");
 

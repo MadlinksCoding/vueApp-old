@@ -8,6 +8,7 @@ import {
   bookingFlowUnionIcon,
 } from "./oneOnOneBookingFlowAssets.js";
 import { useEventBackgroundImage } from "./useEventBackgroundImage.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const emit = defineEmits(["retry-catalog"]);
 
@@ -22,6 +23,7 @@ const props = defineProps({
   },
 });
 
+const { t, locale } = useBookingTranslations();
 const events = computed(() => props.engine.getState("fanBooking.catalog.events") || []);
 const bookedSlotsIndex = computed(() => props.engine.getState("fanBooking.catalog.bookedSlotsIndex") || {});
 const isLoading = computed(() => Boolean(props.engine.getState("fanBooking.ui.catalogLoading")));
@@ -52,9 +54,10 @@ const cardBackgroundStyle = computed(() => ({
 }));
 
 function callTypeLabel(event = {}) {
-  const eventTypeLabel = event.type === "group-event" ? "Group" : "1on1";
-  const mediaTypeLabel = event.eventCallType === "audio" ? "Audio" : "Video";
-  return `${eventTypeLabel} ${mediaTypeLabel} Call`;
+  const mediaTypeLabel = event.eventCallType === "audio" ? t("fan_booking_audio") : t("fan_booking_video");
+  return event.type === "group-event"
+    ? t("fan_booking_group_call_type", { media: mediaTypeLabel })
+    : t("fan_booking_one_on_one_call_type", { media: mediaTypeLabel });
 }
 
 function safeNumber(value, fallback = 0) {
@@ -62,7 +65,7 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function toPlainText(value, fallback = "No description provided for this event.") {
+function toPlainText(value, fallback = t("fan_booking_no_description")) {
   if (typeof value !== "string" || !value.trim()) return fallback;
 
   if (typeof DOMParser !== "undefined") {
@@ -81,27 +84,27 @@ function addOnPreview(event = {}) {
   const fanRecordingTokens = safeNumber(event?.raw?.allowFanRecordingTokens, 0);
 
   const addOns = Array.isArray(event?.raw?.addOns) ? event.raw.addOns : [];
-  const finalAddOns = isFanRecordingAllowed ? [{ title: "Record our session", price: fanRecordingTokens }, ...addOns] : [...addOns];
+  const finalAddOns = isFanRecordingAllowed ? [{ title: t("fan_booking_record_our_session"), price: fanRecordingTokens }, ...addOns] : [...addOns];
 
   return finalAddOns.slice(0, 5).map((item) => ({
-    title: item?.title || item?.name || "Add-on",
+    title: item?.title || item?.name || t("fan_booking_add_on"),
     price: safeNumber(item?.priceTokens || item?.price, 0),
   }));
 }
 
 function nextAvailableLabel(event = {}) {
   const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
-  if (!next) return "No upcoming free slot";
+  if (!next) return t("fan_booking_no_upcoming_free_slot");
 
   const date = new Date(`${next.dateIso}T00:00:00`);
   const today = new Date();
   const isSameDay = date.toDateString() === today.toDateString();
 
   if (isSameDay) {
-    return `Today @ ${next.slot.label}`;
+    return t("fan_booking_today_at", { time: next.slot.label });
   }
 
-  const dateLabel = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const dateLabel = date.toLocaleDateString(locale.value, { month: "short", day: "numeric" });
   return `${dateLabel} @ ${next.slot.label}`;
 }
 
@@ -145,7 +148,7 @@ watch(
       :style="cardBackgroundStyle"
     >
       <div v-if="isLoading" class="w-full h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
-        Loading events...
+        {{ t("fan_booking_loading_events") }}
       </div>
 
       <div v-else-if="loadError" class="w-full h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
@@ -154,12 +157,12 @@ watch(
           @click="emit('retry-catalog')"
           class="px-4 py-2 rounded-lg bg-[#22CCEE] text-[#0C111D] text-sm font-semibold"
         >
-          Retry
+          {{ t("fan_booking_retry") }}
         </button>
       </div>
 
       <div v-else-if="events.length === 0" class="w-full h-full flex items-center justify-center rounded-3xl bg-black/15 px-6 text-center text-white text-sm">
-        No active events available right now.
+        {{ t("fan_booking_no_active_events") }}
       </div>
 
       <div v-else class="flex flex-col justify-between w-full h-full rounded-3xl bg-black/15 relative">
@@ -203,7 +206,7 @@ watch(
             class="flex flex-col justify-end gap-[1rem] min-h-52 h-full pb-[0.5rem]"
           >
             <div class="content-title text-3xl font-semibold line-clamp-2">
-              {{ currentEvent?.title || 'Untitled Event' }}
+              {{ currentEvent?.title || t('fan_booking_untitled_event') }}
             </div>
             <div
               class="content-price flex flex-row justify-start items-end gap-[0.5rem]"
@@ -212,8 +215,8 @@ watch(
                 <img :src="bookingFlowTokenIcon" class="w-[2rem] h-[2rem]" alt="" />
               </div>
               <p class="price-amount text-4xl font-semibold mb-[-3px]">{{ safeNumber(currentEvent?.basePriceTokens, 0) }}</p>
-              <p class="price-currency text-2xl font-semibold mb-[-3px]">Tokens</p>
-              <p class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} minutes</p>
+              <p class="price-currency text-2xl font-semibold mb-[-3px]">{{ t("fan_booking_tokens") }}</p>
+              <p class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} {{ t("common_minutes") }}</p>
             </div>
           </div>
 
@@ -231,7 +234,7 @@ watch(
                 :key="`${currentEvent?.eventId || currentEvent?.id}_${addon.title}`"
               >
                 <p class="title text-sm line-clamp-1">{{ addon.title }}</p>
-                <p class="price text-sm font-semibold">+{{ addon.price }} Tokens</p>
+                <p class="price text-sm font-semibold">+{{ addon.price }} {{ t("fan_booking_tokens") }}</p>
               </div>
             </div>
           </div>
@@ -244,9 +247,9 @@ watch(
           <div
             class="left flex flex-col justify-center items-center grow gap-[0.5rem] py-2 px-6 mr-[-3px]"
           >
-            <p class="left-title text-xl font-bold italic">BOOK NOW</p>
+            <p class="left-title text-xl font-bold italic">{{ t("fan_booking_book_now") }}</p>
             <p class="left-subtitle text-xs lg:text-sm">
-              Next available time:
+              {{ t("fan_booking_next_available_time") }}
               <b class="font-semibold text-xs lg:text-sm">{{ nextAvailableLabel(currentEvent || {}) }}</b>
             </p>
           </div>

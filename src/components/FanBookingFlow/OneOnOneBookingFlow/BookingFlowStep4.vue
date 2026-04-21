@@ -9,6 +9,7 @@ import {
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   engine: {
@@ -22,6 +23,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close-popup']);
+const { t } = useBookingTranslations();
 
 const bookingData = computed(() => props.engine.getState('bookingDetails') || {});
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || {});
@@ -34,8 +36,8 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
 }));
 const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
-const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
-const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
+const formattedDate = computed(() => bookingData.value.headerDateDisplay || '-');
+const timeRange = computed(() => bookingData.value.formattedTimeRange || '-');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
 const totalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
 const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTimeDiscountAmount || 0));
@@ -43,7 +45,7 @@ const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTim
 const eventTitle = computed(() => (
   bookingItem.value?.eventSnapshot?.title
   || selectedEvent.value?.title
-  || 'High School Life Simulator'
+  || t('fan_booking_untitled_event')
 ));
 
 const creatorLabel = computed(() => creatorPresentation.value.name);
@@ -68,13 +70,13 @@ const instantFromEvent = computed(() => toBoolean(
 const isInstantConfirmed = computed(() => approvalStatus.value === 'auto' || instantFromEvent.value);
 const topTitle = computed(() => (
   isInstantConfirmed.value
-    ? `Booking confirmed with ${creatorLabel.value} !`
-    : `Booking request sent to ${creatorLabel.value} !`
+    ? t('fan_booking_confirmed_with_creator', { creator: creatorLabel.value })
+    : t('fan_booking_request_sent_to_creator', { creator: creatorLabel.value })
 ));
 const topMessage = computed(() => (
   isInstantConfirmed.value
-    ? 'Your booking is confirmed. See you at your selected time.'
-    : 'Sit tight - your request is pending approval from creator.'
+    ? t('fan_booking_confirmed_message')
+    : t('fan_booking_pending_message')
 ));
 
 const successBackgroundStyle = computed(() => ({
@@ -143,10 +145,10 @@ onMounted(() => {
                     </div>
                     <div class="flex flex-col items-center gap-1">
                       <div class="text-sm font-medium leading-5 text-[#EAECF0]">
-                        Total: {{ totalPrice }} tokens
+                        {{ t("fan_booking_total_tokens", { tokens: totalPrice }) }}
                       </div>
                       <div v-if="firstTimeDiscountAmount > 0" class="text-xs font-medium leading-5 text-[#07F468]">
-                        First-time discount applied: saved {{ firstTimeDiscountAmount }} tokens
+                        {{ t("fan_booking_first_time_discount_saved", { tokens: firstTimeDiscountAmount }) }}
                       </div>
                     </div>
                   </div>
@@ -158,7 +160,7 @@ onMounted(() => {
                 <div class="w-6 h-6 relative overflow-hidden">
                   <img :src="bookingFlowMessageGreenIcon" alt="message-icon" />
                 </div>
-                <div class="text-center justify-start text-green-500 text-base font-medium leading-6">Message {{ creatorLabel }}</div>
+                <div class="text-center justify-start text-green-500 text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
               </div>
             </div>
           </div>
@@ -170,7 +172,7 @@ onMounted(() => {
         data-test="booking-flow-step4-close-button"
         class="absolute top-2 right-[2px] md:-top-4 md:-right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
-        <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
+        <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
 
     </div>

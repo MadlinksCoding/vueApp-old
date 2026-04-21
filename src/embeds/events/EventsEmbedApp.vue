@@ -12,9 +12,9 @@
 
     <div v-else class="flex min-h-screen items-center justify-center p-6 text-center">
       <div>
-        <h1 class="text-lg font-semibold text-slate-800">Loading events embed</h1>
+        <h1 class="text-lg font-semibold text-slate-800">{{ t("dashboard_loading_events_embed") }}</h1>
         <p class="mt-2 text-sm text-slate-500">
-          Waiting for the parent page to provide dashboard context.
+          {{ t("dashboard_waiting_parent_context") }}
         </p>
       </div>
     </div>
@@ -36,10 +36,12 @@ import {
   useEventsEmbedBootstrap,
 } from "@/embeds/events/bootstrap.js";
 import { routeLocationFromInitialRoute } from "@/embeds/events/router.js";
+import { provideBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const router = useRouter();
 const route = useRoute();
 const bootstrap = useEventsEmbedBootstrap();
+const { t } = provideBookingTranslations(bootstrap);
 const rootRef = ref(null);
 const useViewportHeight = computed(() => {
   return bootstrap.bootstrapped && String(route.name || "").startsWith("events-embed-");

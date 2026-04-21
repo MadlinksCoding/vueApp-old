@@ -3,8 +3,8 @@ function asNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function asError(field, message) {
-  return { field, message };
+function asError(field, translationKey, message, params = {}) {
+  return { field, translationKey, message, params };
 }
 
 function hasAnyValidSlots(slots) {
@@ -57,40 +57,40 @@ export function step1Validator(state = {}) {
   const errors = [];
 
   if (!state?.eventTitle || String(state.eventTitle).trim().length === 0) {
-    errors.push(asError("eventTitle", "Event title is required."));
+    errors.push(asError("eventTitle", "booking_validation_event_title_required", "Event title is required."));
   }
 
   const duration = asNumber(state?.duration);
   if (duration == null || duration < 5) {
-    errors.push(asError("duration", "Session duration must be at least 5 minutes."));
+    errors.push(asError("duration", "booking_validation_duration_min", "Session duration must be at least 5 minutes."));
   }
 
   const basePrice = asNumber(state?.basePrice);
   if (basePrice == null || basePrice < 0) {
-    errors.push(asError("basePrice", "Base price must be 0 or higher."));
+    errors.push(asError("basePrice", "booking_validation_base_price_min", "Base price must be 0 or higher."));
   }
 
   if (state?.enableFirstTimeDiscount) {
     const firstTimeDiscount = asNumber(state?.firstTimeDiscount);
     if (firstTimeDiscount == null || firstTimeDiscount <= 0 || firstTimeDiscount > 100) {
-      errors.push(asError("firstTimeDiscount", "First-time discount must be greater than 0 and no more than 100."));
+      errors.push(asError("firstTimeDiscount", "booking_validation_first_time_discount_range", "First-time discount must be greater than 0 and no more than 100."));
     }
   }
 
   const repeatRule = state?.repeatRule || "weekly";
   if (repeatRule === "doesNotRepeat") {
     if (!hasAtLeastOneOneTimeSlot(state)) {
-      errors.push(asError("oneTimeAvailability", "Add at least one available slot before continuing."));
+      errors.push(asError("oneTimeAvailability", "booking_validation_one_time_slot_required", "Add at least one available slot before continuing."));
     }
   } else if (repeatRule === "monthly") {
     if (!state?.dateFrom || String(state.dateFrom).trim().length === 0) {
-      errors.push(asError("dateFrom", "Start date is required for monthly repeat."));
+      errors.push(asError("dateFrom", "booking_validation_monthly_start_required", "Start date is required for monthly repeat."));
     }
     if (!hasAtLeastOneMonthlySlot(state)) {
-      errors.push(asError("monthlyAvailability", "Add at least one monthly slot before continuing."));
+      errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_required", "Add at least one monthly slot before continuing."));
     }
   } else if (!hasAtLeastOneWeeklySlot(state)) {
-    errors.push(asError("weeklyAvailability", "Add at least one available slot before continuing."));
+    errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_required", "Add at least one available slot before continuing."));
   }
 
   return { errors };
@@ -102,21 +102,21 @@ export function step2Validator(state = {}) {
   if (state?.allowRecording) {
     const recordingPrice = asNumber(state?.recordingPrice);
     if (recordingPrice == null || recordingPrice < 0) {
-      errors.push(asError("recordingPrice", "Recording price must be 0 or higher."));
+      errors.push(asError("recordingPrice", "booking_validation_recording_price_min", "Recording price must be 0 or higher."));
     }
   }
 
   if (state?.enableCancellationFee) {
     const cancellationFee = asNumber(state?.cancellationFee);
     if (cancellationFee == null || cancellationFee < 0) {
-      errors.push(asError("cancellationFee", "Cancellation fee must be 0 or higher."));
+      errors.push(asError("cancellationFee", "booking_validation_cancellation_fee_min", "Cancellation fee must be 0 or higher."));
     }
   }
 
   if (state?.whoCanBook === "subscribersOnly") {
     const tiers = asArray(state?.subscriptionTiers);
     if (tiers.length === 0) {
-      errors.push(asError("subscriptionTiers", "Please select at least one subscription tier."));
+      errors.push(asError("subscriptionTiers", "booking_validation_subscription_tiers_required", "Please select at least one subscription tier."));
     }
   }
 
@@ -125,7 +125,7 @@ export function step2Validator(state = {}) {
       ? state.inviteSecret.trim()
       : "";
     if (!inviteSecret) {
-      errors.push(asError("inviteSecret", "Invite link is not ready yet. Please try again."));
+      errors.push(asError("inviteSecret", "booking_validation_invite_secret_required", "Invite link is not ready yet. Please try again."));
     }
   }
 
@@ -134,7 +134,7 @@ export function step2Validator(state = {}) {
       ? state.requiredProducts.filter((item) => item && item.id && item.type)
       : [];
     if (requiredProducts.length === 0) {
-      errors.push(asError("requiredProducts", "Please add at least one product for spending requirement."));
+      errors.push(asError("requiredProducts", "booking_validation_required_products_required", "Please add at least one product for spending requirement."));
     }
   }
 
@@ -144,12 +144,12 @@ export function step2Validator(state = {}) {
 
     const title = typeof addOn?.title === "string" ? addOn.title.trim() : "";
     if (!title) {
-      errors.push(asError(`addOns.${index}.title`, `Add-on service ${index + 1} title is required.`));
+      errors.push(asError(`addOns.${index}.title`, "booking_validation_addon_title_required", `Add-on service ${index + 1} title is required.`, { index: index + 1 }));
     }
 
     const price = asNumber(addOn?.priceTokens);
     if (price == null || price < 0) {
-      errors.push(asError(`addOns.${index}.priceTokens`, `Add-on service ${index + 1} price must be 0 or higher.`));
+      errors.push(asError(`addOns.${index}.priceTokens`, "booking_validation_addon_price_min", `Add-on service ${index + 1} price must be 0 or higher.`, { index: index + 1 }));
     }
   });
 

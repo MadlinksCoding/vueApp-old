@@ -18,6 +18,7 @@ import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -49,6 +50,7 @@ const props = defineProps({
 const emit = defineEmits(["created", "back"]);
 const route = useRoute();
 const router = useRouter();
+const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 
 /**
@@ -266,7 +268,7 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     if (!result?.ok) {
         calendarError.value = result?.meta?.uiErrors?.[0]
             || result?.error?.message
-            || "Could not load creator booked slots.";
+            || t("booking_load_creator_booked_slots_failed");
         calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         creatorEventsForCalendar.value = [];
@@ -768,12 +770,12 @@ function rebuildAvailabilityPreview() {
 
 const onDebugSubmit = () => {
     console.log("Submit Clicked. Current State:", JSON.parse(JSON.stringify(bookingFlow.state)));
-    alert("Submitted! Check console for full state object.");
+    alert(t("booking_submitted_alert"));
 };
 
 // Helper for title
 const formTitle = computed(() => {
-    return currentType.value === 'group' ? 'Group Event Settings' : 'Private Booking Settings';
+    return currentType.value === 'group' ? t("booking_group_event_settings") : t("booking_private_booking_settings");
 });
 
 const handleCreateFlowCreated = async (payload) => {
@@ -812,7 +814,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             v-if="embedded"
                             type="button"
                             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
-                            aria-label="Back to events"
+                            :aria-label="t('booking_back_to_events')"
                             @click="emit('back')"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -868,8 +870,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                         : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
-                <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
-                    description="To preview how your booking schedule will look like on your profile, go to preview booking schedule."  />
+                <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
+                    :description="t('booking_calendar_notice_description')"  />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
                     {{ calendarError }}
                 </div>

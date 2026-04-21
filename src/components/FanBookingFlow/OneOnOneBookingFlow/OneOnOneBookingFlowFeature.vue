@@ -13,6 +13,7 @@ import { addMinutesToHm } from "@/services/events/eventsApiUtils.js";
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 import { normalizeCreatorPresentationInput } from "./creatorPresentation.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
@@ -146,6 +147,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close-request", "booking-created", "booking-failed"]);
+const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
 const hasScheduledStep3Prefetch = ref(false);
 const hasScheduledStep4Prefetch = ref(false);
@@ -439,11 +441,11 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
   });
 
   if (creatorId == null) {
-    const message = "Missing creator user id for booking flow.";
+    const message = t("fan_booking_missing_creator_id");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Load Failed",
+      title: t("fan_booking_load_failed_title"),
       message,
     });
     return { ok: false, error: { message } };
@@ -471,11 +473,11 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
   engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
 
   if (!result?.ok) {
-    const message = result?.meta?.uiErrors?.[0] || result?.error?.message || "Could not load events.";
+    const message = result?.meta?.uiErrors?.[0] || result?.error?.message || t("fan_booking_load_failed_message");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Load Failed",
+      title: t("fan_booking_load_failed_title"),
       message,
     });
     return result;
@@ -495,8 +497,8 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
       logFanBookingDebug("feature", "loadBookingContext:event-missing", { requestedEventId });
       showToast({
         type: "error",
-        title: "Event Unavailable",
-        message: "Selected event is no longer available.",
+        title: t("fan_booking_event_unavailable_title"),
+        message: t("fan_booking_event_unavailable_message"),
       });
       return result;
     }
@@ -516,11 +518,11 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
 async function loadPreviewContext() {
   const previewEvent = deepClone(props.previewEvent);
   if (!previewEvent || typeof previewEvent !== "object") {
-    const message = "Preview event is not ready yet.";
+    const message = t("fan_booking_preview_not_ready");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "preview-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Preview Unavailable",
+      title: t("fan_booking_preview_unavailable_title"),
       message,
     });
     return { ok: false, error: { message } };
@@ -586,7 +588,7 @@ async function loadPreviewContext() {
     ? `${hmToLabel(selectedSlot.startHm || selectedSlot.value)}-${hmToLabel(addMinutesToHm(selectedSlot.startHm || selectedSlot.value, defaultDurationMinutes))}`
     : "-";
   const selectedDateDisplay = selectedDate
-    ? selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? selectedDate.toLocaleDateString(locale.value, { month: "long", day: "numeric", year: "numeric" })
     : "";
 
   engine.setState("bookingDetails", {
@@ -686,10 +688,10 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
     );
 
     if (!result?.ok && !silent) {
-      const message = result?.error?.message || result?.meta?.uiErrors?.[0] || "Could not release slot hold.";
+      const message = result?.error?.message || result?.meta?.uiErrors?.[0] || t("fan_booking_hold_release_failed_message");
       showToast({
         type: "error",
-        title: "Hold Release Failed",
+        title: t("fan_booking_hold_release_failed_title"),
         message,
       });
     }
@@ -800,7 +802,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
         data-test="booking-flow-close-button"
         class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-[8px] w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
-        <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
+        <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
     <component
       :is="currentStepComponent"

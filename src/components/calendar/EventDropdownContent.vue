@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import editIcon from '@/assets/images/icons/edit.webp';
 import slashCircleIcon from '@/assets/images/icons/slash-circle.webp';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
 const NONE_COLOR_VALUE = 'none';
@@ -34,6 +35,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue']);
+const { t } = useBookingTranslations();
 const openColorPickerFor = ref('');
 const rootRef = ref(null);
 
@@ -197,7 +199,7 @@ onBeforeUnmount(() => {
   <div ref="rootRef" class="w-[240px] sm:w-[340px] bg-white rounded-[5px] inline-flex flex-col justify-start items-start shadow-lg border border-gray-100 z-50">
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
-        label="Video Call"
+        :label="t('dashboard_video_call')"
         :model-value="filters.video"
         @update:modelValue="(value) => updateFilter('video', value)"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
@@ -211,13 +213,13 @@ onBeforeUnmount(() => {
             v-if="isNoneChoice(filters.colorByType.video)"
             class="w-3 h-3 rounded-full border border-gray-400 bg-white flex items-center justify-center overflow-hidden"
           >
-            <img :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+            <img :src="slashCircleIcon" :alt="t('dashboard_no_color')" class="w-full h-full object-contain" />
           </div>
           <div v-else class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('video') }" />
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('video')">
-            <img :src="editIcon" alt="editIcon" />
+            <img :src="editIcon" :alt="t('common_edit')" />
           </button>
           <div
             v-if="openColorPickerFor === 'video'"
@@ -234,7 +236,7 @@ onBeforeUnmount(() => {
               :style="option.isNone ? { backgroundColor: '#FFFFFF', borderColor: '#98A2B3' } : { backgroundColor: option.value }"
               @click.stop="updateTypeColor('video', option.value)"
             >
-              <img v-if="option.isNone" :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+              <img v-if="option.isNone" :src="slashCircleIcon" :alt="t('dashboard_no_color')" class="w-full h-full object-contain" />
             </button>
           </div>
         </div>
@@ -243,7 +245,7 @@ onBeforeUnmount(() => {
 
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
-        label="Audio Call"
+        :label="t('dashboard_audio_call')"
         :model-value="filters.audio"
         @update:modelValue="(value) => updateFilter('audio', value)"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
@@ -257,13 +259,13 @@ onBeforeUnmount(() => {
             v-if="isNoneChoice(filters.colorByType.audio)"
             class="w-3 h-3 rounded-full border border-gray-400 bg-white flex items-center justify-center overflow-hidden"
           >
-            <img :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+            <img :src="slashCircleIcon" :alt="t('dashboard_no_color')" class="w-full h-full object-contain" />
           </div>
           <div v-else class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('audio') }" />
         </div>
         <div class="w-5 h-5 relative overflow-visible">
           <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('audio')">
-            <img :src="editIcon" alt="editIcon" />
+            <img :src="editIcon" :alt="t('common_edit')" />
           </button>
           <div
             v-if="openColorPickerFor === 'audio'"
@@ -280,7 +282,7 @@ onBeforeUnmount(() => {
               :style="option.isNone ? { backgroundColor: '#FFFFFF', borderColor: '#98A2B3' } : { backgroundColor: option.value }"
               @click.stop="updateTypeColor('audio', option.value)"
             >
-              <img v-if="option.isNone" :src="slashCircleIcon" alt="No color" class="w-full h-full object-contain" />
+              <img v-if="option.isNone" :src="slashCircleIcon" :alt="t('dashboard_no_color')" class="w-full h-full object-contain" />
             </button>
           </div>
         </div>
@@ -289,7 +291,7 @@ onBeforeUnmount(() => {
 
     <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors opacity-50 pointer-events-none">
       <CheckboxGroup
-        label="Group Call"
+        :label="t('dashboard_group_event')"
         :model-value="filters.groupCall"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
         :checkboxStyle="getCheckboxStyle('groupCall')"
@@ -301,14 +303,14 @@ onBeforeUnmount(() => {
           <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('groupCall') }" />
         </div>
         <div class="w-5 h-5 relative overflow-hidden">
-            <img :src="editIcon" alt="editIcon" />
+            <img :src="editIcon" :alt="t('common_edit')" />
         </div>
       </div>
     </div>
 
     <div class="self-stretch h-14 px-3 py-2 border-t border-gray-300 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
-        label="Show booking schedule availability"
+        :label="t('dashboard_show_booking_schedule_availability')"
         :model-value="filters.showSchedule"
         @update:modelValue="(value) => updateFilter('showSchedule', value)"
         checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-gray-900 relative cursor-pointer checked:bg-gray-900 checked:border-gray-900 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"

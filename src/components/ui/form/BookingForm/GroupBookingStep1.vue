@@ -7,9 +7,11 @@
   import Quill from 'quill';
   import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
+  import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
   // Accept Engine
   const props = defineProps(['engine']);
+  const { t } = useBookingTranslations();
 
   // Data
   const formData = ref({
@@ -53,14 +55,12 @@
     try {
       await props.engine.goToStep(2, { throwOnBlocked: true });
     } catch (error) {
-      const messages = (error?.errors || []).map((e) =>
-        typeof e === "string" ? e : (e?.message || "Validation error")
-      );
-      const fallback = error?.message || "Please fix validation errors before continuing.";
+      const messages = formatBookingValidationErrors(error?.errors || [], t);
+      const fallback = error?.message || t("booking_validation_weekly_slot_required");
       const body = messages.length ? messages.join(" ") : fallback;
       showToast({
         type: "error",
-        title: "Validation Failed",
+        title: t("common_validation_failed"),
         message: body,
       });
     }
@@ -82,14 +82,14 @@
         <div class="flex-1 inline-flex flex-col justify-start items-start gap-4">
           <div class="flex w-full">
             <div class="flex-1">
-              <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
+              <BaseInput type="text" :placeholder="t('booking_event_title_placeholder')" v-model="formData.eventTitle" wrapperClass="w-full"
                 inputClass="px-3.5 text-gray-500 text-gray-500 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
             <div
               class="h-[45px] bg-white/50 border-l text-sm px-2 inline-flex flex-col justify-center items-center gap-1.5 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300">
               Todo</div>
           </div>
-          <QuillEditor v-model="formData.eventDescription" placeholder="Event Description..." />
+          <QuillEditor v-model="formData.eventDescription" :placeholder="t('booking_event_description_placeholder')" />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
               <div class="text-slate-700 text-xs font-normal leading-none">Call Type</div>
@@ -114,7 +114,7 @@
         </div>
       </div>
 
-      <BookingSectionsWrapper title="Event Date and time" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
+      <BookingSectionsWrapper :title="t('booking_event_date_time')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
         <div class="flex flex-col gap-3 w-full mt-3">
           <div class=" text-gray-900 text-xs font-normal  leading-none">
             GMT +8 Hong Kong Standard time
@@ -179,7 +179,7 @@
       </BookingSectionsWrapper>
 
 
-      <BookingSectionsWrapper title="Pricing Settings" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
+      <BookingSectionsWrapper :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
         leftIconClass="mt-[4px]">
         <div class="inline-flex flex-col gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
@@ -191,7 +191,7 @@
               <BaseInput type="number" placeholder="15" v-model="formData.basePrice"
                 inputClass="bg-white/50 w-44 px-3 placeholder:text-black py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
               <div class="flex gap-2 items-center">
-                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">Tokens </span>
+                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">{{ t("common_tokens") }}</span>
 
               </div>
             </div>
@@ -199,7 +199,7 @@
 
           <div class=" flex flex-col justify-center items-start gap-3">
             <CheckboxGroup v-model="formData.enableLongerDiscount"
-              label="Enable discount price for when user pay for recurring events"
+              :label="t('booking_enable_discount_recurring')"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] leading-normal" wrapperClass="flex gap-2" />
 
@@ -213,7 +213,7 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
 
                   <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                    events
+                    {{ t("common_events") }}
                   </div>
 
                 </div>
@@ -225,7 +225,7 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
 
                   <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                    % off base price
+                    {{ t("booking_percent_off_base_price") }}
                   </div>
                 </div>
               </div>
@@ -234,7 +234,7 @@
 
           <div class=" flex flex-col justify-center items-start">
             <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.enableCancellationFee" label="Enable cancellation fee"
+              <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_enable_cancellation_fee')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -252,11 +252,11 @@
                     :disabled="!formData.enableCancellationFee"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                   <div class="w-14 justify-start text-slate-700 text-base font-medium font-['Poppins'] leading-normal">
-                    Tokens
+                    {{ t("common_tokens") }}
                   </div>
                 </div>
                 <CheckboxGroup v-model="formData.allowAdvanceCancellation"
-                  label="User can cancel in advance to void minimum charge"
+                  :label="t('booking_allow_advance_cancellation')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] leading-normal" wrapperClass="flex gap-2 opacity-50" />
                 <div class="flex items-center opacity-50 gap-2 w-full">
@@ -274,7 +274,7 @@
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper title=" Booking Settings" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
+      <BookingSectionsWrapper :title="t('booking_booking_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
         accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.bookingSettings"
         @toggle="toggleSection('bookingSettings')">
         <div v-show="sectionsState.bookingSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
@@ -282,7 +282,7 @@
           <div class="flex flex-col gap-3">
 
             <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.setMaxUsers" label="Set maximum users "
+              <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_set_max_users')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -305,7 +305,7 @@
           <div class=" flex flex-col  gap-3">
             <div class=" flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2">
-                <CheckboxGroup v-model="formData.setReminders" label="Set scheduled call reminder"
+                <CheckboxGroup v-model="formData.setReminders" :label="t('booking_set_reminders')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
@@ -318,15 +318,15 @@
                 <div class="w-6 h-10" />
                 <div class="w-full flex flex-col justify-start items-start opacity-50 ">
                   <div class=" inline-flex justify-end items-center gap-2">
-                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
+                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
                     <BaseInput type="number" placeholder="15" v-model="formData.remindMeTime"
                       :disabled="!formData.setReminders"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-                    <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">minutes
-                      before a</div>
+                    <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal">{{ t("common_minutes") }}
+                      {{ t("booking_before_a") }}</div>
                   </div>
                   <div class="inline-flex justify-end items-center gap-2">
-                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">scheduled call.
+                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_scheduled_call") }}
                     </div>
                   </div>
                 </div>
@@ -339,7 +339,7 @@
             <div class=" flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.allowWaitlist"
-                  label="If booking slots are full, allow fans to join waitlist"
+                  :label="t('booking_join_waitlist_if_full')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
@@ -354,7 +354,7 @@
                     <BaseInput type="number" placeholder="15" v-model="formData.waitlistSpots"
                       :disabled="!formData.allowWaitlist"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">waitlist spots</div>
+                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_waitlist_spots") }}</div>
                   </div>
                 </div>
               </div>
@@ -368,7 +368,7 @@
     <div class="flex items-center pl-6">
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
       <div class="flex justify-end">
-        <ButtonComponent @click="goToNext" text="Next" variant="polygonLeft"
+        <ButtonComponent @click="goToNext" :text="t('common_next')" variant="polygonLeft"
           :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
               w-6 h-6 transition duration-200
               filter brightness-0 invert-0   /* Default: black */

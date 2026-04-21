@@ -3,6 +3,7 @@ import { toNumberOr } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 import { setBackendJwtToken } from "@/utils/backendJwt.js";
+import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
@@ -15,6 +16,8 @@ const DEFAULT_BOOTSTRAP = {
     name: null,
     isVerified: null,
   },
+  translations: {},
+  locale: "en",
   bootstrapped: false,
 };
 
@@ -60,6 +63,8 @@ export function normalizeOneOnOneBookingBootstrap(payload = {}) {
       name: payload.creatorName,
       isVerified: payload.creatorVerified,
     }),
+    translations: normalizeBookingTranslations(payload.translations),
+    locale: normalizeBookingLocale(payload.locale),
   };
 }
 
@@ -75,6 +80,8 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
+  bootstrapState.translations = normalized.translations;
+  bootstrapState.locale = normalized.locale;
   bootstrapState.bootstrapped = normalized.creatorId != null;
   applyBackendJwtTokenSafely(normalized.jwtToken);
   logFanBookingDebug("bootstrap", "apply:end", {
@@ -85,6 +92,8 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
       apiBaseUrl: bootstrapState.apiBaseUrl,
       jwtToken: bootstrapState.jwtToken,
       creatorData: bootstrapState.creatorData,
+      translations: bootstrapState.translations,
+      locale: bootstrapState.locale,
       bootstrapped: bootstrapState.bootstrapped,
     },
   });
@@ -141,6 +150,7 @@ export function readOneOnOneBookingBootstrapFromUrl() {
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),
+    locale: params.get("locale") || "en",
   });
   logFanBookingDebug("bootstrap", "url:resolved", normalized);
   return normalized;

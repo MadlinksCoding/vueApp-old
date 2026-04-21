@@ -2,6 +2,7 @@ import { reactive } from "vue";
 import { toNumberOr } from "@/utils/contextIds.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 import { setBackendJwtToken } from "@/utils/backendJwt.js";
+import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
@@ -15,6 +16,8 @@ const DEFAULT_BOOTSTRAP = {
     name: null,
     isVerified: null,
   },
+  translations: {},
+  locale: "en",
   bootstrapped: false,
 };
 
@@ -54,6 +57,8 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
       name: payload.creatorName,
       isVerified: payload.creatorVerified,
     }),
+    translations: normalizeBookingTranslations(payload.translations),
+    locale: normalizeBookingLocale(payload.locale),
   };
 }
 
@@ -66,6 +71,8 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.creatorData = normalized.creatorData;
+  bootstrapState.translations = normalized.translations;
+  bootstrapState.locale = normalized.locale;
   bootstrapState.bootstrapped = String(normalized.userRole || "").toLowerCase() === "fan"
     ? normalized.fanId != null
     : normalized.creatorId != null;
@@ -97,6 +104,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),
+    locale: params.get("locale") || "en",
   });
 }
 

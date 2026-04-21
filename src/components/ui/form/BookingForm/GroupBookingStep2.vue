@@ -10,11 +10,13 @@ import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSecti
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import { showToast } from "@/utils/toastBus.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
+import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const props = defineProps(["engine"]);
 const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
+const { t } = useBookingTranslations();
 
 const formData = ref({
   spendingRequirement: props.engine.state.spendingRequirement || "",
@@ -58,10 +60,7 @@ function resolveCreatorId() {
 }
 
 function formatValidationErrors(errors = []) {
-  return (errors || []).map((error) => {
-    if (typeof error === "string") return error;
-    return error?.message || "Validation error";
-  });
+  return formatBookingValidationErrors(errors, t);
 }
 
 const createEvent = async () => {
@@ -86,10 +85,10 @@ const createEvent = async () => {
       if (!flowResult?.ok) {
         const message = flowResult?.meta?.uiErrors?.[0]
           || flowResult?.error?.message
-          || "Could not create event. Please try again.";
+          || t("booking_create_failed_message");
         showToast({
           type: "error",
-          title: "Create Event Failed",
+          title: t("common_create_event_failed"),
           message,
         });
         return;
@@ -105,8 +104,8 @@ const createEvent = async () => {
     const messages = formatValidationErrors(result.errors);
     showToast({
       type: "error",
-      title: "Validation Failed",
-      message: messages.length ? messages.join(" ") : "Please fix errors before creating.",
+      title: t("common_validation_failed"),
+      message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
     });
   }
 };
@@ -116,17 +115,17 @@ const createEvent = async () => {
   <div class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
     <div class="flex items-center gap-2 cursor-pointer px-2" @click="goToBack">
       <img src="https://i.ibb.co/CsWd11xX/Icon-2.png" alt="" />
-      <div class="text-[12px] font-medium">Back</div>
+      <div class="text-[12px] font-medium">{{ t("common_back") }}</div>
     </div>
 
-    <BookingSectionsWrapper title="Audience Settings" leftIcon="https://i.ibb.co/5hNw0yjJ/Icon.png"
+    <BookingSectionsWrapper :title="t('booking_audience_settings')" leftIcon="https://i.ibb.co/5hNw0yjJ/Icon.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.audienceSettings"
       @toggle="toggleSection('audienceSettings')">
       <div v-show="sectionsState.audienceSettings" class="flex flex-col gap-5 mt-5">
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-              Who can join this event?
+              {{ t("booking_who_can_book") }}
             </div>
             <div
               class="bg-white/75 px-4 py-2 w-full rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex">
@@ -140,7 +139,7 @@ const createEvent = async () => {
 
             <div class="inline-flex justify-start items-center gap-1">
               <div class="text-slate-700 text-base font-normal leading-normal">
-                Spending requirement
+                {{ t("booking_spending_requirement") }}
               </div>
               <img src="https://i.ibb.co/HD78k3Sf/Icon.png" alt="" />
             </div>
@@ -151,7 +150,7 @@ const createEvent = async () => {
                 +
               </div>
               <div class="text-blue-600 text-sm font-medium">
-                Add
+                {{ t("common_add") }}
               </div>
             </div>
 
@@ -163,11 +162,11 @@ const createEvent = async () => {
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-              Blocked user
+              {{ t("booking_blocked_user") }}
             </div>
             <div class="w-full">
-              <InputComponentDashbaord id="input_b" placeholder="Search by username & email"
-                v-model="formData.blockedUserSearch" label-text="Blocked user" :left-icon="MagnifyingGlassIcon"
+              <InputComponentDashbaord id="input_b" :placeholder="t('common_search_by_username_email')"
+                v-model="formData.blockedUserSearch" :label-text="t('booking_blocked_user')" :left-icon="MagnifyingGlassIcon"
                 optionalLabel class="w-full" />
             </div>
           </div>
@@ -177,50 +176,50 @@ const createEvent = async () => {
 
     <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper title="Collaborator" leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
+    <BookingSectionsWrapper :title="t('booking_collaborator')" leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.coPerformer"
       @toggle="toggleSection('coPerformer')">
       <div v-show="sectionsState.coPerformer" class="w-full mt-3">
-        <InputComponentDashbaord id="input_b" placeholder="Search by username & email"
-          v-model="formData.coPerformerSearch" label-text="Co-performer (Optional)" :left-icon="MagnifyingGlassIcon"
+        <InputComponentDashbaord id="input_b" :placeholder="t('common_search_by_username_email')"
+          v-model="formData.coPerformerSearch" :label-text="t('booking_co_performer_optional')" :left-icon="MagnifyingGlassIcon"
           optionalLabel class="w-full" />
       </div>
     </BookingSectionsWrapper>
 
     <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper title="X Repost Settings" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
+    <BookingSectionsWrapper :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.xRepost"
       @toggle="toggleSection('xRepost')">
       <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
 
         <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostLive" label="Post to X when my booking schedule is live"
-            version="dashboard" wrapper-label="Dark Mode" />
+          <CheckboxSwitch v-model="formData.xPostLive" :label="t('booking_x_post_live')"
+            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
           <div class="flex justify-end">
             <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
         <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostBooked" label="Post to X when a booking is received"
-            version="dashboard" wrapper-label="Dark Mode" />
+          <CheckboxSwitch v-model="formData.xPostBooked" :label="t('booking_x_post_booked')"
+            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
           <div class="flex justify-end">
             <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
         <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostInSession" label="Post to X when I am in a session" version="dashboard"
-            wrapper-label="Dark Mode" />
+          <CheckboxSwitch v-model="formData.xPostInSession" :label="t('booking_x_post_in_session')" version="dashboard"
+            :wrapper-label="t('booking_dark_mode')" />
           <div class="flex justify-end">
             <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
         <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostTipped" label="Post to X when I am tipped in a session"
-            version="dashboard" wrapper-label="Dark Mode" />
+          <CheckboxSwitch v-model="formData.xPostTipped" :label="t('booking_x_post_tipped')"
+            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
           <div class="flex justify-end">
             <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
@@ -228,8 +227,8 @@ const createEvent = async () => {
 
 
         <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostPurchase" label="Post to X when someone made a purchase in a session"
-            version="dashboard" wrapper-label="Dark Mode" />
+          <CheckboxSwitch v-model="formData.xPostPurchase" :label="t('booking_x_post_purchase')"
+            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
           <div class="flex justify-end">
             <img class="w-4 h-5 mr-[4px]" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
@@ -240,7 +239,7 @@ const createEvent = async () => {
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
     <div class="absolute right-0 bottom-0">
-      <ButtonComponent @click="createEvent" :disabled="isCreating" text="CREATE EVENT" variant="polygonLeft"
+      <ButtonComponent @click="createEvent" :disabled="isCreating" :text="t('common_create_event')" variant="polygonLeft"
         :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`
           w-6 h-6 transition duration-200
           filter brightness-0

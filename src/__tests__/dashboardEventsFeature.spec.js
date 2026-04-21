@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 let engine;
 const callFlow = vi.fn();
@@ -220,6 +221,26 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.emitted("create-event")).toEqual([
       [{ type: "private" }],
     ]);
+  });
+
+  it("renders dashboard labels from scoped translation overrides", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 88,
+        userRole: "creator",
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({
+            translations: { dashboard_new_events: "Eventos nuevos" },
+          }),
+        },
+      },
+    });
+
+    expect(wrapper.get("[data-test='new-events']").text()).toBe("Eventos nuevos");
   });
 
   it("emits open-url for join actions in embedded mode", async () => {

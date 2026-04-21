@@ -30,6 +30,65 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(popup.iframe.src).toContain("fanId=0");
   });
 
+  it("posts translations and locale in fan booking bootstrap without putting them in the iframe URL", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 0,
+      translations: {
+        fan_booking_book_now: "Reservar",
+        ignored: 12,
+      },
+      locale: "es-MX",
+    });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    popup.iframe.dispatchEvent(new Event("load"));
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_FAN_BOOKING_BOOTSTRAP",
+        payload: expect.objectContaining({
+          translations: { fan_booking_book_now: "Reservar" },
+          locale: "es-MX",
+        }),
+      }),
+      window.location.origin,
+    );
+    expect(popup.iframe.src).not.toContain("translations");
+    expect(popup.iframe.src).not.toContain("Reservar");
+    expect(popup.iframe.src).not.toContain("locale=es-MX");
+  });
+
+  it("posts translations and locale in events mount bootstrap without putting them in the iframe URL", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      translations: {
+        dashboard_new_events: "Nuevos eventos",
+        ignored: {},
+      },
+      locale: "fr-CA",
+    });
+    const postMessage = vi.spyOn(embed.iframe.contentWindow, "postMessage");
+
+    embed.sendBootstrap();
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_EVENTS_BOOTSTRAP",
+        payload: expect.objectContaining({
+          translations: { dashboard_new_events: "Nuevos eventos" },
+          locale: "fr-CA",
+        }),
+      }),
+      window.location.origin,
+    );
+    expect(embed.iframe.src).not.toContain("translations");
+    expect(embed.iframe.src).not.toContain("Nuevos");
+    expect(embed.iframe.src).not.toContain("locale=fr-CA");
+  });
+
   it("posts auth updates to the active booking popup without remounting", () => {
     const popup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,

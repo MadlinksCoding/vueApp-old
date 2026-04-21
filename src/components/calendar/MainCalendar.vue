@@ -72,7 +72,7 @@
         <button
           class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">Today</p>
+          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
         </button>
         <span class="lg:flex items-center justify-between hidden ">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -97,7 +97,7 @@
             :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
             class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
             <span class="flex items-center justify-center h-full py-2">
-              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events
+              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
               </h2>
               <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
                 {{ filteredBookedSlotsCount }}
@@ -128,7 +128,7 @@
             class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Day
+            {{ t("common_day") }}
           </button>
 
           <button @click="setView('week')"
@@ -136,7 +136,7 @@
             :class="view === 'week'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Week
+            {{ t("common_week") }}
           </button>
 
           <button @click="setView('month')"
@@ -144,7 +144,7 @@
             :class="view === 'month'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Month
+            {{ t("common_month") }}
           </button>
 
         </span>
@@ -154,7 +154,7 @@
         <button
           class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">Today</p>
+          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
         </button>
         <div class="cursor-pointer relative flex xl:hidden">
           <div @click="toggleDropdown">
@@ -204,7 +204,7 @@
       </div>
 
       <div class="flex items-center gap-3 order-3 w-full mt-1 lg:w-auto lg:order-2 lg:mt-0">
-        <CheckboxGroup label="Show existing events/booking schedule" v-model="showSchedule"
+        <CheckboxGroup :label="t('dashboard_show_existing_schedule')" v-model="showSchedule"
           checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
           labelClass="text-xs sm:text-[12px] leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
           wrapperClass="flex items-center" />
@@ -212,7 +212,7 @@
 
       <button @click="$emit('preview-schedule')"
         class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
-        Preview booking schedule
+        {{ t("common_preview_booking_schedule") }}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
           stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]">
           <line x1="7" y1="17" x2="17" y2="7"></line>
@@ -250,7 +250,7 @@
 
             <div class="text-[11px] font-semibold leading-[1.25rem] uppercase"
               :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">
-              {{ ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] }}
+              {{ shortWeekdays[d.getDay()] }}
             </div>
 
             <div class="text-[1rem] w-[2rem] text-center font-semibold leading-[2rem]"
@@ -305,9 +305,9 @@
     <div v-if="effectiveView === 'month'" class="flex flex-col h-full">
 
       <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
-        <div v-for="w in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="w"
+        <div v-for="(w, index) in shortWeekdays" :key="w"
           class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[10px]"
-          :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">
+          :class="index === 0 ? 'text-red-400' : 'text-gray-500'">
           {{ w }}
         </div>
       </div>
@@ -376,8 +376,7 @@
                             </svg>
                           </div>
                           <div class="justify-start text-white text-xs font-semibold font-['Poppins'] leading-4">
-                            Join
-                            Call</div>
+                            {{ t("common_join_call") }}</div>
                         </div>
                       </div>
                       <div class="w-4 h-4 relative overflow-hidden">
@@ -559,6 +558,7 @@ import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import MiniCalendar from './MiniCalendar.vue';
 
@@ -580,6 +580,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -745,7 +746,7 @@ const handleDateUpdate = (newDate) => {
 
 const eventsData = ref([
   {
-    title: 'TODAY',
+    title: t("dashboard_today_section"),
     items: [
       {
         time: '2:15pm-9:30pm',
@@ -771,7 +772,7 @@ const eventsData = ref([
     ]
   },
   {
-    title: 'THIS WEEK',
+    title: t("dashboard_week_section"),
     items: [
       {
         dayName: 'TUE',
@@ -800,7 +801,7 @@ const eventsData = ref([
     ]
   },
   {
-    title: 'PENDING EVENTS',
+    title: t("dashboard_pending_events"),
     items: [
       {
         dayName: 'WED',
@@ -935,12 +936,22 @@ const filteredBookedSlotsCount = computed(() => {
   return normalized.value.filter((event) => !event?.isAvailabilityBlock).length;
 });
 
+const shortWeekdays = computed(() => [
+  t("date_sun_short"),
+  t("date_mon_short"),
+  t("date_tue_short"),
+  t("date_wed_short"),
+  t("date_thu_short"),
+  t("date_fri_short"),
+  t("date_sat_short"),
+]);
+
 const title = computed(() => {
-  const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
-  return `${monthNames[m]} ${y}`;
+  const d = cursor.value;
+  return d.toLocaleDateString(locale.value, { month: "long", year: "numeric" });
 });
 
-const currentMonth = computed(() => monthNames[cursor.value.getMonth()]);
+const currentMonth = computed(() => cursor.value.toLocaleDateString(locale.value, { month: "long" }));
 const currentYear = computed(() => cursor.value.getFullYear());
 
 watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });

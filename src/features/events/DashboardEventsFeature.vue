@@ -1,9 +1,9 @@
 <template>
   <div v-if="!hasDashboardContext" class="flex min-h-[24rem] items-center justify-center rounded-xl bg-white/70 p-6 text-center">
     <div>
-      <h2 class="text-base font-semibold text-slate-700">Waiting for dashboard context</h2>
+      <h2 class="text-base font-semibold text-slate-700">{{ t("dashboard_waiting_context") }}</h2>
       <p class="mt-2 text-sm text-slate-500">
-        The events embed will load once a valid {{ isFan ? "fan" : "creator" }} id is provided.
+        {{ t("dashboard_context_missing", { role: isFan ? "fan" : "creator" }) }}
       </p>
     </div>
   </div>
@@ -197,7 +197,7 @@
 
         <div v-else-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
           <ButtonComponent
-            text="NEW EVENTS"
+            :text="t('dashboard_new_events')"
             variant="none"
             customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
             :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
@@ -232,7 +232,7 @@
           <img
             src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
             class="w-6 h-6 filter brightness-0 invert"
-            alt="Add"
+            :alt="t('common_add')"
           />
         </button>
         <div
@@ -256,9 +256,9 @@
 
     <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
       <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
-        <h3 class="text-[1rem] font-semibold text-gray-700">Are you sure you want to cancel this call?</h3>
+        <h3 class="text-[1rem] font-semibold text-gray-700">{{ t("dashboard_cancel_confirm_title") }}</h3>
         <p class="mt-2 text-black">
-          This will cancel the booking and refund the tokens back to the fan.
+          {{ t("dashboard_cancel_confirm_body") }}
         </p>
         <div class="mt-2 bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
           <p class="font-semibold truncate">{{ cancelBookingCandidateTitle }}</p>
@@ -271,7 +271,7 @@
             :disabled="cancelBookingLoading"
             @click="closeCancelBookingPopup"
           >
-            Keep Booking
+            {{ t("common_cancel") }}
           </button>
           <button
             type="button"
@@ -279,7 +279,7 @@
             :disabled="cancelBookingLoading"
             @click="confirmCancelBooking"
           >
-            {{ cancelBookingLoading ? 'Cancelling...' : 'Cancel Booking' }}
+            {{ cancelBookingLoading ? t("common_loading") : t("dashboard_cancel_confirm_action") }}
           </button>
         </div>
       </div>
@@ -305,6 +305,7 @@ import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from 
 import { showToast } from "@/utils/toastBus.js";
 import { getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const props = defineProps({
   creatorId: {
@@ -334,6 +335,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["create-event", "open-url"]);
+const { t, locale } = useBookingTranslations();
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = "calendar:eventTypeColors";
 const NONE_COLOR_VALUE = "none";
@@ -653,7 +655,7 @@ function formatWidgetTime(startDate, endDate) {
 function makeAvatar(event) {
   return [{
     src: "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png",
-    name: event?.raw?.creatorName || "Creator",
+    name: event?.raw?.creatorName || t("common_creator"),
   }];
 }
 
@@ -727,7 +729,7 @@ function toWidgetItem(event, options = {}) {
       bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
       showJoin: joinState.canJoin,
       joinUrl: joinState.joinUrl,
-      statusText: event.status === "active" ? "active" : event.status,
+      statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
       avatars: makeAvatar(event),
       sourceEvent: event,
       accentColor,
@@ -735,14 +737,14 @@ function toWidgetItem(event, options = {}) {
   }
 
   return {
-    dayName: startDate.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase(),
+    dayName: startDate.toLocaleDateString(locale.value, { weekday: "short" }).toUpperCase(),
     dayNumber: String(startDate.getDate()),
     title: event.title,
     titleColorClass: styles.titleColorClass,
     borderClass: styles.borderClass,
     bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
     isGroup,
-    groupText: isGroup ? "Group event" : undefined,
+    groupText: isGroup ? t("dashboard_group_event") : undefined,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
@@ -769,7 +771,7 @@ function buildCalendarSlotsFromContext({
 }) {
   const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
     includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
-    titleFallback: "Booked Slot",
+    titleFallback: t("dashboard_booked_slot"),
   });
 
   const colorByEventId = new Map(
@@ -888,7 +890,7 @@ const fetchDashboardContext = async (forceRefresh = false) => {
   if (!result?.ok) {
     const message = result?.meta?.uiErrors?.[0]
       || result?.error?.message
-      || "Could not load booked slots.";
+      || t("dashboard_load_failed_message");
     dashboardEventsEngine.setState("events.error", message, { reason: "events-fetch" });
     dashboardEventsEngine.setState("events.list", [], { reason: "events-fetch", silent: true });
     dashboardEventsEngine.setState("events.bookedList", [], { reason: "events-fetch", silent: true });
@@ -932,8 +934,8 @@ const reviewPendingBooking = async (payload, decision) => {
   if (!bookingId) {
     showToast({
       type: "error",
-      title: "Booking Action Failed",
-      message: "Could not find booking id for this request.",
+      title: t("dashboard_booking_action_failed_title"),
+      message: t("dashboard_booking_action_missing_id"),
     });
     return;
   }
@@ -964,10 +966,10 @@ const reviewPendingBooking = async (payload, decision) => {
     if (!result?.ok) {
       const message = result?.meta?.uiErrors?.[0]
         || result?.error?.message
-        || "Could not update booking approval.";
+        || t("dashboard_booking_action_update_failed");
       showToast({
         type: "error",
-        title: "Booking Action Failed",
+        title: t("dashboard_booking_action_failed_title"),
         message,
       });
       return;
@@ -975,8 +977,8 @@ const reviewPendingBooking = async (payload, decision) => {
 
     showToast({
       type: "success",
-      title: "Booking Updated",
-      message: `Booking ${actionLabel} successfully.`,
+      title: t("dashboard_booking_updated_title"),
+      message: t("dashboard_booking_updated_message", { action: actionLabel }),
     });
 
     await fetchDashboardContext(true);
@@ -1000,7 +1002,7 @@ const goToCreateEvent = (type) => {
   emit("create-event", { type });
 };
 
-const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || "Selected booking");
+const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));
 
 const cancelBookingCandidateTime = computed(() => {
   const event = cancelBookingCandidate.value?.event;
@@ -1076,9 +1078,9 @@ const eventsData = computed(() => {
   });
 
   return [
-    { title: "TODAY", items: todayItems },
-    { title: "THIS WEEK", items: weekItems },
-    { title: "PENDING EVENTS", items: pendingItems },
+    { title: t("dashboard_today_section"), items: todayItems },
+    { title: t("dashboard_week_section"), items: weekItems },
+    { title: t("dashboard_pending_events"), items: pendingItems },
   ];
 });
 
@@ -1112,8 +1114,8 @@ const handleJoin = (item) => {
   if (!joinState.canJoin || !joinState.joinUrl) {
     showToast({
       type: "error",
-      title: "Join Unavailable",
-      message: "You can join only during the confirmed booking's join window and before it ends.",
+      title: t("dashboard_join_unavailable_title"),
+      message: t("dashboard_join_unavailable_message"),
     });
     return;
   }
@@ -1143,8 +1145,8 @@ const handleWidgetMenuAction = (payload) => {
     if (!bookingId) {
       showToast({
         type: "error",
-        title: "Cancel Failed",
-        message: "Could not find booking id for this call.",
+        title: t("dashboard_booking_cancel_failed_title"),
+        message: t("dashboard_cancel_missing_id"),
       });
       return;
     }
@@ -1156,8 +1158,8 @@ const handleWidgetMenuAction = (payload) => {
   if (action === "ask_more_time" || action === "ask_to_reschedule") {
     showToast({
       type: "info",
-      title: "Coming Soon",
-      message: "This action will be wired next.",
+      title: t("dashboard_coming_soon_title"),
+      message: t("dashboard_coming_soon_message"),
     });
   }
 };
@@ -1168,8 +1170,8 @@ const onCancelBookingFromCalendar = (payload) => {
   if (!bookingId) {
     showToast({
       type: "error",
-      title: "Cancel Failed",
-      message: "Could not find booking id for this call.",
+      title: t("dashboard_booking_cancel_failed_title"),
+      message: t("dashboard_cancel_missing_id"),
     });
     return;
   }
@@ -1202,10 +1204,10 @@ const confirmCancelBooking = async () => {
     if (!result?.ok) {
       const message = result?.meta?.uiErrors?.[0]
         || result?.error?.message
-        || "Could not cancel booking.";
+        || t("dashboard_booking_cancel_failed_message");
       showToast({
         type: "error",
-        title: "Cancel Failed",
+        title: t("dashboard_booking_cancel_failed_title"),
         message,
       });
       return;
@@ -1213,8 +1215,8 @@ const confirmCancelBooking = async () => {
 
     showToast({
       type: "success",
-      title: "Booking Cancelled",
-      message: "The booking was cancelled successfully.",
+      title: t("dashboard_booking_cancelled_title"),
+      message: t("dashboard_booking_cancelled_message"),
     });
     closeCancelBookingPopup();
     await fetchDashboardContext(true);

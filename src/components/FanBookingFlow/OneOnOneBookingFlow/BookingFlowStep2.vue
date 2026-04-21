@@ -2,7 +2,7 @@
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import { addMonths, monthNames } from '@/utils/calendarHelpers.js';
+import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
 import { buildBookingPaymentPreview } from '@/services/bookings/mappers/createBookingMapper.js';
 import {
@@ -22,6 +22,7 @@ import {
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   engine: {
@@ -34,6 +35,7 @@ const props = defineProps({
   },
 });
 
+const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
 const creatorPresentation = computed(() => resolveCreatorPresentation({
@@ -54,7 +56,7 @@ const state = reactive({
 });
 
 const header = computed(() => {
-  return `${monthNames[state.focus.getMonth()]} ${state.focus.getFullYear()}`;
+  return state.focus.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' });
 });
 
 const shiftMonth = (n) => {
@@ -257,14 +259,14 @@ const discountRows = computed(() => {
   if (longerDiscountAmount.value > 0) {
     rows.push({
       code: 'discount',
-      label: 'Longer Session Discount',
+      label: t('fan_booking_longer_session_discount'),
       amount: longerDiscountAmount.value,
     });
   }
   if (firstTimeDiscountAmount.value > 0) {
     rows.push({
       code: 'first_time_discount',
-      label: 'First Time Discount',
+      label: t('fan_booking_first_time_discount'),
       amount: firstTimeDiscountAmount.value,
     });
   }
@@ -304,7 +306,7 @@ const currentDuration = computed(() => {
 
 const selectedDateDisplay = computed(() => {
   if (!state.selected) return '';
-  return state.selected.toLocaleDateString('en-US', {
+  return state.selected.toLocaleDateString(locale.value, {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
@@ -323,10 +325,10 @@ const headerDateDisplay = computed(() => {
     d1.getFullYear() === d2.getFullYear();
 
   let prefix = '';
-  if (isSameDay(selected, today)) prefix = 'Today';
-  else if (isSameDay(selected, tomorrow)) prefix = 'Tomorrow';
+  if (isSameDay(selected, today)) prefix = t('common_today');
+  else if (isSameDay(selected, tomorrow)) prefix = t('fan_booking_tomorrow');
 
-  const dateStr = selected.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const dateStr = selected.toLocaleDateString(locale.value, { month: 'long', day: 'numeric', year: 'numeric' });
   return prefix ? `${prefix} ${dateStr}` : dateStr;
 });
 
@@ -389,7 +391,7 @@ function hydrateAddons() {
 
   const mapped = addOnRows.map((item, index) => ({
     id: item?.id || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
-    name: item?.title || item?.name || 'Add-on',
+    name: item?.title || item?.name || t('fan_booking_add_on'),
     price: Number(item?.priceTokens || item?.price || 0),
     selected: false,
   }));
@@ -397,7 +399,7 @@ function hydrateAddons() {
   if (raw.allowFanRecordingEnabled && !mapped.some((item) => String(item.name).toLowerCase().includes('record'))) {
     mapped.unshift({
       id: `${selectedEvent.value?.eventId || 'event'}_recording`,
-      name: 'Record our session',
+      name: t('fan_booking_record_our_session'),
       price: Number(raw.allowFanRecordingTokens || 0),
       selected: false,
     });
@@ -469,8 +471,8 @@ const goToNextStep = () => {
   if (!state.selected) {
     showToast({
       type: 'error',
-      title: 'Date Required',
-      message: 'Please select a date first.',
+      title: t('fan_booking_date_required_title'),
+      message: t('fan_booking_date_required_message'),
     });
     return;
   }
@@ -478,8 +480,8 @@ const goToNextStep = () => {
   if (!selectedTime.value || selectedTime.value.disabled) {
     showToast({
       type: 'error',
-      title: 'Slot Unavailable',
-      message: 'Please select an available time slot.',
+      title: t('fan_booking_slot_unavailable_title'),
+      message: t('fan_booking_slot_unavailable_message'),
     });
     return;
   }
@@ -487,8 +489,8 @@ const goToNextStep = () => {
   if (!selectedDurationObj.value) {
     showToast({
       type: 'error',
-      title: 'Session Length Required',
-      message: 'Please select session length to continue.',
+      title: t('fan_booking_session_length_required_title'),
+      message: t('fan_booking_session_length_required_message'),
     });
     return;
   }
@@ -598,8 +600,8 @@ onMounted(() => {
   if (!selectedEvent.value) {
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please choose an event first.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_choose_event_first'),
     });
     props.engine.goToStep(1);
     return;
@@ -622,7 +624,7 @@ onMounted(() => {
           :date-display="headerDateDisplay"
           :subtotal="totalPrice"
           :duration="currentDuration"
-          :title-display="selectedEvent?.title || 'High School Life Simulator'"
+          :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
           :creator-avatar="creatorPresentation.avatar"
           :creator-name="creatorPresentation.name"
           :creator-is-verified="creatorPresentation.isVerified"
@@ -663,7 +665,7 @@ onMounted(() => {
 
           <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 lg:p-5 h-full">
             <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
-              Select a date from calendar to see available time slots.
+              {{ t("fan_booking_select_date_prompt") }}
             </p>
           </div>
 
@@ -676,13 +678,13 @@ onMounted(() => {
               class="h-full w-full flex items-center justify-center"
             >
               <p class="text-sm flex justify-center leading-20 text-center py-16 px-8 items-center text-gray-400">
-                No booking available on this date.
+                {{ t("fan_booking_no_booking_on_date") }}
               </p>
             </div>
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">SELECT CALL START TIME</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_call_start_time") }}</h3>
               <div class="flex flex-wrap w-full gap-2">
                 <div
                   v-for="(slot, index) in timeSlots"
@@ -723,7 +725,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">SELECT LENGTH</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
               <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
                 <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem]">
                   <div
@@ -743,14 +745,14 @@ onMounted(() => {
                         selectedDurationObj?.value === opt.value ? 'text-[#0C111D]' : 'text-white',
                       ]"
                     >
-                      {{ opt.value }} MIN
+                      {{ opt.value }} {{ t("fan_booking_min_short") }}
                     </p>
                   </div>
                 </div>
               </div>
-              <p v-if="!selectedTime" class="text-xs text-gray-300">Select a start time first.</p>
+              <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
               <p class="text-sm leading-[20px] text-[#07F468]">
-                Your session will be on {{ selectedDateDisplay }} {{ formattedTimeRange !== '-' ? formattedTimeRange : '' }}
+                {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
               </p>
 
               <div
@@ -775,7 +777,7 @@ onMounted(() => {
                     v-if="offHourSurchargeAmount > 0"
                     class="flex items-center justify-between text-sm text-white"
                   >
-                    <p class="text-[#EAECF0]">Off-hour Surcharge</p>
+                    <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
                     <div class="flex items-center gap-1 text-[#FF9F43]">
                       <span>+</span>
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
@@ -784,7 +786,7 @@ onMounted(() => {
                   </div>
 
                   <div class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white">
-                    <p>Current Total</p>
+                    <p>{{ t("fan_booking_current_total") }}</p>
                     <div class="flex items-center gap-1">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
                       <span>{{ totalPrice }}</span>
@@ -795,7 +797,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="addons.length > 0">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">ADD-ON SERVICE</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -824,12 +826,10 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">OTHER REQUEST</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm leading-[20px] text-[#F2F4F7]">
-                  If you have other personal request you would like Princess
-                  Carrot Pop to know, please write down here. All additional
-                  request are subject to additional charges.
+                  {{ t("fan_booking_other_request_body") }}
                 </p>
               </div>
               <div class="example">
@@ -856,7 +856,7 @@ onMounted(() => {
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
             >
               <p class="text-lg leading-[28px] text-black text-center font-medium">
-                {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'PAYMENT SUMMARY' }}
+                {{ isPreviewReadOnly ? t('fan_booking_preview_only') : t('fan_booking_payment_summary') }}
               </p>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />

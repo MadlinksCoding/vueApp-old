@@ -120,6 +120,24 @@
     };
   }
 
+  function normalizeTranslations(value) {
+    var input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    var output = {};
+
+    Object.keys(input).forEach(function (key) {
+      var normalizedKey = typeof key === "string" ? key.trim() : "";
+      var translation = input[key];
+      if (!normalizedKey || typeof translation !== "string") return;
+      output[normalizedKey] = translation;
+    });
+
+    return output;
+  }
+
+  function normalizeLocale(value) {
+    return typeof value === "string" && value.trim() ? value.trim() : "en";
+  }
+
   function buildIframeSrcWithQuery(src, query) {
     var baseUrl = typeof src === "string" && src ? src : "";
     var hashIndex = baseUrl.indexOf("#");
@@ -342,12 +360,16 @@
       jwtToken: "",
       initialRoute: "events",
       creatorData: null,
+      translations: {},
+      locale: "en",
       targetOrigin: window.location.origin,
       iframeTitle: "Bookings Embed",
       minHeight: 720,
     }, options || {});
 
     var creatorData = normalizeCreatorData(settings.creatorData);
+    var translations = normalizeTranslations(settings.translations);
+    var locale = normalizeLocale(settings.locale);
 
     var wrapper = createElement("div", EVENTS_EMBED_ROOT_CLASS);
     wrapper.style.setProperty("--fs-events-embed-min-height", String(Math.max(320, safeNumber(settings.minHeight, 720))) + "px");
@@ -386,6 +408,8 @@
           jwtToken: settings.jwtToken || "",
           initialRoute: settings.initialRoute || "events",
           creatorData: creatorData,
+          translations: translations,
+          locale: locale,
         },
       }, targetOrigin);
     }
@@ -442,6 +466,8 @@
       apiBaseUrl: "",
       jwtToken: "",
       creatorData: null,
+      translations: {},
+      locale: "en",
       debug: false,
       targetOrigin: window.location.origin,
       iframeTitle: "One On One Booking Popup",
@@ -455,6 +481,8 @@
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var creatorData = normalizeCreatorData(settings.creatorData);
+    var translations = normalizeTranslations(settings.translations);
+    var locale = normalizeLocale(settings.locale);
     var unlockBodyScroll = lockBodyScroll();
     var isDestroyed = false;
     var closeInvoked = false;
@@ -497,10 +525,12 @@
         fanId: safeNumber(settings.fanId, null),
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         apiBaseUrl: settings.apiBaseUrl || "",
-        jwtToken: settings.jwtToken || "",
-        creatorData: creatorData,
-        iframeSrc: iframe.src,
-      }, settings);
+          jwtToken: settings.jwtToken || "",
+          creatorData: creatorData,
+          translations: translations,
+          locale: locale,
+          iframeSrc: iframe.src,
+        }, settings);
 
       iframe.contentWindow.postMessage({
         type: FS_FAN_BOOKING_BOOTSTRAP,
@@ -511,6 +541,8 @@
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
           creatorData: creatorData,
+          translations: translations,
+          locale: locale,
         },
       }, targetOrigin);
     }

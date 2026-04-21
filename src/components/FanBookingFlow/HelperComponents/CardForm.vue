@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import PaymentMethodLoggedIn from '../../checkout/ReuseableComponents/PaymentMethodLoggedIn.vue';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   handler:        { type: Object,                   default: null },
@@ -10,6 +11,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['order-id-updated']);
+const { t } = useBookingTranslations();
 
 const paymentContainer    = ref(null);
 const dropdownContainer   = ref(null);
@@ -217,7 +219,7 @@ defineExpose({
         <div class="w-5 h-5 relative flex justify-center items-center">
           <img src="/images/creditIcon.png" alt="">
         </div>
-        <span class="text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">PAYMENT METHOD</span>
+        <span class="text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_payment_method") }}</span>
       </div>
       <button
         v-if="savedCards.length > 0"
@@ -226,7 +228,7 @@ defineExpose({
         @click="showCardList = !showCardList"
         class="inline-flex items-center gap-1 text-xs text-[#22CCEE] cursor-pointer select-none"
       >
-        <span>Change Card</span>
+        <span>{{ t("fan_booking_change_card") }}</span>
         <svg
           width="10" height="10" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg"
           class="transition-transform duration-200"
@@ -258,7 +260,7 @@ defineExpose({
           <div class="flex self-stretch justify-between items-center h-4">
             <div class="flex items-center gap-1">
               <div class="w-4 h-4"></div>
-              <div class="text-xs font-medium leading-[18px]" style="color: #EAECF0;">Delete Card</div>
+              <div class="text-xs font-medium leading-[18px]" style="color: #EAECF0;">{{ t("fan_booking_delete_card") }}</div>
             </div>
             <div class="skeleton h-4 w-24 rounded-[6px]"></div>
           </div>
@@ -271,13 +273,13 @@ defineExpose({
             <!-- Card holder / expiry / cvv row -->
             <div class="inline-flex justify-between items-end self-stretch">
               <div class="h-[46px] inline-flex items-start flex-col">
-                <div class="text-xs font-medium leading-[18px] text-gray-400">Card Holder Name</div>
+                <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_card_holder_name") }}</div>
                 <div class="py-[2px]">
                   <div class="skeleton w-[100px] h-6 rounded-[6px]"></div>
                 </div>
               </div>
               <div class="h-[46px] w-[68px] inline-flex flex-col justify-between items-start">
-                <div class="text-xs font-medium leading-[18px] text-gray-400">Expiry Date</div>
+                <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_expiry_date") }}</div>
                 <div class="self-stretch py-[2px]">
                   <div class="skeleton h-6 rounded-[6px]"></div>
                 </div>
@@ -302,7 +304,7 @@ defineExpose({
           class="transition-colors"
           :class="card.id == selectedTokenId ? 'bg-[#22CCEE]/10' : 'hover:bg-white/5'"
         >
-          <div v-if="isDeletingCardId == card.id" class="px-3 py-2.5 text-xs text-gray-400">Deleting…</div>
+          <div v-if="isDeletingCardId == card.id" class="px-3 py-2.5 text-xs text-gray-400">{{ t("fan_booking_deleting") }}</div>
           <PaymentMethodLoggedIn
             v-else
             :holder-name="card.card_holder_name"
@@ -322,7 +324,7 @@ defineExpose({
               <path d="M5 1V9M1 5H9" stroke="#07F468" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
           </span>
-          <span class="text-[#07F468] text-sm">Add New Credit Card</span>
+          <span class="text-[#07F468] text-sm">{{ t("fan_booking_add_new_credit_card") }}</span>
         </div>
       </div>
 
@@ -343,7 +345,7 @@ defineExpose({
           frameborder="0"
         ></iframe>
         <p class="text-white text-base font-medium font-['Poppins'] text-center">
-          Processing your payment...
+          {{ t("fan_booking_processing_payment") }}
         </p>
       </div>
     </div>

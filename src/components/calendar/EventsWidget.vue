@@ -51,7 +51,7 @@
                 <img 
                   class="z-[30] w-5 h-5 object-cover object-center mask-mango shrink-0"
                   :src="event.avatars[0].src"
-                  alt="Avatar"
+                  :alt="t('common_creator')"
                 />
                 <p class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate">
                   {{ event.avatars[0].name }}
@@ -102,7 +102,7 @@
                     <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </span>
-                <p class="text-[0.75rem] text-white font-semibold leading-[1.125rem]">Join call</p>
+                <p class="text-[0.75rem] text-white font-semibold leading-[1.125rem]">{{ t("common_join_call") }}</p>
               </button>
             </div>
 
@@ -111,7 +111,7 @@
                 @click.stop="$emit('reply-click', event)"
                 class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold px-[0.5rem] py-[0.1875rem] border border-gray-500 rounded-[0.25rem] hover:bg-gray-50"
               >
-                REPLY
+                {{ t("common_reply") }}
               </button>
             </span>
             
@@ -144,7 +144,7 @@
                       <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  Ask for more time
+                  {{ t("dashboard_ask_for_more_time") }}
                 </button>
 
                 <button
@@ -157,7 +157,7 @@
                       <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  Ask to reschedule
+                  {{ t("dashboard_ask_to_reschedule") }}
                 </button>
 
                 <button
@@ -170,7 +170,7 @@
                       <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  Cancel Call
+                  {{ t("dashboard_cancel_call") }}
                 </button>
               </div>
             </span>
@@ -184,8 +184,10 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const openMenuId = ref(null);
+const { t } = useBookingTranslations();
 
 const closeMenu = () => {
   openMenuId.value = null;

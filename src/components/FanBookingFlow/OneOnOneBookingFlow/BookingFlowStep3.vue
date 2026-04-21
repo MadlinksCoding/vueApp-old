@@ -23,6 +23,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
 import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
 let topUpFormPrefetchPromise = null;
@@ -86,6 +87,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['booking-created', 'booking-failed']);
+const { t } = useBookingTranslations();
 
 // --- RETRIEVE DATA FROM ENGINE ---
 const bookingData = computed(() => {
@@ -199,7 +201,7 @@ const discountLines = computed(() => (
     })
     .map((row) => ({
       code: String(row?.code || ''),
-      label: String(row?.label || 'Discount'),
+      label: String(row?.label || t('common_discount')),
       amount: Math.abs(Number(row?.amount || 0)),
     }))
 ));
@@ -348,7 +350,7 @@ const bookingScheduleTimeDisplay = computed(() => {
 });
 
 const approvalMessage = computed(() => (
-  `This booking needs to be approved by ${creatorPresentation.value.name} before your session is confirmed.`
+  t('fan_booking_approval_message', { creator: creatorPresentation.value.name })
 ));
 
 const baseSessionMinutes = computed(() => {
@@ -381,8 +383,13 @@ const sessionBreakdownLabel = computed(() => {
   const baseMinutes = Math.round(Number(baseSessionMinutes.value || 0)) || 15;
   const totalMinutes = Math.round(Number(sessionDuration.value || 0)) || baseMinutes;
   const count = Math.max(1, Number(sessionCount.value || 1));
-  const sessionLabel = count === 1 ? 'session' : 'sessions';
-  return `${baseMinutes} Minute x ${count} ${sessionLabel} (${totalMinutes} Min.)`;
+  const sessionLabel = count === 1 ? t('fan_booking_session') : t('fan_booking_sessions');
+  return t('fan_booking_session_breakdown', {
+    base_minutes: baseMinutes,
+    count,
+    session_label: sessionLabel,
+    total_minutes: totalMinutes,
+  });
 });
 
 const sessionTotalTokens = computed(() => Math.max(0, Number(totalPrice.value || 0)));
@@ -394,7 +401,7 @@ function extractBackendMessage(flowResult) {
   const details = flowResult?.error?.details || {};
   const missingFields = Array.isArray(details?.missingFields) ? details.missingFields : [];
   if (code === "CREATE_BOOKING_MISSING_REQUIRED_FIELDS" && missingFields.length > 0) {
-    return `Missing required fields: ${missingFields.join(', ')}.`;
+    return t('fan_booking_missing_required_fields', { fields: missingFields.join(', ') });
   }
   const validationMessages = details?.validation?.messages;
   if (Array.isArray(validationMessages) && validationMessages.length > 0) {
@@ -402,7 +409,7 @@ function extractBackendMessage(flowResult) {
   }
   return flowResult?.error?.message
     || flowResult?.meta?.uiErrors?.[0]
-    || 'Could not complete booking.';
+    || t('fan_booking_complete_failed_message');
 }
 
 function preflightBookingPayload() {
@@ -815,7 +822,7 @@ function applyHoldTimer({ expiresAt, initialSeconds = 0 } = {}) {
     if (nextSeconds <= 0) {
       clearHoldTimer();
       props.engine.setState('fanBooking.temporaryHold.status', 'expired', { reason: 'temporary-hold-expired', silent: true });
-      holdError.value = 'Your slot hold expired. Please go back and reserve again.';
+      holdError.value = t('fan_booking_hold_expired_message');
     }
   };
 
@@ -828,7 +835,7 @@ function getHoldStatusMessage(result) {
     || result?.error?.details?.error
     || result?.error?.message
     || result?.meta?.uiErrors?.[0]
-    || 'Could not reserve this slot.';
+    || t('fan_booking_reserve_slot_failed');
 }
 
 async function refreshTemporaryHoldStatus(temporaryHoldId) {
@@ -901,7 +908,7 @@ async function ensureTemporaryHold() {
 
     const latestHoldId = createResult.data?.temporaryHoldId || props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
     if (!latestHoldId) {
-      holdError.value = 'Temporary hold was created but id is missing.';
+      holdError.value = t('fan_booking_hold_missing_id');
       return false;
     }
 
@@ -968,7 +975,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     const parsedBalance = parseTokenBalance(response, creatorId);
 
     if (!Number.isFinite(parsedBalance)) {
-      throw new Error('Could not retrieve token balance.');
+      throw new Error(t('fan_booking_token_balance_failed'));
     }
 
     walletBalance.value = parsedBalance;
@@ -984,7 +991,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     return true;
   } catch (error) {
     hasCheckedBalance.value = false;
-    balanceCheckError.value = error?.message || 'Could not check token balance.';
+    balanceCheckError.value = error?.message || t('fan_booking_check_token_balance_failed');
     logFanBookingDebug('step3', 'refreshWalletBalance:error', {
       message: balanceCheckError.value,
       error,
@@ -992,7 +999,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     if (!silent) {
       showToast({
         type: 'error',
-        title: 'Balance Check Failed',
+        title: t('fan_booking_balance_check_failed_title'),
         message: balanceCheckError.value,
       });
     }
@@ -1014,12 +1021,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
   if (!selectedEvent.value) {
     emit('booking-failed', {
       type: 'event-missing',
-      message: 'Please select an event before completing booking.',
+      message: t('fan_booking_select_event_before_complete'),
     });
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please select an event before completing booking.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_select_event_before_complete'),
     });
     props.engine.goToStep(1);
     return;
@@ -1034,12 +1041,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
         type: 'booking-preflight',
         missingFields: preflight.missingFields,
         previewPayload: preflight.previewPayload,
-        message: `Missing required fields: ${preflight.missingFields.join(', ')}.`,
+        message: t('fan_booking_missing_required_fields', { fields: preflight.missingFields.join(', ') }),
       });
       showToast({
         type: 'error',
-        title: 'Booking Data Missing',
-        message: `Missing required fields: ${preflight.missingFields.join(', ')}.`,
+        title: t('fan_booking_booking_data_missing_title'),
+        message: t('fan_booking_missing_required_fields', { fields: preflight.missingFields.join(', ') }),
       });
       props.engine.setState('fanBooking.booking.lastPreflightPayload', preflight.previewPayload, { reason: 'booking-preflight', silent: true });
       return;
@@ -1060,7 +1067,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       });
       showToast({
         type: 'error',
-        title: 'Booking Failed',
+        title: t('fan_booking_booking_failed_title'),
         message: extractBackendMessage(result),
       });
       if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
@@ -1115,20 +1122,20 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
     if (!props.embedded) {
       showToast({
         type: 'success',
-        title: 'Booking Created',
-        message: 'Your booking request has been submitted.',
+        title: t('fan_booking_created_title'),
+        message: t('fan_booking_created_message'),
       });
     }
   } catch (error) {
     emit('booking-failed', {
       type: 'create-booking-exception',
       error,
-      message: error?.message || 'Could not complete booking.',
+      message: error?.message || t('fan_booking_complete_failed_message'),
     });
     showToast({
       type: 'error',
-      title: 'Booking Failed',
-      message: error?.message || 'Could not complete booking.',
+      title: t('fan_booking_booking_failed_title'),
+      message: error?.message || t('fan_booking_complete_failed_message'),
     });
     if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
   } finally {
@@ -1147,8 +1154,8 @@ const enterTopUpSubstep = async () => {
   if (!holdOk) {
     showToast({
       type: 'error',
-      title: 'Could Not Hold Slot',
-      message: holdError.value || 'Could not reserve this slot.',
+      title: t('fan_booking_could_not_hold_slot_title'),
+      message: holdError.value || t('fan_booking_reserve_slot_failed'),
     });
     return false;
   }
@@ -1162,8 +1169,8 @@ function validateBeforeTopUpSubmit() {
   if (!hasActiveHold.value) {
     showToast({
       type: 'error',
-      title: 'Slot Hold Expired',
-      message: 'Your slot hold expired. Please go back and reserve the slot again.',
+      title: t('fan_booking_slot_hold_expired_title'),
+      message: t('fan_booking_hold_expired_reserve_again'),
     });
     return false;
   }
@@ -1185,8 +1192,8 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
   if (!authApplied || !getBackendJwtToken()) {
     showToast({
       type: 'error',
-      title: 'Account Verification Needed',
-      message: 'Payment succeeded, but we could not verify your account for booking. Please log in and try again.',
+      title: t('fan_booking_account_verification_needed_title'),
+      message: t('fan_booking_account_verification_needed_message'),
     });
     topUpFormRef.value?.setProcessingPayment(false);
     return;
@@ -1237,16 +1244,16 @@ const handleButtonClick = async () => {
   } catch (error) {
     showToast({
       type: 'error',
-      title: 'Action Failed',
-      message: error?.message || 'Could not continue booking.',
+      title: t('fan_booking_action_failed_title'),
+      message: error?.message || t('fan_booking_continue_failed_message'),
     });
   }
 };
 
 const actionLabel = computed(() => {
-  if (isCheckingBalance.value) return 'CHECKING BALANCE';
-  if (!hasCheckedBalance.value) return 'CHECK BALANCE';
-  return isTopUpNeeded.value ? 'TOP-UP AND PAY' : 'COMPLETE BOOKING';
+  if (isCheckingBalance.value) return t('fan_booking_checking_balance');
+  if (!hasCheckedBalance.value) return t('fan_booking_check_balance');
+  return isTopUpNeeded.value ? t('fan_booking_top_up_and_pay') : t('common_complete_booking');
 });
 
 const actionButtonClass = computed(() => {
@@ -1273,8 +1280,8 @@ onMounted(() => {
     props.engine.goToStep(1);
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please pick an event first.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_pick_event_first'),
     });
     return;
   }
@@ -1344,23 +1351,23 @@ onBeforeUnmount(() => {
                 <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
-                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_booking_schedule") }}</h3>
                       <button
                         type="button"
                         class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15"
                         @click="handleChangeSchedule"
                       >
-                        <span class="text-white text-xs font-medium leading-4">Change Schedule</span>
+                        <span class="text-white text-xs font-medium leading-4">{{ t("fan_booking_change_schedule") }}</span>
                       </button>
                     </div>
                     <p class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
                     <div class="flex gap-2 justify-between">
                       <div class="flex flex-col flex-1">
-                        <span class="text-xs text-[#98A2B3]">DATE</span>
+                        <span class="text-xs text-[#98A2B3]">{{ t("fan_booking_date") }}</span>
                         <span class="text-base text-white">{{ bookingScheduleDateDisplay }}</span>
                       </div>
                       <div class="flex flex-col flex-1">
-                        <span class="text-xs text-[#98A2B3]">TIME</span>
+                        <span class="text-xs text-[#98A2B3]">{{ t("common_time") }}</span>
                         <span class="text-base text-white">{{ bookingScheduleTimeDisplay }}</span>
                       </div>
                     </div>
@@ -1368,11 +1375,11 @@ onBeforeUnmount(() => {
 
                   <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
                     <div class="flex flex-col gap-3 w-full p-3 md:p-5">
-                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_payment_summary") }}</h3>
                       <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-3">
                           <div class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">SESSION COST</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_session_cost") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
@@ -1386,7 +1393,7 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">ADD-ON SERVICE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
                             <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
                               <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ addon.name }}</p>
                               <div class="flex justify-center items-center gap-0.5">
@@ -1398,9 +1405,9 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">OFF-HOUR SURCHARGE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Off-hour surcharge</p>
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm leading-[20px]">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1410,9 +1417,9 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="false && bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">BOOKING FEE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_booking_fee_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Booking Fee</p>
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_booking_fee") }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm leading-[20px]">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1422,7 +1429,7 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">DISCOUNT</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
                             <div
                               v-for="row in discountLines"
                               :key="row.code"
@@ -1439,14 +1446,14 @@ onBeforeUnmount(() => {
 
                           <div class="flex gap-3 justify-between">
                             <div class="flex flex-col gap-1">
-                              <h4 class="text-base font-semibold text-white">Session Total</h4>
+                              <h4 class="text-base font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
                               <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] flex">
-                                <span class="whitespace-nowrap">A non-refundable</span>
+                                <span class="whitespace-nowrap">{{ t("fan_booking_non_refundable") }}</span>
                                 <span class="flex items-center gap-[2px] mx-1">
                                   <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
                                   <span class="">{{ formatTokenCompact(bookingFeeAmount) }}</span>
                                 </span>
-                                <span class="whitespace-nowrap">booking fee included</span>
+                                <span class="whitespace-nowrap">{{ t("fan_booking_booking_fee_included") }}</span>
                               </p>
                             </div>
                             <div class="flex flex-col">
@@ -1462,7 +1469,7 @@ onBeforeUnmount(() => {
                         <hr class="border-[#F2F4F7] opacity-50" />
 
                         <div class="flex flex-row justify-between items-start text-white">
-                          <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                          <p class="text-xl font-semibold leading-[30px] text-white">{{ t("fan_booking_amount_due_today") }}</p>
                           <div class="flex flex-col">
                             <div class="flex justify-end items-center gap-0.5">
                               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1478,12 +1485,12 @@ onBeforeUnmount(() => {
                       <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">Your Token Balance</p></div>
+                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">{{ t("fan_booking_your_token_balance") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
 
                             <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#0C111D] border border-[#1D2939]">
                                 <span class="text-yellow-300 text-[10px] leading-[10px] relative top-[-2px]">...</span>
-                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">TOP UP NEEDED</p>
+                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
                                 <div class="w-3 h-3 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                 <p class="text-[10px] font-bold text-[#FFED29] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
                             </div>
@@ -1494,7 +1501,7 @@ onBeforeUnmount(() => {
                         </div>
                         <hr class="border-white/20" />
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-xl font-semibold">Balance After Booking</p></div>
+                          <div class="flex items-center gap-2"><p class="text-xl font-semibold">{{ t("fan_booking_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
                             <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                             <p class="text-2xl font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
@@ -1508,16 +1515,16 @@ onBeforeUnmount(() => {
 
               <template v-else>
                 <div class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3">
-                  <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">Reserving your selected slot...</p>
+                  <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">{{ t("fan_booking_reserving_slot") }}</p>
                   <p v-else-if="holdError" class="text-xs text-red-300 font-medium">{{ holdError }}</p>
-                  <p v-else class="text-xs text-[#07F468] font-semibold">Slot reserved for {{ formattedHoldTimer }}</p>
+                  <p v-else class="text-xs text-[#07F468] font-semibold">{{ t("fan_booking_slot_reserved_for", { time: formattedHoldTimer }) }}</p>
                   <button
                     v-if="holdError && !holdLoading"
                     type="button"
                     class="mt-2 text-[11px] underline text-[#22CCEE]"
                     @click="ensureTemporaryHold"
                   >
-                    Retry hold
+                    {{ t("fan_booking_retry_hold") }}
                   </button>
                 </div>
 
@@ -1555,7 +1562,7 @@ onBeforeUnmount(() => {
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                   after:border-b-0"
                 :class="actionButtonClass">
-              <p class="text-lg w-full leading-[28px] text-black text-center font-medium">{{ isSubmitting ? 'PROCESSING...' : actionLabel }}</p>
+              <p class="text-lg w-full leading-[28px] text-black text-center font-medium">{{ isSubmitting ? t('fan_booking_processing') : actionLabel }}</p>
               <div v-if="isCheckingBalance" class="w-5 h-5 border-2 border-black/40 border-t-black rounded-full animate-spin"></div>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
