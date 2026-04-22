@@ -23,6 +23,7 @@
         :focus-date="state.focus"
         :events="events1"
         :theme="theme1"
+        :user-role="props.userRole"
         :can-review-pending="isCreator"
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"

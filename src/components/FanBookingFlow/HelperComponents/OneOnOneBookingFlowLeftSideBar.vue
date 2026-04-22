@@ -48,6 +48,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  creatorLoading: {
+    type: Boolean,
+    default: false,
+  },
   showApprovalNeeded: {
     type: Boolean,
     default: true
@@ -73,15 +77,21 @@ const props = defineProps({
           <div class="flex flex-col text-white w-full gap-2 px-2 pt-2 md:p-0 lg:p-0">
             <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
             <div class="flex flex-row items-center gap-2">
-              <div class="w-6 h-6 flex justify-center items-center">
-                <img :src="props.creatorAvatar || bookingFlowProfileImage" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
-              </div>
-              <div class="flex flex-row items-center gap-1">
-                <p class="text-xs font-medium leading-[18px]">{{ props.creatorName }}</p>
-                <div v-if="props.creatorIsVerified" class="w-4 h-4 flex justify-center items-center">
-                  <img :src="bookingFlowVerifiedIcon" alt="verified-icon" />
+              <template v-if="props.creatorLoading">
+                <div class="w-6 h-6 rounded-full bg-white/20 animate-skeleton-loading"></div>
+                <div class="h-3.5 w-28 rounded bg-white/20 animate-skeleton-loading"></div>
+              </template>
+              <template v-else>
+                <div class="w-6 h-6 flex justify-center items-center">
+                  <img :src="props.creatorAvatar || bookingFlowProfileImage" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%" />
                 </div>
-              </div>
+                <div class="flex flex-row items-center gap-1">
+                  <p class="text-xs font-medium leading-[18px]">{{ props.creatorName }}</p>
+                  <div v-if="props.creatorIsVerified" class="w-4 h-4 flex justify-center items-center">
+                    <img :src="bookingFlowVerifiedIcon" alt="verified-icon" />
+                  </div>
+                </div>
+              </template>
             </div>
             <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] lg:hidden md:p-[0.3125rem_0.375rem] w-fit md:min-h-[28px] flex justify-center items-center gap-2">
               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>

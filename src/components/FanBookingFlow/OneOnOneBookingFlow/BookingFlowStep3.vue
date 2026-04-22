@@ -101,6 +101,9 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const creatorPresentationLoading = computed(() => (
+  props.engine.getState('fanBooking.context.creatorPresentationLoading') === true
+));
 const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 const topUpFormRef = ref(null);
@@ -1341,6 +1344,7 @@ onBeforeUnmount(() => {
               :creator-avatar="creatorPresentation.avatar"
               :creator-name="creatorPresentation.name"
               :creator-is-verified="creatorPresentation.isVerified"
+              :creator-loading="creatorPresentationLoading"
               :show-approval-needed="showApprovalNeeded"
             />
 

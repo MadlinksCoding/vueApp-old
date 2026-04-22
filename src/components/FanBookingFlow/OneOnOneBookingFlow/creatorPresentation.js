@@ -53,9 +53,24 @@ function readFirstNormalizedBoolean(sources, paths) {
 
 export function normalizeCreatorPresentationInput(value = {}) {
   return {
-    avatar: normalizeText(value?.avatar),
-    name: normalizeText(value?.name),
-    isVerified: normalizeBoolean(value?.isVerified),
+    avatar: normalizeText(value?.avatar ?? value?.avatarUrl ?? value?.avatar_url),
+    name: normalizeText(value?.name ?? value?.display_name ?? value?.displayName ?? value?.username),
+    isVerified: normalizeBoolean(value?.isVerified ?? value?.is_premium),
+  };
+}
+
+export function normalizeCreatorProfilePresentation(user = {}, fallback = {}) {
+  const normalizedFallback = normalizeCreatorPresentationInput(fallback || {});
+  const profile = normalizeCreatorPresentationInput({
+    avatar: user?.avatar,
+    name: user?.display_name || user?.displayName || user?.username,
+    isVerified: user?.is_premium,
+  });
+
+  return {
+    avatar: profile.avatar || normalizedFallback.avatar,
+    name: profile.name || normalizedFallback.name,
+    isVerified: profile.isVerified ?? normalizedFallback.isVerified,
   };
 }
 
@@ -99,8 +114,10 @@ export function resolveCreatorPresentation({
   const isVerified = explicit.isVerified ?? readFirstNormalizedBoolean(fallbackSources, [
     "creatorIsVerified",
     "isVerified",
+    "is_premium",
     "verified",
     "creator.isVerified",
+    "creator.is_premium",
     "creator.verified",
   ]) ?? false;
 

@@ -527,6 +527,7 @@
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
         :event="selectedEvent"
+        :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
@@ -568,6 +569,7 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
+  userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },

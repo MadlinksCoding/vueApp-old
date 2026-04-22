@@ -1,6 +1,13 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
+import {
+  MagnifyingGlassIcon,
+  MusicalNoteIcon,
+  PhotoIcon,
+  RectangleStackIcon,
+  VideoCameraIcon,
+} from "@heroicons/vue/24/outline";
+import { getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -25,6 +32,13 @@ const tabs = [
 const activeTab = ref("media");
 const searchQuery = ref("");
 const draftSelected = ref([]);
+
+const mediaBadgeIconComponents = {
+  audio: MusicalNoteIcon,
+  gallery: RectangleStackIcon,
+  image: PhotoIcon,
+  video: VideoCameraIcon,
+};
 
 const popupAttrs = computed(() => (props.markAsChatPopup ? { "data-fs-chat-popup": "" } : {}));
 
@@ -118,6 +132,10 @@ function isSelected(item) {
   return draftSelected.value.some((selected) => productKey(selected) === key);
 }
 
+function mediaBadgeForItem(item) {
+  return getSpendingRequirementMediaBadge(item);
+}
+
 function toggleSelect(item) {
   const key = productKey(item);
   const index = draftSelected.value.findIndex((selected) => productKey(selected) === key);
@@ -206,9 +224,18 @@ function handleConfirm() {
               @click="toggleSelect(item)"
             >
               <div class="relative">
-                <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
-                  <img src="" alt="">
-                  <span class="text-xs text-white">Count</span>
+                <div
+                  v-if="mediaBadgeForItem(item)"
+                  class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]"
+                >
+                  <component
+                    :is="mediaBadgeIconComponents[mediaBadgeForItem(item).icon] || PhotoIcon"
+                    class="w-3 h-3 text-white"
+                    aria-hidden="true"
+                  />
+                  <span v-if="mediaBadgeForItem(item).label" class="text-xs text-white">
+                    {{ mediaBadgeForItem(item).label }}
+                  </span>
                 </div>
                 <img
                   :src="item.thumbnailUrl"

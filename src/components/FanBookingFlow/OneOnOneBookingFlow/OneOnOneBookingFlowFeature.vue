@@ -12,7 +12,11 @@ import {
 import { addMinutesToHm } from "@/services/events/eventsApiUtils.js";
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
-import { normalizeCreatorPresentationInput } from "./creatorPresentation.js";
+import {
+  normalizeCreatorPresentationInput,
+  normalizeCreatorProfilePresentation,
+} from "./creatorPresentation.js";
+import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
@@ -151,6 +155,8 @@ const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
 const hasScheduledStep3Prefetch = ref(false);
 const hasScheduledStep4Prefetch = ref(false);
+let creatorProfileAbortController = null;
+let creatorProfileRequestId = 0;
 
 const engine = createFlowStateEngine({
   flowId: "fan-one-on-one-booking-flow",
@@ -179,6 +185,7 @@ const engine = createFlowStateEngine({
           name: null,
           isVerified: null,
         },
+        creatorPresentationLoading: false,
         selectedEventId: null,
         selectedEvent: null,
       },
@@ -353,6 +360,43 @@ function resolveFanId() {
   });
 }
 
+async function fetchCreatorPresentation(creatorId, fallbackPresentation = {}) {
+  if (creatorProfileAbortController) {
+    creatorProfileAbortController.abort();
+    creatorProfileAbortController = null;
+  }
+
+  if (creatorId === null || creatorId === undefined || creatorId === "") {
+    engine.setState("fanBooking.context.creatorPresentationLoading", false, { reason: "creator-profile-missing", silent: true });
+    return;
+  }
+
+  const requestId = creatorProfileRequestId + 1;
+  creatorProfileRequestId = requestId;
+  const controller = new AbortController();
+  creatorProfileAbortController = controller;
+  engine.setState("fanBooking.context.creatorPresentationLoading", true, { reason: "creator-profile-fetch", silent: true });
+
+  try {
+    const user = await fetchUserProfileData(creatorId, { signal: controller.signal });
+    if (creatorProfileRequestId !== requestId) return;
+
+    const creatorPresentation = normalizeCreatorProfilePresentation(user, fallbackPresentation);
+    engine.setState("fanBooking.context.creatorPresentation", creatorPresentation, { reason: "creator-profile-fetch", silent: true });
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    logFanBookingDebug("feature", "creator-profile-fetch:error", {
+      creatorId,
+      message: error?.message || String(error),
+    });
+  } finally {
+    if (creatorProfileRequestId === requestId) {
+      creatorProfileAbortController = null;
+      engine.setState("fanBooking.context.creatorPresentationLoading", false, { reason: "creator-profile-fetch", silent: true });
+    }
+  }
+}
+
 function syncBookingContext() {
   const creatorId = resolveCreatorId();
   const fanId = resolveFanId();
@@ -376,6 +420,7 @@ function syncBookingContext() {
   engine.setState("fanBooking.context.creatorId", creatorId, { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.fanId", fanId, { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.creatorPresentation", creatorPresentation, { reason: "feature-context", silent: true });
+  fetchCreatorPresentation(creatorId, creatorPresentation);
 
   return { creatorId, fanId, creatorPresentation };
 }
@@ -432,12 +477,16 @@ function selectEventById(eventId) {
 
 async function loadBookingContext({ forceRefresh = false } = {}) {
   const { creatorId, fanId } = syncBookingContext();
+  const requestedEventId = resolveRequestedEventId();
+  const shouldRequireFreshCatalog = Boolean(requestedEventId);
   clearSelectedEvent("catalog-load");
 
   logFanBookingDebug("feature", "loadBookingContext:start", {
     creatorId,
     fanId,
     forceRefresh,
+    requestedEventId,
+    shouldRequireFreshCatalog,
   });
 
   if (creatorId == null) {
@@ -460,7 +509,9 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     "bookings.fetchCreatorBookingContext",
     { creatorId, fanId, status: "active", limit: 100, periodMonths: 6, slotLimit: 2000 },
     {
-      forceRefresh,
+      forceRefresh: forceRefresh || shouldRequireFreshCatalog,
+      skipDestinationRead: shouldRequireFreshCatalog,
+      bypassEtag: shouldRequireFreshCatalog,
       context: {
         stateEngine: engine,
         creatorId,
@@ -490,7 +541,6 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     requestedEventId: resolveRequestedEventId(),
   });
 
-  const requestedEventId = resolveRequestedEventId();
   if (requestedEventId) {
     const selectedEvent = selectEventById(requestedEventId);
     if (!selectedEvent) {
@@ -741,8 +791,25 @@ watch(
   },
 );
 
+watch(
+  () => props.creatorId,
+  async () => {
+    if (props.previewMode) {
+      syncBookingContext();
+      return;
+    }
+
+    await loadBookingContext({ forceRefresh: true });
+  },
+);
+
 onBeforeUnmount(() => {
   logFanBookingDebug("feature", "before-unmount");
+  if (creatorProfileAbortController) {
+    creatorProfileAbortController.abort();
+    creatorProfileAbortController = null;
+    creatorProfileRequestId += 1;
+  }
   releaseTemporaryHoldIfNeeded({ silent: true });
 });
 
