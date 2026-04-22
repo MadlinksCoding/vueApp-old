@@ -120,7 +120,6 @@ onMounted(() => {
               <div class="flex flex-col justify-start items-center gap-4">
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
                   <div class="inline-flex justify-center items-center gap-2">
-                    <img class="w-8 h-8" :src="creatorPresentation.avatar" alt="" />
                     <div class="size-9 relative">
                       <div data-svg-wrapper="" class="left-[0.24px] top-[2.18px] absolute overflow-hidden rounded-[40%_60%_55%_45%/55%_45%_60%_40%]">
                         <img class="w-9 h-9 object-cover" :src="creatorPresentation.avatar" alt="" />
