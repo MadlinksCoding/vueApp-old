@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CREATOR_NAME,
   normalizeCreatorPresentationInput,
+  normalizeCreatorProfilePresentation,
   resolveCreatorPresentation,
 } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 
@@ -42,5 +43,36 @@ describe("creatorPresentation", () => {
     expect(typeof resolved.avatar).toBe("string");
     expect(resolved.avatar.length).toBeGreaterThan(0);
     expect(resolved.isVerified).toBe(false);
+  });
+
+  it("normalizes profile API data into creator presentation fields", () => {
+    expect(normalizeCreatorProfilePresentation({
+      avatar: "https://example.com/api-avatar.webp",
+      display_name: "API Creator",
+      username: "api_creator",
+      is_premium: true,
+    })).toEqual({
+      avatar: "https://example.com/api-avatar.webp",
+      name: "API Creator",
+      isVerified: true,
+    });
+  });
+
+  it("falls back to existing creator data when profile fields are missing", () => {
+    expect(normalizeCreatorProfilePresentation(
+      {
+        username: "",
+        is_premium: null,
+      },
+      {
+        avatar: "https://example.com/fallback.webp",
+        name: "Fallback Creator",
+        isVerified: false,
+      },
+    )).toEqual({
+      avatar: "https://example.com/fallback.webp",
+      name: "Fallback Creator",
+      isVerified: false,
+    });
   });
 });

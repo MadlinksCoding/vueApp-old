@@ -120,15 +120,30 @@
                         <div class="inline-flex flex-col justify-center items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">{{ guestHeading }}</div>
                             <div class="flex flex-col justify-center items-start gap-1">
-                                <div class="inline-flex justify-center items-center gap-2">
-                                    <div class="w-6 h-6 relative" v-if="guestAvatar">
-                                        <img class="w-5 h-5 left-[1.17px] top-[1px] absolute" :src="guestAvatar" />
+                                <div
+                                    v-if="guestProfileLoading"
+                                    class="inline-flex items-center gap-2"
+                                    data-testid="guest-profile-skeleton"
+                                >
+                                    <div class="w-6 h-6 rounded-full bg-[#E6E6E6] animate-skeleton-loading"></div>
+                                    <div class="inline-flex flex-col justify-center items-start gap-1">
+                                        <div class="h-3.5 w-28 rounded bg-[#E6E6E6] animate-skeleton-loading"></div>
+                                        <div class="h-3 w-20 rounded bg-[#E6E6E6] animate-skeleton-loading"></div>
+                                    </div>
+                                </div>
+                                <div v-else class="inline-flex items-center gap-2" data-testid="guest-profile">
+                                    <div class="w-6 h-6 relative overflow-hidden rounded-full shrink-0" v-if="guestAvatar">
+                                        <img class="h-full w-full object-cover" :src="guestAvatar" :alt="guestDisplayName" />
                                     </div>
                                     <div class="inline-flex flex-col justify-center items-start">
-                                        <div class="inline-flex items-center gap-1">
-                                            <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5 line-clamp-1">
-                                                {{ guestLabel }}
-                                            </div>
+                                        <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5 line-clamp-1">
+                                            {{ guestDisplayName }}
+                                        </div>
+                                        <div
+                                            v-if="guestUsername"
+                                            class="text-gray-500 text-xs font-normal font-['Poppins'] leading-4 line-clamp-1"
+                                        >
+                                            {{ guestUsername }}
                                         </div>
                                     </div>
                                 </div>
@@ -238,6 +253,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
 import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
 
 const props = defineProps({
     event: {
@@ -247,6 +263,10 @@ const props = defineProps({
     canReviewPending: {
         type: Boolean,
         default: true
+    },
+    userRole: {
+        type: String,
+        default: 'creator'
     }
 });
 
@@ -276,6 +296,16 @@ function pickFirstString(...values) {
 
 function firstDefined(...values) {
     return values.find((value) => value !== undefined && value !== null);
+}
+
+function normalizeGuestProfile(user) {
+    if (!user || typeof user !== 'object') return null;
+
+    return {
+        displayName: pickFirstString(user.display_name, user.displayName, user.name),
+        username: pickFirstString(user.username, user.user_login),
+        avatar: pickFirstString(user.avatar, user.avatarUrl, user.avatar_url),
+    };
 }
 
 const raw = computed(() => props.event?.raw || {});
@@ -488,6 +518,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleDocumentClick);
+    if (guestProfileAbortController) {
+        guestProfileAbortController.abort();
+        guestProfileAbortController = null;
+    }
 });
 
 const guestCount = computed(() => {
@@ -497,16 +531,121 @@ const guestCount = computed(() => {
 
 const guestHeading = computed(() => `${guestCount.value} guest${guestCount.value === 1 ? '' : 's'}`);
 
-const guestLabel = computed(() => (
-    pickFirstString(
-        raw.value?.userDisplayName,
-        raw.value?.userName,
-        raw.value?.userUsername,
-    )
-    || (raw.value?.userId ? `User #${raw.value.userId}` : 'Guest')
+const viewerRole = computed(() => String(props.userRole || 'creator').toLowerCase());
+const isFanViewer = computed(() => viewerRole.value === 'fan');
+
+const creatorUserId = computed(() => firstDefined(
+    raw.value?.creatorId,
+    props.event?.creatorId,
+    null
 ));
 
-const guestAvatar = computed(() => raw.value?.userAvatarUrl || null);
+const fanUserId = computed(() => firstDefined(
+    raw.value?.userId,
+    props.event?.userId,
+    null
+));
+
+const guestUserId = computed(() => (isFanViewer.value ? creatorUserId.value : fanUserId.value));
+const guestProfile = ref(null);
+const guestProfileLoading = ref(false);
+const guestProfileError = ref(null);
+let guestProfileAbortController = null;
+
+const fallbackGuestDisplayName = computed(() => {
+    const fallbackId = guestUserId.value;
+
+    if (isFanViewer.value) {
+        return (
+            pickFirstString(
+                raw.value?.creatorDisplayName,
+                raw.value?.creatorName,
+                raw.value?.creatorUsername,
+            )
+            || (fallbackId ? `User #${fallbackId}` : 'Guest')
+        );
+    }
+
+    return (
+        pickFirstString(
+            raw.value?.userDisplayName,
+            raw.value?.userName,
+            raw.value?.userUsername,
+        )
+        || (fallbackId ? `User #${fallbackId}` : 'Guest')
+    );
+});
+
+const fallbackGuestUsername = computed(() => (
+    isFanViewer.value
+        ? pickFirstString(raw.value?.creatorUsername)
+        : pickFirstString(raw.value?.userUsername)
+));
+
+const guestDisplayName = computed(() => (
+    pickFirstString(guestProfile.value?.displayName, fallbackGuestDisplayName.value)
+));
+
+const guestUsername = computed(() => (
+    pickFirstString(guestProfile.value?.username, fallbackGuestUsername.value)
+));
+
+const fallbackGuestAvatar = computed(() => (
+    isFanViewer.value
+        ? pickFirstString(raw.value?.creatorAvatarUrl, raw.value?.creatorAvatar)
+        : pickFirstString(raw.value?.userAvatarUrl, raw.value?.userAvatar)
+));
+
+const guestAvatar = computed(() => pickFirstString(guestProfile.value?.avatar, fallbackGuestAvatar.value) || null);
+
+watch(
+    () => guestUserId.value,
+    async (userId) => {
+        if (guestProfileAbortController) {
+            guestProfileAbortController.abort();
+            guestProfileAbortController = null;
+        }
+
+        guestProfile.value = null;
+        guestProfileError.value = null;
+
+        if (!userId) {
+            guestProfileLoading.value = false;
+            return;
+        }
+
+        const controller = new AbortController();
+        guestProfileAbortController = controller;
+        guestProfileLoading.value = true;
+
+        try {
+            const response = await fetch(
+                `${buildWpApiUrl('/users/get-profile-data')}?id=${encodeURIComponent(userId)}`,
+                {
+                    method: 'GET',
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal,
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch guest profile (HTTP ${response.status}).`);
+            }
+
+            const payload = await response.json();
+            guestProfile.value = normalizeGuestProfile(payload?.user);
+        } catch (error) {
+            if (error?.name === 'AbortError') return;
+            guestProfileError.value = error;
+        } finally {
+            if (guestProfileAbortController === controller) {
+                guestProfileAbortController = null;
+                guestProfileLoading.value = false;
+            }
+        }
+    },
+    { immediate: true }
+);
 
 const additionalRequestLines = computed(() => {
     const lines = [];

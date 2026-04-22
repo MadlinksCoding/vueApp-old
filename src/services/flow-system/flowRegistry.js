@@ -196,21 +196,13 @@ export const flowRegistry = {
         enabled: true,
         ttlMs: 30000,
         mode: "staleWhileRevalidate",
-        priority: ["stateEngine", "local"],
+        priority: ["stateEngine"],
         sources: [
           {
             type: "stateEngine",
             key: "fanBooking.catalog.cachedResponse",
             etagKey: "fanBooking.catalog.meta.etag",
             updatedAtKey: "fanBooking.catalog.meta.updatedAt",
-          },
-          {
-            type: "local",
-            key: "fan-booking:creator-context",
-            ttlMs: 30000,
-            version: 1,
-            etagKey: "meta.etag",
-            updatedAtKey: "meta.updatedAt",
           },
         ],
       },
@@ -224,7 +216,6 @@ export const flowRegistry = {
         { type: "stateEngine", key: "fanBooking.context.isFirstBookingForCreator", mode: "set", select: "isFirstBookingForCreator", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
-        { type: "local", key: "fan-booking:creator-context", ttlMs: 30000, version: 1, hydrateOnReadHit: true },
       ],
       onNotModified: [
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { checkedAt: "@now" } },
