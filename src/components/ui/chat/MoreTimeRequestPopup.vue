@@ -7,7 +7,7 @@
     >
       <div class="absolute inset-0 bg-black/40" @click="$emit('close')" />
 
-      <div class="relative z-10 w-full max-w-[400px] bg-white rounded-2xl shadow-xl flex flex-col font-['Poppins'] overflow-hidden">
+      <div class="relative z-10 w-full max-w-[400px] bg-white rounded-2xl shadow-xl flex flex-col font-['Poppins']">
 
         <!-- Header -->
         <div class="flex items-center justify-between px-5 pt-5 pb-4">
@@ -60,12 +60,14 @@ import { computed, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast } from '@/utils/toastBus.js'
+import { localDateTimeToHkt, hktDateTimeToLocalDate } from "@/services/events/eventsApiUtils.js";
 
 const props = defineProps({
   message:       { type: Object, required: true },
   chatId:        { type: String, required: true },
   otherUserName: { type: String, default: 'creator' },
   event:         { type: Object, default: null },
+  booking:       { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'submitted'])
@@ -73,24 +75,31 @@ const emit = defineEmits(['close', 'submitted'])
 const content = computed(() => props.message?.content || {})
 
 // ── Parse original start_at ───────────────────────────────────────────────────
+function parseDate(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? null : d
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
+}
+
 function parseStartMs() {
-  const raw = content.value.start_at
-  if (!raw) return null
-  const ms = Date.parse(raw)
-  return isNaN(ms) ? null : ms
+  return parseDate(
+    props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date
+  )?.getTime() ?? null
 }
 
 const formattedEventDate = computed(() => {
-  const ms = parseStartMs()
-  if (!ms) return '—'
-  return new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const d = parseDate(content.value.start_at || content.value.slot_date)
+  return d ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'
 })
 
 // Original start time as "9:15pm"
 const originalStartTime = computed(() => {
-  const ms = parseStartMs()
-  if (!ms) return null
-  return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
+  const d = parseDate(content.value.start_at || content.value.slot_date)
+  return d ? fmtTime(d) : null
 })
 
 // Pre-fill initial date as YYYY-MM-DD
@@ -112,11 +121,9 @@ const newStartTime = ref(getInitialStartTime())
 
 // Original session duration (if end_at is available)
 const durationMs = computed(() => {
-  const endRaw = content.value.end_at
-  if (!endRaw) return null
-  const endMs   = Date.parse(endRaw)
+  const endMs   = parseDate(props.booking?.endIso || props.booking?.endAtIso || content.value.end_at)?.getTime()
   const startMs = parseStartMs()
-  if (!startMs || isNaN(endMs)) return null
+  if (!startMs || !endMs) return null
   return endMs - startMs
 })
 
@@ -139,10 +146,11 @@ async function handleSubmit() {
   const base    = startMs ? new Date(startMs) : new Date()
   const [h, m]  = newStartTime.value.split(':').map(Number)
   base.setHours(h, m, 0, 0)
-  const slotDate = base.toISOString()
-
+  const slotDate = localDateTimeToHkt(base.toISOString(), newStartTime.value).iso
+  console.log("Computed newSlotDate:", localDateTimeToHkt(base.toISOString(), newStartTime.value), { slotDate } )
+  // return;
   const bookingId    = props.message?.content?.booking_id
-  const prevStartAtIso = content.value.start_at || null
+  const prevStartAtIso = content?.value?.start_at || content?.value?.slot_date
 
   try {
     // Update chat message to reflect counter_offer state (booking API called on fan accept)

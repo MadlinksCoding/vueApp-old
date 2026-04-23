@@ -4,7 +4,7 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 
 export async function sendBookingRequestMessageFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
-  const { chatId, bookingId, action, senderId, slotDate, eventId, eventTitle, text, meta } = payload;
+  const { chatId, bookingId, action, senderId, slotDate, start_at, end_at, eventId, eventTitle, text, meta } = payload;
 
   if (!chatId || !bookingId || !action) {
     return fail({ code: "SEND_BOOKING_REQUEST_MISSING_FIELDS", message: "chatId, bookingId, and action are required." });
@@ -15,7 +15,7 @@ export async function sendBookingRequestMessageFlow({ payload, context, api }) {
   }
 
   try {
-    const response = await api.post(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/booking`, { bookingId, action, senderId, slotDate, eventId, eventTitle, text, meta });
+    const response = await api.post(`${baseUrl}/chats/${encodeURIComponent(chatId)}/messages/booking`, { bookingId, action, senderId, start_at, end_at, slotDate, eventId, eventTitle, text, meta });
     const status = getHttpStatus(response, 201);
 
     if (response?.ok === false) {

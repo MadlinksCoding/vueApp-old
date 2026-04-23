@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
+import ToastHost from "@/components/ui/toast/ToastHost.vue";
 
 const props = defineProps({
   userId: { type: [String, Number], default: null },
@@ -246,4 +247,5 @@ onMounted(async () => {
 
     </div>
   </div>
+  <ToastHost />
 </template>

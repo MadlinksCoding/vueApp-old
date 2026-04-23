@@ -730,8 +730,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     const fanUserId   = resolveFanId();
     const creatorId   = resolveCreatorId();
     const eventTitle  = selectedEvent.value?.title || selectedEvent.value?.raw?.title || null;
-    const slotDate    = props.engine.getState('fanBooking.booking.lastPreflightPayload')?.startIso
-      || null;
+    const slotDate    = props.engine.getState('fanBooking.booking.result.item.startAtIso') || null;
+    console.error('[fireAndForgetPostBookingChat] resolved IDs', { slotDate,fanUserId, creatorId, eventTitle }, props.engine.getState('fanBooking.booking.result.item.startAtIso'), props.engine.getState('fanBooking.booking.result'));
 
     // Step 1 — create chat
     const chatRes = await FlowHandler.run('chat.createChat', {
@@ -770,6 +770,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       eventId,
       eventTitle,
       slotDate,
+      start_at: props.engine.getState('fanBooking.booking.result.item.startAtIso') || null,
+      end_at: props.engine.getState('fanBooking.booking.result.item.endAtIso') || null,
       text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
     });
     if (!msgRes?.ok) return;
@@ -789,10 +791,26 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       });
     }
 
-    // Step 3 — pin the message
+    // Step 3 — store chatId and booking message id in booking meta
+    await FlowHandler.run('bookings.updateMeta', {
+      bookingId,
+      meta: {
+        chatId,
+        bookingMessageId: messageId,
+      },
+      actor: 'fan',
+    });
+
+    // Step 4 — pin the message
     await FlowHandler.run('chat.pinMessage', { chatId, messageId });
   } catch (_) {
+    console.error('[fireAndForgetPostBookingChat] error during post-booking chat setup', { bookingId, eventId, error: _ });
     // Fire-and-forget — booking is already confirmed, don't surface chat errors
+    logFanBookingDebug('step3', 'post-booking-chat:error', {
+      bookingId,
+      eventId,
+      message: _.message || String(_),
+    });
   }
 }
 

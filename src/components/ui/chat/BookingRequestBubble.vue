@@ -109,7 +109,29 @@
         </div>
       </template>
 
-      <!-- Fan + counter_offer: confirm or cancel -->
+      <!-- Fan + counter_offer: time-based (moretime / reschedule) -->
+      <template v-else-if="!isCreator && resolvedAction === 'counter_offer' && isTimeBasedCounter">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            :disabled="disabled"
+            class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
+            @click.stop="$emit('accept-counter')"
+          >
+            Accept New Time
+          </button>
+          <button
+            type="button"
+            :disabled="disabled"
+            class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
+            @click.stop="$emit('reject-counter')"
+          >
+            Reject
+          </button>
+        </div>
+      </template>
+
+      <!-- Fan + counter_offer: adjust (cost change) -->
       <template v-else-if="!isCreator && resolvedAction === 'counter_offer'">
         <!-- Sender's remarks (truncated) + expand/collapse toggle -->
         <div v-if="counterRemarks" class="flex flex-col gap-0.5">
@@ -229,7 +251,7 @@ const props = defineProps({
   pinned:     { type: Boolean, default: false },
 })
 
-defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking'])
+defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter'])
 
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
@@ -324,6 +346,11 @@ const counterTokens = computed(() => {
 })
 
 const counterRemarks = computed(() => content.value.meta?.creatorRemarks || null)
+
+const counterSource      = computed(() => content.value.meta?.source || null)
+const isTimeBasedCounter = computed(() =>
+  counterSource.value === 'reschedule' || counterSource.value === 'more_time'
+)
 
 const prevSlotDateTime = computed(() => {
   const iso = content.value.meta?.prevStartAtIso

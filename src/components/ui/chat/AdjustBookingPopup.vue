@@ -136,6 +136,7 @@ import CloseIcon               from '@/assets/images/icons/cross-white.webp'
 import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast }           from '@/utils/toastBus.js'
+import { localDateTimeToHkt, hktDateTimeToLocalDate }  from "@/services/events/eventsApiUtils.js";
 
 const props = defineProps({
   message:   { type: Object, required: true },
@@ -297,9 +298,13 @@ async function handleSubmit() {
       const [h, m] = form.newStartTime.split(':').map(Number)
       const d      = new Date(form.newDate)
       d.setHours(h, m, 0, 0)
-      newSlotDate = d.toISOString()
+
+
+      console.log("Computed newSlotDate:", localDateTimeToHkt(d.toISOString(), form.newStartTime), form)
+      newSlotDate = localDateTimeToHkt(d.toISOString(), form.newStartTime).iso
     }
 
+    // return;
     // Capture previous values before renegotiation overwrites them
     const prevStartAtIso  = newSlotDate ? (raw.value.startIso || raw.value.startAtIso || null) : null
     const prevTotalTokens = baseTokens.value > 0 ? baseTokens.value : null
@@ -313,35 +318,43 @@ async function handleSubmit() {
       adjustmentTokens:        Number(form.adjustmentTokens) || 0,
       totalTokens:             totalTokens.value,
       newSlotDate,
+      proposedSlotDate: newSlotDate,
       prevStartAtIso,
       prevTotalTokens,
     }
 
-    const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
-      chatId:    props.chatId,
-      messageId: props.message.message_id,
-      action:    'counter_offer',
-      meta,
-    })
 
-    if (res?.ok) {
+    const metaRes = await FlowHandler.run('bookings.updateMeta', {
+      bookingId,
+      meta: {
+        adjust: {
+          proposedSlotDate: newSlotDate,
+          proposedTokens: totalTokens.value,
+          proposedRemarks: form.remarks.trim() || null,
+          prevTotalTokens: baseTokens.value,
+        },
+        currentCounterOffer: 'adjust',
+      },
+      actor: 'creator',
+    })
+    if (metaRes?.ok) {
       // Store proposed values in booking meta so fan-side display + accept flow can read them
       let updatedBooking = null
-      const metaRes = await FlowHandler.run('bookings.updateMeta', {
-        bookingId,
-        meta: {
-          adjust: {
-            proposedSlotDate: newSlotDate,
-            proposedTokens:   totalTokens.value,
-            proposedRemarks:  form.remarks.trim() || null,
-            prevTotalTokens:  baseTokens.value,
-          },
-          currentCounterOffer: 'adjust',
-        },
+      const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+        chatId: props.chatId,
+        messageId: props.message.message_id,
+        action: 'counter_offer',
+        meta,
       })
-      if (metaRes?.ok) updatedBooking = metaRes.data?.item
-
-      emit('submitted', { item: res.data?.item, meta, booking: updatedBooking })
+      if (res?.ok) {
+        updatedBooking = metaRes.data?.item
+        emit('submitted', { item: res.data?.item, meta, booking: updatedBooking })
+      } else {
+        showToast({ type: 'error', message: res?.error?.details?.message ||  'Failed to send adjustment message. Please try again.', title: res?.error?.details?.error || 'Error' })
+      }
+    } else {
+      console.error('Failed to update booking meta:', metaRes?.error)
+      showToast({ type: 'error', message: metaRes?.error?.details?.message || 'Failed to update booking. Please try again.', title: metaRes?.error?.details?.error || 'Error' })
     }
   } finally {
     submitting.value = false
