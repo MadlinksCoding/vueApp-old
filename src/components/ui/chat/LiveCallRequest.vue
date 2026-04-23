@@ -11,7 +11,7 @@
           {{ eventName }}
         </span>
         <button
-          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator"
+          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator && !isExpired"
           class="shrink-0 p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           @click.stop="toggleDropdown"
         >
@@ -57,8 +57,14 @@
 
         <!-- Countdown -->
         <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full shrink-0" :class="isExpired ? 'bg-gray-400' : 'bg-red-500'"></span>
-          <span class="text-xs font-medium" :class="isExpired ? 'text-gray-400' : 'text-red-500'">{{ countdownText }}</span>
+          <span
+            class="w-2 h-2 rounded-full shrink-0"
+            :class="isExpired ? 'bg-gray-400' : isLive ? 'bg-green-500' : 'bg-red-500'"
+          ></span>
+          <span
+            class="text-xs font-medium"
+            :class="isExpired ? 'text-gray-400' : isLive ? 'text-green-600' : 'text-red-500'"
+          >{{ countdownText }}</span>
         </div>
 
         <!-- Action buttons -->
@@ -176,6 +182,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils.js'
 
 const props = defineProps({
   message:   { type: Object,  required: true },
@@ -214,18 +221,26 @@ onMounted(()   => { _ticker = setInterval(() => { now.value = Date.now() }, 1000
 onUnmounted(() => clearInterval(_ticker))
 
 function parseStartMs() {
-  const raw = content.value.start_at
-  if (!raw) return null
-  const ms = Date.parse(raw)
-  return isNaN(ms) ? null : ms
+  return parseHkt(content.value.start_at)?.getTime() ?? null
 }
 
-const isExpired = computed(() => {
+function parseEndMs() {
+  return (parseDate(props.booking?.endIso || props.booking?.endAtIso) ?? parseHkt(content.value.end_at))?.getTime() ?? null
+}
+
+const isLive = computed(() => {
   const startMs = parseStartMs()
-  return startMs ? now.value > startMs : false
+  const endMs   = parseEndMs()
+  return startMs ? now.value >= startMs && (!endMs || now.value <= endMs) : false
+})
+
+const isExpired = computed(() => {
+  const endMs = parseEndMs()
+  return endMs ? now.value > endMs : false
 })
 
 const countdownText = computed(() => {
+  if (isLive.value) return 'Live now'
   const startMs = parseStartMs()
   if (!startMs) return '—'
   const diff = startMs - now.value
@@ -247,6 +262,13 @@ function parseDate(iso) {
   return isNaN(d.getTime()) ? null : d
 }
 
+// Treat a naive HKT ISO string as HKT and return the correct local Date
+function parseHkt(iso) {
+  if (!iso) return null
+  const d = hktDateTimeToLocalDate(iso.slice(0, 10), iso.slice(11, 16))
+  return d ?? parseDate(iso)
+}
+
 function fmtTime(d) {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
 }
@@ -259,20 +281,19 @@ function fmtDateTimeRange(start, end) {
     : `${datePart} ${fmtTime(start)}`
 }
 
-// Original scheduled time — prefer booking ISO fields over message content
+// Original scheduled time — prefer booking ISO fields (offset-aware), fall back to HKT-converted content
 const formattedDateTime = computed(() => {
-  const start = parseDate(props.booking?.startIso || props.booking?.startAtIso || content.value.start_at)
-  const end   = parseDate(props.booking?.endIso   || props.booking?.endAtIso   || content.value.end_at)
+  const start = parseDate(props.booking?.startIso || props.booking?.startAtIso) ?? parseHkt(content.value.start_at)
+  const end   = parseDate(props.booking?.endIso   || props.booking?.endAtIso)   ?? parseHkt(content.value.end_at)
   return fmtDateTimeRange(start, end)
 })
 
 // Proposed new time from counter_offer — duration derived from booking prop
 const formattedProposedDateTime = computed(() => {
-  const proposed = parseDate(content.value.slot_date || content.value?.meta?.newSlotDate)
-  // console.error("Computing formattedProposedDateTime", { proposed, raw: content.value, booking: props.booking })
+  const proposed  = parseHkt(content.value.slot_date || content.value?.meta?.newSlotDate)
   if (!proposed) return null
-  const origStart = parseDate(props.booking?.startIso || props.booking?.startAtIso || content.value.start_at)
-  const origEnd   = parseDate(props.booking?.endIso   || props.booking?.endAtIso   || content.value.end_at)
+  const origStart = parseDate(props.booking?.startIso || props.booking?.startAtIso) ?? parseHkt(content.value.start_at)
+  const origEnd   = parseDate(props.booking?.endIso   || props.booking?.endAtIso)   ?? parseHkt(content.value.end_at)
   const durMs     = origStart && origEnd ? origEnd.getTime() - origStart.getTime() : null
   const end       = durMs ? new Date(proposed.getTime() + durMs) : null
   return fmtDateTimeRange(proposed, end)
