@@ -60,6 +60,7 @@
       throw new Error("FSChatEmbed.mountChatEmbed could not find the target container.");
     }
 
+    const defaultJwtToken = window?.userData?.jwtToken || null;
     var settings = Object.assign({
       src:           "/wp-content/plugins/fansocial/bookings-embed/chat.html",
       currentUserId: null,
@@ -67,6 +68,7 @@
       apiBaseUrl:    "https://fs-bookings-backend.onrender.com",
       openChatId:    null,
       fanUid:        null,
+      jwtToken:      defaultJwtToken,
       iframeTitle:   "Chat",
       width:         CHAT_EMBED_WIDTH,
       height:        CHAT_EMBED_HEIGHT,
@@ -98,6 +100,7 @@
       apiBaseUrl:    settings.apiBaseUrl || null,
       openChatId:    settings.openChatId || null,
       fanUid:        settings.fanUid || null,
+      jwtToken:      settings.jwtToken || null,
     });
     iframe.title                = settings.iframeTitle;
     iframe.style.width          = "100%";
@@ -111,6 +114,16 @@
 
     chatContainer.appendChild(iframe);
     document.body.appendChild(chatContainer);
+
+    function updateAuth(authOptions) {
+      var a = authOptions || {};
+      if (typeof a.jwtToken === "string") settings.jwtToken = a.jwtToken;
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_AUTH_UPDATE",
+        payload: { jwtToken: settings.jwtToken || "" },
+      }, "*");
+    }
 
     function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
@@ -156,8 +169,9 @@
     window.addEventListener("message", onMessage);
 
     return {
-      iframe:    iframe,
-      container: chatContainer,
+      iframe:      iframe,
+      container:   chatContainer,
+      updateAuth:  updateAuth,
       refreshProductRecommendation: function (payload) {
         iframe.contentWindow.postMessage({
           type: "FS_CHAT_PRODUCT_REFRESH",

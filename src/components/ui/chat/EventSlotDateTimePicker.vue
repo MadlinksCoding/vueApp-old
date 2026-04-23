@@ -202,9 +202,17 @@ const invalidDayWarning = computed(() => {
 })
 
 // ── Time slot options (from rebuildAvailabilityPreview) ───────────────────────
-const timeSlotOptions = computed(() =>
-  rebuildAvailabilityPreview.value.map(s => ({ value: s.startHm, label: s.label }))
-)
+const timeSlotOptions = computed(() => {
+  const slots = rebuildAvailabilityPreview.value
+  if (localDate.value === fmtYMD(today)) {
+    const now = new Date()
+    const currentHm = `${pad(now.getHours())}:${pad(now.getMinutes())}`
+    return slots
+      .filter(s => s.startHm > currentHm)
+      .map(s => ({ value: s.startHm, label: s.label }))
+  }
+  return slots.map(s => ({ value: s.startHm, label: s.label }))
+})
 
 // ── Computed end time ─────────────────────────────────────────────────────────
 const computedEndTime = computed(() => {

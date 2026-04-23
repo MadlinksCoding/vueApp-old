@@ -345,6 +345,7 @@ async function onRejectCounter(message) {
 async function _doConfirmCounter(bookingId, message) {
   bookingActionLoading.value = true
 
+  // console.error("Confirming counter offer for bookingId", bookingId, { message })
   // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
   const cachedBooking = chatStore.getBookingById(bookingId)
   const adjustMeta    = cachedBooking?.meta?.adjust || {}
@@ -402,7 +403,7 @@ async function onConfirmCounter(message) {
   const cachedBooking = chatStore.getBookingById(bookingId)
   const adjustMeta    = cachedBooking?.meta?.adjust || {}
   const newTokens     = Number(cachedBooking?.payment?.total ?? adjustMeta.proposedTokens ?? 0)
-  const prevTokens    = Number(adjustMeta.prevTotalTokens ?? 0)
+  const prevTokens    = Number(adjustMeta.prevTotalTokens || message?.content?.meta?.prevTotalTokens || 0)
   const diffTokens    = Math.max(0, newTokens - prevTokens)
 
   // Fan already covered this amount (same or cheaper counter-offer) — confirm directly
@@ -814,7 +815,6 @@ function getMessageRecipients() {
   const recipients = participants
     .map((id) => parseInt(id, 10))
     .filter((id) => !Number.isNaN(id) && id !== parseInt(currentUserId, 10))
-  recipients.push(4426)
   return recipients
 }
 
@@ -1746,6 +1746,8 @@ onUnmounted(() => {
     @cancel-booking="onCancelBooking(activeBookingMessage)"
     @accept-counter="onAcceptCounter(activeBookingMessage)"
     @reject-counter="onRejectCounter(activeBookingMessage)"
+    @ask-more-time="showMoreTimePopup = true"
+    @ask-to-reschedule="showReschedulePopup = true"
     @open-chat="showBookingPopup = false"
     @close="showBookingPopup = false"
   />
@@ -1763,6 +1765,7 @@ onUnmounted(() => {
   <MoreTimeRequestPopup
     v-if="showMoreTimePopup && activeBookingMessage"
     :message="activeBookingMessage"
+    :booking="activeBookingData"
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
     :event="activeEventData"
@@ -1774,6 +1777,7 @@ onUnmounted(() => {
   <RescheduleRequestPopup
     v-if="showReschedulePopup && activeBookingMessage"
     :message="activeBookingMessage"
+    :booking="activeBookingData"
     :chat-id="activeChatId"
     :other-user-name="bookingSenderName"
     :event="activeEventData"

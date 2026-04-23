@@ -7,6 +7,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue'
+import { setBackendJwtToken } from '@/utils/backendJwt.js'
 
 const widgetRef = ref(null)
 let resizeObserver   = null
@@ -44,7 +45,24 @@ if (fanUid) {
   window.__fsChatFanUid = fanUid
 }
 
+const jwtToken = params.get('jwtToken')
+if (jwtToken) {
+  setBackendJwtToken(jwtToken)
+}
+
 window.__fsChatEmbed = true
+
+const FS_CHAT_AUTH_UPDATE = 'FS_CHAT_AUTH_UPDATE'
+
+function onAuthUpdateMessage(event) {
+  if (event.source !== window.parent) return
+  const data = event.data || {}
+  if (data.type !== FS_CHAT_AUTH_UPDATE) return
+  const payload = data.payload || {}
+  if (typeof payload.jwtToken === 'string') {
+    setBackendJwtToken(payload.jwtToken)
+  }
+}
 
 function scheduleResize(el, delay = 30) {
   if (popupOpen) return
@@ -127,6 +145,8 @@ function attachObserver(el) {
 }
 
 onMounted(() => {
+  window.addEventListener('message', onAuthUpdateMessage)
+
   const stopWatch = watch(
     () => widgetRef.value?.widgetEl,
     (el) => {
@@ -139,6 +159,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('message', onAuthUpdateMessage)
   clearTimeout(resizeTimer)
   resizeObserver?.disconnect()
   mutationObserver?.disconnect()
