@@ -56,6 +56,12 @@ function readCachedRawEvents(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
+  return eventsNotModified
+    ? getHttpStatus(bookedSlotsResponse, 200)
+    : eventsStatus;
+}
+
 function extractUniqueEventIdsFromSlots(slots = []) {
   const ids = [];
   const seen = new Set();
@@ -123,7 +129,7 @@ async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, he
     },
     {
       flow: "bookings.fetchDashboardBookingContext",
-      status: eventsStatus,
+      status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
       etag,
       eventsNotModified,
       fetchedAt: Date.now(),
@@ -206,7 +212,7 @@ async function fetchFanDashboardContext({ payload, context, api, baseUrl }) {
     },
     {
       flow: "bookings.fetchDashboardBookingContext",
-      status: eventsStatus,
+      status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
       etag,
       eventsNotModified,
       fetchedAt: Date.now(),

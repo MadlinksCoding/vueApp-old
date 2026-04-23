@@ -43,6 +43,12 @@ function readCachedRawEvents(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
+  return eventsNotModified
+    ? getHttpStatus(bookedSlotsResponse, 200)
+    : eventsStatus;
+}
+
 function shouldFetchFirstTimeDiscountStatus(payload = {}) {
   const creatorId = toNumber(payload.creatorId, null);
   const fanId = toNumber(payload.fanId, null);
@@ -135,7 +141,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       },
       {
         flow: "bookings.fetchCreatorBookingContext",
-        status: eventsStatus,
+        status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
         etag,
         eventsNotModified,
         fetchedAt: Date.now(),

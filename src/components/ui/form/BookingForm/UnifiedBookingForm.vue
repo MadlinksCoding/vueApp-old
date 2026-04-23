@@ -19,6 +19,7 @@ import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import closeIcon from "@/assets/images/icons/close.png";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -847,7 +848,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </div>
                     <div  @click="emit('back')" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
-                        <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="" />
+                        <img :src="closeIcon" alt="" />
                     </div>
                 </div>
 

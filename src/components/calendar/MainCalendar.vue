@@ -99,7 +99,7 @@
             <span class="flex items-center justify-center h-full py-2">
               <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
               </h2>
-              <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
+              <p data-test="all-events-count" class="text-pink-500 text-[10px] font-bold h-full ml-1">
                 {{ filteredBookedSlotsCount }}
               </p>
             </span>
@@ -932,10 +932,36 @@ const normalized = computed(() => {
     }));
 });
 
+function resolveCountEventId(event = {}) {
+  const raw = event?.raw && typeof event.raw === 'object' ? event.raw : {};
+  const candidates = [
+    event?.eventId,
+    raw?.eventId,
+    raw?.event?.eventId,
+    raw?.eventCurrent?.eventId,
+    raw?.eventSnapshot?.eventId,
+    event?.id,
+    raw?.id,
+  ];
+
+  const resolved = candidates
+    .map((value) => String(value ?? '').trim())
+    .find(Boolean);
+
+  return resolved || null;
+}
+
 const filteredBookedSlotsCount = computed(() => {
-  // Count only real booked slots (not availability background blocks),
-  // after current dropdown filters (video/audio/group/showSchedule) are applied.
-  return normalized.value.filter((event) => !event?.isAvailabilityBlock).length;
+  const countedEventIds = new Set();
+
+  normalized.value.forEach((event) => {
+    if (event?.isDraftPreview) return;
+
+    const eventId = resolveCountEventId(event);
+    if (eventId) countedEventIds.add(eventId);
+  });
+
+  return countedEventIds.size;
 });
 
 const shortWeekdays = computed(() => [
