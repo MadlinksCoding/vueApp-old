@@ -30,7 +30,7 @@
                                         stroke="white" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </div>
-                            <div class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</div>
+                            <div class="text-white text-xs font-semibold font-['Poppins'] leading-4">{{ t("common_join_call") }}</div>
                         </button>
 
                         <div v-if="showJoinButton" class="relative">
@@ -61,7 +61,7 @@
                                             <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </span>
-                                    Ask for more time
+                                    {{ t("dashboard_ask_for_more_time") }}
                                 </button>
 
                                 <button
@@ -73,7 +73,7 @@
                                             <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </span>
-                                    Ask to reschedule
+                                    {{ t("dashboard_ask_to_reschedule") }}
                                 </button>
 
                                 <button
@@ -86,7 +86,7 @@
                                             <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                     </span>
-                                    Cancel Call
+                                    {{ t("dashboard_cancel_call") }}
                                 </button>
                             </div>
                         </div>
@@ -107,7 +107,7 @@
                                     {{ formattedTimeRange }}
                                 </div>
                                 <div class="text-gray-400 text-sm font-medium font-['Poppins'] leading-5">
-                                    {{ duration }} minutes
+                                    {{ t("calendar_event_duration_minutes", { count: duration }) }}
                                 </div>
                             </div>
                         </div>
@@ -156,7 +156,7 @@
                             <img :src="dotPoints" alt="">
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
-                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">Additional request</div>
+                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">{{ t("calendar_event_additional_request") }}</div>
                             <div
                                 v-for="(line, index) in additionalRequestLines"
                                 :key="`request_${index}`"
@@ -173,7 +173,7 @@
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
-                                Minimum charge
+                                {{ t("calendar_event_minimum_charge") }}
                             </div>
                             <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5">
                                 {{ minimumChargeLabel }}
@@ -201,7 +201,7 @@
                             rel="noopener noreferrer"
                         >
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
-                                Open chat
+                                {{ t("calendar_event_open_chat") }}
                             </div>
                             <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
                                 xmlns="http://www.w3.org/2000/svg">
@@ -215,16 +215,16 @@
 
                     <div v-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
                     <button type="button" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
-                        ACCEPT
+                        {{ t("calendar_event_accept") }}
                     </button>
                     <button type="button" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
-                        DECLINE
+                        {{ t("calendar_event_decline") }}
                     </button>
                     </div>
 
                     <div v-if="showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
                         <div class="text-xs font-medium text-red-700 mb-2">
-                            Are you sure you want to reject this booking?
+                            {{ t("calendar_event_reject_confirm") }}
                         </div>
                         <div class="inline-flex items-center gap-2">
                             <button
@@ -232,14 +232,14 @@
                                 class="px-3 py-1.5 rounded text-xs font-semibold text-white bg-red-600 hover:bg-red-700 cursor-pointer"
                                 @click="confirmReject"
                             >
-                                Yes, Reject
+                                {{ t("calendar_event_yes_reject") }}
                             </button>
                             <button
                                 type="button"
                                 class="px-3 py-1.5 rounded text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 cursor-pointer"
                                 @click="cancelReject"
                             >
-                                Cancel
+                                {{ t("common_cancel") }}
                             </button>
                         </div>
                     </div>
@@ -253,6 +253,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
 import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import alarmIcon from '@/assets/images/icons/alarmIcon.png';
 import userIcon from '@/assets/images/icons/profile.webp';
 import dotPoints from '@/assets/images/icons/dotpoints.png';
@@ -278,6 +279,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 
 function normalizeHexColor(color, fallback = '#5549FF') {
@@ -352,17 +354,17 @@ const titleText = computed(() => (
     props.event?.title
     || raw.value?.eventTitle
     || mergedEvent.value?.title
-    || 'Untitled Booking'
+    || t('calendar_event_untitled_booking')
 ));
 
 const formattedDate = computed(() => {
-    if (!startDate.value) return 'Date not set';
+    if (!startDate.value) return t('calendar_event_date_not_set');
     const options = { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' };
-    return startDate.value.toLocaleDateString('en-US', options);
+    return startDate.value.toLocaleDateString(locale.value, options);
 });
 
 const formattedTimeRange = computed(() => {
-    if (!startDate.value || !endDate.value) return 'Time not set';
+    if (!startDate.value || !endDate.value) return t('calendar_event_time_not_set');
     return `${hhmm(startDate.value)} - ${hhmm(endDate.value)}`;
 });
 
@@ -374,32 +376,54 @@ const duration = computed(() => {
 
 const statusLabel = computed(() => String(raw.value?.status || props.event?.status || '').toLowerCase());
 
+const statusTranslationKeyByLabel = {
+    confirmed: 'calendar_event_status_confirmed',
+    completed: 'calendar_event_status_completed',
+    pending: 'calendar_event_status_pending',
+    pending_hold: 'calendar_event_status_pending_hold',
+    cancelled: 'calendar_event_status_cancelled',
+    cancelled_user: 'calendar_event_status_cancelled',
+    cancelled_creator: 'calendar_event_status_cancelled',
+};
+
+function translateStatusLabel(label) {
+    const normalized = String(label || '').toLowerCase();
+    const key = statusTranslationKeyByLabel[normalized];
+    return key ? t(key) : titleCaseFromKey(normalized);
+}
+
 const statusHint = computed(() => {
-    if (!startDate.value || !endDate.value) return statusLabel.value ? titleCaseFromKey(statusLabel.value) : '';
+    if (!startDate.value || !endDate.value) return statusLabel.value ? translateStatusLabel(statusLabel.value) : '';
 
     const now = Date.now();
     const startMs = startDate.value.getTime();
     const endMs = endDate.value.getTime();
 
-    if (now >= startMs && now < endMs) return 'live now';
+    if (now >= startMs && now < endMs) return t('calendar_event_live_now');
 
     const msToStart = startMs - now;
     if (msToStart > 0) {
         const minutesToStart = Math.ceil(msToStart / 60000);
         if (minutesToStart < 60) {
-            return `in ${minutesToStart} ${minutesToStart === 1 ? 'min' : 'mins'}`;
+            return t('calendar_event_in_minutes', {
+                count: minutesToStart,
+                unit: t(minutesToStart === 1 ? 'calendar_event_minute_short_one' : 'calendar_event_minute_short_other'),
+            });
         }
 
         const hoursToStart = Math.ceil(msToStart / 3600000);
         if (hoursToStart < 24) {
-            return `in ${hoursToStart} ${hoursToStart === 1 ? 'hr' : 'hrs'}`;
+            return t('calendar_event_in_hours', {
+                count: hoursToStart,
+                unit: t(hoursToStart === 1 ? 'calendar_event_hour_short_one' : 'calendar_event_hour_short_other'),
+            });
         }
 
-        const weekday = startDate.value.toLocaleDateString('en-US', { weekday: 'short' });
-        const day = startDate.value.toLocaleDateString('en-US', { day: '2-digit' });
-        const month = startDate.value.toLocaleDateString('en-US', { month: 'short' });
-        const year = startDate.value.toLocaleDateString('en-US', { year: 'numeric' });
-        const time = startDate.value.toLocaleTimeString('en-US', {
+        const weekday = startDate.value.toLocaleDateString(locale.value, { weekday: 'short' });
+        const day = startDate.value.toLocaleDateString(locale.value, { day: '2-digit' });
+        const month = startDate.value.toLocaleDateString(locale.value, { month: 'short' });
+        const year = startDate.value.toLocaleDateString(locale.value, { year: 'numeric' });
+        const time = startDate.value.toLocaleTimeString(locale.value, {
             hour: '2-digit',
             minute: '2-digit',
             hour12: true,
@@ -407,12 +431,12 @@ const statusHint = computed(() => {
         return `${weekday} ${day} ${month} ${year} ${time}`;
     }
 
-    if (statusLabel.value) return titleCaseFromKey(statusLabel.value);
+    if (statusLabel.value) return translateStatusLabel(statusLabel.value);
     return '';
 });
 
 const statusDotColor = computed(() => {
-    if (statusHint.value === 'live now') return '#22C55E';
+    if (statusHint.value === t('calendar_event_live_now')) return '#22C55E';
     const label = statusLabel.value;
     if (label === 'confirmed' || label === 'completed') return '#22C55E';
     if (label === 'pending' || label === 'pending_hold') return '#F59E0B';
@@ -536,7 +560,10 @@ const guestCount = computed(() => {
     return Number.isFinite(value) && value > 0 ? value : 1;
 });
 
-const guestHeading = computed(() => `${guestCount.value} guest${guestCount.value === 1 ? '' : 's'}`);
+const guestHeading = computed(() => t('calendar_event_guest_count', {
+    count: guestCount.value,
+    label: t(guestCount.value === 1 ? 'calendar_event_guest_one' : 'calendar_event_guest_other'),
+}));
 
 const viewerRole = computed(() => String(props.userRole || 'creator').toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === 'fan');
@@ -569,7 +596,7 @@ const fallbackGuestDisplayName = computed(() => {
                 raw.value?.creatorName,
                 raw.value?.creatorUsername,
             )
-            || (fallbackId ? `User #${fallbackId}` : 'Guest')
+            || (fallbackId ? t('calendar_event_user_id_fallback', { id: fallbackId }) : t('calendar_event_guest_fallback'))
         );
     }
 
@@ -579,7 +606,7 @@ const fallbackGuestDisplayName = computed(() => {
             raw.value?.userName,
             raw.value?.userUsername,
         )
-        || (fallbackId ? `User #${fallbackId}` : 'Guest')
+        || (fallbackId ? t('calendar_event_user_id_fallback', { id: fallbackId }) : t('calendar_event_guest_fallback'))
     );
 });
 
@@ -689,7 +716,7 @@ const additionalRequestLines = computed(() => {
         lines.push(personalRequestText);
     }
 
-    return lines.length > 0 ? lines : ['No additional request'];
+    return lines.length > 0 ? lines : [t('calendar_event_no_additional_request')];
 });
 
 const minimumChargeLabel = computed(() => {
@@ -700,8 +727,8 @@ const minimumChargeLabel = computed(() => {
     const total = Number(payment?.total ?? raw.value?.paymentTotal ?? lineTotal ?? 0);
     const currency = String(payment?.currency || raw.value?.paymentCurrency || 'TOKENS').toUpperCase();
 
-    if (!Number.isFinite(total) || total <= 0) return 'Not set';
-    if (currency === 'TOKENS') return `${Math.ceil(total)} tokens`;
+    if (!Number.isFinite(total) || total <= 0) return t('calendar_event_not_set');
+    if (currency === 'TOKENS') return t('calendar_event_tokens', { count: Math.ceil(total) });
 
     return `${currency} ${total}`;
 });
@@ -713,8 +740,8 @@ const reminderLabel = computed(() => {
         ?? mergedEvent.value?.remindBeforeMinutes
         ?? 0
     );
-    if (!Number.isFinite(reminderMinutes) || reminderMinutes <= 0) return 'Reminder not set';
-    return `${reminderMinutes} minutes before`;
+    if (!Number.isFinite(reminderMinutes) || reminderMinutes <= 0) return t('calendar_event_reminder_not_set');
+    return t('calendar_event_minutes_before', { count: reminderMinutes });
 });
 
 const chatUrl = computed(() => (

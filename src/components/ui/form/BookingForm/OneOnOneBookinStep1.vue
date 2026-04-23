@@ -189,30 +189,30 @@
   };
 
   const ringtoneOptions = [
-    { label: "Ringtone 1", value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
-    { label: "Ringtone 2", value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
-    { label: "Ringtone 3", value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_1"), value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_2"), value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_3"), value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
   ];
 
   const colorOptions = [
-    { label: "Blue", value: "#5549FF" },
-    { label: "Red", value: "#FF3B30" },
-    { label: "Green", value: "#22C55E" },
-    { label: "Pink", value: "#FF2D92" },
-    { label: "Orange", value: "#F97316" },
-    { label: "Purple", value: "#8B5CF6" },
-    { label: "Teal", value: "#14B8A6" },
+    { label: t("booking_color_blue"), value: "#5549FF" },
+    { label: t("booking_color_red"), value: "#FF3B30" },
+    { label: t("booking_color_green"), value: "#22C55E" },
+    { label: t("booking_color_pink"), value: "#FF2D92" },
+    { label: t("booking_color_orange"), value: "#F97316" },
+    { label: t("booking_color_purple"), value: "#8B5CF6" },
+    { label: t("booking_color_teal"), value: "#14B8A6" },
   ];
 
   const bufferUnitOptions = [
-    { label: "Minutes", value: "minutes" },
-    { label: "Hours", value: "hours" },
+    { label: t("booking_minutes"), value: "minutes" },
+    { label: t("booking_hours"), value: "hours" },
   ];
 
   const timeUnitOptions = [
-    { label: "Minute", value: "minute" },
-    { label: "Hour", value: "hour" },
-    { label: "Day", value: "day" },
+    { label: t("booking_minute"), value: "minute" },
+    { label: t("booking_hour"), value: "hour" },
+    { label: t("common_day"), value: "day" },
   ];
 
   let previewAudio = null;
@@ -246,15 +246,15 @@
 
     // Quill Setup (Preserved exactly as provided)
     const icons = Quill.import('ui/icons');
-    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold" style="width:30px;">';
-    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="italic" style="width:30px;">';
-    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="link" style="width:30px;">';
-    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="ol" style="width:30px;">';
-    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="ul" style="width:30px;">';
+    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="" style="width:30px;">';
+    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="" style="width:30px;">';
+    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="" style="width:30px;">';
+    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="" style="width:30px;">';
+    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="" style="width:30px;">';
 
     new Quill(quillEditor.value, {
       modules: { toolbar: [['bold', 'italic', 'link', { 'list': 'ordered' }, { 'list': 'bullet' }]] },
-      placeholder: "Event Description...",
+      placeholder: t("booking_event_description_placeholder"),
       theme: 'snow'
     });
 
@@ -317,6 +317,21 @@
       { key: "fri", name: "Fri", unavailable: true, offHours: false, slots: [] },
       { key: "sat", name: "Sat", unavailable: true, offHours: false, slots: [] },
     ];
+  }
+
+  const weekdayLabelKeys = {
+    sun: "date_sun_short",
+    mon: "date_mon_short",
+    tue: "date_tue_short",
+    wed: "date_wed_short",
+    thu: "date_thu_short",
+    fri: "date_fri_short",
+    sat: "date_sat_short",
+  };
+
+  function getWeekdayLabel(day) {
+    const key = String(day?.key || "").toLowerCase();
+    return weekdayLabelKeys[key] ? t(weekdayLabelKeys[key]) : (day?.name || "");
   }
 
   const DAY_KEY_TO_INDEX = {
@@ -460,7 +475,7 @@
     const minute = Number(rawMinute);
     const safeHour = Number.isFinite(hour) ? hour : 0;
     const safeMinute = Number.isFinite(minute) ? minute : 0;
-    const period = safeHour >= 12 ? "PM" : "AM";
+    const period = safeHour >= 12 ? t("booking_period_pm") : t("booking_period_am");
     const twelveHour = safeHour % 12 === 0 ? 12 : safeHour % 12;
     return `${twelveHour}:${String(safeMinute).padStart(2, "0")} ${period}`;
   }
@@ -768,11 +783,11 @@
             </div>
             <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
               <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
-              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">Preview</div>
+              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">{{ t("booking_preview") }}</div>
             </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-            <div class=""><span class="text-slate-700 text-xs font-normal leading-none">Event Image </span><span
+            <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span><span
                 class="text-gray-500 text-xs italic font-normal leading-none">{{ t("common_optional") }}</span></div>
             <div class="w-full">
               <!-- Uploaded image preview with delete button -->
@@ -800,12 +815,12 @@
                 button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
                 button-icon-wrapper-class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-green-500 rounded-lg h-10 w-10 flex justify-center items-center hover:bg-black"
                 button-parent-wrapper-class="flex flex-col items-center justify-center gap-3"
-                button-text="Click to upload"
+                :button-text="t('booking_upload_click')"
                 button-text-class="font-semibold text-gray-900 cursor-pointer"
-                drop-text=" or drag and drop"
+                :drop-text="t('booking_upload_drag_drop')"
                 drop-text-class="text-sm font-normal leading-5 text-gray-500 text-center"
-                custom-allowed-types="SVG, PNG, JPG or GIF"
-                custom-max-size="800x400px"
+                :custom-allowed-types="t('booking_upload_allowed_types')"
+                :custom-max-size="t('booking_upload_max_size')"
                 eenable-image-compression="true"
                 format-text-class="text-gray-500 text-xs leading-[1.125rem] text-center mb-0"
                 @media-uploaded="onEventImageUploaded"
@@ -815,12 +830,12 @@
         </div>
       </div>
 
-      <BookingSectionsWrapper title="Session Duration" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
+      <BookingSectionsWrapper :title="t('booking_session_duration')" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
-            <div class=" text-black text-base font-medium leading-normal">Minutes</div>
+            <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
             <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')"
@@ -836,8 +851,8 @@
                     inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
                 <div class="flex flex-col">
-                  <div class="justify-center text-black text-base font-medium leading-normal">Sessions</div>
-                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration }} minutes)</div>
+                  <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions") }}</div>
+                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration }) }})</div>
                 </div>
               </div>
             </div>
@@ -850,14 +865,14 @@
         <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-              Base Price
+              {{ t("booking_base_price") }}
             </div>
             <div class="flex items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.basePrice"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
               <div class="flex gap-2 items-center">
-                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">Tokens </span><span
-                  class="text-black text-sm font-normal font-['Poppins'] leading-tight">/session</span>
+                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">{{ t("common_tokens") }} </span><span
+                  class="text-black text-sm font-normal font-['Poppins'] leading-tight">{{ t("booking_per_session") }}</span>
               </div>
             </div>
           </div>
@@ -877,10 +892,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      sessions minimum
+                      {{ t("booking_sessions_minimum") }}
                     </div>
                     <div v-if="formData.sessionMinimum && formData.duration" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ formData.sessionMinimum }} x {{ formData.duration }} = {{ formData.sessionMinimum * formData.duration }} minutes)
+                      ({{ t("booking_session_minimum_summary", { count: formData.sessionMinimum, duration: formData.duration, minutes: formData.sessionMinimum * formData.duration }) }})
                     </div>
                   </div>
                 </div>
@@ -890,10 +905,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      % off base price
+                      {{ t("booking_percent_off_base_price") }}
                     </div>
                     <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }} tokens/session)
+                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }) }})
                     </div>
                   </div>
                 </div>
@@ -919,10 +934,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      off entire session
+                      {{ t("booking_off_entire_session") }}
                     </div>
                     <div v-if="formData.basePrice && formData.firstTimeDiscount" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }} tokens/session)
+                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }) }})
                     </div>
                   </div>
                 </div>
@@ -947,7 +962,7 @@
                     :disabled="!formData.enableBookingFee"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="w-14 justify-start text-black text-base font-medium font-['Poppins'] leading-normal">
-                    Tokens
+                    {{ t("common_tokens") }}
                   </div>
                 </div>
               </div>
@@ -970,7 +985,7 @@
                   <div class="self-stretch inline-flex justify-end items-center gap-2">
                     <div
                       class="flex-1 justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Approve sessions instantly after bookings.
+                      {{ t("booking_approve_sessions_instantly") }}
                     </div>
                   </div>
 
@@ -1002,7 +1017,7 @@
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
 
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Tokens
+                      {{ t("common_tokens") }}
                     </div>
                   </div>
                 </div>
@@ -1027,7 +1042,7 @@
                       :disabled="!formData.enableCancellationFee"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Tokens
+                      {{ t("common_tokens") }}
                     </div>
                   </div>
                 </div>
@@ -1052,7 +1067,7 @@
                     :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
                   />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
-                  in advance
+                  {{ t("booking_in_advance") }}
                 </div>
               </div>
             </div>
@@ -1072,8 +1087,8 @@
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-black text-base font-medium leading-normal">% from base price</div>
-                <div class="justify-center text-black text-xs font-medium leading-none">(1,600 tokens/session)</div>
+                <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_percent_from_base_price") }}</div>
+                <div class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: "1,600" }) }})</div>
               </div>
             </div>
           </div>
@@ -1096,7 +1111,7 @@
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start">
                     <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                      {{ formData.repeatRule === 'monthly' ? 'Start date' : 'Duration' }}
+                      {{ formData.repeatRule === 'monthly' ? t("booking_start_date") : t("booking_duration") }}
                     </span>
                     <span v-if="formData.repeatRule !== 'monthly'"
                       class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> {{ t("common_optional") }}</span>
@@ -1142,19 +1157,19 @@
 
               <div class="justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
                 :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center justify-center'">
-                {{ day.name }}
+                {{ getWeekdayLabel(day) }}
               </div>
 
               <template v-if="day.unavailable">
                 <div class="flex-1 justify-start text-gray-500 text-base font-normal leading-normal">
-                  Not Available
+                  {{ t("booking_not_available") }}
                 </div>
                 <button type="button" @click="addDayAvailability(index)"
                   class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="isWeeklyDayLocked(day.key || day.name)"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
                   :title="t('booking_add_availability')">
-                  <img :src="plusIcon" alt="plus icon" />
+                  <img :src="plusIcon" alt="" />
                 </button>
               </template>
 
@@ -1198,7 +1213,7 @@
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                           :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
                           :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }">
-                          <img :src="minusIcon" alt="minus icon" />
+                          <img :src="minusIcon" alt="" />
                         </button>
                       </TooltipIcon>
                       <TooltipIcon :text="t('booking_add_period_day')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
@@ -1206,10 +1221,10 @@
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
                           :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }">
-                          <img :src="plusIcon" alt="plus icon" />
+                          <img :src="plusIcon" alt="" />
                         </button>
                       </TooltipIcon>
-                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                         <button type="button" @click="toggleSlotOffHours(index, sIdx)"
                           class="w-6 h-6 rounded-full flex items-center justify-center"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
@@ -1217,7 +1232,7 @@
                             slot.offHours ? '' : '',
                             isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
                           ]">
-                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                         </button>
                       </TooltipIcon>
                     </div>
@@ -1271,7 +1286,7 @@
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalMonthlySlotCount() <= 1 }"
                   :title="t('booking_remove_availability')"
                 >
-                  <img :src="minusIcon" alt="minus icon" />
+                  <img :src="minusIcon" alt="" />
                 </button>
                 </TooltipIcon>
                 <TooltipIcon :text="t('booking_add_monthly_period')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
@@ -1281,7 +1296,7 @@
                   class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :title="t('booking_add_monthly_period')"
                 >
-                  <img :src="plusIcon" alt="plus icon" />
+                  <img :src="plusIcon" alt="" />
                 </button>
                 </TooltipIcon>
                 <TooltipIcon :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
@@ -1290,9 +1305,9 @@
                   @click="toggleMonthlySlotOffHours(slotIndex)"
                   class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
                   :class="slot.offHours ? '' : ''"
-                  title="Mark as off hours"
+                  :title="t('booking_mark_off_hours')"
                 >
-                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                 </button>
                 </TooltipIcon>
               </div>
@@ -1305,7 +1320,7 @@
               <div class="flex items-center gap-2 mb-3">
                 <div class="relative w-full">
                   <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <img :src="calendarIcon" alt="calendar icon" class="w-5 h-5" />
+                    <img :src="calendarIcon" alt="" class="w-5 h-5" />
                   </div>
                   <input
                     type="date"
@@ -1318,7 +1333,7 @@
                 </div>
                 <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
                   class="w-7 h-7 rounded text-red-500 hover:bg-red-50 flex-shrink-0 flex items-center justify-center">
-                  <img :src="trashIcon" alt="trash icon" class="w-5 h-5" />
+                  <img :src="trashIcon" alt="" class="w-5 h-5" />
                 </button>
               </div>
 
@@ -1330,7 +1345,7 @@
                     @click="addOneTimeSlot(entryIndex)"
                     class="px-2 py-1 text-xs bg-gray-900 text-[#07F468] hover:bg-black"
                   >
-                    Add time slot
+                    {{ t("booking_add_time_slot") }}
                   </button>
                 </div>
 
@@ -1356,11 +1371,11 @@
                     :disabled="getTotalOneTimeSlotCount() <= 1"
                     :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalOneTimeSlotCount() <= 1 }"
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
-                    <img :src="minusIcon" alt="minus icon" />
+                    <img :src="minusIcon" alt="" />
                   </button>
                   <button type="button" @click="addOneTimeSlot(entryIndex)"
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
-                    <img :src="plusIcon" alt="plus icon" />
+                    <img :src="plusIcon" alt="" />
                   </button>
                   </div>
                 </div>
@@ -1370,7 +1385,7 @@
             <div>
               <button type="button" @click="addOneTimeDate"
                 class="bg-gray-900 text-[#07F468] text-xs font-semibold px-2 py-1 hover:bg-black">
-                Add A Date
+                {{ t("booking_add_a_date") }}
               </button>
             </div>
           </div>
@@ -1386,9 +1401,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">Offer discount if call
-                  starts
-                  late</div>
+                <div class="justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_offer_discount_if_call_starts_late") }}</div>
                   <TooltipIcon :text="t('booking_join_buffer_tooltip')" />
               </div>
             </div>
@@ -1400,7 +1413,7 @@
                   buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
                 />
                 <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
-                  <BaseInput type="number" placeholder="Discount % for next session"
+                  <BaseInput type="number" :placeholder="t('booking_late_start_discount_placeholder')"
                     v-model="formData.lateStartDiscountPercent"
                     inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
                 </div>
@@ -1437,8 +1450,8 @@
                     :disabled="!formData.requestExtendSession"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
-                    <div class="justify-center text-black text-base font-medium leading-normal">sessions maximum</div>
-                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration * formData.extendSessionMax }} minutes)</div>
+                    <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
+                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration * formData.extendSessionMax }) }})</div>
                   </div>
                 </div>
               </div>
@@ -1456,7 +1469,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-gray-700 text-base font-normal leading-normal">Call reminder</div>
+                <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
                 <TooltipIcon :text="t('booking_reminders_tooltip')" />
               </div>
               <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
@@ -1469,9 +1482,7 @@
                   <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
                     :disabled="!formData.setReminders"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">minutes before
-                    a
-                  </div>
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">{{ t("booking_minutes_before_a") }}</div>
                 </div>
                 <div class="inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_scheduled_call") }}</div>
@@ -1495,10 +1506,10 @@
                 wrapperClass="flex items-center gap-2"
               >
                 <template #label>
-                  <span>Set buffer time between booked appointments</span>
+                  <span>{{ t("booking_set_buffer_time") }}</span>
 
                   <TooltipIcon
-                    text="Set a buffer time between appointment slots."
+                    :text="t('booking_buffer_time_tooltip')"
                     tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[200px]" 
                     class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                   />
@@ -1536,10 +1547,10 @@
                 wrapperClass="flex items-center gap-2"
               >
                 <template #label>
-                  <span>Set maximum bookings per day</span>
+                  <span>{{ t("booking_set_max_bookings_day") }}</span>
 
                   <TooltipIcon
-                    text="Set a daily limit for how many appointments you can accept."
+                    :text="t('booking_max_bookings_tooltip')"
                     tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
                     class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                   />
@@ -1573,10 +1584,10 @@
                   wrapperClass="flex items-center gap-2"
                 >
                   <template #label>
-                    <span>If booking slots are full, allow fans to join waitlist</span>
+                    <span>{{ t("booking_join_waitlist_if_full") }}</span>
 
                     <TooltipIcon
-                      text="An on-screen reminder will appear before your upcoming appointments."
+                      :text="t('booking_waitlist_tooltip')"
                       tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
                       class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                     />

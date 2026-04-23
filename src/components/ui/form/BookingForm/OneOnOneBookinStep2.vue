@@ -180,7 +180,7 @@ function hasAllSubscriptionTiersSelected(values) {
 
 const subscriptionTierDropdownOptions = computed(() => {
   return [{
-    label: "All Tiers",
+    label: t("booking_all_tiers"),
     value: ALL_TIERS_OPTION_VALUE,
   }, ...subscriptionTierOptions.value.map((tier) => ({
     label: tier.label,
@@ -227,10 +227,10 @@ const subscriptionTierDropdownModel = computed({
 
 const subscriptionTierTriggerLabel = computed(() => {
   const selectedCount = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers).length;
-  if (selectedCount === 0) return "Select tiers";
-  if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) return "All Tiers";
-  if (selectedCount === 1) return "1 Tier selected";
-  return `${selectedCount} Tiers selected`;
+  if (selectedCount === 0) return t("booking_select_tiers");
+  if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) return t("booking_all_tiers");
+  if (selectedCount === 1) return t("booking_tier_selected_one");
+  return t("booking_tiers_selected_count", { count: selectedCount });
 });
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
@@ -368,8 +368,8 @@ const spendingRequirementErrorByType = computed(() => ({
 
 const xRepostPopupOpen = ref(false);
 const xRepostPopupState = ref({
-  title: "X Repost Settings",
-  checkboxLabel: "Post to X",
+  title: t("booking_x_repost_settings"),
+  checkboxLabel: t("booking_post_to_x"),
   checkboxField: null,
   messageField: "",
   mediaField: "",
@@ -428,8 +428,8 @@ const xRepostPopupMediaModel = computed({
 
 function openXRepostPopup(config = {}) {
   xRepostPopupState.value = {
-    title: String(config.title || "X Repost Settings"),
-    checkboxLabel: String(config.checkboxLabel || "Post to X"),
+    title: String(config.title || t("booking_x_repost_settings")),
+    checkboxLabel: String(config.checkboxLabel || t("booking_post_to_x")),
     checkboxField: config.checkboxField || null,
     messageField: String(config.textareaName || ""),
     mediaField: String(config.uploaderName || ""),
@@ -545,9 +545,9 @@ function getSubscriptionTierDropdownLabel() {
   const selectedCount = Array.isArray(formData.value.subscriptionTiers)
     ? formData.value.subscriptionTiers.length
     : 0;
-  if (selectedCount === 0) return "All Tiers";
-  if (selectedCount === 1) return "1 Tier selected";
-  return `${selectedCount} Tiers selected`;
+  if (selectedCount === 0) return t("booking_all_tiers");
+  if (selectedCount === 1) return t("booking_tier_selected_one");
+  return t("booking_tiers_selected_count", { count: selectedCount });
 }
 
 function toggleInvitedUser(user) {
@@ -1127,7 +1127,7 @@ const createEvent = async () => {
                   :disabled="!formData.allowRecording"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal">
-                  Tokens
+                  {{ t("common_tokens") }}
                 </div>
               </div>
             </div>
@@ -1147,7 +1147,7 @@ const createEvent = async () => {
               <div class="flex-1 inline-flex flex-col">
                 <div class="inline-flex justify-end items-center gap-2">
                   <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-                    Let user add personal request in their booking
+                    {{ t("booking_personal_request_hint") }}
                   </div>
                   <!-- <BaseInput type="text" placeholder="Optional note shown to fans"
                     v-model="formData.personalRequestNote" :disabled="!formData.allowPersonalRequest"
@@ -1159,8 +1159,7 @@ const createEvent = async () => {
         </div>
         <div class="flex flex-col gap-4">
           <div class="justify-start text-gray-900 text-base font-normal leading-normal">
-            Customise your event with add-on service like offer to wear
-            different outfits and do different actions in the call.
+            {{ t("booking_add_on_service_description") }}
           </div>
 
           <div v-if="!Array.isArray(formData.addOns) || formData.addOns.length === 0" class="inline-flex">
@@ -1186,7 +1185,7 @@ const createEvent = async () => {
             >
               <div class="inline-flex justify-between items-center">
                 <div class="text-[#667085] text-base font-semibold leading-normal">
-                  Add-on service {{ index + 1 }}
+                  {{ t("booking_add_on_service_index", { index: index + 1 }) }}
                 </div>
               </div>
               <div class="flex items-start gap-4">
@@ -1224,7 +1223,7 @@ const createEvent = async () => {
                   inputClass="bg-white/75 w-full px-3 py-2 flex-1 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
                 />
                 <div class="text-black text-[16px] font-medium whitespace-nowrap">
-                  Tokens
+                  {{ t("common_tokens") }}
                 </div>
               </div>
             </div>
@@ -1257,7 +1256,7 @@ const createEvent = async () => {
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-              Who can book a call?
+              {{ t("booking_who_can_book_call") }}
             </div>
             <CustomDropdown 
               v-model="formData.whoCanBook" 
@@ -1272,7 +1271,7 @@ const createEvent = async () => {
                 {{ subscriptionTiersError }}
               </div>
               <div v-else-if="subscriptionTierOptions.length === 0" class="text-slate-500 text-sm">
-                No active tiers found for this creator.
+                {{ t("booking_no_active_tiers") }}
               </div>
               <div v-else class="w-full">
                 <CustomDropdown
@@ -1304,7 +1303,7 @@ const createEvent = async () => {
               -->
 
               <div class="text-slate-700 text-sm font-medium pt-1">
-                Invite link
+                {{ t("booking_invite_link") }}
               </div>
               <div class="w-full inline-flex items-center">
                 <input
@@ -1423,7 +1422,7 @@ const createEvent = async () => {
           <div class="flex flex-col gap-2">
             <div class="inline-flex justify-start items-center gap-1">
               <div class="text-slate-700 text-base font-normal leading-normal">
-                Spending requirement
+                {{ t("booking_spending_requirement") }}
               </div>
               <TooltipIcon :text="t('booking_user_must_spend_tooltip')" />
             </div>
@@ -1448,7 +1447,7 @@ const createEvent = async () => {
                   <div class="relative">
                     <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
                       <img src="" alt="">
-                      <span class="text-xs text-white">Count</span>
+                      <span class="text-xs text-white">{{ t("booking_count") }}</span>
                     </div>
                     <img
                     :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
@@ -1465,18 +1464,18 @@ const createEvent = async () => {
                         {{ product.type }}
                       </div> -->
                       <div v-if="product.subscribePrice" class="text-xs text-white capitalize flex gap-1 bg-[#F06] px-[0.375rem] py-[0.125rem]">
-                        <span>Subscribe</span> 
+                        <span>{{ t("booking_subscribe") }}</span> 
                         <span class="font-semibold">${{ product.subscribePrice || 0 }}</span>
                       </div>
 
                       <div v-if="product.buyPrice" class="text-xs text-white capitalize flex gap-1 bg-[#0133FB] px-[0.375rem] py-[0.125rem]">
-                        <span>Buy</span> 
+                        <span>{{ t("booking_buy") }}</span> 
                         <span class="font-semibold">${{ product.buyPrice || 0 }}</span>
                       </div>
 
 
                       <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> FREE
+                        <span>·</span> {{ t("common_free") }}
                       </div>
                     </div>
                   </div>
@@ -1496,7 +1495,7 @@ const createEvent = async () => {
         <div class="flex flex-col gap-1.5">
           <div class="flex flex-col gap-1.5">
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
-              Blocked user
+              {{ t("booking_blocked_user") }}
             </div>
             <div class="w-full flex flex-col shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-sm bg-white/75 relative" ref="blockedUserDropdownRef">
               <div class="relative w-full">
@@ -1513,7 +1512,7 @@ const createEvent = async () => {
 
               <template v-if="blockedUserDropdownOpen">
                 <div v-if="blockedUsersLoading" class="px-4 py-3 text-slate-500 text-sm">
-                  Searching users...
+                  {{ t("booking_searching_users") }}
                 </div>
                 <div v-else-if="blockedUsersError" class="px-4 py-3 text-rose-600 text-sm">
                   {{ blockedUsersError }}
@@ -1522,7 +1521,7 @@ const createEvent = async () => {
                   v-else-if="blockedUserSearchQuery.trim().length >= 2 && blockedUserOptions.length === 0"
                   class="px-4 py-3 text-slate-500 text-sm"
                 >
-                  No users found.
+                  {{ t("booking_no_users_found") }}
                 </div>
                 <div
                   v-else-if="blockedUserOptions.length > 0"
@@ -1548,7 +1547,7 @@ const createEvent = async () => {
                     <div class="flex items-center justify-center pl-3">
                       <span v-if="formData.blockedUsers.some((item) => String(item) === String(user.id))"
                             class="text-[#FF4405] text-[12px] font-medium">
-                        blocked
+                        {{ t("booking_blocked") }}
                       </span>
                       <img v-else src="@/assets/images/icons/slash-circle.webp" alt="" class="w-5 h-5" />
                     </div>
@@ -1582,7 +1581,7 @@ const createEvent = async () => {
 
                 <div class="flex items-center justify-center pl-3">
                   <button type="button" class="text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" @click="removeBlockedUser(userId)">
-                    <img src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp" alt="3-dot" class="w-5 h-5" />
+                    <img src="https://i.ibb.co.com/cSNVr9ks/3-dot.webp" alt="" class="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -1617,8 +1616,8 @@ const createEvent = async () => {
           <div
             class="flex justify-end cursor-pointer"
             @click="openXRepostPopup({
-              title: 'X Repost Settings',
-              checkboxLabel: 'Post to X when my booking schedule is live',
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_live'),
               checkboxField: 'xPostLive',
               inputName: 'on_schedule_live',
               textareaName: 'on_schedule_live_message',
@@ -1635,8 +1634,8 @@ const createEvent = async () => {
           <div
             class="flex justify-end cursor-pointer"
             @click="openXRepostPopup({
-              title: 'X Repost Settings',
-              checkboxLabel: 'Post to X when a booking is received',
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_booked'),
               checkboxField: 'xPostBooked',
               inputName: 'on_booking_received',
               textareaName: 'on_booking_received_message',
@@ -1653,8 +1652,8 @@ const createEvent = async () => {
           <div
             class="flex justify-end cursor-pointer"
             @click="openXRepostPopup({
-              title: 'X Repost Settings',
-              checkboxLabel: 'Post to X when I am in a session',
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_in_session'),
               checkboxField: 'xPostInSession',
               inputName: 'on_in_session',
               textareaName: 'on_in_session_message',
@@ -1671,8 +1670,8 @@ const createEvent = async () => {
           <div
             class="flex justify-end cursor-pointer"
             @click="openXRepostPopup({
-              title: 'X Repost Settings',
-              checkboxLabel: 'Post to X when I am tipped in a session',
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_tipped'),
               checkboxField: 'xPostTipped',
               inputName: 'on_tipped_session',
               textareaName: 'on_tipped_session_message',
@@ -1689,8 +1688,8 @@ const createEvent = async () => {
           <div
             class="flex justify-end cursor-pointer"
             @click="openXRepostPopup({
-              title: 'X Repost Settings',
-              checkboxLabel: 'Post to X when someone made a purchase in a session',
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_purchase'),
               checkboxField: 'xPostPurchase',
               inputName: 'on_purchased',
               textareaName: 'on_purchased_message',

@@ -74,6 +74,8 @@ describe("events embed bootstrap", () => {
       apiBaseUrl: "https://api.example.com",
       jwtToken: "",
       initialRoute: "create-private",
+      translations: {},
+      locale: "en",
       creatorData: {
         avatar: "https://example.com/avatar.webp",
         name: "Creator Name",
@@ -99,6 +101,8 @@ describe("events embed bootstrap", () => {
       apiBaseUrl: "https://api.example.com",
       jwtToken: "",
       initialRoute: "events",
+      translations: {},
+      locale: "en",
       creatorData: {
         avatar: null,
         name: null,
