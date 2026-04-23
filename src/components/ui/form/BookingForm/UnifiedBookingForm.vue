@@ -13,7 +13,7 @@ import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
-import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
@@ -423,22 +423,35 @@ function rgba(hexColor, alpha = 1) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function resolveEventTitle(event) {
+    return String(
+        event?.title
+        || event?.eventTitle
+        || event?.name
+        || event?.raw?.title
+        || event?.raw?.eventTitle
+        || "Event Title",
+    ).trim();
+}
+
 function buildCalendarSlotsFromContext({
     creatorEvents = [],
-    bookedSlotsRaw = [],
-    bookedSlotsIndex = {},
     focusDate = new Date(),
 }) {
-    const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
-        includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
-        titleFallback: "Booked Slot",
-    });
-
     const colorByEventId = new Map(
         creatorEvents
             .map((event) => [
                 String(event?.eventId || event?.id || ""),
                 event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const titleByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                resolveEventTitle(event),
             ])
             .filter(([eventId]) => Boolean(eventId))
     );
@@ -461,47 +474,44 @@ function buildCalendarSlotsFromContext({
             .filter(([eventId]) => Boolean(eventId))
     );
 
-    const bookedCalendarSlots = calendarSlots.map((event) => ({
-        ...event,
-        isExistingSchedule: true,
-        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
-        color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
-        raw: {
-            ...(event?.raw || {}),
-            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventCallType || "").toLowerCase(),
-            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
-        },
-    }));
-
     const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(creatorEvents, {
-        bookedSlotsIndex,
+        bookedSlotsIndex: {},
         focusDate,
         rangeDaysBefore: 14,
         rangeDaysAfter: 56,
     }).map((event) => ({
         ...event,
         slot: "availability",
-        color: "#98A2B3",
+        title: titleByEventId.get(String(event?.eventId || "")) || resolveEventTitle(event),
+        color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
+        eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
         eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
         raw: {
             ...(event?.raw || {}),
             eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
             eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+            eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
         },
     }));
 
     return {
-        bookedCalendarSlots,
+        bookedCalendarSlots: [],
         availabilityCalendarSlots,
     };
 }
 
 function getCalendarEventStyle(event, mode = "existing") {
     if (mode === "availability" || event?.isAvailabilityBlock) {
+        const color = normalizeHexColor(
+            event?.eventColorSkin || event?.color || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            DEFAULT_EVENT_COLOR,
+        );
         return {
-            backgroundColor: "rgba(152, 162, 179, 0.18)",
-            border: "1px solid rgba(152, 162, 179, 0.16)",
-            color: "transparent",
+            backgroundColor: rgba(color, 0.08),
+            backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
+            border: `1px solid ${color}`,
+            borderBottom: `2px solid ${color}`,
+            color,
             zIndex: 1,
         };
     }
@@ -727,7 +737,7 @@ const previewDraftEvents = computed(() => {
 });
 
 const events2 = computed(() => {
-    return [...calendarAvailabilitySlots.value, ...calendarBookedSlots.value, ...previewDraftEvents.value];
+    return [...calendarAvailabilitySlots.value, ...previewDraftEvents.value];
 });
 
 const state = reactive({
