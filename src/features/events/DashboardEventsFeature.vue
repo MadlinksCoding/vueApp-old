@@ -227,7 +227,7 @@
 
       <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
         <button
-          class="bg-[#ff0464] w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#ff0464] p-2 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img

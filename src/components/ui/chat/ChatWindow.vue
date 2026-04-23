@@ -29,6 +29,7 @@ import TokenHandler from '@/utils/TokenHandler.js'
 import { showToast } from '@/utils/toastBus.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
+import pinkStarIcon from '@/assets/images/icons/star-07.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
@@ -67,6 +68,17 @@ const bookingSenderName = computed(() => {
   }
   return props.chatName
 })
+
+function getSenderName(message) {
+  const senderId = String(message.senderId || message.sender_id || '')
+  if (!senderId) return props.chatName
+  
+  if (senderId === String(currentUserId)) {
+    return 'You'
+  }
+  const ud = chatStore.chatUsersData[senderId]
+  return ud?.display_name || ud?.username || props.chatName
+}
 
 // ── Topup flow state (iframe → parent communication) ─────────────────────────
 const _pendingTopupBookingId = ref(null)
@@ -508,6 +520,7 @@ function onCallCancelled(updatedItem) {
 function variantForMessage(msg) {
   if (msg.content_type === 'booking_request') return 'system'
   if (msg.content_type === 'activity_log') return 'system'
+  if (msg.content_type === 'product_recommendation') return 'system'
   return null
 }
 const ActivityLogTexts = {
@@ -1531,6 +1544,93 @@ onUnmounted(() => {
           @confirm-counter="onConfirmCounter(message)"
           @cancel-booking="onCancelBooking(message)"
         />
+        <!-- Product Recommendation -->
+        <div
+          v-else-if="message.content_type === 'product_recommendation' && productForMessage(message)"
+          class="w-full overflow-hidden bg-[#1A1A1A] border-l-[3px] border-[#FF0080] text-left shadow-lg transition mb-1 flex flex-col gap-2.5 p-3 bg-gradient-to-r from-pink-500/20 via-pink-500/10 to-transparent"
+          :class="{ '': !shouldShowProductCardCta(message) }"
+          @click.stop="onProductShellClick(message)"
+        >
+          <!-- Header -->
+          <div class="flex items-center gap-1.5 text-[13px]">
+            <div class="">
+              <img :src="pinkStarIcon" alt="pink star icon">
+            </div>
+            <span class="text-[#FB5BA2] text-sm font-bold italic truncate">{{ getSenderName(message) }}</span>
+            <span class="text-gray-300 text-sm shrink-0">shared a {{ productForMessage(message).type || 'media' }}:</span>
+          </div>
+
+          <!-- Media -->
+          <div class="relative bg-black w-full">
+            <video
+              v-if="productForMessage(message).preview?.type === 'video' && productForMessage(message).preview?.url"
+              :src="productForMessage(message).preview.url"
+              :poster="productForMessage(message).preview.posterUrl || productForMessage(message).thumbnailUrl"
+              class="w-full aspect-video object-cover"
+              muted
+              playsinline
+              controls
+              @click.stop
+            />
+            <audio
+              v-else-if="productForMessage(message).preview?.type === 'audio' && productForMessage(message).preview?.url"
+              :src="productForMessage(message).preview.url"
+              class="w-full h-10 px-2 bg-black"
+              controls
+              @click.stop
+            />
+            <img
+              v-else-if="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
+              :src="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
+              :alt="productForMessage(message).title"
+              class="w-full aspect-video object-cover"
+            />
+
+            <div class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]">
+                <div class="">
+                    
+                </div>
+                <span class="text-white text-xs">Count</span>
+            </div>
+          </div>
+
+          <!-- Title -->
+          <div class=" text-[14px] font-medium leading-5 text-white line-clamp-2">
+            {{ productForMessage(message).title }}
+          </div>
+
+          <!-- Buttons -->
+          <div class="flex items-center w-full gap-1">
+            <button
+              v-if="productForMessage(message).subscribePrice > 0"
+              type="button"
+              class="flex-1 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="productCardCtaDisabled(message)"
+              @click.stop="onProductCtaClick(message)"
+            >
+              <span>Subscribe</span>
+              <span>${{ productForMessage(message).subscribePrice }}</span>
+            </button>
+            <button
+              v-if="productForMessage(message).buyPrice > 0 || productForMessage(message).subscribePrice <= 0"
+              type="button"
+              class="flex-1 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="productCardCtaDisabled(message)"
+              @click.stop="onProductCtaClick(message)"
+            >
+              <span>Buy</span>
+              <span>${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
+            </button>
+          </div>
+
+          <!-- Error Status -->
+          <div
+            v-if="productCardStatus(message)?.error"
+            class="px-3 pb-2 text-[11px] leading-tight text-red-400"
+          >
+            {{ productCardStatus(message).error }}
+          </div>
+        </div>
         <!-- Activity log: centered italic text + divider -->
         <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
           <span class="text-xs text-zinc-400 italic text-center">{{ resolveActivityLogText(message) }}</span>
@@ -1540,67 +1640,7 @@ onUnmounted(() => {
 
       <!-- Message content -->
       <template #message.content="{ message }">
-        <div
-          v-if="message.content_type === 'product_recommendation' && productForMessage(message)"
-          class="w-[220px] overflow-hidden rounded border border-gray-200 bg-white text-left shadow-sm transition hover:border-[#FF0080]"
-          :class="{ 'cursor-pointer': !shouldShowProductCardCta(message) }"
-          @click.stop="onProductShellClick(message)"
-        >
-          <div class="relative bg-gray-100">
-            <video
-              v-if="productForMessage(message).preview?.type === 'video' && productForMessage(message).preview?.url"
-              :src="productForMessage(message).preview.url"
-              :poster="productForMessage(message).preview.posterUrl || productForMessage(message).thumbnailUrl"
-              class="w-full aspect-[16/9] object-cover"
-              muted
-              playsinline
-              controls
-              @click.stop
-            />
-            <audio
-              v-else-if="productForMessage(message).preview?.type === 'audio' && productForMessage(message).preview?.url"
-              :src="productForMessage(message).preview.url"
-              class="absolute bottom-2 left-2 right-2 z-10 w-[calc(100%-1rem)]"
-              controls
-              @click.stop
-            />
-            <img
-              v-if="productForMessage(message).preview?.type !== 'video' || !productForMessage(message).preview?.url"
-              :src="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl || 'https://picsum.photos/seed/default-product/320/180'"
-              :alt="productForMessage(message).title"
-              class="w-full aspect-[16/9] object-cover"
-            />
-          </div>
-          <div class="flex flex-col gap-1 p-2">
-            <div class="text-[13px] font-semibold leading-4 text-gray-950 line-clamp-2">
-              {{ productForMessage(message).title }}
-            </div>
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[10px] font-medium uppercase tracking-normal text-slate-500">
-                {{ productForMessage(message).type }}
-              </span>
-              <span class="rounded-sm bg-[#07F468] px-1.5 py-0.5 text-[11px] font-semibold text-slate-900">
-                {{ productPriceLabel(productForMessage(message)) }}
-              </span>
-            </div>
-            <button
-              v-if="shouldShowProductCardCta(message)"
-              type="button"
-              class="mt-1 inline-flex h-8 w-full items-center justify-center rounded bg-gray-950 px-3 text-xs font-semibold text-white transition hover:bg-[#FF0080] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
-              :disabled="productCardCtaDisabled(message)"
-              @click.stop="onProductCtaClick(message)"
-            >
-              {{ productCardCtaLabel(message) }}
-            </button>
-            <div
-              v-if="productCardStatus(message)?.error"
-              class="text-[10px] leading-3 text-red-500"
-            >
-              {{ productCardStatus(message).error }}
-            </div>
-          </div>
-        </div>
-        <div v-else>{{ message.text }}</div>
+        <div v-if="message.text">{{ message.text }}</div>
         <span
           v-if="(message.senderId || message.sender_id) === currentUserId"
           class="shrink-0 ml-1 inline-flex items-center"

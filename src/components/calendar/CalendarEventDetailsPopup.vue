@@ -96,7 +96,7 @@
                 <div class="flex flex-col items-start gap-4">
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/alarmIcon.png" alt="" class="filter grayscale brightness-75 opacity-100">
+                            <img :src="alarmIcon" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
@@ -115,7 +115,7 @@
 
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/profile.webp" alt="" class="filter grayscale brightness-75 opacity-100">
+                            <img :src="userIcon" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="inline-flex flex-col justify-center items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">{{ guestHeading }}</div>
@@ -153,7 +153,7 @@
 
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/dotpoints.png" alt="">
+                            <img :src="dotPoints" alt="">
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">Additional request</div>
@@ -169,7 +169,7 @@
 
                     <div class="inline-flex items-start gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/dollar.png" alt="">
+                            <img :src="dollarIcon" alt="">
                         </div>
                         <div class="inline-flex flex-col items-start gap-2">
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5">
@@ -183,7 +183,7 @@
 
                     <div class="inline-flex items-center gap-4">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/bell-1.webp" alt="" class="filter grayscale brightness-75 opacity-100">
+                            <img :src="bellIcon" alt="" class="filter grayscale brightness-75 opacity-100">
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="text-gray-900 text-sm font-normal font-['Poppins'] leading-5">{{ reminderLabel }}</div>
@@ -192,7 +192,7 @@
 
                     <div class="inline-flex w-full items-center gap-4 pointer-events-none opacity-30" v-if="true || chatUrl">
                         <div class="w-6 h-6 relative overflow-hidden">
-                            <img src="/images/message-dots.png" alt="">
+                            <img :src="messageDots" alt="">
                         </div>
                         <a
                             class="flex items-center gap-0.5"
@@ -253,6 +253,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
 import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+import alarmIcon from '@/assets/images/icons/alarmIcon.png';
+import userIcon from '@/assets/images/icons/profile.webp';
+import dotPoints from '@/assets/images/icons/dotPoints.png';
+import dollarIcon from '@/assets/images/icons/dollar.png';
+import bellIcon from '@/assets/images/icons/bell-1.webp';
+import messageDots from '@/assets/images/icons/message-dots.png';
+
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
 
 const props = defineProps({

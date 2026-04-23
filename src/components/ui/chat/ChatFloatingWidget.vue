@@ -204,28 +204,44 @@ onMounted(async () => {
       <!-- Trigger button (UI-01.0) -->
       <button
         @click="toggleList"
-        class="flex items-center gap-2 bg-white border border-zinc-200 rounded-full px-4 py-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+        class="fixed 
+         right-2 bottom-14
+         md:right-10 md:bottom-0
+         md:max-[1009px]:rounded-t-[10px]
+         md:max-[1009px]:rounded-b-none
+         max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
+         lg:right-auto lg:bottom-4
+         flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
           <img :src="MessageTextIcon" alt="" class="w-6 h-6 filter brightness-0 cursor-pointer" />
           <span
             v-if="unreadCount > 0"
-            class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none"
-          >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+            class="flex md:hidden absolute -top-3 -right-2 bg-[#FF0066] text-white text-[9px] font-bold rounded-xl p-1 items-center justify-center leading-none"
+          >
+             {{ unreadCount > 9 ? '9+' : unreadCount }}
+          </span>
+          <span
+            v-if="unreadCount > 0"
+            class="hidden md:flex absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
+          >
+          </span>
         </div>
 
-        <span v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span v-else>Chat</span>
+        <span class="hidden md:flex" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex" v-else>Chat</span>
 
         <!-- Chevron -->
-        <svg
-          class="w-3.5 h-3.5 text-zinc-400 transition-transform"
-          :class="isListOpen ? 'rotate-180' : ''"
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-        </svg>
+        <div class="hidden md:flex">
+            <svg
+              class="w-3.5 h-3.5 text-zinc-400 transition-transform"
+              :class="isListOpen ? 'rotate-180' : ''"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+            </svg>
+        </div>
       </button>
 
     </div>

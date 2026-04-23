@@ -811,6 +811,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center gap-3">
                     <div class="flex items-center gap-3 min-w-0">
                         <button
+                            hidden
                             v-if="embedded"
                             type="button"
                             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
@@ -832,7 +833,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             {{ formTitle }}
                         </div>
                     </div>
-                    <div class="w-2.5 h-2.5 relative overflow-hidden">
+                    <div  @click="emit('back')" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
                         <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="" />
                     </div>
                 </div>
