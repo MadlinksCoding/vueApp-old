@@ -74,12 +74,12 @@ const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
     header: 'text-lg font-medium text-white',
-    dayBase: 'relative w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
+    dayBase: 'relative  h-[37px] rounded-[2px] flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
     outside: 'opacity-0',
     expired: 'opacity-40 cursor-not-allowed pointer-events-none',
     today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
-    selected: 'rounded-full !bg-[#07F468] !text-[#0C111D] font-semibold',
-    dot: 'absolute top-[3px] right-[3px] w-1 h-1 rounded-full bg-[#07F468]'
+    selected: 'rounded-[2px] !bg-[#07F468] !text-[#0C111D] font-semibold',
+    dot: 'absolute bottom-[2px] w-1 h-1 rounded-full bg-[#07F468]'
   }
 };
 
