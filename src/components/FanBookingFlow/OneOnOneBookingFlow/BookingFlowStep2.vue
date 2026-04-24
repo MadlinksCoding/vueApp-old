@@ -74,12 +74,13 @@ const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
     header: 'text-lg font-medium text-white',
-    dayBase: 'relative  h-[37px] rounded-[2px] flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
+    dayBase: 'relative  h-[37px] rounded-[2px] text-[#ffffff] flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-500',
     outside: 'opacity-0',
-    expired: 'opacity-40 cursor-not-allowed pointer-events-none',
-    today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
-    selected: 'rounded-[2px] !bg-[#07F468] !text-[#0C111D] font-semibold',
-    dot: 'absolute bottom-[2px] w-1 h-1 rounded-full bg-[#07F468]'
+    expired: 'opacity-40 cursor-not-allowed pointer-events-none !bg-transparent !text-[currentColor]',
+    today: 'font-semibold text-white hover:bg-gray-600',
+    selected: 'rounded-[2px] !bg-[#07F468] !text-[#000000] font-semibold focus:!outline-none focus:!ring-0 focus:!ring-offset-0 focus:!shadow-none focus:!border-0',
+    dot: 'absolute bottom-[2px] w-1 h-1 rounded-full bg-[#07F468]',
+    selectedDot: '!bg-[#0C111D] bottom-[4px]'
   }
 };
 
