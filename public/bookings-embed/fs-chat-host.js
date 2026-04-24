@@ -95,11 +95,11 @@
 
     function applyContainerSize(w, payload ={}) {
       // console.error("Applying container size for width", w,payload);
-      if (w <= 768) {
+      if (w < 768) {
         // if( payload?.width &&
         // chatContainer.style.width  = "60px";
         // chatContainer.style.height = "40px";
-        chatContainer.style.bottom = "3rem";
+        chatContainer.style.bottom = "4.5rem";
       } else {
         // chatContainer.style.width  = String(settings.width)  + "px";
         // chatContainer.style.height = String(settings.height) + "px";
