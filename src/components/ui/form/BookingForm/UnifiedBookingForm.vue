@@ -539,6 +539,14 @@ function shouldOpenCalendarEvent(event) {
     return !event?.isAvailabilityBlock && !event?.isDraftPreview;
 }
 
+function expandCalendarBlockStyle(style) {
+    if (typeof style !== "string") return style;
+
+    return style
+        .replace(/left:\s*2px;/g, "left:0;")
+        .replace(/right:\s*2px;/g, "right:0;");
+}
+
 function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }) {
     const start = dateTimeFromIsoHm(dateIso, startTime);
     if (!start) return null;
@@ -945,29 +953,13 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
                     @preview-schedule="previewSchedule = true">
 
-                    <template #event="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
-                            <div class="flex items-center gap-1 font-normal truncate">
-                                <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z"
-                                        stroke="currentColor" stroke-width="1.25" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
                     <template #event-custom="{ event, style, onClick }">
                         <div
                             :class="[
                                 'absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]',
                                 (event?.isAvailabilityBlock || event?.isDraftPreview) ? 'pointer-events-none' : ''
                             ]"
-                            :style="[style, getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
+                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
                             @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal leading-4 truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
@@ -982,40 +974,9 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </template>
 
-                    <template #event-alt="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
-                            <div class="flex items-center gap-1 font-normal truncate">
-                                <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template #event-custom2="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
-                            <div class="flex items-center gap-1 font-normal">
-                                <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                                    <path d="M16 10a4 4 0 0 1-8 0"></path>
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
                     <template #event-availability="{ event, style }">
                         <div class="absolute pointer-events-none rounded-md min-h-[6px] w-full"
-                            :style="[style, getCalendarEventStyle(event, 'availability')]" />
+                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]" />
                     </template>
 
                 </MainCalendar>
