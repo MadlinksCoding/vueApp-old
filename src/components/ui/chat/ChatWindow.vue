@@ -25,6 +25,7 @@ import {
   resolveChatFanUid,
 } from '@/utils/chatProductRecommendation.js'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatResolverUtils'
 import TokenHandler from '@/utils/TokenHandler.js'
 import { showToast } from '@/utils/toastBus.js'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -852,7 +853,7 @@ async function ensureActiveChat() {
   if (!createRes?.ok) return false
   activeChatId.value = createRes.data.chatId
   emit('chat-created', createRes.data.chatId)
-  FlowHandler.run('chat.fetchUserChats', { userId: currentUserId })
+  resolveAndSyncChat(activeChatId.value)
   return true
 }
 
@@ -1217,9 +1218,9 @@ async function observeNewRows() {
     // Skip own messages — they're never marked as read by us
     if (String(senderId) === String(currentUserId)) return
 
-    // Skip messages already marked read in the store
+    // Skip messages the current user has already read (present in read_receipts)
     const msg = messages.value.find((m) => (m.message_id || m.id) === messageId)
-    if (msg?.status === 'read') {
+    if (isMessageReadByUser(msg, currentUserId)) {
       _markedReadIds.add(messageId)
       return
     }
@@ -1387,9 +1388,9 @@ watch(pinnedBookingMessage, async (msg) => {
   if (!messageId) return
   if (senderId === String(currentUserId)) return   // own message
   if (_markedReadIds.has(messageId)) return        // already handled
-  if (msg.status === 'read') { 
-    _markedReadIds.add(messageId); 
-    return // already read 
+  if (isMessageReadByUser(msg, currentUserId)) {
+    _markedReadIds.add(messageId)
+    return
   }
 
   _markedReadIds.add(messageId)

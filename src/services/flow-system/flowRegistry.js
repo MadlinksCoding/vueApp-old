@@ -4,6 +4,7 @@ import { fetchEventFlow } from "@/services/events/flows/fetchEventFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
+import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
 import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
@@ -713,7 +714,21 @@ export const flowRegistry = {
     },
   },
 
-    "chat.createChat": {
+    "chat.getChat": {
+    flowKind: "read",
+    flow: getChatFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {
+        GET_CHAT_MISSING_CHAT_ID: "Chat ID is required.",
+        GET_CHAT_FAILED: "Could not load chat.",
+      },
+    },
+  },
+  "chat.createChat": {
     flowKind: "write",
     flow: createChatFlow,
     pipeline: {

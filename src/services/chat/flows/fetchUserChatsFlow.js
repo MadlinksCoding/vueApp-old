@@ -5,7 +5,7 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 export async function fetchUserChatsFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
   const headers = context.requestHeaders || {};
-  const { userId } = payload;
+  const { userId, limit = 500, cursor } = payload;
 
   if (!userId) {
     return fail({
@@ -14,8 +14,15 @@ export async function fetchUserChatsFlow({ payload, context, api }) {
     });
   }
 
+  const params = { limit };
+  if (cursor) params.cursor = cursor;
+
   try {
-    const response = await api.get(`${baseUrl}/chats/user/${encodeURIComponent(userId)}`, {}, { headers, signal: context.signal });
+    const response = await api.get(
+      `${baseUrl}/chats/user/${encodeURIComponent(userId)}`,
+      { params },
+      { headers, signal: context.signal }
+    );
     const status = getHttpStatus(response, 200);
 
     if (response?.ok === false) {
@@ -31,7 +38,7 @@ export async function fetchUserChatsFlow({ payload, context, api }) {
     }));
 
     return ok(
-      { items, userId },
+      { items, userId, nextCursor: response?.nextCursor ?? null, append: !!cursor },
       { flow: "chat.fetchUserChats", status }
     );
   } catch (error) {

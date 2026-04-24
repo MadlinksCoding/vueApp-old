@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '@/stores/useChatStore'
+import FlowHandler from '@/services/flow-system/FlowHandler'
 import EditIcon from '@/assets/images/icons/edit-05-pink.svg'
 import DropdownIcon from '@/assets/images/icons/chevron-down-gray.webp'
 import NewChatPopup from '@/components/ui/chat/NewChatPopup.vue'
@@ -13,6 +14,35 @@ const props = defineProps({
 const emit = defineEmits(['open-chat', 'close', 'start-chat', 'chat-ready'])
 
 const showNewChatPopup = ref(false)
+const isLoadingMore = ref(false)
+const listEl = ref(null)
+
+async function loadMoreChats() {
+  if (isLoadingMore.value || !chatStore.chatsHasMore) return
+  isLoadingMore.value = true
+  await FlowHandler.run('chat.fetchUserChats', {
+    userId: props.currentUserId,
+    cursor: chatStore.chatsNextCursor,
+  })
+  isLoadingMore.value = false
+}
+
+function onListScroll() {
+  if (isLoadingMore.value || !chatStore.chatsHasMore) return
+  const el = listEl.value
+  if (!el) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+    loadMoreChats()
+  }
+}
+
+onMounted(() => {
+  listEl.value?.addEventListener('scroll', onListScroll)
+})
+
+onUnmounted(() => {
+  listEl.value?.removeEventListener('scroll', onListScroll)
+})
 
 function onNewChatMessage(payload) {
   emit('start-chat', payload)
@@ -141,7 +171,7 @@ function getLastMessageText(chat) {
     </div>
 
     <!-- Chat list -->
-    <div class="flex flex-col flex-1 overflow-y-auto">
+    <div ref="listEl" class="flex flex-col flex-1 overflow-y-auto">
 
       <!-- Empty state -->
       <div v-if="chatStore.userChats.length === 0" class="flex items-center justify-center w-full h-24 text-gray-500 text-sm font-['Poppins']">
@@ -200,6 +230,17 @@ function getLastMessageText(chat) {
           </div>
         </div>
       </button>
+
+      <!-- Load more indicator -->
+      <div
+        v-if="isLoadingMore"
+        class="w-full py-3 flex justify-center items-center border-t border-gray-200/60"
+      >
+        <svg class="w-4 h-4 animate-spin text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+      </div>
 
     </div>
 
