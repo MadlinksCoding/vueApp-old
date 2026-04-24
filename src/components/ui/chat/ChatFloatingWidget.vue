@@ -118,9 +118,24 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
 const socket    = ref(null)
 const widgetEl  = ref(null)
 
+// Track host width for iframe embeds, while still allowing normal tailwind md classes
+const hostWidth = ref(window.innerWidth)
+
 defineExpose({ widgetEl })
 
 onMounted(async () => {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('hostWidth')) {
+    hostWidth.value = parseInt(params.get('hostWidth'), 10)
+  }
+
+  const handleHostResize = (e) => {
+    if (e.data?.type === 'FS_CHAT_HOST_RESIZE') {
+      hostWidth.value = e.data.payload.width
+    }
+  }
+  window.addEventListener('message', handleHostResize)
+
   if (props.userId) {
     currentUserId.value = String(props.userId)
   } else {
@@ -200,6 +215,11 @@ onMounted(async () => {
          max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
          lg:right-auto lg:bottom-4
          chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+        :class="[
+          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 !rounded-t-[10px] !rounded-b-none' : '',
+          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0' : '',
+          hostWidth >= 1024 ? '!right-auto !bottom-4' : ''
+        ]"
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
@@ -207,21 +227,23 @@ onMounted(async () => {
           <span
             v-if="unreadCount > 0"
             class="flex md:hidden unread-badge-mobile absolute -top-3 -right-2 bg-[#FF0066] text-white text-[9px] font-bold rounded-xl p-1 items-center justify-center leading-none"
+            :class="hostWidth >= 768 ? '!hidden' : ''"
           >
              {{ unreadCount > 9 ? '9+' : unreadCount }}
           </span>
           <span
             v-if="unreadCount > 0"
             class="hidden md:flex unread-badge absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
+            :class="hostWidth >= 768 ? '!flex' : ''"
           >
           </span>
         </div>
 
-        <span class="hidden md:flex unread-text" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span class="hidden md:flex chat-text" v-else>Chat</span>
+        <span class="hidden md:flex unread-text" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex chat-text" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
 
         <!-- Chevron -->
-        <div class="hidden md:flex chat-chevron">
+        <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
               class="w-3.5 h-3.5 text-zinc-400 transition-transform"
               :class="isListOpen ? 'rotate-180' : ''"

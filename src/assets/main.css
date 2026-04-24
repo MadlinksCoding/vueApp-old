@@ -18,7 +18,7 @@
 
 /* md breakpoint = min-width: 768px */
 @media (min-width: 768px) {
-    .custom-btn {
+    .chat-panel-trigger {
         right: 2.5rem;
         bottom: 0;
     }
@@ -48,7 +48,7 @@
 
 /* md + max-[1009px] = between 768px and 1009px */
 @media (min-width: 768px) and (max-width: 1009px) {
-    .custom-btn {
+    .chat-panel-trigger {
         border-top-left-radius: 10px;
         border-top-right-radius: 10px;
         border-bottom-left-radius: 0;
