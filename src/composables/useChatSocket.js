@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
 import FlowHandler from '@/services/flow-system/FlowHandler';
+import { resolveAndSyncChat } from '@/services/chat/chatResolverUtils';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -32,10 +33,10 @@ export function useChatSocket(userId) {
   async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
 
-    // If this chat isn't in the list yet, re-fetch so it appears without a page refresh
+    // If this chat isn't in the list yet, fetch it and sync unread count
     const knownChat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
-    if (!knownChat && userId) {
-      await FlowHandler.run('chat.fetchUserChats', { userId: String(userId) })
+    if (!knownChat) {
+      await resolveAndSyncChat(body.chat_id)
     }
 
     // Fetch user data for any participant not yet in the store (fire-and-forget)

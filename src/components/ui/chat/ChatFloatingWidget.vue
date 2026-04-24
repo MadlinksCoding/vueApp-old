@@ -133,19 +133,6 @@ onMounted(async () => {
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
 
-    // Fetch unread counts for all chats in parallel
-    await Promise.all(
-      chatStore.userChats.map(async (chat) => {
-        const res = await FlowHandler.run('chat.getUnreadCount', {
-          chatId: chat.chat_id,
-          userId: currentUserId.value,
-        })
-        if (res?.ok) {
-          chatStore.setChatUnreadCount(chat.chat_id, res.data.count)
-        }
-      })
-    )
-
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [
       ...new Set(
