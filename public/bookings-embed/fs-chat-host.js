@@ -101,6 +101,7 @@
       openChatId:    settings.openChatId || null,
       fanUid:        settings.fanUid || null,
       jwtToken:      settings.jwtToken || null,
+      hostWidth:     window.innerWidth,
     });
     iframe.title                = settings.iframeTitle;
     iframe.style.width          = "100%";
@@ -166,7 +167,16 @@
       }
     }
 
+    function onHostResize() {
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_HOST_RESIZE",
+        payload: { width: window.innerWidth, height: window.innerHeight }
+      }, "*");
+    }
+
     window.addEventListener("message", onMessage);
+    window.addEventListener("resize", onHostResize);
 
     return {
       iframe:      iframe,
@@ -180,6 +190,7 @@
       },
       destroy: function () {
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("resize", onHostResize);
         if (chatContainer.parentNode) {
           chatContainer.parentNode.removeChild(chatContainer);
         }
