@@ -226,14 +226,14 @@ onMounted(async () => {
           <img :src="MessageTextIcon" alt="" class="w-6 h-6 filter brightness-0 cursor-pointer" />
           <span
             v-if="unreadCount > 0"
-            class="flex md:hidden unread-badge-mobile absolute -top-3 -right-2 bg-[#FF0066] text-white text-[9px] font-bold rounded-xl p-1 items-center justify-center leading-none"
+            class="unread-badge-mobile absolute -top-3 -right-2 bg-[#FF0066] text-white text-[9px] font-bold rounded-xl p-1 items-center justify-center leading-none"
             :class="hostWidth >= 768 ? '!hidden' : ''"
           >
              {{ unreadCount > 9 ? '9+' : unreadCount }}
           </span>
           <span
             v-if="unreadCount > 0"
-            class="hidden md:flex unread-badge absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
+            class="unread-badge absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
             :class="hostWidth >= 768 ? '!flex' : ''"
           >
           </span>
