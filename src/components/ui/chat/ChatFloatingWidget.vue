@@ -208,7 +208,7 @@ onMounted(async () => {
       <button
         @click="toggleList"
         class="fixed 
-         right-2 bottom-14
+         right-2 bottom-0
          md:right-10 md:bottom-0
          md:max-[1009px]:rounded-t-[10px]
          md:max-[1009px]:rounded-b-none

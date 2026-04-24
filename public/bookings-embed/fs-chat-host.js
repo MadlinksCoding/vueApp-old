@@ -93,6 +93,20 @@
       pointerEvents: "none",
     });
 
+    function applyContainerSize(w, payload ={}) {
+      // console.error("Applying container size for width", w,payload);
+      if (w <= 768) {
+        // if( payload?.width &&
+        // chatContainer.style.width  = "60px";
+        // chatContainer.style.height = "40px";
+        chatContainer.style.bottom = "3rem";
+      } else {
+        // chatContainer.style.width  = String(settings.width)  + "px";
+        // chatContainer.style.height = String(settings.height) + "px";
+        chatContainer.style.bottom = "0";
+      }
+    }
+
     var iframe = document.createElement("iframe");
     iframe.src = buildIframeSrcWithQuery(settings.src, {
       currentUserId: String(settings.currentUserId),
@@ -115,6 +129,7 @@
 
     chatContainer.appendChild(iframe);
     document.body.appendChild(chatContainer);
+    applyContainerSize(window.innerWidth);
 
     function updateAuth(authOptions) {
       var a = authOptions || {};
@@ -137,6 +152,7 @@
         var h = data.payload.height;
         if (w > 0) chatContainer.style.width  = String(w) + "px";
         if (h > 0) chatContainer.style.height = String(h) + "px";
+        applyContainerSize(window.innerWidth, data.payload);
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
         if (typeof window.openTipPopup === "function") {
@@ -168,6 +184,7 @@
     }
 
     function onHostResize() {
+      applyContainerSize(window.innerWidth);
       if (!iframe.contentWindow) return;
       iframe.contentWindow.postMessage({
         type: "FS_CHAT_HOST_RESIZE",
