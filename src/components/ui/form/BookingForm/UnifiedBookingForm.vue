@@ -506,10 +506,13 @@ function getCalendarEventStyle(event, mode = "existing") {
         event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
         DEFAULT_EVENT_COLOR,
     );
+    const startsAtMidnight = isMidnightDateTime(event?.start);
+    const endsAtMidnight = isMidnightDateTime(event?.end);
 
     if (mode === "draft") {
         return {
-            borderBottom: `1px solid ${color}`,
+            borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
+            borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
             color,
             background: `repeating-linear-gradient(-45deg, ${rgba(color, 0.24)}, ${rgba(color, 0.24)} 2px, ${rgba(color, 0.14)} 3px, ${rgba(color, 0.14)} 10px)`,
             zIndex: 3,
@@ -520,8 +523,10 @@ function getCalendarEventStyle(event, mode = "existing") {
         return {
             backgroundColor: rgba(color, 0.08),
             backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
-            border: `1px solid ${color}`,
-            borderBottom: `2px solid ${color}`,
+            borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
+            borderLeft: `1px solid ${color}`,
+            borderRight: `1px solid ${color}`,
+            borderBottom: endsAtMidnight ? "0" : `2px solid ${color}`,
             color,
             zIndex: 1,
         };
@@ -537,6 +542,13 @@ function getCalendarEventStyle(event, mode = "existing") {
 
 function shouldOpenCalendarEvent(event) {
     return !event?.isAvailabilityBlock && !event?.isDraftPreview;
+}
+
+function isMidnightDateTime(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return date.getHours() === 0 && date.getMinutes() === 0;
 }
 
 function expandCalendarBlockStyle(style) {
