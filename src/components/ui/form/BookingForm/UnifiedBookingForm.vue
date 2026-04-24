@@ -523,9 +523,7 @@ function getCalendarEventStyle(event, mode = "existing") {
         return {
             backgroundColor: rgba(color, 0.08),
             backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
-            borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
-            borderLeft: `1px solid ${color}`,
-            borderRight: `1px solid ${color}`,
+            borderTop: startsAtMidnight ? "0" : `2px solid ${color}`,
             borderBottom: endsAtMidnight ? "0" : `2px solid ${color}`,
             color,
             zIndex: 1,
@@ -987,7 +985,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </template>
 
                     <template #event-availability="{ event, style }">
-                        <div class="absolute pointer-events-none rounded-md min-h-[6px] w-full"
+                        <div class="absolute pointer-events-none min-h-[6px] w-full"
                             :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]" />
                     </template>
 
