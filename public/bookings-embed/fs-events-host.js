@@ -382,6 +382,8 @@
       creatorId: safeNumber(settings.creatorId, null),
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
+      userRole: settings.userRole || "creator",
+      initialRoute: settings.initialRoute || "events",
       apiBaseUrl: settings.apiBaseUrl || "",
       jwtToken: settings.jwtToken || "",
       creatorAvatar: creatorData.avatar,

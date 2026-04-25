@@ -22,6 +22,7 @@
         variant="default"
         :focus-date="state.focus"
         :events="events1"
+        :events-data="eventsData"
         :theme="theme1"
         :user-role="props.userRole"
         :can-review-pending="isCreator"
@@ -38,6 +39,8 @@
         @approve-booking="onApprovePendingBooking"
         @reject-booking="onRejectPendingBooking"
         @cancel-booking="onCancelBookingFromCalendar"
+        @menu-action="handleWidgetMenuAction"
+        @create-event="goToCreateEvent($event.type)"
       >
         <template #event="{ event, style, onClick, view }">
           <div

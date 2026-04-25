@@ -61,7 +61,8 @@
 
         <div class="w-full p-2 border-t border-black/20 mb-[100px]">
             <EventsWidget :sections="eventsData" @join-click="$emit('join-click', $event)"
-                @reply-click="$emit('reply-click', $event)" />
+                @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
+                @menu-action="$emit('menu-action', $event)" />
         </div>
 
         <div class="p-4 mt-auto flex-shrink-0">
@@ -88,5 +89,5 @@ defineProps({
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'open-new-events']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events']);
 </script>
