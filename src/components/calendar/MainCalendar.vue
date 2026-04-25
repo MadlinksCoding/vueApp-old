@@ -519,12 +519,13 @@
       <CalendarMobilePopupContent
         :view="view"
         :events-data="props.eventsData"
+        :can-create-events="canCreateEvents"
         @set-view="setView"
         @join-click="handleJoin"
         @reply-click="handleReply"
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
-        @open-new-events="newEventsPopupOpen = true"
+        @open-new-events="handleOpenNewEvents"
       />
     </PopupHandler>
 
@@ -623,6 +624,7 @@ const isMobileCalendarOpen = ref(false);
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
 const mobileCalendarRef = ref(null);
+const canCreateEvents = computed(() => props.userRole === 'creator');
 
 const handleMobileCalendarClickOutside = (event) => {
   if (
@@ -979,6 +981,11 @@ const handleMobileWidgetEventClick = (item) => {
 const handleMobileWidgetMenuAction = (payload) => {
   calendarPopupOpen.value = false;
   emit('menu-action', payload);
+};
+
+const handleOpenNewEvents = () => {
+  if (!canCreateEvents.value) return;
+  newEventsPopupOpen.value = true;
 };
 
 const handleCreateEvent = (type) => {

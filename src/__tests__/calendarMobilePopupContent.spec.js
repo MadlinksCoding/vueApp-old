@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
+import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
@@ -20,8 +21,9 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
 vi.mock("@/components/dev/button/ButtonComponent.vue", () => ({
   default: {
     name: "ButtonComponent",
+    props: ["text"],
     emits: ["click"],
-    template: "<button data-test='new-events' @click=\"$emit('click')\" />",
+    template: "<button data-test='new-events' @click=\"$emit('click')\">{{ text }}</button>",
   },
 }));
 
@@ -36,6 +38,7 @@ describe("CalendarMobilePopupContent", () => {
       props: {
         view: "week",
         eventsData: [{ title: "Today", items: [item] }],
+        canCreateEvents: true,
       },
     });
 
@@ -54,5 +57,46 @@ describe("CalendarMobilePopupContent", () => {
     expect(wrapper.emitted("menu-action")).toEqual([
       [{ action: "cancel_call", event: item }],
     ]);
+  });
+
+  it("renders mobile calendar labels from booking translations", async () => {
+    const { default: CalendarMobilePopupContent } = await import("@/components/calendar/CalendarMobilePopupContent.vue");
+    const wrapper = mount(CalendarMobilePopupContent, {
+      props: {
+        view: "day",
+        eventsData: [{ title: "Today", items: [{ title: "Slot" }] }],
+        canCreateEvents: true,
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({
+            translations: {
+              common_day: "Dia",
+              common_week: "Semana",
+              common_month: "Mes",
+              dashboard_new_events: "Eventos nuevos",
+            },
+          }),
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("Dia");
+    expect(wrapper.text()).toContain("Semana");
+    expect(wrapper.text()).toContain("Mes");
+    expect(wrapper.get("[data-test='new-events']").text()).toBe("Eventos nuevos");
+  });
+
+  it("hides the new events button when creation is not allowed", async () => {
+    const { default: CalendarMobilePopupContent } = await import("@/components/calendar/CalendarMobilePopupContent.vue");
+    const wrapper = mount(CalendarMobilePopupContent, {
+      props: {
+        view: "week",
+        eventsData: [{ title: "Today", items: [{ title: "Slot" }] }],
+        canCreateEvents: false,
+      },
+    });
+
+    expect(wrapper.find("[data-test='new-events']").exists()).toBe(false);
   });
 });

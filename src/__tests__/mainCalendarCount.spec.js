@@ -76,7 +76,7 @@ vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
 vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
-    props: ["view", "eventsData"],
+    props: ["view", "eventsData", "canCreateEvents"],
     emits: ["join-click", "event-click", "menu-action", "open-new-events"],
     template: `
       <div data-test="mobile-popup">
@@ -251,6 +251,24 @@ describe("MainCalendar all events count", () => {
     await openMobilePopup(wrapper);
 
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("allows creators to open new events from the mobile popup", async () => {
+    const wrapper = await mountCalendar([], { userRole: "creator" });
+
+    await openMobilePopup(wrapper);
+
+    expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("canCreateEvents")).toBe(true);
+  });
+
+  it("prevents fans from opening new events from the mobile popup", async () => {
+    const wrapper = await mountCalendar([], { userRole: "fan" });
+
+    await openMobilePopup(wrapper);
+    expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("canCreateEvents")).toBe(false);
+
+    await wrapper.get("[data-test='mobile-open-new-events']").trigger("click");
+    expect(wrapper.find("[data-test='new-events-popup']").exists()).toBe(false);
   });
 
   it("opens event details from mobile widget source events", async () => {
