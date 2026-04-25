@@ -61,7 +61,14 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    template: "<div class='main-calendar-stub'><slot /></div>",
+    props: ["eventsData"],
+    emits: ["create-event"],
+    template: `
+      <div class='main-calendar-stub'>
+        <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
+        <slot />
+      </div>
+    `,
   },
 }));
 
@@ -223,6 +230,23 @@ describe("DashboardEventsFeature", () => {
     ]);
   });
 
+  it("forwards main calendar create events through the dashboard create flow", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 88,
+        userRole: "creator",
+      },
+    });
+
+    await wrapper.get("[data-test='main-calendar-create-group']").trigger("click");
+
+    expect(wrapper.emitted("create-event")).toEqual([
+      [{ type: "group" }],
+    ]);
+  });
+
   it("renders dashboard labels from scoped translation overrides", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
@@ -241,6 +265,26 @@ describe("DashboardEventsFeature", () => {
     });
 
     expect(wrapper.get("[data-test='new-events']").text()).toBe("Eventos nuevos");
+  });
+
+  it("passes computed event sections into the main calendar", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    expect(sections).toEqual([
+      expect.objectContaining({ title: "TODAY", items: [] }),
+      expect.objectContaining({ title: "WEEK", items: [] }),
+      expect.objectContaining({ title: "PENDING EVENTS", items: [] }),
+    ]);
   });
 
   it("emits open-url for join actions in embedded mode", async () => {

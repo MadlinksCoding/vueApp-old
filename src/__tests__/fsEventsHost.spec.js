@@ -64,6 +64,8 @@ describe("fs-events-host openFanBookingPopup", () => {
     document.body.appendChild(container);
     const embed = window.FSEventsEmbed.mount(container, {
       creatorId: 1407,
+      userRole: "agent",
+      initialRoute: "create-group",
       translations: {
         dashboard_new_events: "Nuevos eventos",
         ignored: {},
@@ -78,6 +80,8 @@ describe("fs-events-host openFanBookingPopup", () => {
       expect.objectContaining({
         type: "FS_EVENTS_BOOTSTRAP",
         payload: expect.objectContaining({
+          userRole: "agent",
+          initialRoute: "create-group",
           translations: { dashboard_new_events: "Nuevos eventos" },
           locale: "fr-CA",
         }),
@@ -87,6 +91,8 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(embed.iframe.src).not.toContain("translations");
     expect(embed.iframe.src).not.toContain("Nuevos");
     expect(embed.iframe.src).not.toContain("locale=fr-CA");
+    expect(embed.iframe.src).toContain("userRole=agent");
+    expect(embed.iframe.src).toContain("initialRoute=create-group");
   });
 
   it("posts auth updates to the active booking popup without remounting", () => {

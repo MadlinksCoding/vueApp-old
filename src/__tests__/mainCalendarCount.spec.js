@@ -63,21 +63,46 @@ vi.mock("@/components/dev/button/ButtonComponent.vue", () => ({
 vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
   default: {
     name: "NewEventsPopup",
-    template: "<div />",
+    emits: ["create-private", "create-group"],
+    template: `
+      <div data-test="new-events-popup">
+        <button data-test="new-events-private" @click="$emit('create-private')">private</button>
+        <button data-test="new-events-group" @click="$emit('create-group')">group</button>
+      </div>
+    `,
   },
 }));
 
 vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
-    template: "<div />",
+    props: ["view", "eventsData"],
+    emits: ["join-click", "event-click", "menu-action", "open-new-events"],
+    template: `
+      <div data-test="mobile-popup">
+        <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
+        <button
+          data-test="mobile-event"
+          @click="$emit('event-click', { sourceEvent: { id: 'mobile-source', title: 'Mobile Source', start: '2026-04-23T10:00:00Z', end: '2026-04-23T10:30:00Z' } })"
+        >
+          event
+        </button>
+        <button
+          data-test="mobile-menu-action"
+          @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { id: 'mobile-source' } } })"
+        >
+          menu
+        </button>
+      </div>
+    `,
   },
 }));
 
 vi.mock("@/components/calendar/CalendarEventDetailsPopup.vue", () => ({
   default: {
     name: "CalendarEventDetailsPopup",
-    template: "<div />",
+    props: ["event"],
+    template: "<div data-test='event-details'>{{ event.title }}</div>",
   },
 }));
 
@@ -138,7 +163,7 @@ function makeEvent(overrides = {}) {
   };
 }
 
-async function mountCalendar(events) {
+async function mountCalendar(events, extraProps = {}) {
   const { default: MainCalendar } = await import("@/components/calendar/MainCalendar.vue");
 
   return mount(MainCalendar, {
@@ -150,12 +175,18 @@ async function mountCalendar(events) {
       timeStart: "00:00",
       timeEnd: "24:00",
       slotMinutes: 60,
+      ...extraProps,
     },
   });
 }
 
 async function openFilters(wrapper) {
   await wrapper.get("[data-test='all-events-count']").trigger("click");
+}
+
+async function openMobilePopup(wrapper) {
+  const mobileActions = wrapper.findAll(".cursor-pointer.flex.xl\\:hidden");
+  await mobileActions[mobileActions.length - 1].trigger("click");
 }
 
 describe("MainCalendar all events count", () => {
@@ -201,5 +232,68 @@ describe("MainCalendar all events count", () => {
     ]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+  });
+
+  it("passes dynamic event sections to the mobile popup", async () => {
+    const eventsData = [
+      {
+        title: "Dynamic Today",
+        items: [
+          {
+            title: "Dynamic booked slot",
+            sourceEvent: makeEvent({ id: "booked_1", isAvailabilityBlock: false }),
+          },
+        ],
+      },
+    ];
+    const wrapper = await mountCalendar([], { eventsData });
+
+    await openMobilePopup(wrapper);
+
+    expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("opens event details from mobile widget source events", async () => {
+    const wrapper = await mountCalendar([]);
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-event']").trigger("click");
+
+    expect(wrapper.get("[data-test='event-details']").text()).toBe("Mobile Source");
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile widget menu actions", async () => {
+    const wrapper = await mountCalendar([]);
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-menu-action']").trigger("click");
+
+    expect(wrapper.emitted("menu-action")).toEqual([
+      [{ action: "cancel_call", event: { sourceEvent: { id: "mobile-source" } } }],
+    ]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("emits private create events from the mobile new events popup", async () => {
+    const wrapper = await mountCalendar([]);
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-open-new-events']").trigger("click");
+    await wrapper.get("[data-test='new-events-private']").trigger("click");
+
+    expect(wrapper.emitted("create-event")).toEqual([[{ type: "private" }]]);
+    expect(wrapper.find("[data-test='new-events-popup']").exists()).toBe(false);
+  });
+
+  it("emits group create events from the mobile new events popup", async () => {
+    const wrapper = await mountCalendar([]);
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-open-new-events']").trigger("click");
+    await wrapper.get("[data-test='new-events-group']").trigger("click");
+
+    expect(wrapper.emitted("create-event")).toEqual([[{ type: "group" }]]);
+    expect(wrapper.find("[data-test='new-events-popup']").exists()).toBe(false);
   });
 });

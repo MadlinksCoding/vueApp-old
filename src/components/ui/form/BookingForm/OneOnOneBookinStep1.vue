@@ -1049,7 +1049,7 @@
               </div>
             </div>
 
-            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
+            <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 :label="t('booking_allow_advance_cancellation')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"

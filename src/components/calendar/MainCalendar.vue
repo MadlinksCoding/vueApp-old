@@ -516,12 +516,23 @@
 
     <!-- popups -->
     <PopupHandler v-model="calendarPopupOpen" :config="calendarPopupConfig">
-      <CalendarMobilePopupContent :view="view" :events-data="eventsData" @set-view="setView" @join-click="handleJoin"
-        @reply-click="handleReply" @open-new-events="newEventsPopupOpen = true" />
+      <CalendarMobilePopupContent
+        :view="view"
+        :events-data="props.eventsData"
+        @set-view="setView"
+        @join-click="handleJoin"
+        @reply-click="handleReply"
+        @event-click="handleMobileWidgetEventClick"
+        @menu-action="handleMobileWidgetMenuAction"
+        @open-new-events="newEventsPopupOpen = true"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
-      <NewEventsPopup />
+      <NewEventsPopup
+        @create-private="handleCreateEvent('private')"
+        @create-group="handleCreateEvent('group')"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
@@ -553,7 +564,6 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import { onUnmounted } from 'vue';
 import EventDropdownContent from './EventDropdownContent.vue';
 import PopupHandler from '../ui/popup/PopupHandler.vue';
-import EventsWidget from './EventsWidget.vue';
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
@@ -568,6 +578,7 @@ const props = defineProps({
   focusDate: { type: Date, required: true },
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
+  eventsData: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
   userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
@@ -581,7 +592,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -745,89 +756,6 @@ const handleDateUpdate = (newDate) => {
   isDatePopupOpen.value = false;
   isMobileCalendarOpen.value = false; // Close parent popup too if desired? User said "neeche jo calendar ha wahan bh date chng honic chyh"
 };
-
-const eventsData = ref([
-  {
-    title: t("dashboard_today_section"),
-    items: [
-      {
-        time: '2:15pm-9:30pm',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-white',
-        showJoin: true,
-        statusText: 'in 5 min',
-        // WORKING IMAGE URL
-        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
-      },
-      {
-        time: '2:15pm-9:30pm',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        showJoin: false,
-        // WORKING IMAGE URL
-        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
-      }
-    ]
-  },
-  {
-    title: t("dashboard_week_section"),
-    items: [
-      {
-        dayName: 'TUE',
-        dayNumber: '24',
-        title: 'Group call',
-        titleColorClass: 'text-activePink',
-        borderClass: 'bg-brightPink',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        isGroup: true,
-        groupText: 'Mangoes, Apples and 30+',
-        avatars: [
-          { src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png' },
-          { src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png' },
-          { src: 'https://i.ibb.co/0VQJ0swt/Vector.png' }
-        ]
-      },
-      {
-        dayName: 'WED',
-        dayNumber: '25',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
-      }
-    ]
-  },
-  {
-    title: t("dashboard_pending_events"),
-    items: [
-      {
-        dayName: 'WED',
-        dayNumber: '25',
-        title: 'Live call',
-        titleColorClass: 'text-gray-900',
-        borderClass: 'bg-customDarkGrey',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        showReply: true,
-        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
-      },
-      {
-        dayName: 'SAT',
-        dayNumber: '28',
-        title: 'Live call',
-        titleColorClass: 'text-gray-900',
-        borderClass: 'bg-customDarkGrey',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
-        showReply: true,
-        avatars: [{ src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png', name: 'Grapes' }]
-      }
-    ]
-  }
-]);
 
 const effectiveView = computed(() => {
   if (props.variant === 'theme2') return 'week';
@@ -1031,8 +959,32 @@ const handleApproveBooking = (payload) => {
 };
 
 const handleJoin = (payload) => {
+  calendarPopupOpen.value = false;
   eventDetailsPopupOpen.value = false;
   emit('join-call', payload);
+};
+
+const handleReply = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('reply-click', payload);
+};
+
+const handleMobileWidgetEventClick = (item) => {
+  const event = item?.sourceEvent;
+  if (!event || typeof event !== 'object') return;
+  calendarPopupOpen.value = false;
+  openEventDetails(event);
+};
+
+const handleMobileWidgetMenuAction = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('menu-action', payload);
+};
+
+const handleCreateEvent = (type) => {
+  newEventsPopupOpen.value = false;
+  calendarPopupOpen.value = false;
+  emit('create-event', { type });
 };
 
 const handleRejectBooking = (payload) => {
