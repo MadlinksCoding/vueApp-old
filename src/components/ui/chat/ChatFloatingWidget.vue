@@ -207,7 +207,7 @@ onMounted(async () => {
       <!-- Trigger button (UI-01.0) -->
       <button
         @click="toggleList"
-        class="fixed 
+        class="
          right-2 bottom-0
          md:right-10 md:bottom-0
          md:max-[1009px]:rounded-t-[10px]

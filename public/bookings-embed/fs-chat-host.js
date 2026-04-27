@@ -94,7 +94,10 @@
     });
 
     function applyContainerSize(w, payload ={}) {
-      // console.error("Applying container size for width", w,payload);
+      let isEventPage = /\/events\//.test(window?.parent?.location.href);
+      if ( !isEventPage ) return;
+      // console.error("Applying c÷ntainer size for width", w,payload, isEventPage);
+
       if (w < 768) {
         // if( payload?.width &&
         // chatContainer.style.width  = "60px";
