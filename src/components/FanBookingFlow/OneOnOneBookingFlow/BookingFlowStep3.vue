@@ -757,7 +757,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     await FlowHandler.run('chat.sendChatActivityLog', {
       chatId,
       senderId: fanUserId,
-      text: `@${fanUsername} has just sent you a live call request:`,
+      // text: `@${fanUsername} has just sent you a live call request.`,
+      text: "send_live_call_request",
       meta: { bookingId, eventTitle },
     })
 

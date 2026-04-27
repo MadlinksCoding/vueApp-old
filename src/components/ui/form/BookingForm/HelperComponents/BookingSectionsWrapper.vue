@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-4 relative">
+  <div v-show="visible" :class="['flex gap-4 relative', classnames]">
     <!-- Left Icon -->
     <div v-if="leftIcon" :class="leftIconClass + ' hidden md:block'">
       <img :src="leftIcon" alt="left icon" />
@@ -68,7 +68,15 @@ export default {
     tooltipText: {
       type: String,
       default: null,
-    }
+    },
+    classnames: {
+      type: [String, Array, Object],
+      default: "",
+    },
+    visible: {
+      type: Boolean,
+      default: true,
+    },
   },
 };
 </script>

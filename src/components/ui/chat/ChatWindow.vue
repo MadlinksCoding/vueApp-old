@@ -574,6 +574,10 @@ const ActivityLogTexts = {
     'creator': "You have cancelled the call",
     'audience': "@{creator} has cancelled the call",
   },
+  'send_live_call_request': {
+    'creator': "@{audience} has just sent you a live call request.",
+    'audience': "You have just sent a live call request to @{creator}.",
+  },
 };
 
 function resolveActivityLogText(message) {
@@ -583,12 +587,15 @@ function resolveActivityLogText(message) {
 
   // ── Step 1: template resolution for booking activity logs ────────────────
   let workingText = rawText
+  const role     = isCreatorAccount.value ? 'creator' : 'audience'
   if (meta.is_booking_request) {
     const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer', counter_offer_declined: 'counter_offer_declined', counter_offer_accepted: 'counter_offer_accepted', more_time_request_accepted: 'more_time_request_accepted', more_time_request_rejected: 'more_time_request_rejected', reschedule_request_accepted: 'reschedule_request_accepted', reschedule_request_rejected: 'reschedule_request_rejected', more_time_request_sent: 'more_time_request_sent', reschedule_request_sent: 'reschedule_request_sent', call_cancelled: 'call_cancelled' }
-    const role     = isCreatorAccount.value ? 'creator' : 'audience'
     let action   = decisionMap[meta.decision] || null;
     const template = action ? ActivityLogTexts[action]?.[role] : null
     if (template) workingText = template
+  } else {
+    const templateText = ActivityLogTexts[rawText] ? ActivityLogTexts[rawText][role] : null
+    if (templateText) workingText = templateText
   }
 
   // ── Step 2: generic token replacer ───────────────────────────────────────
