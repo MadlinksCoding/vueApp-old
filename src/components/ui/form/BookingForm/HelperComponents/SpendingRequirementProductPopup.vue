@@ -1,13 +1,15 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, h } from "vue";
 import {
   MagnifyingGlassIcon,
   MusicalNoteIcon,
-  PhotoIcon,
   RectangleStackIcon,
   VideoCameraIcon,
 } from "@heroicons/vue/24/outline";
 import { getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
+import galleryIcon from '@/assets/images/icons/image-03.svg';
+
+const GalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: "" });
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -36,7 +38,7 @@ const draftSelected = ref([]);
 const mediaBadgeIconComponents = {
   audio: MusicalNoteIcon,
   gallery: RectangleStackIcon,
-  image: PhotoIcon,
+  image: GalleryIconComponent,
   video: VideoCameraIcon,
 };
 
@@ -229,7 +231,7 @@ function handleConfirm() {
                   class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]"
                 >
                   <component
-                    :is="mediaBadgeIconComponents[mediaBadgeForItem(item).icon] || PhotoIcon"
+                    :is="mediaBadgeIconComponents[mediaBadgeForItem(item).icon] || GalleryIconComponent"
                     class="w-3 h-3 text-white"
                     aria-hidden="true"
                   />

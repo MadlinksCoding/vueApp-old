@@ -22,7 +22,7 @@
             d<today ? theme.mini.expired : '',
             
             // CHANGE 3: Logic update. Agar Today hai to 'today' class, warna 'hover' class.
-            sameDay(d, today) ? theme.mini.today : 'hover:bg-gray-500', 
+            sameDay(d, today) ? theme.mini.today : 'hover:bg-gray-300', 
             
             d >= today && sameDay(d, selectedDate) ? theme.mini.selected : '',
             d.getDay() === 0 ? 'text-[#FF6A6A]' : ''

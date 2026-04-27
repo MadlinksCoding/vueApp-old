@@ -169,7 +169,11 @@ onMounted(async () => {
   <div
     v-if="currentUserId"
     ref="widgetEl"
-    class="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2"
+    class="fixed bottom-2 right-2 z-[9999] flex flex-col items-end gap-2"
+    :class="[
+      hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
+      hostWidth > 1024 ? 'bottom-4 right-2' : '',
+    ]"
   >
 
     <!-- Open chat windows (stack left of the trigger) -->
