@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { showToast } from "@/utils/toastBus.js";
@@ -21,43 +21,9 @@ import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
+import BookingFlowStepLoading from "./BookingFlowStepLoading.vue";
 import { useChatSocket } from '@/composables/useChatSocket';
 import { bookingFlowCrossWhiteIcon } from "./oneOnOneBookingFlowAssets.js";
-
-const BookingFlowStepLoading = defineComponent({
-  name: "BookingFlowStepLoading",
-  render() {
-    return h("div", {
-      class: "relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden bg-[#0C111D]",
-    }, [
-      h("div", {
-        class: "h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent",
-      }, [
-        h("div", {
-          class: "md:rounded-b-[20px] h-dvh md:h-full overflow-hidden md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75",
-        }, [
-          h("div", {
-            class: "hidden md:flex md:w-[280px] shrink-0 flex-col gap-4 border-r border-white/10 bg-white/5 p-6",
-          }, [
-            h("div", { class: "h-6 w-24 rounded-full bg-white/10 animate-pulse" }),
-            h("div", { class: "h-40 rounded-[20px] bg-white/10 animate-pulse" }),
-            h("div", { class: "h-4 w-3/4 rounded-full bg-white/10 animate-pulse" }),
-            h("div", { class: "h-4 w-1/2 rounded-full bg-white/10 animate-pulse" }),
-          ]),
-          h("div", {
-            class: "flex-1 flex flex-col gap-4 p-6 md:p-8",
-          }, [
-            h("div", { class: "h-6 w-40 rounded-full bg-white/10 animate-pulse" }),
-            h("div", { class: "h-28 rounded-[16px] bg-white/10 animate-pulse" }),
-            h("div", { class: "h-16 rounded-[16px] bg-white/10 animate-pulse" }),
-            h("div", { class: "h-16 rounded-[16px] bg-white/10 animate-pulse" }),
-            h("div", { class: "mt-auto h-14 w-full rounded-[16px] bg-white/10 animate-pulse" }),
-          ]),
-        ]),
-      ]),
-    ]);
-  },
-});
 
 const loadBookingFlowStep3 = () => import("./BookingFlowStep3.vue");
 const loadBookingFlowStep4 = () => import("./BookingFlowStep4.vue");

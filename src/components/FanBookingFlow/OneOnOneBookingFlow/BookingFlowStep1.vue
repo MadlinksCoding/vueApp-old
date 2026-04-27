@@ -7,6 +7,7 @@ import {
   bookingFlowTokenIcon,
   bookingFlowUnionIcon,
 } from "./oneOnOneBookingFlowAssets.js";
+import BookingFlowStepLoading from "./BookingFlowStepLoading.vue";
 import { useEventBackgroundImage } from "./useEventBackgroundImage.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
@@ -143,15 +144,14 @@ watch(
 
 <template>
   <div :class="outerClass">
+    <BookingFlowStepLoading v-if="isLoading" :embedded="embedded" />
+
     <div
+      v-else
       class="w-full md:w-[25rem] h-dvh md:h-[41rem] min-h-[41rem] overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] flex flex-col items-center justify-center md:rounded-3xl backdrop-blur-md"
       :style="cardBackgroundStyle"
     >
-      <div v-if="isLoading" class="w-full h-full flex items-center justify-center rounded-3xl bg-black/15 text-white text-sm">
-        {{ t("fan_booking_loading_events") }}
-      </div>
-
-      <div v-else-if="loadError" class="w-full h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
+      <div v-if="loadError" class="w-full h-full flex flex-col items-center justify-center gap-3 rounded-3xl bg-black/15 px-6 text-center text-white">
         <p class="text-sm text-red-300">{{ loadError }}</p>
         <button
           @click="emit('retry-catalog')"

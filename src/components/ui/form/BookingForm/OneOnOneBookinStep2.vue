@@ -1591,9 +1591,9 @@ const createEvent = async () => {
       </div>
     </BookingSectionsWrapper>
 
-    <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
+    <div class="hidden w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper :title="t('booking_co_performer')" leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
+    <BookingSectionsWrapper :visible="false" :title="t('booking_co_performer')" leftIcon="https://i.ibb.co/cKdNTc43/Icon-1.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.coPerformer"
       @toggle="toggleSection('coPerformer')">
       <div v-show="sectionsState.coPerformer" class="w-full mt-3">

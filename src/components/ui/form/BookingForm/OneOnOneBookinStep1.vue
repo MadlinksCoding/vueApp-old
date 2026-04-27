@@ -1088,7 +1088,7 @@
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
                 <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_percent_from_base_price") }}</div>
-                <div class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: "1,600" }) }})</div>
+                <div v-if="formData.addOffHourSurcharge && formData.basePrice" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: formData.basePrice * (formData.offHourSurcharge / 100) }) }})</div>
               </div>
             </div>
           </div>
@@ -1566,7 +1566,7 @@
               </div>
             </div>
           </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+          <div class="self-stretch _flex dn flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <!-- <div class="flex gap-2">
                 <CheckboxGroup v-model="formData.allowWaitlist"
@@ -1578,6 +1578,7 @@
               </div> -->
               <div class="flex gap-2">
                 <CheckboxGroup
+                  :disabled="true"
                   v-model="formData.allowWaitlist"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
