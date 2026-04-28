@@ -136,7 +136,7 @@ import CloseIcon               from '@/assets/images/icons/cross-white.webp'
 import ButtonComponent         from '@/components/dev/button/ButtonComponent.vue'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast }           from '@/utils/toastBus.js'
-import { localDateTimeToHkt, hktDateTimeToLocalDate }  from "@/services/events/eventsApiUtils.js";
+import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString }  from "@/services/events/eventsApiUtils.js";
 
 const props = defineProps({
   message:   { type: Object, required: true },
@@ -300,8 +300,8 @@ async function handleSubmit() {
       d.setHours(h, m, 0, 0)
 
 
-      console.log("Computed newSlotDate:", localDateTimeToHkt(d.toISOString(), form.newStartTime), form)
-      newSlotDate = localDateTimeToHkt(d.toISOString(), form.newStartTime).iso
+      console.log("Computed newSlotDate:", localDateTimeToHkt( toLocalISOString(d), form.newStartTime), form)
+      newSlotDate = localDateTimeToHkt(toLocalISOString(d), form.newStartTime).iso
     }
 
     // return;

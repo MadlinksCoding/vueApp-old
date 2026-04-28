@@ -60,7 +60,7 @@ import { computed, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast } from '@/utils/toastBus.js'
-import { localDateTimeToHkt, hktDateTimeToLocalDate } from "@/services/events/eventsApiUtils.js";
+import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString } from "@/services/events/eventsApiUtils.js";
 import { formatLocalDateIso } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const props = defineProps({
@@ -146,40 +146,41 @@ async function handleSubmit() {
   const [h, m]  = newStartTime.value.split(':').map(Number)
   const d       = new Date(newDate.value)
   d.setHours(h, m, 0, 0)
-  const slotDate = localDateTimeToHkt(d.toISOString(), newStartTime.value).iso;
-  console.log("Computed newSlotDate:", localDateTimeToHkt( d.toISOString(), newStartTime.value), { date: d.toISOString(), slotDate }, formatLocalDateIso(d), newStartTime.value)
-  // return;
+  const slotDate = localDateTimeToHkt(toLocalISOString(d), newStartTime.value).iso;
+  console.log("Computed newSlotDate:", localDateTimeToHkt( toLocalISOString(d), newStartTime.value), { date: toLocalISOString(d), slotDate }, formatLocalDateIso(d), newStartTime.value)
+  return;
   const bookingId    = props.message?.content?.booking_id
   const prevStartAtIso = content.value.start_at || content?.value?.slot_date
 
   try {
-    // Update chat message to reflect counter_offer state (booking API called on fan accept)
-    const res = await FlowHandler.run('chat.updateMessage', {
-      chatId:    props.chatId,
-      messageId: props.message.message_id,
-      updates: {
-        action:   'counter_offer',
-        slotDate,
-        meta: {
-          newSlotDate:   slotDate,
-          prevStartAtIso,
-          source:        'reschedule',
-        },
+
+    const metaRes = await FlowHandler.run('bookings.updateMeta', {
+      bookingId,
+      meta: {
+        reschedule: { proposedSlotDate: slotDate },
+        currentCounterOffer: 'reschedule',
       },
+      actor: "creator",
     })
-    if (res?.ok) {
+    if (metaRes?.ok) {
       // Store proposed values in booking meta for fan-side display + accept flow
       let updatedBooking = null
       if (bookingId) {
-        const metaRes = await FlowHandler.run('bookings.updateMeta', {
-          bookingId,
-          meta: {
-            reschedule: { proposedSlotDate: slotDate },
-            currentCounterOffer: 'reschedule',
+        // Update chat message to reflect counter_offer state (booking API called on fan accept)
+        const res = await FlowHandler.run('chat.updateMessage', {
+          chatId: props.chatId,
+          messageId: props.message.message_id,
+          updates: {
+            action: 'counter_offer',
+            slotDate,
+            meta: {
+              newSlotDate: slotDate,
+              prevStartAtIso,
+              source: 'reschedule',
+            },
           },
-          actor : "creator",
         })
-        if (metaRes?.ok) updatedBooking = metaRes.data?.item
+        if (res?.ok) updatedBooking = metaRes.data?.item
       }
       emit('submitted', { item: res.data?.item, booking: updatedBooking })
       emit('close')

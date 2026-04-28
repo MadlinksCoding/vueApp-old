@@ -233,6 +233,12 @@ function onMoreTimeSubmitted({ item, booking: updatedBooking }) {
     is_booking_request: true,
     decision: 'more_time_request_sent',
   })
+
+  // // update activeBookingData to refresh the booking request bubble with the new proposed time
+  // if( activeBookingData.value ) activeBookingData.value.meta.updated = true;
+  // if( activeBookingMessage.value ) activeBookingMessage.value.updated = true;
+  // console.error("Marked activeBookingData as updated to trigger reactivity", { activeBookingData: activeBookingData.value }, activeBookingMessage.value)
+
 }
 
 function onRescheduleSubmitted({ item, booking: updatedBooking }) {
@@ -268,32 +274,35 @@ async function onAcceptCounter(message) {
   if (!activeChatId.value || !message?.message_id) return
   bookingActionLoading.value = true
   try {
-    const res = message.content_type === 'booking_request'
-      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
-          chatId:    activeChatId.value,
-          messageId: message.message_id,
-          action:    'accepted',
-        })
-      : await FlowHandler.run('chat.updateMessage', {
-          chatId:    activeChatId.value,
-          messageId: message.message_id,
-          updates:   { action: 'accepted' },
-        })
+    const bookingId = message.content?.booking_id
+    // Read proposed values from booking meta (stored by popup via updateMeta)
+    const cachedBooking = chatStore.getBookingById(bookingId)
+
+    const offerType = cachedBooking?.meta?.currentCounterOffer  // 'moretime' | 'reschedule'
+    const proposed = (offerType ? cachedBooking?.meta?.[offerType] : null) || {}
+    const newSlot = proposed.proposedSlotDate
+
+    if (! bookingId || ! newSlot) {
+      return showToast({ type: 'error', title: 'Failed', message: 'Missing proposed time for this offer. Please try again.' })
+    }
+    // Call booking API now that fan has accepted
+    const flow = offerType === 'reschedule' ? 'bookings.rescheduleBooking' : 'bookings.renegotiateBooking'
+    const res = await FlowHandler.run(flow, { bookingId, startAtIso: newSlot, actor: 'user' })
+
+  
     if (res?.ok) {
-      broadcastBookingUpdate(res.data?.item)
-      const bookingId = message.content?.booking_id
-
-      // Read proposed values from booking meta (stored by popup via updateMeta)
-      const cachedBooking = chatStore.getBookingById(bookingId)
-      const offerType = cachedBooking?.meta?.currentCounterOffer  // 'moretime' | 'reschedule'
-      const proposed  = (offerType ? cachedBooking?.meta?.[offerType] : null) || {}
-      const newSlot   = proposed.proposedSlotDate
-
-      // Call booking API now that fan has accepted
-      if (bookingId && newSlot) {
-        const flow = offerType === 'reschedule' ? 'bookings.rescheduleBooking' : 'bookings.renegotiateBooking'
-        FlowHandler.run(flow, { bookingId, startAtIso: newSlot, actor: 'user' })
-      }
+      const resMessage = message.content_type === 'booking_request'
+        ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+            chatId:    activeChatId.value,
+            messageId: message.message_id,
+            action:    'accepted',
+          })
+        : await FlowHandler.run('chat.updateMessage', {
+            chatId:    activeChatId.value,
+            messageId: message.message_id,
+            updates:   { action: 'accepted' },
+          })
+      broadcastBookingUpdate(resMessage.data?.item)
 
       const decision = offerType === 'reschedule' ? 'reschedule_request_accepted' : 'more_time_request_accepted'
       sendChatActivityLog('New time accepted', {
@@ -303,6 +312,8 @@ async function onAcceptCounter(message) {
       })
 
       showBookingPopup.value = false
+    } else {
+      showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not confirm the new time. Please try again.' })
     }
   } finally {
     bookingActionLoading.value = false
@@ -477,35 +488,8 @@ async function onConfirmCounter(message) {
   }, '*')
 }
 
-async function onCancelBooking(message) {
-  const content   = message?.content || {}
-  const messageId = message?.message_id
-  if (!content.booking_id || !messageId || !activeChatId.value) return
-
-  const res = await FlowHandler.run('bookings.cancelBooking', {
-    bookingId: content.booking_id,
-    actor:     'user',
-  })
-
-  if (!res?.ok) {
-    showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not cancel booking.' })
-    return
-  }
-
-  const updateRes = await FlowHandler.run('chat.updateBookingRequestMessage', {
-    chatId:    activeChatId.value,
-    messageId,
-    action:    'declined',
-  })
-  if (updateRes?.ok) {
-    showBookingPopup.value = false
-    broadcastBookingUpdate(updateRes.data?.item)
-    sendChatActivityLog('Counter offer declined', {
-      is_booking_request: true,
-      decision:           'counter_offer_declined',
-      bookingId:          content.booking_id,
-    })
-  }
+function onCancelBooking() {
+  showCancelCallPopup.value = true
 }
 
 function onCallCancelled(updatedItem) {
@@ -1507,6 +1491,8 @@ onUnmounted(() => {
           @adjust="openAdjustPopup(pinnedBookingMessage)"
           @confirm-counter="onConfirmCounter(pinnedBookingMessage)"
           @cancel-booking="onCancelBooking(pinnedBookingMessage)"
+          @accept-counter="onAcceptCounter(pinnedBookingMessage)"
+          @reject-counter="onRejectCounter(pinnedBookingMessage)"
         />
       </template>
 

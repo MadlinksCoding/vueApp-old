@@ -60,7 +60,7 @@ import { computed, ref } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import EventSlotDateTimePicker from '@/components/ui/chat/EventSlotDateTimePicker.vue'
 import { showToast } from '@/utils/toastBus.js'
-import { localDateTimeToHkt, hktDateTimeToLocalDate } from "@/services/events/eventsApiUtils.js";
+import { localDateTimeToHkt, hktDateTimeToLocalDate, toLocalISOString } from "@/services/events/eventsApiUtils.js";
 
 const props = defineProps({
   message:       { type: Object, required: true },
@@ -146,8 +146,9 @@ async function handleSubmit() {
   const base    = startMs ? new Date(startMs) : new Date()
   const [h, m]  = newStartTime.value.split(':').map(Number)
   base.setHours(h, m, 0, 0)
-  const slotDate = localDateTimeToHkt(base.toISOString(), newStartTime.value).iso
-  console.log("Computed newSlotDate:", localDateTimeToHkt(base.toISOString(), newStartTime.value), { slotDate } )
+  const slotDate = localDateTimeToHkt(toLocalISOString(base), newStartTime.value).iso
+  console.log("base.toISOString()", toLocalISOString(base))
+  console.log("Computed newSlotDate:", base,  toLocalISOString(base) , localDateTimeToHkt(toLocalISOString(base), newStartTime.value), { slotDate } )
   // return;
   const bookingId    = props.message?.content?.booking_id
   const prevStartAtIso = content?.value?.start_at || content?.value?.slot_date
@@ -177,6 +178,7 @@ async function handleSubmit() {
             moretime: { proposedSlotDate: slotDate },
             currentCounterOffer: 'moretime',
           },
+          actor: 'creator',
         })
         if (metaRes?.ok) updatedBooking = metaRes.data?.item
       }

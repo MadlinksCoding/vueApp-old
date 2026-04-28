@@ -174,7 +174,7 @@
       </template>
 
       <!-- Accepted / declined badge + action button -->
-      <template v-else-if="resolvedAction === 'accepted' || resolvedAction === 'declined'">
+      <template v-else-if="resolvedAction === 'accepted' || resolvedAction === 'cancelled' || resolvedAction === 'declined'">
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <!-- Badge -->
           <div
@@ -185,7 +185,9 @@
               <circle cx="8" cy="8" r="6.5" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l2 2 4-4" />
             </svg>
-            {{ resolvedAction === 'accepted' ? 'Accepted' : 'Declined' }}
+            {{ resolvedAction === 'accepted' ? 'Accepted' : '' }}
+            {{ resolvedAction === 'declined' ? 'Declined' : '' }}
+            {{ resolvedAction.startsWith('cancel') || resolvedAction.startsWith('reject') ? 'Cancelled' : '' }}
           </div>
 
           <!-- View in Calendar (accepted) / View Details (declined) -->

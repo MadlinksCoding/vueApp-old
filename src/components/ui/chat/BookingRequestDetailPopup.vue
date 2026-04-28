@@ -20,7 +20,9 @@
               <div class="text-gray-700 text-xl font-semibold font-['Poppins'] leading-tight pr-4">
                 {{ eventTitle }}
               </div>
-              <div v-if="currentAction !== 'declined'" class="flex items-center gap-2 shrink-0">
+              <!-- {{ currentAction }}
+              {{ isCreator ? 'creator' : 'fan' }} -->
+              <div v-if="! ['declined', 'cancelled'].indexOf(currentAction)" class="flex items-center gap-2 shrink-0">
                 <!-- Status hint -->
                 <div v-if="statusHint" class="flex items-center gap-1">
                   <div class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
@@ -61,7 +63,7 @@
                     @click.stop
                   >
                     <button
-                      v-if=" 1 != 1"
+                      v-if=" currentAction == 'accepted'"
                       type="button"
                       class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
                       @click.stop="handleAskMoreTime"
@@ -74,7 +76,7 @@
                       Ask for more time
                     </button>
                     <button
-                      v-if="1 != 1"
+                      v-if="currentAction == 'accepted'"
                       type="button"
                       class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
                       @click.stop="handleAskToReschedule"
@@ -295,7 +297,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import { getBookingJoinState } from '@/utils/bookingJoinUtils.js'
@@ -390,6 +392,17 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
 // ── Display computed ─────────────────────────────────────────────────────────
 const raw = computed(() => booking.value || {})
 
+// watch(() => booking.value., (newAction) => {
+//   if (newAction) {
+//     console.error("Meta changed, updating booking with new meta", { newAction, booking: booking.value })
+//     booking.value = newAction
+//   }
+// })
+// watch(() => messageContent.value, (newAction) => {
+//   if (newAction) {
+//     console.error("Message content changed, updating booking with new message content", { newAction, messageContent: messageContent.value })
+//   }
+// })
 const eventTitle = computed(() =>
   raw.value.eventTitle
   || messageContent.value.event_title
