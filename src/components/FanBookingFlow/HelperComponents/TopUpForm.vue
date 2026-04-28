@@ -250,7 +250,7 @@ function onAmountInput(event) {
   }, 600);
 }
 
-function handlePaymentSuccess(_response) {
+async function handlePaymentSuccess(_response) {
   console.error('Payment successful:', _response);
   isProcessing.value = false;
 
@@ -272,7 +272,13 @@ function handlePaymentSuccess(_response) {
     // guestCheckouth 
     if( !isLoggedIn.value && window?.parent?.guestCheckout ) {
       window.parent.preventReloadOnCheckoutClose = true;
-      window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
+      let apiresponse = await window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
+      console.warn('checkGuestAuthAfterPayment response:', apiresponse);
+      if( apiresponse && apiresponse.success ) {
+        if( apiresponse.userData ) {
+          window.parent.isUserAuthChanged = true;
+        }
+      }
     }
   } else {
     emit('payment-failed', _response);
