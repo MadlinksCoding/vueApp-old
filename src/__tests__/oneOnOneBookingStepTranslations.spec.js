@@ -1,6 +1,8 @@
 import { shallowMount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+
+let sendBeaconDescriptor;
 
 vi.mock("quill", () => {
   const Quill = vi.fn();
@@ -43,6 +45,7 @@ function createEngine(state = {}) {
     goToStep: vi.fn(),
     forceStep: vi.fn(),
     callFlow: vi.fn(),
+    validate: vi.fn(() => Promise.resolve({ valid: true, errors: [] })),
   };
   return engine;
 }
@@ -101,6 +104,29 @@ function mountOptions(translations = {}) {
 }
 
 describe("one-on-one booking step translations", () => {
+  beforeEach(() => {
+    sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ ok: true }),
+    })));
+    Object.defineProperty(navigator, "sendBeacon", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+
+  afterEach(() => {
+    if (sendBeaconDescriptor) {
+      Object.defineProperty(navigator, "sendBeacon", sendBeaconDescriptor);
+    } else {
+      delete navigator.sendBeacon;
+    }
+    vi.unstubAllGlobals();
+  });
+
   it("renders translated overrides in step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -174,5 +200,47 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).toContain("Comprar");
     expect(wrapper.text()).toContain("Configurar X");
     expect(wrapper.text()).toContain("Publicar agenda en X");
+  });
+
+  it("uses the engine event title for create notification names", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventTitle: "Creator Strategy Call",
+      eventType: "1on1-call",
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        eventId: "evt_123",
+        item: {
+          eventId: "evt_123",
+          title: "Returned Event Title",
+        },
+      },
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+      },
+      global: mountOptions(),
+    });
+
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [, requestOptions] = fetch.mock.calls[0];
+    const payload = JSON.parse(requestOptions.body);
+
+    expect(payload.event_name).toBe("Creator Strategy Call");
+    expect(payload.booking_name).toBe("Creator Strategy Call");
+    expect(payload.event_name).not.toBe("Booked Slot");
   });
 });

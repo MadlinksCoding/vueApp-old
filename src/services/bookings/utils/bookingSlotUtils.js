@@ -144,7 +144,16 @@ function sliceWindowIntoSessionSlots(windowSlot, sessionMinutes, bufferMinutes =
 
 function isOverlappingBookedRange(startMs, endMs, bookedRows = []) {
   if (!Array.isArray(bookedRows) || bookedRows.length === 0) return false;
-  return bookedRows.some((booked) => startMs < booked.endMs && endMs > booked.startMs);
+  return bookedRows.some((booked) => (
+    isBlockingBookedSlot(booked)
+    && startMs < booked.endMs
+    && endMs > booked.startMs
+  ));
+}
+
+function isBlockingBookedSlot(booked) {
+  const status = String(booked?.status || "").toLowerCase();
+  return !status.includes("cancel");
 }
 
 function sliceWindowIntoSessionSlotsWithPostBookedBuffer(
@@ -573,7 +582,11 @@ export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {
   const rows = bookedSlotsIndex?.[eventId]?.[localDateIso];
   if (!Array.isArray(rows) || rows.length === 0) return false;
 
-  return rows.some((booked) => slot.startMs < booked.endMs && slot.endMs > booked.startMs);
+  return rows.some((booked) => (
+    isBlockingBookedSlot(booked)
+    && slot.startMs < booked.endMs
+    && slot.endMs > booked.startMs
+  ));
 }
 
 export function isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
@@ -586,7 +599,11 @@ export function isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex = {} }
 
   return Object.values(byDate).some((rows) => {
     if (!Array.isArray(rows) || rows.length === 0) return false;
-    return rows.some((booked) => startMs < booked.endMs && endMs > booked.startMs);
+    return rows.some((booked) => (
+      isBlockingBookedSlot(booked)
+      && startMs < booked.endMs
+      && endMs > booked.startMs
+    ));
   });
 }
 

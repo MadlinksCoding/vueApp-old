@@ -952,6 +952,25 @@ function formatValidationErrors(errors = []) {
   return formatBookingValidationErrors(errors, t);
 }
 
+function pickTrimmedString(...values) {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) return normalized;
+  }
+
+  return "";
+}
+
+function resolveCreatedEventName(flowResult = {}) {
+  return pickTrimmedString(
+    props.engine.getState?.("eventTitle"),
+    props.engine.state?.eventTitle,
+    flowResult?.data?.item?.title,
+    flowResult?.data?.rawItem?.title,
+    flowResult?.data?.rawItem?.eventTitle,
+  ) || t("dashboard_booked_slot");
+}
+
 async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) {
   console.error("Event created:", { creatorId, eventName, eventType, eventId });
   const payload = {
@@ -1071,7 +1090,7 @@ const createEvent = async () => {
 
       const notifyResult = await notifyEventCreated({
         creatorId: resolveCreatorId(),
-        eventName: String(formData.value.eventTitle || "").trim() || t("dashboard_booked_slot"),
+        eventName: resolveCreatedEventName(flowResult),
         eventType: props.engine.getState("eventType") || "1on1-call",
         eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
       });
