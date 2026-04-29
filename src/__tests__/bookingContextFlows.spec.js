@@ -50,6 +50,37 @@ describe("booking context flows", () => {
     expect(result.data.bookedSlots).toEqual([freshBookedSlot]);
   });
 
+  it("sends eventId to creator dashboard booked slots when provided", async () => {
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchDashboardBookingContextFlow({
+      payload: { creatorId: 1407, userRole: "creator", eventId: "  event_77  " },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/bookings/creators/1407/booked-slots",
+      expect.objectContaining({
+        params: expect.objectContaining({ eventId: "event_77" }),
+      }),
+    );
+  });
+
   it("keeps fresh fan dashboard booked slots when fetched events are not modified", async () => {
     const cachedRawEvents = [{ id: "event_77", title: "Cached Fan Event" }];
     const api = createApi([
@@ -83,6 +114,37 @@ describe("booking context flows", () => {
     expect(result.data.bookedSlots).toEqual([freshBookedSlot]);
   });
 
+  it("does not send eventId to fan dashboard booked slots", async () => {
+    const api = createApi([
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchDashboardBookingContextFlow({
+      payload: { fanId: 2615, userRole: "fan", eventId: "event_77" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(api.get).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/bookings/fans/2615/booked-slots",
+      expect.objectContaining({
+        params: expect.not.objectContaining({ eventId: expect.anything() }),
+      }),
+    );
+  });
+
   it("keeps fresh creator booking slots when creator events are not modified", async () => {
     const cachedRawEvents = [{ id: "event_77", title: "Cached Creator Event" }];
     const api = createApi([
@@ -114,5 +176,36 @@ describe("booking context flows", () => {
     expect(result.meta.eventsNotModified).toBe(true);
     expect(result.data.rawEvents).toEqual(cachedRawEvents);
     expect(result.data.bookedSlots).toEqual([freshBookedSlot]);
+  });
+
+  it("sends eventId to creator booking context booked slots when provided", async () => {
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchCreatorBookingContextFlow({
+      payload: { creatorId: 1407, eventId: "  event_77  " },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/bookings/creators/1407/booked-slots",
+      expect.objectContaining({
+        params: expect.objectContaining({ eventId: "event_77" }),
+      }),
+    );
   });
 });
