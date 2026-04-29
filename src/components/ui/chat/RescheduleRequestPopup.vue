@@ -148,7 +148,6 @@ async function handleSubmit() {
   d.setHours(h, m, 0, 0)
   const slotDate = localDateTimeToHkt(toLocalISOString(d), newStartTime.value).iso;
   console.log("Computed newSlotDate:", localDateTimeToHkt( toLocalISOString(d), newStartTime.value), { date: toLocalISOString(d), slotDate }, formatLocalDateIso(d), newStartTime.value)
-  return;
   const bookingId    = props.message?.content?.booking_id
   const prevStartAtIso = content.value.start_at || content?.value?.slot_date
 

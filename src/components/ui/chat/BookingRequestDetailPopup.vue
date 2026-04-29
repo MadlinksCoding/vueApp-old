@@ -22,7 +22,7 @@
               </div>
               <!-- {{ currentAction }}
               {{ isCreator ? 'creator' : 'fan' }} -->
-              <div v-if="! ['declined', 'cancelled'].indexOf(currentAction)" class="flex items-center gap-2 shrink-0">
+              <div v-if=" currentAction != 'declined' && currentAction != 'cancelled'" class="flex items-center gap-2 shrink-0">
                 <!-- Status hint -->
                 <div v-if="statusHint" class="flex items-center gap-1">
                   <div class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
@@ -43,7 +43,7 @@
                 </button>
 
                 <!-- 3-dot menu -->
-                <div v-if="isCreator && showJoinButton" class="relative">
+                <div v-if="isCreator" class="relative">
                   <button
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-200/80"
