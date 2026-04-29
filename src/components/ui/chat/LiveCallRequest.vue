@@ -203,7 +203,7 @@ const isCancelled    = computed(() => {
   return status.startsWith('cancel') || status === 'rejected' || status === 'declined'
 })
 const isAccepted     = computed(() => content.value.action === 'accepted')
-
+const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 const showDropdown = ref(false)
 
@@ -221,7 +221,7 @@ onMounted(()   => { _ticker = setInterval(() => { now.value = Date.now() }, 1000
 onUnmounted(() => clearInterval(_ticker))
 
 function parseStartMs() {
-  return parseHkt(content.value.start_at)?.getTime() ?? null
+  return parseHkt(startDateIso.value)?.getTime() ?? null
 }
 
 function parseEndMs() {

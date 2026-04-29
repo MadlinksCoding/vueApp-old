@@ -74,6 +74,8 @@ const emit = defineEmits(['close', 'submitted'])
 
 const content = computed(() => props.message?.content || {})
 
+const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
+
 // ── Parse original start_at ───────────────────────────────────────────────────
 function parseDate(iso) {
   if (!iso) return null
@@ -87,18 +89,18 @@ function fmtTime(d) {
 
 function parseStartMs() {
   return parseDate(
-    props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date
+    startDateIso.value
   )?.getTime() ?? null
 }
 
 const formattedEventDate = computed(() => {
-  const d = parseDate(content.value.start_at || content.value.slot_date)
+  const d = parseDate(startDateIso.value)
   return d ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'
 })
 
 // Original start time as "9:15pm"
 const originalStartTime = computed(() => {
-  const d = parseDate(content.value.start_at || content.value.slot_date)
+  const d = parseDate(startDateIso.value)
   return d ? fmtTime(d) : null
 })
 
@@ -151,39 +153,50 @@ async function handleSubmit() {
   console.log("Computed newSlotDate:", base,  toLocalISOString(base) , localDateTimeToHkt(toLocalISOString(base), newStartTime.value), { slotDate } )
   // return;
   const bookingId    = props.message?.content?.booking_id
-  const prevStartAtIso = content?.value?.start_at || content?.value?.slot_date
+  const prevStartAtIso = startDateIso.value
+
+  if (!bookingId) {
+    showToast('Booking information is missing. Cannot send reschedule request.', { type: 'error' })
+    submitting.value = false
+    return
+  }
 
   try {
-    // Update chat message to reflect counter_offer state (booking API called on fan accept)
-    const res = await FlowHandler.run('chat.updateMessage', {
-      chatId:    props.chatId,
-      messageId: props.message.message_id,
-      updates: {
-        action:   'counter_offer',
-        slotDate,
-        meta: {
-          newSlotDate:   slotDate,
-          prevStartAtIso,
-          source:        'more_time',
-        },
+    const metaRes = await FlowHandler.run('bookings.updateMeta', {
+      bookingId,
+      meta: {
+        moretime: { proposedSlotDate: slotDate },
+        currentCounterOffer: 'moretime',
       },
+      actor: 'creator',
     })
-    if (res?.ok) {
+    if (metaRes?.ok) {
       // Store proposed values in booking meta for fan-side display + accept flow
       let updatedBooking = null
-      if (bookingId) {
-        const metaRes = await FlowHandler.run('bookings.updateMeta', {
-          bookingId,
+  
+      if (metaRes?.ok) updatedBooking = metaRes.data?.item
+
+      // Update chat message to reflect counter_offer state (booking API called on fan accept)
+      const res = await FlowHandler.run('chat.updateMessage', {
+        chatId: props.chatId,
+        messageId: props.message.message_id,
+        updates: {
+          action: 'counter_offer',
+          slotDate,
           meta: {
-            moretime: { proposedSlotDate: slotDate },
-            currentCounterOffer: 'moretime',
+            newSlotDate: slotDate,
+            prevStartAtIso,
+            source: 'more_time',
           },
-          actor: 'creator',
-        })
-        if (metaRes?.ok) updatedBooking = metaRes.data?.item
+        },
+      })
+
+      if( res?.ok ){
+        emit('submitted', { item: res.data?.item, booking: updatedBooking })
+        emit('close')
+      } else {
+        showToast('Failed to send request. Please try again.', { type: 'error' })
       }
-      emit('submitted', { item: res.data?.item, booking: updatedBooking })
-      emit('close')
     }
   } finally {
     submitting.value = false

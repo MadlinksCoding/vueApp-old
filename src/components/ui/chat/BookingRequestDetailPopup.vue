@@ -67,6 +67,8 @@
                       type="button"
                       class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
                       @click.stop="handleAskMoreTime"
+                      :disabled="statusHint === 'Confirmed'"
+                      :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': statusHint === 'Confirmed' }"
                     >
                       <span class="inline-flex w-5 h-5 items-center justify-center">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -80,6 +82,8 @@
                       type="button"
                       class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
                       @click.stop="handleAskToReschedule"
+                      :disabled="statusHint === 'Confirmed'"
+                      :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': statusHint === 'Confirmed' }"
                     >
                       <span class="inline-flex w-5 h-5 items-center justify-center">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -92,6 +96,8 @@
                       type="button"
                       class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
                       @click.stop="handleCancelCall"
+                      :disabled="statusHint === 'Confirmed'"
+                      :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': statusHint === 'Confirmed' }"
                     >
                       <span class="inline-flex w-5 h-5 items-center justify-center">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

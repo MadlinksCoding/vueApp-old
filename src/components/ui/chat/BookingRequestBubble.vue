@@ -1,7 +1,7 @@
 <template>
   <div
-    class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm overflow-hidden font-['Poppins']"
-    :class="pinned ? 'w-full rounded-none border-b border-b-[#E5E7EB]' : 'rounded'"
+    class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm font-['Poppins']"
+    :class="pinned ? 'w-full rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded'"
     :style="pinned ? '' : 'min-width: 210px; max-width: 252px;'"
   >
     <div class="p-3 flex flex-col gap-2">
@@ -11,7 +11,74 @@
         <div class="text-gray-700 text-[15px] font-semibold leading-snug">
           {{ resolvedTitle }}
         </div>
+        <!-- {{ resolvedAction }} -->
+        <div v-if="isPinned && isCreator && ! ['pending', 'declined', 'cancelled'].includes(resolvedAction)" class="relative">
+          <button
+            type="button"
+            class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
+            @click.stop="toggleMenu"
+          >
+            <svg width="4" height="14" viewBox="0 0 4 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.00004 7.99984C2.36823 7.99984 2.66671 7.70136 2.66671 7.33317C2.66671 6.96498 2.36823 6.6665 2.00004 6.6665C1.63185 6.6665 1.33337 6.96498 1.33337 7.33317C1.33337 7.70136 1.63185 7.99984 2.00004 7.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <!-- {{ isPassCall?  'Actions unavailable for this booking' : 'You can take actions on this booking'  }} -->
+          <div
+            v-if="menuOpen"
+            class="absolute right-0 top-6 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+            @click.stop
+          >
+            <button
+              v-if="resolvedAction === 'accepted'"
+              type="button"
+              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
+              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
+              :disabled="isPassCall"
+              @click.stop="handleAskMoreTime"
+            >
+              <span class="inline-flex w-5 h-5 items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              Ask for more time
+            </button>
+            <button
+              v-if="resolvedAction === 'accepted'"
+              type="button"
+              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
+              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
+              :disabled="isPassCall"
+              @click.stop="handleAskToReschedule"
+            >
+              <span class="inline-flex w-5 h-5 items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              Ask to reschedule
+            </button>
+            <button
+              type="button"
+              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
+              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
+              :disabled="isPassCall"
+              @click.stop="handleCancelCall"
+            >
+              <span class="inline-flex w-5 h-5 items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              Cancel Call
+            </button>
+          </div>
+        </div>
         <button
+          v-else
           type="button"
           class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
           @click.stop="$emit('view-details')"
@@ -235,7 +302,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
@@ -253,19 +320,45 @@ const props = defineProps({
   pinned:     { type: Boolean, default: false },
 })
 
-defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter'])
+const emit = defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule'])
 
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
+const menuOpen = ref(false)
 const remarksExpanded = ref(false)
 const remarksRef = ref(null)
 const isRemarksClamped = ref(false)
+const isPinned = computed(() => props.message?.is_pinned || false)
+const isPassCall = computed(() => {
+  const start = parseDate( booking.value?.startAtIso );
+  const end = parseDate( booking.value?.endAtIso );
+
+  if (!start || !end) return true; // If no date info, assume passed to avoid showing action buttons
+
+  const now = Date.now()
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  if (now >= startMs && now < endMs) return false; // Currently within the scheduled time slot
+  const msToStart = startMs - now
+  if (msToStart > 0) return false; // Still have time before the slot starts
+
+  return true;
+})
 
 // ── Booking — reactive from store so socket updates reflect immediately ────────
 const booking = computed(() => {
   const bookingId = content.value.booking_id
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
+
+function toggleMenu() { menuOpen.value = !menuOpen.value }
+function handleAskMoreTime()     { menuOpen.value = false; emit('ask-more-time') }
+function handleAskToReschedule() { menuOpen.value = false; emit('ask-to-reschedule') }
+function handleCancelCall()      { menuOpen.value = false; emit('cancel-booking') }
+
+const handleDocumentClick = () => { menuOpen.value = false }
+onMounted(() => document.addEventListener('click', handleDocumentClick))
+onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
 function checkClamped() {
   nextTick(() => {

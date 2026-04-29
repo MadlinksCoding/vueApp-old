@@ -114,6 +114,7 @@ const activeEventData = computed(() => {
 })
 
 function openBookingDetail(message) {
+  console.log("Opening booking detail for message:", message, pinnedBookingMessage.value)
   activeBookingMessage.value = message
   showBookingPopup.value = true
   // Refresh booking data in background when popup opens
@@ -234,6 +235,8 @@ function onMoreTimeSubmitted({ item, booking: updatedBooking }) {
     decision: 'more_time_request_sent',
   })
 
+  showBookingPopup.value = false
+
   // // update activeBookingData to refresh the booking request bubble with the new proposed time
   // if( activeBookingData.value ) activeBookingData.value.meta.updated = true;
   // if( activeBookingMessage.value ) activeBookingMessage.value.updated = true;
@@ -252,6 +255,7 @@ function onRescheduleSubmitted({ item, booking: updatedBooking }) {
     is_booking_request: true,
     decision: 'reschedule_request_sent',
   })
+  showBookingPopup.value = false
 }
 
 function onAdjustSubmitted({ item, booking: updatedBooking }) {
@@ -267,6 +271,7 @@ function onAdjustSubmitted({ item, booking: updatedBooking }) {
     decision: 'counter_offer',
     bookingId: msg?.content?.booking_id,
   })
+  showBookingPopup.value = false
 }
 
 // ── counter_offer responses for requestJoinCallNotification + booking_request ──
@@ -501,6 +506,7 @@ function onCallCancelled(updatedItem) {
     decision:           'call_cancelled',
     bookingId:          msg?.content?.booking_id,
   })
+  showBookingPopup.value = false
 }
 
 function variantForMessage(msg) {
@@ -1493,6 +1499,8 @@ onUnmounted(() => {
           @cancel-booking="onCancelBooking(pinnedBookingMessage)"
           @accept-counter="onAcceptCounter(pinnedBookingMessage)"
           @reject-counter="onRejectCounter(pinnedBookingMessage)"
+          @ask-more-time="activeBookingMessage = pinnedBookingMessage; showMoreTimePopup = true"
+          @ask-to-reschedule="activeBookingMessage = pinnedBookingMessage; showReschedulePopup = true"
         />
       </template>
 
@@ -1537,6 +1545,10 @@ onUnmounted(() => {
           @adjust="openAdjustPopup(message)"
           @confirm-counter="onConfirmCounter(message)"
           @cancel-booking="onCancelBooking(message)"
+          @accept-counter="onAcceptCounter(message)"
+          @reject-counter="onRejectCounter(message)"
+          @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
+          @ask-to-reschedule="activeBookingMessage = message; showReschedulePopup = true"
         />
         <!-- Product Recommendation -->
         <div
