@@ -4,6 +4,7 @@
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
+  import QuillEditor from "@/components/dev/input/QuillEditor.vue";
   import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
   import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
   import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
@@ -18,8 +19,6 @@
   import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
   import trashIcon from '@/assets/images/icons/trash-01.svg'
 
-  import Quill from 'quill';
-  import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
   import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
@@ -52,8 +51,19 @@
       type: Boolean,
       default: false,
     },
+    bookingType: {
+      type: String,
+      default: "private",
+      validator: (value) => ["private", "group"].includes(value),
+    },
   });
   const DEFAULT_VUE_CREATOR_ID = 1407;
+  const isGroupBooking = computed(() => props.bookingType === "group");
+  const step1SectionOrder = computed(() => (
+    isGroupBooking.value
+      ? ["calendarAvailability", "groupPricing", "offHourSurcharge"]
+      : ["privatePricing", "offHourSurcharge", "calendarAvailability"]
+  ));
 
   function ensureVueCreatorIdFallback() {
     if (props.embedded) return;
@@ -147,6 +157,13 @@
     setMaxBookings: props.engine.state.setMaxBookings || false,
     allowWaitlist: props.engine.state.allowWaitlist || false,
     eventImageUrl: props.engine.state.eventImageUrl || "",
+    priceSetting: props.engine.state.priceSetting || (props.bookingType === "group" ? "eventGoal" : "fixedPricePerUser"),
+    eventGoalTokens: props.engine.state.eventGoalTokens || "",
+    enableMinContributionPerUser: props.engine.state.enableMinContributionPerUser || false,
+    minContributionPerUser: props.engine.state.minContributionPerUser || "",
+    goalNotMet: props.engine.state.goalNotMet || "cancelEvent",
+    setMaxUsers: props.engine.state.setMaxUsers || props.engine.state.enableMaxUsersInGroup || false,
+    maxUsers: props.engine.state.maxUsers || props.engine.state.maxUsersInGroup || "",
   });
 
   // Watch for changes and update engine state
@@ -160,8 +177,6 @@
   const onEventImageUploaded = ({ media_urls }) => {
     formData.value.eventImageUrl = Array.isArray(media_urls) ? media_urls[0] : media_urls;
   };
-
-  const quillEditor = ref(null);
 
   // Accordion State
   const sectionsState = ref({
@@ -215,6 +230,16 @@
     { label: t("common_day"), value: "day" },
   ];
 
+  const groupPricingOptions = [
+    { label: t("booking_group_fixed_price_option"), value: "fixedPricePerUser" },
+    { label: t("booking_group_event_goal_option"), value: "eventGoal" },
+  ];
+
+  const groupGoalNotMetOptions = [
+    { label: t("booking_group_goal_not_met_cancel_refund"), value: "cancelEvent" },
+    { label: t("booking_group_goal_not_met_proceed"), value: "proceedWithoutGoalMet" },
+  ];
+
   let previewAudio = null;
   const previewRingtone = async () => {
     try {
@@ -243,25 +268,6 @@
 
   onMounted(() => {
     ensureVueCreatorIdFallback();
-
-    // Quill Setup (Preserved exactly as provided)
-    const icons = Quill.import('ui/icons');
-    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="" style="width:30px;">';
-    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="" style="width:30px;">';
-    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="" style="width:30px;">';
-    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="" style="width:30px;">';
-    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="" style="width:30px;">';
-
-    new Quill(quillEditor.value, {
-      modules: { toolbar: [['bold', 'italic', 'link', { 'list': 'ordered' }, { 'list': 'bullet' }]] },
-      placeholder: t("booking_event_description_placeholder"),
-      theme: 'snow'
-    });
-
-    // Set initial content if exists
-    if (formData.value.eventDescription) {
-      quillEditor.value.firstChild.innerHTML = formData.value.eventDescription;
-    }
   });
 
   function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
@@ -761,7 +767,10 @@
               </CustomDropdown>
             </div>
           </div>
-          <QuillEditor v-model="formData.eventDescription" :placeholder="t('booking_event_description_placeholder')" />
+          <QuillEditor
+            v-model="formData.eventDescription"
+            :placeholder="t('booking_event_description_placeholder')"
+          />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
               <div class="text-slate-700 text-xs font-normal leading-none mb-1.5">{{ t("booking_call_type") }}</div>
@@ -830,7 +839,7 @@
         </div>
       </div>
 
-      <BookingSectionsWrapper :title="t('booking_session_duration')" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
+      <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_duration')" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
@@ -860,7 +869,8 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+      <template v-for="section in step1SectionOrder" :key="section">
+      <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
         leftIconClass="mt-[4px]">
         <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
@@ -1075,7 +1085,178 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
+      <BookingSectionsWrapper v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+        leftIconClass="mt-[4px]">
+        <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
+          <div class="flex flex-col justify-start items-start gap-2 w-full">
+            <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+              {{ t("booking_group_charge_question") }}
+            </div>
+            <CustomDropdown
+              v-model="formData.priceSetting"
+              :options="groupPricingOptions"
+              :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
+            />
+          </div>
+
+          <template v-if="formData.priceSetting === 'fixedPricePerUser'">
+            <div class="flex flex-col justify-start items-start gap-1.5">
+              <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
+                {{ t("booking_group_event_price") }}
+              </div>
+              <div class="flex items-center gap-2">
+                <BaseInput type="number" placeholder="" v-model="formData.basePrice"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <div class="flex gap-2 items-center">
+                <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_group_maximum_participants')"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  wrapperClass="flex items-center gap-2" />
+                <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
+              </div>
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.maxUsers"
+                  :disabled="!formData.setMaxUsers"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+              </div>
+            </div>
+
+            <div class="self-stretch _flex hidden flex-col justify-center items-start gap-3">
+              <div class="flex gap-2 items-center">
+                <CheckboxGroup v-model="formData.allowWaitlist" :label="t('booking_group_waitlist_label')"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  wrapperClass="flex items-center gap-2" />
+                <TooltipIcon :text="t('booking_waitlist_tooltip')" />
+              </div>
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.waitlistSpots"
+                  :disabled="!formData.allowWaitlist"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                <div class="justify-center text-slate-700 text-base font-normal leading-normal">
+                  {{ t("booking_waitlist_spots") }}
+                </div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_discount_recurring')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+
+              <div class="self-stretch inline-flex justify-start items-start gap-2">
+                <div class="w-6 h-6" />
+                <div class="inline-flex flex-col justify-start items-start gap-2">
+                  <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
+                    <BaseInput type="number" placeholder="" v-model="formData.discountEventsCount"
+                      :disabled="!formData.enableLongerDiscount"
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="justify-center text-black text-base font-medium leading-normal">
+                      {{ t("booking_group_events_minimum") }}
+                    </div>
+                  </div>
+                  <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
+                    <BaseInput type="number" placeholder="" v-model="formData.discountPercentage"
+                      :disabled="!formData.enableLongerDiscount"
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="justify-center text-black text-base font-medium leading-normal">
+                      {{ t("booking_percent_off_base_price") }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="flex flex-col justify-start items-start gap-1.5">
+              <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
+                {{ t("booking_group_event_goals") }}
+              </div>
+              <div class="flex items-center gap-2">
+                <BaseInput type="number" placeholder="" v-model="formData.eventGoalTokens"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <CheckboxGroup v-model="formData.enableMinContributionPerUser" :label="t('booking_group_min_contribution_per_user')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.minContributionPerUser"
+                  :disabled="!formData.enableMinContributionPerUser"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="flex flex-col justify-start items-start gap-2 w-full">
+              <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+                {{ t("booking_group_goal_not_met_label") }}
+              </div>
+              <CustomDropdown
+                v-model="formData.goalNotMet"
+                :options="groupGoalNotMetOptions"
+                :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
+              />
+            </div>
+          </template>
+
+          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+            <div class="flex gap-2 items-center">
+              <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_group_refund_before_event_start')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+              <TooltipIcon :text="t('booking_cancellation_fee_tooltip')" />
+            </div>
+            <div :class="['inline-flex justify-start items-center gap-2', !formData.enableCancellationFee ? 'opacity-50' : 'opacity-100']">
+              <div class="w-6 h-6" />
+              <BaseInput type="number" placeholder="" v-model="formData.cancellationFee"
+                :disabled="!formData.enableCancellationFee"
+                inputClass="bg-white/50 w-28 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+              <div class="justify-center text-slate-700 text-base font-normal leading-normal">
+                {{ t("booking_group_minimum_charge") }}
+              </div>
+            </div>
+          </div>
+
+          <div class="self-stretch flex flex-col justify-start items-start gap-3">
+            <CheckboxGroup v-model="formData.allowAdvanceCancellation" :label="t('booking_group_cancel_advance_void_fee')"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+              wrapperClass="flex items-center gap-2" />
+            <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50 pointer-events-none' : 'opacity-100']">
+              <div class="w-6 h-6" />
+              <BaseInput type="number" placeholder="" v-model="formData.advanceVoid"
+                :disabled="!formData.allowAdvanceCancellation"
+                inputClass="bg-white/50 w-24 px-3 py-2 rounded-tl-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed border-r" />
+              <CustomDropdown
+                v-model="formData.advanceCancelWindowUnit"
+                :options="timeUnitOptions"
+                :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
+              />
+              <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
+                {{ t("booking_group_before_event_start") }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </BookingSectionsWrapper>
+
+      <BookingSectionsWrapper v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
@@ -1095,7 +1276,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper :title="t('booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
+      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t('booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
         <div class="w-full flex flex-col gap-5 mt-5">
           <div class="flex flex-col gap-3 w-full">
             <div class="self-stretch justify-start text-gray-900 text-xs font-normal font-['Poppins'] leading-none">
@@ -1391,6 +1572,7 @@
           </div>
         </div>
       </BookingSectionsWrapper>
+      </template>
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 

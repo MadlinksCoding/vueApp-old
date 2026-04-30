@@ -1,4 +1,5 @@
 import { shallowMount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
@@ -107,6 +108,7 @@ describe("one-on-one booking step translations", () => {
   beforeEach(() => {
     sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
     vi.clearAllMocks();
+    document.body.innerHTML = "";
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: true,
       status: 200,
@@ -125,6 +127,7 @@ describe("one-on-one booking step translations", () => {
       delete navigator.sendBeacon;
     }
     vi.unstubAllGlobals();
+    document.body.innerHTML = "";
   });
 
   it("renders translated overrides in step 1", async () => {
@@ -153,6 +156,7 @@ describe("one-on-one booking step translations", () => {
         booking_duration: "Duracion",
         booking_mark_off_hours: "Marcar fuera de horario",
       }),
+      attachTo: document.body,
     });
 
     expect(wrapper.text()).toContain("Vista previa");
@@ -160,7 +164,108 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).toContain("Subir archivo");
     expect(wrapper.text()).toContain("Duracion de sesion");
     expect(wrapper.text()).toContain("Duracion");
-    expect(wrapper.text()).toContain("Marcar fuera de horario");
+    expect(document.body.textContent).toContain("Marcar fuera de horario");
+  });
+
+  it("shows the description editor in group step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({}),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.find("quill-editor-stub").exists()).toBe(true);
+  });
+
+  it("shows the description editor in private step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({}),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.find("quill-editor-stub").exists()).toBe(true);
+  });
+
+  it("hides session duration in group step 1 and keeps it for private step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const groupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "group-event" }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(groupWrapper.text()).not.toContain("Session Duration");
+    expect(privateWrapper.text()).toContain("Session Duration");
+  });
+
+  it("orders calendar availability before pricing only for group step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const privateHost = document.createElement("div");
+    const groupHost = document.createElement("div");
+    document.body.appendChild(privateHost);
+    document.body.appendChild(groupHost);
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+      attachTo: privateHost,
+    });
+
+    const groupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "group-event" }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+      attachTo: groupHost,
+    });
+
+    await nextTick();
+    await nextTick();
+
+    const privateText = privateHost.textContent || privateWrapper.text();
+    const groupText = groupHost.textContent || groupWrapper.text();
+
+    expect(privateText.indexOf("Pricing Settings")).toBeLessThan(privateText.indexOf("Calendar Availability"));
+    expect(groupText.indexOf("Calendar Availability")).toBeLessThan(groupText.indexOf("Pricing Settings"));
   });
 
   it("renders translated overrides in step 2", async () => {

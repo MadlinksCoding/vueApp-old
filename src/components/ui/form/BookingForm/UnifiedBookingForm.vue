@@ -126,6 +126,10 @@ const bookingFlow = createFlowStateEngine({
         setBufferTime: false,
         setMaxBookings: false,
         allowWaitlist: false,
+        eventGoalTokens: "",
+        enableMinContributionPerUser: false,
+        minContributionPerUser: "",
+        goalNotMet: "cancelEvent",
 
         // Step 2 & Group Defaults
         allowRecording: false,
@@ -157,7 +161,7 @@ const bookingFlow = createFlowStateEngine({
         eventCallType: "video",
         eventColorSkin: "#5549FF",
         eventRingtoneUrl: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
-        priceSetting: "fixedPricePerUser"
+        priceSetting: "eventGoal"
     }
 });
 
@@ -889,9 +893,20 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <!-- Group Form -->
                     <template v-else-if="currentType === 'group'">
-                        <GroupBookingStep1 v-if="currentStep === 1" :engine="bookingFlow" />
+                        <OneOnOneBookinStep1
+                            v-if="currentStep === 1"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                            bookingType="group"
+                        />
 
-                        <GroupBookingStep2 v-if="currentStep === 2" :engine="bookingFlow" @created="handleCreateFlowCreated" />
+                        <OneOnOneBookinStep2
+                            v-if="currentStep === 2"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                            bookingType="group"
+                            @created="handleCreateFlowCreated"
+                        />
                     </template>
                 </div>
 

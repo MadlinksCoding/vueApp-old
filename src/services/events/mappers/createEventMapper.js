@@ -74,6 +74,52 @@ function hmToMinutes(value) {
   return (parsedHours * 60) + parsedMinutes;
 }
 
+function inferDurationFromHm(startHm, endHm) {
+  const start = hmToMinutes(startHm);
+  const end = hmToMinutes(endHm);
+  if (end > start) return end - start;
+  if (end < start) return (24 * 60) - start + end;
+  return 0;
+}
+
+function inferFirstAvailabilityDuration(payload = {}) {
+  const sources = [];
+
+  if (Array.isArray(payload.weeklyAvailability)) {
+    payload.weeklyAvailability.forEach((day) => {
+      if (day?.unavailable) return;
+      if (Array.isArray(day?.slots)) sources.push(...day.slots);
+    });
+  }
+
+  if (Array.isArray(payload.oneTimeAvailability)) {
+    payload.oneTimeAvailability.forEach((entry) => {
+      if (Array.isArray(entry?.slots)) sources.push(...entry.slots);
+    });
+  }
+
+  if (Array.isArray(payload.monthlyAvailability)) {
+    sources.push(...payload.monthlyAvailability);
+  }
+
+  for (const slot of sources) {
+    const startHm = toHm(slot?.startTime, "");
+    const endHm = toHm(slot?.endTime, "");
+    if (!startHm || !endHm) continue;
+    const duration = inferDurationFromHm(startHm, endHm);
+    if (duration >= 5) return duration;
+  }
+
+  const selectedStart = toHm(payload.selectedStartTime || payload.startTime, "");
+  const selectedEnd = toHm(payload.selectedEndTime || payload.endTime, "");
+  if (selectedStart && selectedEnd) {
+    const duration = inferDurationFromHm(selectedStart, selectedEnd);
+    if (duration >= 5) return duration;
+  }
+
+  return 15;
+}
+
 function addDaysToDateIso(dateIso, days) {
   const [year, month, day] = String(dateIso || "").split("-").map((part) => Number(part));
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return dateIso;
@@ -481,8 +527,18 @@ function buildLateStartPolicy(payload = {}) {
 function mapBasePayload(payload = {}, context = {}) {
   const creatorId = resolveCreatorId(payload, context);
   const type = deriveEventType(payload);
-  const duration = pickNumeric(payload.duration ?? payload.sessionDurationMinutes, 15);
-  const basePrice = pickNumeric(payload.basePrice ?? payload.basePriceTokens, 0);
+  const durationRaw = payload.duration ?? payload.sessionDurationMinutes;
+  const explicitDuration = String(durationRaw ?? "").trim() === ""
+    ? null
+    : pickNumeric(durationRaw, null);
+  const duration = explicitDuration != null
+    ? explicitDuration
+    : (type === "group-event" ? inferFirstAvailabilityDuration(payload) : 15);
+  const priceSetting = nonEmptyString(payload.priceSetting ?? payload.priceSettings, "fixedPricePerUser");
+  const isGroupEventGoal = type === "group-event" && priceSetting === "eventGoal";
+  const basePrice = isGroupEventGoal
+    ? 0
+    : pickNumeric(payload.basePrice ?? payload.basePriceTokens, 0);
   const primarySlot = derivePrimarySlot(payload, duration);
   const repeatRule = normalizeRepeatRule(nonEmptyString(payload.repeatRule, "weekly"));
   const dateRange = deriveDateRange(payload, primarySlot);
@@ -606,7 +662,17 @@ function mapBasePayload(payload = {}, context = {}) {
   }
 
   if (type === "group-event") {
-    mapped.priceSetting = nonEmptyString(payload.priceSetting, "fixedPricePerUser");
+    mapped.priceSetting = priceSetting;
+
+    if (mapped.priceSetting === "eventGoal") {
+      withOptionalField(mapped, "eventGoalTokens", pickNumeric(payload.eventGoalTokens ?? payload.basePriceTokens, null));
+      mapped.goalNotMet = nonEmptyString(payload.goalNotMet, "cancelEvent");
+
+      if (asBoolean(payload.enableMinContributionPerUser, false)) {
+        withOptionalField(mapped, "minContributionPerUser", pickNumeric(payload.minContributionPerUser, 0));
+      }
+    }
+
     mapped.enableMaxUsersInGroup = asBoolean(payload.setMaxUsers || payload.enableMaxUsersInGroup, false);
 
     if (mapped.enableMaxUsersInGroup) {

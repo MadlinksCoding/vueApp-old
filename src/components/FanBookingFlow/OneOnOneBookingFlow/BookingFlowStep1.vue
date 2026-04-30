@@ -61,6 +61,19 @@ function callTypeLabel(event = {}) {
     : t("fan_booking_one_on_one_call_type", { media: mediaTypeLabel });
 }
 
+function isGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+}
+
+function displayTokens(event = {}) {
+  const raw = event?.raw || {};
+  if (isGroupEvent(event) && String(raw?.priceSetting || event?.priceSetting || "").toLowerCase() === "eventgoal") {
+    return safeNumber(raw?.eventGoalTokens ?? event?.eventGoalTokens, 0);
+  }
+  return safeNumber(event?.basePriceTokens, 0);
+}
+
 function safeNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -214,9 +227,9 @@ watch(
               <div class="price-icon h-full flex justify-center items-center">
                 <img :src="bookingFlowTokenIcon" class="w-[2rem] h-[2rem]" alt="" />
               </div>
-              <p class="price-amount text-4xl font-semibold mb-[-3px]">{{ safeNumber(currentEvent?.basePriceTokens, 0) }}</p>
+              <p class="price-amount text-4xl font-semibold mb-[-3px]">{{ displayTokens(currentEvent || {}) }}</p>
               <p class="price-currency text-2xl font-semibold mb-[-3px]">{{ t("fan_booking_tokens") }}</p>
-              <p class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} {{ t("common_minutes") }}</p>
+              <p v-if="!isGroupEvent(currentEvent || {})" class="price-time text-sm">/{{ safeNumber(currentEvent?.sessionDurationMinutes, 15) }} {{ t("common_minutes") }}</p>
             </div>
           </div>
 
