@@ -87,6 +87,35 @@ function normalizePositiveMinutes(value, fallback = 15) {
   return Math.floor(parsed);
 }
 
+function isGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+}
+
+function resolveGroupCapacity(event = {}) {
+  const raw = event?.raw || {};
+  const enabled = raw?.enableMaxUsersInGroup ?? event?.enableMaxUsersInGroup ?? raw?.setMaxUsers ?? event?.setMaxUsers;
+  const capacity = Number(
+    raw?.maxUsersInGroup
+      ?? event?.maxUsersInGroup
+      ?? raw?.maxUsers
+      ?? event?.maxUsers
+      ?? raw?.maxAttendees
+      ?? event?.maxAttendees
+      ?? raw?.capacity
+      ?? event?.capacity,
+  );
+
+  if (enabled === false || enabled === "false" || enabled === 0 || enabled === "0") return Infinity;
+  if (!Number.isFinite(capacity) || capacity <= 0) return Infinity;
+  return Math.floor(capacity);
+}
+
+function inferSlotDurationMinutes(slot = {}) {
+  if (!slot || !Number.isFinite(slot.startMs) || !Number.isFinite(slot.endMs)) return 0;
+  return Math.max(0, Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
+}
+
 function normalizeEndDayOffset(value, startHm = "", endHm = "") {
   const parsed = Number(value);
   if (Number.isFinite(parsed)) {
@@ -351,6 +380,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
   const eventId = options.eventId || event?.eventId || event?.id;
   const bookedSlotsIndex = options.bookedSlotsIndex || {};
   const applyBufferAfterBooked = options.applyBufferAfterBooked !== false;
+  const groupEvent = isGroupEvent(event);
   const sessionMinutes = normalizePositiveMinutes(
     raw.sessionDurationMinutes ?? event?.sessionDurationMinutes,
     15,
@@ -470,6 +500,15 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
 
   const segmented = [];
   built.forEach((slotWindow) => {
+    if (groupEvent) {
+      segmented.push({
+        ...slotWindow,
+        windowEndMs: slotWindow.endMs,
+        durationMinutes: inferSlotDurationMinutes(slotWindow),
+      });
+      return;
+    }
+
     const parts = (applyBufferAfterBooked && bufferMinutes > 0)
       ? sliceWindowIntoSessionSlotsWithPostBookedBuffer(
           slotWindow,
@@ -515,25 +554,31 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
           offHours: false,
           startMs,
           endMs,
+          windowEndMs: endMs,
+          durationMinutes: Math.max(0, Math.round((endMs - startMs) / (60 * 1000))),
           value: fallbackStart,
           label: hmToLabel(fallbackStart),
         };
 
-        const fallbackParts = sliceWindowIntoSessionSlots(fallbackWindow, sessionMinutes, 0);
-        const fallbackRows = (applyBufferAfterBooked && bufferMinutes > 0)
-          ? sliceWindowIntoSessionSlotsWithPostBookedBuffer(
-              fallbackWindow,
-              sessionMinutes,
-              bookedRowsForDate,
-              bufferMinutes,
-            )
-          : fallbackParts;
-        if (fallbackRows.length > 0) {
-          fallbackRows.forEach((part) => {
-            dedupe.set(`${part.localDateIso}_${part.startHm}_${part.endHm}`, part);
-          });
-        } else {
+        if (groupEvent) {
           dedupe.set(`${localDateIso}_${fallbackStart}_${fallbackEnd}`, fallbackWindow);
+        } else {
+          const fallbackParts = sliceWindowIntoSessionSlots(fallbackWindow, sessionMinutes, 0);
+          const fallbackRows = (applyBufferAfterBooked && bufferMinutes > 0)
+            ? sliceWindowIntoSessionSlotsWithPostBookedBuffer(
+                fallbackWindow,
+                sessionMinutes,
+                bookedRowsForDate,
+                bufferMinutes,
+              )
+            : fallbackParts;
+          if (fallbackRows.length > 0) {
+            fallbackRows.forEach((part) => {
+              dedupe.set(`${part.localDateIso}_${part.startHm}_${part.endHm}`, part);
+            });
+          } else {
+            dedupe.set(`${localDateIso}_${fallbackStart}_${fallbackEnd}`, fallbackWindow);
+          }
         }
       }
     }
@@ -589,6 +634,43 @@ export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {
   ));
 }
 
+function countBlockingOverlaps({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
+  if (!eventId || !Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return 0;
+  }
+
+  const byDate = bookedSlotsIndex?.[eventId];
+  if (!byDate || typeof byDate !== "object") return 0;
+
+  let count = 0;
+  Object.values(byDate).forEach((rows) => {
+    if (!Array.isArray(rows)) return;
+    rows.forEach((booked) => {
+      if (
+        isBlockingBookedSlot(booked)
+        && startMs < booked.endMs
+        && endMs > booked.startMs
+      ) {
+        count += 1;
+      }
+    });
+  });
+  return count;
+}
+
+export function isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex = {} }) {
+  if (!isGroupEvent(event)) return false;
+  const capacity = resolveGroupCapacity(event);
+  if (!Number.isFinite(capacity)) return false;
+  const occupied = countBlockingOverlaps({
+    eventId,
+    startMs: slot?.startMs,
+    endMs: slot?.endMs,
+    bookedSlotsIndex,
+  });
+  return occupied >= capacity;
+}
+
 export function isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
   if (!eventId || !Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
     return false;
@@ -620,12 +702,16 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
       bookedSlotsIndex,
       applyBufferAfterBooked: true,
     });
-    const firstFree = candidates.find((slot) => !isSlotBooked({
-      eventId: event.eventId,
-      localDateIso,
-      slot,
-      bookedSlotsIndex,
-    }));
+    const firstFree = candidates.find((slot) => (
+      isGroupEvent(event)
+        ? !isGroupSlotAtCapacity({ event, eventId: event.eventId, slot, bookedSlotsIndex })
+        : !isSlotBooked({
+          eventId: event.eventId,
+          localDateIso,
+          slot,
+          bookedSlotsIndex,
+        })
+    ));
 
     if (firstFree) {
       return {
@@ -639,8 +725,10 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
   return null;
 }
 
-export function createSlotUiModel({ eventId, localDateIso, slot, bookedSlotsIndex }) {
-  const bookedDisabled = isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex });
+export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }) {
+  const bookedDisabled = isGroupEvent(event)
+    ? isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex })
+    : isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex });
   const today = new Date();
   const todayIso = toLocalDateIsoFromDate(today);
   const pastDisabled = (

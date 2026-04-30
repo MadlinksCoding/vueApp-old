@@ -252,6 +252,11 @@ function getPreviewDurationMinutes(event) {
   return Math.floor(parsed);
 }
 
+function isGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+}
+
 function toPreviewDurationObject(event, durationMinutes) {
   const raw = event?.raw || {};
   const baseMinutes = Number(raw.sessionDurationMinutes ?? event?.sessionDurationMinutes ?? 15);
@@ -284,6 +289,7 @@ function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45)
     if (!Array.isArray(candidates) || candidates.length === 0) continue;
 
     const uiSlots = candidates.map((slot) => createSlotUiModel({
+      event,
       eventId: previewEventId,
       localDateIso: dateIso,
       slot,
@@ -593,11 +599,15 @@ async function loadPreviewContext() {
     engine.setState("fanBooking.context.selectedEvent", previewEvent, { reason: "preview-load", silent: true });
   }
 
-  const defaultDurationMinutes = getPreviewDurationMinutes(previewEvent);
   const defaultSelection = resolvePreviewDefaultSelection(previewEvent, previewBookedSlotsIndex);
   const selectedDateIso = defaultSelection?.selectedDateIso || null;
   const selectedDate = defaultSelection?.selectedDate || null;
   const selectedSlot = defaultSelection?.selectedSlot || null;
+  const slotDurationMinutes = selectedSlot?.durationMinutes
+    || (selectedSlot?.startMs && selectedSlot?.endMs ? Math.round((selectedSlot.endMs - selectedSlot.startMs) / (60 * 1000)) : 0);
+  const defaultDurationMinutes = isGroupEvent(previewEvent) && slotDurationMinutes > 0
+    ? slotDurationMinutes
+    : getPreviewDurationMinutes(previewEvent);
   const selectedDuration = toPreviewDurationObject(previewEvent, defaultDurationMinutes);
 
   const formattedTimeRange = selectedSlot

@@ -46,6 +46,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  bookingType: {
+    type: String,
+    default: "private",
+    validator: (value) => ["private", "group"].includes(value),
+  },
 });
 const emit = defineEmits(["created"]);
 const route = useRoute();
@@ -1065,7 +1070,11 @@ const createEvent = async () => {
   if (result.valid) {
     isCreating.value = true;
     props.engine.setState("creatorId", resolveCreatorId(), { reason: "create-event-flow", silent: true });
-    props.engine.setState("eventType", "1on1-call", { reason: "create-event-flow", silent: true });
+    props.engine.setState(
+      "eventType",
+      props.bookingType === "group" ? "group-event" : "1on1-call",
+      { reason: "create-event-flow", silent: true },
+    );
 
     try {
       const flowResult = await props.engine.callFlow("events.createEvent", null, {
@@ -1091,7 +1100,7 @@ const createEvent = async () => {
       const notifyResult = await notifyEventCreated({
         creatorId: resolveCreatorId(),
         eventName: resolveCreatedEventName(flowResult),
-        eventType: props.engine.getState("eventType") || "1on1-call",
+        eventType: props.engine.getState("eventType") || (props.bookingType === "group" ? "group-event" : "1on1-call"),
         eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
       });
 

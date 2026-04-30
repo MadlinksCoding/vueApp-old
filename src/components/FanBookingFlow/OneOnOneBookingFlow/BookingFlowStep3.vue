@@ -188,7 +188,7 @@ const findLineAmount = (code) => {
   return Number(line?.amount || 0);
 };
 const sessionCost = computed(() => {
-  const mappedBase = findLineAmount("base");
+  const mappedBase = findLineAmount("base") || findLineAmount("event_goal_contribution");
   if (Number.isFinite(mappedBase) && mappedBase > 0) return mappedBase;
   return Number(bookingData.value.selectedDuration?.price || 0);
 });

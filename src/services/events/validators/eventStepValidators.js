@@ -16,6 +16,33 @@ function hasAnyValidSlots(slots) {
   });
 }
 
+function hmToMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return (hours * 60) + minutes;
+}
+
+function slotDurationMinutes(slot = {}) {
+  const start = hmToMinutes(slot?.startTime);
+  const end = hmToMinutes(slot?.endTime);
+  if (start == null || end == null) return null;
+  if (end > start) return end - start;
+  if (end < start) return (24 * 60) - start + end;
+  return 0;
+}
+
+function hasAnyValidGroupSlots(slots) {
+  if (!Array.isArray(slots)) return false;
+  return slots.some((slot) => {
+    const duration = slotDurationMinutes(slot);
+    return duration != null && duration >= 5;
+  });
+}
+
 function hasAtLeastOneWeeklySlot(state = {}) {
   const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
   return weekly.some((day) => {
@@ -24,14 +51,32 @@ function hasAtLeastOneWeeklySlot(state = {}) {
   });
 }
 
+function hasAtLeastOneWeeklyGroupSlot(state = {}) {
+  const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
+  return weekly.some((day) => {
+    if (day?.unavailable) return false;
+    return hasAnyValidGroupSlots(day?.slots);
+  });
+}
+
 function hasAtLeastOneOneTimeSlot(state = {}) {
   const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
   return oneTime.some((entry) => hasAnyValidSlots(entry?.slots));
 }
 
+function hasAtLeastOneOneTimeGroupSlot(state = {}) {
+  const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
+  return oneTime.some((entry) => hasAnyValidGroupSlots(entry?.slots));
+}
+
 function hasAtLeastOneMonthlySlot(state = {}) {
   const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
   return hasAnyValidSlots(monthly);
+}
+
+function hasAtLeastOneMonthlyGroupSlot(state = {}) {
+  const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
+  return hasAnyValidGroupSlots(monthly);
 }
 
 function asArray(value) {
@@ -60,14 +105,33 @@ export function step1Validator(state = {}) {
     errors.push(asError("eventTitle", "booking_validation_event_title_required", "Event title is required."));
   }
 
-  const duration = asNumber(state?.duration);
-  if (duration == null || duration < 5) {
-    errors.push(asError("duration", "booking_validation_duration_min", "Session duration must be at least 5 minutes."));
+  const isGroupEvent = state?.eventType === "group-event" || state?.type === "group-event";
+  const isGroupEventGoal = isGroupEvent && state?.priceSetting === "eventGoal";
+
+  if (!isGroupEvent) {
+    const duration = asNumber(state?.duration);
+    if (duration == null || duration < 5) {
+      errors.push(asError("duration", "booking_validation_duration_min", "Session duration must be at least 5 minutes."));
+    }
   }
 
-  const basePrice = asNumber(state?.basePrice);
-  if (basePrice == null || basePrice < 0) {
-    errors.push(asError("basePrice", "booking_validation_base_price_min", "Base price must be 0 or higher."));
+  if (isGroupEventGoal) {
+    const eventGoalTokens = asNumber(state?.eventGoalTokens);
+    if (eventGoalTokens == null || eventGoalTokens <= 0) {
+      errors.push(asError("eventGoalTokens", "booking_validation_event_goal_required", "Event goal must be greater than 0."));
+    }
+
+    if (state?.enableMinContributionPerUser) {
+      const minContributionPerUser = asNumber(state?.minContributionPerUser);
+      if (minContributionPerUser == null || minContributionPerUser <= 0) {
+        errors.push(asError("minContributionPerUser", "booking_validation_min_contribution_min", "Minimum contribution must be greater than 0."));
+      }
+    }
+  } else {
+    const basePrice = asNumber(state?.basePrice);
+    if (basePrice == null || basePrice < 0) {
+      errors.push(asError("basePrice", "booking_validation_base_price_min", "Base price must be 0 or higher."));
+    }
   }
 
   if (state?.enableFirstTimeDiscount) {
@@ -79,17 +143,19 @@ export function step1Validator(state = {}) {
 
   const repeatRule = state?.repeatRule || "weekly";
   if (repeatRule === "doesNotRepeat") {
-    if (!hasAtLeastOneOneTimeSlot(state)) {
+    const hasSlot = isGroupEvent ? hasAtLeastOneOneTimeGroupSlot(state) : hasAtLeastOneOneTimeSlot(state);
+    if (!hasSlot) {
       errors.push(asError("oneTimeAvailability", "booking_validation_one_time_slot_required", "Add at least one available slot before continuing."));
     }
   } else if (repeatRule === "monthly") {
     if (!state?.dateFrom || String(state.dateFrom).trim().length === 0) {
       errors.push(asError("dateFrom", "booking_validation_monthly_start_required", "Start date is required for monthly repeat."));
     }
-    if (!hasAtLeastOneMonthlySlot(state)) {
+    const hasSlot = isGroupEvent ? hasAtLeastOneMonthlyGroupSlot(state) : hasAtLeastOneMonthlySlot(state);
+    if (!hasSlot) {
       errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_required", "Add at least one monthly slot before continuing."));
     }
-  } else if (!hasAtLeastOneWeeklySlot(state)) {
+  } else if (!(isGroupEvent ? hasAtLeastOneWeeklyGroupSlot(state) : hasAtLeastOneWeeklySlot(state))) {
     errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_required", "Add at least one available slot before continuing."));
   }
 
@@ -108,8 +174,18 @@ export function step2Validator(state = {}) {
 
   if (state?.enableCancellationFee) {
     const cancellationFee = asNumber(state?.cancellationFee);
-    if (cancellationFee == null || cancellationFee < 0) {
-      errors.push(asError("cancellationFee", "booking_validation_cancellation_fee_min", "Cancellation fee must be 0 or higher."));
+    if (cancellationFee == null || cancellationFee <= 0) {
+      errors.push(asError("cancellationFee", "booking_validation_cancellation_fee_min", "Cancellation fee must be greater than 0."));
+    }
+  }
+
+  if (state?.allowAdvanceCancellation) {
+    const advanceVoid = asNumber(state?.advanceVoid);
+    if (advanceVoid == null || advanceVoid <= 0) {
+      errors.push(asError("advanceVoid", "booking_validation_advance_cancel_min", "Advance cancellation window must be greater than 0."));
+    }
+    if (!state?.advanceCancelWindowUnit) {
+      errors.push(asError("advanceCancelWindowUnit", "booking_validation_advance_cancel_unit_required", "Advance cancellation unit is required."));
     }
   }
 

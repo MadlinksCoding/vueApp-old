@@ -105,4 +105,57 @@ describe("booking slot utilities", () => {
     expect(cancelledSlots.map((slot) => slot.startHm)).toEqual(["10:00", "10:30", "11:00"]);
     expect(activeSlots.map((slot) => slot.startHm)).toEqual(["10:00", "10:45"]);
   });
+
+  it("keeps group availability windows whole instead of slicing by session duration", () => {
+    const slots = buildCandidateSlotsForEventDate({
+      eventId,
+      type: "group-event",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "13:00",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+      },
+    }, localDateIso, { eventId, bookedSlotsIndex: {} });
+
+    expect(slots).toHaveLength(1);
+    expect(slots[0].startHm).toBe("10:00");
+    expect(slots[0].endHm).toBe("13:00");
+    expect(slots[0].durationMinutes).toBe(180);
+  });
+
+  it("allows group slot overlaps until capacity is reached", () => {
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_1",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+    const event = {
+      eventId,
+      type: "group-event",
+      maxUsersInGroup: 2,
+      enableMaxUsersInGroup: true,
+      raw: { type: "group-event", maxUsersInGroup: 2, enableMaxUsersInGroup: true },
+    };
+    const slot = makeSlot("10:00", "13:00");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(false);
+
+    bookedSlotsIndex[eventId][localDateIso].push({
+      bookingId: "booking_2",
+      startIso: `${localDateIso}T10:00:00`,
+      endIso: `${localDateIso}T13:00:00`,
+      startMs: slot.startMs,
+      endMs: slot.endMs,
+      status: "confirmed",
+    });
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(true);
+  });
 });

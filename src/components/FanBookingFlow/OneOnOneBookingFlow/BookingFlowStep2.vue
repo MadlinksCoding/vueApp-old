@@ -88,8 +88,16 @@ const selectedTime = ref(null);
 const selectedDurationObj = ref(null);
 const addons = ref([]);
 const otherRequest = ref('');
+const contributionTokens = ref('');
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
+const isGroupEvent = computed(() => String(
+  selectedEvent.value?.type
+    || selectedEvent.value?.eventType
+    || selectedEvent.value?.raw?.type
+    || selectedEvent.value?.raw?.eventType
+    || '',
+).toLowerCase() === 'group-event');
 const popupBackgroundStyle = computed(() => ({
   backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
@@ -163,11 +171,48 @@ function toWholeTokens(value) {
   return Math.ceil(Number.isFinite(numeric) ? numeric : 0);
 }
 
+const isEventGoalGroupEvent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return isGroupEvent.value && String(raw?.priceSetting || selectedEvent.value?.priceSetting || '').toLowerCase() === 'eventgoal';
+});
+
+const eventGoalMinimumTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  const configured = Number(raw?.minContributionPerUser ?? selectedEvent.value?.minContributionPerUser ?? 0);
+  return Number.isFinite(configured) && configured > 0 ? toWholeTokens(configured) : 1;
+});
+
+const eventGoalMaximumTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
+});
+
+const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
+
+const contributionInvalid = computed(() => {
+  if (!isEventGoalGroupEvent.value) return false;
+  const amount = normalizedContributionTokens.value;
+  const max = eventGoalMaximumTokens.value;
+  return max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
+});
+
+function ensureContributionDefault() {
+  if (!isEventGoalGroupEvent.value) {
+    contributionTokens.value = '';
+    return;
+  }
+
+  const existing = Number(contributionTokens.value);
+  if (Number.isFinite(existing) && existing > 0) return;
+  contributionTokens.value = String(eventGoalMinimumTokens.value);
+}
+
 const timeSlots = computed(() => {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
 
   return candidateSlots.value.map((slot) => {
     const uiSlot = createSlotUiModel({
+      event: selectedEvent.value,
       eventId: selectedEvent.value.eventId,
       localDateIso: selectedDateIso.value,
       slot,
@@ -176,7 +221,9 @@ const timeSlots = computed(() => {
 
     return {
       ...uiSlot,
-      label: hmToLabel(uiSlot.startHm),
+      label: isGroupEvent.value
+        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
+        : hmToLabel(uiSlot.startHm),
       value: uiSlot.startHm,
       isOffHours: Boolean(uiSlot.offHours),
     };
@@ -196,6 +243,19 @@ const getMultiplesOf = (base, max) => {
 const durationOptions = computed(() => {
   const eventDuration = Number(selectedEvent.value?.sessionDurationMinutes || 15);
   const basePrice = Number(selectedEvent.value?.basePriceTokens || 0);
+  const selectedSlot = selectedTime.value;
+
+  if (isGroupEvent.value) {
+    if (!selectedSlot || selectedSlot.disabled) return [];
+    const duration = Number(selectedSlot.durationMinutes || Math.round((selectedSlot.endMs - selectedSlot.startMs) / (60 * 1000)));
+    if (!Number.isFinite(duration) || duration <= 0) return [];
+    return [{
+      value: duration,
+      price: basePrice,
+      disabled: false,
+    }];
+  }
+
   const allowLongerSessions = toBoolean(
     selectedEvent.value?.allowLongerSessions
       ?? selectedEvent.value?.raw?.allowLongerSessions,
@@ -211,7 +271,6 @@ const durationOptions = computed(() => {
   const validMinutes = minutes.filter((v) => Number.isFinite(v) && v > 0 && v <= 180);
 
   const unique = Array.from(new Set(validMinutes));
-  const selectedSlot = selectedTime.value;
   return unique.map((value) => ({
     value,
     price: toWholeTokens(unitPrice * value),
@@ -240,6 +299,7 @@ const pricingPreview = computed(() => {
     selectedTime.value || {},
     {
       isFirstBookingForCreator: isFirstBookingForCreator.value,
+      contributionTokens: isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null,
     },
   );
 });
@@ -287,6 +347,7 @@ const canProceedToPayment = computed(() => {
     && selectedDurationObj.value
     && selectedTime.value
     && !selectedTime.value.disabled
+    && !contributionInvalid.value
   );
 });
 
@@ -298,9 +359,9 @@ const formattedTimeRange = computed(() => {
   if (!state.selected || !selectedTime.value) return '-';
   const startHm = selectedTime.value.startHm;
   const selectedMinutes = Number(selectedDurationObj.value?.value || 0);
-  const endHm = selectedMinutes > 0
-    ? addMinutesToHm(startHm, selectedMinutes)
-    : selectedTime.value.endHm;
+  const endHm = isGroupEvent.value
+    ? selectedTime.value.endHm
+    : (selectedMinutes > 0 ? addMinutesToHm(startHm, selectedMinutes) : selectedTime.value.endHm);
   return `${hmToLabel(startHm)}-${hmToLabel(endHm)}`;
 });
 
@@ -353,6 +414,7 @@ const events1 = computed(() => {
       applyBufferAfterBooked: true,
     });
     const free = slots.some((slot) => !createSlotUiModel({
+      event,
       eventId: event.eventId,
       localDateIso: dateIso,
       slot,
@@ -442,6 +504,11 @@ function hydrateFromState() {
     ?? props.engine.getState('fanBooking.selection.personalRequestText')
     ?? '';
 
+  contributionTokens.value = existing.contributionTokens
+    ?? props.engine.getState('fanBooking.selection.contributionTokens')
+    ?? '';
+  ensureContributionDefault();
+
   if (Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
       const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
@@ -453,6 +520,13 @@ function hydrateFromState() {
 const selectTime = (slot) => {
   if (slot.disabled) return;
   selectedTime.value = slot;
+  if (isGroupEvent.value) {
+    const duration = Number(slot.durationMinutes || Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
+    selectedDurationObj.value = Number.isFinite(duration) && duration > 0
+      ? { value: duration, price: Number(selectedEvent.value?.basePriceTokens || 0), disabled: false }
+      : null;
+    return;
+  }
   selectedDurationObj.value = null;
 };
 
@@ -499,6 +573,18 @@ const goToNextStep = () => {
     return;
   }
 
+  if (contributionInvalid.value) {
+    showToast({
+      type: 'error',
+      title: t('common_validation_failed'),
+      message: t('fan_booking_contribution_invalid', {
+        min: eventGoalMinimumTokens.value,
+        max: eventGoalMaximumTokens.value,
+      }),
+    });
+    return;
+  }
+
   const bookingData = {
     selectedDate: state.selected,
     selectedTime: selectedTime.value,
@@ -509,6 +595,7 @@ const goToNextStep = () => {
     selectedDateDisplay: selectedDateDisplay.value,
     headerDateDisplay: headerDateDisplay.value,
     totalPrice: totalPrice.value,
+    contributionTokens: isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null,
     longerDiscountAmount: longerDiscountAmount.value,
     firstTimeDiscountAmount: firstTimeDiscountAmount.value,
     discountRows: discountRows.value,
@@ -522,6 +609,7 @@ const goToNextStep = () => {
   props.engine.setState('fanBooking.selection.selectedDate', selectedDateIso.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedSlot', selectedTime.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedDurationMinutes', selectedDurationObj.value.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.contributionTokens', isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedAddOns', selectedAddons.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.personalRequestText', otherRequest.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.temporaryHold', {
@@ -551,6 +639,15 @@ watch(
   () => {
     hydrateAddons();
     hydrateFromState();
+    ensureContributionDefault();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [isEventGoalGroupEvent.value, eventGoalMinimumTokens.value, eventGoalMaximumTokens.value],
+  () => {
+    ensureContributionDefault();
   },
   { immediate: true },
 );
@@ -694,6 +791,7 @@ onMounted(() => {
                 <div
                   v-for="(slot, index) in timeSlots"
                   :key="index"
+                  data-testid="booking-flow-time-slot"
                   @click="selectTime(slot)"
                   class="flex justify-between items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
                   :class="[
@@ -759,6 +857,37 @@ onMounted(() => {
               <p class="text-sm leading-[20px] text-[#07F468]">
                 {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
               </p>
+
+              <div
+                v-if="isEventGoalGroupEvent"
+                class="mt-2 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <label for="event-goal-contribution" class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
+                  {{ t("fan_booking_event_goal_contribution") }}
+                </label>
+                <div
+                  class="flex items-center gap-2 border-b border-solid bg-black/50 px-3 py-2"
+                  :class="contributionInvalid ? 'border-[#FF0066]' : 'border-[#07F468]'"
+                >
+                  <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-5 w-5" />
+                  <input
+                    id="event-goal-contribution"
+                    v-model="contributionTokens"
+                    type="number"
+                    inputmode="numeric"
+                    :min="eventGoalMinimumTokens"
+                    :max="eventGoalMaximumTokens || undefined"
+                    class="min-w-0 flex-1 bg-transparent text-base font-semibold text-white outline-none"
+                  />
+                  <span class="text-sm text-[#EAECF0]">{{ t("common_tokens") }}</span>
+                </div>
+                <p
+                  class="text-xs leading-[18px]"
+                  :class="contributionInvalid ? 'text-[#FF99C9]' : 'text-[#D0D5DD]'"
+                >
+                  {{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}
+                </p>
+              </div>
 
               <div
                 v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
