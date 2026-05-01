@@ -285,6 +285,7 @@ export const bookingMessages = {
   booking_group_goal_not_met_label: "If event goals is not met:",
   booking_group_goal_not_met_cancel_refund: "Cancel event and refund user",
   booking_group_goal_not_met_proceed: "Proceed without goal met",
+  booking_group_cancellation_fee: "Cancellation Fee",
   booking_group_refund_before_event_start: "User can refund before event start",
   booking_group_minimum_charge: "Tokens minimum charge",
   booking_group_cancel_advance_void_fee: "User can cancel in advance to void fee",

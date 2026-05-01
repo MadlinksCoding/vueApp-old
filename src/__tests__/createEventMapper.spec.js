@@ -37,6 +37,52 @@ describe("createEventMapper", () => {
     expect(mapped.eventGoalTokens).toBeUndefined();
   });
 
+  it("preserves private-only call settings for private events", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      lateStartAction: "nextDiscount",
+      lateStartDiscountPercent: "15",
+      disableChatDuringCall: true,
+      disableChatDuringCallAllowEmoji: true,
+      requestExtendSession: true,
+      extendSessionMax: "2",
+    });
+
+    expect(mapped.type).toBe("1on1-call");
+    expect(mapped.disableChatDuringCall).toBe(true);
+    expect(mapped.disableChatDuringCallAllowEmoji).toBe(true);
+    expect(mapped.fanCanRequestExtend).toBe(true);
+    expect(mapped.extendMaxSessionMinutes).toBe(2);
+    expect(mapped.lateStartPolicy).toEqual({
+      action: "nextDiscount",
+      discountPercent: 15,
+    });
+  });
+
+  it("omits private-only call settings for group events", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "group-event",
+      priceSetting: "fixedPricePerUser",
+      basePrice: "1000",
+      lateStartAction: "nextDiscount",
+      lateStartDiscountPercent: "15",
+      disableChatDuringCall: true,
+      disableChatDuringCallAllowEmoji: true,
+      requestExtendSession: true,
+      extendSessionMax: "2",
+    });
+
+    expect(mapped.type).toBe("group-event");
+    expect(mapped).not.toHaveProperty("disableChatDuringCall");
+    expect(mapped).not.toHaveProperty("disableChatDuringCallAllowEmoji");
+    expect(mapped).not.toHaveProperty("fanCanRequestExtend");
+    expect(mapped).not.toHaveProperty("extendMaxSessionMinutes");
+    expect(mapped).not.toHaveProperty("lateStartPolicy");
+  });
+
   it("maps eventDescription to the backend description field", () => {
     const mapped = createEventMapper({
       ...baseDraft,
