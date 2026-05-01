@@ -44,8 +44,14 @@ class APIHandler {
     buildHeaders(headers = {}, body, requestOptions = {}) {
         const token = this.getToken(requestOptions.backendJwtToken);
         const mergedHeaders = { ...headers };
+        const skipAuth = Object.prototype.hasOwnProperty.call(mergedHeaders, "Authorization")
+            && mergedHeaders.Authorization === null;
 
-        if (token && !mergedHeaders.Authorization) {
+        if (skipAuth) {
+            delete mergedHeaders.Authorization;
+        }
+
+        if (token && !skipAuth && !mergedHeaders.Authorization) {
             mergedHeaders.Authorization = `Bearer ${token}`;
         }
 

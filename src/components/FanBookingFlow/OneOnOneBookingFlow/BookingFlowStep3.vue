@@ -1,7 +1,6 @@
 <script setup>
-import TopUpForm from '../HelperComponents/TopUpForm.vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
@@ -19,9 +18,58 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
+import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
+
+const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
+let topUpFormPrefetchPromise = null;
+
+function prefetchTopUpForm(reason = 'unknown') {
+  if (topUpFormPrefetchPromise) return topUpFormPrefetchPromise;
+
+  logFanBookingDebug('step3', 'topup-prefetch:start', { reason });
+  topUpFormPrefetchPromise = loadTopUpForm()
+    .then((module) => {
+      logFanBookingDebug('step3', 'topup-prefetch:resolved', { reason });
+      return module;
+    })
+    .catch((error) => {
+      topUpFormPrefetchPromise = null;
+      logFanBookingDebug('step3', 'topup-prefetch:error', {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return topUpFormPrefetchPromise;
+}
+
+function scheduleTopUpPrefetch(reason) {
+  const run = () => Promise.resolve().then(() => prefetchTopUpForm(reason)).catch(() => {});
+
+  if (typeof window === 'undefined') {
+    run();
+    return;
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 800 });
+    return;
+  }
+
+  window.setTimeout(run, 0);
+}
+
+const TopUpForm = defineAsyncComponent({
+  loader: () => prefetchTopUpForm('topup-render'),
+  delay: 120,
+  suspensible: false,
+});
 
 const props = defineProps({
   engine: {
@@ -39,6 +87,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['booking-created', 'booking-failed']);
+const { t } = useBookingTranslations();
 
 // --- RETRIEVE DATA FROM ENGINE ---
 const bookingData = computed(() => {
@@ -52,6 +101,10 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const creatorPresentationLoading = computed(() => (
+  props.engine.getState('fanBooking.context.creatorPresentationLoading') === true
+));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 const topUpFormRef = ref(null);
 const isSubmitting = ref(false);
@@ -67,7 +120,7 @@ const PAYMENT_SUBSTEP_SUMMARY = 'summary';
 const PAYMENT_SUBSTEP_TOPUP   = 'topup';
 
 const popupBackgroundStyle = computed(() => ({
-  // backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'left 50% center',
@@ -135,7 +188,7 @@ const findLineAmount = (code) => {
   return Number(line?.amount || 0);
 };
 const sessionCost = computed(() => {
-  const mappedBase = findLineAmount("base");
+  const mappedBase = findLineAmount("base") || findLineAmount("event_goal_contribution");
   if (Number.isFinite(mappedBase) && mappedBase > 0) return mappedBase;
   return Number(bookingData.value.selectedDuration?.price || 0);
 });
@@ -151,7 +204,7 @@ const discountLines = computed(() => (
     })
     .map((row) => ({
       code: String(row?.code || ''),
-      label: String(row?.label || 'Discount'),
+      label: String(row?.label || t('common_discount')),
       amount: Math.abs(Number(row?.amount || 0)),
     }))
 ));
@@ -204,6 +257,7 @@ const remainingBalance = computed(() => {
 
 const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - totalPrice.value);
 const isTopUpSubstep = computed(() => paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
+const isGuestFlow = computed(() => resolveFanId() <= 0 || !getBackendJwtToken());
 
 const temporaryHold = computed(() => props.engine.getState('fanBooking.temporaryHold') || {});
 const hasBookingCreated = computed(() => Boolean(
@@ -299,7 +353,7 @@ const bookingScheduleTimeDisplay = computed(() => {
 });
 
 const approvalMessage = computed(() => (
-  `This booking needs to be approved by ${creatorPresentation.value.name} before your session is confirmed.`
+  t('fan_booking_approval_message', { creator: creatorPresentation.value.name })
 ));
 
 const baseSessionMinutes = computed(() => {
@@ -332,8 +386,13 @@ const sessionBreakdownLabel = computed(() => {
   const baseMinutes = Math.round(Number(baseSessionMinutes.value || 0)) || 15;
   const totalMinutes = Math.round(Number(sessionDuration.value || 0)) || baseMinutes;
   const count = Math.max(1, Number(sessionCount.value || 1));
-  const sessionLabel = count === 1 ? 'session' : 'sessions';
-  return `${baseMinutes} Minute x ${count} ${sessionLabel} (${totalMinutes} Min.)`;
+  const sessionLabel = count === 1 ? t('fan_booking_session') : t('fan_booking_sessions');
+  return t('fan_booking_session_breakdown', {
+    base_minutes: baseMinutes,
+    count,
+    session_label: sessionLabel,
+    total_minutes: totalMinutes,
+  });
 });
 
 const sessionTotalTokens = computed(() => Math.max(0, Number(totalPrice.value || 0)));
@@ -345,7 +404,7 @@ function extractBackendMessage(flowResult) {
   const details = flowResult?.error?.details || {};
   const missingFields = Array.isArray(details?.missingFields) ? details.missingFields : [];
   if (code === "CREATE_BOOKING_MISSING_REQUIRED_FIELDS" && missingFields.length > 0) {
-    return `Missing required fields: ${missingFields.join(', ')}.`;
+    return t('fan_booking_missing_required_fields', { fields: missingFields.join(', ') });
   }
   const validationMessages = details?.validation?.messages;
   if (Array.isArray(validationMessages) && validationMessages.length > 0) {
@@ -353,7 +412,7 @@ function extractBackendMessage(flowResult) {
   }
   return flowResult?.error?.message
     || flowResult?.meta?.uiErrors?.[0]
-    || 'Could not complete booking.';
+    || t('fan_booking_complete_failed_message');
 }
 
 function preflightBookingPayload() {
@@ -390,6 +449,112 @@ function resolveFanId() {
     fallback: 0,
   });
   return resolved;
+}
+
+function getGuestSessionId() {
+  const existing = props.engine.getState('fanBooking.temporaryHold.guestSessionId');
+  if (existing) return existing;
+
+  const guestSessionId = resolveGuestSessionId();
+  props.engine.setState('fanBooking.temporaryHold.guestSessionId', guestSessionId, {
+    reason: 'guest-session-id',
+    silent: true,
+  });
+  return guestSessionId;
+}
+
+function getGuestHoldToken() {
+  return props.engine.getState('fanBooking.temporaryHold.guestHoldToken') || '';
+}
+
+function guestHoldHeaders() {
+  const guestHoldToken = getGuestHoldToken();
+  if (!isGuestFlow.value && !guestHoldToken) return {};
+  return {
+    ...(isGuestFlow.value ? { Authorization: null } : {}),
+    ...(guestHoldToken ? { 'X-Guest-Hold-Token': String(guestHoldToken) } : {}),
+  };
+}
+
+function normalizeAuthUpdatePayload(payload = {}) {
+  const source = payload?.response && typeof payload.response === 'object'
+    ? { ...payload.response, ...payload }
+    : payload;
+  const userId = source?.userId
+    ?? source?.user_id
+    ?? source?.userData?.userID
+    ?? source?.userData?.user_id
+    ?? source?.data?.userId
+    ?? source?.data?.user_id
+    ?? null;
+  const backendJwtToken = source?.backendJwtToken
+    ?? source?.jwtToken
+    ?? source?.backend_jwt_token
+    ?? source?.jwt_token
+    ?? source?.token
+    ?? source?.data?.backendJwtToken
+    ?? source?.data?.jwtToken
+    ?? '';
+
+  return {
+    userId: Number(userId),
+    backendJwtToken: typeof backendJwtToken === 'string' ? backendJwtToken.trim() : '',
+  };
+}
+
+async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = true } = {}) {
+  const { userId, backendJwtToken } = normalizeAuthUpdatePayload(payload);
+  const hasUserId = Number.isFinite(userId) && userId > 0;
+
+  if (backendJwtToken) {
+    setBackendJwtToken(backendJwtToken);
+  }
+
+  if (!hasUserId) return false;
+
+  props.engine.setState('fanBooking.context.fanId', userId, { reason: 'auth-user-id', silent: true });
+
+  const creatorId = resolveCreatorId();
+  if (Number.isFinite(Number(creatorId)) && Number(creatorId) > 0) {
+    await props.engine.callFlow('bookings.fetchCreatorBookingContext', {
+      creatorId,
+      fanId: userId,
+      status: 'active',
+      limit: 100,
+      periodMonths: 6,
+      slotLimit: 2000,
+    }, {
+      forceRefresh: true,
+      context: {
+        stateEngine: props.engine,
+        creatorId,
+        fanId: userId,
+        apiBaseUrl: props.apiBaseUrl || undefined,
+      },
+    }).catch(() => {});
+  }
+
+  const temporaryHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+  if (temporaryHoldId && getBackendJwtToken()) {
+    await FlowHandler.run('bookings.updateTemporaryHoldUser', {
+      temporaryHoldId,
+      userId,
+    }, {
+      context: {
+        stateEngine: props.engine,
+        apiBaseUrl: props.apiBaseUrl || undefined,
+        requestHeaders: guestHoldHeaders(),
+      },
+      backendJwtToken: getBackendJwtToken(),
+    });
+  }
+
+  if (refreshBalance) {
+    hasCheckedBalance.value = false;
+    await refreshWalletBalance({ silent: true });
+  }
+
+  return true;
 }
 
 function resolveCreatorId() {
@@ -565,8 +730,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     const fanUserId   = resolveFanId();
     const creatorId   = resolveCreatorId();
     const eventTitle  = selectedEvent.value?.title || selectedEvent.value?.raw?.title || null;
-    const slotDate    = props.engine.getState('fanBooking.booking.lastPreflightPayload')?.startIso
-      || null;
+    const slotDate    = props.engine.getState('fanBooking.booking.result.item.startAtIso') || null;
+    console.error('[fireAndForgetPostBookingChat] resolved IDs', { slotDate,fanUserId, creatorId, eventTitle }, props.engine.getState('fanBooking.booking.result.item.startAtIso'), props.engine.getState('fanBooking.booking.result'));
 
     // Step 1 — create chat
     const chatRes = await FlowHandler.run('chat.createChat', {
@@ -592,7 +757,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     await FlowHandler.run('chat.sendChatActivityLog', {
       chatId,
       senderId: fanUserId,
-      text: `@${fanUsername} has just sent you a live call request:`,
+      // text: `@${fanUsername} has just sent you a live call request.`,
+      text: "send_live_call_request",
       meta: { bookingId, eventTitle },
     })
 
@@ -605,6 +771,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       eventId,
       eventTitle,
       slotDate,
+      start_at: props.engine.getState('fanBooking.booking.result.item.startAtIso') || null,
+      end_at: props.engine.getState('fanBooking.booking.result.item.endAtIso') || null,
       text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
     });
     if (!msgRes?.ok) return;
@@ -612,14 +780,38 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     if (!messageId) return;
 
     // Notify participants via socket so their chat lists reload (chat:message → unknown chat_id → fetchUserChats)
-    const { sendChatMessage } = useChatSocket(fanUserId)
-    const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
-    sendChatMessage(msgRes.data.item, recipients)
+    try {
+      const { sendChatMessage } = useChatSocket(fanUserId)
+      const recipients = [parseInt(fanUserId), parseInt(creatorId)].filter(Boolean)
+      sendChatMessage(msgRes.data.item, recipients)
+    } catch (socketError) {
+      logFanBookingDebug('step3', 'chat-socket-send:error', {
+        fanId: fanUserId,
+        creatorId,
+        message: socketError?.message || String(socketError),
+      });
+    }
 
-    // Step 3 — pin the message
+    // Step 3 — store chatId and booking message id in booking meta
+    await FlowHandler.run('bookings.updateMeta', {
+      bookingId,
+      meta: {
+        chatId,
+        bookingMessageId: messageId,
+      },
+      actor: 'fan',
+    });
+
+    // Step 4 — pin the message
     await FlowHandler.run('chat.pinMessage', { chatId, messageId });
   } catch (_) {
+    console.error('[fireAndForgetPostBookingChat] error during post-booking chat setup', { bookingId, eventId, error: _ });
     // Fire-and-forget — booking is already confirmed, don't surface chat errors
+    logFanBookingDebug('step3', 'post-booking-chat:error', {
+      bookingId,
+      eventId,
+      message: _.message || String(_),
+    });
   }
 }
 
@@ -652,7 +844,7 @@ function applyHoldTimer({ expiresAt, initialSeconds = 0 } = {}) {
     if (nextSeconds <= 0) {
       clearHoldTimer();
       props.engine.setState('fanBooking.temporaryHold.status', 'expired', { reason: 'temporary-hold-expired', silent: true });
-      holdError.value = 'Your slot hold expired. Please go back and reserve again.';
+      holdError.value = t('fan_booking_hold_expired_message');
     }
   };
 
@@ -665,7 +857,7 @@ function getHoldStatusMessage(result) {
     || result?.error?.details?.error
     || result?.error?.message
     || result?.meta?.uiErrors?.[0]
-    || 'Could not reserve this slot.';
+    || t('fan_booking_reserve_slot_failed');
 }
 
 async function refreshTemporaryHoldStatus(temporaryHoldId) {
@@ -673,6 +865,7 @@ async function refreshTemporaryHoldStatus(temporaryHoldId) {
     context: {
       stateEngine: props.engine,
       apiBaseUrl: props.apiBaseUrl || undefined,
+      requestHeaders: guestHoldHeaders(),
     },
     forceRefresh: true,
     skipDestinationRead: true,
@@ -703,8 +896,11 @@ async function ensureTemporaryHold() {
       context: {
         stateEngine: props.engine,
         apiBaseUrl: props.apiBaseUrl || undefined,
-        userId: resolveFanId() || resolveGuestSessionId(),
-        fanId: resolveFanId() || resolveGuestSessionId(),
+        userId: isGuestFlow.value ? 0 : resolveFanId(),
+        fanId: isGuestFlow.value ? 0 : resolveFanId(),
+        guestSessionId: isGuestFlow.value ? getGuestSessionId() : null,
+        isGuestHold: isGuestFlow.value,
+        requestHeaders: isGuestFlow.value ? { Authorization: null } : {},
       },
     });
 
@@ -725,9 +921,16 @@ async function ensureTemporaryHold() {
       return false;
     }
 
+    if (createResult.data?.guestHoldToken) {
+      props.engine.setState('fanBooking.temporaryHold.guestHoldToken', createResult.data.guestHoldToken, {
+        reason: 'temporary-hold-guest-token',
+        silent: true,
+      });
+    }
+
     const latestHoldId = createResult.data?.temporaryHoldId || props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
     if (!latestHoldId) {
-      holdError.value = 'Temporary hold was created but id is missing.';
+      holdError.value = t('fan_booking_hold_missing_id');
       return false;
     }
 
@@ -762,13 +965,19 @@ async function refreshWalletBalance({ silent = false } = {}) {
     },
   });
 
-  if (fanId == null) {
-    hasCheckedBalance.value = false;
-    balanceCheckError.value = 'Could not resolve user for balance check.';
-    logFanBookingDebug('step3', 'refreshWalletBalance:missing-user', {
-      balanceCheckError: balanceCheckError.value,
+  if (fanId <= 0 || !getBackendJwtToken()) {
+    walletBalance.value = 0;
+    props.engine.setState('bookingDetails.walletBalance', 0, {
+      reason: 'guest-token-balance-default',
+      silent: true,
     });
-    return false;
+    hasCheckedBalance.value = true;
+    balanceCheckError.value = '';
+    logFanBookingDebug('step3', 'refreshWalletBalance:guest-default', {
+      fanId,
+      hasBackendJwtToken: !!getBackendJwtToken(),
+    });
+    return true;
   }
 
   isCheckingBalance.value = true;
@@ -788,7 +997,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     const parsedBalance = parseTokenBalance(response, creatorId);
 
     if (!Number.isFinite(parsedBalance)) {
-      throw new Error('Could not retrieve token balance.');
+      throw new Error(t('fan_booking_token_balance_failed'));
     }
 
     walletBalance.value = parsedBalance;
@@ -804,7 +1013,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     return true;
   } catch (error) {
     hasCheckedBalance.value = false;
-    balanceCheckError.value = error?.message || 'Could not check token balance.';
+    balanceCheckError.value = error?.message || t('fan_booking_check_token_balance_failed');
     logFanBookingDebug('step3', 'refreshWalletBalance:error', {
       message: balanceCheckError.value,
       error,
@@ -812,7 +1021,7 @@ async function refreshWalletBalance({ silent = false } = {}) {
     if (!silent) {
       showToast({
         type: 'error',
-        title: 'Balance Check Failed',
+        title: t('fan_booking_balance_check_failed_title'),
         message: balanceCheckError.value,
       });
     }
@@ -834,12 +1043,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
   if (!selectedEvent.value) {
     emit('booking-failed', {
       type: 'event-missing',
-      message: 'Please select an event before completing booking.',
+      message: t('fan_booking_select_event_before_complete'),
     });
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please select an event before completing booking.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_select_event_before_complete'),
     });
     props.engine.goToStep(1);
     return;
@@ -854,12 +1063,12 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
         type: 'booking-preflight',
         missingFields: preflight.missingFields,
         previewPayload: preflight.previewPayload,
-        message: `Missing required fields: ${preflight.missingFields.join(', ')}.`,
+        message: t('fan_booking_missing_required_fields', { fields: preflight.missingFields.join(', ') }),
       });
       showToast({
         type: 'error',
-        title: 'Booking Data Missing',
-        message: `Missing required fields: ${preflight.missingFields.join(', ')}.`,
+        title: t('fan_booking_booking_data_missing_title'),
+        message: t('fan_booking_missing_required_fields', { fields: preflight.missingFields.join(', ') }),
       });
       props.engine.setState('fanBooking.booking.lastPreflightPayload', preflight.previewPayload, { reason: 'booking-preflight', silent: true });
       return;
@@ -880,7 +1089,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       });
       showToast({
         type: 'error',
-        title: 'Booking Failed',
+        title: t('fan_booking_booking_failed_title'),
         message: extractBackendMessage(result),
       });
       if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
@@ -935,20 +1144,20 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
     if (!props.embedded) {
       showToast({
         type: 'success',
-        title: 'Booking Created',
-        message: 'Your booking request has been submitted.',
+        title: t('fan_booking_created_title'),
+        message: t('fan_booking_created_message'),
       });
     }
   } catch (error) {
     emit('booking-failed', {
       type: 'create-booking-exception',
       error,
-      message: error?.message || 'Could not complete booking.',
+      message: error?.message || t('fan_booking_complete_failed_message'),
     });
     showToast({
       type: 'error',
-      title: 'Booking Failed',
-      message: error?.message || 'Could not complete booking.',
+      title: t('fan_booking_booking_failed_title'),
+      message: error?.message || t('fan_booking_complete_failed_message'),
     });
     if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
   } finally {
@@ -967,8 +1176,8 @@ const enterTopUpSubstep = async () => {
   if (!holdOk) {
     showToast({
       type: 'error',
-      title: 'Could Not Hold Slot',
-      message: holdError.value || 'Could not reserve this slot.',
+      title: t('fan_booking_could_not_hold_slot_title'),
+      message: holdError.value || t('fan_booking_reserve_slot_failed'),
     });
     return false;
   }
@@ -982,8 +1191,8 @@ function validateBeforeTopUpSubmit() {
   if (!hasActiveHold.value) {
     showToast({
       type: 'error',
-      title: 'Slot Hold Expired',
-      message: 'Your slot hold expired. Please go back and reserve the slot again.',
+      title: t('fan_booking_slot_hold_expired_title'),
+      message: t('fan_booking_hold_expired_reserve_again'),
     });
     return false;
   }
@@ -1000,24 +1209,18 @@ const onTopUpPaymentFailed = () => {
   props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-payment-failed' });
 };
 
-const onTopUpPaymentSuccess = async ({ userId } = {}) => {
-  if (userId) {
-    props.engine.setState('fanBooking.context.fanId', Number(userId), { reason: 'topup-user-id', silent: true });
-
-    // Update the temporary hold's userId from guest placeholder (1) to the real userId
-    const temporaryHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
-    if (temporaryHoldId) {
-      await FlowHandler.run('bookings.updateTemporaryHoldUser', {
-        temporaryHoldId,
-        userId: Number(userId),
-      }, {
-        context: {
-          stateEngine: props.engine,
-          apiBaseUrl: props.apiBaseUrl || undefined,
-        },
-      });
-    }
+const onTopUpPaymentSuccess = async (payload = {}) => {
+  const authApplied = await applyAuthenticatedFanContext(payload, { refreshBalance: false });
+  if (!authApplied || !getBackendJwtToken()) {
+    showToast({
+      type: 'error',
+      title: t('fan_booking_account_verification_needed_title'),
+      message: t('fan_booking_account_verification_needed_message'),
+    });
+    topUpFormRef.value?.setProcessingPayment(false);
+    return;
   }
+
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
@@ -1029,6 +1232,10 @@ const onTopUpPaymentSuccess = async ({ userId } = {}) => {
   } finally {
     topUpFormRef.value?.setProcessingPayment(false);
   }
+};
+
+const onTopUpAuthUpdated = async (payload = {}) => {
+  await applyAuthenticatedFanContext(payload, { refreshBalance: true });
 };
 
 // --- BUTTON HANDLERS ---
@@ -1059,16 +1266,16 @@ const handleButtonClick = async () => {
   } catch (error) {
     showToast({
       type: 'error',
-      title: 'Action Failed',
-      message: error?.message || 'Could not continue booking.',
+      title: t('fan_booking_action_failed_title'),
+      message: error?.message || t('fan_booking_continue_failed_message'),
     });
   }
 };
 
 const actionLabel = computed(() => {
-  if (isCheckingBalance.value) return 'CHECKING BALANCE';
-  if (!hasCheckedBalance.value) return 'CHECK BALANCE';
-  return isTopUpNeeded.value ? 'TOP-UP AND PAY' : 'COMPLETE BOOKING';
+  if (isCheckingBalance.value) return t('fan_booking_checking_balance');
+  if (!hasCheckedBalance.value) return t('fan_booking_check_balance');
+  return isTopUpNeeded.value ? t('fan_booking_top_up_and_pay') : t('common_complete_booking');
 });
 
 const actionButtonClass = computed(() => {
@@ -1095,8 +1302,8 @@ onMounted(() => {
     props.engine.goToStep(1);
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please pick an event first.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_pick_event_first'),
     });
     return;
   }
@@ -1105,6 +1312,7 @@ onMounted(() => {
     props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'step3-default' });
   }
 
+  scheduleTopUpPrefetch('step3-mounted');
   refreshWalletBalance();
 });
 
@@ -1143,7 +1351,7 @@ onBeforeUnmount(() => {
       class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto lg:w-[852px] overflow-hidden"
       :style="popupBackgroundStyle"
     >
-      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
+      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
       <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
 
             <OneOnOneBookingFlowLeftSideBar
@@ -1155,6 +1363,7 @@ onBeforeUnmount(() => {
               :creator-avatar="creatorPresentation.avatar"
               :creator-name="creatorPresentation.name"
               :creator-is-verified="creatorPresentation.isVerified"
+              :creator-loading="creatorPresentationLoading"
               :show-approval-needed="showApprovalNeeded"
             />
 
@@ -1163,37 +1372,37 @@ onBeforeUnmount(() => {
             <div class="flex-1 h-full md:h-auto flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
                 <div class="flex flex-col gap-3 overflow-y-auto lg:overflow-visible h-full flex-1">
-                  <div class="rounded-lg bg-white/10 p-5 flex flex-col gap-3">
+                  <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
-                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">BOOKING SCHEDULE</h3>
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_booking_schedule") }}</h3>
                       <button
                         type="button"
                         class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15"
                         @click="handleChangeSchedule"
                       >
-                        <span class="text-white text-xs font-medium leading-4">Change Schedule</span>
+                        <span class="text-white text-xs font-medium leading-4">{{ t("fan_booking_change_schedule") }}</span>
                       </button>
                     </div>
                     <p class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
                     <div class="flex gap-2 justify-between">
                       <div class="flex flex-col flex-1">
-                        <span class="text-xs text-[#98A2B3]">DATE</span>
+                        <span class="text-xs text-[#98A2B3]">{{ t("fan_booking_date") }}</span>
                         <span class="text-base text-white">{{ bookingScheduleDateDisplay }}</span>
                       </div>
                       <div class="flex flex-col flex-1">
-                        <span class="text-xs text-[#98A2B3]">TIME</span>
+                        <span class="text-xs text-[#98A2B3]">{{ t("common_time") }}</span>
                         <span class="text-base text-white">{{ bookingScheduleTimeDisplay }}</span>
                       </div>
                     </div>
                   </div>
 
                   <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
-                    <div class="flex flex-col gap-3 w-full p-5">
-                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+                    <div class="flex flex-col gap-3 w-full p-3 md:p-5">
+                      <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_payment_summary") }}</h3>
                       <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-3">
                           <div class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">SESSION COST</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_session_cost") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
@@ -1207,7 +1416,7 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">ADD-ON SERVICE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
                             <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
                               <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ addon.name }}</p>
                               <div class="flex justify-center items-center gap-0.5">
@@ -1219,9 +1428,9 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">OFF-HOUR SURCHARGE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Off-hour surcharge</p>
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm leading-[20px]">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1231,9 +1440,9 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="false && bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">BOOKING FEE</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_booking_fee_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">Booking Fee</p>
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_booking_fee") }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-sm leading-[20px]">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1243,7 +1452,7 @@ onBeforeUnmount(() => {
                           </div>
 
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">DISCOUNT</h4>
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
                             <div
                               v-for="row in discountLines"
                               :key="row.code"
@@ -1260,14 +1469,14 @@ onBeforeUnmount(() => {
 
                           <div class="flex gap-3 justify-between">
                             <div class="flex flex-col gap-1">
-                              <h4 class="text-base font-semibold text-white">Session Total</h4>
+                              <h4 class="text-base font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
                               <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] flex">
-                                <span class="whitespace-nowrap">A non-refundable</span>
+                                <span class="whitespace-nowrap">{{ t("fan_booking_non_refundable") }}</span>
                                 <span class="flex items-center gap-[2px] mx-1">
                                   <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
                                   <span class="">{{ formatTokenCompact(bookingFeeAmount) }}</span>
                                 </span>
-                                <span class="whitespace-nowrap">booking fee included</span>
+                                <span class="whitespace-nowrap">{{ t("fan_booking_booking_fee_included") }}</span>
                               </p>
                             </div>
                             <div class="flex flex-col">
@@ -1283,7 +1492,7 @@ onBeforeUnmount(() => {
                         <hr class="border-[#F2F4F7] opacity-50" />
 
                         <div class="flex flex-row justify-between items-start text-white">
-                          <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                          <p class="text-xl font-semibold leading-[30px] text-white">{{ t("fan_booking_amount_due_today") }}</p>
                           <div class="flex flex-col">
                             <div class="flex justify-end items-center gap-0.5">
                               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -1299,12 +1508,12 @@ onBeforeUnmount(() => {
                       <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">Your Token Balance</p></div>
+                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">{{ t("fan_booking_your_token_balance") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
 
                             <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#0C111D] border border-[#1D2939]">
                                 <span class="text-yellow-300 text-[10px] leading-[10px] relative top-[-2px]">...</span>
-                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">TOP UP NEEDED</p>
+                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
                                 <div class="w-3 h-3 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                 <p class="text-[10px] font-bold text-[#FFED29] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
                             </div>
@@ -1315,7 +1524,7 @@ onBeforeUnmount(() => {
                         </div>
                         <hr class="border-white/20" />
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-xl font-semibold">Balance After Booking</p></div>
+                          <div class="flex items-center gap-2"><p class="text-xl font-semibold">{{ t("fan_booking_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
                             <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                             <p class="text-2xl font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
@@ -1329,16 +1538,16 @@ onBeforeUnmount(() => {
 
               <template v-else>
                 <div class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3">
-                  <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">Reserving your selected slot...</p>
+                  <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">{{ t("fan_booking_reserving_slot") }}</p>
                   <p v-else-if="holdError" class="text-xs text-red-300 font-medium">{{ holdError }}</p>
-                  <p v-else class="text-xs text-[#07F468] font-semibold">Slot reserved for {{ formattedHoldTimer }}</p>
+                  <p v-else class="text-xs text-[#07F468] font-semibold">{{ t("fan_booking_slot_reserved_for", { time: formattedHoldTimer }) }}</p>
                   <button
                     v-if="holdError && !holdLoading"
                     type="button"
                     class="mt-2 text-[11px] underline text-[#22CCEE]"
                     @click="ensureTemporaryHold"
                   >
-                    Retry hold
+                    {{ t("fan_booking_retry_hold") }}
                   </button>
                 </div>
 
@@ -1352,6 +1561,7 @@ onBeforeUnmount(() => {
                   :fan-id="resolveFanId()"
                   :creator-id="resolveCreatorId()"
                   @back="goBackToPaymentSummary"
+                  @auth-updated="onTopUpAuthUpdated"
                   @success="onTopUpPaymentSuccess"
                   @payment-failed="onTopUpPaymentFailed"
                 />
@@ -1375,8 +1585,8 @@ onBeforeUnmount(() => {
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                   after:border-b-0"
                 :class="actionButtonClass">
-              <p class="text-lg w-full leading-[28px] text-black text-center font-medium">{{ isSubmitting ? 'PROCESSING...' : actionLabel }}</p>
-              <div v-if="isCheckingBalance" class="w-5 h-5 border-2 border-black/40 border-t-black rounded-full animate-spin"></div>
+              <p class="text-lg w-full leading-[28px] text-black text-center font-medium">{{ isSubmitting ? t('fan_booking_processing') : actionLabel }}</p>
+              <div v-if="isCheckingBalance" class="w-5 h-5 border-2 border-black/40 border-t-black rounded-full animate-spin flex-none"></div>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
               </div>

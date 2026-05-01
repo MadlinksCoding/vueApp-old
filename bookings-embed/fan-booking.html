@@ -15,6 +15,9 @@
 <body>
   <div id="fan-booking-embed-app"></div>
   <script type="module" src="/src/embeds/fanBooking/main.js"></script>
+  <script>
+    window.userData = window?.parent?.userData || {}
+  </script>
 </body>
 
 </html>

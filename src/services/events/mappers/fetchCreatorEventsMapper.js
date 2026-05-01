@@ -136,6 +136,16 @@ function buildFallbackSlot(item) {
 }
 
 function normalizeEventItem(item = {}) {
+  const normalizedRaw = { ...item };
+  if (String(normalizedRaw.repeatRule || "") === "doesNotRepeat") {
+    if (!Array.isArray(normalizedRaw.slots) && Array.isArray(normalizedRaw.dates)) {
+      normalizedRaw.slots = normalizedRaw.dates;
+    }
+    if (!Array.isArray(normalizedRaw.dates) && Array.isArray(normalizedRaw.slots)) {
+      normalizedRaw.dates = normalizedRaw.slots;
+    }
+  }
+
   const slot = buildSlotFromEventTime(item) || buildSlotFromWeekly(item) || buildFallbackSlot(item);
   const start = hktDateTimeToLocalIso(slot.dateIso, slot.startHm);
   const end = hktDateTimeToLocalIso(slot.endDateIso || slot.dateIso, slot.endHm);
@@ -157,6 +167,7 @@ function normalizeEventItem(item = {}) {
     allowLongerSessions: normalizeBoolean(item.allowLongerSessions, false),
     enableFirstTimeDiscount: normalizeBoolean(item.enableFirstTimeDiscount, false),
     firstTimeDiscount: normalizeNumber(item.firstTimeDiscount, 0),
+    eventImageUrl: normalizeString(item.eventImageUrl, ""),
     eventColorSkin: item.eventColorSkin || "#5549FF",
     start,
     end,
@@ -167,7 +178,7 @@ function normalizeEventItem(item = {}) {
     dateTo: toLocalDateIsoFromHktDate(item?.dateTo, null),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     slot: item.type === "group-event" ? "custom2" : "event",
-    raw: item,
+    raw: normalizedRaw,
   };
 }
 

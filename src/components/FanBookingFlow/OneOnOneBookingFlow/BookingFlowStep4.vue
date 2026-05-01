@@ -8,6 +8,8 @@ import {
   bookingFlowVerifiedIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   engine: {
@@ -21,6 +23,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close-popup']);
+const { t } = useBookingTranslations();
 
 const bookingData = computed(() => props.engine.getState('bookingDetails') || {});
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || {});
@@ -31,9 +34,10 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: bookingResult.value,
 }));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
-const formattedDate = computed(() => bookingData.value.headerDateDisplay || 'Tomorrow April 27, 2025');
-const timeRange = computed(() => bookingData.value.formattedTimeRange || '4:00pm-4:15pm');
+const formattedDate = computed(() => bookingData.value.headerDateDisplay || '-');
+const timeRange = computed(() => bookingData.value.formattedTimeRange || '-');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
 const totalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
 const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTimeDiscountAmount || 0));
@@ -41,7 +45,7 @@ const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTim
 const eventTitle = computed(() => (
   bookingItem.value?.eventSnapshot?.title
   || selectedEvent.value?.title
-  || 'High School Life Simulator'
+  || t('fan_booking_untitled_event')
 ));
 
 const creatorLabel = computed(() => creatorPresentation.value.name);
@@ -66,17 +70,17 @@ const instantFromEvent = computed(() => toBoolean(
 const isInstantConfirmed = computed(() => approvalStatus.value === 'auto' || instantFromEvent.value);
 const topTitle = computed(() => (
   isInstantConfirmed.value
-    ? `Booking confirmed with ${creatorLabel.value} !`
-    : `Booking request sent to ${creatorLabel.value} !`
+    ? t('fan_booking_confirmed_with_creator', { creator: creatorLabel.value })
+    : t('fan_booking_request_sent_to_creator', { creator: creatorLabel.value })
 ));
 const topMessage = computed(() => (
   isInstantConfirmed.value
-    ? 'Your booking is confirmed. See you at your selected time.'
-    : 'Sit tight - your request is pending approval from creator.'
+    ? t('fan_booking_confirmed_message')
+    : t('fan_booking_pending_message')
 ));
 
 const successBackgroundStyle = computed(() => ({
-  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `linear-gradient(180deg, rgba(12, 17, 29, 0) 25%, #0C111D 100%), url('${resolvedBackgroundImageUrl.value}')`,
   backgroundPosition: 'center',
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
@@ -96,11 +100,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="relative w-full max-w-[24rem] h-full min-h-0 rounded-[10px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ">
+  <!-- overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -->
+  <div class="relative w-full h-full md:h-auto max-w-[27rem] min-h-0 md:rounded-[10px] ">
 
-      <div class="backdrop-blur-[1rem]" :style="successBackgroundStyle">
+      <div class="backdrop-blur-[1rem] md:rounded-[10px] h-full md:h-auto flex flex-col" :style="successBackgroundStyle">
 
-          <div class="p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6">
+          <div class="flex-1 p-6 bg-[#00000080] backdrop-blur-[10px] flex flex-col justify-center items-center gap-6 md:rounded-tl-[10px] md:rounded-tr-[10px]">
             <div class="flex flex-col justify-center items-center gap-6">
               <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
               <div class="flex flex-col justify-start items-start gap-2">
@@ -110,12 +115,16 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="w-full p-4 bg-cyan-400/20 rounded-bl-[10px] rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
+          <div class="flex-1 w-full p-4 bg-cyan-400/20 md:rounded-bl-[10px] md:rounded-br-[10px] backdrop-blur-[5px] flex flex-col justify-between items-start">
             <div class="flex flex-col justify-start items-center gap-2 w-full">
               <div class="flex flex-col justify-start items-center gap-4">
                 <div class="flex flex-col justify-start items-center gap-2 w-full">
                   <div class="inline-flex justify-center items-center gap-2">
-                    <img class="w-8 h-8" :src="creatorPresentation.avatar" alt="" />
+                    <div class="size-9 relative">
+                      <div data-svg-wrapper="" class="left-[0.24px] top-[2.18px] absolute overflow-hidden rounded-[40%_60%_55%_45%/55%_45%_60%_40%]">
+                        <img class="w-9 h-9 object-cover" :src="creatorPresentation.avatar" alt="" />
+                      </div>
+                    </div>
                     <div class="flex justify-start items-center gap-1">
                       <div class="justify-start text-white text-sm font-medium leading-5 line-clamp-1">{{ creatorLabel }}</div>
                       <div v-if="creatorPresentation.isVerified" data-size="sm" class="w-3 h-3 relative overflow-hidden">
@@ -140,10 +149,10 @@ onMounted(() => {
                     </div>
                     <div class="flex flex-col items-center gap-1">
                       <div class="text-sm font-medium leading-5 text-[#EAECF0]">
-                        Total: {{ totalPrice }} tokens
+                        {{ t("fan_booking_total_tokens", { tokens: totalPrice }) }}
                       </div>
                       <div v-if="firstTimeDiscountAmount > 0" class="text-xs font-medium leading-5 text-[#07F468]">
-                        First-time discount applied: saved {{ firstTimeDiscountAmount }} tokens
+                        {{ t("fan_booking_first_time_discount_saved", { tokens: firstTimeDiscountAmount }) }}
                       </div>
                     </div>
                   </div>
@@ -155,7 +164,7 @@ onMounted(() => {
                 <div class="w-6 h-6 relative overflow-hidden">
                   <img :src="bookingFlowMessageGreenIcon" alt="message-icon" />
                 </div>
-                <div class="text-center justify-start text-green-500 text-base font-medium leading-6">Message {{ creatorLabel }}</div>
+                <div class="text-center justify-start text-green-500 text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
               </div>
             </div>
           </div>
@@ -164,9 +173,10 @@ onMounted(() => {
 
       <div
         @click="emit('close-popup')"
-        class="absolute -top-4 -right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
+        data-test="booking-flow-step4-close-button"
+        class="absolute top-2 right-[2px] md:-top-4 md:-right-3 z-99 p-[8px] flex justify-center items-center bg-black/30 rounded-[50px] backdrop-blur-[10px] cursor-pointer"
       >
-        <img :src="bookingFlowCrossWhiteIcon" alt="cross-white" class="w-4 h-4" />
+        <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
 
     </div>

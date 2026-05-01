@@ -152,7 +152,7 @@
                                                 class="self-stretch flex flex-col justify-center md:items-center gap-1">
                                                 <div
                                                     class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center gap-1 md:gap-0">
-                                                    {{ tier.tier_title }}
+                                                    <span class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px] ">{{ tier.tier_title }}</span>
                                                     <span class="text-xs font-medium text-[#344054] md:hidden">({{
                                                         tier.subscriber_count }})</span>
                                                 </div>
@@ -301,8 +301,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import SmilingPeachIcon from '@/assets/images/icons/smiling-peach.png'
-import MessageCircleIcon from '@/assets/images/icons/message-circle.webp'
-import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle.webp'
+import MessageCircleIcon from '@/assets/images/icons/message-circle.svg'
+import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle-pink.svg'
 import { fetchNewMessageUsersFlow } from '@/services/chat/flows/fetchNewMessageUsersFlow.js'
 import { fetchGroupUserIdsFlow } from '@/services/chat/flows/fetchGroupUserIdsFlow.js'
 

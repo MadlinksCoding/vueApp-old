@@ -15,6 +15,7 @@ import '@/utils/axcessGatewayFormHandler.js';
 import '@/assets/css/axcessGatewayForm.css';
 import GuestCheckoutForm from './GuestCheckoutForm.vue';
 import CardForm from './CardForm.vue';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   walletBalance: {
@@ -38,7 +39,8 @@ const props = defineProps({
   creatorId:    { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['back', 'success', 'payment-failed']);
+const emit = defineEmits(['back', 'success', 'payment-failed', 'auth-updated']);
+const { t } = useBookingTranslations();
 
 const AMOUNT_PRESETS = [500, 1000, 3000, 5000];
 
@@ -83,9 +85,9 @@ const discountPercentage = computed(() => activeTier.value?.discount_percentage 
 const balanceAfterTopUp   = computed(() => props.walletBalance + selectedAmount.value);
 const balanceAfterBooking = computed(() => balanceAfterTopUp.value - props.totalPrice);
 
-const isLoggedIn = computed(() => Boolean(window?.userData?.userID));
+const isLoggedIn = computed(() => Number(window?.userData?.userID) > 0 );
 
-const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value.trim().includes('@'));
+const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value?.trim().includes('@'));
 const canSubmit = computed(() =>
   !isFormLoading.value && !isProcessing.value && hasEmail.value
   && !guestFormRef.value?.requiresLogin
@@ -97,6 +99,30 @@ function resolveFanUserId() {
 }
 function resolveCreatorId() {
   return props.creatorId || 0;
+}
+
+function normalizeAuthPayload(response = {}) {
+  const userId = response?.user_id
+    ?? response?.userId
+    ?? response?.userData?.userID
+    ?? response?.userData?.user_id
+    ?? response?.data?.user_id
+    ?? response?.data?.userId
+    ?? null;
+  const backendJwtToken = response?.backendJwtToken
+    ?? response?.jwtToken
+    ?? response?.backend_jwt_token
+    ?? response?.jwt_token
+    ?? response?.token
+    ?? response?.data?.backendJwtToken
+    ?? response?.data?.jwtToken
+    ?? '';
+
+  return {
+    userId,
+    backendJwtToken,
+    response,
+  };
 }
 
 // Dev helper — patch window.userData from localStorage so guest form reflects logged-in state.
@@ -167,7 +193,7 @@ async function initHandler() {
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during init:', err);
-    paymentError.value = 'Could not load payment form. Please refresh and try again.';
+    paymentError.value = t('fan_booking_payment_form_load_failed');
   } finally {
     isFormLoading.value = false;
   }
@@ -175,6 +201,19 @@ async function initHandler() {
 
   await handler.ready;
   pricingConfig.value = handler.tip_checkout_params?.config || null;
+
+  // const email = handler.userInfo?.email || handler.userInfo?.user_email || '';
+  const email = window.custom_checkout_params?.user?.email || '';
+  if (email) {
+    billingEmail.value = email;
+    if (window?.custom_checkout_params?.userData) {
+      if ( !isLoggedIn.value || window?.userData.userID && window?.userData.userID != window?.custom_checkout_params?.userData.userID) {
+        window.userData = window.custom_checkout_params.userData; // Ensure global userData is updated for consistency across components, especially GuestCheckoutForm
+      }
+    }
+  }
+  console.log('[TopUpForm] Handler ready with user info:', handler.userInfo, email);
+
 }
 
 async function selectAmount(amount) {
@@ -193,7 +232,7 @@ async function selectAmount(amount) {
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during selectAmount:', err);
-    paymentError.value = 'Could not reload payment form. Please try again.';
+    paymentError.value = t('fan_booking_payment_form_reload_failed');
   } finally {
     isFormLoading.value = false;
   }
@@ -211,7 +250,7 @@ function onAmountInput(event) {
   }, 600);
 }
 
-function handlePaymentSuccess(_response) {
+async function handlePaymentSuccess(_response) {
   console.error('Payment successful:', _response);
   isProcessing.value = false;
 
@@ -227,20 +266,26 @@ function handlePaymentSuccess(_response) {
     || 
     (_response?.order_status && ( _response.order_status == 'completed' || _response.order_status == 'processing' )) 
   ) {
-    emit('success', { userId: _response.user_id || null });
+    emit('success', normalizeAuthPayload(_response));
 
     // guestCheckout.checkGuestAuthAfterPayment
     // guestCheckouth 
-    if( window?.parent?.guestCheckout ) {
+    if( !isLoggedIn.value && window?.parent?.guestCheckout ) {
       window.parent.preventReloadOnCheckoutClose = true;
-      window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
+      let apiresponse = await window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
+      console.warn('checkGuestAuthAfterPayment response:', apiresponse);
+      if( apiresponse && apiresponse.success ) {
+        if( apiresponse.userData ) {
+          window.parent.isUserAuthChanged = true;
+        }
+      }
     }
   } else {
     emit('payment-failed', _response);
     showToast({
       type: 'error',
-      title: 'Payment processing failed',
-      message: _response?.error_message || 'Payment failed. Please try again.',
+      title: t('fan_booking_payment_processing_failed_title'),
+      message: _response?.error_message || t('fan_booking_payment_failed_message'),
     });
     handlePaymentError(_response?.error_message || '');
   }
@@ -250,7 +295,7 @@ function handlePaymentError(message) {
   isProcessing.value = false;
   cardFormRef.value?.setProcessingPayment(false);
   console.error('Payment error:', message);
-  paymentError.value = message || 'Payment failed. Please try again.';
+  paymentError.value = message || t('fan_booking_payment_failed_message');
 }
 
 async function handlePayNow() {
@@ -269,10 +314,10 @@ async function handlePayNow() {
 
   // If renderForm failed silently on init, attempt to recover before blocking the user
   if (!handler.currentOrderId) {
-    paymentError.value = 'Reloading payment form…';
+    paymentError.value = t('fan_booking_reloading_payment_form');
     await reloadCardForm();
     if (!handler.currentOrderId) {
-      paymentError.value = 'Could not load payment form. Please refresh and try again.';
+      paymentError.value = t('fan_booking_payment_form_load_failed');
       return;
     }
     paymentError.value = '';
@@ -290,7 +335,7 @@ async function handlePayNow() {
   } catch (err) {
     isProcessing.value = false;
     cardFormRef.value?.setProcessingPayment(false);
-    paymentError.value = err?.message || 'Payment failed. Please try again.';
+    paymentError.value = err?.message || t('fan_booking_payment_failed_message');
     console.error('[TopUpForm] submitPayment error:', err);
   }
 }
@@ -304,16 +349,27 @@ async function reloadCardForm(res = null) {
   isFormLoading.value   = true;
   console.error('[TopUpForm] Reloading card form with params:', { selectedAmount: selectedAmount.value, existingOrderId, res });
   try {
-    res.order_id = res.order_id || existingOrderId; // Ensure order_id is passed to renderForm for proper recovery
-    const { orderId } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', res);
+    const responseArgs = res ? { ...res } : {};
+    responseArgs.order_id = responseArgs.order_id || existingOrderId; // Ensure order_id is passed to renderForm for proper recovery
+    const { orderId } = await handler.renderForm(selectedAmount.value, existingOrderId, 'token', responseArgs);
     currentOrderId.value = orderId ?? null;
     cardFormRef.value?.syncSavedCards();
   } catch (err) {
     console.error('[TopUpForm] renderForm failed during reloadCardForm:', err);
-    paymentError.value = 'Could not reload payment form. Please try again.';
+    paymentError.value = t('fan_booking_payment_form_reload_failed');
   } finally {
     isFormLoading.value = false;
   }
+}
+
+async function handleGuestLogin(res = null) {
+  emit('auth-updated', normalizeAuthPayload(res || {}));
+  await reloadCardForm(res);
+}
+
+async function handleGuestLogout(res = null) {
+  emit('auth-updated', { userId: 0, backendJwtToken: '', response: res || {} });
+  await reloadCardForm(res);
 }
 
 defineExpose({
@@ -341,7 +397,7 @@ onBeforeUnmount(() => {
         <img :src="bookingFlowArrowLeftIcon" alt="">
       </div>
       <div class="justify-start text-white text-xs font-medium font-['Poppins'] leading-4">
-        Back
+        {{ t("common_back") }}
       </div>
     </div>
 
@@ -350,7 +406,7 @@ onBeforeUnmount(() => {
       <!-- Amount display + presets -->
       <div class="flex flex-col gap-1">
         <div class="opacity-70 justify-start text-white text-xs font-normal font-['Poppins'] leading-4">
-          TOP UP AMOUNT
+          {{ t("fan_booking_top_up_amount") }}
         </div>
         <div class="flex flex-col gap-3">
           <div class="inline-flex justify-start items-center gap-1">
@@ -405,8 +461,8 @@ onBeforeUnmount(() => {
         :initial-email="billingEmail"
         :order-id="currentOrderId"
         @update:email="billingEmail = $event"
-        @login="reloadCardForm"
-        @logout="reloadCardForm"
+        @login="handleGuestLogin"
+        @logout="handleGuestLogout"
       />
 
       <!-- Payment method -->
@@ -426,7 +482,7 @@ onBeforeUnmount(() => {
       <div v-if="1!=1" class="flex flex-col justify-center items-start gap-2">
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Original balance</div>
+          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">{{ t("fan_booking_original_balance") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">{{ walletBalance.toLocaleString() }}</div>
@@ -434,7 +490,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Top up amount</div>
+          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">{{ t("fan_booking_top_up_amount_label") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">+</div>
             <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
@@ -445,7 +501,7 @@ onBeforeUnmount(() => {
         <div class="h-0 outline outline-1 outline-offset-[-0.50px] outline-white w-full"></div>
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Balance after top up</div>
+          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">{{ t("fan_booking_balance_after_top_up") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ balanceAfterTopUp.toLocaleString() }}</div>
@@ -453,7 +509,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">Subtotal</div>
+          <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">{{ t("fan_booking_subtotal") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="justify-start text-white text-sm font-medium font-['Poppins'] leading-5">-</div>
             <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
@@ -464,7 +520,7 @@ onBeforeUnmount(() => {
         <div class="w-full h-0 outline outline-1 outline-offset-[-0.50px] outline-white"></div>
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Balance after booking</div>
+          <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_balance_after_booking") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="w-4 h-4 relative"><img :src="bookingFlowTokenIcon" alt=""></div>
             <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">{{ balanceAfterBooking.toLocaleString() }}</div>
@@ -481,15 +537,15 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem]">
-        <div class="flex flex-col gap-3 w-full p-5">
-          <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+        <div class="flex flex-col gap-3 w-full p-3 md:p-5">
+          <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_payment_summary") }}</h3>
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3">
               <div class="flex flex-col gap-2">
-                <h4 class="text-xs leading-[18px] text-[#98A2B3]">WALLET TOP UP</h4>
+                <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">Original balance</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_original_balance") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -498,7 +554,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">Top up amount</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_top_up_amount_label") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <span class="text-sm font-medium text-white">+</span>
@@ -509,7 +565,7 @@ onBeforeUnmount(() => {
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">Balance after top up</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_balance_after_top_up") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -518,7 +574,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">Session total</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_session_total_label") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <span class="text-sm font-medium text-white">-</span>
@@ -529,7 +585,7 @@ onBeforeUnmount(() => {
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-semibold text-white">Balance after booking</p>
+                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_balance_after_booking") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -538,7 +594,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-semibold text-white">Top up payment</p>
+                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_top_up_payment") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"></div>
@@ -547,7 +603,7 @@ onBeforeUnmount(() => {
                 </div>
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-start text-white">
-                  <p class="text-xl font-semibold leading-[30px] text-white">Amount Due Today</p>
+                  <p class="text-xl font-semibold leading-[30px] text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
                   <div class="flex flex-col">
                     <div class="flex justify-end items-center gap-0.5">
                       <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
@@ -573,7 +629,7 @@ onBeforeUnmount(() => {
           >
           <div class="relative h-full px-4 lg:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-16 after:border-t-[4rem] after:border-t-transparent after:border-b-0 bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]"
           :class="canSubmit ? 'bg-[#07F468] text-black cursor-pointer' : 'bg-[#6c7280] text-black/60 cursor-not-allowed after:border-r-[#6c7280]'">
-            <span class="whitespace-nowrap text-lg font-medium text-[#0C111D]">{{ isProcessing ? 'PROCESSING...' : isFormLoading ? 'LOADING FORM...' : 'TOP UP & COMPLETE BOOKING' }}</span>
+            <span class="whitespace-nowrap text-lg font-medium text-[#0C111D]">{{ isProcessing ? t('fan_booking_processing') : isFormLoading ? t('fan_booking_loading_form') : t('fan_booking_top_up_complete_booking_spaced') }}</span>
             <img :src="bookingFlowArrowRightIcon" alt="" class="w-4 h-4" />
           </div>
           </button>

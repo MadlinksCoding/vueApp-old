@@ -11,24 +11,37 @@ function buildEventsParams(payload = {}) {
   };
 }
 
-function buildBookedSlotParams(payload = {}) {
-  return {
+function buildBookedSlotParams(payload = {}, { includeEventId = false } = {}) {
+  const eventId = payload.eventId == null ? "" : String(payload.eventId).trim();
+  const params = {
     fromIso: payload.fromIso,
     toIso: payload.toIso,
     periodMonths: payload.periodMonths,
     limit: payload.slotLimit,
     statusIn: payload.statusIn,
   };
+
+  if (includeEventId && eventId) {
+    params.eventId = eventId;
+  }
+
+  return params;
 }
 
-function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
-  const creatorId = toNumber(payload.creatorId, null);
+function shouldUseFanBookedSlotsEndpoint(payload = {}) {
   const fanId = toNumber(payload.fanId, null);
   const userRole = typeof payload.userRole === "string"
     ? payload.userRole.trim().toLowerCase()
     : "";
 
-  if (userRole === "fan" && fanId != null) {
+  return userRole === "fan" && fanId != null;
+}
+
+function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
+  const creatorId = toNumber(payload.creatorId, null);
+  const fanId = toNumber(payload.fanId, null);
+
+  if (shouldUseFanBookedSlotsEndpoint(payload)) {
     return `${baseUrl}/bookings/fans/${fanId}/booked-slots`;
   }
 
@@ -43,10 +56,16 @@ function readCachedRawEvents(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
+  return eventsNotModified
+    ? getHttpStatus(bookedSlotsResponse, 200)
+    : eventsStatus;
+}
+
 function shouldFetchFirstTimeDiscountStatus(payload = {}) {
   const creatorId = toNumber(payload.creatorId, null);
   const fanId = toNumber(payload.fanId, null);
-  return creatorId != null && fanId != null;
+  return creatorId != null && fanId != null && fanId > 0;
 }
 
 export async function fetchCreatorBookingContextFlow({ payload, context, api }) {
@@ -86,7 +105,9 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
     const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
-      params: buildBookedSlotParams(payload),
+      params: buildBookedSlotParams(payload, {
+        includeEventId: !shouldUseFanBookedSlotsEndpoint(payload),
+      }),
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,
     });
@@ -102,9 +123,11 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
     const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
     let isFirstBookingForCreator = null;
 
-    if (shouldFetchFirstTimeDiscountStatus(payload)) {
-      const creatorId = toNumber(payload.creatorId, null);
-      const fanId = toNumber(payload.fanId, null);
+    const creatorId = toNumber(payload.creatorId, null);
+    const fanId = toNumber(payload.fanId, null);
+    if (fanId === 0) {
+      isFirstBookingForCreator = true;
+    } else if (shouldFetchFirstTimeDiscountStatus(payload)) {
       const eligibilityResponse = await api.get(
         `${baseUrl}/bookings/creators/${creatorId}/fans/${fanId}/first-time-discount-status`,
         {
@@ -133,7 +156,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       },
       {
         flow: "bookings.fetchCreatorBookingContext",
-        status: eventsStatus,
+        status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
         etag,
         eventsNotModified,
         fetchedAt: Date.now(),

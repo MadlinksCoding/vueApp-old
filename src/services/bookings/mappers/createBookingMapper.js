@@ -31,6 +31,36 @@ function inferDurationFromSlot(startHm, endHm) {
   return 0;
 }
 
+function isGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+}
+
+function isEventGoalGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return isGroupEvent(event) && String(raw?.priceSetting || event?.priceSetting || "").toLowerCase() === "eventgoal";
+}
+
+function resolveEventGoalMinimum(event = {}) {
+  const raw = event?.raw || {};
+  const configuredMinimum = safeNumber(raw?.minContributionPerUser ?? event?.minContributionPerUser, 0);
+  return configuredMinimum > 0 ? toWholeTokens(configuredMinimum) : 1;
+}
+
+function resolveEventGoalMaximum(event = {}) {
+  const raw = event?.raw || {};
+  return toWholeTokens(raw?.eventGoalTokens ?? event?.eventGoalTokens ?? 0);
+}
+
+function resolveContributionTokens(event = {}, options = {}) {
+  const minimum = resolveEventGoalMinimum(event);
+  const maximum = resolveEventGoalMaximum(event);
+  const requested = safeNumber(options?.contributionTokens, minimum);
+  const rounded = toWholeTokens(requested);
+  if (maximum > 0) return Math.min(Math.max(rounded, minimum), maximum);
+  return Math.max(rounded, minimum);
+}
+
 function toDateIso(value) {
   if (value instanceof Date) return formatLocalDateIso(value);
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -51,6 +81,8 @@ function addDays(dateIso, days) {
 function resolveSlotRange(state = {}) {
   const bookingDetails = state.bookingDetails || {};
   const fanSelection = state.fanBooking?.selection || {};
+  const event = resolveSelectedEvent(state);
+  const groupEvent = isGroupEvent(event);
 
   const slot = bookingDetails.selectedTime || fanSelection.selectedSlot || {};
   const localDateIso = slot.localDateIso
@@ -66,8 +98,9 @@ function resolveSlotRange(state = {}) {
   const duration = selectedDuration > 0
     ? selectedDuration
     : (slotDerivedDuration > 0 ? slotDerivedDuration : 15);
-  // End time must follow selected session length, not full availability window.
-  const endHm = addMinutesToHm(startHm, duration);
+  const endHm = groupEvent && slot.endHm
+    ? toHm(slot.endHm, addMinutesToHm(startHm, duration))
+    : addMinutesToHm(startHm, duration);
 
   const startMinutes = safeNumber(startHm.slice(0, 2), 0) * 60 + safeNumber(startHm.slice(3, 5), 0);
   const endMinutes = safeNumber(endHm.slice(0, 2), 0) * 60 + safeNumber(endHm.slice(3, 5), 0);
@@ -197,12 +230,44 @@ export function buildBookingPaymentPreview(
 
   const basePrice = safeNumber(raw.basePriceTokens ?? event.basePriceTokens, 0);
   const baseSessionMinutes = safeNumber(raw.sessionDurationMinutes ?? event.sessionDurationMinutes, 0);
-  const sessionSubtotal = computeSessionSubtotal({
-    basePriceTokens: basePrice,
-    baseSessionMinutes,
-    durationMinutes,
-  });
-  const lines = [{ code: "base", label: "Base Price", amount: sessionSubtotal }];
+  const eventGoalGroup = isEventGoalGroupEvent(event);
+  const contributionTokens = eventGoalGroup
+    ? resolveContributionTokens(event, options)
+    : null;
+  const sessionSubtotal = eventGoalGroup
+    ? contributionTokens
+    : isGroupEvent(event)
+    ? toWholeTokens(basePrice)
+    : computeSessionSubtotal({
+      basePriceTokens: basePrice,
+      baseSessionMinutes,
+      durationMinutes,
+    });
+  const lines = [{
+    code: eventGoalGroup ? "event_goal_contribution" : "base",
+    label: eventGoalGroup ? "Event Goal Contribution" : "Base Price",
+    amount: sessionSubtotal,
+  }];
+
+  if (eventGoalGroup) {
+    return {
+      payment: {
+        currency: "TOKENS",
+        lines,
+        total: contributionTokens,
+      },
+      contributionTokens,
+      requestedAddOns: [],
+      additionalRequests: {
+        recording: false,
+        offHours: false,
+      },
+      discounts: {
+        longerDiscount: { percent: 0, discountTokens: 0 },
+        firstTimeDiscount: { percent: 0, discountTokens: 0 },
+      },
+    };
+  }
 
   if (raw.enableBookingFee) {
     lines.push({
@@ -285,6 +350,7 @@ export function buildBookingPaymentPreview(
       lines,
       total,
     },
+    contributionTokens: eventGoalGroup ? contributionTokens : null,
     requestedAddOns,
     additionalRequests: {
       recording: recordingRequested,
@@ -322,6 +388,8 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   const selectedSlot = resolveSelectedSlot(state);
   const computed = buildBookingPaymentPreview(event, duration, selectedAddOns, selectedSlot, {
     isFirstBookingForCreator: state?.fanBooking?.context?.isFirstBookingForCreator,
+    contributionTokens: state?.bookingDetails?.contributionTokens
+      ?? state?.fanBooking?.selection?.contributionTokens,
   });
 
   return {
@@ -331,6 +399,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
     startIso: startHkt.iso,
     endIso: endHkt.iso,
     durationMinutes: duration,
+    ...(computed.contributionTokens != null ? { contributionTokens: computed.contributionTokens } : {}),
     requestedAddOns: computed.requestedAddOns,
     additionalRequests: computed.additionalRequests,
     personalRequestText: resolvePersonalRequestText(state),

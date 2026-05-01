@@ -78,7 +78,7 @@ export function createPipelineContext({
     ...((isPlainObject(options.context?.requestHeaders) ? options.context.requestHeaders : {})),
     ...((isPlainObject(options.requestHeaders) ? options.requestHeaders : {})),
   };
-  if (backendJwtToken && !requestHeaders.Authorization) {
+  if (backendJwtToken && !Object.prototype.hasOwnProperty.call(requestHeaders, "Authorization")) {
     requestHeaders.Authorization = `Bearer ${backendJwtToken}`;
   }
 

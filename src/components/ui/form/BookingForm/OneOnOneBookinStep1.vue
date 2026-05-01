@@ -4,6 +4,7 @@
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
   import BaseInput from "@/components/dev/input/BaseInput.vue";
+  import QuillEditor from "@/components/dev/input/QuillEditor.vue";
   import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
   import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
   import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
@@ -14,27 +15,30 @@
   import plusIcon from '@/assets/images/icons/plus-circle.webp'
   import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
   import cloudMoonPinkIcon from '@/assets/images/icons/cloud-moon-pink.webp'
-  import alignLeftIcon from '@/assets/images/icons/align-left.webp'
+  import alignLeftIcon from '@/assets/images/icons/align-left.svg'
+  import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
+  import trashIcon from '@/assets/images/icons/trash-01.svg'
 
-  import Quill from 'quill';
-  import 'quill/dist/quill.snow.css';
   import { showToast } from "@/utils/toastBus.js";
+  import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
+
+  const { t } = useBookingTranslations();
 
   const callTypeOptions = [
-    { label: 'Video Call', value: 'video', image: videoIcon },
-    { label: 'Audio Call', value: 'audio', image: phoneIcon }
+    { label: t('dashboard_video_call'), value: 'video', image: videoIcon },
+    { label: t('dashboard_audio_call'), value: 'audio', image: phoneIcon }
   ];
 
   const repeatRuleOptions = [
-    { label: 'Repeat Weekly', value: 'weekly' },
-    { label: 'Repeat Monthly', value: 'monthly' },
-    { label: 'Custom', value: 'doesNotRepeat' },
+    { label: t('booking_repeat_weekly'), value: 'weekly' },
+    { label: t('booking_repeat_monthly'), value: 'monthly' },
+    { label: t('booking_custom_repeat'), value: 'doesNotRepeat' },
   ];
 
   const lateStartActionOptions = [
-    { label: 'Allow reschedule', value: 'reschedule' },
-    { label: 'Issue refund', value: 'refund' },
-    { label: 'Give next-session discount', value: 'nextDiscount' }
+    { label: t('booking_allow_reschedule'), value: 'reschedule' },
+    { label: t('booking_issue_refund'), value: 'refund' },
+    { label: t('booking_late_start_next_discount'), value: 'nextDiscount' }
   ];
 
   // Accept Engine
@@ -47,8 +51,19 @@
       type: Boolean,
       default: false,
     },
+    bookingType: {
+      type: String,
+      default: "private",
+      validator: (value) => ["private", "group"].includes(value),
+    },
   });
   const DEFAULT_VUE_CREATOR_ID = 1407;
+  const isGroupBooking = computed(() => props.bookingType === "group");
+  const step1SectionOrder = computed(() => (
+    isGroupBooking.value
+      ? ["calendarAvailability", "groupPricing", "offHourSurcharge"]
+      : ["privatePricing", "offHourSurcharge", "calendarAvailability"]
+  ));
 
   function ensureVueCreatorIdFallback() {
     if (props.embedded) return;
@@ -144,6 +159,13 @@
     setMaxBookings: props.engine.state.setMaxBookings || false,
     allowWaitlist: props.engine.state.allowWaitlist || false,
     eventImageUrl: props.engine.state.eventImageUrl || "",
+    priceSetting: props.engine.state.priceSetting || (props.bookingType === "group" ? "eventGoal" : "fixedPricePerUser"),
+    eventGoalTokens: props.engine.state.eventGoalTokens || "",
+    enableMinContributionPerUser: props.engine.state.enableMinContributionPerUser || false,
+    minContributionPerUser: props.engine.state.minContributionPerUser || "",
+    goalNotMet: props.engine.state.goalNotMet || "cancelEvent",
+    setMaxUsers: props.engine.state.setMaxUsers || props.engine.state.enableMaxUsersInGroup || false,
+    maxUsers: props.engine.state.maxUsers || props.engine.state.maxUsersInGroup || "",
   });
 
   // Watch for changes and update engine state
@@ -157,8 +179,6 @@
   const onEventImageUploaded = ({ media_urls }) => {
     formData.value.eventImageUrl = Array.isArray(media_urls) ? media_urls[0] : media_urls;
   };
-
-  const quillEditor = ref(null);
 
   // Accordion State
   const sectionsState = ref({
@@ -174,44 +194,52 @@
     try {
       await props.engine.goToStep(2, { throwOnBlocked: true });
     } catch (error) {
-      const messages = (error?.errors || []).map((e) =>
-        typeof e === "string" ? e : (e?.message || "Validation error")
-      );
-      const fallback = error?.message || "Please fix validation errors before continuing.";
+      const messages = formatBookingValidationErrors(error?.errors || [], t);
+      const fallback = error?.message || t("booking_validation_weekly_slot_required");
       const body = messages.length ? messages.join(" ") : fallback;
       showToast({
         type: "error",
-        title: "Validation Failed",
+        title: t("common_validation_failed"),
         message: body,
       });
     }
   };
 
   const ringtoneOptions = [
-    { label: "Ringtone 1", value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
-    { label: "Ringtone 2", value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
-    { label: "Ringtone 3", value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_1"), value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_2"), value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
+    { label: t("booking_ringtone_3"), value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
   ];
 
   const colorOptions = [
-    { label: "Blue", value: "#5549FF" },
-    { label: "Red", value: "#FF3B30" },
-    { label: "Green", value: "#22C55E" },
-    { label: "Pink", value: "#FF2D92" },
-    { label: "Orange", value: "#F97316" },
-    { label: "Purple", value: "#8B5CF6" },
-    { label: "Teal", value: "#14B8A6" },
+    { label: t("booking_color_blue"), value: "#5549FF" },
+    { label: t("booking_color_red"), value: "#FF3B30" },
+    { label: t("booking_color_green"), value: "#22C55E" },
+    { label: t("booking_color_pink"), value: "#FF2D92" },
+    { label: t("booking_color_orange"), value: "#F97316" },
+    { label: t("booking_color_purple"), value: "#8B5CF6" },
+    { label: t("booking_color_teal"), value: "#14B8A6" },
   ];
 
   const bufferUnitOptions = [
-    { label: "Minutes", value: "minutes" },
-    { label: "Hours", value: "hours" },
+    { label: t("booking_minutes"), value: "minutes" },
+    { label: t("booking_hours"), value: "hours" },
   ];
 
   const timeUnitOptions = [
-    { label: "Minute", value: "minute" },
-    { label: "Hour", value: "hour" },
-    { label: "Day", value: "day" },
+    { label: t("booking_minute"), value: "minute" },
+    { label: t("booking_hour"), value: "hour" },
+    { label: t("common_day"), value: "day" },
+  ];
+
+  const groupPricingOptions = [
+    { label: t("booking_group_fixed_price_option"), value: "fixedPricePerUser" },
+    { label: t("booking_group_event_goal_option"), value: "eventGoal" },
+  ];
+
+  const groupGoalNotMetOptions = [
+    { label: t("booking_group_goal_not_met_cancel_refund"), value: "cancelEvent" },
+    { label: t("booking_group_goal_not_met_proceed"), value: "proceedWithoutGoalMet" },
   ];
 
   let previewAudio = null;
@@ -227,8 +255,8 @@
     } catch (error) {
       showToast({
         type: "warning",
-        title: "Preview Unavailable",
-        message: "Could not preview this ringtone on your browser.",
+        title: t("common_error"),
+        message: t("booking_ringtone_preview_failed"),
       });
     }
   };
@@ -242,25 +270,6 @@
 
   onMounted(() => {
     ensureVueCreatorIdFallback();
-
-    // Quill Setup (Preserved exactly as provided)
-    const icons = Quill.import('ui/icons');
-    icons['bold'] = '<img src="https://i.ibb.co/HLRRqmHp/bold-icon.webp" alt="bold" style="width:30px;">';
-    icons['italic'] = '<img src="https://i.ibb.co/QvdPyg67/italic-icon.webp" alt="italic" style="width:30px;">';
-    icons['link'] = '<img src="https://i.ibb.co/gZ7JLJ28/link-icon.webp" alt="link" style="width:30px;">';
-    icons['list']['ordered'] = '<img src="https://i.ibb.co/Q7WRxw9Y/list-ol-icon.webp" alt="ol" style="width:30px;">';
-    icons['list']['bullet'] = '<img src="https://i.ibb.co/rfH1rbT7/list-ul-icon.webp" alt="ul" style="width:30px;">';
-
-    new Quill(quillEditor.value, {
-      modules: { toolbar: [['bold', 'italic', 'link', { 'list': 'ordered' }, { 'list': 'bullet' }]] },
-      placeholder: "Event Description...",
-      theme: 'snow'
-    });
-
-    // Set initial content if exists
-    if (formData.value.eventDescription) {
-      quillEditor.value.firstChild.innerHTML = formData.value.eventDescription;
-    }
   });
 
   function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
@@ -316,6 +325,21 @@
       { key: "fri", name: "Fri", unavailable: true, offHours: false, slots: [] },
       { key: "sat", name: "Sat", unavailable: true, offHours: false, slots: [] },
     ];
+  }
+
+  const weekdayLabelKeys = {
+    sun: "date_sun_short",
+    mon: "date_mon_short",
+    tue: "date_tue_short",
+    wed: "date_wed_short",
+    thu: "date_thu_short",
+    fri: "date_fri_short",
+    sat: "date_sat_short",
+  };
+
+  function getWeekdayLabel(day) {
+    const key = String(day?.key || "").toLowerCase();
+    return weekdayLabelKeys[key] ? t(weekdayLabelKeys[key]) : (day?.name || "");
   }
 
   const DAY_KEY_TO_INDEX = {
@@ -459,7 +483,7 @@
     const minute = Number(rawMinute);
     const safeHour = Number.isFinite(hour) ? hour : 0;
     const safeMinute = Number.isFinite(minute) ? minute : 0;
-    const period = safeHour >= 12 ? "PM" : "AM";
+    const period = safeHour >= 12 ? t("booking_period_pm") : t("booking_period_am");
     const twelveHour = safeHour % 12 === 0 ? 12 : safeHour % 12;
     return `${twelveHour}:${String(safeMinute).padStart(2, "0")} ${period}`;
   }
@@ -669,7 +693,7 @@
       formData.value.dateTo = dateFrom;
     }
 
-    dateRangeMessage.value = "Date range adjusted: end date cannot be earlier than start date.";
+    dateRangeMessage.value = t("booking_date_range_adjusted");
   }
 
   watch(
@@ -714,12 +738,12 @@
           <div class="w-6 h-6 relative overflow-hidden block md:hidden">
             <img :src="alignLeftIcon" alt="" class="w-6 h-6"/>
           </div>
-          <p class="text-gray-950 text-base font-normal">Basic Settings</p>
+          <p class="text-gray-950 text-base font-normal">{{ t("booking_basic_settings") }}</p>
         </div>
         <div class="flex-1 inline-flex flex-col justify-start items-start gap-4 self-stretch">
           <div class="flex w-full">
             <div class="flex-1">
-              <BaseInput type="text" placeholder="Event Title" v-model="formData.eventTitle" wrapperClass="w-full"
+              <BaseInput type="text" :placeholder="t('booking_event_title_placeholder')" v-model="formData.eventTitle" wrapperClass="w-full"
                 inputClass="px-3.5 text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
             <div class="">
@@ -745,10 +769,13 @@
               </CustomDropdown>
             </div>
           </div>
-          <QuillEditor v-model="formData.eventDescription" placeholder="Event Description..." />
+          <QuillEditor
+            v-model="formData.eventDescription"
+            :placeholder="t('booking_event_description_placeholder')"
+          />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
-              <div class="text-slate-700 text-xs font-normal leading-none mb-1.5">Call Type</div>
+              <div class="text-slate-700 text-xs font-normal leading-none mb-1.5">{{ t("booking_call_type") }}</div>
               <CustomDropdown
                 v-model="formData.eventCallType"
                 :options="callTypeOptions"
@@ -767,24 +794,24 @@
             </div>
             <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
               <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
-              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">Preview</div>
+              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">{{ t("booking_preview") }}</div>
             </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-            <div class=""><span class="text-slate-700 text-xs font-normal leading-none">Event Image </span><span
-                class="text-gray-500 text-xs italic font-normal leading-none">Optional</span></div>
+            <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span><span
+                class="text-gray-500 text-xs italic font-normal leading-none">{{ t("common_optional") }}</span></div>
             <div class="w-full">
               <!-- Uploaded image preview with delete button -->
               <div v-if="formData.eventImageUrl" class="relative mb-2">
                 <img
                   :src="formData.eventImageUrl"
-                  alt="Event image preview"
+                  :alt="t('booking_event_image_preview_alt')"
                   class="w-full rounded-xl object-cover max-h-40"
                 />
                 <button
                   type="button"
                   class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 hover:bg-red-700 flex items-center justify-center transition-colors"
-                  aria-label="Remove image"
+                  :aria-label="t('booking_remove_image')"
                   @click="formData.eventImageUrl = ''"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -799,12 +826,12 @@
                 button-wrapper-class="shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] rounded-lg h-10 w-10 relative flex justify-center items-center"
                 button-icon-wrapper-class="cursor-pointer shadow-[0_1px_2px_0_rgba(16,24,40,0.05)] bg-green-500 rounded-lg h-10 w-10 flex justify-center items-center hover:bg-black"
                 button-parent-wrapper-class="flex flex-col items-center justify-center gap-3"
-                button-text="Click to upload"
+                :button-text="t('booking_upload_click')"
                 button-text-class="font-semibold text-gray-900 cursor-pointer"
-                drop-text=" or drag and drop"
+                :drop-text="t('booking_upload_drag_drop')"
                 drop-text-class="text-sm font-normal leading-5 text-gray-500 text-center"
-                custom-allowed-types="SVG, PNG, JPG or GIF"
-                custom-max-size="800x400px"
+                :custom-allowed-types="t('booking_upload_allowed_types')"
+                :custom-max-size="t('booking_upload_max_size')"
                 eenable-image-compression="true"
                 format-text-class="text-gray-500 text-xs leading-[1.125rem] text-center mb-0"
                 @media-uploaded="onEventImageUploaded"
@@ -814,20 +841,20 @@
         </div>
       </div>
 
-      <BookingSectionsWrapper title="Session Duration" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
+      <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_duration')" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
-            <div class=" text-black text-base font-medium leading-normal">Minutes</div>
+            <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <CheckboxGroup v-model="formData.allowLongerSessions" label="Allow user to book longer sessions"
+            <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
             <div :class="['ml-6 transition-opacity duration-200',
                         !formData.allowLongerSessions ? 'opacity-50' : 'opacity-100']">
-              <div class="w-full text-gray-500 text-sm font-medium leading-tight">Maximum Session Allowed</div>
+              <div class="w-full text-gray-500 text-sm font-medium leading-tight">{{ t("booking_maximum_session_allowed") }}</div>
               <div class="flex items-center gap-1.5 ">
                 <div class="">
                   <BaseInput type="number" placeholder="" v-model="formData.maxSessionDuration"
@@ -835,8 +862,8 @@
                     inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
                 <div class="flex flex-col">
-                  <div class="justify-center text-black text-base font-medium leading-normal">Sessions</div>
-                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration }} minutes)</div>
+                  <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions") }}</div>
+                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration }) }})</div>
                 </div>
               </div>
             </div>
@@ -844,25 +871,26 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper title="Pricing Settings" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+      <template v-for="section in step1SectionOrder" :key="section">
+      <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
         leftIconClass="mt-[4px]">
         <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-              Base Price
+              {{ t("booking_base_price") }}
             </div>
             <div class="flex items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.basePrice"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
               <div class="flex gap-2 items-center">
-                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">Tokens </span><span
-                  class="text-black text-sm font-normal font-['Poppins'] leading-tight">/session</span>
+                <span class="text-black text-base font-medium font-['Poppins'] leading-normal">{{ t("common_tokens") }} </span><span
+                  class="text-black text-sm font-normal font-['Poppins'] leading-tight">{{ t("booking_per_session") }}</span>
               </div>
             </div>
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <CheckboxGroup v-model="formData.enableLongerDiscount" label="Enable discount price for longer sessions"
+            <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_longer_session_discount')"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
@@ -876,10 +904,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      sessions minimum
+                      {{ t("booking_sessions_minimum") }}
                     </div>
                     <div v-if="formData.sessionMinimum && formData.duration" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ formData.sessionMinimum }} x {{ formData.duration }} = {{ formData.sessionMinimum * formData.duration }} minutes)
+                      ({{ t("booking_session_minimum_summary", { count: formData.sessionMinimum, duration: formData.duration, minutes: formData.sessionMinimum * formData.duration }) }})
                     </div>
                   </div>
                 </div>
@@ -889,10 +917,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      % off base price
+                      {{ t("booking_percent_off_base_price") }}
                     </div>
                     <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }} tokens/session)
+                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }) }})
                     </div>
                   </div>
                 </div>
@@ -903,7 +931,7 @@
           
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <CheckboxGroup v-model="formData.enableFirstTimeDiscount" label="First time discount"
+            <CheckboxGroup v-model="formData.enableFirstTimeDiscount" :label="t('booking_enable_first_time_discount_short')"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
@@ -918,10 +946,10 @@
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      off entire session
+                      {{ t("booking_off_entire_session") }}
                     </div>
                     <div v-if="formData.basePrice && formData.firstTimeDiscount" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }} tokens/session)
+                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }) }})
                     </div>
                   </div>
                 </div>
@@ -931,11 +959,11 @@
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
-              <CheckboxGroup v-model="formData.enableBookingFee" label="Enable booking fee"
+              <CheckboxGroup v-model="formData.enableBookingFee" :label="t('booking_enable_booking_fee')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="This amount will be on hold in fan's token balance. if booking is rejected after negotiation period, this amount will be deducted from fan's balance. If booking is accepted, the balance on hold will be deducted towards the call session payment." />
+              <TooltipIcon :text="t('booking_booking_fee_tooltip')" />
             </div>
 
             <div class="inline-flex justify-start items-start gap-2">
@@ -946,7 +974,7 @@
                     :disabled="!formData.enableBookingFee"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="w-14 justify-start text-black text-base font-medium font-['Poppins'] leading-normal">
-                    Tokens
+                    {{ t("common_tokens") }}
                   </div>
                 </div>
               </div>
@@ -955,25 +983,25 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.allowInstantBooking" label="Allow instant booking"
+                <CheckboxGroup v-model="formData.allowInstantBooking" :label="t('booking_allow_instant_booking')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[1px] text-[16px] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
 
-                 <TooltipIcon text="Bookings without personal requests are automatically approved." />
+                 <TooltipIcon :text="t('booking_allow_instant_booking_tooltip')" />
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-6" />
-                <div :class="['flex-1 inline-flex flex-col justify-start items-start gap-2',!formData.allowInstantBooking ? 'opacity-50':'opacity-100']">
+                <div :class="['flex-1 inline-flex flex-col justify-start items-start gap-2',!formData.allowInstantBooking ? 'opacity-50 pointer-events-none':'opacity-100']">
                   <div class="self-stretch inline-flex justify-end items-center gap-2">
                     <div
                       class="flex-1 justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Approve sessions instantly after bookings.
+                      {{ t("booking_approve_sessions_instantly") }}
                     </div>
                   </div>
 
-                  <CheckboxGroup v-model="formData.disableChatBeforeCall" label="Disable chat before call"
+                  <CheckboxGroup v-model="formData.disableChatBeforeCall" :label="t('booking_disable_chat_before_call')"
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-[16px] leading-normal"
                     wrapperClass="flex items-center gap-2 mb-2 mt-2" />
@@ -992,12 +1020,12 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.enableRescheduleFee" label="Enable reschedule  fee"
+                <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
 
-                <TooltipIcon text="A rescheduling fee will be charged if a confirmed booking is changed." />
+                <TooltipIcon :text="t('booking_reschedule_fee_tooltip')" />
               </div>
 
               <div class="self-stretch inline-flex justify-start items-start gap-2">
@@ -1009,7 +1037,7 @@
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
 
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Tokens
+                      {{ t("common_tokens") }}
                     </div>
                   </div>
                 </div>
@@ -1019,12 +1047,12 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.enableCancellationFee" label="Enable cancellation fee"
+                <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_enable_cancellation_fee')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
 
-                <TooltipIcon text="A cancellation fee will apply if a user cancels an approved booking or fails to attend the scheduled call." />
+                <TooltipIcon :text="t('booking_cancellation_fee_tooltip')" />
               </div>
               <div :class="['self-stretch inline-flex justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
                 <div class="w-6 h-10" />
@@ -1034,16 +1062,16 @@
                       :disabled="!formData.enableCancellationFee"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
-                      Tokens
+                      {{ t("common_tokens") }}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50':'opacity-100']">
+            <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
-                label="User can cancel in advance to void minimum charge"
+                :label="t('booking_allow_advance_cancellation')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -1059,7 +1087,7 @@
                     :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
                   />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
-                  in advance
+                  {{ t("booking_in_advance") }}
                 </div>
               </div>
             </div>
@@ -1067,10 +1095,181 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper title="Off-hour Surcharge" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
+      <BookingSectionsWrapper v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+        leftIconClass="mt-[4px]">
+        <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
+          <div class="flex flex-col justify-start items-start gap-2 w-full">
+            <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+              {{ t("booking_group_charge_question") }}
+            </div>
+            <CustomDropdown
+              v-model="formData.priceSetting"
+              :options="groupPricingOptions"
+              :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
+            />
+          </div>
+
+          <template v-if="formData.priceSetting === 'fixedPricePerUser'">
+            <div class="flex flex-col justify-start items-start gap-1.5">
+              <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
+                {{ t("booking_group_event_price") }}
+              </div>
+              <div class="flex items-center gap-2">
+                <BaseInput type="number" placeholder="" v-model="formData.basePrice"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <div class="flex gap-2 items-center">
+                <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_group_maximum_participants')"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  wrapperClass="flex items-center gap-2" />
+                <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
+              </div>
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.maxUsers"
+                  :disabled="!formData.setMaxUsers"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+              </div>
+            </div>
+
+            <div class="self-stretch _flex hidden flex-col justify-center items-start gap-3">
+              <div class="flex gap-2 items-center">
+                <CheckboxGroup v-model="formData.allowWaitlist" :label="t('booking_group_waitlist_label')"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                  wrapperClass="flex items-center gap-2" />
+                <TooltipIcon :text="t('booking_waitlist_tooltip')" />
+              </div>
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.waitlistSpots"
+                  :disabled="!formData.allowWaitlist"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                <div class="justify-center text-slate-700 text-base font-normal leading-normal">
+                  {{ t("booking_waitlist_spots") }}
+                </div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_discount_recurring')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+
+              <div class="self-stretch inline-flex justify-start items-start gap-2">
+                <div class="w-6 h-6" />
+                <div class="inline-flex flex-col justify-start items-start gap-2">
+                  <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
+                    <BaseInput type="number" placeholder="" v-model="formData.discountEventsCount"
+                      :disabled="!formData.enableLongerDiscount"
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="justify-center text-black text-base font-medium leading-normal">
+                      {{ t("booking_group_events_minimum") }}
+                    </div>
+                  </div>
+                  <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
+                    <BaseInput type="number" placeholder="" v-model="formData.discountPercentage"
+                      :disabled="!formData.enableLongerDiscount"
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="justify-center text-black text-base font-medium leading-normal">
+                      {{ t("booking_percent_off_base_price") }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="flex flex-col justify-start items-start gap-1.5">
+              <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
+                {{ t("booking_group_event_goals") }}
+              </div>
+              <div class="flex items-center gap-2">
+                <BaseInput type="number" placeholder="" v-model="formData.eventGoalTokens"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <CheckboxGroup v-model="formData.enableMinContributionPerUser" :label="t('booking_group_min_contribution_per_user')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+              <div class="inline-flex justify-start items-center gap-2">
+                <div class="w-6 h-6" />
+                <BaseInput type="number" placeholder="" v-model="formData.minContributionPerUser"
+                  :disabled="!formData.enableMinContributionPerUser"
+                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+                <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
+              </div>
+            </div>
+
+            <div class="flex flex-col justify-start items-start gap-2 w-full">
+              <div class="justify-start text-slate-700 text-base font-normal leading-normal">
+                {{ t("booking_group_goal_not_met_label") }}
+              </div>
+              <CustomDropdown
+                v-model="formData.goalNotMet"
+                :options="groupGoalNotMetOptions"
+                :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
+              />
+            </div>
+          </template>
+
+          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+            <div class="flex gap-2 items-center">
+              <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_group_refund_before_event_start')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+              <TooltipIcon :text="t('booking_cancellation_fee_tooltip')" />
+            </div>
+            <div :class="['inline-flex justify-start items-center gap-2', !formData.enableCancellationFee ? 'opacity-50' : 'opacity-100']">
+              <div class="w-6 h-6" />
+              <BaseInput type="number" placeholder="" v-model="formData.cancellationFee"
+                :disabled="!formData.enableCancellationFee"
+                inputClass="bg-white/50 w-28 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+              <div class="justify-center text-slate-700 text-base font-normal leading-normal">
+                {{ t("booking_group_minimum_charge") }}
+              </div>
+            </div>
+          </div>
+
+          <div class="self-stretch flex flex-col justify-start items-start gap-3">
+            <CheckboxGroup v-model="formData.allowAdvanceCancellation" :label="t('booking_group_cancel_advance_void_fee')"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+              wrapperClass="flex items-center gap-2" />
+            <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50 pointer-events-none' : 'opacity-100']">
+              <div class="w-6 h-6" />
+              <BaseInput type="number" placeholder="" v-model="formData.advanceVoid"
+                :disabled="!formData.allowAdvanceCancellation"
+                inputClass="bg-white/50 w-24 px-3 py-2 rounded-tl-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed border-r" />
+              <CustomDropdown
+                v-model="formData.advanceCancelWindowUnit"
+                :options="timeUnitOptions"
+                :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
+              />
+              <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
+                {{ t("booking_group_before_event_start") }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </BookingSectionsWrapper>
+
+      <BookingSectionsWrapper v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
-          <CheckboxGroup v-model="formData.addOffHourSurcharge" label="Add"
+          <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
             checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
             labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal" wrapperClass="flex items-center gap-2" />
           <div class="flex-1 inline-flex flex-col justify-start items-start">
@@ -1079,15 +1278,15 @@
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-black text-base font-medium leading-normal">% from base price</div>
-                <div class="justify-center text-black text-xs font-medium leading-none">(1,600 tokens/session)</div>
+                <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_percent_from_base_price") }}</div>
+                <div v-if="formData.addOffHourSurcharge && formData.basePrice" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: formData.basePrice * (formData.offHourSurcharge / 100) }) }})</div>
               </div>
             </div>
           </div>
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper title="Calendar Availability" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
+      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t('booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
         <div class="w-full flex flex-col gap-5 mt-5">
           <div class="flex flex-col gap-3 w-full">
             <div class="self-stretch justify-start text-gray-900 text-xs font-normal font-['Poppins'] leading-none">
@@ -1103,10 +1302,10 @@
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start">
                     <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                      {{ formData.repeatRule === 'monthly' ? 'Start date' : 'Duration' }}
+                      {{ formData.repeatRule === 'monthly' ? t("booking_start_date") : t("booking_duration") }}
                     </span>
                     <span v-if="formData.repeatRule !== 'monthly'"
-                      class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> Optional</span>
+                      class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> {{ t("common_optional") }}</span>
                   </div>
                   <input
                     type="date"
@@ -1121,7 +1320,7 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                    End date <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">Optional</span>
+                    {{ t("booking_end_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
                   </div>
                   <input
                     type="date"
@@ -1149,19 +1348,19 @@
 
               <div class="justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
                 :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center justify-center'">
-                {{ day.name }}
+                {{ getWeekdayLabel(day) }}
               </div>
 
               <template v-if="day.unavailable">
                 <div class="flex-1 justify-start text-gray-500 text-base font-normal leading-normal">
-                  Not Available
+                  {{ t("booking_not_available") }}
                 </div>
                 <button type="button" @click="addDayAvailability(index)"
                   class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="isWeeklyDayLocked(day.key || day.name)"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }"
-                  title="Add availability">
-                  <img :src="plusIcon" alt="plus icon" />
+                  :title="t('booking_add_availability')">
+                  <img :src="plusIcon" alt="" />
                 </button>
               </template>
 
@@ -1200,23 +1399,23 @@
                     </div>
 
                     <div class="pl-1 flex justify-start items-center gap-2">
-                      <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4">
+                      <TooltipIcon :text="t('booking_remove_availability')" wrapperClass="flex items-center justify-center" tooltipClass="top-4">
                         <button type="button" @click="removeWeeklySlot(index, sIdx)"
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                           :disabled="isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1"
                           :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) || getTotalWeeklySlotCount() <= 1 }">
-                          <img :src="minusIcon" alt="minus icon" />
+                          <img :src="minusIcon" alt="" />
                         </button>
                       </TooltipIcon>
-                      <TooltipIcon text="Add another period to this day" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                      <TooltipIcon :text="t('booking_add_period_day')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                         <button type="button" @click="addWeeklySlot(index)"
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
                           :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': isWeeklyDayLocked(day.key || day.name) }">
-                          <img :src="plusIcon" alt="plus icon" />
+                          <img :src="plusIcon" alt="" />
                         </button>
                       </TooltipIcon>
-                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                      <TooltipIcon v-if="formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                         <button type="button" @click="toggleSlotOffHours(index, sIdx)"
                           class="w-6 h-6 rounded-full flex items-center justify-center"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
@@ -1224,7 +1423,7 @@
                             slot.offHours ? '' : '',
                             isWeeklyDayLocked(day.key || day.name) ? 'opacity-40 cursor-not-allowed hover:bg-transparent' : '',
                           ]">
-                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                          <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                         </button>
                       </TooltipIcon>
                     </div>
@@ -1269,37 +1468,37 @@
               </div>
 
               <div class="pl-1 flex justify-start items-center gap-2">
-              <TooltipIcon text="Remove availability" wrapperClass="flex items-center justify-center" tooltipClass="top-4"> 
+              <TooltipIcon :text="t('booking_remove_availability')" wrapperClass="flex items-center justify-center" tooltipClass="top-4"> 
                 <button
                   type="button"
                   @click="removeMonthlySlot(slotIndex)"
                   class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                   :disabled="getTotalMonthlySlotCount() <= 1"
                   :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalMonthlySlotCount() <= 1 }"
-                  title="Remove availability"
+                  :title="t('booking_remove_availability')"
                 >
-                  <img :src="minusIcon" alt="minus icon" />
+                  <img :src="minusIcon" alt="" />
                 </button>
                 </TooltipIcon>
-                <TooltipIcon text="Add another monthly period" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <TooltipIcon :text="t('booking_add_monthly_period')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                 <button
                   type="button"
                   @click="addMonthlySlot()"
                   class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
-                  title="Add another monthly period"
+                  :title="t('booking_add_monthly_period')"
                 >
-                  <img :src="plusIcon" alt="plus icon" />
+                  <img :src="plusIcon" alt="" />
                 </button>
                 </TooltipIcon>
-                <TooltipIcon text="Mark as off hours" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <TooltipIcon :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
                 <button
                   type="button"
                   @click="toggleMonthlySlotOffHours(slotIndex)"
                   class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
                   :class="slot.offHours ? '' : ''"
-                  title="Mark as off hours"
+                  :title="t('booking_mark_off_hours')"
                 >
-                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="cloud moon icon" />
+                  <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                 </button>
                 </TooltipIcon>
               </div>
@@ -1310,28 +1509,34 @@
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
               class="p-3">
               <div class="flex items-center gap-2 mb-3">
-                <input
-                  type="date"
-                  v-model="entry.date"
-                  @change="onSlotChanged"
-                  :min="getOneTimeDateMin()"
-                  :max="formData.dateTo || undefined"
-                  class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300"
-                />
+                <div class="relative w-full">
+                  <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <img :src="calendarIcon" alt="" class="w-5 h-5" />
+                  </div>
+                  <input
+                    type="date"
+                    v-model="entry.date"
+                    @change="onSlotChanged"
+                    :min="getOneTimeDateMin()"
+                    :max="formData.dateTo || undefined"
+                    class="bg-white/75 w-full pl-10 pr-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-datetime-edit]:text-gray-900"
+                  />
+                </div>
                 <button v-if="oneTimeDates.length > 1" type="button" @click="removeOneTimeDate(entryIndex)"
-                  class="w-7 h-7 rounded text-red-500 hover:bg-red-50">
-                  🗑
+                  class="w-7 h-7 rounded text-red-500 hover:bg-red-50 flex-shrink-0 flex items-center justify-center">
+                  <img :src="trashIcon" alt="" class="w-5 h-5" />
                 </button>
               </div>
 
               <div class="flex flex-col gap-2">
+                <span class="text-sm font-medium text-gray-500">{{ t("booking_available_time_slot") }}</span>
                 <div v-if="entry.slots.length === 0" class="flex items-center">
                   <button
                     type="button"
                     @click="addOneTimeSlot(entryIndex)"
-                    class="px-2 py-1 text-xs rounded bg-gray-900 text-green-400 hover:bg-black"
+                    class="px-2 py-1 text-xs bg-gray-900 text-[#07F468] hover:bg-black"
                   >
-                    Add time slot
+                    {{ t("booking_add_time_slot") }}
                   </button>
                 </div>
 
@@ -1357,11 +1562,11 @@
                     :disabled="getTotalOneTimeSlotCount() <= 1"
                     :class="{ 'opacity-40 cursor-not-allowed hover:bg-transparent': getTotalOneTimeSlotCount() <= 1 }"
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
-                    <img :src="minusIcon" alt="minus icon" />
+                    <img :src="minusIcon" alt="" />
                   </button>
                   <button type="button" @click="addOneTimeSlot(entryIndex)"
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
-                    <img :src="plusIcon" alt="plus icon" />
+                    <img :src="plusIcon" alt="" />
                   </button>
                   </div>
                 </div>
@@ -1370,27 +1575,26 @@
 
             <div>
               <button type="button" @click="addOneTimeDate"
-                class="bg-gray-900 text-green-400 text-xs font-semibold px-2 py-1 rounded hover:bg-black">
-                Add A Date
+                class="bg-gray-900 text-[#07F468] text-xs font-semibold px-2 py-1 hover:bg-black">
+                {{ t("booking_add_a_date") }}
               </button>
             </div>
           </div>
         </div>
       </BookingSectionsWrapper>
+      </template>
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper title=" Call Settings" leftIcon="https://i.ibb.co/xq0ZdVmP/Icon.png"
+      <BookingSectionsWrapper :title="t('booking_call_settings')" leftIcon="https://i.ibb.co/xq0ZdVmP/Icon.png"
         accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.callSettings"
         @toggle="toggleSection('callSettings')">
         <div v-show="sectionsState.callSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">Offer discount if call
-                  starts
-                  late</div>
-                  <TooltipIcon text="You and your fan can join within a 15-minute buffer after the scheduled time. If you join late, you may compensate your fan." />
+                <div class="justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_offer_discount_if_call_starts_late") }}</div>
+                  <TooltipIcon :text="t('booking_join_buffer_tooltip')" />
               </div>
             </div>
             <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -1401,7 +1605,7 @@
                   buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
                 />
                 <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
-                  <BaseInput type="number" placeholder="Discount % for next session"
+                  <BaseInput type="number" :placeholder="t('booking_late_start_discount_placeholder')"
                     v-model="formData.lateStartDiscountPercent"
                     inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
                 </div>
@@ -1410,9 +1614,9 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">Call functions
+              <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_call_functions") }}
               </div>
-              <CheckboxGroup v-model="formData.disableChatDuringCall" label="Disable chat during call"
+              <CheckboxGroup v-model="formData.disableChatDuringCall" :label="t('booking_disable_chat_during_call')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3 mt-2" />
@@ -1430,8 +1634,8 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1 relative">
                 <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
-                  Fan can request to extend session in call
-                  <TooltipIcon text="Fans can request to extend an ongoing session. If it overlaps with your upcoming events, the extension will be declined." 
+                  {{ t("booking_fan_can_request_extend_session") }}
+                  <TooltipIcon :text="t('booking_session_extension_tooltip')" 
                   tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
                   class="relative group inline-block mt-[2px] ml-1   z-[9]  top-1" />
                 </div>
@@ -1446,8 +1650,8 @@
                     :disabled="!formData.requestExtendSession"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
-                    <div class="justify-center text-black text-base font-medium leading-normal">sessions maximum</div>
-                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ formData.duration * formData.extendSessionMax }} minutes)</div>
+                    <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
+                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration * formData.extendSessionMax }) }})</div>
                   </div>
                 </div>
               </div>
@@ -1458,43 +1662,41 @@
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper title=" Booking Settings" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
+      <BookingSectionsWrapper :title="t('booking_booking_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
         accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.bookingSettings"
         @toggle="toggleSection('bookingSettings')">
         <div v-show="sectionsState.bookingSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-gray-700 text-base font-normal leading-normal">Call reminder</div>
-                <TooltipIcon text="Reminders will be sent to notify you of upcoming appointments." />
+                <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
+                <TooltipIcon :text="t('booking_reminders_tooltip')" />
               </div>
-              <CheckboxGroup v-model="formData.setReminders" label="Enable reminder"
+              <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-2 mt-2" />
               <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
                 <div class=" inline-flex justify-end items-center gap-2">
-                  <div class="justify-center text-slate-700 text-base font-normal leading-normal">Remind me</div>
+                  <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
                   <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
                     :disabled="!formData.setReminders"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">minutes before
-                    a
-                  </div>
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">{{ t("booking_minutes_before_a") }}</div>
                 </div>
                 <div class="inline-flex justify-end items-center gap-2">
-                  <div class="justify-center text-slate-700 text-base font-normal leading-normal">scheduled call.</div>
+                  <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_scheduled_call") }}</div>
                 </div>
               </div>
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <!-- <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.setBufferTime" label="Set buffer time between booked appointments"
+              <CheckboxGroup v-model="formData.setBufferTime" :label="t('booking_set_buffer_time')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="Set a buffer time between appointment slots." tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" class="ml-1 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6" />
+              <TooltipIcon :text="t('booking_buffer_time_tooltip')" tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" class="ml-1 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6" />
             </div> -->
             <div class="flex gap-2">
               <CheckboxGroup
@@ -1504,10 +1706,10 @@
                 wrapperClass="flex items-center gap-2"
               >
                 <template #label>
-                  <span>Set buffer time between booked appointments</span>
+                  <span>{{ t("booking_set_buffer_time") }}</span>
 
                   <TooltipIcon
-                    text="Set a buffer time between appointment slots."
+                    :text="t('booking_buffer_time_tooltip')"
                     tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[200px]" 
                     class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                   />
@@ -1516,7 +1718,7 @@
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
-              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50':'opacity-100']">
+              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50 pointer-events-none':'opacity-100']">
                 <BaseInput type="number" placeholder="" v-model="formData.bufferTime"
                   :disabled="!formData.setBufferTime"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
@@ -1530,11 +1732,11 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <!-- <div class="flex gap-2 items-center">
-              <CheckboxGroup v-model="formData.setMaxBookings" label="Set maximum bookings per day"
+              <CheckboxGroup v-model="formData.setMaxBookings" :label="t('booking_set_max_bookings_day')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
-              <TooltipIcon text="Set a daily limit for how many appointments you can accept."/>
+              <TooltipIcon :text="t('booking_max_bookings_tooltip')"/>
             </div> -->
 
             <div class="flex gap-2">
@@ -1545,10 +1747,10 @@
                 wrapperClass="flex items-center gap-2"
               >
                 <template #label>
-                  <span>Set maximum bookings per day</span>
+                  <span>{{ t("booking_set_max_bookings_day") }}</span>
 
                   <TooltipIcon
-                    text="Set a daily limit for how many appointments you can accept."
+                    :text="t('booking_max_bookings_tooltip')"
                     tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
                     class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                   />
@@ -1557,35 +1759,36 @@
             </div>
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
-              <div class="opacity-50 flex justify-start items-end gap-2">
+              <div class="flex justify-start items-end gap-2">
                 <BaseInput type="number" placeholder="15" v-model="formData.maxBookingsPerDay"
                   :disabled="!formData.setMaxBookings"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               </div>
             </div>
           </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+          <div class="self-stretch _flex dn flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <!-- <div class="flex gap-2">
                 <CheckboxGroup v-model="formData.allowWaitlist"
-                  label="If booking slots are full, allow fans to join waitlist"
+                  :label="t('booking_join_waitlist_if_full')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
                   wrapperClass="flex items-center gap-2" />
-                <TooltipIcon text="An on-screen reminder will appear before your upcoming appointments." tooltipClass="translate-x-[-90%]"/>
+                <TooltipIcon :text="t('booking_waitlist_tooltip')" tooltipClass="translate-x-[-90%]"/>
               </div> -->
               <div class="flex gap-2">
                 <CheckboxGroup
+                  :disabled="true"
                   v-model="formData.allowWaitlist"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
                   wrapperClass="flex items-center gap-2"
                 >
                   <template #label>
-                    <span>If booking slots are full, allow fans to join waitlist</span>
+                    <span>{{ t("booking_join_waitlist_if_full") }}</span>
 
                     <TooltipIcon
-                      text="An on-screen reminder will appear before your upcoming appointments."
+                      :text="t('booking_waitlist_tooltip')"
                       tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
                       class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                     />
@@ -1594,12 +1797,12 @@
               </div>
               <div class="self-stretch inline-flex justify-start items-start gap-2">
                 <div class="w-6 h-10" />
-                <div class="opacity-50 inline-flex flex-col justify-start items-start">
+                <div :class="!formData.allowWaitlist ? 'opacity-50 pointer-events-none' : ''" class="inline-flex flex-col justify-start items-start">
                   <div class="inline-flex justify-end items-center gap-2">
                     <BaseInput type="number" placeholder="15" v-model="formData.waitlistSpots"
                       :disabled="!formData.allowWaitlist"
-                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">waitlist spots</div>
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_waitlist_spots") }}</div>
                   </div>
                 </div>
               </div>
@@ -1613,7 +1816,7 @@
 
     </form>
     <div :class="footerClass">
-      <ButtonComponent @click="goToNext" text="Next" variant="polygonLeft"
+      <ButtonComponent @click="goToNext" :text="t('common_next')" variant="polygonLeft"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200
           filter brightness-0 invert-0   /* Default: black */

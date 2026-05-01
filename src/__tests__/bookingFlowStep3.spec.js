@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const tokenGet = vi.fn();
 const showToast = vi.fn();
+let backendJwtToken = "jwt_test";
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -91,6 +92,14 @@ vi.mock("@/utils/toastBus.js", () => ({
   showToast,
 }));
 
+vi.mock("@/utils/backendJwt.js", () => ({
+  getBackendJwtToken: () => backendJwtToken,
+  setBackendJwtToken: vi.fn((token) => {
+    backendJwtToken = token;
+    return token;
+  }),
+}));
+
 vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
   mapCreateBookingToRequest: () => ({
     payment: {
@@ -134,6 +143,7 @@ describe("BookingFlowStep3", () => {
   beforeEach(() => {
     tokenGet.mockReset();
     showToast.mockReset();
+    backendJwtToken = "jwt_test";
   });
 
   it("checks balance using engine context ids even if the shared resolver falls back", async () => {
@@ -196,5 +206,93 @@ describe("BookingFlowStep3", () => {
 
     expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "change-schedule" });
     expect(engine.goToStep).toHaveBeenCalledWith(2);
+  });
+
+  it("defaults guests to top-up without checking token balance", async () => {
+    backendJwtToken = "";
+    const engine = createEngine();
+    engine.state.fanBooking.context.fanId = 0;
+    engine.state.bookingDetails.walletBalance = 400;
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    expect(tokenGet).not.toHaveBeenCalled();
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
+    expect(wrapper.text()).toContain("TOP UP NEEDED");
+    expect(wrapper.text()).toContain("TOP-UP AND PAY");
+  });
+
+  it("creates guest temporary holds with guest session identity and no auth header", async () => {
+    backendJwtToken = "";
+    const engine = createEngine();
+    engine.state.fanBooking.context.fanId = 0;
+    engine.callFlow.mockImplementation(async (flowName, _payload, options) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        engine.state.fanBooking.temporaryHold.temporaryHoldId = "temphold_evt_123_1_1";
+        engine.state.fanBooking.temporaryHold.guestHoldToken = "guest_hold_token";
+        engine.state.fanBooking.temporaryHold.status = "active";
+        engine.state.fanBooking.temporaryHold.expiresAt = new Date(Date.now() + 600000).toISOString();
+        return {
+          ok: true,
+          data: {
+            temporaryHoldId: "temphold_evt_123_1_1",
+            guestHoldToken: "guest_hold_token",
+          },
+          options,
+        };
+      }
+
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        return {
+          ok: true,
+          data: {
+            temporaryHoldId: "temphold_evt_123_1_1",
+            status: "active",
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+            secondsRemaining: 600,
+          },
+        };
+      }
+
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await flushAsync();
+
+    expect(engine.callFlow).toHaveBeenCalledWith(
+      "bookings.createTemporaryHold",
+      null,
+      expect.objectContaining({
+        context: expect.objectContaining({
+          userId: 0,
+          fanId: 0,
+          guestSessionId: expect.any(Number),
+          isGuestHold: true,
+          requestHeaders: { Authorization: null },
+        }),
+      }),
+    );
+    expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
   });
 });

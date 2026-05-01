@@ -26,14 +26,21 @@ function buildIdsEventParams(eventIds = [], payload = {}) {
   };
 }
 
-function buildBookedSlotParams(payload = {}) {
-  return {
+function buildBookedSlotParams(payload = {}, { includeEventId = false } = {}) {
+  const eventId = payload.eventId == null ? "" : String(payload.eventId).trim();
+  const params = {
     fromIso: payload.fromIso,
     toIso: payload.toIso,
     periodMonths: payload.periodMonths,
     limit: payload.slotLimit,
     statusIn: payload.statusIn,
   };
+
+  if (includeEventId && eventId) {
+    params.eventId = eventId;
+  }
+
+  return params;
 }
 
 function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
@@ -54,6 +61,12 @@ function readCachedRawEvents(context) {
 
   const cached = engine.getState("events.rawEvents");
   return Array.isArray(cached) ? cached : [];
+}
+
+function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
+  return eventsNotModified
+    ? getHttpStatus(bookedSlotsResponse, 200)
+    : eventsStatus;
 }
 
 function extractUniqueEventIdsFromSlots(slots = []) {
@@ -102,7 +115,7 @@ async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, he
     : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
   const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
-    params: buildBookedSlotParams(payload),
+    params: buildBookedSlotParams(payload, { includeEventId: true }),
     signal: context.signal,
     timeoutMs: context.requestTimeoutMs,
   });
@@ -123,7 +136,7 @@ async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, he
     },
     {
       flow: "bookings.fetchDashboardBookingContext",
-      status: eventsStatus,
+      status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
       etag,
       eventsNotModified,
       fetchedAt: Date.now(),
@@ -206,7 +219,7 @@ async function fetchFanDashboardContext({ payload, context, api, baseUrl }) {
     },
     {
       flow: "bookings.fetchDashboardBookingContext",
-      status: eventsStatus,
+      status: resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse),
       etag,
       eventsNotModified,
       fetchedAt: Date.now(),

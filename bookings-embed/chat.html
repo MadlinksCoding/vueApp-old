@@ -15,6 +15,9 @@
 <style>html, body { margin: 0; padding: 0; background: transparent; }</style>
 <body>
   <div id="chat-embed-app"></div>
+  <script>
+    window.userData = window?.parent?.userData || {}
+  </script>
   <script type="module" src="/src/embeds/chat/main.js"></script>
 </body>
 

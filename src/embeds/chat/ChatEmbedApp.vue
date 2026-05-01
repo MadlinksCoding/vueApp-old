@@ -7,6 +7,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue'
+import { setBackendJwtToken } from '@/utils/backendJwt.js'
 
 const widgetRef = ref(null)
 let resizeObserver   = null
@@ -37,7 +38,31 @@ if (apiBase) {
   window.__fsChatApiBaseUrl = apiBase
 }
 
+const fanUid = params.get('fanUid')
+if (fanUid) {
+  if (!window.userData) window.userData = {}
+  window.userData.fanUid = fanUid
+  window.__fsChatFanUid = fanUid
+}
+
+const jwtToken = params.get('jwtToken')
+if (jwtToken) {
+  setBackendJwtToken(jwtToken)
+}
+
 window.__fsChatEmbed = true
+
+const FS_CHAT_AUTH_UPDATE = 'FS_CHAT_AUTH_UPDATE'
+
+function onAuthUpdateMessage(event) {
+  if (event.source !== window.parent) return
+  const data = event.data || {}
+  if (data.type !== FS_CHAT_AUTH_UPDATE) return
+  const payload = data.payload || {}
+  if (typeof payload.jwtToken === 'string') {
+    setBackendJwtToken(payload.jwtToken)
+  }
+}
 
 function scheduleResize(el, delay = 30) {
   if (popupOpen) return
@@ -63,9 +88,15 @@ function notifyResize(el) {
     }
   })
 
-  // Use full visual span including left overflow (chat list extends left of widgetEl)
+  // Since the iframe is anchored to the right/bottom in the host page, resizing width/height moves its left/top edges.
+  // Therefore, the required width is the distance from the right edge to minLeft, plus padding.
+  // The distance from the right edge to minLeft is (window.innerWidth - minLeft).
+  // const w = Math.ceil(window.innerWidth - minLeft) + 32
+  // const h = Math.ceil(window.innerHeight - minTop) + 32
+
   const w = Math.ceil(maxRight - minLeft) + 32
   const h = Math.ceil(root.bottom - minTop) + 32
+
   window.parent.postMessage({ type: 'FS_CHAT_RESIZE', payload: { width: w, height: h } }, '*')
 }
 
@@ -120,6 +151,8 @@ function attachObserver(el) {
 }
 
 onMounted(() => {
+  window.addEventListener('message', onAuthUpdateMessage)
+
   const stopWatch = watch(
     () => widgetRef.value?.widgetEl,
     (el) => {
@@ -132,6 +165,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('message', onAuthUpdateMessage)
   clearTimeout(resizeTimer)
   resizeObserver?.disconnect()
   mutationObserver?.disconnect()

@@ -1,10 +1,11 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let engine;
 let routeState;
 let availableEvents;
+let chatSocketInit;
 const callFlow = vi.fn();
 const showToast = vi.fn();
 
@@ -41,6 +42,7 @@ function createMockEngine() {
           name: null,
           isVerified: null,
         },
+        creatorPresentationLoading: false,
         selectedEventId: null,
         selectedEvent: null,
       },
@@ -115,6 +117,12 @@ vi.mock("@/utils/contextIds.js", () => ({
   resolveFanIdFromContext: ({ preferredId, route, fallback }) => preferredId ?? route?.query?.userId ?? fallback,
 }));
 
+vi.mock("@/composables/useChatSocket", () => ({
+  useChatSocket: () => ({
+    init: chatSocketInit,
+  }),
+}));
+
 vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
   default: {
     name: "ToastHost",
@@ -143,17 +151,24 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue", 
   },
 }));
 
-vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", () => ({
-  default: {
-    name: "BookingFlowStep4",
-    template: "<div data-test='step-4'>Step 4</div>",
-  },
-}));
+vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", async (importOriginal) => {
+  const actual = await importOriginal();
+
+  return {
+    ...actual,
+    default: {
+      name: "BookingFlowStep4",
+      emits: ["close-popup"],
+      template: "<button data-test='step-4-close' @click=\"$emit('close-popup')\">Step 4</button>",
+    },
+  };
+});
 
 describe("OneOnOneBookingFlowFeature", () => {
   beforeEach(() => {
     routeState = { query: {} };
     availableEvents = [];
+    chatSocketInit = vi.fn();
     showToast.mockReset();
     callFlow.mockReset();
 
@@ -163,6 +178,22 @@ describe("OneOnOneBookingFlowFeature", () => {
       engine.state.fanBooking.catalog.events = availableEvents.map((event) => ({ ...event }));
       return { ok: true, data: {} };
     });
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "success",
+        user: {
+          avatar: "https://example.com/creator.webp",
+          display_name: "Creator Display",
+          is_premium: true,
+        },
+      }),
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("loads booking context from explicit creator and fan props and forwards apiBaseUrl", async () => {
@@ -206,6 +237,54 @@ describe("OneOnOneBookingFlowFeature", () => {
     });
   });
 
+  it("fetches dynamic creator profile data and stores it in creator presentation state", async () => {
+    availableEvents = [{ eventId: "evt_alpha", title: "Alpha Event" }];
+    let resolveFetch;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi.fn(() => fetchPromise);
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 999,
+      },
+    });
+
+    await flushAsync();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(requestedUrl.pathname).toBe("/wp-json/api/users/get-profile-data");
+    expect(requestedUrl.searchParams.get("id")).toBe("1407");
+    expect(engine.state.fanBooking.context.creatorPresentationLoading).toBe(true);
+
+    resolveFetch({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "success",
+        user: {
+          avatar: "https://example.com/api-creator.webp",
+          display_name: "API Creator",
+          username: "api_creator",
+          is_premium: true,
+        },
+      }),
+    });
+    await flushAsync();
+    await flushPromises();
+
+    expect(engine.state.fanBooking.context.creatorPresentation).toEqual({
+      avatar: "https://example.com/api-creator.webp",
+      name: "API Creator",
+      isVerified: true,
+    });
+    expect(engine.state.fanBooking.context.creatorPresentationLoading).toBe(false);
+  });
+
   it("starts on step 2 when a valid eventId prop matches the loaded catalog", async () => {
     availableEvents = [{ eventId: "evt_selected", title: "Selected Event" }];
     const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
@@ -224,6 +303,54 @@ describe("OneOnOneBookingFlowFeature", () => {
     expect(engine.state.fanBooking.context.selectedEventId).toBe("evt_selected");
     expect(engine.state.fanBooking.context.selectedEvent).toEqual(
       expect.objectContaining({ eventId: "evt_selected" }),
+    );
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.fetchCreatorBookingContext",
+      expect.objectContaining({
+        creatorId: 1407,
+        fanId: 12,
+      }),
+      expect.objectContaining({
+        forceRefresh: true,
+        skipDestinationRead: true,
+        bypassEtag: true,
+      }),
+    );
+    expect(wrapper.find("[data-test='step-2']").exists()).toBe(true);
+  });
+
+  it("uses a fresh catalog for direct event opens even when stale state is missing the requested event", async () => {
+    engine.state.fanBooking.catalog.events = [{ eventId: "evt_stale", title: "Stale Event" }];
+    callFlow.mockImplementationOnce(async (_flowName, _payload, options = {}) => {
+      if (options.forceRefresh === true && options.skipDestinationRead === true && options.bypassEtag === true) {
+        engine.state.fanBooking.catalog.events = [{ eventId: "evt_selected", title: "Selected Event" }];
+      }
+
+      return { ok: true, data: {} };
+    });
+
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+        eventId: "evt_selected",
+      },
+    });
+
+    await flushAsync();
+
+    expect(engine.step).toBe(2);
+    expect(engine.state.fanBooking.context.selectedEventId).toBe("evt_selected");
+    expect(engine.state.fanBooking.context.selectedEvent).toEqual(
+      expect.objectContaining({ eventId: "evt_selected" }),
+    );
+    expect(showToast).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        title: "Event Unavailable",
+      }),
     );
     expect(wrapper.find("[data-test='step-2']").exists()).toBe(true);
   });
@@ -252,5 +379,74 @@ describe("OneOnOneBookingFlowFeature", () => {
         title: "Event Unavailable",
       }),
     );
+  });
+
+  it("still fetches booking context when chat socket initialization throws", async () => {
+    availableEvents = [{ eventId: "evt_alpha", title: "Alpha Event" }];
+    chatSocketInit = vi.fn(() => {
+      throw new Error("socket init failed");
+    });
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 999,
+      },
+    });
+
+    await flushAsync();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.fetchCreatorBookingContext",
+      expect.objectContaining({
+        creatorId: 1407,
+        fanId: 999,
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("emits close-request when the wrapper close button is clicked", async () => {
+    availableEvents = [{ eventId: "evt_selected", title: "Selected Event" }];
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+        eventId: "evt_selected",
+      },
+    });
+
+    await flushAsync();
+    await wrapper.get("[data-test='booking-flow-close-button']").trigger("click");
+
+    expect(wrapper.emitted("close-request")).toHaveLength(1);
+  });
+
+  it("forwards step 4 close-popup as close-request", async () => {
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+      },
+    });
+
+    await flushAsync();
+    engine.step = 4;
+    await flushAsync();
+    await flushPromises();
+
+    const asyncWrapper = wrapper.findComponent({ name: "AsyncComponentWrapper" });
+    expect(asyncWrapper.exists()).toBe(true);
+
+    const onClosePopup = asyncWrapper.vm.$.vnode.props?.onClosePopup;
+    expect(typeof onClosePopup).toBe("function");
+    onClosePopup();
+
+    expect(wrapper.emitted("close-request")).toHaveLength(1);
   });
 });

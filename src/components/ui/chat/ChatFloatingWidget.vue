@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
+import ToastHost from "@/components/ui/toast/ToastHost.vue";
 
 const props = defineProps({
   userId: { type: [String, Number], default: null },
@@ -117,9 +118,24 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
 const socket    = ref(null)
 const widgetEl  = ref(null)
 
+// Track host width for iframe embeds, while still allowing normal tailwind md classes
+const hostWidth = ref(window.innerWidth)
+
 defineExpose({ widgetEl })
 
 onMounted(async () => {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('hostWidth')) {
+    hostWidth.value = parseInt(params.get('hostWidth'), 10)
+  }
+
+  const handleHostResize = (e) => {
+    if (e.data?.type === 'FS_CHAT_HOST_RESIZE') {
+      hostWidth.value = e.data.payload.width
+    }
+  }
+  window.addEventListener('message', handleHostResize)
+
   if (props.userId) {
     currentUserId.value = String(props.userId)
   } else {
@@ -131,19 +147,6 @@ onMounted(async () => {
     s.init()
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
-
-    // Fetch unread counts for all chats in parallel
-    await Promise.all(
-      chatStore.userChats.map(async (chat) => {
-        const res = await FlowHandler.run('chat.getUnreadCount', {
-          chatId: chat.chat_id,
-          userId: currentUserId.value,
-        })
-        if (res?.ok) {
-          chatStore.setChatUnreadCount(chat.chat_id, res.data.count)
-        }
-      })
-    )
 
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [
@@ -166,7 +169,11 @@ onMounted(async () => {
   <div
     v-if="currentUserId"
     ref="widgetEl"
-    class="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2"
+    class="fixed bottom-2 right-2 z-[9999] flex flex-col items-end gap-2"
+    :class="[
+      hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
+      hostWidth > 1024 ? 'bottom-4 right-2' : '',
+    ]"
   >
 
     <!-- Open chat windows (stack left of the trigger) -->
@@ -204,30 +211,54 @@ onMounted(async () => {
       <!-- Trigger button (UI-01.0) -->
       <button
         @click="toggleList"
-        class="flex items-center gap-2 bg-white border border-zinc-200 rounded-full px-4 py-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+        class="
+         right-2 bottom-0
+         md:right-10 md:bottom-0
+         md:max-[1009px]:rounded-t-[10px]
+         md:max-[1009px]:rounded-b-none
+         max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
+         lg:right-auto lg:bottom-4
+         chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+        :class="[
+          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 !rounded-t-[10px] !rounded-b-none' : '',
+          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0' : '',
+          hostWidth >= 1024 ? '!right-auto !bottom-4' : ''
+        ]"
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
           <img :src="MessageTextIcon" alt="" class="w-6 h-6 filter brightness-0 cursor-pointer" />
           <span
             v-if="unreadCount > 0"
-            class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none"
-          >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+            class="unread-badge-mobile absolute -top-3 -right-2 bg-[#FF0066] text-white text-[9px] font-bold rounded-xl p-1 items-center justify-center leading-none"
+            :class="hostWidth >= 768 ? '!hidden' : ''"
+          >
+             {{ unreadCount > 9 ? '9+' : unreadCount }}
+          </span>
+          <span
+            v-if="unreadCount > 0"
+            class="unread-badge absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
+            :class="hostWidth >= 768 ? '!flex' : ''"
+          >
+          </span>
         </div>
 
-        <span v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span v-else>Chat</span>
+        <span class="hidden md:flex unread-text" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex chat-text" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
 
         <!-- Chevron -->
-        <svg
-          class="w-3.5 h-3.5 text-zinc-400 transition-transform"
-          :class="isListOpen ? 'rotate-180' : ''"
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-        </svg>
+        <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
+            <svg
+              class="w-3.5 h-3.5 text-zinc-400 transition-transform"
+              :class="isListOpen ? 'rotate-180' : ''"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+            </svg>
+        </div>
       </button>
 
     </div>
   </div>
+  <ToastHost />
 </template>

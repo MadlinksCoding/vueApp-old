@@ -39,6 +39,7 @@ export async function createTemporaryHoldFlow({ payload, context, api }) {
       {
         temporaryHoldId: response?.temporaryHoldId || temporaryHold?.temporaryHoldId || null,
         expiresAt: response?.expiresAt || temporaryHold?.expiresAt || null,
+        guestHoldToken: response?.guestHoldToken || temporaryHold?.guestHoldToken || null,
         temporaryHold,
       },
       {

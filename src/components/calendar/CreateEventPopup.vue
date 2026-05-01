@@ -8,16 +8,15 @@
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
                         <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8">
-                            Create Private
-                            Booking</div>
+                            {{ t("dashboard_create_private_booking") }}
+                        </div>
                         <div
                             class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 text-nowrap">
-                            by
-                            booking</div>
+                            {{ t("dashboard_by_booking") }}</div>
                     </div>
-                    <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-6">Let your
-                        fans
-                        schedule one on one time with you via video or audio call.</div>
+                    <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-6">
+                        {{ t("dashboard_create_private_booking_body") }}
+                    </div>
                 </div>
                 <img class="w-20 h-20" :src="cartoonFeetIcon" alt="" />
             </div>
@@ -27,16 +26,14 @@
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
                         <div class="justify-center text-rose-600 text-xl font-semibold font-['Poppins'] md:leading-8">
-                            Create Group
-                            Event</div>
+                            {{ t("dashboard_create_group_event") }}</div>
                         <div
                             class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 text-nowrap">
-                            scheduled
-                            events</div>
+                            {{ t("dashboard_scheduled_events") }}</div>
                     </div>
-                    <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-6">Create
-                        event for
-                        fans to join.</div>
+                    <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-6">
+                        {{ t("dashboard_create_group_event_body") }}
+                    </div>
                 </div>
                 <img class="w-20 h-20" :src="NeonDoorIcon" />
             </div>
@@ -47,8 +44,10 @@
 <script setup>
 import cartoonFeetIcon from "@/assets/images/icons/cartoonfeet.webp";
 import NeonDoorIcon from "@/assets/images/icons/neonDoor.png";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const emit = defineEmits(["create-private", "create-group"]);
+const { t } = useBookingTranslations();
 
 const onCreatePrivate = () => {
     emit("create-private");

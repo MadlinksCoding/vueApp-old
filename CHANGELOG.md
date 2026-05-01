@@ -1,5 +1,88 @@
 # Changelog
 
+## 2026-04-29 — Booking Bubble 3-Dot Menu, Cancel Confirmation & Submit Flow Fixes
+
+### Added
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- Added 3-dot action menu to the pinned booking banner (creator only, non-terminal states). Menu items: **Ask for More Time**, **Ask to Reschedule**, **Cancel Call**.
+- Buttons are visually disabled (`opacity-30`, `pointer-events-none`, `cursor-not-allowed`) when the call has already passed, using a new `isPassCall` computed that checks booking start/end times.
+- Added `ask-more-time` and `ask-to-reschedule` to emitted events; wired click-outside handler to auto-close the menu.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- Wired `@ask-more-time` and `@ask-to-reschedule` on the pinned booking bubble.
+- Wired `@accept-counter`, `@reject-counter`, `@ask-more-time`, and `@ask-to-reschedule` on the in-message booking bubble (previously missing).
+- Added `showBookingPopup = false` after submit actions (more time, reschedule, adjust, cancel) so the detail popup closes automatically on success.
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `onCancelBooking()` now sets `showCancelCallPopup = true` instead of immediately cancelling — the `CancelCallConfirmPopup` handles the API call and confirmation.
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- 3-dot menu buttons (Ask for More Time, Ask to Reschedule, Cancel Call) are now disabled with greyed-out styling when `statusHint === 'Confirmed'` (call is live).
+
+#### `src/components/ui/chat/MoreTimeRequestPopup.vue`
+- `bookings.updateMeta` is now called before `chat.updateMessage` in the submit flow (previously reversed).
+- Added `bookingId` guard — shows a toast and returns early if booking ID is missing.
+- Added error toast when `chat.updateMessage` fails.
+- Introduced `startDateIso` computed to resolve booking start date from `booking.startIso / startAtIso` with fallback to message content fields.
+
+#### `src/components/ui/chat/RescheduleRequestPopup.vue`
+- Same submit flow fix as `MoreTimeRequestPopup`: `bookings.updateMeta` first, then `chat.updateMessage`, with error handling and `bookingId` guard.
+- Introduced `startDateIso` computed with the same resolution chain.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- `parseStartMs()` now uses a `startDateIso` computed (`booking.startIso / startAtIso` → `content.start_at` → `content.slot_date`) instead of `content.start_at` only.
+
+---
+
+## 2026-04-24 — Chat Flow Improvements, Pagination & Read-Receipt Fix
+
+### Added
+
+#### `src/services/chat/flows/getChatFlow.js`
+- Already existed but was unregistered. Now registered in `flowRegistry.js` as `"chat.getChat"` — fetches a single chat by `chatId` via `GET /chats/:chatId`.
+
+#### `src/services/chat/chatResolverUtils.js` _(new)_
+- **`resolveAndSyncChat(chatId)`** — shared helper used by both `useChatSocket` and `ChatWindow`. Calls `chat.getChat`, prepends the result to the store via `prependChat`, then fire-and-forgets `chat.fetchChatUsersData` for any participant IDs not yet in `chatUsersData`.
+- **`isMessageReadByUser(msg, userId)`** — pure utility. Returns `true` if the user is the message sender or is present in `msg.read_receipts`. Used to gate `markMessageRead` calls.
+
+#### `src/stores/useChatStore.js`
+- **`prependChat(item)`** — adds a single chat to the front of `userChats` (no-op if already present), and seeds `chatParticipants` / `chatPinnedMessages` from the item.
+- **`chatsNextCursor`** and **`chatsHasMore`** state fields for cursor-based pagination of the user chat list.
+
+### Changed
+
+#### `src/composables/useChatSocket.js`
+- `_handleIncomingChatMessage`: replaced full `chat.fetchUserChats` reload (for unknown chats) with `resolveAndSyncChat(chatId)` — fetches only the one unknown chat and syncs participant user data.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `ensureActiveChat`: replaced `chat.fetchUserChats` reload after chat creation with `resolveAndSyncChat(activeChatId)`.
+- `observeNewRows`: replaced `msg.status === 'read'` skip with `isMessageReadByUser(msg, currentUserId)` — messages marked read by another user but not the current viewer are now correctly observed and marked.
+- `watch(pinnedBookingMessage)`: same `isMessageReadByUser` fix applied — pinned messages with global `status: "read"` are now marked read for the current user if they are not in `read_receipts`.
+
+#### `src/services/chat/flows/fetchUserChatsFlow.js`
+- Accepts `limit` (default `15`) and `cursor` payload fields, forwarded as query params to `GET /chats/user/:userId`.
+- Returns `nextCursor` from the response and `append: !!cursor` so the store knows whether to replace or merge the list.
+
+#### `src/stores/useChatStore.js`
+- `fetchUserChatsAction`: handles both initial load (replace) and load-more (merge). On merge, existing chats are updated with fresh server data; new chats are appended. `chatsNextCursor` and `chatsHasMore` are updated on every call.
+- `clearCache`: resets `chatsNextCursor` and `chatsHasMore`.
+
+#### `src/services/flow-system/flowRegistry.js`
+- Registered `"chat.getChat"` flow entry.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- Added scroll-based infinite loading: attaches a `scroll` listener to the chat list container; triggers `chat.fetchUserChats` with the stored cursor when the user scrolls within 40px of the bottom.
+- Replaced "Load more" button with a centered SVG spinner shown while `isLoadingMore` is true.
+- Guard prevents concurrent fetches (`isLoadingMore` flag + `chatsHasMore` check).
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- Removed `Promise.all` loop that called `chat.getUnreadCount` for every chat on mount — `unread_count` is now trusted directly from the `fetchUserChats` response.
+
+---
+
 ## 2026-04-09 — Booking Counter-Offer Meta, UI Polish & Bug Fixes
 
 ### Features

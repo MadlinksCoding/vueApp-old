@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
 import FlowHandler from '@/services/flow-system/FlowHandler';
+import { resolveAndSyncChat } from '@/services/chat/chatResolverUtils';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -10,21 +11,32 @@ const PARENT_TIMEOUT_MS = 1000;
 
 // Singleton: socket is initialised once for the widget lifetime
 let _mode = null; // 'parent' | 'own' | null
-const _isReady = ref(false);
+let _socketState = null;
 
 let _parentMessageHandler = null;
 let _ownSocketHandler = null;
 
+function getSocketState() {
+  if (_socketState) return _socketState;
+
+  _socketState = {
+    isReady: ref(false),
+  };
+
+  return _socketState;
+}
+
 export function useChatSocket(userId) {
   const chatStore = useChatStore();
+  const socketState = getSocketState();
 
   async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
 
-    // If this chat isn't in the list yet, re-fetch so it appears without a page refresh
+    // If this chat isn't in the list yet, fetch it and sync unread count
     const knownChat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
-    if (!knownChat && userId) {
-      await FlowHandler.run('chat.fetchUserChats', { userId: String(userId) })
+    if (!knownChat) {
+      await resolveAndSyncChat(body.chat_id)
     }
 
     // Fetch user data for any participant not yet in the store (fire-and-forget)
@@ -104,7 +116,7 @@ export function useChatSocket(userId) {
   }
 
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
-  function _attachOwnSocket(SH) {
+  function _attachOwnSocket(SH, fromParent = false) {
     SH.identifyCurrentUser(userId);
     if (typeof SH._initializeSocketConnection === 'function') SH._initializeSocketConnection();
 
@@ -113,10 +125,21 @@ export function useChatSocket(userId) {
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
       else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
     };
-    window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
+    if( fromParent ) {
+      SH.registerSocketListener({
+        flag: 'chat:message',
+        callback: (body) => _handleIncomingChatMessage(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:status',
+        callback: (body) => _handleIncomingStatusUpdate(body),
+      });
+    } else {
+      window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
+    }
 
     _mode = 'own';
-    _isReady.value = true;
+    socketState.isReady.value = true;
   }
 
   function _initOwnSocket() {
@@ -125,7 +148,7 @@ export function useChatSocket(userId) {
       const parentSH = window.parent?.SocketHandler;
       if (parentSH) {
         console.log('[ChatSocket] Using parent window SocketHandler for user:', userId);
-        _attachOwnSocket(parentSH);
+        _attachOwnSocket(parentSH, true);
         return;
       }
     } catch {
@@ -150,13 +173,13 @@ export function useChatSocket(userId) {
       } else {
         console.warn('[ChatSocket] SocketHandler script loaded but global not found. Real-time disabled.');
         _mode = 'own';
-        _isReady.value = true;
+        socketState.isReady.value = true;
       }
     };
     script.onerror = () => {
       console.warn('[ChatSocket] Failed to load SocketHandler script. Real-time disabled.');
       _mode = 'own';
-      _isReady.value = true;
+      socketState.isReady.value = true;
     };
     document.head.appendChild(script);
   }
@@ -173,7 +196,7 @@ export function useChatSocket(userId) {
         _parentMessageHandler = _onParentIncoming;
         window.addEventListener('message', _parentMessageHandler);
         _mode = 'parent';
-        _isReady.value = true;
+        socketState.isReady.value = true;
         console.log('[ChatSocket] Using parent window socket.');
       } else {
         _initOwnSocket();
@@ -259,8 +282,8 @@ export function useChatSocket(userId) {
       _parentMessageHandler = null;
     }
     _mode = null;
-    _isReady.value = false;
+    socketState.isReady.value = false;
   });
 
-  return { init, sendChatMessage, sendStatusUpdate, isReady: _isReady };
+  return { init, sendChatMessage, sendStatusUpdate, isReady: socketState.isReady };
 }

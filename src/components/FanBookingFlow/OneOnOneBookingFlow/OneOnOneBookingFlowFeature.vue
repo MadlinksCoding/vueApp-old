@@ -1,6 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { showToast } from "@/utils/toastBus.js";
@@ -13,13 +12,96 @@ import {
 import { addMinutesToHm } from "@/services/events/eventsApiUtils.js";
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
-import { normalizeCreatorPresentationInput } from "./creatorPresentation.js";
+import {
+  normalizeCreatorPresentationInput,
+  normalizeCreatorProfilePresentation,
+} from "./creatorPresentation.js";
+import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import BookingFlowStep1 from "./BookingFlowStep1.vue";
 import BookingFlowStep2 from "./BookingFlowStep2.vue";
-import BookingFlowStep3 from "./BookingFlowStep3.vue";
-import BookingFlowStep4 from "./BookingFlowStep4.vue";
+import BookingFlowStepLoading from "./BookingFlowStepLoading.vue";
 import { useChatSocket } from '@/composables/useChatSocket';
+import { bookingFlowCrossWhiteIcon } from "./oneOnOneBookingFlowAssets.js";
+
+const loadBookingFlowStep3 = () => import("./BookingFlowStep3.vue");
+const loadBookingFlowStep4 = () => import("./BookingFlowStep4.vue");
+
+let bookingFlowStep3PrefetchPromise = null;
+let bookingFlowStep4PrefetchPromise = null;
+
+function prefetchBookingFlowStep3(reason = "unknown") {
+  if (bookingFlowStep3PrefetchPromise) return bookingFlowStep3PrefetchPromise;
+
+  logFanBookingDebug("feature", "step3-prefetch:start", { reason });
+  bookingFlowStep3PrefetchPromise = loadBookingFlowStep3()
+    .then((module) => {
+      logFanBookingDebug("feature", "step3-prefetch:resolved", { reason });
+      return module;
+    })
+    .catch((error) => {
+      bookingFlowStep3PrefetchPromise = null;
+      logFanBookingDebug("feature", "step3-prefetch:error", {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return bookingFlowStep3PrefetchPromise;
+}
+
+function prefetchBookingFlowStep4(reason = "unknown") {
+  if (bookingFlowStep4PrefetchPromise) return bookingFlowStep4PrefetchPromise;
+
+  logFanBookingDebug("feature", "step4-prefetch:start", { reason });
+  bookingFlowStep4PrefetchPromise = loadBookingFlowStep4()
+    .then((module) => {
+      logFanBookingDebug("feature", "step4-prefetch:resolved", { reason });
+      return module;
+    })
+    .catch((error) => {
+      bookingFlowStep4PrefetchPromise = null;
+      logFanBookingDebug("feature", "step4-prefetch:error", {
+        reason,
+        message: error?.message || String(error),
+      });
+      throw error;
+    });
+
+  return bookingFlowStep4PrefetchPromise;
+}
+
+function scheduleIdleWork(task) {
+  if (typeof window === "undefined") {
+    Promise.resolve().then(task).catch(() => {});
+    return;
+  }
+
+  const run = () => Promise.resolve().then(task).catch(() => {});
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 800 });
+    return;
+  }
+
+  window.setTimeout(run, 0);
+}
+
+const BookingFlowStep3 = defineAsyncComponent({
+  loader: () => prefetchBookingFlowStep3("step-render"),
+  delay: 120,
+  suspensible: false,
+  loadingComponent: BookingFlowStepLoading,
+});
+
+const BookingFlowStep4 = defineAsyncComponent({
+  loader: () => prefetchBookingFlowStep4("step-render"),
+  delay: 120,
+  suspensible: false,
+  loadingComponent: BookingFlowStepLoading,
+});
 const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
@@ -35,8 +117,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close-request", "booking-created", "booking-failed"]);
-const route = useRoute();
+const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
+const hasScheduledStep3Prefetch = ref(false);
+const hasScheduledStep4Prefetch = ref(false);
+let creatorProfileAbortController = null;
+let creatorProfileRequestId = 0;
 
 const engine = createFlowStateEngine({
   flowId: "fan-one-on-one-booking-flow",
@@ -65,6 +151,7 @@ const engine = createFlowStateEngine({
           name: null,
           isVerified: null,
         },
+        creatorPresentationLoading: false,
         selectedEventId: null,
         selectedEvent: null,
       },
@@ -93,6 +180,8 @@ const engine = createFlowStateEngine({
         secondsRemaining: 0,
         createdAt: null,
         checkedAt: null,
+        guestSessionId: null,
+        guestHoldToken: null,
       },
       booking: {
         result: null,
@@ -163,6 +252,11 @@ function getPreviewDurationMinutes(event) {
   return Math.floor(parsed);
 }
 
+function isGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+}
+
 function toPreviewDurationObject(event, durationMinutes) {
   const raw = event?.raw || {};
   const baseMinutes = Number(raw.sessionDurationMinutes ?? event?.sessionDurationMinutes ?? 15);
@@ -195,6 +289,7 @@ function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45)
     if (!Array.isArray(candidates) || candidates.length === 0) continue;
 
     const uiSlots = candidates.map((slot) => createSlotUiModel({
+      event,
       eventId: previewEventId,
       localDateIso: dateIso,
       slot,
@@ -218,6 +313,7 @@ function resolvePreviewDefaultSelection(event, bookedSlotsIndex, daysAhead = 45)
 }
 
 function resolveCreatorId() {
+  const route = getRouteContext();
   return resolveCreatorIdFromContext({
     preferredId: props.creatorId,
     route,
@@ -227,12 +323,50 @@ function resolveCreatorId() {
 }
 
 function resolveFanId() {
+  const route = getRouteContext();
   return resolveFanIdFromContext({
     preferredId: props.fanId,
     route,
     engine,
-    fallback: 2,
+    fallback: 0,
   });
+}
+
+async function fetchCreatorPresentation(creatorId, fallbackPresentation = {}) {
+  if (creatorProfileAbortController) {
+    creatorProfileAbortController.abort();
+    creatorProfileAbortController = null;
+  }
+
+  if (creatorId === null || creatorId === undefined || creatorId === "") {
+    engine.setState("fanBooking.context.creatorPresentationLoading", false, { reason: "creator-profile-missing", silent: true });
+    return;
+  }
+
+  const requestId = creatorProfileRequestId + 1;
+  creatorProfileRequestId = requestId;
+  const controller = new AbortController();
+  creatorProfileAbortController = controller;
+  engine.setState("fanBooking.context.creatorPresentationLoading", true, { reason: "creator-profile-fetch", silent: true });
+
+  try {
+    const user = await fetchUserProfileData(creatorId, { signal: controller.signal });
+    if (creatorProfileRequestId !== requestId) return;
+
+    const creatorPresentation = normalizeCreatorProfilePresentation(user, fallbackPresentation);
+    engine.setState("fanBooking.context.creatorPresentation", creatorPresentation, { reason: "creator-profile-fetch", silent: true });
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    logFanBookingDebug("feature", "creator-profile-fetch:error", {
+      creatorId,
+      message: error?.message || String(error),
+    });
+  } finally {
+    if (creatorProfileRequestId === requestId) {
+      creatorProfileAbortController = null;
+      engine.setState("fanBooking.context.creatorPresentationLoading", false, { reason: "creator-profile-fetch", silent: true });
+    }
+  }
 }
 
 function syncBookingContext() {
@@ -258,8 +392,23 @@ function syncBookingContext() {
   engine.setState("fanBooking.context.creatorId", creatorId, { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.fanId", fanId, { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.creatorPresentation", creatorPresentation, { reason: "feature-context", silent: true });
+  fetchCreatorPresentation(creatorId, creatorPresentation);
 
   return { creatorId, fanId, creatorPresentation };
+}
+
+function getRouteContext() {
+  if (typeof window === "undefined") return null;
+
+  var params = new URLSearchParams(window.location.search || "");
+  return {
+    query: {
+      creatorId: params.get("creatorId"),
+      fanId: params.get("fanId"),
+      userId: params.get("userId"),
+      eventId: params.get("eventId"),
+    },
+  };
 }
 
 function clearSelectedEvent(reason = "event-clear") {
@@ -272,7 +421,7 @@ function resolveRequestedEventId() {
     return props.eventId;
   }
 
-  const queryEventId = route.query?.eventId;
+  const queryEventId = getRouteContext()?.query?.eventId;
   if (queryEventId !== null && queryEventId !== undefined && queryEventId !== "") {
     return queryEventId;
   }
@@ -300,20 +449,24 @@ function selectEventById(eventId) {
 
 async function loadBookingContext({ forceRefresh = false } = {}) {
   const { creatorId, fanId } = syncBookingContext();
+  const requestedEventId = resolveRequestedEventId();
+  const shouldRequireFreshCatalog = Boolean(requestedEventId);
   clearSelectedEvent("catalog-load");
 
   logFanBookingDebug("feature", "loadBookingContext:start", {
     creatorId,
     fanId,
     forceRefresh,
+    requestedEventId,
+    shouldRequireFreshCatalog,
   });
 
-  if (creatorId == null || fanId == null) {
-    const message = "Missing creator or fan user id for booking flow.";
+  if (creatorId == null) {
+    const message = t("fan_booking_missing_creator_id");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Load Failed",
+      title: t("fan_booking_load_failed_title"),
       message,
     });
     return { ok: false, error: { message } };
@@ -328,7 +481,9 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     "bookings.fetchCreatorBookingContext",
     { creatorId, fanId, status: "active", limit: 100, periodMonths: 6, slotLimit: 2000 },
     {
-      forceRefresh,
+      forceRefresh: forceRefresh || shouldRequireFreshCatalog,
+      skipDestinationRead: shouldRequireFreshCatalog,
+      bypassEtag: shouldRequireFreshCatalog,
       context: {
         stateEngine: engine,
         creatorId,
@@ -341,11 +496,11 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
   engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
 
   if (!result?.ok) {
-    const message = result?.meta?.uiErrors?.[0] || result?.error?.message || "Could not load events.";
+    const message = result?.meta?.uiErrors?.[0] || result?.error?.message || t("fan_booking_load_failed_message");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Load Failed",
+      title: t("fan_booking_load_failed_title"),
       message,
     });
     return result;
@@ -358,15 +513,14 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     requestedEventId: resolveRequestedEventId(),
   });
 
-  const requestedEventId = resolveRequestedEventId();
   if (requestedEventId) {
     const selectedEvent = selectEventById(requestedEventId);
     if (!selectedEvent) {
       logFanBookingDebug("feature", "loadBookingContext:event-missing", { requestedEventId });
       showToast({
         type: "error",
-        title: "Event Unavailable",
-        message: "Selected event is no longer available.",
+        title: t("fan_booking_event_unavailable_title"),
+        message: t("fan_booking_event_unavailable_message"),
       });
       return result;
     }
@@ -386,11 +540,11 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
 async function loadPreviewContext() {
   const previewEvent = deepClone(props.previewEvent);
   if (!previewEvent || typeof previewEvent !== "object") {
-    const message = "Preview event is not ready yet.";
+    const message = t("fan_booking_preview_not_ready");
     engine.setState("fanBooking.ui.catalogError", message, { reason: "preview-load-failed", silent: true });
     showToast({
       type: "error",
-      title: "Preview Unavailable",
+      title: t("fan_booking_preview_unavailable_title"),
       message,
     });
     return { ok: false, error: { message } };
@@ -445,18 +599,22 @@ async function loadPreviewContext() {
     engine.setState("fanBooking.context.selectedEvent", previewEvent, { reason: "preview-load", silent: true });
   }
 
-  const defaultDurationMinutes = getPreviewDurationMinutes(previewEvent);
   const defaultSelection = resolvePreviewDefaultSelection(previewEvent, previewBookedSlotsIndex);
   const selectedDateIso = defaultSelection?.selectedDateIso || null;
   const selectedDate = defaultSelection?.selectedDate || null;
   const selectedSlot = defaultSelection?.selectedSlot || null;
+  const slotDurationMinutes = selectedSlot?.durationMinutes
+    || (selectedSlot?.startMs && selectedSlot?.endMs ? Math.round((selectedSlot.endMs - selectedSlot.startMs) / (60 * 1000)) : 0);
+  const defaultDurationMinutes = isGroupEvent(previewEvent) && slotDurationMinutes > 0
+    ? slotDurationMinutes
+    : getPreviewDurationMinutes(previewEvent);
   const selectedDuration = toPreviewDurationObject(previewEvent, defaultDurationMinutes);
 
   const formattedTimeRange = selectedSlot
     ? `${hmToLabel(selectedSlot.startHm || selectedSlot.value)}-${hmToLabel(addMinutesToHm(selectedSlot.startHm || selectedSlot.value, defaultDurationMinutes))}`
     : "-";
   const selectedDateDisplay = selectedDate
-    ? selectedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? selectedDate.toLocaleDateString(locale.value, { month: "long", day: "numeric", year: "numeric" })
     : "";
 
   engine.setState("bookingDetails", {
@@ -485,6 +643,8 @@ async function loadPreviewContext() {
     secondsRemaining: 0,
     createdAt: null,
     checkedAt: null,
+    guestSessionId: null,
+    guestHoldToken: null,
   }, { reason: "preview-load", silent: true });
 
   await engine.forceStep(startStep, { intent: "feature-open-preview" });
@@ -508,6 +668,27 @@ function getActiveTemporaryHoldId() {
   return temporaryHoldId;
 }
 
+function getGuestHoldHeaders() {
+  const guestHoldToken = engine.getState("fanBooking.temporaryHold.guestHoldToken") || "";
+  return guestHoldToken ? { "X-Guest-Hold-Token": String(guestHoldToken) } : {};
+}
+
+function initializeChatSocketSafely(fanId) {
+  if (fanId == null || fanId <= 0) return;
+
+  try {
+    const socket = useChatSocket(fanId);
+    if (socket && typeof socket.init === "function") {
+      socket.init();
+    }
+  } catch (error) {
+    logFanBookingDebug("feature", "chat-socket-init:error", {
+      fanId,
+      message: error?.message || String(error),
+    });
+  }
+}
+
 async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
   if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) return;
   if (isReleasingHold.value) return;
@@ -525,6 +706,7 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
         context: {
           stateEngine: engine,
           apiBaseUrl: props.apiBaseUrl || undefined,
+          requestHeaders: getGuestHoldHeaders(),
         },
         forceRefresh: true,
         skipDestinationRead: true,
@@ -532,10 +714,10 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
     );
 
     if (!result?.ok && !silent) {
-      const message = result?.error?.message || result?.meta?.uiErrors?.[0] || "Could not release slot hold.";
+      const message = result?.error?.message || result?.meta?.uiErrors?.[0] || t("fan_booking_hold_release_failed_message");
       showToast({
         type: "error",
-        title: "Hold Release Failed",
+        title: t("fan_booking_hold_release_failed_title"),
         message,
       });
     }
@@ -563,10 +745,7 @@ onMounted(async () => {
     return;
   }
 
-  if(  props.fanId ) {
-    const s = useChatSocket(props.fanId)
-    s.init()
-  }
+  initializeChatSocketSafely(resolveFanId());
 
   await engine.forceStep(1, { intent: "feature-mount" });
   await engine.forceSubstep(null, { intent: "feature-mount" });
@@ -574,10 +753,71 @@ onMounted(async () => {
   await loadBookingContext();
 });
 
+watch(
+  () => props.fanId,
+  async () => {
+    if (props.previewMode) return;
+    const nextFanId = resolveFanId();
+    engine.setState("fanBooking.context.fanId", nextFanId, { reason: "feature-auth-update", silent: true });
+    initializeChatSocketSafely(nextFanId);
+
+    if (Number(nextFanId) > 0) {
+      await loadBookingContext({ forceRefresh: true });
+    }
+  },
+);
+
+watch(
+  () => props.creatorId,
+  async () => {
+    if (props.previewMode) {
+      syncBookingContext();
+      return;
+    }
+
+    await loadBookingContext({ forceRefresh: true });
+  },
+);
+
 onBeforeUnmount(() => {
   logFanBookingDebug("feature", "before-unmount");
+  if (creatorProfileAbortController) {
+    creatorProfileAbortController.abort();
+    creatorProfileAbortController = null;
+    creatorProfileRequestId += 1;
+  }
   releaseTemporaryHoldIfNeeded({ silent: true });
 });
+
+function ensureStep3Prefetch(reason) {
+  if (hasScheduledStep3Prefetch.value) return;
+  hasScheduledStep3Prefetch.value = true;
+  logFanBookingDebug("feature", "step3-prefetch:scheduled", { reason });
+  scheduleIdleWork(() => prefetchBookingFlowStep3(reason));
+}
+
+function ensureStep4Prefetch(reason) {
+  if (hasScheduledStep4Prefetch.value) return;
+  hasScheduledStep4Prefetch.value = true;
+  logFanBookingDebug("feature", "step4-prefetch:scheduled", { reason });
+  scheduleIdleWork(() => prefetchBookingFlowStep4(reason));
+}
+
+watch(
+  () => engine.step,
+  (nextStep) => {
+    if (nextStep === 2) {
+      ensureStep3Prefetch("step-2-visible");
+      ensureStep4Prefetch("step-2-visible");
+      return;
+    }
+
+    if (nextStep === 3) {
+      ensureStep4Prefetch("step-3-visible");
+    }
+  },
+  { immediate: true },
+);
 
 const currentStepComponent = computed(() => {
   switch (engine.step) {
@@ -593,10 +833,20 @@ const currentStepComponent = computed(() => {
       return BookingFlowStep1;
   }
 });
+
+const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
 </script>
 
 <template>
-  <div class="relative flex w-full items-center justify-center overflow-hidden">
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full h-full md:h-auto items-center justify-center lg:w-[852px]">
+    <div
+        v-if="showWrapperCloseButton"
+        @click="emit('close-request')"
+        data-test="booking-flow-close-button"
+        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-[8px] w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
+      >
+        <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
+      </div>
     <component
       :is="currentStepComponent"
       :engine="engine"

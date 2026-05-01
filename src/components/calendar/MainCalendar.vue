@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-0 md:pl-0 backdrop-blur-md">
+    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-1 md:px-0 md:pl-0">
       <div class="flex items-center gap-[11px]">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
@@ -21,7 +21,12 @@
             class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
-                <div class="text-gray-900 text-base font-medium uppercase">{{ title }}</div>
+                <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
+                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <div class="text-gray-900 text-base font-medium uppercase">{{ currentYear }}</div>
                 <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
@@ -67,7 +72,7 @@
         <button
           class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">Today</p>
+          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
         </button>
         <span class="lg:flex items-center justify-between hidden ">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -92,9 +97,9 @@
             :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
             class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
             <span class="flex items-center justify-center h-full py-2">
-              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">All Events
+              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
               </h2>
-              <p class="text-pink-500 text-[10px] font-bold h-full ml-1">
+              <p data-test="all-events-count" class="text-pink-500 text-[10px] font-bold h-full ml-1">
                 {{ filteredBookedSlotsCount }}
               </p>
             </span>
@@ -123,7 +128,7 @@
             class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Day
+            {{ t("common_day") }}
           </button>
 
           <button @click="setView('week')"
@@ -131,7 +136,7 @@
             :class="view === 'week'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Week
+            {{ t("common_week") }}
           </button>
 
           <button @click="setView('month')"
@@ -139,7 +144,7 @@
             :class="view === 'month'
               ? 'bg-pink-400/80 text-white'
               : 'text-pink-400/80'">
-            Month
+            {{ t("common_month") }}
           </button>
 
         </span>
@@ -149,7 +154,7 @@
         <button
           class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">Today</p>
+          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
         </button>
         <div class="cursor-pointer relative flex xl:hidden">
           <div @click="toggleDropdown">
@@ -199,7 +204,7 @@
       </div>
 
       <div class="flex items-center gap-3 order-3 w-full mt-1 lg:w-auto lg:order-2 lg:mt-0">
-        <CheckboxGroup label="Show existing events/booking schedule" v-model="showSchedule"
+        <CheckboxGroup :label="t('dashboard_show_existing_schedule')" v-model="showSchedule"
           checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
           labelClass="text-xs sm:text-[12px] leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
           wrapperClass="flex items-center" />
@@ -207,7 +212,7 @@
 
       <button @click="$emit('preview-schedule')"
         class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
-        Preview booking schedule
+        {{ t("common_preview_booking_schedule") }}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
           stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]">
           <line x1="7" y1="17" x2="17" y2="7"></line>
@@ -217,7 +222,7 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
@@ -245,7 +250,7 @@
 
             <div class="text-[11px] font-semibold leading-[1.25rem] uppercase"
               :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">
-              {{ ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] }}
+              {{ shortWeekdays[d.getDay()] }}
             </div>
 
             <div class="text-[1rem] w-[2rem] text-center font-semibold leading-[2rem]"
@@ -260,8 +265,9 @@
       <div
         class="flex gap-2 flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div class="flex flex-col">
-          <div v-for="(t) in range.labels" :key="'slot-label-' + t"
-            :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']">
+          <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
+            :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
+            :style="idx < gridMetrics.rows.length ? { height: gridMetrics.rows[idx].height + 'px' } : {}">
             {{ formatTime(t) }}
           </div>
         </div>
@@ -272,11 +278,11 @@
             :data-expired="sd(d) < today ? 'true' : 'false'" :class="theme.main.colBase" @click.self="emitDate(d)">
 
             <div class="absolute z-[0] inset-0 pointer-events-none">
-              <div v-for="i in range.rowCount" :key="'grid-' + i" :class="theme.main.gridRow"></div>
+              <div v-for="(metric, i) in gridMetrics.rows" :key="'grid-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
             </div>
 
             <div class="relative z-[0]" data-cal-scroll
-              :style="{ height: (range.rowCount * rowHeightPx) + 'px', overflowY: 'auto' }">
+              :style="{ height: gridMetrics.totalHeight + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
                 <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
                   :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
@@ -299,9 +305,9 @@
     <div v-if="effectiveView === 'month'" class="flex flex-col h-full">
 
       <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
-        <div v-for="w in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="w"
+        <div v-for="(w, index) in shortWeekdays" :key="w"
           class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[10px]"
-          :class="w === 'Sun' ? 'text-red-400' : 'text-gray-500'">
+          :class="index === 0 ? 'text-red-400' : 'text-gray-500'">
           {{ w }}
         </div>
       </div>
@@ -370,8 +376,7 @@
                             </svg>
                           </div>
                           <div class="justify-start text-white text-xs font-semibold font-['Poppins'] leading-4">
-                            Join
-                            Call</div>
+                            {{ t("common_join_call") }}</div>
                         </div>
                       </div>
                       <div class="w-4 h-4 relative overflow-hidden">
@@ -511,17 +516,30 @@
 
     <!-- popups -->
     <PopupHandler v-model="calendarPopupOpen" :config="calendarPopupConfig">
-      <CalendarMobilePopupContent :view="view" :events-data="eventsData" @set-view="setView" @join-click="handleJoin"
-        @reply-click="handleReply" @open-new-events="newEventsPopupOpen = true" />
+      <CalendarMobilePopupContent
+        :view="view"
+        :events-data="props.eventsData"
+        :can-create-events="canCreateEvents"
+        @set-view="setView"
+        @join-click="handleJoin"
+        @reply-click="handleReply"
+        @event-click="handleMobileWidgetEventClick"
+        @menu-action="handleMobileWidgetMenuAction"
+        @open-new-events="handleOpenNewEvents"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
-      <NewEventsPopup />
+      <NewEventsPopup
+        @create-private="handleCreateEvent('private')"
+        @create-group="handleCreateEvent('group')"
+      />
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
         :event="selectedEvent"
+        :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
@@ -547,12 +565,12 @@ import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import { onUnmounted } from 'vue';
 import EventDropdownContent from './EventDropdownContent.vue';
 import PopupHandler from '../ui/popup/PopupHandler.vue';
-import EventsWidget from './EventsWidget.vue';
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import MiniCalendar from './MiniCalendar.vue';
 
@@ -561,7 +579,9 @@ const props = defineProps({
   focusDate: { type: Date, required: true },
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
+  eventsData: { type: Array, default: () => [] },
   theme: { type: Object, default: () => ({}) },
+  userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
@@ -573,7 +593,8 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event']);
+const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
@@ -603,6 +624,7 @@ const isMobileCalendarOpen = ref(false);
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
 const mobileCalendarRef = ref(null);
+const canCreateEvents = computed(() => props.userRole === 'creator');
 
 const handleMobileCalendarClickOutside = (event) => {
   if (
@@ -737,89 +759,6 @@ const handleDateUpdate = (newDate) => {
   isMobileCalendarOpen.value = false; // Close parent popup too if desired? User said "neeche jo calendar ha wahan bh date chng honic chyh"
 };
 
-const eventsData = ref([
-  {
-    title: 'TODAY',
-    items: [
-      {
-        time: '2:15pm-9:30pm',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-white',
-        showJoin: true,
-        statusText: 'in 5 min',
-        // WORKING IMAGE URL
-        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
-      },
-      {
-        time: '2:15pm-9:30pm',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        showJoin: false,
-        // WORKING IMAGE URL
-        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
-      }
-    ]
-  },
-  {
-    title: 'THIS WEEK',
-    items: [
-      {
-        dayName: 'TUE',
-        dayNumber: '24',
-        title: 'Group call',
-        titleColorClass: 'text-activePink',
-        borderClass: 'bg-brightPink',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        isGroup: true,
-        groupText: 'Mangoes, Apples and 30+',
-        avatars: [
-          { src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png' },
-          { src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png' },
-          { src: 'https://i.ibb.co/0VQJ0swt/Vector.png' }
-        ]
-      },
-      {
-        dayName: 'WED',
-        dayNumber: '25',
-        title: 'Live call',
-        titleColorClass: 'text-lightViolet',
-        borderClass: 'bg-lightViolet',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        avatars: [{ src: 'https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png', name: 'Mangoes' }]
-      }
-    ]
-  },
-  {
-    title: 'PENDING EVENTS',
-    items: [
-      {
-        dayName: 'WED',
-        dayNumber: '25',
-        title: 'Live call',
-        titleColorClass: 'text-gray-900',
-        borderClass: 'bg-customDarkGrey',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/20',
-        showReply: true,
-        avatars: [{ src: 'https://i.ibb.co/0VQJ0swt/Vector.png', name: 'Apples' }]
-      },
-      {
-        dayName: 'SAT',
-        dayNumber: '28',
-        title: 'Live call',
-        titleColorClass: 'text-gray-900',
-        borderClass: 'bg-customDarkGrey',
-        bgClass: 'bg-gradient-to-r from-gray-50/50 to-gray-50/40',
-        showReply: true,
-        avatars: [{ src: 'https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png', name: 'Grapes' }]
-      }
-    ]
-  }
-]);
-
 const effectiveView = computed(() => {
   if (props.variant === 'theme2') return 'week';
   // if (width.value < 640) return 'day';
@@ -923,18 +862,55 @@ const normalized = computed(() => {
     }));
 });
 
+function resolveCountEventId(event = {}) {
+  const raw = event?.raw && typeof event.raw === 'object' ? event.raw : {};
+  const candidates = [
+    event?.eventId,
+    raw?.eventId,
+    raw?.event?.eventId,
+    raw?.eventCurrent?.eventId,
+    raw?.eventSnapshot?.eventId,
+    event?.id,
+    raw?.id,
+  ];
+
+  const resolved = candidates
+    .map((value) => String(value ?? '').trim())
+    .find(Boolean);
+
+  return resolved || null;
+}
+
 const filteredBookedSlotsCount = computed(() => {
-  // Count only real booked slots (not availability background blocks),
-  // after current dropdown filters (video/audio/group/showSchedule) are applied.
-  return normalized.value.filter((event) => !event?.isAvailabilityBlock).length;
+  const countedEventIds = new Set();
+
+  normalized.value.forEach((event) => {
+    if (event?.isDraftPreview) return;
+
+    const eventId = resolveCountEventId(event);
+    if (eventId) countedEventIds.add(eventId);
+  });
+
+  return countedEventIds.size;
 });
 
+const shortWeekdays = computed(() => [
+  t("date_sun_short"),
+  t("date_mon_short"),
+  t("date_tue_short"),
+  t("date_wed_short"),
+  t("date_thu_short"),
+  t("date_fri_short"),
+  t("date_sat_short"),
+]);
+
 const title = computed(() => {
-  const d = cursor.value, y = d.getFullYear(), m = d.getMonth();
-  if (effectiveView.value === 'week') return `${monthNames[m]} ${y}`;
-  if (effectiveView.value === 'month') return `${monthNames[m]} ${y}`;
-  return `${monthNames[m]} ${d.getDate()}, ${y}`;
+  const d = cursor.value;
+  return d.toLocaleDateString(locale.value, { month: "long", year: "numeric" });
 });
+
+const currentMonth = computed(() => cursor.value.toLocaleDateString(locale.value, { month: "long" }));
+const currentYear = computed(() => cursor.value.getFullYear());
 
 watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });
 
@@ -985,8 +961,37 @@ const handleApproveBooking = (payload) => {
 };
 
 const handleJoin = (payload) => {
+  calendarPopupOpen.value = false;
   eventDetailsPopupOpen.value = false;
   emit('join-call', payload);
+};
+
+const handleReply = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('reply-click', payload);
+};
+
+const handleMobileWidgetEventClick = (item) => {
+  const event = item?.sourceEvent;
+  if (!event || typeof event !== 'object') return;
+  calendarPopupOpen.value = false;
+  openEventDetails(event);
+};
+
+const handleMobileWidgetMenuAction = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('menu-action', payload);
+};
+
+const handleOpenNewEvents = () => {
+  if (!canCreateEvents.value) return;
+  newEventsPopupOpen.value = true;
+};
+
+const handleCreateEvent = (type) => {
+  newEventsPopupOpen.value = false;
+  calendarPopupOpen.value = false;
+  emit('create-event', { type });
 };
 
 const handleRejectBooking = (payload) => {
@@ -998,10 +1003,137 @@ const handleCancelBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('cancel-booking', payload);
 };
-const eventsForDay = (day) => {
-  const s = SOD(day), e = addDays(s, 1);
-  return normalized.value.filter(ev => ev.start < e && ev.end > s).sort((a, b) => a.start - b.start);
+const getVisualBounds = (ev, sMin, eMin, step, minHeightPx) => {
+  const pixelsPerMinute = props.rowHeightPx / step;
+  const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
+  const endMin = ev.end.getHours() * 60 + ev.end.getMinutes();
+  const clippedStart = Math.max(startMin, sMin);
+  const clippedEnd = Math.max(clippedStart, Math.min(endMin, eMin));
+  
+  if (clippedEnd <= clippedStart) {
+    return { start: 0, end: 0, isValid: false };
+  }
+  
+  const startPx = clippedStart * pixelsPerMinute;
+  const durationPx = (clippedEnd - clippedStart) * pixelsPerMinute;
+  const endPx = startPx + Math.max(minHeightPx || 20, durationPx);
+  
+  return { start: startPx, end: endPx, isValid: true };
 };
+
+const processedEventsByDay = computed(() => {
+  const eventsByDay = {};
+  days.value.forEach(d => {
+    eventsByDay[SOD(d).getTime()] = [];
+  });
+  
+  normalized.value.forEach(ev => {
+    if (!ev || !ev.start || !ev.end) return;
+    days.value.forEach(d => {
+      const s = SOD(d);
+      const e = addDays(s, 1);
+      if (ev.start < e && ev.end > s) {
+        eventsByDay[s.getTime()].push(ev);
+      }
+    });
+  });
+
+  const { sMin, eMin, step } = range.value;
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const processed = {};
+  
+  for (const [dayKeyStr, dayEvents] of Object.entries(eventsByDay)) {
+    const dayKey = Number(dayKeyStr);
+    const sorted = [...dayEvents].sort((a,b) => a.start - b.start || b.end - a.end);
+    
+    const stacked = [];
+    sorted.forEach(ev => {
+      const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+      let order = 0;
+      
+      if (!boundsEv.isValid) {
+        stacked.push({...ev, stackOrder: 0});
+        return;
+      }
+
+      while (true) {
+        const overlappingInOrder = stacked.find(s => {
+          if (s.stackOrder !== order) return false;
+          if (s.isAvailabilityBlock || ev.isAvailabilityBlock) return false;
+          const boundsS = getVisualBounds(s, sMin, eMin, step, minHeightPx);
+          if (!boundsS.isValid) return false;
+          return boundsS.start < boundsEv.end && boundsS.end > boundsEv.start;
+        });
+        
+        if (!overlappingInOrder) {
+          stacked.push({...ev, stackOrder: order});
+          break;
+        }
+        order++;
+      }
+    });
+    processed[dayKey] = stacked;
+  }
+  
+  return processed;
+});
+
+const gridMetrics = computed(() => {
+  const rows = range.value.rowCount;
+  const metrics = [];
+  let currentOffset = 0;
+  const { sMin, eMin, step } = range.value;
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const pixelsPerMinute = props.rowHeightPx / step;
+  
+  // Use a smaller stacking offset to reduce gaps between overlapping events (2px gap).
+  const stackOffset = minHeightPx + 2;
+
+  for (let i = 0; i < rows; i++) {
+    let maxStackInRow = 0;
+    let maxVisualEnd = props.rowHeightPx;
+
+    for (const dayEvents of Object.values(processedEventsByDay.value)) {
+      for (const ev of dayEvents) {
+        if (ev.isAvailabilityBlock) continue;
+        
+        const bounds = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+        if (!bounds.isValid) continue;
+
+        const rowStartMin = sMin + i * step;
+        const rowEndMin = rowStartMin + step;
+        const rowStartPx = rowStartMin * pixelsPerMinute;
+        const rowEndPx = rowEndMin * pixelsPerMinute;
+
+        if (bounds.start < rowEndPx && bounds.end > rowStartPx) {
+          if (ev.stackOrder > maxStackInRow) {
+            maxStackInRow = ev.stackOrder;
+          }
+
+          // If the event starts within this row, ensure the row expands to contain 
+          // its full visual bottom (including shift and min-height offset).
+          if (bounds.start >= rowStartPx && bounds.start < rowEndPx) {
+            const relEnd = (bounds.end - rowStartPx) + ev.stackOrder * stackOffset;
+            if (relEnd > maxVisualEnd) maxVisualEnd = relEnd;
+          }
+        }
+      }
+    }
+    
+    // Total row height is the max of traditional lane-based expansion or the furthest visual end of starting events.
+    const height = Math.max(props.rowHeightPx + maxStackInRow * stackOffset, maxVisualEnd);
+    metrics.push({ height, offset: currentOffset });
+    currentOffset += height;
+  }
+  
+  return { rows: metrics, totalHeight: currentOffset };
+});
+
+const eventsForDay = (day) => {
+  const key = SOD(day).getTime();
+  return processedEventsByDay.value[key] || [];
+};
+
 const styleBlock = (ev) => {
   const { sMin, eMin, step } = range.value;
   const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
@@ -1009,10 +1141,26 @@ const styleBlock = (ev) => {
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.min(endMin, eMin);
   if (clippedEnd <= clippedStart) return 'display:none';
-  const rowsFromTop = (clippedStart - sMin) / step;
-  const rowsHeight = (clippedEnd - clippedStart) / step;
-  const topPx = rowsFromTop * props.rowHeightPx;
-  const heightPx = Math.max(props.minEventHeightPx, rowsHeight * props.rowHeightPx);
+  
+  const startRowFloat = (clippedStart - sMin) / step;
+  const startRowIdx = Math.floor(startRowFloat);
+  
+  const startMetric = gridMetrics.value.rows[startRowIdx];
+  let topPx = startMetric ? startMetric.offset : 0;
+  
+  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const stackOffset = minHeightPx + 2;
+
+  const fraction = startRowFloat - startRowIdx;
+  topPx += fraction * props.rowHeightPx; 
+  if (ev.stackOrder) {
+     topPx += ev.stackOrder * stackOffset;
+  }
+  
+  const durationRows = (clippedEnd - clippedStart) / step;
+  let heightPx = durationRows * props.rowHeightPx;
+  heightPx = Math.max(props.minEventHeightPx, heightPx);
+
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
 };
 const setView = (v) => { view.value = v; };

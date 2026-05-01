@@ -9,8 +9,25 @@
   var FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
   var FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
+  var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
   var activeOneOnOnePopup = null;
+  var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
+  var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
+  var EVENTS_EMBED_IFRAME_CONTENT_CLASS = "fs-events-embed__iframe--content";
+  var EVENTS_EMBED_IFRAME_VIEWPORT_CLASS = "fs-events-embed__iframe--viewport";
+  var FAN_BOOKING_POPUP_CLASS = "fs-fan-booking-popup";
+  var FAN_BOOKING_POPUP_OVERLAY_CLASS = "fs-fan-booking-popup__overlay";
+  var FAN_BOOKING_POPUP_MODAL_CLASS = "fs-fan-booking-popup__modal";
+  var FAN_BOOKING_POPUP_IFRAME_CLASS = "fs-fan-booking-popup__iframe";
+  var FAN_BOOKING_POPUP_CLOSE_CLASS = "fs-fan-booking-popup__close";
+  var FAN_BOOKING_POPUP_LOADING_CLASS = "fs-fan-booking-popup__loading";
+  var FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS = "fs-fan-booking-popup__loading--visible";
+  var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
+  var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
+  var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
+  var fanBookingSkeletonTemplateCache = null;
+  var fanBookingSkeletonTemplatePromise = null;
 
   function isFanBookingDebugEnabled(options) {
     if (options && options.debug === true) return true;
@@ -73,6 +90,12 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
+  function safePositiveNumber(value, fallback) {
+    var parsed = safeNumber(value, fallback);
+    if (parsed === null || parsed === undefined) return fallback;
+    return parsed > 0 ? parsed : fallback;
+  }
+
   function normalizeCreatorData(value) {
     var input = value && typeof value === "object" ? value : {};
     var avatar = typeof input.avatar === "string" ? input.avatar.trim() : "";
@@ -97,6 +120,24 @@
     };
   }
 
+  function normalizeTranslations(value) {
+    var input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    var output = {};
+
+    Object.keys(input).forEach(function (key) {
+      var normalizedKey = typeof key === "string" ? key.trim() : "";
+      var translation = input[key];
+      if (!normalizedKey || typeof translation !== "string") return;
+      output[normalizedKey] = translation;
+    });
+
+    return output;
+  }
+
+  function normalizeLocale(value) {
+    return typeof value === "string" && value.trim() ? value.trim() : "en";
+  }
+
   function buildIframeSrcWithQuery(src, query) {
     var baseUrl = typeof src === "string" && src ? src : "";
     var hashIndex = baseUrl.indexOf("#");
@@ -117,14 +158,161 @@
     return pathname + (nextSearch ? "?" + nextSearch : "") + hash;
   }
 
-  function createElement(tagName, styles) {
+  function createElement(tagName, classNames, attributes) {
     var element = document.createElement(tagName);
-    if (styles) {
-      Object.keys(styles).forEach(function (key) {
-        element.style[key] = styles[key];
+
+    if (Array.isArray(classNames)) {
+      classNames.forEach(function (className) {
+        if (!className) return;
+        element.classList.add(className);
+      });
+    } else if (typeof classNames === "string" && classNames.trim()) {
+      element.className = classNames.trim();
+    }
+
+    if (attributes && typeof attributes === "object") {
+      Object.keys(attributes).forEach(function (key) {
+        var value = attributes[key];
+        if (value === null || value === undefined || value === false) return;
+        if (value === true) {
+          element.setAttribute(key, "");
+          return;
+        }
+        element.setAttribute(key, String(value));
       });
     }
+
     return element;
+  }
+
+  function getHostScriptUrl() {
+    if (typeof document === "undefined") return "";
+
+    if (document.currentScript && document.currentScript.src) {
+      return document.currentScript.src;
+    }
+
+    var scripts = document.getElementsByTagName("script");
+    for (var index = scripts.length - 1; index >= 0; index -= 1) {
+      var src = scripts[index] && scripts[index].src;
+      if (typeof src === "string" && src.indexOf("fs-events-host.js") !== -1) {
+        return src;
+      }
+    }
+
+    return "";
+  }
+
+  function resolveHostAssetUrl(fileName) {
+    if (typeof fileName !== "string" || !fileName) return "";
+
+    var hostScriptUrl = getHostScriptUrl();
+    if (!hostScriptUrl) return fileName;
+
+    try {
+      return new URL(fileName, hostScriptUrl).toString();
+    } catch (_error) {
+      return fileName;
+    }
+  }
+
+  function getFallbackFanBookingSkeletonHtml() {
+    return [
+      '<div class="fs-fan-booking-skeleton" aria-hidden="true">',
+      '  <div class="fs-fan-booking-skeleton__header">',
+      '    <div class="fs-fan-booking-skeleton__chip"></div>',
+      '    <div class="fs-fan-booking-skeleton__pager"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__hero">',
+      '    <div class="fs-fan-booking-skeleton__title fs-fan-booking-skeleton__line"></div>',
+      '    <div class="fs-fan-booking-skeleton__price fs-fan-booking-skeleton__line"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__content">',
+      '    <div class="fs-fan-booking-skeleton__line"></div>',
+      '    <div class="fs-fan-booking-skeleton__line fs-fan-booking-skeleton__line--short"></div>',
+      '    <div class="fs-fan-booking-skeleton__line"></div>',
+      "  </div>",
+      '  <div class="fs-fan-booking-skeleton__footer">',
+      '    <div class="fs-fan-booking-skeleton__button"></div>',
+      "  </div>",
+      "</div>",
+    ].join("");
+  }
+
+  function preloadFanBookingSkeletonTemplate() {
+    if (fanBookingSkeletonTemplatePromise) return fanBookingSkeletonTemplatePromise;
+
+    if (typeof fetch !== "function") {
+      fanBookingSkeletonTemplatePromise = Promise.resolve(null);
+      return fanBookingSkeletonTemplatePromise;
+    }
+
+    fanBookingSkeletonTemplatePromise = fetch(resolveHostAssetUrl(FAN_BOOKING_SKELETON_TEMPLATE_PATH), {
+      credentials: "same-origin",
+    })
+      .then(function (response) {
+        if (!response.ok) return null;
+        return response.text();
+      })
+      .then(function (html) {
+        var normalized = typeof html === "string" ? html.trim() : "";
+        fanBookingSkeletonTemplateCache = normalized || null;
+        return fanBookingSkeletonTemplateCache;
+      })
+      .catch(function () {
+        fanBookingSkeletonTemplateCache = null;
+        return null;
+      });
+
+    return fanBookingSkeletonTemplatePromise;
+  }
+
+  function createFanBookingLoadingLayer() {
+    var loadingLayer = createElement("div", [
+      FAN_BOOKING_POPUP_LOADING_CLASS,
+      FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS,
+    ]);
+    loadingLayer.innerHTML = fanBookingSkeletonTemplateCache || getFallbackFanBookingSkeletonHtml();
+    return loadingLayer;
+  }
+
+  function applyFanBookingSkeletonTemplate(loadingLayer, html) {
+    if (!loadingLayer || !loadingLayer.parentNode) return;
+    if (loadingLayer.classList.contains(FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS)) return;
+    if (typeof html !== "string" || !html.trim()) return;
+    loadingLayer.innerHTML = html;
+  }
+
+  function hideFanBookingLoadingLayer(loadingLayer) {
+    if (!loadingLayer || !loadingLayer.parentNode) return;
+
+    loadingLayer.classList.remove(FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS);
+    loadingLayer.classList.add(FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS);
+
+    global.setTimeout(function () {
+      if (loadingLayer.parentNode) {
+        loadingLayer.parentNode.removeChild(loadingLayer);
+      }
+    }, 220);
+  }
+
+  function setIframeHeightMode(iframe, mode, nextHeight) {
+    if (!iframe) return;
+
+    iframe.classList.remove(EVENTS_EMBED_IFRAME_CONTENT_CLASS, EVENTS_EMBED_IFRAME_VIEWPORT_CLASS);
+
+    if (mode === "viewport") {
+      iframe.classList.add(EVENTS_EMBED_IFRAME_VIEWPORT_CLASS);
+      iframe.style.removeProperty("--fs-events-embed-height");
+      return;
+    }
+
+    iframe.classList.add(EVENTS_EMBED_IFRAME_CONTENT_CLASS);
+    if (Number.isFinite(Number(nextHeight))) {
+      iframe.style.setProperty("--fs-events-embed-height", String(Number(nextHeight)) + "px");
+    } else {
+      iframe.style.removeProperty("--fs-events-embed-height");
+    }
   }
 
   function lockBodyScroll() {
@@ -172,18 +360,30 @@
       jwtToken: "",
       initialRoute: "events",
       creatorData: null,
+      translations: {},
+      locale: "en",
       targetOrigin: window.location.origin,
       iframeTitle: "Bookings Embed",
       minHeight: 720,
     }, options || {});
 
     var creatorData = normalizeCreatorData(settings.creatorData);
+    var translations = normalizeTranslations(settings.translations);
+    var locale = normalizeLocale(settings.locale);
 
-    var iframe = document.createElement("iframe");
+    var wrapper = createElement("div", EVENTS_EMBED_ROOT_CLASS);
+    wrapper.style.setProperty("--fs-events-embed-min-height", String(Math.max(320, safeNumber(settings.minHeight, 720))) + "px");
+
+    var iframe = createElement("iframe", [
+      EVENTS_EMBED_IFRAME_CLASS,
+      EVENTS_EMBED_IFRAME_CONTENT_CLASS,
+    ]);
     iframe.src = buildIframeSrcWithQuery(settings.src, {
       creatorId: safeNumber(settings.creatorId, null),
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
+      userRole: settings.userRole || "creator",
+      initialRoute: settings.initialRoute || "events",
       apiBaseUrl: settings.apiBaseUrl || "",
       jwtToken: settings.jwtToken || "",
       creatorAvatar: creatorData.avatar,
@@ -192,10 +392,8 @@
     });
     iframe.title = settings.iframeTitle;
     iframe.loading = "lazy";
-    iframe.style.width = "100%";
-    iframe.style.border = "0";
-    iframe.style.display = "block";
     iframe.setAttribute("scrolling", "no");
+    setIframeHeightMode(iframe, "content", settings.minHeight);
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
 
@@ -205,13 +403,15 @@
       iframe.contentWindow.postMessage({
         type: FS_EVENTS_BOOTSTRAP,
         payload: {
-          creatorId: safeNumber(settings.creatorId, null),
-          fanId: safeNumber(settings.fanId, null),
+          creatorId: safePositiveNumber(settings.creatorId, null),
+          fanId: safePositiveNumber(settings.fanId, null),
           userRole: settings.userRole || "creator",
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
           initialRoute: settings.initialRoute || "events",
           creatorData: creatorData,
+          translations: translations,
+          locale: locale,
         },
       }, targetOrigin);
     }
@@ -228,13 +428,7 @@
       if (data.type === FS_EVENTS_RESIZE) {
         var nextHeight = safeNumber(data.payload && data.payload.height, null);
         var resizeMode = data.payload && data.payload.mode;
-
-        if (resizeMode === "viewport") {
-          iframe.style.height = "100vh";
-          return;
-        }
-
-        iframe.style.height = String(nextHeight) + "px";
+        setIframeHeightMode(iframe, resizeMode === "viewport" ? "viewport" : "content", nextHeight);
         return;
       }
 
@@ -245,15 +439,17 @@
 
     window.addEventListener("message", onMessage);
     container.innerHTML = "";
-    container.appendChild(iframe);
+    wrapper.appendChild(iframe);
+    container.appendChild(wrapper);
 
     return {
+      root: wrapper,
       iframe: iframe,
       sendBootstrap: sendBootstrap,
       destroy: function () {
         window.removeEventListener("message", onMessage);
-        if (iframe.parentNode === container) {
-          container.removeChild(iframe);
+        if (wrapper.parentNode === container) {
+          container.removeChild(wrapper);
         }
       },
     };
@@ -272,6 +468,8 @@
       apiBaseUrl: "",
       jwtToken: "",
       creatorData: null,
+      translations: {},
+      locale: "en",
       debug: false,
       targetOrigin: window.location.origin,
       iframeTitle: "One On One Booking Popup",
@@ -279,73 +477,38 @@
       escToClose: true,
     }, options || {});
 
-    if (safeNumber(settings.creatorId, null) == null) {
-      throw new Error("FSEventsEmbed.openFanBookingPopup requires a creatorId.");
-    }
-
-    if (safeNumber(settings.fanId, null) == null) {
-      throw new Error("FSEventsEmbed.openFanBookingPopup requires a fanId.");
+    if (safePositiveNumber(settings.creatorId, null) == null) {
+      throw new Error("FSEventsEmbed.openFanBookingPopup requires a positive creatorId.");
     }
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var creatorData = normalizeCreatorData(settings.creatorData);
+    var translations = normalizeTranslations(settings.translations);
+    var locale = normalizeLocale(settings.locale);
     var unlockBodyScroll = lockBodyScroll();
     var isDestroyed = false;
     var closeInvoked = false;
+    var isChildReady = false;
+    var isLoadingLayerHidden = false;
+    var loadingFallbackTimer = null;
 
-    var overlay = createElement("div", {
-      position: "fixed",
-      inset: "0",
-      zIndex: "99999",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "16px",
-      // background: "rgba(12, 17, 29, 0.76)",
-      backdropFilter: "blur(4px)",
-    });
+    var overlay = createElement("div", [
+      FAN_BOOKING_POPUP_CLASS,
+      FAN_BOOKING_POPUP_OVERLAY_CLASS,
+    ]);
 
-    var modal = createElement("div", {
-      position: "relative",
-      width: "min(960px, calc(100vw - 32px))",
-      height: "min(760px, calc(100vh - 32px))",
-      maxWidth: "960px",
-      maxHeight: "760px",
-      borderRadius: "20px",
-      overflow: "hidden",
-      // background: "#0C111D",
-      // boxShadow: "0 24px 80px rgba(0, 0, 0, 0.38)",
-    });
+    var modal = createElement("div", FAN_BOOKING_POPUP_MODAL_CLASS);
+    modal.style.setProperty("--fs-fan-booking-popup-width", "min(960px, calc(100vw - 32px))");
+    modal.style.setProperty("--fs-fan-booking-popup-height", "min(760px, calc(100vh - 32px))");
 
-    var closeButton = createElement("button", {
-      position: "absolute",
-      top: "12px",
-      right: "12px",
-      zIndex: "2",
-      width: "40px",
-      height: "40px",
-      border: "0",
-      borderRadius: "9999px",
-      cursor: "pointer",
-      color: "#FFFFFF",
-      fontSize: "22px",
-      lineHeight: "1",
-      background: "rgba(12, 17, 29, 0.72)",
-      backdropFilter: "blur(8px)",
-    });
-    closeButton.type = "button";
-    closeButton.setAttribute("aria-label", "Close booking popup");
-    closeButton.textContent = "×";
+    var iframe = createElement("iframe", FAN_BOOKING_POPUP_IFRAME_CLASS);
+    var loadingLayer = createFanBookingLoadingLayer();
+    iframe.title = settings.iframeTitle;
+    iframe.loading = "eager";
+    iframe.setAttribute("scrolling", "no");
 
-    var iframe = createElement("iframe", {
-      width: "100%",
-      height: "100%",
-      border: "0",
-      display: "block",
-      // background: "#0C111D",
-    });
-    iframe.src = buildIframeSrcWithQuery(settings.src, {
-      creatorId: safeNumber(settings.creatorId, null),
+    var iframeSrc = buildIframeSrcWithQuery(settings.src, {
+      creatorId: safePositiveNumber(settings.creatorId, null),
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       apiBaseUrl: settings.apiBaseUrl || "",
@@ -355,32 +518,33 @@
       creatorVerified: creatorData.isVerified,
       debugFanBooking: isFanBookingDebugEnabled(settings) ? 1 : null,
     });
-    iframe.title = settings.iframeTitle;
-    iframe.loading = "eager";
-    iframe.setAttribute("scrolling", "no");
 
     function sendBootstrap() {
       if (!iframe.contentWindow) return;
 
       logFanBookingDebug("host", "sendBootstrap", {
-        creatorId: safeNumber(settings.creatorId, null),
+        creatorId: safePositiveNumber(settings.creatorId, null),
         fanId: safeNumber(settings.fanId, null),
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         apiBaseUrl: settings.apiBaseUrl || "",
-        jwtToken: settings.jwtToken || "",
-        creatorData: creatorData,
-        iframeSrc: iframe.src,
-      }, settings);
+          jwtToken: settings.jwtToken || "",
+          creatorData: creatorData,
+          translations: translations,
+          locale: locale,
+          iframeSrc: iframe.src,
+        }, settings);
 
       iframe.contentWindow.postMessage({
         type: FS_FAN_BOOKING_BOOTSTRAP,
         payload: {
-          creatorId: safeNumber(settings.creatorId, null),
+          creatorId: safePositiveNumber(settings.creatorId, null),
           fanId: safeNumber(settings.fanId, null),
           eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
           creatorData: creatorData,
+          translations: translations,
+          locale: locale,
         },
       }, targetOrigin);
     }
@@ -393,12 +557,38 @@
       }
     }
 
+    function clearLoadingFallbackTimer() {
+      if (loadingFallbackTimer != null) {
+        global.clearTimeout(loadingFallbackTimer);
+        loadingFallbackTimer = null;
+      }
+    }
+
+    function hideLoadingLayer(reason) {
+      if (isLoadingLayerHidden) return;
+      isLoadingLayerHidden = true;
+      clearLoadingFallbackTimer();
+      logFanBookingDebug("host", "hideLoadingLayer", { reason: reason }, settings);
+      hideFanBookingLoadingLayer(loadingLayer);
+    }
+
+    function scheduleLoadingFallbackHide() {
+      if (isChildReady || isLoadingLayerHidden || isDestroyed) return;
+      clearLoadingFallbackTimer();
+      loadingFallbackTimer = global.setTimeout(function () {
+        if (isDestroyed || isChildReady || isLoadingLayerHidden) return;
+        hideLoadingLayer("iframe-load-fallback");
+      }, FAN_BOOKING_LOADING_FALLBACK_DELAY_MS);
+    }
+
     function destroy(options) {
       var destroyOptions = Object.assign({ invokeOnClose: true }, options || {});
       if (isDestroyed) return;
       isDestroyed = true;
+      clearLoadingFallbackTimer();
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown);
+      iframe.removeEventListener("load", onIframeLoad);
       unlockBodyScroll();
 
       if (overlay.parentNode) {
@@ -409,6 +599,10 @@
         activeOneOnOnePopup = null;
       }
 
+      if (global.__FSFanBookingActivePopup && global.__FSFanBookingActivePopup.iframe === iframe) {
+        global.__FSFanBookingActivePopup = null;
+      }
+
       if (destroyOptions.invokeOnClose) {
         invokeOnClose();
       }
@@ -417,6 +611,36 @@
     function close() {
       logFanBookingDebug("host", "close", {}, settings);
       destroy({ invokeOnClose: true });
+    }
+
+    function updateAuth(authOptions) {
+      var authSettings = authOptions || {};
+      settings.fanId = safeNumber(authSettings.fanId, settings.fanId);
+      settings.jwtToken = typeof authSettings.jwtToken === "string" ? authSettings.jwtToken : settings.jwtToken;
+
+      if (!iframe.contentWindow || isDestroyed) return;
+
+      logFanBookingDebug("host", "auth-update", {
+        fanId: safeNumber(settings.fanId, null),
+        hasJwtToken: !!settings.jwtToken,
+      }, settings);
+
+      iframe.contentWindow.postMessage({
+        type: FS_FAN_BOOKING_AUTH_UPDATE,
+        payload: {
+          fanId: safeNumber(settings.fanId, null),
+          jwtToken: settings.jwtToken || "",
+        },
+      }, targetOrigin);
+    }
+
+    function onIframeLoad() {
+      logFanBookingDebug("host", "iframe-load", {
+        iframeSrc: iframe.src,
+        isChildReady: isChildReady,
+      }, settings);
+      sendBootstrap();
+      scheduleLoadingFallbackHide();
     }
 
     function onMessage(event) {
@@ -434,6 +658,8 @@
         origin: event.origin,
       }, settings);
       if (data.type === FS_FAN_BOOKING_CHILD_READY) {
+        isChildReady = true;
+        hideLoadingLayer("child-ready");
         sendBootstrap();
         return;
       }
@@ -472,40 +698,54 @@
       });
     }
 
-    closeButton.addEventListener("click", close);
     modal.addEventListener("click", function (event) {
       event.stopPropagation();
     });
 
-    // modal.appendChild(closeButton);
     modal.appendChild(iframe);
+    modal.appendChild(loadingLayer);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    iframe.addEventListener("load", sendBootstrap);
+    window.addEventListener("message", onMessage);
+    window.addEventListener("keydown", onKeyDown);
+    iframe.addEventListener("load", onIframeLoad);
     logFanBookingDebug("host", "popup-open", {
-      iframeSrc: iframe.src,
-      creatorId: safeNumber(settings.creatorId, null),
+      iframeSrc: iframeSrc,
+      creatorId: safePositiveNumber(settings.creatorId, null),
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       creatorData: creatorData,
     }, settings);
-    window.addEventListener("message", onMessage);
-    window.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(overlay);
+
+    preloadFanBookingSkeletonTemplate().then(function (html) {
+      applyFanBookingSkeletonTemplate(loadingLayer, html);
+    });
+
+    iframe.src = iframeSrc;
 
     activeOneOnOnePopup = {
       iframe: iframe,
       overlay: overlay,
       close: close,
       destroy: destroy,
+      updateAuth: updateAuth,
     };
     global.__FSFanBookingActivePopup = activeOneOnOnePopup;
 
     return activeOneOnOnePopup;
   }
 
+  function updateFanBookingAuth(options) {
+    if (!activeOneOnOnePopup || typeof activeOneOnOnePopup.updateAuth !== "function") return false;
+    activeOneOnOnePopup.updateAuth(options || {});
+    return true;
+  }
+
   global.FSEventsEmbed = {
     mount: mount,
     openFanBookingPopup: openFanBookingPopup,
+    updateFanBookingAuth: updateFanBookingAuth,
   };
+
+  preloadFanBookingSkeletonTemplate();
 })(window);
