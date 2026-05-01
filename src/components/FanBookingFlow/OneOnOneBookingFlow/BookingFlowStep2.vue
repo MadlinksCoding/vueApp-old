@@ -4,9 +4,12 @@ import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingF
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
+import TokenHandler from '@/utils/TokenHandler.js';
+import { getBackendJwtToken } from '@/utils/backendJwt.js';
 import { buildBookingPaymentPreview } from '@/services/bookings/mappers/createBookingMapper.js';
 import {
   buildCandidateSlotsForEventDate,
+  computeNextAvailableSlot,
   createSlotUiModel,
   formatLocalDateIso,
   hmToLabel,
@@ -89,6 +92,8 @@ const selectedDurationObj = ref(null);
 const addons = ref([]);
 const otherRequest = ref('');
 const contributionTokens = ref('');
+const walletBalance = ref(0);
+const groupAutoRedirecting = ref(false);
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const isGroupEvent = computed(() => String(
@@ -98,6 +103,11 @@ const isGroupEvent = computed(() => String(
     || selectedEvent.value?.raw?.eventType
     || '',
 ).toLowerCase() === 'group-event');
+const groupPriceSetting = computed(() => String(
+  selectedEvent.value?.priceSetting
+    || selectedEvent.value?.raw?.priceSetting
+    || '',
+));
 const popupBackgroundStyle = computed(() => ({
   backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
@@ -171,6 +181,10 @@ function toWholeTokens(value) {
   return Math.ceil(Number.isFinite(numeric) ? numeric : 0);
 }
 
+function formatTokens(value) {
+  return toWholeTokens(value).toLocaleString(locale.value);
+}
+
 const isEventGoalGroupEvent = computed(() => {
   const raw = selectedEvent.value?.raw || {};
   return isGroupEvent.value && String(raw?.priceSetting || selectedEvent.value?.priceSetting || '').toLowerCase() === 'eventgoal';
@@ -184,10 +198,28 @@ const eventGoalMinimumTokens = computed(() => {
 
 const eventGoalMaximumTokens = computed(() => {
   const raw = selectedEvent.value?.raw || {};
-  return toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
+  const eventGoal = toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
+  const balance = toWholeTokens(walletBalance.value);
+  if (eventGoal <= 0 || balance <= 0) return 0;
+  return Math.min(eventGoal, balance);
 });
 
 const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
+const contributionRangeMax = computed(() => Math.max(eventGoalMinimumTokens.value, eventGoalMaximumTokens.value));
+const availableBalanceAfterContribution = computed(() => Math.max(0, toWholeTokens(walletBalance.value) - normalizedContributionTokens.value));
+const contributionSliderPercent = computed(() => {
+  const min = eventGoalMinimumTokens.value;
+  const max = eventGoalMaximumTokens.value;
+  if (max <= min) return 0;
+  const amount = Math.min(Math.max(normalizedContributionTokens.value, min), max);
+  return Math.round(((amount - min) / (max - min)) * 100);
+});
+const contributionSliderStyle = computed(() => ({
+  width: `${contributionSliderPercent.value}%`,
+}));
+const contributionThumbStyle = computed(() => ({
+  left: `${contributionSliderPercent.value}%`,
+}));
 
 const contributionInvalid = computed(() => {
   if (!isEventGoalGroupEvent.value) return false;
@@ -202,9 +234,197 @@ function ensureContributionDefault() {
     return;
   }
 
-  const existing = Number(contributionTokens.value);
-  if (Number.isFinite(existing) && existing > 0) return;
-  contributionTokens.value = String(eventGoalMinimumTokens.value);
+  const min = eventGoalMinimumTokens.value;
+  const max = eventGoalMaximumTokens.value;
+  const existing = toWholeTokens(contributionTokens.value);
+  if (max >= min) {
+    contributionTokens.value = String(Math.min(Math.max(existing || min, min), max));
+    return;
+  }
+
+  contributionTokens.value = String(min);
+}
+
+function formatGroupDate(dateIso) {
+  if (!dateIso) return '';
+  const date = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(locale.value, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function slotDurationMinutes(slot = {}) {
+  const explicit = Number(slot?.durationMinutes);
+  if (Number.isFinite(explicit) && explicit > 0) return Math.round(explicit);
+  const startMs = Number(slot?.startMs);
+  const endMs = Number(slot?.endMs);
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
+    return Math.round((endMs - startMs) / (60 * 1000));
+  }
+  return 0;
+}
+
+function formatSlotRange(slot = {}) {
+  if (!slot?.startHm || !slot?.endHm) return '-';
+  return `${hmToLabel(slot.startHm)}-${hmToLabel(slot.endHm)}`;
+}
+
+async function autoSelectGroupAndGoToPayment() {
+  if (!isGroupEvent.value || groupAutoRedirecting.value) return;
+  groupAutoRedirecting.value = true;
+
+  const event = selectedEvent.value;
+  const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
+  if (!next?.slot) {
+    showToast({
+      type: 'error',
+      title: t('fan_booking_slot_unavailable_title'),
+      message: t('fan_booking_no_upcoming_free_slot'),
+    });
+    props.engine.goToStep(1);
+    return;
+  }
+
+  const duration = slotDurationMinutes(next.slot);
+  const contribution = isEventGoalGroupEvent.value ? eventGoalMinimumTokens.value : null;
+  const selectedDate = new Date(`${next.dateIso}T00:00:00`);
+  const selectedTimeValue = {
+    ...next.slot,
+    value: next.slot.startHm || next.slot.value,
+    label: formatSlotRange(next.slot),
+    disabled: false,
+  };
+  const selectedDuration = {
+    value: duration,
+    price: isEventGoalGroupEvent.value
+      ? contribution
+      : toWholeTokens(event?.raw?.basePriceTokens ?? event?.basePriceTokens ?? 0),
+    disabled: false,
+  };
+  const pricingPreview = buildBookingPaymentPreview(event, duration, [], selectedTimeValue, {
+    isFirstBookingForCreator: isFirstBookingForCreator.value,
+    contributionTokens: contribution,
+  });
+  const dateDisplay = formatGroupDate(next.dateIso);
+  const bookingData = {
+    selectedDate,
+    selectedTime: selectedTimeValue,
+    selectedDuration,
+    addons: [],
+    otherRequest: '',
+    formattedTimeRange: formatSlotRange(next.slot),
+    selectedDateDisplay: dateDisplay,
+    headerDateDisplay: dateDisplay,
+    totalPrice: Number(pricingPreview?.payment?.total || 0),
+    contributionTokens: contribution,
+    longerDiscountAmount: 0,
+    firstTimeDiscountAmount: 0,
+    discountRows: [],
+    offHourSurchargeAmount: 0,
+    offHourSurchargePercent: 0,
+    isOffHours: Boolean(next.slot?.offHours),
+    walletBalance: Number(walletBalance.value || props.engine.getState('bookingDetails.walletBalance') || 0),
+  };
+
+  props.engine.setState('bookingDetails', bookingData, { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.selectedDate', next.dateIso, { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.selectedSlot', selectedTimeValue, { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.selectedDurationMinutes', duration, { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.contributionTokens', contribution, { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.selectedAddOns', [], { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.selection.personalRequestText', '', { reason: 'step2-group-auto-selection', silent: true });
+  props.engine.setState('fanBooking.temporaryHold', {
+    temporaryHoldId: null,
+    status: 'none',
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+  }, { reason: 'step2-group-auto-selection-reset-hold', silent: true });
+
+  await props.engine.goToStep(3);
+}
+
+function resolveCreatorId() {
+  const raw = selectedEvent.value?.raw || {};
+  const creatorId = Number(
+    selectedEvent.value?.creatorId
+      ?? raw?.creatorId
+      ?? props.engine.getState('fanBooking.context.creatorId')
+      ?? 0,
+  );
+  return Number.isFinite(creatorId) && creatorId > 0 ? creatorId : 0;
+}
+
+function resolveFanId() {
+  const fanId = Number(
+    props.engine.getState('fanBooking.context.fanId')
+      ?? props.engine.getState('userId')
+      ?? props.engine.getState('currentUser.id')
+      ?? 0,
+  );
+  return Number.isFinite(fanId) && fanId > 0 ? fanId : 0;
+}
+
+function parseTokenBalance(response, receiverId) {
+  if (Number.isFinite(Number(response))) return Number(response);
+
+  if (response && typeof response === 'object') {
+    const data = response.data || {};
+    const totalBalance = Number(data.balance);
+    if (!receiverId && Number.isFinite(totalBalance)) return totalBalance;
+
+    const paidTokens = Number(data.paidTokens || 0);
+    const freeTokensByBeneficiary = data.freeTokensPerBeneficiary || {};
+    const beneficiaryTokens = Number(freeTokensByBeneficiary?.[receiverId] || 0);
+    const systemTokens = Number(freeTokensByBeneficiary?.system || 0);
+    const computedBalance = paidTokens + beneficiaryTokens + systemTokens;
+
+    if (Number.isFinite(computedBalance) && computedBalance > 0) return computedBalance;
+    return Number.isFinite(totalBalance) ? totalBalance : null;
+  }
+
+  return null;
+}
+
+async function refreshWalletBalance() {
+  const cachedBalance = Number(props.engine.getState('bookingDetails.walletBalance') || 0);
+  walletBalance.value = Number.isFinite(cachedBalance) && cachedBalance > 0 ? cachedBalance : 0;
+
+  const fanId = resolveFanId();
+  const creatorId = resolveCreatorId();
+  if (fanId <= 0 || !getBackendJwtToken()) {
+    if (walletBalance.value <= 0) {
+      props.engine.setState('bookingDetails.walletBalance', 0, {
+        reason: 'step2-guest-token-balance-default',
+        silent: true,
+      });
+    }
+    ensureContributionDefault();
+    return;
+  }
+
+  const response = await TokenHandler.get({
+    userId: fanId,
+    receiverId: creatorId > 0 ? creatorId : null,
+    defaultValue: null,
+  });
+  const parsedBalance = parseTokenBalance(response, creatorId);
+  if (!Number.isFinite(parsedBalance)) {
+    ensureContributionDefault();
+    return;
+  }
+
+  walletBalance.value = parsedBalance;
+  props.engine.setState('bookingDetails.walletBalance', parsedBalance, {
+    reason: 'step2-token-balance-refresh',
+    silent: true,
+  });
+  ensureContributionDefault();
 }
 
 const timeSlots = computed(() => {
@@ -452,6 +672,11 @@ const onSelectFromMini = (date) => {
 };
 
 function hydrateAddons() {
+  if (isGroupEvent.value) {
+    addons.value = [];
+    return;
+  }
+
   const raw = selectedEvent.value?.raw || {};
   const addOnRows = Array.isArray(raw.addOns) ? raw.addOns : [];
 
@@ -500,16 +725,28 @@ function hydrateFromState() {
     selectedDurationObj.value = null;
   }
 
-  otherRequest.value = existing.otherRequest
-    ?? props.engine.getState('fanBooking.selection.personalRequestText')
-    ?? '';
+  otherRequest.value = isGroupEvent.value
+    ? ''
+    : (existing.otherRequest
+      ?? props.engine.getState('fanBooking.selection.personalRequestText')
+      ?? '');
+  if (isGroupEvent.value) {
+    props.engine.setState('fanBooking.selection.selectedAddOns', [], {
+      reason: 'step2-group-addons-disabled',
+      silent: true,
+    });
+    props.engine.setState('fanBooking.selection.personalRequestText', '', {
+      reason: 'step2-group-personal-request-disabled',
+      silent: true,
+    });
+  }
 
   contributionTokens.value = existing.contributionTokens
     ?? props.engine.getState('fanBooking.selection.contributionTokens')
     ?? '';
   ensureContributionDefault();
 
-  if (Array.isArray(existing.addons) && existing.addons.length > 0) {
+  if (!isGroupEvent.value && Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
       const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
       if (addon) addon.selected = true;
@@ -589,8 +826,8 @@ const goToNextStep = () => {
     selectedDate: state.selected,
     selectedTime: selectedTime.value,
     selectedDuration: selectedDurationObj.value,
-    addons: selectedAddons.value,
-    otherRequest: otherRequest.value,
+    addons: isGroupEvent.value ? [] : selectedAddons.value,
+    otherRequest: isGroupEvent.value ? '' : otherRequest.value,
     formattedTimeRange: formattedTimeRange.value,
     selectedDateDisplay: selectedDateDisplay.value,
     headerDateDisplay: headerDateDisplay.value,
@@ -602,7 +839,7 @@ const goToNextStep = () => {
     offHourSurchargeAmount: offHourSurchargeAmount.value,
     offHourSurchargePercent: offHourSurchargePercent.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
-    walletBalance: Number(props.engine.getState('bookingDetails.walletBalance') || 0),
+    walletBalance: Number(walletBalance.value || 0),
   };
 
   props.engine.setState('bookingDetails', bookingData);
@@ -610,8 +847,8 @@ const goToNextStep = () => {
   props.engine.setState('fanBooking.selection.selectedSlot', selectedTime.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedDurationMinutes', selectedDurationObj.value.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.contributionTokens', isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null, { reason: 'step2-selection', silent: true });
-  props.engine.setState('fanBooking.selection.selectedAddOns', selectedAddons.value, { reason: 'step2-selection', silent: true });
-  props.engine.setState('fanBooking.selection.personalRequestText', otherRequest.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.selectedAddOns', isGroupEvent.value ? [] : selectedAddons.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.personalRequestText', isGroupEvent.value ? '' : otherRequest.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.temporaryHold', {
     temporaryHoldId: null,
     status: 'none',
@@ -627,6 +864,14 @@ const goToNextStep = () => {
 watch(
   () => otherRequest.value,
   (next) => {
+    if (isGroupEvent.value) {
+      props.engine.setState('fanBooking.selection.personalRequestText', '', {
+        reason: 'step2-group-personal-request-disabled',
+        silent: true,
+      });
+      return;
+    }
+
     props.engine.setState('fanBooking.selection.personalRequestText', next ?? '', {
       reason: 'step2-personal-request',
       silent: true,
@@ -636,10 +881,18 @@ watch(
 
 watch(
   () => selectedEvent.value,
-  () => {
+  async () => {
+    if (isGroupEvent.value) {
+      hydrateAddons();
+      hydrateFromState();
+      await refreshWalletBalance();
+      await autoSelectGroupAndGoToPayment();
+      return;
+    }
     hydrateAddons();
     hydrateFromState();
     ensureContributionDefault();
+    refreshWalletBalance();
   },
   { immediate: true },
 );
@@ -650,6 +903,14 @@ watch(
     ensureContributionDefault();
   },
   { immediate: true },
+);
+
+watch(
+  () => contributionTokens.value,
+  () => {
+    if (!isEventGoalGroupEvent.value) return;
+    ensureContributionDefault();
+  },
 );
 
 watch(
@@ -708,13 +969,25 @@ onMounted(() => {
     return;
   }
 
+  if (isGroupEvent.value) {
+    autoSelectGroupAndGoToPayment();
+    return;
+  }
+
   hydrateAddons();
   hydrateFromState();
+  refreshWalletBalance();
 });
 </script>
 
 <template>
   <div
+    v-if="isGroupEvent"
+    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden bg-black/80"
+  ></div>
+
+  <div
+    v-else
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
@@ -731,6 +1004,8 @@ onMounted(() => {
           :creator-is-verified="creatorPresentation.isVerified"
           :creator-loading="creatorPresentationLoading"
           :show-approval-needed="showApprovalNeeded"
+          :is-group-event="isGroupEvent"
+          :price-setting="groupPriceSetting"
         />
 
         <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
@@ -786,7 +1061,9 @@ onMounted(() => {
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_call_start_time") }}</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
+                {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
+              </h3>
               <div class="flex flex-wrap w-full gap-2">
                 <div
                   v-for="(slot, index) in timeSlots"
@@ -827,7 +1104,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex flex-col gap-2 md:mt-0 mt-5">
+            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
               <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
               <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
                 <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem]">
@@ -857,37 +1134,6 @@ onMounted(() => {
               <p class="text-sm leading-[20px] text-[#07F468]">
                 {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
               </p>
-
-              <div
-                v-if="isEventGoalGroupEvent"
-                class="mt-2 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3"
-              >
-                <label for="event-goal-contribution" class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
-                  {{ t("fan_booking_event_goal_contribution") }}
-                </label>
-                <div
-                  class="flex items-center gap-2 border-b border-solid bg-black/50 px-3 py-2"
-                  :class="contributionInvalid ? 'border-[#FF0066]' : 'border-[#07F468]'"
-                >
-                  <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-5 w-5" />
-                  <input
-                    id="event-goal-contribution"
-                    v-model="contributionTokens"
-                    type="number"
-                    inputmode="numeric"
-                    :min="eventGoalMinimumTokens"
-                    :max="eventGoalMaximumTokens || undefined"
-                    class="min-w-0 flex-1 bg-transparent text-base font-semibold text-white outline-none"
-                  />
-                  <span class="text-sm text-[#EAECF0]">{{ t("common_tokens") }}</span>
-                </div>
-                <p
-                  class="text-xs leading-[18px]"
-                  :class="contributionInvalid ? 'text-[#FF99C9]' : 'text-[#D0D5DD]'"
-                >
-                  {{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}
-                </p>
-              </div>
 
               <div
                 v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
@@ -930,7 +1176,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="addons.length > 0">
+            <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
               <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
@@ -959,7 +1205,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex flex-col gap-2 md:mt-0 mt-5">
+            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
               <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm leading-[20px] text-[#F2F4F7]">

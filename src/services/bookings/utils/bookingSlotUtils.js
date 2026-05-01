@@ -185,6 +185,20 @@ function isBlockingBookedSlot(booked) {
   return !status.includes("cancel");
 }
 
+function resolveBookedContributionTokens(booked = {}) {
+  const direct = Number(booked?.contributionTokens);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  const payment = booked?.payment && typeof booked.payment === "object" ? booked.payment : null;
+  const lines = Array.isArray(payment?.lines) ? payment.lines : [];
+  const contributionLine = lines.find((line) => String(line?.code || "") === "event_goal_contribution");
+  const lineAmount = Number(contributionLine?.amount);
+  if (Number.isFinite(lineAmount) && lineAmount > 0) return lineAmount;
+
+  const total = Number(payment?.total ?? booked?.paymentTotal);
+  return Number.isFinite(total) && total > 0 ? total : 0;
+}
+
 function sliceWindowIntoSessionSlotsWithPostBookedBuffer(
   windowSlot,
   sessionMinutes,
@@ -615,6 +629,9 @@ export function buildBookedSlotsIndex(slots = []) {
       startHm: formatLocalHm(startDate),
       endHm: formatLocalHm(endDate),
       status: slot.status || null,
+      contributionTokens: Number.isFinite(Number(slot.contributionTokens)) ? Number(slot.contributionTokens) : null,
+      payment: slot.payment && typeof slot.payment === "object" ? slot.payment : null,
+      paymentTotal: Number.isFinite(Number(slot.paymentTotal)) ? Number(slot.paymentTotal) : null,
     });
   });
 
@@ -634,15 +651,15 @@ export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {
   ));
 }
 
-function countBlockingOverlaps({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
+export function getBlockingBookedSlotsForRange({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
   if (!eventId || !Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
-    return 0;
+    return [];
   }
 
   const byDate = bookedSlotsIndex?.[eventId];
-  if (!byDate || typeof byDate !== "object") return 0;
+  if (!byDate || typeof byDate !== "object") return [];
 
-  let count = 0;
+  const matches = [];
   Object.values(byDate).forEach((rows) => {
     if (!Array.isArray(rows)) return;
     rows.forEach((booked) => {
@@ -651,11 +668,49 @@ function countBlockingOverlaps({ eventId, startMs, endMs, bookedSlotsIndex = {} 
         && startMs < booked.endMs
         && endMs > booked.startMs
       ) {
-        count += 1;
+        matches.push(booked);
       }
     });
   });
-  return count;
+  return matches;
+}
+
+function countBlockingOverlaps({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
+  return getBlockingBookedSlotsForRange({
+    eventId,
+    startMs,
+    endMs,
+    bookedSlotsIndex,
+  }).length;
+}
+
+export function countGroupSlotBookings({ eventId, slot, bookedSlotsIndex = {} }) {
+  return countBlockingOverlaps({
+    eventId,
+    startMs: slot?.startMs,
+    endMs: slot?.endMs,
+    bookedSlotsIndex,
+  });
+}
+
+export function sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex = {} }) {
+  if (!eventId) return 0;
+  const byDate = bookedSlotsIndex?.[eventId];
+  if (!byDate || typeof byDate !== "object") return 0;
+
+  const seen = new Set();
+  let total = 0;
+  Object.values(byDate).forEach((rows) => {
+    if (!Array.isArray(rows)) return;
+    rows.forEach((booked, index) => {
+      if (!isBlockingBookedSlot(booked)) return;
+      const key = booked.bookingId || `${booked.startIso || booked.startMs}_${booked.endIso || booked.endMs}_${index}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      total += resolveBookedContributionTokens(booked);
+    });
+  });
+  return Math.max(0, Math.floor(total));
 }
 
 export function isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex = {} }) {
@@ -690,6 +745,7 @@ export function isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex = {} }
 }
 
 export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, daysAhead = 30) {
+  const eventId = event.eventId || event.id;
   const today = new Date();
   for (let offset = 0; offset <= daysAhead; offset += 1) {
     const date = new Date(today);
@@ -698,20 +754,20 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
     if (!localDateIso) continue;
 
     const candidates = buildCandidateSlotsForEventDate(event, localDateIso, {
-      eventId: event.eventId,
+      eventId,
       bookedSlotsIndex,
       applyBufferAfterBooked: true,
     });
-    const firstFree = candidates.find((slot) => (
-      isGroupEvent(event)
-        ? !isGroupSlotAtCapacity({ event, eventId: event.eventId, slot, bookedSlotsIndex })
-        : !isSlotBooked({
-          eventId: event.eventId,
-          localDateIso,
-          slot,
-          bookedSlotsIndex,
-        })
-    ));
+    const firstFree = candidates.find((slot) => {
+      const uiSlot = createSlotUiModel({
+        event,
+        eventId,
+        localDateIso,
+        slot,
+        bookedSlotsIndex,
+      });
+      return !uiSlot.disabled;
+    });
 
     if (firstFree) {
       return {
@@ -926,4 +982,11 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
   });
 }
 
-export { hmToLabel, formatLocalDateIso, toSlotDateTimeMs };
+export {
+  hmToLabel,
+  formatLocalDateIso,
+  toSlotDateTimeMs,
+  resolveGroupCapacity,
+  isBlockingBookedSlot,
+  resolveBookedContributionTokens,
+};

@@ -75,6 +75,62 @@ function createEngine() {
   });
 }
 
+function configureEventGoalGroup(engine, overrides = {}) {
+  engine.state.bookingDetails = {
+    ...engine.state.bookingDetails,
+    selectedTime: {
+      value: "10:00",
+      startHm: "10:00",
+      endHm: "13:00",
+      offHours: false,
+    },
+    selectedDuration: { value: 180, price: 500 },
+    contributionTokens: 500,
+    totalPrice: 500,
+    walletBalance: 0,
+    formattedTimeRange: "10:00am-1:00pm",
+  };
+  engine.state.fanBooking.catalog = {
+    bookedSlotsIndex: {
+      evt_goal_step3: {
+        "2026-03-24": [{
+          bookingId: "booking_existing_contribution",
+          startIso: "2026-03-24T10:00:00",
+          endIso: "2026-03-24T13:00:00",
+          startMs: new Date("2026-03-24T10:00:00").getTime(),
+          endMs: new Date("2026-03-24T13:00:00").getTime(),
+          status: "confirmed",
+          contributionTokens: 1000,
+        }],
+      },
+    },
+  };
+  engine.state.fanBooking.context.selectedEvent = {
+    eventId: "evt_goal_step3",
+    id: "evt_goal_step3",
+    type: "group-event",
+    eventType: "group-event",
+    title: "Group Goal",
+    creatorName: "Creator Name",
+    priceSetting: "eventGoal",
+    eventGoalTokens: 8000,
+    minContributionPerUser: 500,
+    raw: {
+      type: "group-event",
+      eventType: "group-event",
+      priceSetting: "eventGoal",
+      eventGoalTokens: 8000,
+      minContributionPerUser: 500,
+      sessionDurationMinutes: 180,
+    },
+    ...overrides,
+  };
+  engine.state.fanBooking.selection = {
+    contributionTokens: 500,
+    selectedDurationMinutes: 180,
+  };
+}
+
 async function flushAsync() {
   await Promise.resolve();
   await nextTick();
@@ -101,15 +157,37 @@ vi.mock("@/utils/backendJwt.js", () => ({
 }));
 
 vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
-  mapCreateBookingToRequest: () => ({
-    payment: {
-      lines: [
-        { code: "base", amount: 900 },
-        { code: "booking_fee", amount: 100 },
-      ],
-      total: 1000,
-    },
-  }),
+  mapCreateBookingToRequest: (state = {}) => {
+    const selectedEvent = state?.fanBooking?.context?.selectedEvent || {};
+    const raw = selectedEvent.raw || {};
+    const isEventGoalGroup = String(selectedEvent.type || raw.type || "").toLowerCase() === "group-event"
+      && String(selectedEvent.priceSetting || raw.priceSetting || "").toLowerCase() === "eventgoal";
+    if (isEventGoalGroup) {
+      const contribution = Number(
+        state?.bookingDetails?.contributionTokens
+          ?? state?.fanBooking?.selection?.contributionTokens
+          ?? raw.minContributionPerUser
+          ?? 1,
+      );
+      return {
+        contributionTokens: contribution,
+        payment: {
+          lines: [{ code: "event_goal_contribution", amount: contribution }],
+          total: contribution,
+        },
+      };
+    }
+
+    return {
+      payment: {
+        lines: [
+          { code: "base", amount: 900 },
+          { code: "booking_fee", amount: 100 },
+        ],
+        total: 1000,
+      },
+    };
+  },
 }));
 
 vi.mock("@/utils/contextIds.js", () => ({
@@ -127,7 +205,26 @@ vi.mock("@/components/FanBookingFlow/HelperComponents/TopUpForm.vue", () => ({
 vi.mock("@/components/FanBookingFlow/HelperComponents/OneOnOneBookingFlowLeftSideBar.vue", () => ({
   default: {
     name: "OneOnOneBookingFlowLeftSideBar",
-    template: "<div data-test='left-sidebar' />",
+    props: [
+      "isGroupEvent",
+      "priceSetting",
+      "eventGoalReachedTokens",
+      "eventGoalTokens",
+      "eventGoalPercent",
+      "groupPerformers",
+      "titleDisplay",
+    ],
+    template: `
+      <div
+        data-test="left-sidebar"
+        :data-is-group-event="String(isGroupEvent)"
+        :data-price-setting="priceSetting"
+        :data-event-goal-reached-tokens="eventGoalReachedTokens"
+        :data-event-goal-tokens="eventGoalTokens"
+        :data-event-goal-percent="eventGoalPercent"
+        :data-performer-count="Array.isArray(groupPerformers) ? groupPerformers.length : 0"
+      >{{ titleDisplay }}</div>
+    `,
   },
 }));
 
@@ -294,5 +391,134 @@ describe("BookingFlowStep3", () => {
       }),
     );
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("renders event-goal group contribution controls in step 3 and updates booking state", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("Your Contribution (500 Tokens minimum)");
+    const input = wrapper.get("#step3-event-goal-contribution");
+    const range = wrapper.get("[data-testid='step3-event-goal-contribution-range']");
+    expect(input.attributes("min")).toBe("500");
+    expect(input.attributes("max")).toBe("7000");
+    expect(range.attributes("max")).toBe("7000");
+
+    await input.setValue("4000");
+    await flushAsync();
+
+    expect(engine.state.bookingDetails.contributionTokens).toBe(4000);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(4000);
+    expect(wrapper.text()).toContain("4,000");
+  });
+
+  it("passes group event-goal progress into the sidebar", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine, {
+      coHosts: [
+        {
+          name: "Buff Bunny",
+          avatar: "/buff.webp",
+          isVerified: true,
+        },
+      ],
+      raw: {
+        type: "group-event",
+        eventType: "group-event",
+        priceSetting: "eventGoal",
+        eventGoalTokens: 8000,
+        minContributionPerUser: 500,
+        sessionDurationMinutes: 180,
+      },
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    const sidebar = wrapper.get("[data-test='left-sidebar']");
+    expect(sidebar.attributes("data-is-group-event")).toBe("true");
+    expect(sidebar.attributes("data-price-setting")).toBe("eventGoal");
+    expect(sidebar.attributes("data-event-goal-reached-tokens")).toBe("1000");
+    expect(sidebar.attributes("data-event-goal-tokens")).toBe("8000");
+    expect(sidebar.attributes("data-event-goal-percent")).toBe("12");
+    expect(sidebar.attributes("data-performer-count")).toBe("1");
+    expect(sidebar.text()).toContain("Group Goal");
+  });
+
+  it("allows event-goal contribution above wallet balance so step 3 can top up", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 300,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+    await wrapper.get("#step3-event-goal-contribution").setValue("4000");
+    await flushAsync();
+
+    expect(engine.state.bookingDetails.contributionTokens).toBe(4000);
+    expect(wrapper.text()).toContain("TOP UP NEEDED");
+    expect(wrapper.text()).toContain("TOP-UP AND PAY");
+  });
+
+  it("returns group bookings to step 1 when changing schedule", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+    await wrapper.findAll("button").find((button) => button.text().includes("Change Schedule")).trigger("click");
+
+    expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "change-schedule" });
+    expect(engine.goToStep).toHaveBeenCalledWith(1);
   });
 });
