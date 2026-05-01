@@ -86,6 +86,15 @@ import {
   mapConfirmReservationToRequest,
   mapCancelReservationToRequest,
 } from "@/services/rental/mappers/rentalWriteMappers.js";
+import { fetchOrdersFlow } from "@/services/orders/flows/fetchOrdersFlow.js";
+import {
+  mapOrdersFromResponse,
+  mapOrderToRequest,
+} from "@/services/orders/mappers/ordersMapper.js";
+import {
+  uploadMediaFlow,
+  submitUploaderFlow,
+} from "@/services/orders/flows/mediaUploaderFlows.js";
 
 export const flowRegistry = {
   "events.fetchEvent": {
@@ -1581,5 +1590,87 @@ export const flowRegistry = {
   "cart.remind": {
     flowKind: "write",
     flow: remindAbandonedCartsFlow,
+  },
+  "orders.fetchOrders": {
+    flowKind: "read",
+    flow: fetchOrdersFlow,
+    mapper: {
+      fromResponse: mapOrdersFromResponse,
+      toRequest: mapOrderToRequest,
+    },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 25000 },
+      retry: {
+        enabled: true,
+        maxAttempts: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 2000,
+        jitterRatio: 0.15,
+      },
+      etag: { enabled: false },
+      localCache: {
+        enabled: false,
+      },
+      readFrom: {
+        enabled: false,
+      },
+
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        {
+          type: "piniaAction",
+          storeId: "orders",
+          action: "setOrders",
+          map: (data) => [
+            data.items,
+            {
+              etag: data.etag,
+              totalCount: data.totalCount,
+              pagination: data.pagination,
+            },
+          ],
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "local",
+          key: "dash:orders:list",
+          ttlMs: 60000,
+          version: 1,
+          hydrateOnReadHit: true,
+        },
+      ],
+      uiErrorMap: {
+        FETCH_ORDERS_FAILED:
+          "Could not load orders. Please check your connection.",
+        FETCH_ORDERS_UNEXPECTED:
+          "An unexpected error occurred while loading orders.",
+      },
+    },
+    refresh: {
+      enabled: true,
+      intervalMs: 1800000, // 30 minutes as requested
+      scopeKey: "orders.fetchOrders",
+    },
+  },
+
+  // --- MEDIA UPLOADER FLOWS ---
+  "media.uploadFile": {
+    flowKind: "write",
+    flow: uploadMediaFlow,
+    pipeline: {
+      retry: { enabled: false },
+      uiErrorMap: {
+        UPLOAD_FAILED: "Media upload failed. Please try again.",
+      },
+    },
+  },
+  "media.submitUploader": {
+    flowKind: "write",
+    flow: submitUploaderFlow,
+    pipeline: {
+      uiErrorMap: {
+        SUBMIT_FAILED: "Registration failed. Please check form data.",
+      },
+    },
   },
 };

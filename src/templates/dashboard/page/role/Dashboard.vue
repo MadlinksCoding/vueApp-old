@@ -249,6 +249,8 @@
     <ProfileLoginPopup v-model="profileLoginPopupOpen" />
     <ProfileMerchPopup v-model="profileMerchPopupOpen" />
     <TopUpPopup v-model="topUpPopupOpen" />
+
+    <PremiumOrdersPage/>
   </DashboardWrapperTwoColContainer>
 </template>
 
@@ -303,6 +305,7 @@ import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPo
 import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";
+import PremiumOrdersPage from "../agent/PremiumOrdersPage.vue";
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);

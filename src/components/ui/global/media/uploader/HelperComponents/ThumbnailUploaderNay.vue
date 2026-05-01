@@ -17,6 +17,7 @@
     :style="'--media-uploader-main-color: ' + mainColor + ';'"
   >
 
+  
     <!-- Profile Image Upload (Edit Profile Mode) -->
     <div v-if="editProfile && !isProfileAvatar" class="p-6 flex justify-center items-center">
       <div

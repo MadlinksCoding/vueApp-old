@@ -1,7 +1,10 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, computed } from "vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
 import { preloadIcons } from "@/utils/preload.js";
+import { useMediaUploaderStore } from "@/stores/useMediaUploaderStore";
+
+const uploaderStore = useMediaUploaderStore();
 
 // Props
 const props = defineProps({
@@ -14,6 +17,13 @@ const props = defineProps({
   preloadImages: { type: Array, default: () => [] }, // preload images
 });
 
+const blurModel = computed({
+  get: () => uploaderStore.form.blurThumbnail || false,
+  set: (val) => {
+    uploaderStore.updateFormField("blurThumbnail", val);
+  }
+});
+
 onMounted(() => {
   if (props.preloadImages.length > 0) {
     preloadIcons(props.preloadImages);
@@ -23,7 +33,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col mt-4 md:flex-row relative self-stretch w-full rounded-sm md:rounded-[1.5rem] gap-2"
+    class="flex flex-col md:flex-row relative self-stretch w-full rounded-sm md:rounded-[1.5rem] gap-2"
   >
     <!-- thumbnail area -->
     <div
@@ -36,14 +46,18 @@ onMounted(() => {
         <!-- Background Image -->
         <div class="block overflow-hidden">
           <div
-            class="w-full aspect-[16/9] md:aspect-auto min-h-0 md:min-h-[24.6875rem] h-auto md:h-full bg-cover"
-            :style="`background-image: url('${props.bgImage}')`"
+            class="w-full aspect-[16/9] md:aspect-auto min-h-0 md:min-h-[24.6875rem] h-auto md:h-full bg-cover transition-all duration-300"
+            :style="{ 
+              backgroundImage: `url('${uploaderStore.form.thumbnailUrl || props.bgImage}')`,
+              filter: blurModel ? 'blur(8px)' : 'none'
+            }"
           ></div>
         </div>
 
         <!-- Delete button (only if icon provided) -->
         <span
           v-if="props.deleteIcon"
+          @click="uploaderStore.updateFormField('thumbnailUrl', ''); uploaderStore.updateFormField('uploadedThumbnailFile', null)"
           class="absolute top-0 right-0 flex items-center justify-center h-6 w-6 cursor-pointer bg-error hover:bg-error-light"
         >
           <img :src="props.deleteIcon" alt="delete-icon" class="w-5 h-5" />
@@ -77,6 +91,7 @@ onMounted(() => {
             label="Blur thumbnail"
             version="dashboard"
             showWrapperLabel
+            v-model="blurModel"
           />
         </div>
       </div>

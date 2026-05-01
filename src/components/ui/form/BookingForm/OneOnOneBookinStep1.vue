@@ -152,6 +152,8 @@
     allowAdvanceCancellation: props.engine.state.allowAdvanceCancellation || false,
     addOffHourSurcharge: props.engine.state.addOffHourSurcharge || false,
     disableChatDuringCall: props.engine.state.disableChatDuringCall || false,
+    disableChatAllowEmoji: props.engine.state.disableChatAllowEmoji || false,
+    disableChatDuringCallAllowEmoji: props.engine.state.disableChatDuringCallAllowEmoji || false,
     requestExtendSession: props.engine.state.requestExtendSession || false,
     setBufferTime: props.engine.state.setBufferTime || false,
     setMaxBookings: props.engine.state.setMaxBookings || false,
@@ -1003,6 +1005,14 @@
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-[16px] leading-normal"
                     wrapperClass="flex items-center gap-2 mb-2 mt-2" />
+                  
+                  <!-- New Toggle: Allow emoji -->
+                  <div v-if="formData.disableChatBeforeCall" class="ml-5">
+                    <CheckboxGroup v-model="formData.disableChatAllowEmoji" label="Allow reply with emoji"
+                      checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
+                      labelClass="text-slate-700 text-[14px] leading-normal italic"
+                      wrapperClass="flex items-center gap-2 mb-2" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1610,6 +1620,14 @@
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-3 mt-2" />
+              
+              <!-- New Toggle: Allow emoji during call -->
+              <div v-if="formData.disableChatDuringCall" class="ml-6">
+                <CheckboxGroup v-model="formData.disableChatDuringCallAllowEmoji" label="Allow reply with emoji"
+                  checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
+                  labelClass="text-slate-700 text-[14px] leading-normal italic"
+                  wrapperClass="flex items-center gap-2 mb-2" />
+              </div>
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">

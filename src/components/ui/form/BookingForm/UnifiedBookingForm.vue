@@ -122,6 +122,8 @@ const bookingFlow = createFlowStateEngine({
         allowAdvanceCancellation: false,
         addOffHourSurcharge: false,
         disableChatDuringCall: false,
+        disableChatAllowEmoji: false,
+        disableChatDuringCallAllowEmoji: false,
         requestExtendSession: false,
         setBufferTime: false,
         setMaxBookings: false,
