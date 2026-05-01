@@ -81,6 +81,7 @@
   "booking_fan_can_request_extend_session": "Fan can request to extend session in call",
   "booking_group_before_event_start": "before event start",
   "booking_group_cancel_advance_void_fee": "User can cancel in advance to void fee",
+  "booking_group_cancellation_fee": "Cancellation Fee",
   "booking_group_charge_question": "How would you like to charge this event?",
   "booking_group_event_goal_option": "Set event goals for user to chip in",
   "booking_group_event_settings": "Group Event Settings",

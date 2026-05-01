@@ -1226,7 +1226,9 @@
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
-              <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_group_refund_before_event_start')"
+              <CheckboxGroup
+                v-model="formData.enableCancellationFee"
+                :label="t(formData.priceSetting === 'fixedPricePerUser' ? 'booking_group_cancellation_fee' : 'booking_group_refund_before_event_start')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -1286,7 +1288,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t('booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
+      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
         <div class="w-full flex flex-col gap-5 mt-5">
           <div class="flex flex-col gap-3 w-full">
             <div class="self-stretch justify-start text-gray-900 text-xs font-normal font-['Poppins'] leading-none">
@@ -1300,12 +1302,8 @@
             <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="self-stretch inline-flex justify-start items-end">
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <div class="justify-start">
-                    <span class="text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                      {{ formData.repeatRule === 'monthly' ? t("booking_start_date") : t("booking_duration") }}
-                    </span>
-                    <span v-if="formData.repeatRule !== 'monthly'"
-                      class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none"> {{ t("common_optional") }}</span>
+                  <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                    {{ t("booking_start_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
                   </div>
                   <input
                     type="date"
@@ -1584,81 +1582,83 @@
       </BookingSectionsWrapper>
       </template>
 
-      <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
+      <template v-if="!isGroupBooking">
+        <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper :title="t('booking_call_settings')" leftIcon="https://i.ibb.co/xq0ZdVmP/Icon.png"
-        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.callSettings"
-        @toggle="toggleSection('callSettings')">
-        <div v-show="sectionsState.callSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_offer_discount_if_call_starts_late") }}</div>
-                  <TooltipIcon :text="t('booking_join_buffer_tooltip')" />
+        <BookingSectionsWrapper :title="t('booking_call_settings')" leftIcon="https://i.ibb.co/xq0ZdVmP/Icon.png"
+          accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.callSettings"
+          @toggle="toggleSection('callSettings')">
+          <div v-show="sectionsState.callSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <div class="self-stretch flex flex-col justify-center items-start gap-1">
+                <div class="self-stretch inline-flex justify-start items-center gap-1">
+                  <div class="justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_offer_discount_if_call_starts_late") }}</div>
+                    <TooltipIcon :text="t('booking_join_buffer_tooltip')" />
+                </div>
               </div>
-            </div>
-            <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
               <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <CustomDropdown
-                  v-model="formData.lateStartAction"
-                  :options="lateStartActionOptions"
-                  buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
-                />
-                <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
-                  <BaseInput type="number" :placeholder="t('booking_late_start_discount_placeholder')"
-                    v-model="formData.lateStartDiscountPercent"
-                    inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
+                  <CustomDropdown
+                    v-model="formData.lateStartAction"
+                    :options="lateStartActionOptions"
+                    buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
+                  />
+                  <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
+                    <BaseInput type="number" :placeholder="t('booking_late_start_discount_placeholder')"
+                      v-model="formData.lateStartDiscountPercent"
+                      inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_call_functions") }}
-              </div>
-              <CheckboxGroup v-model="formData.disableChatDuringCall" :label="t('booking_disable_chat_during_call')"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-3 mt-2" />
-              
-              <!-- New Toggle: Allow emoji during call -->
-              <div v-if="formData.disableChatDuringCall" class="ml-6">
-                <CheckboxGroup v-model="formData.disableChatDuringCallAllowEmoji" label="Allow reply with emoji"
-                  checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
-                  labelClass="text-slate-700 text-[14px] leading-normal italic"
-                  wrapperClass="flex items-center gap-2 mb-2" />
-              </div>
-            </div>
-          </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="self-stretch inline-flex justify-start items-center gap-1 relative">
-                <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
-                  {{ t("booking_fan_can_request_extend_session") }}
-                  <TooltipIcon :text="t('booking_session_extension_tooltip')" 
-                  tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
-                  class="relative group inline-block mt-[2px] ml-1   z-[9]  top-1" />
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <div class="self-stretch flex flex-col justify-center items-start gap-1">
+                <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_call_functions") }}
                 </div>
-              </div>
-              <div class="inline-flex justify-start items-center gap-2">
-                <CheckboxGroup v-model="formData.requestExtendSession"
+                <CheckboxGroup v-model="formData.disableChatDuringCall" :label="t('booking_disable_chat_during_call')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2" />
-                <div :class="['flex justify-start items-end gap-2',!formData.requestExtendSession ? 'opacity-50':'opacity-100']">
-                  <BaseInput type="number" placeholder="" v-model="formData.extendSessionMax"
-                    :disabled="!formData.requestExtendSession"
-                    inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="h-10 inline-flex flex-col justify-between items-start">
-                    <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
-                    <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration * formData.extendSessionMax }) }})</div>
+                  wrapperClass="flex items-center gap-2 mb-3 mt-2" />
+                
+                <!-- New Toggle: Allow emoji during call -->
+                <div v-if="formData.disableChatDuringCall" class="ml-6">
+                  <CheckboxGroup v-model="formData.disableChatDuringCallAllowEmoji" label="Allow reply with emoji"
+                    checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
+                    labelClass="text-slate-700 text-[14px] leading-normal italic"
+                    wrapperClass="flex items-center gap-2 mb-2" />
+                </div>
+              </div>
+            </div>
+            <div class="self-stretch flex flex-col justify-center items-start gap-3">
+              <div class="self-stretch flex flex-col justify-center items-start gap-1">
+                <div class="self-stretch inline-flex justify-start items-center gap-1 relative">
+                  <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
+                    {{ t("booking_fan_can_request_extend_session") }}
+                    <TooltipIcon :text="t('booking_session_extension_tooltip')" 
+                    tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
+                    class="relative group inline-block mt-[2px] ml-1   z-[9]  top-1" />
+                  </div>
+                </div>
+                <div class="inline-flex justify-start items-center gap-2">
+                  <CheckboxGroup v-model="formData.requestExtendSession"
+                    checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                    labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                    wrapperClass="flex items-center gap-2" />
+                  <div :class="['flex justify-start items-end gap-2',!formData.requestExtendSession ? 'opacity-50':'opacity-100']">
+                    <BaseInput type="number" placeholder="" v-model="formData.extendSessionMax"
+                      :disabled="!formData.requestExtendSession"
+                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
+                    <div class="h-10 inline-flex flex-col justify-between items-start">
+                      <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
+                      <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration * formData.extendSessionMax }) }})</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </BookingSectionsWrapper>
+        </BookingSectionsWrapper>
+      </template>
 
       <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
 

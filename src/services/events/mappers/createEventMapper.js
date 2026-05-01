@@ -569,9 +569,6 @@ function mapBasePayload(payload = {}, context = {}) {
     enableCancellationFee: asBoolean(payload.enableCancellationFee, false),
     allowAdvanceCancelToAvoidMinCharge: asBoolean(payload.allowAdvanceCancellation, false),
     offHourSurcharge: asBoolean(payload.addOffHourSurcharge, false),
-    disableChatDuringCall: asBoolean(payload.disableChatDuringCall, false),
-    disableChatDuringCallAllowEmoji: asBoolean(payload.disableChatDuringCallAllowEmoji, false),
-    fanCanRequestExtend: asBoolean(payload.requestExtendSession, false),
     enableBufferTime: asBoolean(payload.setBufferTime, false),
     enableMaxBookingsPerDay: asBoolean(payload.setMaxBookings, false),
     waitlistEnabled: asBoolean(payload.allowWaitlist, false),
@@ -583,10 +580,16 @@ function mapBasePayload(payload = {}, context = {}) {
 
     allowFanRecordingEnabled: asBoolean(payload.allowRecording, false),
     allowPersonalRequestRequired: asBoolean(payload.allowPersonalRequest, false),
-    lateStartPolicy: buildLateStartPolicy(payload),
 
     idempotencyKey: nonEmptyString(payload.idempotencyKey, "") || buildIdempotencyKey("create_event"),
   };
+
+  if (type !== "group-event") {
+    mapped.disableChatDuringCall = asBoolean(payload.disableChatDuringCall, false);
+    mapped.disableChatDuringCallAllowEmoji = asBoolean(payload.disableChatDuringCallAllowEmoji, false);
+    mapped.fanCanRequestExtend = asBoolean(payload.requestExtendSession, false);
+    mapped.lateStartPolicy = buildLateStartPolicy(payload);
+  }
 
   if (repeatRule === "everyXWeeks") {
     withOptionalField(mapped, "repeatX", pickNumeric(payload.repeatX, 2));
@@ -634,7 +637,7 @@ function mapBasePayload(payload = {}, context = {}) {
     withOptionalField(mapped, "offHourSurchargePercent", pickNumeric(payload.offHourSurchargePercent || payload.offHourSurcharge, 0));
   }
 
-  if (mapped.fanCanRequestExtend) {
+  if (type !== "group-event" && mapped.fanCanRequestExtend) {
     withOptionalField(mapped, "extendMaxSessionMinutes", pickNumeric(payload.extendSessionMax || payload.extendMaxSessionMinutes, duration));
   }
 

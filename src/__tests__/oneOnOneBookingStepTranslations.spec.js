@@ -228,6 +228,33 @@ describe("one-on-one booking step translations", () => {
     expect(privateWrapper.text()).toContain("Session Duration");
   });
 
+  it("hides call settings in group step 1 and keeps them for private step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const groupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "group-event" }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(groupWrapper.text()).not.toContain("Call Settings");
+    expect(privateWrapper.text()).toContain("Call Settings");
+  });
+
   it("orders calendar availability before pricing only for group step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -266,6 +293,40 @@ describe("one-on-one booking step translations", () => {
 
     expect(privateText.indexOf("Pricing Settings")).toBeLessThan(privateText.indexOf("Calendar Availability"));
     expect(groupText.indexOf("Calendar Availability")).toBeLessThan(groupText.indexOf("Pricing Settings"));
+  });
+
+  it("uses pricing-specific group cancellation labels", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const fixedPriceWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const eventGoalWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "eventGoal",
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    expect(fixedPriceWrapper.text()).toContain("Cancellation Fee");
+    expect(fixedPriceWrapper.text()).not.toContain("User can refund before event start");
+    expect(eventGoalWrapper.text()).toContain("User can refund before event start");
   });
 
   it("renders translated overrides in step 2", async () => {
