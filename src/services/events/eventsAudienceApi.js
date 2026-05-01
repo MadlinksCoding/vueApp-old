@@ -1,5 +1,4 @@
-const AUDIENCE_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/users";
-const SUBSCRIPTIONS_API_BASE_URL = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/subscriptions";
+import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
 
 
 function asArray(value) {
@@ -15,7 +14,7 @@ export async function fetchActiveSubscriptionTiers({ creatorId, signal } = {}) {
   const safeCreatorId = normalizeId(creatorId);
   if (safeCreatorId == null || safeCreatorId === "") return [];
 
-  const url = `${SUBSCRIPTIONS_API_BASE_URL}/plans/list?creator_id=${encodeURIComponent(safeCreatorId)}&count=20`;
+  const url = `${buildWpApiUrl("/subscriptions/plans/list")}?creator_id=${encodeURIComponent(safeCreatorId)}&count=20`;
   const response = await fetch(url, {
     method: "GET",
     signal,
@@ -43,7 +42,7 @@ export async function searchInvitableUsers({ query, signal } = {}) {
   const safeQuery = String(query || "").trim();
   if (safeQuery.length === 0) return [];
 
-  const url = `${AUDIENCE_API_BASE_URL}/search?query=${encodeURIComponent(safeQuery)}`;
+  const url = `${buildWpApiUrl("/users/search")}?query=${encodeURIComponent(safeQuery)}`;
   const response = await fetch(url, {
     method: "GET",
     signal,

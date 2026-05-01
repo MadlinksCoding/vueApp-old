@@ -1,6 +1,15 @@
 <script setup>
-import { computed, ref, watch } from "vue";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
+import { computed, ref, watch, h } from "vue";
+import {
+  MagnifyingGlassIcon,
+  MusicalNoteIcon,
+  RectangleStackIcon,
+  VideoCameraIcon,
+} from "@heroicons/vue/24/outline";
+import { getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
+import galleryIcon from '@/assets/images/icons/image-03.svg';
+
+const GalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: "" });
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -9,6 +18,9 @@ const props = defineProps({
   loadingByType: { type: Object, default: () => ({}) },
   hasMoreByType: { type: Object, default: () => ({}) },
   errorByType: { type: Object, default: () => ({}) },
+  confirmLabel: { type: String, default: "Add to spending requirement" },
+  markAsChatPopup: { type: Boolean, default: false },
+  includeRawItemData: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue", "confirm", "cancel", "tab-change", "load-more"]);
@@ -22,6 +34,15 @@ const tabs = [
 const activeTab = ref("media");
 const searchQuery = ref("");
 const draftSelected = ref([]);
+
+const mediaBadgeIconComponents = {
+  audio: MusicalNoteIcon,
+  gallery: RectangleStackIcon,
+  image: GalleryIconComponent,
+  video: VideoCameraIcon,
+};
+
+const popupAttrs = computed(() => (props.markAsChatPopup ? { "data-fs-chat-popup": "" } : {}));
 
 function productKey(item = {}) {
   return `${String(item?.type || "").trim()}:${String(item?.id || "").trim()}`;
@@ -41,7 +62,7 @@ function normalizeSelectedItems(items = []) {
     const key = `${type}:${id}`;
     if (map.has(key)) return;
 
-    map.set(key, {
+    const normalized = {
       id,
       type,
       title: String(item.title || "").trim(),
@@ -49,7 +70,13 @@ function normalizeSelectedItems(items = []) {
       subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : 0,
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
-    });
+    };
+
+    if (props.includeRawItemData) {
+      normalized.raw = item.raw && typeof item.raw === "object" ? item.raw : item;
+    }
+
+    map.set(key, normalized);
   });
 
   return Array.from(map.values());
@@ -107,6 +134,10 @@ function isSelected(item) {
   return draftSelected.value.some((selected) => productKey(selected) === key);
 }
 
+function mediaBadgeForItem(item) {
+  return getSpendingRequirementMediaBadge(item);
+}
+
 function toggleSelect(item) {
   const key = productKey(item);
   const index = draftSelected.value.findIndex((selected) => productKey(selected) === key);
@@ -141,6 +172,7 @@ function handleConfirm() {
   <teleport to="body">
     <div
       v-if="modelValue"
+      v-bind="popupAttrs"
       class="fixed inset-0 z-[9999] bg-black/35"
       @click.self="handleCancel"
     >
@@ -169,7 +201,7 @@ function handleConfirm() {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search media by name and tags..."
+              placeholder="Search by name and tags..."
               class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder:text-gray-900 rounded-t-[2px] border-b border-[#D0D5DD] bg-white/50 shadow-sm focus:bg-white/90 transition-colors"
             />
           </div>
@@ -194,9 +226,18 @@ function handleConfirm() {
               @click="toggleSelect(item)"
             >
               <div class="relative">
-                <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
-                  <img src="" alt="">
-                  <span class="text-xs text-white">Count</span>
+                <div
+                  v-if="mediaBadgeForItem(item)"
+                  class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]"
+                >
+                  <component
+                    :is="mediaBadgeIconComponents[mediaBadgeForItem(item).icon] || GalleryIconComponent"
+                    class="w-3 h-3 text-white"
+                    aria-hidden="true"
+                  />
+                  <span v-if="mediaBadgeForItem(item).label" class="text-xs text-white">
+                    {{ mediaBadgeForItem(item).label }}
+                  </span>
                 </div>
                 <img
                   :src="item.thumbnailUrl"
@@ -241,7 +282,7 @@ function handleConfirm() {
             class="w-full h-10 bg-[#07F468] hover:bg-[#00dd5d] text-sm font-semibold text-slate-900 rounded"
             @click="handleConfirm"
           >
-            Add to spending requirement
+            {{ confirmLabel }}
           </button>
         </div>
       </div>

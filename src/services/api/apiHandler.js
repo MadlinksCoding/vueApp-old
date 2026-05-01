@@ -8,6 +8,8 @@
  * - Normalize errors in one shape
  * - Provide optional legacy bridge via handleRequest(...)
  */
+import { getBackendJwtToken } from "@/utils/backendJwt.js";
+
 class APIHandler {
     constructor(defaults = {}, options = {}) {
         this.defaultParams = {
@@ -27,28 +29,29 @@ class APIHandler {
         };
     }
 
-    getToken() {
+    getToken(explicitToken = "") {
+        const normalizedExplicitToken = typeof explicitToken === "string" ? explicitToken.trim() : "";
+        if (normalizedExplicitToken) return normalizedExplicitToken;
+
         if (typeof this.options.authTokenResolver === "function") {
             const token = this.options.authTokenResolver();
             if (token) return token;
         }
 
-        if (typeof window !== "undefined" && window.localStorage) {
-            return (
-                window.localStorage.getItem("idToken") ||
-                window.localStorage.getItem("accessToken") ||
-                ""
-            );
-        }
-
-        return "";
+        return getBackendJwtToken();
     }
 
-    buildHeaders(headers = {}, body) {
-        const token = this.getToken();
+    buildHeaders(headers = {}, body, requestOptions = {}) {
+        const token = this.getToken(requestOptions.backendJwtToken);
         const mergedHeaders = { ...headers };
+        const skipAuth = Object.prototype.hasOwnProperty.call(mergedHeaders, "Authorization")
+            && mergedHeaders.Authorization === null;
 
-        if (token && !mergedHeaders.Authorization) {
+        if (skipAuth) {
+            delete mergedHeaders.Authorization;
+        }
+
+        if (token && !skipAuth && !mergedHeaders.Authorization) {
             mergedHeaders.Authorization = `Bearer ${token}`;
         }
 
@@ -182,6 +185,7 @@ class APIHandler {
         params = {},
         data = undefined,
         headers = {},
+        backendJwtToken = "",
         signal,
         timeoutMs
     }) {
@@ -221,7 +225,7 @@ class APIHandler {
 
             const response = await fetch(finalUrl, {
                 method: upperMethod,
-                headers: this.buildHeaders(headers, body),
+                headers: this.buildHeaders(headers, body, { backendJwtToken }),
                 body,
                 signal: combinedSignal
             });
@@ -302,6 +306,7 @@ class APIHandler {
             popupIdToOpen: apiParams.openPopupId || this.defaultParams.popupIdToOpen,
             targetContainer: apiParams.container || this.defaultParams.targetContainer,
             headers: apiParams.headers || this.defaultParams.headers || {},
+            backendJwtToken: apiParams.backendJwtToken || "",
             signal: apiParams.signal,
             ...apiParams
         };
@@ -315,6 +320,7 @@ class APIHandler {
             popupIdToOpen,
             targetContainer,
             headers,
+            backendJwtToken,
             signal
         } = params;
 
@@ -328,6 +334,7 @@ class APIHandler {
             params: queryParams,
             data: requestData,
             headers,
+            backendJwtToken,
             signal
         });
 

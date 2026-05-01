@@ -1,12 +1,16 @@
 import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
+import { fetchEventFlow } from "@/services/events/flows/fetchEventFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
+import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
 import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
+import { sendProductRecommendationFlow } from "@/services/chat/flows/sendProductRecommendationFlow.js";
+import { fetchProductRecommendationStatusFlow } from "@/services/chat/flows/fetchProductRecommendationStatusFlow.js";
 import { fetchMessagesFlow } from "@/services/chat/flows/fetchMessagesFlow.js";
 import { fetchUserChatsFlow } from "@/services/chat/flows/fetchUserChatsFlow.js";
 import { fetchChatUsersDataFlow } from "@/services/chat/flows/fetchChatUsersDataFlow.js";
@@ -14,6 +18,9 @@ import { markMessageDeliveredFlow } from "@/services/chat/flows/markMessageDeliv
 import { markMessageReadFlow } from "@/services/chat/flows/markMessageReadFlow.js";
 import { getUnreadCountFlow } from "@/services/chat/flows/getUnreadCountFlow.js";
 import { sendBookingRequestMessageFlow } from "@/services/chat/flows/sendBookingRequestMessageFlow.js";
+import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBookingRequestMessageFlow.js";
+import { updateMessageFlow } from "@/services/chat/flows/updateMessageFlow.js";
+import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
@@ -33,6 +40,8 @@ import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTempo
 import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTemporaryHoldUserFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
+import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
+import { updateBookingFlow } from "@/services/bookings/flows/updateBookingFlow.js";
 import { mapCreateTemporaryHoldToRequest } from "@/services/bookings/mappers/createTemporaryHoldMapper.js";
 import { mapReviewPendingBookingToRequest } from "@/services/bookings/mappers/reviewPendingBookingMapper.js";
 import { mapCancelBookingToRequest } from "@/services/bookings/mappers/cancelBookingMapper.js";
@@ -49,6 +58,9 @@ import { mergeGuestCartFlow } from "@/services/cart/flows/mergeGuestCartFlow.js"
 import { attachLiveDataFlow } from "@/services/cart/flows/attachLiveDataFlow.js";
 import { getAllCartsFlow } from "@/services/cart/flows/getAllCartsFlow.js";
 import { remindAbandonedCartsFlow } from "@/services/cart/flows/remindAbandonedCartsFlow.js";
+import { mapRenegotiateBookingToRequest } from "@/services/bookings/mappers/renegotiateBookingMapper.js";
+import { mapRescheduleBookingToRequest } from "@/services/bookings/mappers/rescheduleBookingMapper.js";
+import { mapUpdateBookingMetaToRequest } from "@/services/bookings/mappers/updateBookingMetaMapper.js";
 import {
   validateFetchCatalogPayload,
   validateFetchCatalogResponse,
@@ -76,6 +88,17 @@ import {
 } from "@/services/rental/mappers/rentalWriteMappers.js";
 
 export const flowRegistry = {
+  "events.fetchEvent": {
+    flowKind: "read",
+    flow: fetchEventFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 10000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
   "events.fetchCreatorEvents": {
     flowKind: "read",
     flow: fetchCreatorEventsFlow,
@@ -179,6 +202,11 @@ export const flowRegistry = {
     },
   },
 
+  "events.fetchEvent": {
+    flowKind: "read",
+    flow: fetchEventFlow,
+  },
+
   "events.createEvent": {
     flowKind: "write",
     flow: createEventFlow,
@@ -271,7 +299,7 @@ export const flowRegistry = {
         enabled: true,
         ttlMs: 30000,
         mode: "staleWhileRevalidate",
-        priority: ["stateEngine", "local"],
+        priority: ["stateEngine"],
         sources: [
           {
             type: "stateEngine",
@@ -279,73 +307,18 @@ export const flowRegistry = {
             etagKey: "fanBooking.catalog.meta.etag",
             updatedAtKey: "fanBooking.catalog.meta.updatedAt",
           },
-          {
-            type: "local",
-            key: "fan-booking:creator-context",
-            ttlMs: 30000,
-            version: 1,
-            etagKey: "meta.etag",
-            updatedAtKey: "meta.updatedAt",
-          },
         ],
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.cachedResponse",
-          mode: "set",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.events",
-          mode: "set",
-          select: "events",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.rawEvents",
-          mode: "set",
-          select: "rawEvents",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.bookedSlots",
-          mode: "set",
-          select: "bookedSlots",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.bookedSlotsIndex",
-          mode: "set",
-          select: "bookedSlotsIndex",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.meta",
-          mode: "set",
-          select: "meta",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.catalog.meta",
-          mode: "merge",
-          value: { updatedAt: "@now" },
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "local",
-          key: "fan-booking:creator-context",
-          ttlMs: 30000,
-          version: 1,
-          hydrateOnReadHit: true,
-        },
+        { type: "stateEngine", key: "fanBooking.catalog.cachedResponse", mode: "set", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.events", mode: "set", select: "events", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.rawEvents", mode: "set", select: "rawEvents", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.bookedSlots", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.context.isFirstBookingForCreator", mode: "set", select: "isFirstBookingForCreator", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
       ],
       onNotModified: [
         {
@@ -359,8 +332,8 @@ export const flowRegistry = {
         MISSING_CREATOR_ID:
           "Creator id is required before loading booking context.",
         FETCH_CREATOR_EVENTS_FAILED: "Could not load events right now.",
-        FETCH_CREATOR_BOOKED_SLOTS_FAILED:
-          "Could not load booked slots right now.",
+        FETCH_CREATOR_BOOKED_SLOTS_FAILED: "Could not load booked slots right now.",
+        FETCH_FIRST_TIME_DISCOUNT_STATUS_FAILED: "Could not load first-time discount status right now.",
       },
     },
   },
@@ -550,36 +523,12 @@ export const flowRegistry = {
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
       destinations: [
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold",
-          mode: "merge",
-          select: "temporaryHold",
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold.temporaryHoldId",
-          mode: "set",
-          select: "temporaryHoldId",
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold.expiresAt",
-          mode: "set",
-          select: "expiresAt",
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold.status",
-          mode: "set",
-          value: "active",
-        },
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold.createdAt",
-          mode: "set",
-          value: "@now",
-        },
+        { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "merge", select: "temporaryHold" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.temporaryHoldId", mode: "set", select: "temporaryHoldId" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.expiresAt", mode: "set", select: "expiresAt" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.guestHoldToken", mode: "set", select: "guestHoldToken" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.status", mode: "set", value: "active" },
+        { type: "stateEngine", key: "fanBooking.temporaryHold.createdAt", mode: "set", value: "@now" },
       ],
       uiErrorMap: {
         CREATE_TEMPORARY_HOLD_MISSING_REQUIRED_FIELDS:
@@ -655,18 +604,15 @@ export const flowRegistry = {
       retry: { enabled: false },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
-        {
-          type: "stateEngine",
-          key: "fanBooking.temporaryHold",
-          mode: "set",
-          value: {
-            temporaryHoldId: null,
-            status: "cancelled",
-            expiresAt: null,
-            secondsRemaining: 0,
-            checkedAt: "@now",
-          },
-        },
+        { type: "stateEngine", key: "fanBooking.temporaryHold", mode: "set", value: {
+          temporaryHoldId: null,
+          status: "cancelled",
+          expiresAt: null,
+          secondsRemaining: 0,
+          checkedAt: "@now",
+          guestSessionId: null,
+          guestHoldToken: null,
+        } },
       ],
       uiErrorMap: {
         RELEASE_TEMPORARY_HOLD_MISSING_ID: "Temporary hold id is missing.",
@@ -734,6 +680,7 @@ export const flowRegistry = {
           value: { lastCancelAt: "@now" },
         },
         { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
       ],
       uiErrorMap: {
         CANCEL_BOOKING_MISSING_ID: "Booking id is required.",
@@ -741,6 +688,77 @@ export const flowRegistry = {
         HTTP_400: "This booking cannot be cancelled in its current status.",
         HTTP_402: "Could not reverse token hold for cancellation.",
       },
+    },
+  },
+  "bookings.renegotiateBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRenegotiateBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastRenegotiate", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRenegotiateAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not renegotiate booking.",
+        HTTP_400: "This booking update is invalid in the current state.",
+        HTTP_402: "Could not update held payment for this booking.",
+      },
+    },
+  },
+  "bookings.rescheduleBooking": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapRescheduleBookingToRequest },
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 20000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [
+        { type: "stateEngine", key: "events.lastReschedule", mode: "set" },
+        { type: "stateEngine", key: "events.meta", mode: "merge", value: { lastRescheduleAt: "@now" } },
+        { type: "localFlush", key: "fan-booking:creator-context" },
+        { type: "localFlush", key: "dashboard-events:context" },
+      ],
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not reschedule booking.",
+        HTTP_400: "This booking cannot be rescheduled with the selected time.",
+      },
+    },
+  },
+
+  "bookings.updateMeta": {
+    flowKind: "write",
+    flow: updateBookingFlow,
+    mapper: { toRequest: mapUpdateBookingMetaToRequest },
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      uiErrorMap: {
+        BOOKING_UPDATE_MISSING_ID: "Booking id is required.",
+        BOOKING_UPDATE_INVALID_ACTION: "Booking update action is invalid.",
+        BOOKING_UPDATE_FAILED: "Could not update booking meta.",
+      },
+    },
+  },
+
+  "bookings.fetchBooking": {
+    flowKind: "read",
+    flow: fetchBookingFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
     },
   },
 
@@ -1100,6 +1118,20 @@ export const flowRegistry = {
     },
   },
 
+    "chat.getChat": {
+    flowKind: "read",
+    flow: getChatFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 200, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      destinations: [],
+      uiErrorMap: {
+        GET_CHAT_MISSING_CHAT_ID: "Chat ID is required.",
+        GET_CHAT_FAILED: "Could not load chat.",
+      },
+    },
+  },
   "chat.createChat": {
     flowKind: "write",
     flow: createChatFlow,
@@ -1149,6 +1181,35 @@ export const flowRegistry = {
       uiErrorMap: {
         SEND_MESSAGE_MISSING_CHAT_ID: "Chat ID is missing.",
         SEND_MESSAGE_FAILED: "Message could not be sent.",
+      },
+    },
+  },
+  "chat.sendProductRecommendation": {
+    flowKind: "write",
+    flow: sendProductRecommendationFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 2500, jitterRatio: 0.2 },
+      concurrency: { policy: "allowParallel", dedupe: false, keyByPayload: true },
+      destinations: [
+        { type: "piniaAction", storeId: "chat", action: "addMessageAction" },
+      ],
+      uiErrorMap: {
+        SEND_PRODUCT_RECOMMENDATION_MISSING_FIELDS: "Product details are missing.",
+        SEND_PRODUCT_RECOMMENDATION_FAILED: "Product could not be added to chat.",
+      },
+    },
+  },
+  "chat.fetchProductRecommendationStatus": {
+    flowKind: "read",
+    flow: fetchProductRecommendationStatusFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 16000 },
+      retry: { enabled: true, maxAttempts: 1, baseDelayMs: 250, maxDelayMs: 1000, jitterRatio: 0.1 },
+      concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
+      uiErrorMap: {
+        FETCH_PRODUCT_RECOMMENDATION_STATUS_MISSING_FAN_UID: "Fan access could not be checked.",
+        FETCH_PRODUCT_RECOMMENDATION_STATUS_FAILED: "Product access could not be checked.",
       },
     },
   },
@@ -1248,6 +1309,39 @@ export const flowRegistry = {
     flow: sendBookingRequestMessageFlow,
     pipeline: {
       timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.updateBookingRequestMessage": {
+    flowKind: "write",
+    flow: updateBookingRequestMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.updateMessage": {
+    flowKind: "write",
+    flow: updateMessageFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.sendChatActivityLog": {
+    flowKind: "write",
+    flow: sendChatActivityLogFlow,
+    pipeline: {
+      timeouts: { requestMs: 8000, totalFlowMs: 12000 },
       retry: { enabled: false },
       concurrency: { policy: "firstWins", dedupe: false, keyByPayload: false },
       destinations: [],

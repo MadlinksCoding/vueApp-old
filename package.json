@@ -9,10 +9,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:wordpress": "VITE_PUBLIC_BASE=/wp-content/plugins/fansocial/ vite build",
+    "build:wordpress": "node ./scripts/exportBookingTranslations.mjs && VITE_PUBLIC_BASE=/wp-content/plugins/fansocial/ vite build",
     "build:vercel": "VITE_PUBLIC_BASE=/ vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
+    "i18n:bookings:export": "node ./scripts/exportBookingTranslations.mjs",
     "build:lazy": "vite build --mode lazy --outDir dist-lazy",
     "build:eager": "vite build --mode eager --outDir dist-eager-all",
     "build:eager:auth": "VITE_EAGER_SECTION=auth vite build --mode eager --outDir dist-eager-auth",

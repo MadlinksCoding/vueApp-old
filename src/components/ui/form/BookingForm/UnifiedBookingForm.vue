@@ -13,11 +13,13 @@ import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
-import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import closeIcon from "@/assets/images/icons/close.png";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -49,6 +51,7 @@ const props = defineProps({
 const emit = defineEmits(["created", "back"]);
 const route = useRoute();
 const router = useRouter();
+const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 
 /**
@@ -91,6 +94,7 @@ const bookingFlow = createFlowStateEngine({
         basePrice: "",
         sessionMinimum: "",
         discountPercentage: "",
+        firstTimeDiscount: "",
         bookingFee: "",
         waitlistSpots: "",
         advanceVoid: "",
@@ -109,6 +113,7 @@ const bookingFlow = createFlowStateEngine({
         extendSessionMax: "",
         allowLongerSessions: false,
         enableLongerDiscount: false,
+        enableFirstTimeDiscount: false,
         enableBookingFee: false,
         allowInstantBooking: false,
         disableChatBeforeCall: false,
@@ -121,6 +126,10 @@ const bookingFlow = createFlowStateEngine({
         setBufferTime: false,
         setMaxBookings: false,
         allowWaitlist: false,
+        eventGoalTokens: "",
+        enableMinContributionPerUser: false,
+        minContributionPerUser: "",
+        goalNotMet: "cancelEvent",
 
         // Step 2 & Group Defaults
         allowRecording: false,
@@ -152,7 +161,7 @@ const bookingFlow = createFlowStateEngine({
         eventCallType: "video",
         eventColorSkin: "#5549FF",
         eventRingtoneUrl: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
-        priceSetting: "fixedPricePerUser"
+        priceSetting: "eventGoal"
     }
 });
 
@@ -164,6 +173,7 @@ const previewSchedule = ref(false);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
 const creatorEventsForCalendar = ref([]);
+const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
@@ -224,6 +234,18 @@ const previewBookedSlotsForFanFlow = computed(() => {
     return Array.isArray(slots) ? slots : [];
 });
 
+const clearRefreshQueryFlag = async () => {
+    if (route.query?.refresh == null) return;
+
+    const nextQuery = { ...route.query };
+    delete nextQuery.refresh;
+
+    await router.replace({
+        path: route.path,
+        query: nextQuery,
+    });
+};
+
 const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     const creatorId = resolveCreatorId();
     calendarLoading.value = true;
@@ -251,39 +273,29 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     if (!result?.ok) {
         calendarError.value = result?.meta?.uiErrors?.[0]
             || result?.error?.message
-            || "Could not load creator booked slots.";
+            || t("booking_load_creator_booked_slots_failed");
         calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         creatorEventsForCalendar.value = [];
+        bookedSlotsRawForCalendar.value = [];
         bookedSlotsIndexForCalendar.value = {};
     } else {
         const creatorEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
+        const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
         const bookedSlotsIndex = result?.data?.bookedSlotsIndex || {};
 
         creatorEventsForCalendar.value = creatorEvents;
+        bookedSlotsRawForCalendar.value = bookedSlotsRaw;
         bookedSlotsIndexForCalendar.value = bookedSlotsIndex;
-
-        const mappedBooked = mapBookedSlotsToCalendarEvents(result?.data?.bookedSlots, {
-            includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
-            titleFallback: "Booked Slot",
+        const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+            creatorEvents,
+            bookedSlotsRaw,
+            bookedSlotsIndex,
+            focusDate: state.focus,
         });
 
-        const colorByEventId = new Map(
-            creatorEvents
-                .map((event) => [
-                    String(event?.eventId || event?.id || ""),
-                    event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-                ])
-                .filter(([eventId]) => Boolean(eventId))
-        );
-
-        calendarBookedSlots.value = mappedBooked.map((event) => ({
-            ...event,
-            isExistingSchedule: true,
-            color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
-        }));
-
-        rebuildAvailabilityPreview();
+        calendarBookedSlots.value = bookedCalendarSlots;
+        calendarAvailabilitySlots.value = availabilityCalendarSlots;
     }
 
     calendarLoading.value = false;
@@ -306,7 +318,11 @@ onMounted(() => {
         currentStep.value = next;
     });
 
-    fetchCreatorBookedSlots(route.query?.refresh === "1");
+    const shouldForceRefresh = route.query?.refresh === "1";
+    fetchCreatorBookedSlots(shouldForceRefresh);
+    if (shouldForceRefresh) {
+        clearRefreshQueryFlag();
+    }
 });
 
 watch(currentType, (nextType) => {
@@ -329,6 +345,15 @@ watch(
     () => props.apiBaseUrl,
     (nextValue) => {
         bookingFlow.setState("apiBaseUrl", nextValue || "", { reason: "api-base-url-sync", silent: true });
+    },
+);
+
+watch(
+    () => route.query?.refresh,
+    (nextRefresh, previousRefresh) => {
+        if (nextRefresh !== "1" || nextRefresh === previousRefresh) return;
+        fetchCreatorBookedSlots(true);
+        clearRefreshQueryFlag();
     },
 );
 
@@ -403,34 +428,137 @@ function rgba(hexColor, alpha = 1) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function getCalendarEventStyle(event, mode = "existing") {
-    if (mode === "availability" || event?.isAvailabilityBlock) {
-        return {
-            backgroundColor: "rgba(152, 162, 179, 0.18)",
-            border: "1px solid rgba(152, 162, 179, 0.16)",
-            color: "transparent",
-            zIndex: 1,
-        };
-    }
+function resolveEventTitle(event) {
+    return String(
+        event?.title
+        || event?.eventTitle
+        || event?.name
+        || event?.raw?.title
+        || event?.raw?.eventTitle
+        || "Event Title",
+    ).trim();
+}
 
+function buildCalendarSlotsFromContext({
+    creatorEvents = [],
+    focusDate = new Date(),
+}) {
+    const colorByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const titleByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                resolveEventTitle(event),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const callTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const eventTypeByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                String(event?.eventId || event?.id || ""),
+                String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(creatorEvents, {
+        bookedSlotsIndex: {},
+        focusDate,
+        rangeDaysBefore: 14,
+        rangeDaysAfter: 56,
+    }).map((event) => ({
+        ...event,
+        slot: "availability",
+        title: titleByEventId.get(String(event?.eventId || "")) || resolveEventTitle(event),
+        color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
+        eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
+        eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+        raw: {
+            ...(event?.raw || {}),
+            eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+            eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
+            eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+        },
+    }));
+
+    return {
+        bookedCalendarSlots: [],
+        availabilityCalendarSlots,
+    };
+}
+
+function getCalendarEventStyle(event, mode = "existing") {
     const color = normalizeHexColor(
         event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
         DEFAULT_EVENT_COLOR,
     );
+    const startsAtMidnight = isMidnightDateTime(event?.start);
+    const endsAtMidnight = isMidnightDateTime(event?.end);
+
     if (mode === "draft") {
         return {
-            borderBottom: `1px solid ${color}`,
+            borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
+            borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
             color,
             background: `repeating-linear-gradient(-45deg, ${rgba(color, 0.24)}, ${rgba(color, 0.24)} 2px, ${rgba(color, 0.14)} 3px, ${rgba(color, 0.14)} 10px)`,
             zIndex: 3,
         };
     }
+
+    if (mode === "availability" || event?.isAvailabilityBlock) {
+        return {
+            backgroundColor: rgba(color, 0.08),
+            backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
+            borderTop: startsAtMidnight ? "0" : `2px solid ${color}`,
+            borderBottom: endsAtMidnight ? "0" : `2px solid ${color}`,
+            color,
+            zIndex: 1,
+        };
+    }
+
     return {
         borderBottom: `1px solid ${color}`,
         color,
         backgroundColor: rgba(color, 0.2),
         zIndex: 2,
     };
+}
+
+function shouldOpenCalendarEvent(event) {
+    return !event?.isAvailabilityBlock && !event?.isDraftPreview;
+}
+
+function isMidnightDateTime(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return date.getHours() === 0 && date.getMinutes() === 0;
+}
+
+function expandCalendarBlockStyle(style) {
+    if (typeof style !== "string") return style;
+
+    return style
+        .replace(/left:\s*2px;/g, "left:0;")
+        .replace(/right:\s*2px;/g, "right:0;");
 }
 
 function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }) {
@@ -457,6 +585,7 @@ function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }
         color,
         isDraftPreview: true,
         isDraft: true,
+        isAvailabilityBlock: true,
     };
 }
 
@@ -634,7 +763,7 @@ const previewDraftEvents = computed(() => {
 });
 
 const events2 = computed(() => {
-    return [...calendarAvailabilitySlots.value, ...calendarBookedSlots.value, ...previewDraftEvents.value];
+    return [...calendarAvailabilitySlots.value, ...previewDraftEvents.value];
 });
 
 const state = reactive({
@@ -653,34 +782,36 @@ function rebuildAvailabilityPreview() {
     const creatorEvents = Array.isArray(creatorEventsForCalendar.value)
         ? creatorEventsForCalendar.value
         : [];
+    const bookedSlotsRaw = Array.isArray(bookedSlotsRawForCalendar.value)
+        ? bookedSlotsRawForCalendar.value
+        : [];
     const bookedSlotsIndex = bookedSlotsIndexForCalendar.value || {};
 
     if (creatorEvents.length === 0) {
+        calendarBookedSlots.value = [];
         calendarAvailabilitySlots.value = [];
         return;
     }
 
-    calendarAvailabilitySlots.value = mapAvailabilityToCalendarEvents(creatorEvents, {
+    const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
+        creatorEvents,
+        bookedSlotsRaw,
         bookedSlotsIndex,
         focusDate: state.focus,
-        rangeDaysBefore: 14,
-        rangeDaysAfter: 56,
-    }).map((event) => ({
-        ...event,
-        isExistingSchedule: true,
-        slot: "availability",
-        color: "#98A2B3",
-    }));
+    });
+
+    calendarBookedSlots.value = bookedCalendarSlots;
+    calendarAvailabilitySlots.value = availabilityCalendarSlots;
 }
 
 const onDebugSubmit = () => {
     console.log("Submit Clicked. Current State:", JSON.parse(JSON.stringify(bookingFlow.state)));
-    alert("Submitted! Check console for full state object.");
+    alert(t("booking_submitted_alert"));
 };
 
 // Helper for title
 const formTitle = computed(() => {
-    return currentType.value === 'group' ? 'Group Event Settings' : 'Private Booking Settings';
+    return currentType.value === 'group' ? t("booking_group_event_settings") : t("booking_private_booking_settings");
 });
 
 const handleCreateFlowCreated = async (payload) => {
@@ -716,10 +847,11 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center gap-3">
                     <div class="flex items-center gap-3 min-w-0">
                         <button
+                            hidden
                             v-if="embedded"
                             type="button"
                             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
-                            aria-label="Back to events"
+                            :aria-label="t('booking_back_to_events')"
                             @click="emit('back')"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -737,8 +869,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             {{ formTitle }}
                         </div>
                     </div>
-                    <div class="w-2.5 h-2.5 relative overflow-hidden">
-                        <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="" />
+                    <div  @click="emit('back')" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
+                        <img :src="closeIcon" alt="" />
                     </div>
                 </div>
 
@@ -761,9 +893,20 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <!-- Group Form -->
                     <template v-else-if="currentType === 'group'">
-                        <GroupBookingStep1 v-if="currentStep === 1" :engine="bookingFlow" />
+                        <OneOnOneBookinStep1
+                            v-if="currentStep === 1"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                            bookingType="group"
+                        />
 
-                        <GroupBookingStep2 v-if="currentStep === 2" :engine="bookingFlow" @created="handleCreateFlowCreated" />
+                        <OneOnOneBookinStep2
+                            v-if="currentStep === 2"
+                            :engine="bookingFlow"
+                            :embedded="embedded"
+                            bookingType="group"
+                            @created="handleCreateFlowCreated"
+                        />
                     </template>
                 </div>
 
@@ -775,40 +918,74 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                         : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
-                <NotificationCard variant="alert" :showIcon="false" title="Your are now viewing your booking setting in personal event calendar view."
-                    description="To preview how your booking schedule will look like on your profile, go to preview booking schedule."  />
+                <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
+                    :description="t('booking_calendar_notice_description')"  />
                 <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
                     {{ calendarError }}
                 </div>
-                <div v-else-if="calendarLoading" class="mx-6 mt-3 px-3 py-2 rounded bg-gray-100 text-gray-600 text-xs font-medium">
-                    Loading booked slots...
+                <div v-else-if="calendarLoading" class="px-2 md:px-4 lg:px-6 pt-6">
+                    <div class="overflow-hidden rounded-[1rem] border border-[#EAECF0] bg-white shadow-sm animate-pulse">
+                        <div class="border-b border-[#EAECF0] px-4 py-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="h-6 w-40 rounded-full bg-[#101828]/10" />
+                                <div class="flex items-center gap-2">
+                                    <div class="h-8 w-8 rounded-full bg-[#101828]/10" />
+                                    <div class="h-8 w-8 rounded-full bg-[#101828]/10" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-[#EAECF0] bg-[#F8FAFC]">
+                            <div class="h-10 border-r border-[#EAECF0]" />
+                            <div
+                                v-for="day in 7"
+                                :key="`calendar-skeleton-day-${day}`"
+                                class="flex h-10 items-center justify-center border-r border-[#EAECF0] last:border-r-0"
+                            >
+                                <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                            </div>
+                        </div>
+                        <div>
+                            <div
+                                v-for="row in 7"
+                                :key="`calendar-skeleton-row-${row}`"
+                                class="grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] border-b border-[#EAECF0] last:border-b-0"
+                            >
+                                <div class="flex items-start justify-center border-r border-[#EAECF0] px-2 py-3">
+                                    <div class="h-3 w-8 rounded-full bg-[#101828]/10" />
+                                </div>
+                                <div
+                                    v-for="day in 7"
+                                    :key="`calendar-skeleton-cell-${row}-${day}`"
+                                    class="relative h-20 border-r border-[#EAECF0] last:border-r-0"
+                                >
+                                    <div
+                                        v-if="(row === 2 && day === 3) || (row === 4 && day === 5) || (row === 5 && day === 2)"
+                                        class="absolute left-2 right-2 top-3 h-9 rounded-[0.5rem] bg-[#5549FF]/10"
+                                    >
+                                        <div class="flex h-full flex-col justify-center gap-2 px-3">
+                                            <div class="h-2.5 w-3/4 rounded-full bg-[#5549FF]/20" />
+                                            <div class="h-2 w-1/2 rounded-full bg-[#5549FF]/15" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <MainCalendar class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar v-else class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
                     :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
                     @preview-schedule="previewSchedule = true">
 
-                    <template #event="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
-                            <div class="flex items-center gap-1 font-normal truncate">
-                                <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z"
-                                        stroke="currentColor" stroke-width="1.25" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
                     <template #event-custom="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]"
-                            :style="[style, getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
-                            @click.stop="onClick(event)">
+                        <div
+                            :class="[
+                                'absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]',
+                                (event?.isAvailabilityBlock || event?.isDraftPreview) ? 'pointer-events-none' : ''
+                            ]"
+                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
+                            @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
                             <div class="flex items-center gap-1 font-normal leading-4 truncate">
                                 <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
@@ -822,40 +999,9 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </template>
 
-                    <template #event-alt="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
-                            <div class="flex items-center gap-1 font-normal truncate">
-                                <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template #event-custom2="{ event, style, onClick }">
-                        <div class="absolute py-1 px-2 border-b text-xs shadow-sm"
-                            :style="[style, getCalendarEventStyle(event, 'existing')]" @click.stop="onClick(event)">
-                            <div class="flex items-center gap-1 font-normal">
-                                <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                                    <path d="M16 10a4 4 0 0 1-8 0"></path>
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
-                    </template>
-
                     <template #event-availability="{ event, style }">
-                        <div class="absolute pointer-events-none rounded-md min-h-[6px] w-full"
-                            :style="[style, getCalendarEventStyle(event, 'availability')]" />
+                        <div class="absolute pointer-events-none min-h-[6px] w-full"
+                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]" />
                     </template>
 
                 </MainCalendar>

@@ -16,14 +16,6 @@ export async function updateTemporaryHoldUserFlow({ payload, context, api }) {
     });
   }
 
-  if (!userId) {
-    return fail({
-      code: "UPDATE_TEMPORARY_HOLD_USER_MISSING_USER",
-      message: "userId is required.",
-      details: payload,
-    });
-  }
-
   try {
     const response = await api.patch(
       `${baseUrl}/temporary-holds/${encodeURIComponent(temporaryHoldId)}/user`,
@@ -41,7 +33,7 @@ export async function updateTemporaryHoldUserFlow({ payload, context, api }) {
       });
     }
 
-    return ok({ temporaryHoldId, userId }, { flow: "bookings.updateTemporaryHoldUser", status });
+    return ok({ temporaryHoldId, userId: response?.userId || userId || null }, { flow: "bookings.updateTemporaryHoldUser", status });
 
   } catch (error) {
     return asFlowError(

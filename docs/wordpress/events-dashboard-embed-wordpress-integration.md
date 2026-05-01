@@ -36,7 +36,9 @@ After a successful build, confirm these exist:
 
 - [`./dist/bookings-embed/dashboard.html`](./dist/bookings-embed/dashboard.html)
 - [`./dist/bookings-embed/fan-booking.html`](./dist/bookings-embed/fan-booking.html)
+- [`./dist/bookings-embed/fan-booking-loading-skeleton.html`](./dist/bookings-embed/fan-booking-loading-skeleton.html)
 - [`./dist/bookings-embed/fs-events-host.js`](./dist/bookings-embed/fs-events-host.js)
+- [`./dist/bookings-embed/fs-events-host.css`](./dist/bookings-embed/fs-events-host.css)
 - [`./dist/assets/booking`](./dist/assets/booking)
 
 ## 2. Copy Files Into The WordPress Plugin
@@ -62,7 +64,9 @@ wp-content/
       bookings-embed/
         dashboard.html
         fan-booking.html
+        fan-booking-loading-skeleton.html
         fs-events-host.js
+        fs-events-host.css
       assets/
         booking/
           *.js
@@ -130,6 +134,7 @@ mountFSEventsEmbed();
 
 Then in `/wp-content/plugins/fansocial/includes/class-templates.php`, Function `write_configurations`, search for `'/dashboard/events'` index in both the creator array and the fan array and add these following to the assets array:
 - /wp-content/plugins/fansocial/bookings-embed/fs-events-host.js
+- /wp-content/plugins/fansocial/bookings-embed/fs-events-host.css
 - /wp-content/plugins/fansocial/assets/dashboard-v2/js/pages/events.js
 
 ## 5. Bootstrap Values
@@ -142,6 +147,11 @@ The parent page passes this data into the iframe:
   userRole: 'creator' | 'fan' | 'agent',
   apiBaseUrl?: string,
   initialRoute?: 'events' | 'create-private' | 'create-group'
+  creatorData?: {
+    avatar?: string
+    name?: string
+    isVerified?: boolean
+  }
 }
 ```
 
@@ -161,13 +171,22 @@ The parent page passes this data into the iframe:
   `create-private` opens the private booking/event create flow immediately.
   `create-group` opens the group event create flow immediately.
 
+- `creatorData`
+  Optional creator presentation metadata used by the embedded create-flow preview popup.
+  It supports:
+  - `avatar`
+  - `name`
+  - `isVerified`
+
 ## 7. What URLs Must Work
 
 These must be accessible in the browser:
 
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/dashboard.html`
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fan-booking.html`
+- `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fan-booking-loading-skeleton.html`
 - `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.js`
+- `https://your-site.com/wp-content/plugins/fansocial/bookings-embed/fs-events-host.css`
 - `https://your-site.com/wp-content/plugins/fansocial/assets/booking/...`
 
 If any of those 404, the embed will fail.
@@ -202,6 +221,8 @@ After WordPress integration, verify all of these:
 12. A valid `eventId` starts the popup on step 2.
 13. Omitting `eventId` starts the popup on step 1.
 14. Booking-created and booking-failed callbacks reach the parent.
+15. Opening the fan-booking popup shows the parent-side loading skeleton immediately.
+16. The parent-side loading skeleton disappears once the iframe sends `FS_FAN_BOOKING_CHILD_READY`.
 
 ## 10. Troubleshooting
 
@@ -225,6 +246,7 @@ Check:
 
 Check:
 
+- `fs-events-host.css` was also copied and enqueued, not just `fs-events-host.js`
 - the built asset folder was copied to `wp-content/plugins/fansocial/assets/booking`
 - the files were not copied to `assets` instead of `assets/booking`
 
@@ -247,4 +269,7 @@ Main pieces:
 - [`bridge.js`](./src/embeds/events/bridge.js)
 - [`main.js`](./src/embeds/events/main.js)
 - [`main.js`](./src/embeds/fanBooking/main.js)
+- [`fs-events-host.js`](./public/bookings-embed/fs-events-host.js)
+- [`fs-events-host.css`](./public/bookings-embed/fs-events-host.css)
+- [`fan-booking-loading-skeleton.html`](./public/bookings-embed/fan-booking-loading-skeleton.html)
 - [`vite.config.js`](./vite.config.js)

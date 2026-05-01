@@ -1,22 +1,35 @@
 import { reactive } from "vue";
 import { toNumberOr } from "@/utils/contextIds.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
+import { setBackendJwtToken } from "@/utils/backendJwt.js";
+import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
   fanId: null,
   userRole: "creator",
   apiBaseUrl: "",
+  jwtToken: "",
   initialRoute: "events",
   creatorData: {
     avatar: null,
     name: null,
     isVerified: null,
   },
+  translations: {},
+  locale: "en",
   bootstrapped: false,
 };
 
 const bootstrapState = reactive({ ...DEFAULT_BOOTSTRAP });
+
+function applyBackendJwtTokenSafely(jwtToken = "") {
+  try {
+    setBackendJwtToken(jwtToken);
+  } catch (_error) {
+    // Keep the embed bootstrapped even if the host JWT cache cannot be written.
+  }
+}
 
 function normalizeInitialRoute(value) {
   const normalized = String(value || "events").trim().toLowerCase();
@@ -37,12 +50,15 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     fanId: normalizedFanId,
     userRole: normalizedUserRole,
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     initialRoute: normalizeInitialRoute(payload.initialRoute),
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
       name: payload.creatorName,
       isVerified: payload.creatorVerified,
     }),
+    translations: normalizeBookingTranslations(payload.translations),
+    locale: normalizeBookingLocale(payload.locale),
   };
 }
 
@@ -52,11 +68,15 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.fanId = normalized.fanId;
   bootstrapState.userRole = normalized.userRole;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
+  bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.creatorData = normalized.creatorData;
+  bootstrapState.translations = normalized.translations;
+  bootstrapState.locale = normalized.locale;
   bootstrapState.bootstrapped = String(normalized.userRole || "").toLowerCase() === "fan"
     ? normalized.fanId != null
     : normalized.creatorId != null;
+  applyBackendJwtTokenSafely(normalized.jwtToken);
   return normalized;
 }
 
@@ -79,10 +99,12 @@ export function readEventsEmbedBootstrapFromUrl() {
     fanId,
     userRole,
     apiBaseUrl: params.get("apiBaseUrl") || "",
+    jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),
+    locale: params.get("locale") || "en",
   });
 }
 

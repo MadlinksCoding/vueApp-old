@@ -7,7 +7,7 @@
       :data-year="cursor.getFullYear()">
 
       <div class="grid grid-cols-7 text-[0.75rem] font-bold  uppercase tracking-wide ">
-        <div v-for="(w, idx) in ['S','M','T','W','T','F','S']" :key="idx" :class="['text-center w-[37.43px] h-[20px]', idx===0 ? 'text-[#FF6A6A]' : '']">{{ w }}</div>
+        <div v-for="(w, idx) in tinyWeekdays" :key="idx" :class="['text-center w-[37.43px] h-[20px]', idx===0 ? 'text-[#FF6A6A]' : '']">{{ w }}</div>
       </div>
 
       <div class="grid grid-cols-7 gap-0  ">
@@ -22,13 +22,20 @@
             d<today ? theme.mini.expired : '',
             
             // CHANGE 3: Logic update. Agar Today hai to 'today' class, warna 'hover' class.
-            sameDay(d, today) ? theme.mini.today : 'hover:bg-slate-50', 
+            sameDay(d, today) ? theme.mini.today : 'hover:bg-gray-300', 
             
-            sameDay(d, selectedDate) ? theme.mini.selected : '',
+            d >= today && sameDay(d, selectedDate) ? theme.mini.selected : '',
             d.getDay() === 0 ? 'text-[#FF6A6A]' : ''
           ]">
           <span class="text-[0.75rem] font-medium ">{{ d.getDate() }}</span>
-          <span v-if="dotMap[d.toISOString().slice(0,10)]" :class="theme.mini.dot" data-has-events="true"></span>
+          <span
+            v-if="dotMap[d.toISOString().slice(0,10)]"
+            :class="[
+              theme.mini.dot,
+              d >= today && sameDay(d, selectedDate) ? theme.mini.selectedDot : '',
+            ]"
+            data-has-events="true"
+          ></span>
         </button>
 
           <div v-else class="w-[37.43px] h-[37px]"></div>
@@ -40,9 +47,14 @@
 
 <script>
 import { SOD, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addMonths, monthNames } from '@/utils/calendarHelpers.js';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 export default {
   name: 'MiniCalendar',
+  setup() {
+    const { t } = useBookingTranslations();
+    return { t };
+  },
   props: {
     monthDate: { type: Date, required: true },
     selectedDate: { type: Date, required: true },
@@ -64,6 +76,17 @@ export default {
   }
 },
   computed: {
+    tinyWeekdays() {
+      return [
+        this.t("date_sun_tiny"),
+        this.t("date_mon_tiny"),
+        this.t("date_tue_tiny"),
+        this.t("date_wed_tiny"),
+        this.t("date_thu_tiny"),
+        this.t("date_fri_tiny"),
+        this.t("date_sat_tiny"),
+      ];
+    },
     header() { return `${monthNames[this.cursor.getMonth()]} ${this.cursor.getFullYear()}` },
     days() {
       const s = startOfWeek(startOfMonth(this.cursor));

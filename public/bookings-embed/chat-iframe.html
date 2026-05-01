@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Embed Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 0; min-height: 100vh; background: #f3f4f6; font-family: 'Poppins', sans-serif; }
+    .page-header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .page-header .logo { font-size: 18px; font-weight: 700; color: #111; }
+    .page-header nav a { margin-left: 24px; font-size: 14px; color: #6b7280; text-decoration: none; }
+    .page-header nav a:hover { color: #111; }
+    .hero { background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%); padding: 64px 32px; text-align: center; }
+    .hero h1 { margin: 0 0 12px; font-size: 36px; font-weight: 700; color: #111; }
+    .hero p { margin: 0; font-size: 16px; color: #6b7280; }
+    .content { max-width: 960px; margin: 40px auto; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 24px; }
+    .card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #111; }
+    .card p { margin: 0; font-size: 13px; color: #6b7280; line-height: 1.6; }
+    .card .tag { display: inline-block; margin-top: 12px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #ede9fe; color: #7c3aed; }
+    .section-title { max-width: 960px; margin: 0 auto 8px; padding: 0 32px; font-size: 13px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
+  </style>
+</head>
+<body>
+
+  <!-- Page header -->
+  <header class="page-header">
+    <div class="logo">FanSocial</div>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Creators</a>
+      <a href="#">Bookings</a>
+      <a href="#">Profile</a>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Chat Embed Demo</h1>
+    <p>Testing the chat widget embedded on an external page.</p>
+  </div>
+
+  <!-- Content cards -->
+  <div class="section-title" style="margin-top:40px;">Recent activity</div>
+  <div class="content">
+    <div class="card">
+      <h3>Booking confirmed</h3>
+      <p>Your 1-on-1 session with @cosmaniacreator has been confirmed for April 10 at 2:00 PM.</p>
+      <span class="tag">Confirmed</span>
+    </div>
+    <div class="card">
+      <h3>New message</h3>
+      <p>You have an unread message from @jennyhunny regarding your upcoming session.</p>
+      <span class="tag">Unread</span>
+    </div>
+    <div class="card">
+      <h3>Counter offer received</h3>
+      <p>@hns2 sent you a counter offer for the live call session. Review and respond.</p>
+      <span class="tag">Pending</span>
+    </div>
+    <div class="card">
+      <h3>Session reminder</h3>
+      <p>Your session starts in 30 minutes. Make sure you're ready to connect.</p>
+      <span class="tag">Reminder</span>
+    </div>
+  </div>
+
+  <!-- Chat widget injected here (fixed overlay) -->
+  <script src="/bookings-embed/fs-chat-host.js"></script>
+  <script>
+    window.FSChatEmbed.mountChatEmbed(document.body, {
+      src:           '/bookings-embed/chat.html',
+      currentUserId: new URLSearchParams(location.search).get('currentUserId') || '',
+      userRole:      new URLSearchParams(location.search).get('userRole')      || 'fan',
+      apiBaseUrl:    new URLSearchParams(location.search).get('apiBaseUrl')    || '',
+      fanUid:        new URLSearchParams(location.search).get('fanUid')        || '',
+    });
+  </script>
+
+</body>
+</html>

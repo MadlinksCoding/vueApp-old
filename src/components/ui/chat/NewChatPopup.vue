@@ -152,7 +152,7 @@
                                                 class="self-stretch flex flex-col justify-center md:items-center gap-1">
                                                 <div
                                                     class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center gap-1 md:gap-0">
-                                                    {{ tier.tier_title }}
+                                                    <span class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px] ">{{ tier.tier_title }}</span>
                                                     <span class="text-xs font-medium text-[#344054] md:hidden">({{
                                                         tier.subscriber_count }})</span>
                                                 </div>
@@ -167,7 +167,7 @@
                                     </div>
                                     <button @click="messageAll(tier.tier_title, 'subscribers_' + tier.tier_id, tier.tier_id)"
                                         :disabled="!!loadingGroupType"
-                                        class="md:self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                        class="md:self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
                                         <svg v-if="loadingGroupType === 'subscribers_' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -190,7 +190,7 @@
                         </div>
                         <button @click="messageAll('Top Followers', 'top_followers')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
                             <svg v-if="loadingGroupType === 'top_followers'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -245,7 +245,7 @@
                         </div>
                         <button @click="messageAll('Unsubscribed Users', 'unsubscribed')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
                             <svg v-if="loadingGroupType === 'unsubscribed'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -299,16 +299,17 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import SmilingPeachIcon from '@/assets/images/icons/smiling-peach.png'
-import MessageCircleIcon from '@/assets/images/icons/message-circle.webp'
-import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle.webp'
+import MessageCircleIcon from '@/assets/images/icons/message-circle.svg'
+import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle-pink.svg'
 import { fetchNewMessageUsersFlow } from '@/services/chat/flows/fetchNewMessageUsersFlow.js'
 import { fetchGroupUserIdsFlow } from '@/services/chat/flows/fetchGroupUserIdsFlow.js'
 
 const props = defineProps({
     creatorId: { type: [String, Number], required: true },
     currentUserId: { type: [String, Number], default: null },
+    visible: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['start-chat', 'close'])
@@ -496,7 +497,7 @@ function buildApi() {
     }
 }
 
-onMounted(() => {
-    fetchData()
+watch(() => props.visible, (val) => {
+    if (val) fetchData()
 })
 </script>

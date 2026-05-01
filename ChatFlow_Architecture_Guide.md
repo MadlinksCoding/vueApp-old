@@ -2,6 +2,98 @@
 
 This document outlines the architecture of the Data Pipeline and Flow Handlers based on the Bookings module, designed to be replicated for the upcoming Chat module.
 
+---
+
+## Chat Embed Architecture
+
+The chat widget can be embedded in any external page (e.g. WordPress) as an iframe. The embed reuses `ChatFloatingWidget` exactly as-is — no duplicate layout, no embed-specific props beyond userId.
+
+### Entry Points
+
+| File | Purpose |
+|---|---|
+| `vueApp/bookings-embed/chat.html` | iframe HTML page; mounts `#chat-embed-app` |
+| `vueApp/src/embeds/chat/main.js` | Creates Vue app, Pinia, calls `FlowHandler.configure` before `app.mount` |
+| `vueApp/src/embeds/chat/ChatEmbedApp.vue` | Embed root; parses URL params, mounts `ChatFloatingWidget` with userId prop |
+| `vueApp/public/bookings-embed/fs-chat-host.js` | Standalone host script; exposes `window.FSChatEmbed.mountChatEmbed` |
+
+### Bootstrap Flow
+
+URL params are parsed **synchronously in `setup()`** (before children mount), not in `onMounted`. This is required because `ChatFloatingWidget.onMounted` fires during `app.mount()` and reads from `window.userData` and `window.userSpecifiData`.
+
+```
+URL params → setup() → window.userData.userID
+                     → window.userSpecifiData.currentUser.isCreator
+                     → window.__fsChatApiBaseUrl
+                     → window.__fsChatEmbed = true
+```
+
+`FlowHandler.configure({ piniaStores: { chat: useChatStore() } })` must be called **between** `app.use(pinia)` and `app.mount()` so the store is available when `ChatFloatingWidget.onMounted` runs.
+
+### userId Prop — Avoiding Auth Bundle
+
+`ChatFloatingWidget` accepts an optional `userId` prop. When provided:
+- `resolveUserId()` is **never called** — avoiding the `useAuthStore` → `authHandler` import chain
+- `resolveUserId` is only loaded via **dynamic import inside `onMounted`** when the prop is absent (standalone app context)
+
+`ChatWindow` follows the same pattern — accepts `currentUserId` prop from `ChatFloatingWidget`, falls back to `resolveUserId()` synchronously (static import) when absent.
+
+> **Important:** Do not use top-level `await` in `ChatWindow` setup — it makes the component async and requires a `<Suspense>` boundary.
+
+### Auto-Resizing
+
+The iframe reports its required size to the host page via `postMessage`. Four observers cooperate:
+
+| Observer | Target | Fires on |
+|---|---|---|
+| `ResizeObserver` | `widgetEl` | In-flow layout changes (chat windows open/close) |
+| `MutationObserver` | `widgetEl` subtree | DOM mutations (chat list panel, absolute children) |
+| `MutationObserver` (bodyObserver) | `document.body` childList | Teleported popup add/remove (`data-fs-chat-popup`) |
+| `MutationObserver` (overlayObserver) | `[data-popup-overlay]` style | NewChatPopup open/close via PopupHandler overlay visibility |
+
+All resize calls are debounced through a single shared `resizeTimer` (`clearTimeout` + `setTimeout 30ms`).
+
+Two postMessage types:
+- `FS_CHAT_RESIZE { width, height }` — normal widget sizing
+- `FS_CHAT_FULLSCREEN` — tells host to expand to its own `window.innerWidth/innerHeight` (used when a popup opens; iframe's own `innerWidth` would be wrong)
+
+While `popupOpen = true`, `notifyResize` is suppressed so mutation/resize events cannot race-override the full-viewport state.
+
+### Popup Detection
+
+PopupHandler uses a **singleton `[data-popup-overlay]` div** that stays in `document.body` permanently (just hidden when inactive). To avoid falsely detecting it as an open popup:
+
+- `overlayObserver` watches its `style` attribute — `visibility: visible` means a popup (NewChatPopup) is open
+- `BookingRequestDetailPopup` and `AdjustBookingPopup` have `data-fs-chat-popup` on their root backdrop div — `bodyObserver` checks for this attribute explicitly
+
+### `newChatPopupConfig` in Embed
+
+Inside the embed, the iframe is initially small (360px wide). PopupHandler's responsive breakpoints resolve at that width, choosing `top-center` / `100vh` which fills the iframe from the top — not centered.
+
+Fix: when `window.__fsChatEmbed === true`, `newChatPopupConfig` uses fixed non-responsive values:
+```js
+position: 'center',
+width:    '675px',
+height:   '90vh',
+```
+
+### Host Script (`fs-chat-host.js`)
+
+Separate from `fs-events-host.js` — chat has no dependency on events/booking host logic.
+
+```js
+window.FSChatEmbed.mountChatEmbed(document.body, {
+  src:           '/wp-content/plugins/fansocial/bookings-embed/chat.html',
+  currentUserId: userData.userID,
+  userRole:      'creator' | 'fan',
+  apiBaseUrl:    'https://...',
+})
+```
+
+Returns `{ iframe, container, destroy() }`.
+
+---
+
 ## 1. Data Pipeline Architecture (`flowDataPipeline.js`)
 
 The `runFlowDataPipeline` function is the core execution engine for any flow. It orchestrates the lifecycle of a request through several well-defined stages:

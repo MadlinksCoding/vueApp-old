@@ -16,9 +16,9 @@
 
     <div v-else class="flex h-full items-center justify-center p-6 text-center">
       <div>
-        <h1 class="text-lg font-semibold text-white">Loading booking popup</h1>
+        <h1 class="text-lg font-semibold text-white">{{ t("fan_booking_loading_popup") }}</h1>
         <p class="mt-2 text-sm text-white/70">
-          Waiting for the parent page to provide creator and fan context.
+          {{ t("fan_booking_waiting_parent_context") }}
         </p>
       </div>
     </div>
@@ -29,12 +29,14 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import OneOnOneBookingFlowFeature from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue";
 import {
+  applyOneOnOneBookingAuthUpdate,
   applyOneOnOneBookingBootstrap,
   readOneOnOneBookingBootstrapFromUrl,
   useOneOnOneBookingBootstrap,
 } from "@/embeds/fanBooking/bootstrap.js";
 import {
   announceOneOnOneBookingReady,
+  installOneOnOneBookingAuthUpdateListener,
   installOneOnOneBookingBootstrapListener,
   isEmbeddedIframe,
   notifyOneOnOneBookingCreated,
@@ -42,14 +44,19 @@ import {
   requestOneOnOneBookingClose,
 } from "@/embeds/fanBooking/bridge.js";
 import { logFanBookingDebug, markFanBookingDebugEnabled } from "@/embeds/fanBooking/debug.js";
+import { provideBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const bootstrap = useOneOnOneBookingBootstrap();
+const { t } = provideBookingTranslations(bootstrap);
 
 let removeBootstrapListener = () => {};
+let removeAuthUpdateListener = () => {};
 
 function handleCloseRequest() {
   logFanBookingDebug("app", "close-request");
-  requestOneOnOneBookingClose();
+  if (isEmbeddedIframe()) {
+    requestOneOnOneBookingClose();
+  }
 }
 
 function handleBookingCreated(payload) {
@@ -76,6 +83,9 @@ onMounted(() => {
   removeBootstrapListener = installOneOnOneBookingBootstrapListener((payload) => {
     applyOneOnOneBookingBootstrap(payload);
   });
+  removeAuthUpdateListener = installOneOnOneBookingAuthUpdateListener((payload) => {
+    applyOneOnOneBookingAuthUpdate(payload);
+  });
 
   const fallbackBootstrap = readOneOnOneBookingBootstrapFromUrl();
   if (fallbackBootstrap) {
@@ -91,5 +101,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   logFanBookingDebug("app", "before-unmount");
   removeBootstrapListener();
+  removeAuthUpdateListener();
 });
 </script>

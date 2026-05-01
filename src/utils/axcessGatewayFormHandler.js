@@ -270,6 +270,15 @@ class AxcessGatewayFormHandler {
       window.custom_checkout_params = { ...window.custom_checkout_params, ...response.check_cart_product_types };
 
       window.custom_checkout_params.payment_method = window.custom_checkout_params.payment_method || 'new_card';
+      if( window.custom_checkout_params?.user?.email ) {
+        if (this.userInfo) {
+          this.userInfo.email = window.custom_checkout_params.user.email;
+          console.log('[AxcessGatewayFormHandler] userInfo email updated from custom_checkout_params:');
+        } else {
+          this.userInfo = window.custom_checkout_params.user;
+          console.log('[AxcessGatewayFormHandler] userInfo updated from custom_checkout_params:');
+        }
+      }
     }
 
     if (response.payment_content) {

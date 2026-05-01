@@ -256,3 +256,8 @@ export function extractHm(value, fallback = "15:00") {
   if (match) return toHm(match[1], fallback);
   return toHm(fallback, "15:00");
 }
+
+export function toLocalISOString(date) {
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date - tzOffset).toISOString().slice(0, -1);
+}

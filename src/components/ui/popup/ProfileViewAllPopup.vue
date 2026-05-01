@@ -282,264 +282,265 @@ const viewAllPopupConfig = {
 };
 
 // --- Mock Data ---
-const mockVideos = ref([
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "14:55:09",
-    likes: 120,
-    views: 4500,
-    creatorName: "Princess Carrot Pop",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "2 days ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "10:20:01",
-    likes: 85,
-    views: 3200,
-    creatorName: "Chef Luigi",
-    avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
-    timeAgo: "5 hours ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "05:12:30",
-    likes: 240,
-    views: 8900,
-    creatorName: "GamerPro",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 week ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "22:45:15",
-    likes: 56,
-    views: 1200,
-    creatorName: "TechGuru",
-    avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
-    timeAgo: "3 days ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "08:33:10",
-    likes: 310,
-    views: 10500,
-    creatorName: "YogaWithSarah",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 day ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "14:55:09",
-    likes: 120,
-    views: 4500,
-    creatorName: "Princess Carrot Pop",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "2 days ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "10:20:01",
-    likes: 85,
-    views: 3200,
-    creatorName: "Chef Luigi",
-    avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
-    timeAgo: "5 hours ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "05:12:30",
-    likes: 240,
-    views: 8900,
-    creatorName: "GamerPro",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 week ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-   {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "08:33:10",
-    likes: 310,
-    views: 10500,
-    creatorName: "YogaWithSarah",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 day ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "14:55:09",
-    likes: 120,
-    views: 4500,
-    creatorName: "Princess Carrot Pop",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "2 days ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "10:20:01",
-    likes: 85,
-    views: 3200,
-    creatorName: "Chef Luigi",
-    avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
-    timeAgo: "5 hours ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "05:12:30",
-    likes: 240,
-    views: 8900,
-    creatorName: "GamerPro",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 week ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-   {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "08:33:10",
-    likes: 310,
-    views: 10500,
-    creatorName: "YogaWithSarah",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 day ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "14:55:09",
-    likes: 120,
-    views: 4500,
-    creatorName: "Princess Carrot Pop",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "2 days ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "10:20:01",
-    likes: 85,
-    views: 3200,
-    creatorName: "Chef Luigi",
-    avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
-    timeAgo: "5 hours ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-  {
-    type: "video",
-    videoUrl:
-      "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-    poster: "/images/ai-art.png",
-    duration: "05:12:30",
-    likes: 240,
-    views: 8900,
-    creatorName: "GamerPro",
-    avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
-    timeAgo: "1 week ago",
-    actionLabel: '10% off',
-    actionBgColor: '#F093FB',
-    buyLabel: 'Buy Now',
-    buyBgColor: '#222222'
-  },
-]);
+// const mockVideos = ref([
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "14:55:09",
+//     likes: 120,
+//     views: 4500,
+//     creatorName: "Princess Carrot Pop",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "2 days ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "10:20:01",
+//     likes: 85,
+//     views: 3200,
+//     creatorName: "Chef Luigi",
+//     avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
+//     timeAgo: "5 hours ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "05:12:30",
+//     likes: 240,
+//     views: 8900,
+//     creatorName: "GamerPro",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 week ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "22:45:15",
+//     likes: 56,
+//     views: 1200,
+//     creatorName: "TechGuru",
+//     avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
+//     timeAgo: "3 days ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "08:33:10",
+//     likes: 310,
+//     views: 10500,
+//     creatorName: "YogaWithSarah",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 day ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "14:55:09",
+//     likes: 120,
+//     views: 4500,
+//     creatorName: "Princess Carrot Pop",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "2 days ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "10:20:01",
+//     likes: 85,
+//     views: 3200,
+//     creatorName: "Chef Luigi",
+//     avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
+//     timeAgo: "5 hours ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "05:12:30",
+//     likes: 240,
+//     views: 8900,
+//     creatorName: "GamerPro",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 week ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//    {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "08:33:10",
+//     likes: 310,
+//     views: 10500,
+//     creatorName: "YogaWithSarah",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 day ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "14:55:09",
+//     likes: 120,
+//     views: 4500,
+//     creatorName: "Princess Carrot Pop",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "2 days ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "10:20:01",
+//     likes: 85,
+//     views: 3200,
+//     creatorName: "Chef Luigi",
+//     avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
+//     timeAgo: "5 hours ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "05:12:30",
+//     likes: 240,
+//     views: 8900,
+//     creatorName: "GamerPro",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 week ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//    {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "08:33:10",
+//     likes: 310,
+//     views: 10500,
+//     creatorName: "YogaWithSarah",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 day ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "14:55:09",
+//     likes: 120,
+//     views: 4500,
+//     creatorName: "Princess Carrot Pop",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "2 days ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "10:20:01",
+//     likes: 85,
+//     views: 3200,
+//     creatorName: "Chef Luigi",
+//     avatar: "https://i.ibb.co.com/KpDb5Hrb/avatar.webp",
+//     timeAgo: "5 hours ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+//   {
+//     type: "video",
+//     videoUrl:
+//       "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+//     poster: "/images/ai-art.png",
+//     duration: "05:12:30",
+//     likes: 240,
+//     views: 8900,
+//     creatorName: "GamerPro",
+//     avatar: "https://i.ibb.co.com/67B4Cz6d/Frame-1410098582.webp",
+//     timeAgo: "1 week ago",
+//     actionLabel: '10% off',
+//     actionBgColor: '#F093FB',
+//     buyLabel: 'Buy Now',
+//     buyBgColor: '#222222'
+//   },
+// ]);
+const mockVideos = ref([]);
 
 // --- Tag Logic ---
 const isTagsDropdownOpen = ref(false);

@@ -5,13 +5,34 @@ export const useChatStore = defineStore("chat", {
     messages: {},
     pagingStates: {},
     userChats: [],
+    chatsNextCursor: null,
+    chatsHasMore: false,
     chatParticipants: {},
     chatUsersData: {},
+    chatPinnedMessages: {},
+    chatBookings: {},
+    chatEvents: {},
   }),
 
   getters: {
     getMessagesByChatId: (state) => {
       return (chatId) => state.messages[chatId] || [];
+    },
+    getPinnedMessageByChatId: (state) => {
+      return (chatId) => state.chatPinnedMessages[chatId] ?? null;
+    },
+    getBookingById: (state) => {
+      return (bookingId) => state.chatBookings[bookingId] ?? null;
+    },
+    getEventById: (state) => {
+      return (eventId) => state.chatEvents[eventId] ?? null;
+    },
+    sortedUserChats: (state) => {
+      return [...state.userChats].sort((a, b) => {
+        const tsA = a.last_message?.message_ts ?? a.last_message?.time ?? a.last_activity ?? 0
+        const tsB = b.last_message?.message_ts ?? b.last_message?.time ?? b.last_activity ?? 0
+        return tsB - tsA
+      })
     },
   },
 
@@ -81,14 +102,51 @@ export const useChatStore = defineStore("chat", {
       this.userChats = items;
     },
 
-    fetchUserChatsAction({ items }) {
-      const list = Array.isArray(items) ? items : [];
-      this.userChats = list;
-      list.forEach((c) => {
+    fetchUserChatsAction({ items, nextCursor = null, append = false }) {
+      const incoming = Array.isArray(items) ? items : [];
+
+      if (append) {
+        const existingIndex = new Map(this.userChats.map((c, i) => [c.chat_id, i]));
+        const toAppend = [];
+        for (const c of incoming) {
+          const idx = existingIndex.get(c.chat_id);
+          if (idx !== undefined) {
+            this.userChats[idx] = { ...this.userChats[idx], ...c };
+          } else {
+            toAppend.push(c);
+          }
+        }
+        this.userChats.push(...toAppend);
+      } else {
+        this.userChats = incoming;
+      }
+
+      this.chatsNextCursor = nextCursor;
+      this.chatsHasMore = !!nextCursor;
+
+      incoming.forEach((c) => {
         if (c.chat_id && Array.isArray(c.participants)) {
           this.chatParticipants[c.chat_id] = c.participants;
         }
+        if (c.chat_id && c.pinned_message) {
+          this.chatPinnedMessages[c.chat_id] = c.pinned_message;
+        }
       });
+    },
+
+    setPinnedMessage(chatId, message) {
+      if (!chatId) return;
+      this.chatPinnedMessages[chatId] = message ?? null;
+    },
+
+    setBooking(bookingId, data) {
+      if (!bookingId) return;
+      this.chatBookings[bookingId] = data ?? null;
+    },
+
+    setEvent(eventId, data) {
+      if (!eventId) return;
+      this.chatEvents[eventId] = data ?? null;
     },
 
     setChatUsersDataAction({ users }) {
@@ -98,8 +156,16 @@ export const useChatStore = defineStore("chat", {
     },
 
     updateChatLastMessage(chatId, message) {
-      const chat = this.userChats.find((c) => c.chat_id === chatId);
-      if (chat) chat.last_message = message;
+      const idx = this.userChats.findIndex((c) => c.chat_id === chatId)
+      if (idx === -1) return
+      this.userChats[idx].last_message = message
+      const ts = message?.message_ts ?? message?.time ?? null
+      if (ts) this.userChats[idx].last_activity = ts
+      // Move chat to front so the array mutation triggers Vue re-render
+      if (idx > 0) {
+        const [moved] = this.userChats.splice(idx, 1)
+        this.userChats.unshift(moved)
+      }
     },
 
     updateChatUnread(chatId, hasUnread) {
@@ -111,6 +177,20 @@ export const useChatStore = defineStore("chat", {
     setChatUnreadCount(chatId, count) {
       const chat = this.userChats.find((c) => c.chat_id === chatId);
       if (chat) chat.unread_count = count ?? 0;
+    },
+
+    prependChat(item) {
+      if (!item?.chat_id) return;
+      const exists = this.userChats.some((c) => c.chat_id === item.chat_id);
+      if (!exists) {
+        this.userChats.unshift(item);
+      }
+      if (item.chat_id && Array.isArray(item.participants)) {
+        this.chatParticipants[item.chat_id] = item.participants;
+      }
+      if (item.chat_id && item.pinned_message) {
+        this.chatPinnedMessages[item.chat_id] = item.pinned_message;
+      }
     },
 
     updateMessageStatusAction({ chatId, messageId, status }) {
@@ -144,8 +224,13 @@ export const useChatStore = defineStore("chat", {
       this.messages = {};
       this.pagingStates = {};
       this.userChats = [];
+      this.chatsNextCursor = null;
+      this.chatsHasMore = false;
       this.chatParticipants = {};
       this.chatUsersData = {};
+      this.chatPinnedMessages = {};
+      this.chatBookings = {};
+      this.chatEvents = {};
     },
   },
 });

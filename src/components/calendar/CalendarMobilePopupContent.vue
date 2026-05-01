@@ -15,7 +15,7 @@
                         </svg>
                     </div>
                     <div class="justify-start text-sm font-semibold font-['Poppins'] leading-5"
-                        :class="view === 'day' ? 'text-black' : 'text-pink-500'">Day</div>
+                        :class="view === 'day' ? 'text-black' : 'text-pink-500'">{{ t("common_day") }}</div>
                 </div>
             </div>
 
@@ -37,7 +37,7 @@
                             :class="view === 'week' ? 'text-black' : 'text-pink-500'">7</div>
                     </div>
                     <div class="justify-start text-sm font-semibold font-['Poppins'] leading-5"
-                        :class="view === 'week' ? 'text-black' : 'text-pink-500'">Week</div>
+                        :class="view === 'week' ? 'text-black' : 'text-pink-500'">{{ t("common_week") }}</div>
                 </div>
             </div>
 
@@ -54,18 +54,19 @@
                         </svg>
                     </div>
                     <div class="justify-start text-sm font-semibold font-['Poppins'] leading-5"
-                        :class="view === 'month' ? 'text-black' : 'text-pink-500'">Month</div>
+                        :class="view === 'month' ? 'text-black' : 'text-pink-500'">{{ t("common_month") }}</div>
                 </div>
             </div>
         </div>
 
         <div class="w-full p-2 border-t border-black/20 mb-[100px]">
             <EventsWidget :sections="eventsData" @join-click="$emit('join-click', $event)"
-                @reply-click="$emit('reply-click', $event)" />
+                @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
+                @menu-action="$emit('menu-action', $event)" />
         </div>
 
-        <div class="p-4 mt-auto flex-shrink-0">
-            <ButtonComponent @click="$emit('open-new-events')" text="NEW EVENTS" variant="none"
+        <div v-if="canCreateEvents" class="p-4 mt-auto flex-shrink-0">
+            <ButtonComponent @click="$emit('open-new-events')" :text="t('dashboard_new_events')" variant="none"
                 customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
                 :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
                 :leftIconClass="`w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`" />
@@ -76,6 +77,9 @@
 <script setup>
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import EventsWidget from './EventsWidget.vue';
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+
+const { t } = useBookingTranslations();
 
 defineProps({
     view: {
@@ -85,8 +89,12 @@ defineProps({
     eventsData: {
         type: Array,
         default: () => []
+    },
+    canCreateEvents: {
+        type: Boolean,
+        default: false
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'open-new-events']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events']);
 </script>

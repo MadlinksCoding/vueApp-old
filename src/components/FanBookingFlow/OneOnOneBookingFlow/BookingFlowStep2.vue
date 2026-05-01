@@ -2,8 +2,9 @@
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import { addMonths, monthNames } from '@/utils/calendarHelpers.js';
+import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
+import { buildBookingPaymentPreview } from '@/services/bookings/mappers/createBookingMapper.js';
 import {
   buildCandidateSlotsForEventDate,
   createSlotUiModel,
@@ -20,6 +21,8 @@ import {
   bookingFlowTokenIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
+import { useEventBackgroundImage } from './useEventBackgroundImage.js';
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
   engine: {
@@ -32,6 +35,7 @@ const props = defineProps({
   },
 });
 
+const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
 const creatorPresentation = computed(() => resolveCreatorPresentation({
@@ -39,6 +43,10 @@ const creatorPresentation = computed(() => resolveCreatorPresentation({
   selectedEvent: selectedEvent.value,
   bookingResult: props.engine.getState('fanBooking.booking.result'),
 }));
+const creatorPresentationLoading = computed(() => (
+  props.engine.getState('fanBooking.context.creatorPresentationLoading') === true
+));
+const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
 
 // --- CALENDAR LOGIC ---
 const now = new Date();
@@ -51,7 +59,7 @@ const state = reactive({
 });
 
 const header = computed(() => {
-  return `${monthNames[state.focus.getMonth()]} ${state.focus.getFullYear()}`;
+  return state.focus.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' });
 });
 
 const shiftMonth = (n) => {
@@ -66,12 +74,13 @@ const theme1 = {
   mini: {
     wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl ',
     header: 'text-lg font-medium text-white',
-    dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-50',
+    dayBase: 'relative  h-[37px] rounded-[2px] text-[#ffffff] flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 hover:bg-gray-500',
     outside: 'opacity-0',
-    expired: 'opacity-40 cursor-not-allowed pointer-events-none',
-    today: 'bg-gray-500 font-semibold text-white hover:bg-gray-600',
-    selected: 'rounded-full !bg-[#07F468] !text-[#0C111D] font-semibold',
-    dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
+    expired: 'opacity-40 cursor-not-allowed pointer-events-none !bg-transparent !text-[currentColor]',
+    today: 'font-semibold text-white hover:bg-gray-600',
+    selected: 'rounded-[2px] !bg-[#07F468] !text-[#000000] font-semibold focus:!outline-none focus:!ring-0 focus:!ring-offset-0 focus:!shadow-none focus:!border-0',
+    dot: 'absolute bottom-[2px] w-1 h-1 rounded-full bg-[#07F468]',
+    selectedDot: '!bg-[#0C111D] bottom-[4px]'
   }
 };
 
@@ -79,10 +88,18 @@ const selectedTime = ref(null);
 const selectedDurationObj = ref(null);
 const addons = ref([]);
 const otherRequest = ref('');
+const contributionTokens = ref('');
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
+const isGroupEvent = computed(() => String(
+  selectedEvent.value?.type
+    || selectedEvent.value?.eventType
+    || selectedEvent.value?.raw?.type
+    || selectedEvent.value?.raw?.eventType
+    || '',
+).toLowerCase() === 'group-event');
 const popupBackgroundStyle = computed(() => ({
-  backgroundImage: `url('${bookingFlowBackgroundImage}')`,
+  backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
   backgroundSize: 'cover',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'left 50% center',
@@ -145,10 +162,49 @@ const showApprovalNeeded = computed(() => {
 const isPreviewReadOnly = computed(() => (
   Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
 ));
+const isFirstBookingForCreator = computed(() => (
+  toBoolean(props.engine.getState('fanBooking.context.isFirstBookingForCreator'), false)
+));
 
 function toWholeTokens(value) {
   const numeric = Number(value || 0);
   return Math.ceil(Number.isFinite(numeric) ? numeric : 0);
+}
+
+const isEventGoalGroupEvent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return isGroupEvent.value && String(raw?.priceSetting || selectedEvent.value?.priceSetting || '').toLowerCase() === 'eventgoal';
+});
+
+const eventGoalMinimumTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  const configured = Number(raw?.minContributionPerUser ?? selectedEvent.value?.minContributionPerUser ?? 0);
+  return Number.isFinite(configured) && configured > 0 ? toWholeTokens(configured) : 1;
+});
+
+const eventGoalMaximumTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
+});
+
+const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
+
+const contributionInvalid = computed(() => {
+  if (!isEventGoalGroupEvent.value) return false;
+  const amount = normalizedContributionTokens.value;
+  const max = eventGoalMaximumTokens.value;
+  return max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
+});
+
+function ensureContributionDefault() {
+  if (!isEventGoalGroupEvent.value) {
+    contributionTokens.value = '';
+    return;
+  }
+
+  const existing = Number(contributionTokens.value);
+  if (Number.isFinite(existing) && existing > 0) return;
+  contributionTokens.value = String(eventGoalMinimumTokens.value);
 }
 
 const timeSlots = computed(() => {
@@ -156,6 +212,7 @@ const timeSlots = computed(() => {
 
   return candidateSlots.value.map((slot) => {
     const uiSlot = createSlotUiModel({
+      event: selectedEvent.value,
       eventId: selectedEvent.value.eventId,
       localDateIso: selectedDateIso.value,
       slot,
@@ -164,7 +221,9 @@ const timeSlots = computed(() => {
 
     return {
       ...uiSlot,
-      label: hmToLabel(uiSlot.startHm),
+      label: isGroupEvent.value
+        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
+        : hmToLabel(uiSlot.startHm),
       value: uiSlot.startHm,
       isOffHours: Boolean(uiSlot.offHours),
     };
@@ -184,6 +243,19 @@ const getMultiplesOf = (base, max) => {
 const durationOptions = computed(() => {
   const eventDuration = Number(selectedEvent.value?.sessionDurationMinutes || 15);
   const basePrice = Number(selectedEvent.value?.basePriceTokens || 0);
+  const selectedSlot = selectedTime.value;
+
+  if (isGroupEvent.value) {
+    if (!selectedSlot || selectedSlot.disabled) return [];
+    const duration = Number(selectedSlot.durationMinutes || Math.round((selectedSlot.endMs - selectedSlot.startMs) / (60 * 1000)));
+    if (!Number.isFinite(duration) || duration <= 0) return [];
+    return [{
+      value: duration,
+      price: basePrice,
+      disabled: false,
+    }];
+  }
+
   const allowLongerSessions = toBoolean(
     selectedEvent.value?.allowLongerSessions
       ?? selectedEvent.value?.raw?.allowLongerSessions,
@@ -199,7 +271,6 @@ const durationOptions = computed(() => {
   const validMinutes = minutes.filter((v) => Number.isFinite(v) && v > 0 && v <= 180);
 
   const unique = Array.from(new Set(validMinutes));
-  const selectedSlot = selectedTime.value;
   return unique.map((value) => ({
     value,
     price: toWholeTokens(unitPrice * value),
@@ -219,56 +290,55 @@ const offHourSurchargePercent = computed(() => {
   return percent;
 });
 
-const offHourSurchargeAmount = computed(() => {
-  if (!state.selected) return 0;
-  const basePrice = Number(selectedDurationObj.value?.price || 0);
-  const addonsPrice = selectedAddons.value.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  const subtotal = basePrice + addonsPrice;
-  const percent = offHourSurchargePercent.value;
-  if (percent <= 0) return 0;
-  return toWholeTokens(subtotal * percent / 100);
+const pricingPreview = computed(() => {
+  if (!selectedEvent.value || !selectedDurationObj.value) return null;
+  return buildBookingPaymentPreview(
+    selectedEvent.value,
+    Number(selectedDurationObj.value?.value || 0),
+    selectedAddons.value.map((item) => ({ title: item.name || item.title || '', price: Number(item.price || 0) })),
+    selectedTime.value || {},
+    {
+      isFirstBookingForCreator: isFirstBookingForCreator.value,
+      contributionTokens: isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null,
+    },
+  );
 });
 
 const longerDiscountAmount = computed(() => {
-  const raw = selectedEvent.value?.raw || {};
-  const enabled = toBoolean(raw.enableDiscountForLonger, false);
-  const percent = Number(raw.discountPercentOfBase || 0);
-  const selectedDuration = Number(selectedDurationObj.value?.value || 0);
-  const sessionSubtotal = Number(selectedDurationObj.value?.price || 0);
-  const baseSessionMinutes = Number(raw.sessionDurationMinutes || selectedEvent.value?.sessionDurationMinutes || 0);
-  const minSessions = Number(raw.discountMinSessions);
-  const legacyMinMinutes = Number(raw.discountMinSessionMinutes);
+  return Number(pricingPreview.value?.discounts?.longerDiscount?.discountTokens || 0);
+});
 
-  let minimumMinutes = legacyMinMinutes;
-  if (Number.isFinite(minSessions) && minSessions > 0 && baseSessionMinutes > 0) {
-    minimumMinutes = baseSessionMinutes * minSessions;
+const firstTimeDiscountAmount = computed(() => {
+  return Number(pricingPreview.value?.discounts?.firstTimeDiscount?.discountTokens || 0);
+});
+
+const offHourSurchargeAmount = computed(() => {
+  const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
+  const line = lines.find((row) => String(row?.code) === 'off_hour_surcharge');
+  return Number(line?.amount || 0);
+});
+
+const discountRows = computed(() => {
+  const rows = [];
+  if (longerDiscountAmount.value > 0) {
+    rows.push({
+      code: 'discount',
+      label: t('fan_booking_longer_session_discount'),
+      amount: longerDiscountAmount.value,
+    });
   }
-
-  if (
-    !enabled
-    || !Number.isFinite(percent)
-    || percent <= 0
-    || !Number.isFinite(minimumMinutes)
-    || minimumMinutes <= 0
-    || selectedDuration < minimumMinutes
-    || sessionSubtotal <= 0
-  ) {
-    return 0;
+  if (firstTimeDiscountAmount.value > 0) {
+    rows.push({
+      code: 'first_time_discount',
+      label: t('fan_booking_first_time_discount'),
+      amount: firstTimeDiscountAmount.value,
+    });
   }
-
-  return toWholeTokens(sessionSubtotal * percent / 100);
+  return rows;
 });
 
 const totalPrice = computed(() => {
-  if (!state.selected) return 0;
-  const basePrice = Number(selectedDurationObj.value?.price || 0);
-  const addonsPrice = selectedAddons.value.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  return toWholeTokens(
-    basePrice
-    + addonsPrice
-    + offHourSurchargeAmount.value
-    - longerDiscountAmount.value
-  );
+  return Number(pricingPreview.value?.payment?.total || 0);
 });
 
 const canProceedToPayment = computed(() => {
@@ -277,6 +347,7 @@ const canProceedToPayment = computed(() => {
     && selectedDurationObj.value
     && selectedTime.value
     && !selectedTime.value.disabled
+    && !contributionInvalid.value
   );
 });
 
@@ -288,9 +359,9 @@ const formattedTimeRange = computed(() => {
   if (!state.selected || !selectedTime.value) return '-';
   const startHm = selectedTime.value.startHm;
   const selectedMinutes = Number(selectedDurationObj.value?.value || 0);
-  const endHm = selectedMinutes > 0
-    ? addMinutesToHm(startHm, selectedMinutes)
-    : selectedTime.value.endHm;
+  const endHm = isGroupEvent.value
+    ? selectedTime.value.endHm
+    : (selectedMinutes > 0 ? addMinutesToHm(startHm, selectedMinutes) : selectedTime.value.endHm);
   return `${hmToLabel(startHm)}-${hmToLabel(endHm)}`;
 });
 
@@ -300,7 +371,7 @@ const currentDuration = computed(() => {
 
 const selectedDateDisplay = computed(() => {
   if (!state.selected) return '';
-  return state.selected.toLocaleDateString('en-US', {
+  return state.selected.toLocaleDateString(locale.value, {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
@@ -319,10 +390,10 @@ const headerDateDisplay = computed(() => {
     d1.getFullYear() === d2.getFullYear();
 
   let prefix = '';
-  if (isSameDay(selected, today)) prefix = 'Today';
-  else if (isSameDay(selected, tomorrow)) prefix = 'Tomorrow';
+  if (isSameDay(selected, today)) prefix = t('common_today');
+  else if (isSameDay(selected, tomorrow)) prefix = t('fan_booking_tomorrow');
 
-  const dateStr = selected.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const dateStr = selected.toLocaleDateString(locale.value, { month: 'long', day: 'numeric', year: 'numeric' });
   return prefix ? `${prefix} ${dateStr}` : dateStr;
 });
 
@@ -343,6 +414,7 @@ const events1 = computed(() => {
       applyBufferAfterBooked: true,
     });
     const free = slots.some((slot) => !createSlotUiModel({
+      event,
       eventId: event.eventId,
       localDateIso: dateIso,
       slot,
@@ -385,7 +457,7 @@ function hydrateAddons() {
 
   const mapped = addOnRows.map((item, index) => ({
     id: item?.id || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
-    name: item?.title || item?.name || 'Add-on',
+    name: item?.title || item?.name || t('fan_booking_add_on'),
     price: Number(item?.priceTokens || item?.price || 0),
     selected: false,
   }));
@@ -393,7 +465,7 @@ function hydrateAddons() {
   if (raw.allowFanRecordingEnabled && !mapped.some((item) => String(item.name).toLowerCase().includes('record'))) {
     mapped.unshift({
       id: `${selectedEvent.value?.eventId || 'event'}_recording`,
-      name: 'Record our session',
+      name: t('fan_booking_record_our_session'),
       price: Number(raw.allowFanRecordingTokens || 0),
       selected: false,
     });
@@ -432,6 +504,11 @@ function hydrateFromState() {
     ?? props.engine.getState('fanBooking.selection.personalRequestText')
     ?? '';
 
+  contributionTokens.value = existing.contributionTokens
+    ?? props.engine.getState('fanBooking.selection.contributionTokens')
+    ?? '';
+  ensureContributionDefault();
+
   if (Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
       const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
@@ -443,6 +520,13 @@ function hydrateFromState() {
 const selectTime = (slot) => {
   if (slot.disabled) return;
   selectedTime.value = slot;
+  if (isGroupEvent.value) {
+    const duration = Number(slot.durationMinutes || Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
+    selectedDurationObj.value = Number.isFinite(duration) && duration > 0
+      ? { value: duration, price: Number(selectedEvent.value?.basePriceTokens || 0), disabled: false }
+      : null;
+    return;
+  }
   selectedDurationObj.value = null;
 };
 
@@ -465,8 +549,8 @@ const goToNextStep = () => {
   if (!state.selected) {
     showToast({
       type: 'error',
-      title: 'Date Required',
-      message: 'Please select a date first.',
+      title: t('fan_booking_date_required_title'),
+      message: t('fan_booking_date_required_message'),
     });
     return;
   }
@@ -474,8 +558,8 @@ const goToNextStep = () => {
   if (!selectedTime.value || selectedTime.value.disabled) {
     showToast({
       type: 'error',
-      title: 'Slot Unavailable',
-      message: 'Please select an available time slot.',
+      title: t('fan_booking_slot_unavailable_title'),
+      message: t('fan_booking_slot_unavailable_message'),
     });
     return;
   }
@@ -483,8 +567,20 @@ const goToNextStep = () => {
   if (!selectedDurationObj.value) {
     showToast({
       type: 'error',
-      title: 'Session Length Required',
-      message: 'Please select session length to continue.',
+      title: t('fan_booking_session_length_required_title'),
+      message: t('fan_booking_session_length_required_message'),
+    });
+    return;
+  }
+
+  if (contributionInvalid.value) {
+    showToast({
+      type: 'error',
+      title: t('common_validation_failed'),
+      message: t('fan_booking_contribution_invalid', {
+        min: eventGoalMinimumTokens.value,
+        max: eventGoalMaximumTokens.value,
+      }),
     });
     return;
   }
@@ -499,7 +595,10 @@ const goToNextStep = () => {
     selectedDateDisplay: selectedDateDisplay.value,
     headerDateDisplay: headerDateDisplay.value,
     totalPrice: totalPrice.value,
+    contributionTokens: isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null,
     longerDiscountAmount: longerDiscountAmount.value,
+    firstTimeDiscountAmount: firstTimeDiscountAmount.value,
+    discountRows: discountRows.value,
     offHourSurchargeAmount: offHourSurchargeAmount.value,
     offHourSurchargePercent: offHourSurchargePercent.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
@@ -510,6 +609,7 @@ const goToNextStep = () => {
   props.engine.setState('fanBooking.selection.selectedDate', selectedDateIso.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedSlot', selectedTime.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedDurationMinutes', selectedDurationObj.value.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.contributionTokens', isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedAddOns', selectedAddons.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.personalRequestText', otherRequest.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.temporaryHold', {
@@ -539,6 +639,15 @@ watch(
   () => {
     hydrateAddons();
     hydrateFromState();
+    ensureContributionDefault();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [isEventGoalGroupEvent.value, eventGoalMinimumTokens.value, eventGoalMaximumTokens.value],
+  () => {
+    ensureContributionDefault();
   },
   { immediate: true },
 );
@@ -592,8 +701,8 @@ onMounted(() => {
   if (!selectedEvent.value) {
     showToast({
       type: 'error',
-      title: 'Event Missing',
-      message: 'Please choose an event first.',
+      title: t('fan_booking_event_missing_title'),
+      message: t('fan_booking_choose_event_first'),
     });
     props.engine.goToStep(1);
     return;
@@ -606,27 +715,27 @@ onMounted(() => {
 
 <template>
   <div
-    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] md:!bg-none overflow-hidden"
-    :style="popupBackgroundStyle"
-  >
-    <div class="h-full lg:rounded-[20px] md:px-[10px] md:py-6 lg:py-8 md:bg-black lg:bg-transparent lg:p-0">
-      <div class="md:rounded-b-[20px] h-full md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
+    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
+    <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
+      <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
+        <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
           :date-display="headerDateDisplay"
           :subtotal="totalPrice"
           :duration="currentDuration"
-          :title-display="selectedEvent?.title || 'High School Life Simulator'"
+          :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
           :creator-avatar="creatorPresentation.avatar"
           :creator-name="creatorPresentation.name"
           :creator-is-verified="creatorPresentation.isVerified"
+          :creator-loading="creatorPresentationLoading"
           :show-approval-needed="showApprovalNeeded"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[40.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
 
-          <div class="flex-none lg:flex-1 flex-col w-full lg:p-5">
+          <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
               <span class="flex items-center gap-2">
                 <div :class="theme1.mini.header">{{ header }}</div>
@@ -658,7 +767,7 @@ onMounted(() => {
 
           <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 lg:p-5 h-full">
             <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
-              Select a date from calendar to see available time slots.
+              {{ t("fan_booking_select_date_prompt") }}
             </p>
           </div>
 
@@ -671,17 +780,18 @@ onMounted(() => {
               class="h-full w-full flex items-center justify-center"
             >
               <p class="text-sm flex justify-center leading-20 text-center py-16 px-8 items-center text-gray-400">
-                No booking available on this date.
+                {{ t("fan_booking_no_booking_on_date") }}
               </p>
             </div>
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">SELECT CALL START TIME</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_call_start_time") }}</h3>
               <div class="flex flex-wrap w-full gap-2">
                 <div
                   v-for="(slot, index) in timeSlots"
                   :key="index"
+                  data-testid="booking-flow-time-slot"
                   @click="selectTime(slot)"
                   class="flex justify-between items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
                   :class="[
@@ -718,7 +828,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">SELECT LENGTH</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
               <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
                 <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem]">
                   <div
@@ -738,19 +848,90 @@ onMounted(() => {
                         selectedDurationObj?.value === opt.value ? 'text-[#0C111D]' : 'text-white',
                       ]"
                     >
-                      {{ opt.value }} MIN
+                      {{ opt.value }} {{ t("fan_booking_min_short") }}
                     </p>
                   </div>
                 </div>
               </div>
-              <p v-if="!selectedTime" class="text-xs text-gray-300">Select a start time first.</p>
+              <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
               <p class="text-sm leading-[20px] text-[#07F468]">
-                Your session will be on {{ selectedDateDisplay }} {{ formattedTimeRange !== '-' ? formattedTimeRange : '' }}
+                {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
               </p>
+
+              <div
+                v-if="isEventGoalGroupEvent"
+                class="mt-2 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <label for="event-goal-contribution" class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
+                  {{ t("fan_booking_event_goal_contribution") }}
+                </label>
+                <div
+                  class="flex items-center gap-2 border-b border-solid bg-black/50 px-3 py-2"
+                  :class="contributionInvalid ? 'border-[#FF0066]' : 'border-[#07F468]'"
+                >
+                  <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-5 w-5" />
+                  <input
+                    id="event-goal-contribution"
+                    v-model="contributionTokens"
+                    type="number"
+                    inputmode="numeric"
+                    :min="eventGoalMinimumTokens"
+                    :max="eventGoalMaximumTokens || undefined"
+                    class="min-w-0 flex-1 bg-transparent text-base font-semibold text-white outline-none"
+                  />
+                  <span class="text-sm text-[#EAECF0]">{{ t("common_tokens") }}</span>
+                </div>
+                <p
+                  class="text-xs leading-[18px]"
+                  :class="contributionInvalid ? 'text-[#FF99C9]' : 'text-[#D0D5DD]'"
+                >
+                  {{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumTokens }) }}
+                </p>
+              </div>
+
+              <div
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
+                class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div class="flex flex-col gap-2">
+                  <div
+                    v-for="row in discountRows"
+                    :key="row.code"
+                    class="flex items-center justify-between text-sm text-white"
+                  >
+                    <p class="text-[#EAECF0]">{{ row.label }}</p>
+                    <div class="flex items-center gap-1 text-[#07F468]">
+                      <span>-</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ row.amount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="offHourSurchargeAmount > 0"
+                    class="flex items-center justify-between text-sm text-white"
+                  >
+                    <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
+                    <div class="flex items-center gap-1 text-[#FF9F43]">
+                      <span>+</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ offHourSurchargeAmount }}</span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white">
+                    <p>{{ t("fan_booking_current_total") }}</p>
+                    <div class="flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ totalPrice }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="addons.length > 0">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">ADD-ON SERVICE</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -779,12 +960,10 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">OTHER REQUEST</h3>
+              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm leading-[20px] text-[#F2F4F7]">
-                  If you have other personal request you would like Princess
-                  Carrot Pop to know, please write down here. All additional
-                  request are subject to additional charges.
+                  {{ t("fan_booking_other_request_body") }}
                 </p>
               </div>
               <div class="example">
@@ -811,7 +990,7 @@ onMounted(() => {
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
             >
               <p class="text-lg leading-[28px] text-black text-center font-medium">
-                {{ isPreviewReadOnly ? 'PREVIEW ONLY' : 'PAYMENT SUMMARY' }}
+                {{ isPreviewReadOnly ? t('fan_booking_preview_only') : t('fan_booking_payment_summary') }}
               </p>
               <div class="w-6 h-6 flex justify-center items-center">
                 <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
@@ -820,6 +999,7 @@ onMounted(() => {
           </button>
         </div>
 
+      </div>
       </div>
     </div>
   </div>
