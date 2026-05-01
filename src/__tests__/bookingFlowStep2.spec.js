@@ -7,6 +7,16 @@ vi.mock("@/utils/toastBus.js", () => ({
   showToast: vi.fn(),
 }));
 
+vi.mock("@/utils/TokenHandler.js", () => ({
+  default: {
+    get: vi.fn(() => Promise.resolve(null)),
+  },
+}));
+
+vi.mock("@/utils/backendJwt.js", () => ({
+  getBackendJwtToken: vi.fn(() => ""),
+}));
+
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
   let cursor = target;
@@ -30,7 +40,9 @@ function createEngine(state = {}) {
   };
 }
 
-function createGroupEvent(dateIso = "2030-01-15") {
+function createGroupEvent(dateIso = "2030-01-15", overrides = {}) {
+  const rawOverrides = overrides.raw || {};
+  const { raw: _raw, ...eventOverrides } = overrides;
   return {
     eventId: "evt_group_1",
     id: "evt_group_1",
@@ -49,14 +61,60 @@ function createGroupEvent(dateIso = "2030-01-15") {
       priceSetting: "fixedPricePerUser",
       basePriceTokens: 50,
       sessionDurationMinutes: 30,
+      addOns: [
+        {
+          id: "addon_group_hidden",
+          title: "Group Hidden Add-on",
+          priceTokens: 25,
+        },
+      ],
+      ...rawOverrides,
+    },
+    ...eventOverrides,
+  };
+}
+
+function createPrivateEvent(dateIso = "2030-01-15") {
+  return {
+    eventId: "evt_private_1",
+    id: "evt_private_1",
+    title: "Private Chat",
+    type: "one-on-one",
+    eventType: "one-on-one",
+    basePriceTokens: 60,
+    sessionDurationMinutes: 30,
+    localDateIso: dateIso,
+    localStartHm: "10:00",
+    localEndHm: "11:00",
+    allowLongerSessions: true,
+    maxSessionMinutes: 2,
+    raw: {
+      type: "one-on-one",
+      eventType: "one-on-one",
+      repeatRule: "doesNotRepeat",
+      basePriceTokens: 60,
+      sessionDurationMinutes: 30,
+      allowLongerSessions: true,
+      maxSessionMinutes: 2,
+      addOns: [
+        {
+          id: "addon_private_recording",
+          title: "Private Add-on",
+          priceTokens: 10,
+        },
+      ],
     },
   };
 }
 
-function createMountedStep(dateIso = "2030-01-15") {
-  const selectedEvent = createGroupEvent(dateIso);
+function createMountedStep({
+  dateIso = "2030-01-15",
+  selectedEvent = createGroupEvent(dateIso),
+  bookingDetails = {},
+  selection = {},
+} = {}) {
   const engine = createEngine({
-    bookingDetails: {},
+    bookingDetails,
     fanBooking: {
       catalog: {
         bookedSlotsIndex: {},
@@ -67,6 +125,7 @@ function createMountedStep(dateIso = "2030-01-15") {
       },
       selection: {
         selectedDate: dateIso,
+        ...selection,
       },
       ui: {
         previewReadOnly: false,
@@ -105,31 +164,41 @@ function findPaymentSummaryButton(wrapper) {
 }
 
 describe("BookingFlowStep2", () => {
-  it("renders group event slots and enables payment summary after selecting one", async () => {
-    const { engine, wrapperPromise } = createMountedStep();
+  it("auto-selects group event slot and routes directly to payment summary", async () => {
+    const dateIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso,
+      selectedEvent: createGroupEvent(dateIso),
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+    expect(wrapper.text()).not.toContain("SELECT LENGTH");
+    expect(wrapper.text()).not.toContain("ADD-ON SERVICE");
+    expect(wrapper.text()).not.toContain("OTHER REQUEST");
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
+    expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
+    expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("keeps private booking length, call wording, add-ons, and other request", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent(),
+    });
     const wrapper = await wrapperPromise;
     await nextTick();
     await nextTick();
 
-    expect(wrapper.text()).toContain("10:00am-1:00pm");
-    expect(wrapper.text()).toContain("Select a start time first.");
-
-    const paymentButtonBefore = findPaymentSummaryButton(wrapper);
-    expect(paymentButtonBefore?.attributes("disabled")).toBeDefined();
-
-    const slotButton = wrapper.findAll("[data-testid='booking-flow-time-slot']").find((node) => node.text() === "10:00am-1:00pm");
-    expect(slotButton).toBeTruthy();
-    await slotButton.trigger("click");
-    await nextTick();
-
-    expect(wrapper.text()).toContain("180 MIN");
-    expect(wrapper.text()).not.toContain("Select a start time first.");
-
-    const paymentButtonAfter = findPaymentSummaryButton(wrapper);
-    expect(paymentButtonAfter?.attributes("disabled")).toBeUndefined();
-
-    await paymentButtonAfter.trigger("click");
-    expect(engine.goToStep).toHaveBeenCalledWith(3);
-    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("SELECT LENGTH");
+    expect(wrapper.text()).toContain("ADD-ON SERVICE");
+    expect(wrapper.text()).toContain("OTHER REQUEST");
+    expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
   });
+
 });

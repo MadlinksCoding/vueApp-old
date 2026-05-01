@@ -4,6 +4,7 @@ import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingF
 import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
+import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from '@/utils/contextIds.js';
 import { logFanBookingDebug } from '@/embeds/fanBooking/debug.js';
 import {
@@ -95,6 +96,7 @@ const bookingData = computed(() => {
 });
 
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
+const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
 const paymentSubstep = computed(() => props.engine.substep || null);
 const creatorPresentation = computed(() => resolveCreatorPresentation({
   explicitCreatorData: props.engine.getState('fanBooking.context.creatorPresentation'),
@@ -167,7 +169,13 @@ watch(
 // --- COMPUTED VALUES (Derived from Engine State) ---
 const sessionDuration = computed(() => bookingData.value.selectedDuration?.value || 0);
 const selectedAddons = computed(() => bookingData.value.addons || []);
+const contributionTokens = ref(Number(
+  bookingData.value.contributionTokens
+    ?? props.engine.getState('fanBooking.selection.contributionTokens')
+    ?? 0,
+));
 const mappedPayment = computed(() => {
+  contributionTokens.value;
   try {
     const payload = mapCreateBookingToRequest(props.engine.state, {
       stateEngine: props.engine,
@@ -229,6 +237,154 @@ const totalPrice = computed(() => (
     ? (baseTotalPrice.value + bookingFeeAmount.value)
     : mappedPaymentTotal.value
 ));
+
+function toWholeTokens(value) {
+  const numeric = Number(value || 0);
+  return Math.ceil(Number.isFinite(numeric) ? numeric : 0);
+}
+
+const isGroupEvent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return String(
+    selectedEvent.value?.type
+      || selectedEvent.value?.eventType
+      || raw?.type
+      || raw?.eventType
+      || '',
+  ).toLowerCase() === 'group-event';
+});
+
+const isEventGoalGroupEvent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return isGroupEvent.value && String(raw?.priceSetting || selectedEvent.value?.priceSetting || '').toLowerCase() === 'eventgoal';
+});
+
+const groupPriceSetting = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return String(raw?.priceSetting || selectedEvent.value?.priceSetting || '');
+});
+
+const eventGoalMinimumTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  const configured = Number(raw?.minContributionPerUser ?? selectedEvent.value?.minContributionPerUser ?? 0);
+  return Number.isFinite(configured) && configured > 0 ? toWholeTokens(configured) : 1;
+});
+
+const eventGoalTokens = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
+});
+
+const eventGoalReachedTokens = computed(() => {
+  const eventId = selectedEvent.value?.eventId || selectedEvent.value?.id;
+  return Math.min(
+    eventGoalTokens.value,
+    sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value }),
+  );
+});
+const eventGoalPercent = computed(() => (
+  eventGoalTokens.value > 0
+    ? Math.min(100, Math.max(0, Math.floor((eventGoalReachedTokens.value / eventGoalTokens.value) * 100)))
+    : 0
+));
+
+function normalizeEventPerformer(value = {}) {
+  if (!value || typeof value !== 'object') return null;
+  const name = String(
+    value.name
+      || value.displayName
+      || value.display_name
+      || value.username
+      || value.creatorName
+      || value.hostName
+      || '',
+  ).trim();
+  if (!name) return null;
+
+  return {
+    name,
+    avatar: String(
+      value.avatar
+        || value.avatarUrl
+        || value.avatar_url
+        || value.profileImage
+        || value.profileImageUrl
+        || value.creatorAvatar
+        || '',
+    ).trim(),
+    isVerified: toBoolean(value.isVerified ?? value.is_premium ?? value.verified, false),
+    isHost: toBoolean(value.isHost ?? value.host, false),
+  };
+}
+
+function readEventPerformerList(event = {}) {
+  const raw = event?.raw || {};
+  const candidates = [
+    event?.coHosts,
+    event?.coPerformers,
+    event?.performers,
+    event?.collaborators,
+    raw?.coHosts,
+    raw?.coPerformers,
+    raw?.performers,
+    raw?.collaborators,
+  ];
+  return candidates.find((items) => Array.isArray(items) && items.length > 0) || [];
+}
+
+const groupPerformers = computed(() => (
+  readEventPerformerList(selectedEvent.value)
+    .map((performer) => normalizeEventPerformer(performer))
+    .filter(Boolean)
+));
+
+const eventGoalMaximumContribution = computed(() => Math.max(0, eventGoalTokens.value - eventGoalReachedTokens.value));
+const contributionRangeMax = computed(() => Math.max(eventGoalMinimumTokens.value, eventGoalMaximumContribution.value));
+const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
+const contributionInvalid = computed(() => {
+  if (!isEventGoalGroupEvent.value) return false;
+  const amount = normalizedContributionTokens.value;
+  const max = eventGoalMaximumContribution.value;
+  return max <= 0 || amount < eventGoalMinimumTokens.value || amount > max;
+});
+const contributionSliderPercent = computed(() => {
+  const min = eventGoalMinimumTokens.value;
+  const max = eventGoalMaximumContribution.value;
+  if (max <= min) return 0;
+  const amount = Math.min(Math.max(normalizedContributionTokens.value, min), max);
+  return Math.round(((amount - min) / (max - min)) * 100);
+});
+const contributionSliderStyle = computed(() => ({ width: `${contributionSliderPercent.value}%` }));
+const contributionThumbStyle = computed(() => ({ left: `${contributionSliderPercent.value}%` }));
+
+function syncContributionToEngine(value) {
+  const next = isEventGoalGroupEvent.value ? toWholeTokens(value) : null;
+  props.engine.setState('bookingDetails.contributionTokens', next, {
+    reason: 'step3-event-goal-contribution',
+    silent: true,
+  });
+  props.engine.setState('fanBooking.selection.contributionTokens', next, {
+    reason: 'step3-event-goal-contribution',
+    silent: true,
+  });
+}
+
+function ensureContributionDefault() {
+  if (!isEventGoalGroupEvent.value) {
+    contributionTokens.value = 0;
+    syncContributionToEngine(null);
+    return;
+  }
+
+  const min = eventGoalMinimumTokens.value;
+  const max = eventGoalMaximumContribution.value;
+  const existing = toWholeTokens(contributionTokens.value || bookingData.value.contributionTokens);
+  const next = max >= min
+    ? Math.min(Math.max(existing || min, min), max)
+    : min;
+  contributionTokens.value = next;
+  syncContributionToEngine(next);
+}
 
 const formattedTime = computed(() => bookingData.value.formattedTimeRange || '-');
 const headerDateDisplay = computed(() => bookingData.value.headerDateDisplay || '-');
@@ -383,6 +539,7 @@ const sessionCount = computed(() => {
 });
 
 const sessionBreakdownLabel = computed(() => {
+  if (isEventGoalGroupEvent.value) return t('fan_booking_event_goal_contribution');
   const baseMinutes = Math.round(Number(baseSessionMinutes.value || 0)) || 15;
   const totalMinutes = Math.round(Number(sessionDuration.value || 0)) || baseMinutes;
   const count = Math.max(1, Number(sessionCount.value || 1));
@@ -1168,7 +1325,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
 const handleChangeSchedule = async () => {
   if (isSubmitting.value || isCheckingBalance.value || holdLoading.value) return;
   await props.engine.forceSubstep(null, { intent: 'change-schedule' });
-  props.engine.goToStep(2);
+  props.engine.goToStep(isGroupEvent.value ? 1 : 2);
 };
 
 const enterTopUpSubstep = async () => {
@@ -1251,6 +1408,22 @@ const handleButtonClick = async () => {
   });
 
   if (isSubmitting.value || isCheckingBalance.value) return;
+  if (contributionInvalid.value) {
+    showToast({
+      type: 'error',
+      title: t('common_validation_failed'),
+      message: t(
+        eventGoalMaximumContribution.value < eventGoalMinimumTokens.value
+          ? 'fan_booking_contribution_insufficient_goal_remaining'
+          : 'fan_booking_contribution_invalid',
+        {
+          min: eventGoalMinimumTokens.value,
+          max: eventGoalMaximumContribution.value,
+        },
+      ),
+    });
+    return;
+  }
 
   try {
     if (!hasCheckedBalance.value) {
@@ -1279,7 +1452,7 @@ const actionLabel = computed(() => {
 });
 
 const actionButtonClass = computed(() => {
-  if (isCheckingBalance.value || !hasCheckedBalance.value) {
+  if (isCheckingBalance.value || !hasCheckedBalance.value || contributionInvalid.value) {
     return 'bg-[#9CA3AF] after:border-r-[#9CA3AF] cursor-not-allowed';
   }
   return isTopUpNeeded.value
@@ -1313,6 +1486,7 @@ onMounted(() => {
   }
 
   scheduleTopUpPrefetch('step3-mounted');
+  ensureContributionDefault();
   refreshWalletBalance();
 });
 
@@ -1320,7 +1494,34 @@ watch(
   () => selectedEvent.value?.eventId,
   () => {
     if (!selectedEvent.value) return;
+    ensureContributionDefault();
     refreshWalletBalance({ silent: true });
+  },
+);
+
+watch(
+  () => [isEventGoalGroupEvent.value, eventGoalMinimumTokens.value, eventGoalMaximumContribution.value],
+  () => {
+    ensureContributionDefault();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => contributionTokens.value,
+  (next) => {
+    if (!isEventGoalGroupEvent.value) return;
+    const min = eventGoalMinimumTokens.value;
+    const max = eventGoalMaximumContribution.value;
+    const normalized = toWholeTokens(next);
+    if (max >= min) {
+      const clamped = Math.min(Math.max(normalized || min, min), max);
+      if (String(clamped) !== String(next)) {
+        contributionTokens.value = clamped;
+        return;
+      }
+    }
+    syncContributionToEngine(normalized || min);
   },
 );
 
@@ -1360,11 +1561,18 @@ onBeforeUnmount(() => {
               :subtotal="totalPrice"
               :subtotal-display="totalPrice > 0 ? formatTokenCompact(totalPrice) : '-'"
               :duration="sessionDuration"
+              :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
               :creator-avatar="creatorPresentation.avatar"
               :creator-name="creatorPresentation.name"
               :creator-is-verified="creatorPresentation.isVerified"
               :creator-loading="creatorPresentationLoading"
               :show-approval-needed="showApprovalNeeded"
+              :is-group-event="isGroupEvent"
+              :price-setting="groupPriceSetting"
+              :group-performers="groupPerformers"
+              :event-goal-reached-tokens="eventGoalReachedTokens"
+              :event-goal-tokens="eventGoalTokens"
+              :event-goal-percent="eventGoalPercent"
             />
 
           <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
@@ -1393,6 +1601,78 @@ onBeforeUnmount(() => {
                         <span class="text-xs text-[#98A2B3]">{{ t("common_time") }}</span>
                         <span class="text-base text-white">{{ bookingScheduleTimeDisplay }}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="isEventGoalGroupEvent"
+                    class="rounded-lg bg-white/10 p-3 md:p-5 text-white"
+                    data-testid="step3-event-goal-contribution-panel"
+                  >
+                    <div class="flex flex-col gap-5">
+                      <label for="step3-event-goal-contribution" class="text-sm leading-[20px] text-white">
+                        {{ t("fan_booking_your_contribution_minimum", { min: eventGoalMinimumTokens }) }}
+                      </label>
+
+                      <div
+                        class="flex items-center gap-3 border-b pb-2"
+                        :class="contributionInvalid ? 'border-[#FF5CA8]' : 'border-[#98A2B3]'"
+                      >
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-8 w-8 shrink-0" />
+                        <input
+                          id="step3-event-goal-contribution"
+                          v-model="contributionTokens"
+                          type="number"
+                          inputmode="numeric"
+                          :min="eventGoalMinimumTokens"
+                          :max="eventGoalMaximumContribution || contributionRangeMax"
+                          class="min-w-0 flex-1 bg-transparent text-[2rem] font-normal leading-[2.5rem] text-white outline-none"
+                        />
+                        <span class="text-base font-medium text-white">{{ t("common_tokens") }}</span>
+                      </div>
+
+                      <div class="relative flex h-8 items-center">
+                        <div class="absolute left-0 top-1/2 h-2 w-full -translate-y-1/2 rounded-full bg-white"></div>
+                        <div
+                          class="absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[#37FFD7]"
+                          :style="contributionSliderStyle"
+                        ></div>
+                        <input
+                          v-model="contributionTokens"
+                          type="range"
+                          :min="eventGoalMinimumTokens"
+                          :max="contributionRangeMax"
+                          :disabled="eventGoalMaximumContribution < eventGoalMinimumTokens"
+                          class="relative z-10 h-8 w-full cursor-pointer appearance-none bg-transparent opacity-0 disabled:cursor-not-allowed"
+                          data-testid="step3-event-goal-contribution-range"
+                        />
+                        <div
+                          class="pointer-events-none absolute top-1/2 z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2"
+                          :style="contributionThumbStyle"
+                        >
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-full w-full" />
+                        </div>
+                      </div>
+
+                      <div class="flex items-center justify-between gap-3 text-xs leading-[18px] text-[#D0D5DD]">
+                        <span>{{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution }) }}</span>
+                        <span>{{ t("fan_booking_event_goal_remaining", { tokens: formatTokenExact(eventGoalMaximumContribution) }) }}</span>
+                      </div>
+
+                      <p
+                        v-if="contributionInvalid"
+                        class="text-xs leading-[18px] text-[#FF99C9]"
+                        data-testid="step3-event-goal-contribution-error"
+                      >
+                        {{
+                          t(
+                            eventGoalMaximumContribution < eventGoalMinimumTokens
+                              ? "fan_booking_contribution_insufficient_goal_remaining"
+                              : "fan_booking_contribution_invalid",
+                            { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution },
+                          )
+                        }}
+                      </p>
                     </div>
                   </div>
 
@@ -1575,10 +1855,10 @@ onBeforeUnmount(() => {
             <button
               v-if="!isTopUpSubstep"
               type="button"
-              :disabled="isCheckingBalance || isSubmitting"
+              :disabled="isCheckingBalance || isSubmitting || contributionInvalid"
               @click="handleButtonClick"
               class="w-auto flex justify-start items-center"
-              :class="(isCheckingBalance || isSubmitting) ? 'pointer-events-none' : 'cursor-pointer'"
+              :class="(isCheckingBalance || isSubmitting || contributionInvalid) ? 'pointer-events-none' : 'cursor-pointer'"
             >
               <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
                 gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0
