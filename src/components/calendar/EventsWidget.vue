@@ -3,7 +3,10 @@
     
     <div v-for="(section, sIndex) in sections" :key="sIndex" class="flex flex-col gap-[0.5rem] w-full">
       
-      <h3 class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold uppercase">
+      <h3
+        v-if="section.items && section.items.length > 0"
+        class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold uppercase"
+      >
         {{ section.title }}
       </h3>
 
