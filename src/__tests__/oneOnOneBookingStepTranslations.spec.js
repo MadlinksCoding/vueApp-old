@@ -104,6 +104,10 @@ function mountOptions(translations = {}) {
   };
 }
 
+function findSectionByTitle(wrapper, title) {
+  return wrapper.findAll("section").find((section) => section.find("h2").text() === title);
+}
+
 describe("one-on-one booking step translations", () => {
   beforeEach(() => {
     sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
@@ -329,6 +333,104 @@ describe("one-on-one booking step translations", () => {
     expect(eventGoalWrapper.text()).toContain("User can refund before event start");
   });
 
+  it("shows maximum participants in booking settings for group pricing modes", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const eventGoalWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "eventGoal",
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const fixedPriceWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          priceSetting: "fixedPricePerUser",
+        }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const eventGoalPricing = findSectionByTitle(eventGoalWrapper, "Pricing Settings");
+    const eventGoalBooking = findSectionByTitle(eventGoalWrapper, "Booking Settings");
+    const fixedPricePricing = findSectionByTitle(fixedPriceWrapper, "Pricing Settings");
+    const fixedPriceBooking = findSectionByTitle(fixedPriceWrapper, "Booking Settings");
+
+    expect(eventGoalWrapper.text()).toContain("Maximum participants");
+    expect(eventGoalWrapper.text()).not.toContain("Set maximum bookings per day");
+    expect(eventGoalWrapper.text()).not.toContain("Allow instant booking");
+    expect(eventGoalPricing?.text()).toContain("Event goals");
+    expect(eventGoalPricing?.text()).not.toContain("Maximum participants");
+    expect(eventGoalBooking?.text()).toContain("Maximum participants");
+
+    expect(fixedPriceWrapper.text()).toContain("Maximum participants");
+    expect(fixedPriceWrapper.text()).not.toContain("Set maximum bookings per day");
+    expect(fixedPriceWrapper.text()).not.toContain("Allow instant booking");
+    expect(fixedPricePricing?.text()).toContain("Event price");
+    expect(fixedPricePricing?.text()).not.toContain("Maximum participants");
+    expect(fixedPriceBooking?.text()).toContain("Maximum participants");
+
+    expect(privateWrapper.text()).not.toContain("Maximum participants");
+    expect(privateWrapper.text()).toContain("Set maximum bookings per day");
+    expect(privateWrapper.text()).toContain("Allow instant booking");
+  });
+
+  it("hides waitlist controls in private and group step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const groupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    expect(privateWrapper.text()).not.toContain("If booking slots are full, allow fans to join waitlist");
+    expect(privateWrapper.text()).not.toContain("waitlist spots");
+    expect(groupWrapper.text()).not.toContain("If booking slots are full, allow fans to join waitlist");
+    expect(groupWrapper.text()).not.toContain("If event slots are full, allow fans to join waitlist");
+    expect(groupWrapper.text()).not.toContain("waitlist spots");
+  });
+
   it("renders translated overrides in step 2", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
@@ -366,6 +468,46 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).toContain("Comprar");
     expect(wrapper.text()).toContain("Configurar X");
     expect(wrapper.text()).toContain("Publicar agenda en X");
+  });
+
+  it("shows additional request only for private step 2", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+
+    const privateWrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          addOns: [{ title: "VIP setup", description: "", priceTokens: "25" }],
+        }),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const groupWrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          addOns: [{ title: "VIP setup", description: "", priceTokens: "25" }],
+        }),
+        embedded: true,
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    expect(privateWrapper.text()).toContain("Additional Request");
+    expect(privateWrapper.text()).toContain("Allow fan record the session");
+    expect(privateWrapper.text()).toContain("Allow personal request");
+    expect(privateWrapper.text()).toContain("Add-on service 1");
+
+    expect(groupWrapper.text()).not.toContain("Additional Request");
+    expect(groupWrapper.text()).not.toContain("Allow fan record the session");
+    expect(groupWrapper.text()).not.toContain("Allow personal request");
+    expect(groupWrapper.text()).not.toContain("Add-on service 1");
   });
 
   it("uses the engine event title for create notification names", async () => {
