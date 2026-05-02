@@ -1122,41 +1122,6 @@
             </div>
 
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
-              <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_group_maximum_participants')"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2" />
-                <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
-              </div>
-              <div class="inline-flex justify-start items-center gap-2">
-                <div class="w-6 h-6" />
-                <BaseInput type="number" placeholder="" v-model="formData.maxUsers"
-                  :disabled="!formData.setMaxUsers"
-                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-              </div>
-            </div>
-
-            <div class="self-stretch _flex hidden flex-col justify-center items-start gap-3">
-              <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.allowWaitlist" :label="t('booking_group_waitlist_label')"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2" />
-                <TooltipIcon :text="t('booking_waitlist_tooltip')" />
-              </div>
-              <div class="inline-flex justify-start items-center gap-2">
-                <div class="w-6 h-6" />
-                <BaseInput type="number" placeholder="" v-model="formData.waitlistSpots"
-                  :disabled="!formData.allowWaitlist"
-                  inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-                <div class="justify-center text-slate-700 text-base font-normal leading-normal">
-                  {{ t("booking_waitlist_spots") }}
-                </div>
-              </div>
-            </div>
-
-            <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_discount_recurring')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
@@ -1730,7 +1695,22 @@
               </div>
             </div>
           </div>
-          <div class="self-stretch flex flex-col justify-center items-start gap-3">
+          <div v-if="isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
+            <div class="flex gap-2 items-center">
+              <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_group_maximum_participants')"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
+                wrapperClass="flex items-center gap-2" />
+              <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
+            </div>
+            <div class="inline-flex justify-start items-center gap-2">
+              <div class="w-6 h-6" />
+              <BaseInput type="number" placeholder="" v-model="formData.maxUsers"
+                :disabled="!formData.setMaxUsers"
+                inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+            </div>
+          </div>
+          <div v-if="!isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <!-- <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.setMaxBookings" :label="t('booking_set_max_bookings_day')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -1763,48 +1743,6 @@
                 <BaseInput type="number" placeholder="15" v-model="formData.maxBookingsPerDay"
                   :disabled="!formData.setMaxBookings"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-              </div>
-            </div>
-          </div>
-          <div class="self-stretch _flex dn flex-col justify-center items-start gap-3">
-            <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <!-- <div class="flex gap-2">
-                <CheckboxGroup v-model="formData.allowWaitlist"
-                  :label="t('booking_join_waitlist_if_full')"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-gray-700 text-[16px] mt-[1px] leading-normal"
-                  wrapperClass="flex items-center gap-2" />
-                <TooltipIcon :text="t('booking_waitlist_tooltip')" tooltipClass="translate-x-[-90%]"/>
-              </div> -->
-              <div class="flex gap-2">
-                <CheckboxGroup
-                  :disabled="true"
-                  v-model="formData.allowWaitlist"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal flex items-center !inline-block relative"
-                  wrapperClass="flex items-center gap-2"
-                >
-                  <template #label>
-                    <span>{{ t("booking_join_waitlist_if_full") }}</span>
-
-                    <TooltipIcon
-                      :text="t('booking_waitlist_tooltip')"
-                      tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
-                      class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
-                    />
-                  </template>
-                </CheckboxGroup>
-              </div>
-              <div class="self-stretch inline-flex justify-start items-start gap-2">
-                <div class="w-6 h-10" />
-                <div :class="!formData.allowWaitlist ? 'opacity-50 pointer-events-none' : ''" class="inline-flex flex-col justify-start items-start">
-                  <div class="inline-flex justify-end items-center gap-2">
-                    <BaseInput type="number" placeholder="15" v-model="formData.waitlistSpots"
-                      :disabled="!formData.allowWaitlist"
-                      inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                    <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_waitlist_spots") }}</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

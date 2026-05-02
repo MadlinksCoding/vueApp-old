@@ -56,6 +56,11 @@ const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
+const isGroupBooking = computed(() => (
+  props.bookingType === "group"
+  || props.engine?.state?.eventType === "group-event"
+  || props.engine?.getState?.("eventType") === "group-event"
+));
 
 function normalizeSelectionArray(value) {
   if (Array.isArray(value)) {
@@ -1135,7 +1140,7 @@ const createEvent = async () => {
     </div>
 
 
-    <BookingSectionsWrapper :title="t('booking_additional_request')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
+    <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_additional_request')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.additionalRequest"
       @toggle="toggleSection('additionalRequest')">
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
@@ -1275,7 +1280,7 @@ const createEvent = async () => {
       </div>
     </BookingSectionsWrapper>
 
-    <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
+    <div v-if="!isGroupBooking" class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
     <BookingSectionsWrapper :title="t('booking_audience_settings')" leftIcon="https://i.ibb.co/5hNw0yjJ/Icon.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.audienceSettings"

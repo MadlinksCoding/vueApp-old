@@ -21,7 +21,7 @@
                 <img class="w-20 h-20" :src="cartoonFeetIcon" alt="" />
             </div>
         </div>
-        <div class="opacity-25 pointer-events-none inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors" @click="onCreateGroup">
+        <div class="inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors" @click="onCreateGroup">
             <div class="flex-1 px-2 py-3 flex border-l-[3px] border-[#FF0464] items-center gap-2">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">

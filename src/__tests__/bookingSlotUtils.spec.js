@@ -158,4 +158,67 @@ describe("booking slot utilities", () => {
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(true);
   });
+
+  it("disables private slots when the daily booking limit is reached", () => {
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_1",
+        eventId,
+        startIso: `${localDateIso}T09:00:00`,
+        endIso: `${localDateIso}T09:30:00`,
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_cancelled",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T10:30:00`,
+        status: "cancelled_user",
+      },
+    ]);
+    const event = {
+      eventId,
+      type: "1on1-call",
+      enableMaxBookingsPerDay: true,
+      maxBookingsPerDay: 1,
+      raw: {
+        type: "1on1-call",
+        enableMaxBookingsPerDay: true,
+        maxBookingsPerDay: 1,
+      },
+    };
+    const openSlot = makeSlot("11:00", "11:30");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot: openSlot, bookedSlotsIndex }).disabled).toBe(true);
+  });
+
+  it("ignores daily booking limits for group slots", () => {
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_1",
+        eventId,
+        startIso: `${localDateIso}T09:00:00`,
+        endIso: `${localDateIso}T09:30:00`,
+        status: "confirmed",
+      },
+    ]);
+    const event = {
+      eventId,
+      type: "group-event",
+      enableMaxBookingsPerDay: true,
+      maxBookingsPerDay: 1,
+      enableMaxUsersInGroup: true,
+      maxUsersInGroup: 2,
+      raw: {
+        type: "group-event",
+        enableMaxBookingsPerDay: true,
+        maxBookingsPerDay: 1,
+        enableMaxUsersInGroup: true,
+        maxUsersInGroup: 2,
+      },
+    };
+    const groupSlot = makeSlot("11:00", "14:00");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot: groupSlot, bookedSlotsIndex }).disabled).toBe(false);
+  });
 });

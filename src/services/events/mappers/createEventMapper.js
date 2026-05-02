@@ -562,7 +562,7 @@ function mapBasePayload(payload = {}, context = {}) {
     enableDiscountForLonger: asBoolean(payload.enableLongerDiscount, false),
     enableFirstTimeDiscount: asBoolean(payload.enableFirstTimeDiscount, false),
     enableBookingFee: asBoolean(payload.enableBookingFee, false),
-    allowInstantBooking: asBoolean(payload.allowInstantBooking, false),
+    allowInstantBooking: type === "group-event" ? true : asBoolean(payload.allowInstantBooking, false),
     disableChatBeforeCall: asBoolean(payload.disableChatBeforeCall, false),
     disableChatAllowEmoji: asBoolean(payload.disableChatAllowEmoji, false),
     enableRescheduleFee: asBoolean(payload.enableRescheduleFee, false),
@@ -570,16 +570,10 @@ function mapBasePayload(payload = {}, context = {}) {
     allowAdvanceCancelToAvoidMinCharge: asBoolean(payload.allowAdvanceCancellation, false),
     offHourSurcharge: asBoolean(payload.addOffHourSurcharge, false),
     enableBufferTime: asBoolean(payload.setBufferTime, false),
-    enableMaxBookingsPerDay: asBoolean(payload.setMaxBookings, false),
-    waitlistEnabled: asBoolean(payload.allowWaitlist, false),
 
     socialAutoPost: buildSocialAutoPost(payload),
     blockedUsers: stringToArray(payload.blockedUsers || payload.blockedUserSearch),
     coHosts: stringToArray(payload.coHosts || payload.coPerformerSearch),
-    addOns: normalizeAddOns(payload.addOns),
-
-    allowFanRecordingEnabled: asBoolean(payload.allowRecording, false),
-    allowPersonalRequestRequired: asBoolean(payload.allowPersonalRequest, false),
 
     idempotencyKey: nonEmptyString(payload.idempotencyKey, "") || buildIdempotencyKey("create_event"),
   };
@@ -589,6 +583,9 @@ function mapBasePayload(payload = {}, context = {}) {
     mapped.disableChatDuringCallAllowEmoji = asBoolean(payload.disableChatDuringCallAllowEmoji, false);
     mapped.fanCanRequestExtend = asBoolean(payload.requestExtendSession, false);
     mapped.lateStartPolicy = buildLateStartPolicy(payload);
+    mapped.addOns = normalizeAddOns(payload.addOns);
+    mapped.allowFanRecordingEnabled = asBoolean(payload.allowRecording, false);
+    mapped.allowPersonalRequestRequired = asBoolean(payload.allowPersonalRequest, false);
   }
 
   if (repeatRule === "everyXWeeks") {
@@ -654,12 +651,12 @@ function mapBasePayload(payload = {}, context = {}) {
     withOptionalField(mapped, "bookingBufferMinutes", pickNumeric(payload.bufferTime || payload.bookingBufferMinutes, 5));
   }
 
-  if (mapped.enableMaxBookingsPerDay) {
-    withOptionalField(mapped, "maxBookingsPerDay", pickNumeric(payload.maxBookingsPerDay, 1));
-  }
+  if (type !== "group-event") {
+    mapped.enableMaxBookingsPerDay = asBoolean(payload.setMaxBookings, false);
 
-  if (mapped.waitlistEnabled) {
-    withOptionalField(mapped, "waitlistSpots", pickNumeric(payload.waitlistSpots || payload.waitlistSlots, 1));
+    if (mapped.enableMaxBookingsPerDay) {
+      withOptionalField(mapped, "maxBookingsPerDay", pickNumeric(payload.maxBookingsPerDay, 1));
+    }
   }
 
   if (mapped.allowFanRecordingEnabled) {

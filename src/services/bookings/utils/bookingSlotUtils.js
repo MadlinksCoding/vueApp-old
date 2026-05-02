@@ -111,6 +111,18 @@ function resolveGroupCapacity(event = {}) {
   return Math.floor(capacity);
 }
 
+function resolvePrivateDailyCapacity(event = {}) {
+  if (isGroupEvent(event)) return Infinity;
+
+  const raw = event?.raw || {};
+  const enabled = raw?.enableMaxBookingsPerDay ?? event?.enableMaxBookingsPerDay ?? raw?.setMaxBookings ?? event?.setMaxBookings;
+  const capacity = Number(raw?.maxBookingsPerDay ?? event?.maxBookingsPerDay);
+
+  if (enabled === false || enabled === "false" || enabled === 0 || enabled === "0") return Infinity;
+  if (!Number.isFinite(capacity) || capacity <= 0) return Infinity;
+  return Math.floor(capacity);
+}
+
 function inferSlotDurationMinutes(slot = {}) {
   if (!slot || !Number.isFinite(slot.startMs) || !Number.isFinite(slot.endMs)) return 0;
   return Math.max(0, Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
@@ -684,6 +696,21 @@ function countBlockingOverlaps({ eventId, startMs, endMs, bookedSlotsIndex = {} 
   }).length;
 }
 
+function countBlockingBookingsForDate({ eventId, localDateIso, bookedSlotsIndex = {} }) {
+  if (!eventId || !localDateIso) return 0;
+
+  const rows = bookedSlotsIndex?.[eventId]?.[localDateIso];
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+  return rows.filter(isBlockingBookedSlot).length;
+}
+
+export function isPrivateDateAtDailyCapacity({ event, eventId, localDateIso, bookedSlotsIndex = {} }) {
+  if (isGroupEvent(event)) return false;
+  const capacity = resolvePrivateDailyCapacity(event);
+  if (!Number.isFinite(capacity)) return false;
+  return countBlockingBookingsForDate({ eventId, localDateIso, bookedSlotsIndex }) >= capacity;
+}
+
 export function countGroupSlotBookings({ eventId, slot, bookedSlotsIndex = {} }) {
   return countBlockingOverlaps({
     eventId,
@@ -784,7 +811,10 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
 export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }) {
   const bookedDisabled = isGroupEvent(event)
     ? isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex })
-    : isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex });
+    : (
+      isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex })
+      || isPrivateDateAtDailyCapacity({ event, eventId, localDateIso, bookedSlotsIndex })
+    );
   const today = new Date();
   const todayIso = toLocalDateIsoFromDate(today);
   const pastDisabled = (

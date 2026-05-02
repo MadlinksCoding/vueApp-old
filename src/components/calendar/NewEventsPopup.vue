@@ -20,7 +20,7 @@
                 <img class="w-20 h-20" :src="cartoonFeetIcon" alt="" />
             </div>
         </div>
-        <div class="self-stretch border-b border-gray-300 inline-flex justify-start items-center cursor-pointer hover:bg-gray-50/50 transition-colors pointer-events-none opacity-30"
+        <div class="self-stretch border-b border-gray-300 inline-flex justify-start items-center cursor-pointer hover:bg-gray-50/50 transition-colors"
             @click="onCreateGroup">
             <div class="w-1 self-stretch relative bg-rose-600" />
             <div class="flex-1 px-2 py-3 flex justify-start items-center gap-2">
