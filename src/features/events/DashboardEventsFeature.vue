@@ -24,7 +24,7 @@
         :events="events1"
         :events-data="eventsData"
         :theme="theme1"
-        :user-role="props.userRole"
+        :user-role="dashboardRole"
         :can-review-pending="isCreator"
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"
@@ -307,8 +307,9 @@ import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { showToast } from "@/utils/toastBus.js";
-import { getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
+import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const props = defineProps({
@@ -372,8 +373,9 @@ const normalizedFanId = computed(() => resolveFanIdFromContext({
   preferredId: props.fanId,
   fallback: null,
 }));
-const isCreator = computed(() => props.userRole === "creator");
-const isFan = computed(() => props.userRole === "fan");
+const dashboardRole = computed(() => normalizeDashboardBookingRole(props.userRole));
+const isCreator = computed(() => dashboardRole.value === "creator");
+const isFan = computed(() => dashboardRole.value === "fan");
 const hasDashboardContext = computed(() => (
   isFan.value
     ? normalizedFanId.value != null
@@ -641,26 +643,44 @@ function sameDay(leftDate, rightDate) {
   );
 }
 
-function isInCurrentWeek(date, now) {
-  const dayIndex = now.getDay();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(now.getDate() - dayIndex);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-
-  return date >= start && date <= end;
-}
-
 function formatWidgetTime(startDate, endDate) {
   return `${hhmm(startDate)}-${hhmm(endDate)}`;
 }
 
+const DEFAULT_AVATAR_URL = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
+
+function isGroupCalendarEvent(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  const eventSnapshot = raw.eventSnapshot && typeof raw.eventSnapshot === "object" ? raw.eventSnapshot : {};
+  const eventCurrent = raw.eventCurrent && typeof raw.eventCurrent === "object" ? raw.eventCurrent : {};
+  return String(
+    event?.type
+      || event?.eventType
+      || raw.eventType
+      || raw.type
+      || eventSnapshot.type
+      || eventSnapshot.eventType
+      || eventCurrent.type
+      || eventCurrent.eventType
+      || "",
+  ).toLowerCase() === "group-event";
+}
+
 function makeAvatar(event) {
+  if (isGroupCalendarEvent(event)) {
+    const participants = Array.isArray(event?.raw?.participants) ? event.raw.participants : [];
+    const participantAvatars = participants
+      .map((participant) => ({
+        src: participant?.avatarUrl || DEFAULT_AVATAR_URL,
+        name: participant?.name || "User",
+      }))
+      .slice(0, 4);
+
+    if (participantAvatars.length > 0) return participantAvatars;
+  }
+
   return [{
-    src: "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png",
+    src: event?.raw?.creatorAvatarUrl || DEFAULT_AVATAR_URL,
     name: event?.raw?.creatorName || t("common_creator"),
   }];
 }
@@ -704,10 +724,22 @@ function getJoinOptionsFromEvent(event = {}) {
   };
 }
 
-function toWidgetItem(event, options = {}) {
-  const startDate = asDate(event.start) || new Date();
-  const endDate = asDate(event.end) || startDate;
-  const isGroup = event.type === "group-event";
+function getGroupParticipantCount(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  const participants = Array.isArray(raw.participants) ? raw.participants : [];
+  const explicitCount = Number(raw.participantCount ?? event.participantCount);
+  if (Number.isFinite(explicitCount) && explicitCount > 0) return Math.floor(explicitCount);
+  return participants.length;
+}
+
+function getWidgetGroupText(event = {}) {
+  const count = getGroupParticipantCount(event);
+  const base = t("dashboard_group_event");
+  return count > 0 ? `${base} (${count})` : base;
+}
+
+function resolveJoinStateForEvent(event = {}) {
+  const isGroup = isGroupCalendarEvent(event);
   const bookingId = event?.bookingId || event?.raw?.bookingId || null;
   const joinState = getBookingJoinState({
     bookingId,
@@ -716,6 +748,26 @@ function toWidgetItem(event, options = {}) {
     status: event?.status || event?.raw?.status || "",
     ...getJoinOptionsFromEvent(event),
   });
+
+  if (!isGroup || !isCreator.value) return joinState;
+
+  const creatorJoinUrl = buildScheduledGroupMeetingUrl({
+    eventId: event?.eventId || event?.raw?.eventId || null,
+    startIso: event?.start || event?.raw?.startIso || event?.raw?.startAtIso || null,
+  });
+
+  return {
+    ...joinState,
+    joinUrl: creatorJoinUrl || joinState.joinUrl,
+    canJoin: joinState.canJoin && Boolean(creatorJoinUrl || joinState.joinUrl),
+  };
+}
+
+function toWidgetItem(event, options = {}) {
+  const startDate = asDate(event.start) || new Date();
+  const endDate = asDate(event.end) || startDate;
+  const isGroup = isGroupCalendarEvent(event);
+  const joinState = resolveJoinStateForEvent(event);
   const accentColor = resolveTypeColor({
     callType: event?.eventCallType || event?.raw?.eventCallType || "",
     eventType: event?.type || event?.raw?.eventType || event?.raw?.type || "",
@@ -739,6 +791,9 @@ function toWidgetItem(event, options = {}) {
       avatars: makeAvatar(event),
       sourceEvent: event,
       accentColor,
+      isGroup,
+      groupText: isGroup ? getWidgetGroupText(event) : undefined,
+      participantCount: isGroup ? getGroupParticipantCount(event) : undefined,
     };
   }
 
@@ -750,7 +805,11 @@ function toWidgetItem(event, options = {}) {
     borderClass: styles.borderClass,
     bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
     isGroup,
-    groupText: isGroup ? t("dashboard_group_event") : undefined,
+    groupText: isGroup ? getWidgetGroupText(event) : undefined,
+    participantCount: isGroup ? getGroupParticipantCount(event) : undefined,
+    showJoin: joinState.canJoin,
+    joinUrl: joinState.joinUrl,
+    statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
@@ -877,7 +936,7 @@ const fetchDashboardContext = async (forceRefresh = false) => {
     {
       creatorId: isCreator.value ? creatorId : null,
       fanId: isFan.value ? fanId : null,
-      userRole: props.userRole,
+      userRole: dashboardRole.value,
       status: "active",
       periodMonths: 6,
       slotLimit: 1000,
@@ -1078,7 +1137,7 @@ const eventsData = computed(() => {
       return;
     }
 
-    if (isInCurrentWeek(startDate, now)) {
+    if (startDate > now) {
       weekItems.push(toWidgetItem(event, { layout: "week" }));
     }
   });
@@ -1108,14 +1167,7 @@ const onCalendarEventClick = (event) => {
 
 const handleJoin = (item) => {
   const sourceEvent = item?.sourceEvent || item?.event || item || null;
-  const bookingId = item?.bookingId || sourceEvent?.bookingId || sourceEvent?.raw?.bookingId || null;
-  const joinState = getBookingJoinState({
-    bookingId,
-    startAt: sourceEvent?.start,
-    endAt: sourceEvent?.end,
-    status: sourceEvent?.status || sourceEvent?.raw?.status || "",
-    ...getJoinOptionsFromEvent(sourceEvent),
-  });
+  const joinState = resolveJoinStateForEvent(sourceEvent);
 
   if (!joinState.canJoin || !joinState.joinUrl) {
     showToast({
@@ -1256,16 +1308,15 @@ onMounted(() => {
   }
 });
 
-watch([normalizedCreatorId, normalizedFanId, () => props.userRole], ([nextCreatorId, nextFanId, nextRole], [previousCreatorId, previousFanId, previousRole]) => {
+watch([normalizedCreatorId, normalizedFanId, dashboardRole], ([nextCreatorId, nextFanId, nextRole], [previousCreatorId, previousFanId, previousRole]) => {
   if (!isMounted.value) return;
 
-  const normalizedRole = String(nextRole || "").toLowerCase();
-  if (normalizedRole === "fan") {
+  if (nextRole === "fan") {
     if (nextFanId == null) {
       resetEventsState();
       return;
     }
-    if (nextFanId !== previousFanId || normalizedRole !== String(previousRole || "").toLowerCase()) {
+    if (nextFanId !== previousFanId || nextRole !== previousRole) {
       fetchDashboardContext(true);
     }
     return;
@@ -1275,7 +1326,7 @@ watch([normalizedCreatorId, normalizedFanId, () => props.userRole], ([nextCreato
     resetEventsState();
     return;
   }
-  if (nextCreatorId !== previousCreatorId || normalizedRole !== String(previousRole || "").toLowerCase()) {
+  if (nextCreatorId !== previousCreatorId || nextRole !== previousRole) {
     fetchDashboardContext(true);
   }
 });
@@ -1287,7 +1338,7 @@ watch(() => props.refreshSignal, (nextSignal, previousSignal) => {
   fetchDashboardContext(true);
 });
 
-watch(() => props.userRole, (nextRole) => {
+watch(dashboardRole, (nextRole) => {
   if (nextRole === "fan") {
     isCreatePopupOpen.value = false;
     isFloatingPopupOpen.value = false;

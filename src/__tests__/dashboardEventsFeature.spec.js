@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { reactive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
@@ -24,7 +25,7 @@ function setByPath(target, path, value) {
 
 function createMockEngine() {
   return {
-    state: {
+    state: reactive({
       events: {
         cachedResponse: null,
         list: [],
@@ -36,7 +37,7 @@ function createMockEngine() {
         loading: false,
         error: null,
       },
-    },
+    }),
     initialize: vi.fn(),
     setState: vi.fn((path, value) => {
       setByPath(engine.state, path, value);
@@ -56,6 +57,9 @@ vi.mock("@/utils/toastBus.js", () => ({
 
 vi.mock("@/utils/bookingJoinUtils.js", () => ({
   getBookingJoinState,
+  buildScheduledGroupMeetingUrl: vi.fn(({ eventId, startIso }) => (
+    `https://example.com/scheduled-meeting/?event_id=${encodeURIComponent(eventId)}&start_iso=${encodeURIComponent(startIso)}`
+  )),
 }));
 
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
@@ -125,6 +129,7 @@ vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
 vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
+    props: ["sections"],
     emits: ["join-click", "reply-click", "event-click", "menu-action"],
     template: `
       <div>
@@ -142,6 +147,28 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
 async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function isoTodayAt(hour, minute = 0) {
+  const value = new Date();
+  value.setHours(hour, minute, 0, 0);
+  return value.toISOString();
+}
+
+function isoCurrentWeekNotToday(hour, minute = 0) {
+  const value = new Date();
+  value.setHours(hour, minute, 0, 0);
+  value.setDate(value.getDate() + 1);
+  return value.toISOString();
+}
+
+function isoDaysFromToday(days, hour, minute = 0) {
+  const value = new Date();
+  value.setDate(value.getDate() + days);
+  value.setHours(hour, minute, 0, 0);
+  return value.toISOString();
 }
 
 describe("DashboardEventsFeature", () => {
@@ -188,6 +215,31 @@ describe("DashboardEventsFeature", () => {
     );
   });
 
+  it("loads agent dashboard context as creator context", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 793,
+        userRole: "agent",
+      },
+    });
+
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.fetchDashboardBookingContext",
+      expect.objectContaining({
+        creatorId: 793,
+        fanId: null,
+        userRole: "creator",
+      }),
+      expect.objectContaining({
+        context: expect.objectContaining({ creatorId: 793 }),
+      }),
+    );
+  });
+
   it("loads fan dashboard context from fanId without requiring creatorId", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
@@ -195,6 +247,30 @@ describe("DashboardEventsFeature", () => {
       props: {
         creatorId: null,
         userRole: "fan",
+        fanId: 2615,
+      },
+    });
+
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.fetchDashboardBookingContext",
+      expect.objectContaining({
+        creatorId: null,
+        fanId: 2615,
+        userRole: "fan",
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("loads audience dashboard context as fan context", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    mount(DashboardEventsFeature, {
+      props: {
+        creatorId: null,
+        userRole: "audience",
         fanId: 2615,
       },
     });
@@ -336,5 +412,213 @@ describe("DashboardEventsFeature", () => {
       message: "You can join only during the confirmed booking's join window and before it ends.",
     });
     expect(wrapper.emitted("open-url")).toBeUndefined();
+  });
+
+  it("passes booked group sessions into the widget today section with join metadata", async () => {
+    const startIso = isoTodayAt(10);
+    const endIso = isoTodayAt(13);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_group",
+          type: "group-event",
+          eventCallType: "video",
+          eventColorSkin: "#E11D48",
+        }],
+        bookedSlots: [
+          {
+            bookingId: "booking_group_1",
+            eventId: "evt_group",
+            userId: 2615,
+            userDisplayName: "Ava",
+            userAvatarUrl: "https://example.test/ava.png",
+            creatorId: 77,
+            startIso,
+            endIso,
+            status: "confirmed",
+            eventTitle: "Group Hang",
+            eventType: "group-event",
+            eventCallType: "video",
+          },
+          {
+            bookingId: "booking_group_2",
+            eventId: "evt_group",
+            userId: 2616,
+            userDisplayName: "Ben",
+            creatorId: 77,
+            startIso,
+            endIso,
+            status: "confirmed",
+            eventTitle: "Group Hang",
+            eventType: "group-event",
+            eventCallType: "video",
+          },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const [groupItem] = widgetSections.find((section) => section.title === "TODAY").items;
+
+    expect(groupItem).toEqual(expect.objectContaining({
+      title: "Group Hang",
+      isGroup: true,
+      participantCount: 2,
+      showJoin: true,
+      joinUrl: expect.stringContaining("event_id=evt_group"),
+      sourceEvent: expect.objectContaining({
+        bookingId: "booking_group_1",
+        raw: expect.objectContaining({
+          participantCount: 2,
+          bookingIds: ["booking_group_1", "booking_group_2"],
+        }),
+      }),
+    }));
+    expect(groupItem.avatars).toEqual([
+      expect.objectContaining({ name: "Ava", src: "https://example.test/ava.png" }),
+      expect.objectContaining({ name: "Ben" }),
+    ]);
+  });
+
+  it("keeps current-week group sessions visible with group styling and join metadata", async () => {
+    const startIso = isoCurrentWeekNotToday(11);
+    const endIso = isoCurrentWeekNotToday(14);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [{
+          bookingId: "booking_group_week",
+          eventId: "evt_group_week",
+          userId: 2615,
+          userDisplayName: "Ava",
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Week Group Hang",
+          eventSnapshot: { eventType: "group-event" },
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        fanId: 2615,
+        userRole: "fan",
+      },
+    });
+
+    await flushPromises();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const [groupItem] = widgetSections.find((section) => section.title === "WEEK").items;
+
+    expect(groupItem).toEqual(expect.objectContaining({
+      title: "Week Group Hang",
+      isGroup: true,
+      groupText: expect.stringContaining("Group event"),
+      showJoin: true,
+      joinUrl: "https://example.com/join/77",
+    }));
+  });
+
+  it("keeps future booked sessions outside the current week visible in the upcoming section", async () => {
+    const startIso = isoDaysFromToday(8, 20, 30);
+    const endIso = isoDaysFromToday(8, 21, 0);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [{
+          bookingId: "booking_future_group",
+          eventId: "evt_future_group",
+          userId: 2615,
+          userDisplayName: "Ava",
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Future Group Hang",
+          eventType: "group-event",
+          eventCallType: "video",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const weekItems = widgetSections.find((section) => section.title === "WEEK").items;
+
+    expect(weekItems).toHaveLength(1);
+    expect(weekItems[0]).toEqual(expect.objectContaining({
+      title: "Future Group Hang",
+      isGroup: true,
+      showJoin: true,
+      joinUrl: expect.stringContaining("event_id=evt_future_group"),
+    }));
+  });
+
+  it("does not show past confirmed bookings outside today in widget sections", async () => {
+    const startIso = isoDaysFromToday(-1, 20, 30);
+    const endIso = isoDaysFromToday(-1, 21, 0);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [{
+          bookingId: "booking_past",
+          eventId: "evt_past",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Past Hang",
+          eventType: "group-event",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    expect(widgetSections.flatMap((section) => section.items)).toHaveLength(0);
   });
 });

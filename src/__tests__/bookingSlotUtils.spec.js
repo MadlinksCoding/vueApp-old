@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildCandidateSlotsForEventDate,
   buildBookedSlotsIndex,
@@ -7,6 +7,7 @@ import {
   isSlotBooked,
   isSlotBookedByUser,
   computeNextAvailableSlot,
+  mapBookedSlotsToCalendarEvents,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const eventId = "event_77";
@@ -42,6 +43,11 @@ function makeSlot(startHm = "10:00", endHm = "10:30") {
   };
 }
 
+function setFixedNow() {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(`${localDateIso}T12:00:00`));
+}
+
 function makeBufferedEvent() {
   return {
     eventId,
@@ -58,6 +64,10 @@ function makeBufferedEvent() {
 }
 
 describe("booking slot utilities", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it.each(["confirmed", "pending", "active", null])(
     "disables overlapping slots for blocking status %s",
     (status) => {
@@ -163,6 +173,34 @@ describe("booking slot utilities", () => {
     });
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(true);
+  });
+
+  it("keeps ongoing group slots bookable until the slot end time passes", () => {
+    setFixedNow();
+    const event = {
+      eventId,
+      type: "group-event",
+      enableMaxAttendees: true,
+      maxAttendees: 5,
+      raw: { type: "group-event", enableMaxAttendees: true, maxAttendees: 5 },
+    };
+    const ongoingSlot = makeSlot("11:00", "13:00");
+    const endedSlot = makeSlot("10:00", "12:00");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot: ongoingSlot, bookedSlotsIndex: {} }).disabled).toBe(false);
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot: endedSlot, bookedSlotsIndex: {} }).disabled).toBe(true);
+  });
+
+  it("keeps private slots disabled once their start time has passed", () => {
+    setFixedNow();
+    const event = {
+      eventId,
+      type: "one-on-one",
+      raw: { type: "one-on-one" },
+    };
+    const ongoingPrivateSlot = makeSlot("11:00", "13:00");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot: ongoingPrivateSlot, bookedSlotsIndex: {} }).disabled).toBe(true);
   });
 
   it("disables private slots when the daily booking limit is reached", () => {
@@ -403,5 +441,122 @@ describe("booking slot utilities", () => {
     const next = computeNextAvailableSlot(event, bookedSlotsIndex, 2, { skipBookedByUserId: 2615 });
 
     expect(next?.dateIso).toBe(second);
+  });
+
+  it("selects an ongoing group slot before the next upcoming slot", () => {
+    setFixedNow();
+    const event = {
+      eventId,
+      type: "group-event",
+      raw: {
+        type: "group-event",
+        repeatRule: "daily",
+        sessionDurationMinutes: 120,
+        enableMaxAttendees: true,
+        maxAttendees: 5,
+        slots: [{ day: "monday", startTime: "13:00", endTime: "15:00" }],
+      },
+    };
+
+    const next = computeNextAvailableSlot(event, {}, 2, { skipBookedByUserId: 2615 });
+
+    expect(next?.dateIso).toBe(localDateIso);
+    expect(next?.slot?.startHm).toBe("11:00");
+    expect(next?.slot?.endHm).toBe("13:00");
+  });
+
+  it("skips an ongoing group slot already booked by the current user", () => {
+    setFixedNow();
+    const tomorrowDate = new Date(`${localDateIso}T00:00:00`);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrow = dateIsoFromDate(tomorrowDate);
+    const event = {
+      eventId,
+      type: "group-event",
+      raw: {
+        type: "group-event",
+        repeatRule: "daily",
+        sessionDurationMinutes: 120,
+        enableMaxAttendees: true,
+        maxAttendees: 5,
+        slots: [{ day: "monday", startTime: "13:00", endTime: "15:00" }],
+      },
+    };
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_current_user_ongoing",
+        eventId,
+        userId: 2615,
+        startIso: `${localDateIso}T11:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+
+    const next = computeNextAvailableSlot(event, bookedSlotsIndex, 2, { skipBookedByUserId: 2615 });
+
+    expect(next?.dateIso).toBe(tomorrow);
+  });
+
+  it("maps confirmed group bookings as group calendar items", () => {
+    const [event] = mapBookedSlotsToCalendarEvents([
+      {
+        bookingId: "booking_group",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventSnapshot: { eventType: "group-event" },
+      },
+    ], { includeStatuses: ["confirmed"] });
+
+    expect(event).toMatchObject({
+      bookingId: "booking_group",
+      eventId,
+      title: "Group Hang",
+      type: "group-event",
+      eventType: "group-event",
+      status: "confirmed",
+    });
+    expect(event.raw.participantCount).toBe(1);
+    expect(event.raw.isGroupedGroupSlot).toBe(true);
+  });
+
+  it("aggregates multiple bookings for the same group slot into one session item", () => {
+    const events = mapBookedSlotsToCalendarEvents([
+      {
+        bookingId: "booking_group_1",
+        eventId,
+        userId: 2615,
+        userDisplayName: "Ava",
+        userAvatarUrl: "https://example.test/ava.png",
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_group_2",
+        eventId,
+        userId: 2616,
+        userDisplayName: "Ben",
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+    ], { includeStatuses: ["confirmed"] });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].bookingId).toBe("booking_group_1");
+    expect(events[0].raw.bookingIds).toEqual(["booking_group_1", "booking_group_2"]);
+    expect(events[0].raw.participantCount).toBe(2);
+    expect(events[0].raw.participants).toEqual([
+      expect.objectContaining({ bookingId: "booking_group_1", userId: 2615, name: "Ava", avatarUrl: "https://example.test/ava.png" }),
+      expect.objectContaining({ bookingId: "booking_group_2", userId: 2616, name: "Ben" }),
+    ]);
   });
 });

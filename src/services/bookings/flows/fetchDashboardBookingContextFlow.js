@@ -1,12 +1,7 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus, getEtag, isApiNotModified } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError, toNumber } from "@/services/bookings/bookingsApiUtils.js";
-
-function normalizeUserRole(value) {
-  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (normalized === "fan" || normalized === "creator") return normalized;
-  return normalized;
-}
+import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 
 function buildCreatorEventParams(payload = {}) {
   return {
@@ -46,7 +41,7 @@ function buildBookedSlotParams(payload = {}, { includeEventId = false } = {}) {
 function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
   const creatorId = toNumber(payload.creatorId, null);
   const fanId = toNumber(payload.fanId, null);
-  const userRole = normalizeUserRole(payload.userRole);
+  const userRole = normalizeDashboardBookingRole(payload.userRole, "");
 
   if (userRole === "fan") {
     return `${baseUrl}/bookings/fans/${fanId}/booked-slots`;
@@ -231,7 +226,7 @@ async function fetchFanDashboardContext({ payload, context, api, baseUrl }) {
 export async function fetchDashboardBookingContextFlow({ payload, context, api }) {
   const baseUrl = getBookingsApiBaseUrl(context);
   const headers = context.requestHeaders || {};
-  const userRole = normalizeUserRole(payload?.userRole);
+  const userRole = normalizeDashboardBookingRole(payload?.userRole, "");
 
   try {
     if (userRole === "fan") {

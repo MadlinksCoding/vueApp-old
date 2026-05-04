@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 
 const BASE_URL = "https://example.com";
 const START_AT = "2026-05-01T10:00:00Z";
@@ -96,5 +96,12 @@ describe("getBookingJoinState", () => {
     expect(joinState({ bookingId: "" }).canJoin).toBe(false);
     expect(joinState({ startAt: "not-a-date" }).canJoin).toBe(false);
     expect(joinState({ endAt: "not-a-date" }).canJoin).toBe(false);
+  });
+
+  it("builds creator scheduled group meeting URLs from event and slot start", () => {
+    expect(buildScheduledGroupMeetingUrl({
+      eventId: "evt_group",
+      startIso: START_AT,
+    }, BASE_URL)).toBe(`${BASE_URL}/scheduled-meeting/?event_id=evt_group&start_iso=2026-05-01T10%3A00%3A00Z`);
   });
 });

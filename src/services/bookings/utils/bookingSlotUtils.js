@@ -92,6 +92,24 @@ function isGroupEvent(event = {}) {
   return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
 }
 
+function resolveBookedSlotEventType(slot = {}) {
+  const eventSnapshot = slot?.eventSnapshot && typeof slot.eventSnapshot === "object" ? slot.eventSnapshot : {};
+  const eventCurrent = slot?.eventCurrent && typeof slot.eventCurrent === "object" ? slot.eventCurrent : {};
+  return String(
+    slot?.eventType
+      || slot?.type
+      || eventSnapshot?.type
+      || eventSnapshot?.eventType
+      || eventCurrent?.type
+      || eventCurrent?.eventType
+      || "",
+  ).toLowerCase();
+}
+
+function isBookedSlotGroupEvent(slot = {}) {
+  return resolveBookedSlotEventType(slot) === "group-event";
+}
+
 function resolveGroupCapacity(event = {}) {
   const raw = event?.raw || {};
   const enabled = raw?.enableMaxAttendees ?? event?.enableMaxAttendees;
@@ -845,7 +863,8 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
 }
 
 export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }) {
-  const bookedDisabled = isGroupEvent(event)
+  const groupEvent = isGroupEvent(event);
+  const bookedDisabled = groupEvent
     ? isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex })
     : (
       isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex })
@@ -856,8 +875,11 @@ export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSl
   const pastDisabled = (
     Boolean(localDateIso)
     && localDateIso === todayIso
-    && Number.isFinite(slot?.startMs)
-    && slot.startMs < today.getTime()
+    && (
+      groupEvent
+        ? Number.isFinite(slot?.endMs) && slot.endMs <= today.getTime()
+        : Number.isFinite(slot?.startMs) && slot.startMs < today.getTime()
+    )
   );
   const disabled = bookedDisabled || pastDisabled;
   return {
@@ -874,6 +896,82 @@ function toCalendarSlotType(status) {
   return "custom2";
 }
 
+function chooseGroupedStatus(currentStatus, nextStatus) {
+  const priority = {
+    confirmed: 5,
+    completed: 4,
+    pending_hold: 3,
+    pending: 2,
+  };
+  const current = String(currentStatus || "").toLowerCase();
+  const next = String(nextStatus || "").toLowerCase();
+  return (priority[next] || 0) > (priority[current] || 0) ? next : current;
+}
+
+function makeBookedSlotCalendarEvent(slot, { titleFallback = "Booked Slot" } = {}) {
+  const start = slot?.startIso;
+  const end = slot?.endIso;
+  const status = String(slot?.status || "").toLowerCase();
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+
+  const eventId = slot?.eventId || "event";
+  const bookingId = slot?.bookingId || `${eventId}_${start}`;
+  const eventType = resolveBookedSlotEventType(slot) || null;
+
+  return {
+    id: `booking_${bookingId}`,
+    bookingId: slot?.bookingId || null,
+    eventId,
+    title: slot?.eventTitle || titleFallback,
+    start,
+    end,
+    status,
+    type: eventType,
+    eventType,
+    eventCallType: slot?.eventCallType || slot?.eventSnapshot?.eventCallType || slot?.eventCurrent?.eventCallType || null,
+    eventColorSkin: slot?.eventColorSkin || slot?.eventSnapshot?.eventColorSkin || slot?.eventCurrent?.eventColorSkin || null,
+    slot: toCalendarSlotType(status),
+    raw: slot,
+  };
+}
+
+function toParticipantFromBookedSlot(slot = {}) {
+  return {
+    bookingId: slot?.bookingId || null,
+    userId: resolveBookedSlotUserId(slot),
+    name: slot?.userDisplayName || slot?.userName || slot?.fanName || null,
+    avatarUrl: slot?.userAvatarUrl || slot?.userAvatar || slot?.fanAvatarUrl || null,
+    status: slot?.status || null,
+  };
+}
+
+function mergeGroupedCalendarEvent(grouped, event) {
+  const raw = grouped.raw && typeof grouped.raw === "object" ? grouped.raw : {};
+  const eventRaw = event.raw && typeof event.raw === "object" ? event.raw : {};
+  const participants = Array.isArray(raw.participants) ? [...raw.participants] : [];
+  participants.push(toParticipantFromBookedSlot(eventRaw));
+
+  const bookingIds = Array.isArray(raw.bookingIds) ? [...raw.bookingIds] : [];
+  if (event.bookingId) bookingIds.push(event.bookingId);
+
+  grouped.status = chooseGroupedStatus(grouped.status, event.status);
+  grouped.slot = toCalendarSlotType(grouped.status);
+  grouped.bookingId = grouped.bookingId || event.bookingId || null;
+  grouped.raw = {
+    ...raw,
+    bookingId: grouped.bookingId || raw.bookingId || event.bookingId || null,
+    bookingIds,
+    participants,
+    participantCount: participants.length,
+    isGroupedGroupSlot: true,
+  };
+
+  return grouped;
+}
+
 export function mapBookedSlotsToCalendarEvents(slots = [], options = {}) {
   const {
     includeStatuses = null,
@@ -884,35 +982,46 @@ export function mapBookedSlotsToCalendarEvents(slots = [], options = {}) {
     ? new Set(includeStatuses.map((value) => String(value).toLowerCase()))
     : null;
 
-  return (Array.isArray(slots) ? slots : [])
-    .map((slot) => {
-      const start = slot?.startIso;
-      const end = slot?.endIso;
-      const status = String(slot?.status || "").toLowerCase();
+  const events = [];
+  const groupSessions = new Map();
 
-      const startDate = new Date(start);
-      const endDate = new Date(end);
-      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+  (Array.isArray(slots) ? slots : []).forEach((slot) => {
+    const status = String(slot?.status || "").toLowerCase();
+    if (includeSet && !includeSet.has(status)) return;
 
-      if (includeSet && !includeSet.has(status)) return null;
+    const event = makeBookedSlotCalendarEvent(slot, { titleFallback });
+    if (!event) return;
 
-      const eventId = slot?.eventId || "event";
-      const bookingId = slot?.bookingId || `${eventId}_${start}`;
+    if (!isBookedSlotGroupEvent(slot)) {
+      events.push(event);
+      return;
+    }
 
-      return {
-        id: `booking_${bookingId}`,
-        bookingId: slot?.bookingId || null,
-        eventId,
-        title: slot?.eventTitle || titleFallback,
-        start,
-        end,
-        status,
-        type: slot?.eventType || null,
-        slot: toCalendarSlotType(status),
-        raw: slot,
-      };
-    })
-    .filter(Boolean)
+    const groupKey = `${event.eventId}|${event.start}|${event.end}`;
+    const existing = groupSessions.get(groupKey);
+    if (existing) {
+      mergeGroupedCalendarEvent(existing, event);
+      return;
+    }
+
+    const raw = event.raw && typeof event.raw === "object" ? event.raw : {};
+    const participant = toParticipantFromBookedSlot(raw);
+    const grouped = {
+      ...event,
+      id: `group_session_${event.eventId}_${event.start}_${event.end}`,
+      raw: {
+        ...raw,
+        bookingIds: event.bookingId ? [event.bookingId] : [],
+        participants: [participant],
+        participantCount: 1,
+        isGroupedGroupSlot: true,
+      },
+    };
+    groupSessions.set(groupKey, grouped);
+    events.push(grouped);
+  });
+
+  return events
     .sort((left, right) => {
       const leftTime = new Date(left.start).getTime();
       const rightTime = new Date(right.start).getTime();

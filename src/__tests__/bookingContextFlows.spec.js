@@ -81,6 +81,36 @@ describe("booking context flows", () => {
     );
   });
 
+  it("treats agent dashboard role as creator when fetching booked slots", async () => {
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchDashboardBookingContextFlow({
+      payload: { creatorId: 793, userRole: "agent" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.mode).toBe("creator");
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/bookings/creators/793/booked-slots",
+      expect.any(Object),
+    );
+  });
+
   it("keeps fresh fan dashboard booked slots when fetched events are not modified", async () => {
     const cachedRawEvents = [{ id: "event_77", title: "Cached Fan Event" }];
     const api = createApi([
@@ -142,6 +172,36 @@ describe("booking context flows", () => {
       expect.objectContaining({
         params: expect.not.objectContaining({ eventId: expect.anything() }),
       }),
+    );
+  });
+
+  it("treats audience dashboard role as fan when fetching booked slots", async () => {
+    const api = createApi([
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchDashboardBookingContextFlow({
+      payload: { fanId: 2615, userRole: "audience" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.meta.mode).toBe("fan");
+    expect(api.get).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/bookings/fans/2615/booked-slots",
+      expect.any(Object),
     );
   });
 
