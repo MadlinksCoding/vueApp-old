@@ -94,17 +94,8 @@ function isGroupEvent(event = {}) {
 
 function resolveGroupCapacity(event = {}) {
   const raw = event?.raw || {};
-  const enabled = raw?.enableMaxUsersInGroup ?? event?.enableMaxUsersInGroup ?? raw?.setMaxUsers ?? event?.setMaxUsers;
-  const capacity = Number(
-    raw?.maxUsersInGroup
-      ?? event?.maxUsersInGroup
-      ?? raw?.maxUsers
-      ?? event?.maxUsers
-      ?? raw?.maxAttendees
-      ?? event?.maxAttendees
-      ?? raw?.capacity
-      ?? event?.capacity,
-  );
+  const enabled = raw?.enableMaxAttendees ?? event?.enableMaxAttendees;
+  const capacity = Number(raw?.maxAttendees ?? event?.maxAttendees);
 
   if (enabled === false || enabled === "false" || enabled === 0 || enabled === "0") return Infinity;
   if (!Number.isFinite(capacity) || capacity <= 0) return Infinity;
@@ -195,6 +186,21 @@ function isOverlappingBookedRange(startMs, endMs, bookedRows = []) {
 function isBlockingBookedSlot(booked) {
   const status = String(booked?.status || "").toLowerCase();
   return !status.includes("cancel");
+}
+
+function normalizeUserIdentity(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function resolveBookedSlotUserId(slot = {}) {
+  return slot?.userId
+    ?? slot?.fanId
+    ?? slot?.user?.id
+    ?? slot?.user?.userId
+    ?? slot?.fan?.id
+    ?? slot?.fan?.userId
+    ?? null;
 }
 
 function resolveBookedContributionTokens(booked = {}) {
@@ -634,6 +640,7 @@ export function buildBookedSlotsIndex(slots = []) {
 
     index[eventId][localDateIso].push({
       bookingId: slot.bookingId || null,
+      userId: resolveBookedSlotUserId(slot),
       startIso,
       endIso,
       startMs: startDate.getTime(),
@@ -661,6 +668,25 @@ export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {
     && slot.startMs < booked.endMs
     && slot.endMs > booked.startMs
   ));
+}
+
+export function isSlotBookedByUser({ eventId, userId, slot, bookedSlotsIndex = {} }) {
+  const expectedUserId = normalizeUserIdentity(userId);
+  if (!eventId || !expectedUserId || !slot) return false;
+  if (!Number.isFinite(slot?.startMs) || !Number.isFinite(slot?.endMs) || slot.endMs <= slot.startMs) return false;
+
+  const byDate = bookedSlotsIndex?.[eventId];
+  if (!byDate || typeof byDate !== "object") return false;
+
+  return Object.values(byDate).some((rows) => {
+    if (!Array.isArray(rows) || rows.length === 0) return false;
+    return rows.some((booked) => (
+      isBlockingBookedSlot(booked)
+      && normalizeUserIdentity(booked?.userId) === expectedUserId
+      && slot.startMs < booked.endMs
+      && slot.endMs > booked.startMs
+    ));
+  });
 }
 
 export function getBlockingBookedSlotsForRange({ eventId, startMs, endMs, bookedSlotsIndex = {} }) {
@@ -771,8 +797,9 @@ export function isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex = {} }
   });
 }
 
-export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, daysAhead = 30) {
+export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, daysAhead = 30, options = {}) {
   const eventId = event.eventId || event.id;
+  const skipBookedByUserId = options?.skipBookedByUserId ?? null;
   const today = new Date();
   for (let offset = 0; offset <= daysAhead; offset += 1) {
     const date = new Date(today);
@@ -793,7 +820,16 @@ export function computeNextAvailableSlot(event = {}, bookedSlotsIndex = {}, days
         slot,
         bookedSlotsIndex,
       });
-      return !uiSlot.disabled;
+      if (uiSlot.disabled) return false;
+      if (isGroupEvent(event) && skipBookedByUserId != null) {
+        return !isSlotBookedByUser({
+          eventId,
+          userId: skipBookedByUserId,
+          slot,
+          bookedSlotsIndex,
+        });
+      }
+      return true;
     });
 
     if (firstFree) {

@@ -14,6 +14,7 @@ import {
   formatLocalDateIso,
   hmToLabel,
   isRangeBooked,
+  isSlotBookedByUser,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { addMinutesToHm } from '@/services/events/eventsApiUtils.js';
 import {
@@ -41,6 +42,7 @@ const props = defineProps({
 const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
+const fanId = computed(() => props.engine.getState('fanBooking.context.fanId') ?? null);
 const creatorPresentation = computed(() => resolveCreatorPresentation({
   explicitCreatorData: props.engine.getState('fanBooking.context.creatorPresentation'),
   selectedEvent: selectedEvent.value,
@@ -200,8 +202,7 @@ const eventGoalMaximumTokens = computed(() => {
   const raw = selectedEvent.value?.raw || {};
   const eventGoal = toWholeTokens(raw?.eventGoalTokens ?? selectedEvent.value?.eventGoalTokens ?? 0);
   const balance = toWholeTokens(walletBalance.value);
-  if (eventGoal <= 0 || balance <= 0) return 0;
-  return Math.min(eventGoal, balance);
+  return Math.max(0, eventGoal, balance);
 });
 
 const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
@@ -278,7 +279,9 @@ async function autoSelectGroupAndGoToPayment() {
   groupAutoRedirecting.value = true;
 
   const event = selectedEvent.value;
-  const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
+  const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45, {
+    skipBookedByUserId: fanId.value,
+  });
   if (!next?.slot) {
     showToast({
       type: 'error',
@@ -633,13 +636,25 @@ const events1 = computed(() => {
       bookedSlotsIndex: bookedSlotsIndex.value,
       applyBufferAfterBooked: true,
     });
-    const free = slots.some((slot) => !createSlotUiModel({
-      event,
-      eventId: event.eventId,
-      localDateIso: dateIso,
-      slot,
-      bookedSlotsIndex: bookedSlotsIndex.value,
-    }).disabled);
+    const free = slots.some((slot) => {
+      const uiSlot = createSlotUiModel({
+        event,
+        eventId: event.eventId,
+        localDateIso: dateIso,
+        slot,
+        bookedSlotsIndex: bookedSlotsIndex.value,
+      });
+      if (uiSlot.disabled) return false;
+      if (isGroupEvent.value && fanId.value != null) {
+        return !isSlotBookedByUser({
+          eventId: event.eventId,
+          userId: fanId.value,
+          slot,
+          bookedSlotsIndex: bookedSlotsIndex.value,
+        });
+      }
+      return true;
+    });
 
     if (!free) continue;
 

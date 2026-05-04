@@ -118,7 +118,7 @@ describe("create booking mapper", () => {
     expect(mapped.payment.total).toBe(250);
   });
 
-  it("caps event-goal contribution preview between minimum and goal", () => {
+  it("floors event-goal contribution preview at minimum without capping at goal", () => {
     const event = {
       type: "group-event",
       priceSetting: "eventGoal",
@@ -131,6 +131,6 @@ describe("create booking mapper", () => {
     };
 
     expect(buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 20 }).contributionTokens).toBe(100);
-    expect(buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 700 }).contributionTokens).toBe(500);
+    expect(buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 700 }).contributionTokens).toBe(700);
   });
 });

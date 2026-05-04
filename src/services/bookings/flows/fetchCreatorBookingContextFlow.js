@@ -28,22 +28,8 @@ function buildBookedSlotParams(payload = {}, { includeEventId = false } = {}) {
   return params;
 }
 
-function shouldUseFanBookedSlotsEndpoint(payload = {}) {
-  const fanId = toNumber(payload.fanId, null);
-  const userRole = typeof payload.userRole === "string"
-    ? payload.userRole.trim().toLowerCase()
-    : "";
-
-  return userRole === "fan" && fanId != null;
-}
-
 function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
   const creatorId = toNumber(payload.creatorId, null);
-  const fanId = toNumber(payload.fanId, null);
-
-  if (shouldUseFanBookedSlotsEndpoint(payload)) {
-    return `${baseUrl}/bookings/fans/${fanId}/booked-slots`;
-  }
 
   return `${baseUrl}/bookings/creators/${creatorId}/booked-slots`;
 }
@@ -106,7 +92,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
 
     const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
       params: buildBookedSlotParams(payload, {
-        includeEventId: !shouldUseFanBookedSlotsEndpoint(payload),
+        includeEventId: true,
       }),
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,

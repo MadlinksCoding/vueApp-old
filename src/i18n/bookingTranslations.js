@@ -371,6 +371,7 @@ export const bookingMessages = {
 
   booking_validation_event_title_required: "Event title is required.",
   booking_validation_duration_min: "Session duration must be at least 5 minutes.",
+  booking_validation_base_price_required: "Base price is required.",
   booking_validation_base_price_min: "Base price must be 0 or higher.",
   booking_validation_event_goal_required: "Event goal must be greater than 0.",
   booking_validation_min_contribution_min: "Minimum contribution must be 0 or higher.",
@@ -469,6 +470,8 @@ export const bookingMessages = {
   fan_booking_minimum_contribution: "minimum contribution",
   fan_booking_group_fans_joined: "{count} fans already joined",
   fan_booking_group_spots_left: "{remaining}/{maximum} spots left!",
+  fan_booking_already_booked: "Already booked",
+  fan_booking_fully_booked: "Fully Booked",
   fan_booking_group_join_for_tokens: "Join for {tokens} tokens",
   fan_booking_group_contribute_minimum_to_join: "Contribute {tokens} tokens or more to join",
   fan_booking_event_goal_tokens_reached: "{reached}/{goal} Tokens",

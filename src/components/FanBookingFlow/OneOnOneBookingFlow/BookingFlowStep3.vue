@@ -287,6 +287,7 @@ const eventGoalPercent = computed(() => (
     ? Math.min(100, Math.max(0, Math.floor((eventGoalReachedTokens.value / eventGoalTokens.value) * 100)))
     : 0
 ));
+const eventGoalRemainingTokens = computed(() => Math.max(0, eventGoalTokens.value - eventGoalReachedTokens.value));
 
 function normalizeEventPerformer(value = {}) {
   if (!value || typeof value !== 'object') return null;
@@ -338,7 +339,7 @@ const groupPerformers = computed(() => (
     .filter(Boolean)
 ));
 
-const eventGoalMaximumContribution = computed(() => Math.max(0, eventGoalTokens.value - eventGoalReachedTokens.value));
+const eventGoalMaximumContribution = computed(() => Math.max(0, walletBalance.value, eventGoalTokens.value));
 const contributionRangeMax = computed(() => Math.max(eventGoalMinimumTokens.value, eventGoalMaximumContribution.value));
 const normalizedContributionTokens = computed(() => toWholeTokens(contributionTokens.value));
 const contributionInvalid = computed(() => {
@@ -390,6 +391,7 @@ const formattedTime = computed(() => bookingData.value.formattedTimeRange || '-'
 const headerDateDisplay = computed(() => bookingData.value.headerDateDisplay || '-');
 const selectedDateDisplay = computed(() => bookingData.value.selectedDateDisplay || '-');
 const showApprovalNeeded = computed(() => {
+  if (isGroupEvent.value) return false;
   const instant = toBoolean(
     selectedEvent.value?.allowInstantBooking
       ?? selectedEvent.value?.raw?.allowInstantBooking,
@@ -1413,9 +1415,7 @@ const handleButtonClick = async () => {
       type: 'error',
       title: t('common_validation_failed'),
       message: t(
-        eventGoalMaximumContribution.value < eventGoalMinimumTokens.value
-          ? 'fan_booking_contribution_insufficient_goal_remaining'
-          : 'fan_booking_contribution_invalid',
+        'fan_booking_contribution_invalid',
         {
           min: eventGoalMinimumTokens.value,
           max: eventGoalMaximumContribution.value,
@@ -1584,6 +1584,7 @@ onBeforeUnmount(() => {
                     <div class="flex items-center justify-between">
                       <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_booking_schedule") }}</h3>
                       <button
+                        v-if="!isGroupEvent"
                         type="button"
                         class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15"
                         @click="handleChangeSchedule"
@@ -1591,7 +1592,7 @@ onBeforeUnmount(() => {
                         <span class="text-white text-xs font-medium leading-4">{{ t("fan_booking_change_schedule") }}</span>
                       </button>
                     </div>
-                    <p class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
+                    <p v-if="!isGroupEvent && showApprovalNeeded" class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
                     <div class="flex gap-2 justify-between">
                       <div class="flex flex-col flex-1">
                         <span class="text-xs text-[#98A2B3]">{{ t("fan_booking_date") }}</span>
@@ -1625,7 +1626,7 @@ onBeforeUnmount(() => {
                           type="number"
                           inputmode="numeric"
                           :min="eventGoalMinimumTokens"
-                          :max="eventGoalMaximumContribution || contributionRangeMax"
+                          :max="contributionRangeMax"
                           class="min-w-0 flex-1 bg-transparent text-[2rem] font-normal leading-[2.5rem] text-white outline-none"
                         />
                         <span class="text-base font-medium text-white">{{ t("common_tokens") }}</span>
@@ -1642,8 +1643,7 @@ onBeforeUnmount(() => {
                           type="range"
                           :min="eventGoalMinimumTokens"
                           :max="contributionRangeMax"
-                          :disabled="eventGoalMaximumContribution < eventGoalMinimumTokens"
-                          class="relative z-10 h-8 w-full cursor-pointer appearance-none bg-transparent opacity-0 disabled:cursor-not-allowed"
+                          class="relative z-10 h-8 w-full cursor-pointer appearance-none bg-transparent opacity-0"
                           data-testid="step3-event-goal-contribution-range"
                         />
                         <div
@@ -1656,7 +1656,7 @@ onBeforeUnmount(() => {
 
                       <div class="flex items-center justify-between gap-3 text-xs leading-[18px] text-[#D0D5DD]">
                         <span>{{ t("fan_booking_contribution_bounds", { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution }) }}</span>
-                        <span>{{ t("fan_booking_event_goal_remaining", { tokens: formatTokenExact(eventGoalMaximumContribution) }) }}</span>
+                        <span>{{ t("fan_booking_event_goal_remaining", { tokens: formatTokenExact(eventGoalRemainingTokens) }) }}</span>
                       </div>
 
                       <p
@@ -1666,9 +1666,7 @@ onBeforeUnmount(() => {
                       >
                         {{
                           t(
-                            eventGoalMaximumContribution < eventGoalMinimumTokens
-                              ? "fan_booking_contribution_insufficient_goal_remaining"
-                              : "fan_booking_contribution_invalid",
+                            "fan_booking_contribution_invalid",
                             { min: eventGoalMinimumTokens, max: eventGoalMaximumContribution },
                           )
                         }}

@@ -208,4 +208,35 @@ describe("booking context flows", () => {
       }),
     );
   });
+
+  it("keeps creator booking context occupancy creator-wide even for fan payloads", async () => {
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [freshBookedSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchCreatorBookingContextFlow({
+      payload: { creatorId: 1407, fanId: 2615, userRole: "fan", eventId: "event_77" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/bookings/creators/1407/booked-slots",
+      expect.objectContaining({
+        params: expect.objectContaining({ eventId: "event_77" }),
+      }),
+    );
+  });
 });
