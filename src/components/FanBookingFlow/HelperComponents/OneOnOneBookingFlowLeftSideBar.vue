@@ -187,13 +187,13 @@ const groupPolicyItems = computed(() => {
 <template>
   <div
     class="flex-none md:max-w-[21.875rem] h-auto lg:h-[41.625rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
-    :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden' : 'md:p-4 lg:p-5'"
+    :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-4 lg:p-5'"
   >
     <template v-if="props.isGroupEvent">
       <div class="absolute inset-0 bg-[#7A174A]/70 pointer-events-none"></div>
       <div class="relative z-10 flex h-full min-h-[31rem] flex-col justify-between text-white">
-        <div class="flex flex-col gap-5 px-4 pt-0 md:px-4 lg:px-4">
-          <div class="flex flex-row items-center">
+        <div class="flex flex-col gap-5 px-4 pt-8 md:px-4 lg:px-4">
+          <div class="absolute top-0 left-0 flex flex-row items-center">
             <div class="bg-[#FF0066] rounded-br-[4px] md:rounded-br-md px-4 py-1 w-fit h-[28px] flex justify-center items-center">
               <p class="text-sm leading-5 text-white font-bold">{{ t("fan_booking_group_event_label") }}</p>
             </div>
@@ -214,7 +214,7 @@ const groupPolicyItems = computed(() => {
               </template>
             </div>
 
-            <div class="flex flex-col gap-1 text-2xl font-semibold leading-8">
+            <div class="flex flex-col gap-1 text-xl font-semibold leading-8">
               <span>{{ dateDisplay }}</span>
               <span>{{ timeDisplay }}</span>
             </div>

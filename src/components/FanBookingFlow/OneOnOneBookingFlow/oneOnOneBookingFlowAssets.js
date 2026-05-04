@@ -1,6 +1,7 @@
 export { default as bookingFlowBackgroundImage } from "@/assets/images/icons/background.webp";
 export { default as bookingFlowTokenIcon } from "@/assets/images/icons/token-02.webp";
 export { default as bookingFlowUnionIcon } from "@/assets/images/icons/Union.webp";
+export { default as bookingFlowUnionBlackIcon } from "@/assets/images/icons/union-black-gray.svg";
 export { default as bookingFlowArrowUpRightIcon } from "@/assets/images/icons/arrow-up-right-02.webp";
 export { default as bookingFlowCloudMoonIcon } from "@/assets/images/icons/cloud-moon-02.webp";
 export { default as bookingFlowPendingIcon } from "@/assets/images/icons/pending.webp";
