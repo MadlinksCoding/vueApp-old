@@ -1,7 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 vi.mock("@/utils/toastBus.js", () => ({
   showToast: vi.fn(),
@@ -112,14 +113,17 @@ function createMountedStep({
   selectedEvent = createGroupEvent(dateIso),
   bookingDetails = {},
   selection = {},
+  bookedSlotsIndex = {},
+  fanId = 2615,
 } = {}) {
   const engine = createEngine({
     bookingDetails,
     fanBooking: {
       catalog: {
-        bookedSlotsIndex: {},
+        bookedSlotsIndex,
       },
       context: {
+        fanId,
         selectedEvent,
         isFirstBookingForCreator: false,
       },
@@ -164,6 +168,37 @@ function findPaymentSummaryButton(wrapper) {
 }
 
 describe("BookingFlowStep2", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function setFixedStepClock() {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T12:00:00"));
+    return "2030-01-15";
+  }
+
+  function addDays(dateIso, days) {
+    const date = new Date(`${dateIso}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function createDailyGroupEvent() {
+    return createGroupEvent("2030-01-15", {
+      sessionDurationMinutes: 120,
+      localStartHm: "11:00",
+      localEndHm: "13:00",
+      raw: {
+        repeatRule: "daily",
+        sessionDurationMinutes: 120,
+        enableMaxAttendees: true,
+        maxAttendees: 5,
+        slots: [{ day: "monday", startTime: "13:00", endTime: "15:00" }],
+      },
+    });
+  }
+
   it("auto-selects group event slot and routes directly to payment summary", async () => {
     const dateIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const { engine, wrapperPromise } = createMountedStep({
@@ -184,6 +219,58 @@ describe("BookingFlowStep2", () => {
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
     expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("auto-selects an ongoing group event session before a later session", async () => {
+    const today = setFixedStepClock();
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: today,
+      selectedEvent: createDailyGroupEvent(),
+    });
+    await wrapperPromise;
+    await nextTick();
+    await nextTick();
+    await nextTick();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(today);
+    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({
+      startHm: "11:00",
+      endHm: "13:00",
+      disabled: false,
+    }));
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(120);
+  });
+
+  it("skips an ongoing group session already booked by the current user", async () => {
+    const today = setFixedStepClock();
+    const tomorrow = addDays(today, 1);
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "booking_current_user_ongoing",
+      eventId: "evt_group_1",
+      userId: 2615,
+      startIso: `${today}T11:00:00`,
+      endIso: `${today}T13:00:00`,
+      status: "confirmed",
+    }]);
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: today,
+      selectedEvent: createDailyGroupEvent(),
+      bookedSlotsIndex,
+      fanId: 2615,
+    });
+    await wrapperPromise;
+    await nextTick();
+    await nextTick();
+    await nextTick();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(tomorrow);
+    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({
+      startHm: "11:00",
+      endHm: "13:00",
+      disabled: false,
+    }));
   });
 
   it("keeps private booking length, call wording, add-ons, and other request", async () => {

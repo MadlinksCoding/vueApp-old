@@ -25,7 +25,16 @@ const auth = useAuthStore();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 
 const userRole = computed(() => auth.simulate?.role || auth.currentUser?.role || "creator");
+const authenticatedUserId = computed(() => auth.simulate?.userId
+  ?? auth.currentUser?.userId
+  ?? auth.currentUser?.id
+  ?? auth.currentUser?.raw?.user_id
+  ?? auth.currentUser?.raw?.id
+  ?? auth.currentUser?.raw?.sub
+  ?? null);
 const creatorId = computed(() => resolveCreatorIdFromContext({
+  preferredId: route.query?.creatorId,
+  extraCandidates: [authenticatedUserId.value],
   route,
   fallback: DEFAULT_VUE_CREATOR_ID,
 }));

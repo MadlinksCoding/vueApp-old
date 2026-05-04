@@ -279,8 +279,12 @@ async function autoSelectGroupAndGoToPayment() {
   groupAutoRedirecting.value = true;
 
   const event = selectedEvent.value;
-  const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45, {
-    skipBookedByUserId: fanId.value,
+  const currentFanId = fanId.value ?? resolveFanId();
+  const resolvedBookedSlotsIndex = bookedSlotsIndex.value && Object.keys(bookedSlotsIndex.value).length > 0
+    ? bookedSlotsIndex.value
+    : (props.engine.state?.fanBooking?.catalog?.bookedSlotsIndex || {});
+  const next = computeNextAvailableSlot(event, resolvedBookedSlotsIndex, 45, {
+    skipBookedByUserId: currentFanId,
   });
   if (!next?.slot) {
     showToast({

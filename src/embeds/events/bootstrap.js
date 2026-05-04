@@ -3,6 +3,7 @@ import { toNumberOr } from "@/utils/contextIds.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 import { setBackendJwtToken } from "@/utils/backendJwt.js";
 import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 
 const DEFAULT_BOOTSTRAP = {
   creatorId: null,
@@ -73,7 +74,7 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.creatorData = normalized.creatorData;
   bootstrapState.translations = normalized.translations;
   bootstrapState.locale = normalized.locale;
-  bootstrapState.bootstrapped = String(normalized.userRole || "").toLowerCase() === "fan"
+  bootstrapState.bootstrapped = normalizeDashboardBookingRole(normalized.userRole) === "fan"
     ? normalized.fanId != null
     : normalized.creatorId != null;
   applyBackendJwtTokenSafely(normalized.jwtToken);
@@ -88,7 +89,7 @@ export function readEventsEmbedBootstrapFromUrl() {
   const userRole = params.get("userRole") || "creator";
   const fanId = toNumberOr(params.get("fanId"), null);
 
-  if (String(userRole).toLowerCase() === "fan") {
+  if (normalizeDashboardBookingRole(userRole) === "fan") {
     if (fanId == null) return null;
   } else if (creatorId == null) {
     return null;

@@ -57,6 +57,24 @@ export function buildScheduledMeetingUrl(bookingId, baseUrl = import.meta.env.VI
   return `${normalizedBaseUrl}/scheduled-meeting/?booking_id=${encodeURIComponent(normalizedBookingId)}`;
 }
 
+export function buildScheduledGroupMeetingUrl({ eventId, startIso } = {}, baseUrl = import.meta.env.VITE_WEB_BASE_URL) {
+  const normalizedEventId = typeof eventId === 'string' || typeof eventId === 'number'
+    ? String(eventId).trim()
+    : '';
+  const normalizedStartIso = typeof startIso === 'string' || typeof startIso === 'number'
+    ? String(startIso).trim()
+    : '';
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+
+  if (!normalizedEventId || !normalizedStartIso || !normalizedBaseUrl) return null;
+
+  const params = new URLSearchParams({
+    event_id: normalizedEventId,
+    start_iso: normalizedStartIso,
+  });
+  return `${normalizedBaseUrl}/scheduled-meeting/?${params.toString()}`;
+}
+
 export function getBookingJoinState({
   bookingId,
   startAt,
