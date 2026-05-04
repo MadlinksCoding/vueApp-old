@@ -508,7 +508,7 @@ export const bookingMessages = {
   fan_booking_policy_creator_late_partial: "If {creator} does not show up to the confirmed call on time, you will be partially refunded.",
   fan_booking_policy_creator_late_full: "If {creator} does not show up to the confirmed call within the buffer time, you will be fully refunded.",
   fan_booking_policy_fan_late: "If you do not show up to the confirmed call within the buffer time, the session will be canceled and the minimum charge will be deducted from your account. Cancel in advance to avoid penalties.",
-  fan_booking_group_policy_hold_contribution: "Your contributions will be on hold in your balance until the event starts.",
+  fan_booking_group_policy_hold_contribution: "Your contributions will be on hold in your balance until the call starts.",
   fan_booking_group_policy_goal_not_reached: "If funds do not reach the event goal before event start time, you will be fully refunded.",
   fan_booking_group_policy_host_late: "If the host ({creator}) does not show up to the event within a buffer time of 5 minutes, the event will be canceled and you will be refunded fully.",
   fan_booking_group_policy_coperformer_late: "If less than half of the co-performers show up to the event within a buffer time of 5 minutes, the event will be canceled and you will be refunded fully.",

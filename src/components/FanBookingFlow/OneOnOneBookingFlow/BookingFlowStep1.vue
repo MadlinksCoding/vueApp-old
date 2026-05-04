@@ -15,6 +15,7 @@ import {
   bookingFlowBackgroundImage,
   bookingFlowTokenIcon,
   bookingFlowUnionIcon,
+  bookingFlowUnionBlackIcon,
 } from "./oneOnOneBookingFlowAssets.js";
 import BookingFlowStepLoading from "./BookingFlowStepLoading.vue";
 import { useEventBackgroundImage } from "./useEventBackgroundImage.js";
@@ -491,11 +492,11 @@ watch(
                   </h2>
 
                   <div class="flex items-end gap-2">
-                    <img :src="bookingFlowTokenIcon" class="h-8 w-8 shrink-0" alt="" />
+                    <img :src="bookingFlowTokenIcon" class="h-8 w-8 shrink-0 mb-1" alt="" />
                     <span class="text-4xl font-semibold leading-10">
                       {{ formatTokens(displayTokens(currentEvent || {})) }}
                     </span>
-                    <span class="pb-1 text-2xl font-semibold leading-8">
+                    <span class="text-2xl font-semibold leading-8">
                       {{ t("fan_booking_tokens") }}
                     </span>
                     <span v-if="isEventGoalGroupEvent(currentEvent || {})" class="pb-1 text-sm leading-5">
@@ -505,14 +506,17 @@ watch(
                 </div>
 
                 <div class="flex flex-col gap-4">
+                  <p class="line-clamp-5 text-base leading-6">
+                    {{ toPlainText(currentEvent?.description) }}
+                  </p>  
+
                   <div class="flex items-start gap-4">
                     <svg class="mt-0.5 h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                       <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
                     </svg>
                     <div class="flex flex-col gap-2 text-base font-medium leading-6">
-                      <span>{{ currentGroupStats.dateLabel }}</span>
-                      <span>{{ currentGroupStats.timeLabel }}</span>
+                      <span>{{ currentGroupStats.dateLabel }} {{ currentGroupStats.timeLabel }}</span>
                     </div>
                   </div>
 
@@ -527,9 +531,6 @@ watch(
                     </span>
                   </div>
 
-                  <p class="line-clamp-5 text-base leading-6">
-                    {{ toPlainText(currentEvent?.description) }}
-                  </p>
                 </div>
               </div>
             </div>
@@ -541,7 +542,7 @@ watch(
               class="flex w-full flex-none overflow-hidden text-left disabled:cursor-not-allowed disabled:opacity-60 md:rounded-b-3xl"
             >
               <div
-                class="flex flex-1 flex-col gap-1.5 px-5 py-2"
+                class="relative flex flex-1 flex-col gap-1.5 px-5 py-2 min-h-[98px] "
                 :class="isEventGoalGroupEvent(currentEvent || {}) ? 'bg-[#0C111D] text-[#FFED29]' : 'bg-[#FF0066] text-white'"
               >
                 <div class="flex flex-col">
@@ -580,7 +581,7 @@ watch(
 
               <div
                 class="relative flex w-20 shrink-0 items-center justify-center"
-                :class="isEventGoalGroupEvent(currentEvent || {}) ? 'bg-[#FFED29]' : 'bg-[#0C111D]'"
+                :class="isEventGoalGroupEvent(currentEvent || {}) ? 'bg-[#FFED29] w-24' : 'bg-[#0C111D]'"
               >
                 <img
                   v-if="!isEventGoalGroupEvent(currentEvent || {})"
@@ -588,6 +589,13 @@ watch(
                   :src="bookingFlowUnionIcon"
                   alt=""
                 />
+                <img
+                  v-if="isEventGoalGroupEvent(currentEvent || {})"
+                  class="absolute left-[31px] h-full -translate-x-full"
+                  :src="bookingFlowUnionBlackIcon"
+                  alt=""
+                />
+
                 <svg class="relative h-8 w-8" :class="isEventGoalGroupEvent(currentEvent || {}) ? 'text-black' : 'text-[#FF0066]'" viewBox="0 0 32 32" fill="none" aria-hidden="true">
                   <path d="M9.333 22.667 22.667 9.333M22.667 9.333H9.333M22.667 9.333v13.334" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
