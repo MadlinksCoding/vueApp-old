@@ -44,7 +44,7 @@ function createEngine() {
     fanBooking: {
       context: {
         creatorId: null,
-        fanId: 2516,
+        fanId: 2615,
         selectedEvent: {
           eventId: "evt_123",
           title: "Test Event",
@@ -213,11 +213,13 @@ vi.mock("@/components/FanBookingFlow/HelperComponents/OneOnOneBookingFlowLeftSid
       "eventGoalPercent",
       "groupPerformers",
       "titleDisplay",
+      "showApprovalNeeded",
     ],
     template: `
       <div
         data-test="left-sidebar"
         :data-is-group-event="String(isGroupEvent)"
+        :data-show-approval-needed="String(showApprovalNeeded)"
         :data-price-setting="priceSetting"
         :data-event-goal-reached-tokens="eventGoalReachedTokens"
         :data-event-goal-tokens="eventGoalTokens"
@@ -263,7 +265,7 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     expect(tokenGet).toHaveBeenCalledWith({
-      userId: 2516,
+      userId: 2615,
       receiverId: null,
       defaultValue: null,
     });
@@ -295,6 +297,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("15 Minute x 2 sessions (30 Min.)");
     expect(text).toContain("1,000");
     expect(text).toContain("USD$ 60.00");
+    expect(text).toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
     expect(text).not.toContain("@model");
     expect(text).not.toContain("09 Dec 2026");
     expect(text).not.toContain("224.99");
@@ -416,8 +419,8 @@ describe("BookingFlowStep3", () => {
     const input = wrapper.get("#step3-event-goal-contribution");
     const range = wrapper.get("[data-testid='step3-event-goal-contribution-range']");
     expect(input.attributes("min")).toBe("500");
-    expect(input.attributes("max")).toBe("7000");
-    expect(range.attributes("max")).toBe("7000");
+    expect(input.attributes("max")).toBe("8000");
+    expect(range.attributes("max")).toBe("8000");
 
     await input.setValue("4000");
     await flushAsync();
@@ -498,14 +501,41 @@ describe("BookingFlowStep3", () => {
     expect(wrapper.text()).toContain("TOP-UP AND PAY");
   });
 
-  it("returns group bookings to step 1 when changing schedule", async () => {
+  it("allows event-goal contribution after the goal has already been reached", async () => {
     tokenGet.mockResolvedValue({
       data: {
         balance: 3000,
       },
     });
     const engine = createEngine();
-    configureEventGoalGroup(engine);
+    configureEventGoalGroup(engine, {
+      eventGoalTokens: 1000,
+      minContributionPerUser: 500,
+      raw: {
+        type: "group-event",
+        eventType: "group-event",
+        priceSetting: "eventGoal",
+        eventGoalTokens: 1000,
+        minContributionPerUser: 500,
+        sessionDurationMinutes: 180,
+      },
+    });
+    engine.state.bookingDetails.contributionTokens = 500;
+    engine.state.bookingDetails.totalPrice = 500;
+    engine.state.fanBooking.selection.contributionTokens = 500;
+    engine.state.fanBooking.catalog.bookedSlotsIndex = {
+      evt_goal_step3: {
+        "2026-03-24": [{
+          bookingId: "booking_goal_reached",
+          startIso: "2026-03-24T10:00:00",
+          endIso: "2026-03-24T13:00:00",
+          startMs: new Date("2026-03-24T10:00:00").getTime(),
+          endMs: new Date("2026-03-24T13:00:00").getTime(),
+          status: "confirmed",
+          contributionTokens: 1500,
+        }],
+      },
+    };
 
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
     const wrapper = mount(BookingFlowStep3, {
@@ -516,9 +546,59 @@ describe("BookingFlowStep3", () => {
     });
 
     await flushAsync();
-    await wrapper.findAll("button").find((button) => button.text().includes("Change Schedule")).trigger("click");
 
-    expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "change-schedule" });
-    expect(engine.goToStep).toHaveBeenCalledWith(1);
+    const input = wrapper.get("#step3-event-goal-contribution");
+    const range = wrapper.get("[data-testid='step3-event-goal-contribution-range']");
+
+    expect(wrapper.get("[data-test='left-sidebar']").attributes("data-event-goal-percent")).toBe("100");
+    expect(wrapper.text()).toContain("0 tokens remaining");
+    expect(input.attributes("max")).toBe("3000");
+    expect(range.attributes("max")).toBe("3000");
+    expect(range.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find("[data-testid='step3-event-goal-contribution-error']").exists()).toBe(false);
+    expect(wrapper.find("button[disabled]").exists()).toBe(false);
+
+    await input.setValue("2000");
+    await flushAsync();
+
+    expect(engine.state.bookingDetails.contributionTokens).toBe(2000);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(2000);
+  });
+
+  it("hides schedule change and approval text for group bookings", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine, {
+      allowInstantBooking: false,
+      raw: {
+        type: "group-event",
+        eventType: "group-event",
+        priceSetting: "eventGoal",
+        eventGoalTokens: 8000,
+        minContributionPerUser: 500,
+        sessionDurationMinutes: 180,
+        allowInstantBooking: false,
+      },
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("BOOKING SCHEDULE");
+    expect(wrapper.text()).toContain("March 24, 2026");
+    expect(wrapper.text()).not.toContain("Change Schedule");
+    expect(wrapper.text()).not.toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
+    expect(wrapper.get("[data-test='left-sidebar']").attributes("data-show-approval-needed")).toBe("false");
   });
 });

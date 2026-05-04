@@ -47,17 +47,10 @@ function resolveEventGoalMinimum(event = {}) {
   return configuredMinimum > 0 ? toWholeTokens(configuredMinimum) : 1;
 }
 
-function resolveEventGoalMaximum(event = {}) {
-  const raw = event?.raw || {};
-  return toWholeTokens(raw?.eventGoalTokens ?? event?.eventGoalTokens ?? 0);
-}
-
 function resolveContributionTokens(event = {}, options = {}) {
   const minimum = resolveEventGoalMinimum(event);
-  const maximum = resolveEventGoalMaximum(event);
   const requested = safeNumber(options?.contributionTokens, minimum);
   const rounded = toWholeTokens(requested);
-  if (maximum > 0) return Math.min(Math.max(rounded, minimum), maximum);
   return Math.max(rounded, minimum);
 }
 

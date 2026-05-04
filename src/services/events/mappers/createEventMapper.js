@@ -675,10 +675,10 @@ function mapBasePayload(payload = {}, context = {}) {
       }
     }
 
-    mapped.enableMaxUsersInGroup = asBoolean(payload.setMaxUsers || payload.enableMaxUsersInGroup, false);
+    mapped.enableMaxAttendees = asBoolean(payload.enableMaxAttendees, false);
 
-    if (mapped.enableMaxUsersInGroup) {
-      withOptionalField(mapped, "maxUsersInGroup", pickNumeric(payload.maxUsers || payload.maxUsersInGroup, 2));
+    if (mapped.enableMaxAttendees) {
+      withOptionalField(mapped, "maxAttendees", pickNumeric(payload.maxAttendees, 2));
     }
 
     mapped.enableDiscountForRecurring = asBoolean(payload.enableLongerDiscount || payload.enableDiscountForRecurring, false);

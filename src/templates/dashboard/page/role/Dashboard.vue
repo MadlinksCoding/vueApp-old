@@ -145,7 +145,7 @@
       <div class="flex gap-2 mb-4">
         <button
           class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
-          @click="openOneOnOneBookingFlowForFan(2516)"
+          @click="openOneOnOneBookingFlowForFan(2615)"
         >
           Test with Unlimited Tokens
         </button>
@@ -325,7 +325,7 @@ const guestPurchaseFlowPopupOpen = ref(false);
 const upgradeTierPopupOpen = ref(false);
 const oneOnOneBookingFlowPopupOpen = ref(false);
 const demoCreatorId = 1407;
-const selectedFanId = ref(2516);
+const selectedFanId = ref(2615);
 const ticketEventPopupOpen = ref(false);
 const crowdFundingEventPopupOpen = ref(false);
 const tipPopupOpen = ref(false);

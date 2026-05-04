@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import {
+  buildCandidateSlotsForEventDate,
   computeNextAvailableSlot,
   countGroupSlotBookings,
   hmToLabel,
+  isSlotBookedByUser,
   resolveGroupCapacity,
   sumEventGoalContributionsForEvent,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
@@ -34,6 +36,7 @@ const props = defineProps({
 const { t, locale } = useBookingTranslations();
 const events = computed(() => props.engine.getState("fanBooking.catalog.events") || []);
 const bookedSlotsIndex = computed(() => props.engine.getState("fanBooking.catalog.bookedSlotsIndex") || {});
+const fanId = computed(() => resolveCurrentFanId());
 const isLoading = computed(() => Boolean(props.engine.getState("fanBooking.ui.catalogLoading")));
 const loadError = computed(() => props.engine.getState("fanBooking.ui.catalogError") || "");
 
@@ -129,6 +132,39 @@ function groupNextAvailable(event = {}) {
   return computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
 }
 
+function localDateIsoFromDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function isOneTimeGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  return isGroupEvent(event) && String(raw?.repeatRule || event?.repeatRule || "").toLowerCase() === "doesnotrepeat";
+}
+
+function groupDisplayFallback(event = {}) {
+  if (!isOneTimeGroupEvent(event)) return null;
+
+  const raw = event?.raw || {};
+  const eventId = event?.eventId || event?.id;
+  const localDateIso = event?.localDateIso || localDateIsoFromDate(event?.start) || localDateIsoFromDate(raw?.eventTime?.start);
+  if (!eventId || !localDateIso) return null;
+
+  const [slot] = buildCandidateSlotsForEventDate(event, localDateIso, {
+    eventId,
+    bookedSlotsIndex: bookedSlotsIndex.value,
+    applyBufferAfterBooked: false,
+  });
+  if (!slot) return null;
+
+  return {
+    dateIso: localDateIso,
+    label: `${localDateIso} @ ${slot.label}`,
+    slot,
+  };
+}
+
 function groupSlotDuration(slot = {}) {
   const explicit = Number(slot?.durationMinutes);
   if (Number.isFinite(explicit) && explicit > 0) return Math.round(explicit);
@@ -162,27 +198,59 @@ function getPaymentLineAmount(payment, code) {
   const row = lines.find((item) => String(item?.code || "") === code);
   return Number(row?.amount || 0);
 }
+
+function normalizeFanIdentity(value) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  if (normalized === "0") return null;
+  return normalized || null;
+}
+
+function resolveCurrentFanId() {
+  return normalizeFanIdentity(props.engine.getState("fanBooking.context.fanId"))
+    ?? normalizeFanIdentity(props.engine.getState("fanId"))
+    ?? normalizeFanIdentity(props.engine.getState("userId"));
+}
+
+function hasCurrentFanBookedGroupSlot(event = {}, slot = null) {
+  const eventId = event?.eventId || event?.id;
+  const currentFanId = fanId.value;
+  if (!eventId || currentFanId == null || currentFanId === "" || !slot) return false;
+
+  return isSlotBookedByUser({
+    eventId,
+    userId: currentFanId,
+    slot,
+    bookedSlotsIndex: bookedSlotsIndex.value,
+  });
+}
+
 function groupCardStats(event = {}) {
   const next = groupNextAvailable(event);
+  const display = next || groupDisplayFallback(event);
   const eventId = event?.eventId || event?.id;
   const slot = next?.slot || null;
+  const displaySlot = display?.slot || slot;
   const capacity = resolveGroupCapacity(event);
   const hasCapacity = Number.isFinite(capacity);
-  const joined = slot && eventId
-    ? countGroupSlotBookings({ eventId, slot, bookedSlotsIndex: bookedSlotsIndex.value })
+  const joined = displaySlot && eventId
+    ? countGroupSlotBookings({ eventId, slot: displaySlot, bookedSlotsIndex: bookedSlotsIndex.value })
     : 0;
   const remainingSpots = hasCapacity ? Math.max(0, capacity - joined) : null;
   const goal = eventGoalTokens(event);
   const reached = isEventGoalGroupEvent(event)
-    ? Math.min(goal, sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value }))
+    ? sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value })
     : 0;
   const goalPercent = goal > 0 ? Math.min(100, Math.max(0, Math.floor((reached / goal) * 100))) : 0;
+  const alreadyBookedByFanForSlot = isGroupEvent(event) && hasCurrentFanBookedGroupSlot(event, displaySlot);
+  const fullyBooked = !slot && !!displaySlot && hasCapacity && joined >= capacity;
+  const ctaDisabled = !slot || alreadyBookedByFanForSlot;
 
   return {
     next,
-    slot,
-    dateLabel: formatGroupDate(next?.dateIso),
-    timeLabel: formatGroupTime(slot),
+    slot: displaySlot,
+    dateLabel: formatGroupDate(display?.dateIso),
+    timeLabel: formatGroupTime(displaySlot),
     joined,
     capacity,
     hasCapacity,
@@ -193,6 +261,14 @@ function groupCardStats(event = {}) {
     goal,
     reached,
     goalPercent,
+    alreadyBookedByFanForSlot,
+    fullyBooked,
+    ctaDisabled,
+    actionLabel: alreadyBookedByFanForSlot
+      ? t("fan_booking_already_booked")
+      : fullyBooked
+        ? t("fan_booking_fully_booked")
+        : (isEventGoalGroupEvent(event) ? t("fan_booking_contribute_now") : t("fan_booking_join_event")),
   };
 }
 
@@ -226,7 +302,9 @@ function addOnPreview(event = {}) {
 }
 
 function nextAvailableLabel(event = {}) {
-  const next = computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
+  const next = isGroupEvent(event)
+    ? groupNextAvailable(event)
+    : computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
   if (!next) return t("fan_booking_no_upcoming_free_slot");
 
   const date = new Date(`${next.dateIso}T00:00:00`);
@@ -249,6 +327,7 @@ async function selectEvent(event) {
   if (isGroupEvent(event)) {
     const selected = groupNextAvailable(event);
     if (!selected?.slot) return;
+    if (hasCurrentFanBookedGroupSlot(event, selected.slot)) return;
 
     const duration = groupSlotDuration(selected.slot);
     const selectedDate = new Date(`${selected.dateIso}T00:00:00`);
@@ -437,7 +516,7 @@ watch(
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-4">
+                  <div v-if="currentGroupStats.joined > 0" class="flex items-center gap-4">
                     <svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                       <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" />
@@ -457,7 +536,7 @@ watch(
 
             <button
               type="button"
-              :disabled="!currentGroupStats.slot"
+              :disabled="currentGroupStats.ctaDisabled"
               @click="selectEvent(currentEvent)"
               class="flex w-full flex-none overflow-hidden text-left disabled:cursor-not-allowed disabled:opacity-60 md:rounded-b-3xl"
             >
@@ -467,9 +546,9 @@ watch(
               >
                 <div class="flex flex-col">
                   <span class="text-xl font-bold italic leading-8">
-                    {{ isEventGoalGroupEvent(currentEvent || {}) ? t("fan_booking_contribute_now") : t("fan_booking_join_event") }}
+                    {{ currentGroupStats.actionLabel }}
                   </span>
-                  <span class="text-xs font-medium leading-4">
+                  <span v-if="!currentGroupStats.ctaDisabled" class="text-xs font-medium leading-4">
                     {{
                       isEventGoalGroupEvent(currentEvent || {})
                         ? t("fan_booking_group_contribute_minimum_to_join", { tokens: formatTokens(currentGroupStats.minimumTokens) })

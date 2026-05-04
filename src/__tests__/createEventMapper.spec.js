@@ -120,8 +120,8 @@ describe("createEventMapper", () => {
       priceSetting: "fixedPricePerUser",
       basePrice: "1000",
       allowInstantBooking: false,
-      setMaxUsers: true,
-      maxUsers: "150",
+      enableMaxAttendees: true,
+      maxAttendees: "150",
       setMaxBookings: true,
       maxBookingsPerDay: "3",
       allowWaitlist: true,
@@ -144,8 +144,10 @@ describe("createEventMapper", () => {
     expect(mapped.priceSetting).toBe("fixedPricePerUser");
     expect(mapped.basePriceTokens).toBe(1000);
     expect(mapped.allowInstantBooking).toBe(true);
-    expect(mapped.enableMaxUsersInGroup).toBe(true);
-    expect(mapped.maxUsersInGroup).toBe(150);
+    expect(mapped.enableMaxAttendees).toBe(true);
+    expect(mapped.maxAttendees).toBe(150);
+    expect(mapped).not.toHaveProperty("enableMaxUsersInGroup");
+    expect(mapped).not.toHaveProperty("maxUsersInGroup");
     expect(mapped.enableMaxBookingsPerDay).toBeUndefined();
     expect(mapped.maxBookingsPerDay).toBeUndefined();
     expect(mapped.waitlistEnabled).toBeUndefined();
@@ -173,8 +175,8 @@ describe("createEventMapper", () => {
       enableMinContributionPerUser: true,
       minContributionPerUser: "1000",
       goalNotMet: "cancelEvent",
-      setMaxUsers: true,
-      maxUsers: "75",
+      enableMaxAttendees: true,
+      maxAttendees: "75",
       enableCancellationFee: true,
       cancellationFee: "20",
       allowAdvanceCancellation: true,
@@ -188,11 +190,31 @@ describe("createEventMapper", () => {
     expect(mapped.eventGoalTokens).toBe(8000);
     expect(mapped.minContributionPerUser).toBe(1000);
     expect(mapped.goalNotMet).toBe("cancelEvent");
-    expect(mapped.enableMaxUsersInGroup).toBe(true);
-    expect(mapped.maxUsersInGroup).toBe(75);
+    expect(mapped.enableMaxAttendees).toBe(true);
+    expect(mapped.maxAttendees).toBe(75);
+    expect(mapped).not.toHaveProperty("enableMaxUsersInGroup");
+    expect(mapped).not.toHaveProperty("maxUsersInGroup");
     expect(mapped.enableCancellationFee).toBe(true);
     expect(mapped.cancellationFeeTokens).toBe(20);
     expect(mapped.allowAdvanceCancelToAvoidMinCharge).toBe(true);
+  });
+
+  it("ignores legacy group max participant fields", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "group-event",
+      priceSetting: "fixedPricePerUser",
+      basePrice: "1000",
+      setMaxUsers: true,
+      maxUsers: "150",
+      enableMaxUsersInGroup: true,
+      maxUsersInGroup: 150,
+    });
+
+    expect(mapped.enableMaxAttendees).toBe(false);
+    expect(mapped).not.toHaveProperty("maxAttendees");
+    expect(mapped).not.toHaveProperty("enableMaxUsersInGroup");
+    expect(mapped).not.toHaveProperty("maxUsersInGroup");
   });
 
   it("derives group compatibility duration from the first availability slot", () => {

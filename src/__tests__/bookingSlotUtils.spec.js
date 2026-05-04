@@ -5,10 +5,16 @@ import {
   createSlotUiModel,
   isRangeBooked,
   isSlotBooked,
+  isSlotBookedByUser,
+  computeNextAvailableSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const eventId = "event_77";
 const localDateIso = "2030-01-15";
+
+function dateIsoFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function makeIndex(status) {
   return buildBookedSlotsIndex([
@@ -139,9 +145,9 @@ describe("booking slot utilities", () => {
     const event = {
       eventId,
       type: "group-event",
-      maxUsersInGroup: 2,
-      enableMaxUsersInGroup: true,
-      raw: { type: "group-event", maxUsersInGroup: 2, enableMaxUsersInGroup: true },
+      maxAttendees: 2,
+      enableMaxAttendees: true,
+      raw: { type: "group-event", maxAttendees: 2, enableMaxAttendees: true },
     };
     const slot = makeSlot("10:00", "13:00");
 
@@ -207,18 +213,195 @@ describe("booking slot utilities", () => {
       type: "group-event",
       enableMaxBookingsPerDay: true,
       maxBookingsPerDay: 1,
-      enableMaxUsersInGroup: true,
-      maxUsersInGroup: 2,
+      enableMaxAttendees: true,
+      maxAttendees: 2,
       raw: {
         type: "group-event",
         enableMaxBookingsPerDay: true,
         maxBookingsPerDay: 1,
-        enableMaxUsersInGroup: true,
-        maxUsersInGroup: 2,
+        enableMaxAttendees: true,
+        maxAttendees: 2,
       },
     };
     const groupSlot = makeSlot("11:00", "14:00");
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: groupSlot, bookedSlotsIndex }).disabled).toBe(false);
+  });
+
+  it("ignores legacy group capacity fields", () => {
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_1",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+    const event = {
+      eventId,
+      type: "group-event",
+      enableMaxUsersInGroup: true,
+      maxUsersInGroup: 1,
+      raw: { type: "group-event", enableMaxUsersInGroup: true, maxUsersInGroup: 1 },
+    };
+    const slot = makeSlot("10:00", "13:00");
+
+    expect(createSlotUiModel({ event, eventId, localDateIso, slot, bookedSlotsIndex }).disabled).toBe(false);
+  });
+
+  it("detects active group slot bookings by user and ignores cancelled rows", () => {
+    const slot = makeSlot("10:00", "13:00");
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_cancelled",
+        eventId,
+        userId: 2615,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "cancelled_user",
+      },
+      {
+        bookingId: "booking_other",
+        eventId,
+        userId: 2616,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+
+    expect(isSlotBookedByUser({ eventId, userId: 2615, slot, bookedSlotsIndex })).toBe(false);
+    expect(isSlotBookedByUser({ eventId, userId: 2616, slot, bookedSlotsIndex })).toBe(true);
+  });
+
+  it("detects active group slot bookings by fanId fallback", () => {
+    const slot = makeSlot("10:00", "13:00");
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_fan_id",
+        eventId,
+        fanId: 2615,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+
+    expect(isSlotBookedByUser({ eventId, userId: " 2615 ", slot, bookedSlotsIndex })).toBe(true);
+    expect(isSlotBookedByUser({ eventId, userId: 2616, slot, bookedSlotsIndex })).toBe(false);
+  });
+
+  it("detects active group slot bookings by nested user and fan id fallbacks", () => {
+    const slot = makeSlot("10:00", "13:00");
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_user_object",
+        eventId,
+        user: { id: "fan_nested_user" },
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_fan_object",
+        eventId,
+        fan: { userId: 2615 },
+        startIso: `${localDateIso}T11:00:00`,
+        endIso: `${localDateIso}T14:00:00`,
+        status: "confirmed",
+      },
+    ]);
+
+    expect(isSlotBookedByUser({ eventId, userId: "fan_nested_user", slot, bookedSlotsIndex })).toBe(true);
+    expect(isSlotBookedByUser({ eventId, userId: 2615, slot, bookedSlotsIndex })).toBe(true);
+    expect(isSlotBookedByUser({ eventId, userId: 2616, slot, bookedSlotsIndex })).toBe(false);
+  });
+
+  it("detects the reported HKT group slot as already booked by the current fan", () => {
+    const reportedEventId = "evt_a703b07e-e45e-45f3-a7b5-d261462e16b7";
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "b_evt_a703b07e-e45e-45f3-a7b5-d261462e16b7_1777813826709_37211",
+        eventId: reportedEventId,
+        userId: 2615,
+        startIso: "2026-05-04T14:00:00+08:00",
+        endIso: "2026-05-04T17:00:00+08:00",
+        status: "confirmed",
+      },
+    ]);
+    const localSlotDate = dateIsoFromDate(new Date("2026-05-04T14:00:00+08:00"));
+    const event = {
+      eventId: reportedEventId,
+      type: "group-event",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 180,
+        enableMaxAttendees: true,
+        maxAttendees: 2,
+        slots: [{
+          date: "2026-05-04",
+          times: [{ startTime: "14:00", endTime: "17:00", offHours: false }],
+        }],
+      },
+    };
+    const [slot] = buildCandidateSlotsForEventDate(event, localSlotDate, {
+      eventId: reportedEventId,
+      bookedSlotsIndex,
+    });
+
+    expect(isSlotBookedByUser({
+      eventId: reportedEventId,
+      userId: 2615,
+      slot,
+      bookedSlotsIndex,
+    })).toBe(true);
+  });
+
+  it("skips group slots already booked by the current user without treating other users as duplicates", () => {
+    const firstDateIso = new Date();
+    firstDateIso.setHours(0, 0, 0, 0);
+    firstDateIso.setDate(firstDateIso.getDate() + 1);
+    const secondDate = new Date(firstDateIso);
+    secondDate.setDate(secondDate.getDate() + 1);
+    const first = `${firstDateIso.getFullYear()}-${String(firstDateIso.getMonth() + 1).padStart(2, "0")}-${String(firstDateIso.getDate()).padStart(2, "0")}`;
+    const second = `${secondDate.getFullYear()}-${String(secondDate.getMonth() + 1).padStart(2, "0")}-${String(secondDate.getDate()).padStart(2, "0")}`;
+    const event = {
+      eventId,
+      type: "group-event",
+      localDateIso: first,
+      localStartHm: "10:00",
+      localEndHm: "13:00",
+      raw: {
+        type: "group-event",
+        repeatRule: "daily",
+        sessionDurationMinutes: 180,
+        enableMaxAttendees: true,
+        maxAttendees: 2,
+      },
+    };
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_current_user",
+        eventId,
+        userId: 2615,
+        startIso: `${first}T10:00:00`,
+        endIso: `${first}T13:00:00`,
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_other_user",
+        eventId,
+        userId: 2616,
+        startIso: `${second}T10:00:00`,
+        endIso: `${second}T13:00:00`,
+        status: "confirmed",
+      },
+    ]);
+
+    const next = computeNextAvailableSlot(event, bookedSlotsIndex, 2, { skipBookedByUserId: 2615 });
+
+    expect(next?.dateIso).toBe(second);
   });
 });

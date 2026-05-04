@@ -21,6 +21,48 @@ describe("event step validators", () => {
     expect(result.errors.some((error) => error.field === "duration")).toBe(false);
   });
 
+  it("requires an explicit base price for fixed-price group events", () => {
+    const result = step1Validator({
+      eventType: "group-event",
+      eventTitle: "Fixed group",
+      priceSetting: "fixedPricePerUser",
+      basePrice: "",
+      weeklyAvailability,
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field: "basePrice",
+        translationKey: "booking_validation_base_price_required",
+      }),
+    ]));
+  });
+
+  it.each(["0", "100"])("accepts fixed-price group basePrice %s", (basePrice) => {
+    const result = step1Validator({
+      eventType: "group-event",
+      eventTitle: "Fixed group",
+      priceSetting: "fixedPricePerUser",
+      basePrice,
+      weeklyAvailability,
+    });
+
+    expect(result.errors.some((error) => error.field === "basePrice")).toBe(false);
+  });
+
+  it("does not require base price for event-goal group events", () => {
+    const result = step1Validator({
+      eventType: "group-event",
+      eventTitle: "Group goal",
+      priceSetting: "eventGoal",
+      basePrice: "",
+      eventGoalTokens: 1000,
+      weeklyAvailability,
+    });
+
+    expect(result.errors.some((error) => error.field === "basePrice")).toBe(false);
+  });
+
   it("still requires private step 1 duration", () => {
     const result = step1Validator({
       eventType: "1on1-call",

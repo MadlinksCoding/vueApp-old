@@ -25,8 +25,8 @@
     cancellationFee: props.engine.state.cancellationFee || "",
     allowAdvanceCancellation: props.engine.state.allowAdvanceCancellation || false,
     advanceVoid: props.engine.state.advanceVoid || "",
-    setMaxUsers: props.engine.state.setMaxUsers || false,
-    maxUsers: props.engine.state.maxUsers || "",
+    enableMaxAttendees: props.engine.state.enableMaxAttendees || false,
+    maxAttendees: props.engine.state.maxAttendees || "",
     setReminders: props.engine.state.setReminders || false,
     remindMeTime: props.engine.state.remindMeTime || "",
     allowWaitlist: props.engine.state.allowWaitlist || false,
@@ -282,7 +282,7 @@
           <div class="flex flex-col gap-3">
 
             <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.setMaxUsers" :label="t('booking_set_max_users')"
+              <CheckboxGroup v-model="formData.enableMaxAttendees" :label="t('booking_group_maximum_participants')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[1px] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -295,7 +295,7 @@
               <div class="w-6 h-10" />
               <div
                 class="bg-white/50 w-44 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 inline-flex">
-                <input v-model="formData.maxUsers" type="number" placeholder="100" :disabled="!formData.setMaxUsers"
+                <input v-model="formData.maxAttendees" type="number" placeholder="100" :disabled="!formData.enableMaxAttendees"
                   class="bg-transparent outline-none w-full text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed" />
               </div>
             </div>

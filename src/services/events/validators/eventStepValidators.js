@@ -3,6 +3,10 @@ function asNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isBlank(value) {
+  return value === null || value === undefined || String(value).trim().length === 0;
+}
+
 function asError(field, translationKey, message, params = {}) {
   return { field, translationKey, message, params };
 }
@@ -128,9 +132,13 @@ export function step1Validator(state = {}) {
       }
     }
   } else {
-    const basePrice = asNumber(state?.basePrice);
-    if (basePrice == null || basePrice < 0) {
-      errors.push(asError("basePrice", "booking_validation_base_price_min", "Base price must be 0 or higher."));
+    if (isBlank(state?.basePrice)) {
+      errors.push(asError("basePrice", "booking_validation_base_price_required", "Base price is required."));
+    } else {
+      const basePrice = asNumber(state?.basePrice);
+      if (basePrice == null || basePrice < 0) {
+        errors.push(asError("basePrice", "booking_validation_base_price_min", "Base price must be 0 or higher."));
+      }
     }
   }
 
