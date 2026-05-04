@@ -1676,7 +1676,7 @@ onUnmounted(() => {
 
       <!-- My avatar — shows reader avatars from read_receipts -->
       <template #message.avatar.me="{ message }">
-        <template v-if="message.time || message.message_ts">
+        <!-- <template v-if="message.time || message.message_ts">
           <div v-if="getMessageReaders(message).length > 0" class="flex items-center gap-0.5">
             <div
               v-for="reader in getMessageReaders(message)"
@@ -1691,7 +1691,7 @@ onUnmounted(() => {
           </div>
           <div v-else class="w-[16px] h-[16px]"></div>
         </template>
-        <div v-else class="w-[16px] h-[16px]"></div>
+        <div v-else class="w-[16px] h-[16px]"></div> -->
       </template>
 
       <!-- Other avatar -->
