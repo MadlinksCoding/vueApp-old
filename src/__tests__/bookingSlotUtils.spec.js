@@ -8,6 +8,7 @@ import {
   isSlotBookedByUser,
   computeNextAvailableSlot,
   mapBookedSlotsToCalendarEvents,
+  sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 
 const eventId = "event_77";
@@ -354,6 +355,54 @@ describe("booking slot utilities", () => {
     expect(isSlotBookedByUser({ eventId, userId: "fan_nested_user", slot, bookedSlotsIndex })).toBe(true);
     expect(isSlotBookedByUser({ eventId, userId: 2615, slot, bookedSlotsIndex })).toBe(true);
     expect(isSlotBookedByUser({ eventId, userId: 2616, slot, bookedSlotsIndex })).toBe(false);
+  });
+
+  it("sums event goal contributions only for blocking bookings on the selected group slot", () => {
+    const slot = makeSlot("10:00", "13:00");
+    const bookedSlotsIndex = buildBookedSlotsIndex([
+      {
+        bookingId: "booking_selected_confirmed",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+        contributionTokens: 1000,
+      },
+      {
+        bookingId: "booking_selected_pending_payment",
+        eventId,
+        startIso: `${localDateIso}T11:00:00`,
+        endIso: `${localDateIso}T12:00:00`,
+        status: "pending",
+        paymentTotal: 200,
+      },
+      {
+        bookingId: "booking_selected_cancelled",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "cancelled",
+        contributionTokens: 5000,
+      },
+      {
+        bookingId: "booking_same_day_other_slot",
+        eventId,
+        startIso: `${localDateIso}T14:00:00`,
+        endIso: `${localDateIso}T17:00:00`,
+        status: "confirmed",
+        contributionTokens: 3000,
+      },
+      {
+        bookingId: "booking_other_occurrence",
+        eventId,
+        startIso: "2030-01-16T10:00:00",
+        endIso: "2030-01-16T13:00:00",
+        status: "confirmed",
+        contributionTokens: 4000,
+      },
+    ]);
+
+    expect(sumEventGoalContributionsForSlot({ eventId, slot, bookedSlotsIndex })).toBe(1200);
   });
 
   it("detects the reported HKT group slot as already booked by the current fan", () => {

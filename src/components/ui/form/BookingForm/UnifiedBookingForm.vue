@@ -53,6 +53,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
+const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 
 /**
  * Determine the active type.
@@ -159,6 +160,7 @@ const bookingFlow = createFlowStateEngine({
         maxAttendees: "",
         setReminders: false,
         eventType: "1on1-call",
+        creatorTimezone: DEFAULT_CREATOR_TIMEZONE,
         creatorId: null,
         eventCallType: "video",
         eventColorSkin: "#5549FF",
@@ -214,6 +216,38 @@ const resolveCreatorId = () => {
         engine: bookingFlow,
         fallback: props.embedded ? 1 : DEFAULT_VUE_CREATOR_ID,
     });
+};
+
+const getBrowserTimezone = () => {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (error) {
+        return "";
+    }
+};
+
+const resolveCreatorTimezone = () => {
+    const creatorData = props.creatorData && typeof props.creatorData === "object"
+        ? props.creatorData
+        : {};
+    const candidates = [
+        creatorData.timezone,
+        creatorData.time_zone,
+        creatorData.creatorTimezone,
+        getBrowserTimezone(),
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate !== "string") continue;
+        const normalized = candidate.trim();
+        if (normalized) return normalized;
+    }
+
+    return DEFAULT_CREATOR_TIMEZONE;
+};
+
+const syncCreatorTimezone = (reason = "creator-timezone-sync") => {
+    bookingFlow.setState("creatorTimezone", resolveCreatorTimezone(), { reason, silent: true });
 };
 
 const previewEventForFanFlow = computed(() => {
@@ -309,6 +343,7 @@ onMounted(() => {
     const resolvedCreatorId = resolveCreatorId();
     bookingFlow.setState("apiBaseUrl", props.apiBaseUrl || "", { reason: "initial-api-base-url", silent: true });
     bookingFlow.setState("creatorId", resolvedCreatorId, { reason: "initial-create-flow", silent: true });
+    syncCreatorTimezone("initial-create-flow");
     bookingFlow.setState(
         "eventType",
         currentType.value === "group" ? "group-event" : "1on1-call",
@@ -341,6 +376,14 @@ watch(
         bookingFlow.setState("creatorId", resolveCreatorId(), { reason: "creator-context-sync", silent: true });
         fetchCreatorBookedSlots(true);
     },
+);
+
+watch(
+    () => props.creatorData,
+    () => {
+        syncCreatorTimezone();
+    },
+    { deep: true },
 );
 
 watch(

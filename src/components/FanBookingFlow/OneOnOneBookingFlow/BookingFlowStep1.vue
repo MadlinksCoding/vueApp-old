@@ -7,7 +7,7 @@ import {
   hmToLabel,
   isSlotBookedByUser,
   resolveGroupCapacity,
-  sumEventGoalContributionsForEvent,
+  sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { buildBookingPaymentPreview } from "@/services/bookings/mappers/createBookingMapper.js";
 import {
@@ -129,7 +129,9 @@ function eventGoalMinimumTokens(event = {}) {
 }
 
 function groupNextAvailable(event = {}) {
-  return computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
+  const currentFanId = fanId.value;
+  const options = currentFanId ? { skipBookedByUserId: currentFanId } : {};
+  return computeNextAvailableSlot(event, bookedSlotsIndex.value, 45, options);
 }
 
 function localDateIsoFromDate(value) {
@@ -225,6 +227,28 @@ function hasCurrentFanBookedGroupSlot(event = {}, slot = null) {
   });
 }
 
+function isBlockingBookedRow(row = {}) {
+  const status = String(row?.status || "").toLowerCase();
+  return !status.includes("cancel");
+}
+
+function hasCurrentFanBookedGroupEvent(event = {}) {
+  const eventId = event?.eventId || event?.id;
+  const currentFanId = fanId.value;
+  if (!eventId || currentFanId == null || currentFanId === "") return false;
+
+  const byDate = bookedSlotsIndex.value?.[eventId];
+  if (!byDate || typeof byDate !== "object") return false;
+
+  return Object.values(byDate).some((rows) => (
+    Array.isArray(rows)
+    && rows.some((row) => (
+      isBlockingBookedRow(row)
+      && normalizeFanIdentity(row?.userId) === currentFanId
+    ))
+  ));
+}
+
 function groupCardStats(event = {}) {
   const next = groupNextAvailable(event);
   const display = next || groupDisplayFallback(event);
@@ -239,10 +263,13 @@ function groupCardStats(event = {}) {
   const remainingSpots = hasCapacity ? Math.max(0, capacity - joined) : null;
   const goal = eventGoalTokens(event);
   const reached = isEventGoalGroupEvent(event)
-    ? sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex: bookedSlotsIndex.value })
+    ? sumEventGoalContributionsForSlot({ eventId, slot: displaySlot, bookedSlotsIndex: bookedSlotsIndex.value })
     : 0;
   const goalPercent = goal > 0 ? Math.min(100, Math.max(0, Math.floor((reached / goal) * 100))) : 0;
-  const alreadyBookedByFanForSlot = isGroupEvent(event) && hasCurrentFanBookedGroupSlot(event, displaySlot);
+  const alreadyBookedByFanForSlot = isGroupEvent(event) && (
+    hasCurrentFanBookedGroupSlot(event, displaySlot)
+    || (!slot && !displaySlot && hasCurrentFanBookedGroupEvent(event))
+  );
   const fullyBooked = !slot && !!displaySlot && hasCapacity && joined >= capacity;
   const ctaDisabled = !slot || alreadyBookedByFanForSlot;
 

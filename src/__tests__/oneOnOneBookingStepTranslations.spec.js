@@ -398,6 +398,104 @@ describe("one-on-one booking step translations", () => {
     expect(privateWrapper.text()).toContain("Allow instant booking");
   });
 
+  it("syncs group fixed-price pricing controls into engine state", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: "group-event",
+      eventTitle: "Group fixed",
+      priceSetting: "fixedPricePerUser",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: { engine, bookingType: "group" },
+      global: mountOptions(),
+    });
+
+    await nextTick();
+    engine.setState.mockClear();
+
+    wrapper.vm.formData.priceSetting = "fixedPricePerUser";
+    wrapper.vm.formData.basePrice = "100";
+    wrapper.vm.formData.enableLongerDiscount = true;
+    wrapper.vm.formData.discountEventsCount = "3";
+    wrapper.vm.formData.discountPercentage = "20";
+    wrapper.vm.formData.enableCancellationFee = true;
+    wrapper.vm.formData.cancellationFee = "15";
+    wrapper.vm.formData.allowAdvanceCancellation = true;
+    wrapper.vm.formData.advanceVoid = "1";
+    wrapper.vm.formData.advanceCancelWindowUnit = "day";
+    wrapper.vm.formData.addOffHourSurcharge = true;
+    wrapper.vm.formData.offHourSurcharge = "10";
+    wrapper.vm.formData.enableMaxAttendees = true;
+    wrapper.vm.formData.maxAttendees = "8";
+    await nextTick();
+
+    expect(engine.state.priceSetting).toBe("fixedPricePerUser");
+    expect(engine.state.basePrice).toBe("100");
+    expect(engine.state.enableLongerDiscount).toBe(true);
+    expect(engine.state.discountEventsCount).toBe("3");
+    expect(engine.state.discountPercentage).toBe("20");
+    expect(engine.state.enableCancellationFee).toBe(true);
+    expect(engine.state.cancellationFee).toBe("15");
+    expect(engine.state.allowAdvanceCancellation).toBe(true);
+    expect(engine.state.advanceVoid).toBe("1");
+    expect(engine.state.advanceCancelWindowUnit).toBe("day");
+    expect(engine.state.addOffHourSurcharge).toBe(true);
+    expect(engine.state.offHourSurcharge).toBe("10");
+    expect(engine.state.enableMaxAttendees).toBe(true);
+    expect(engine.state.maxAttendees).toBe("8");
+  });
+
+  it("syncs group event-goal pricing controls into engine state", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: "group-event",
+      eventTitle: "Group goal",
+      priceSetting: "eventGoal",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: { engine, bookingType: "group" },
+      global: mountOptions(),
+    });
+
+    await nextTick();
+    engine.setState.mockClear();
+
+    wrapper.vm.formData.priceSetting = "eventGoal";
+    wrapper.vm.formData.eventGoalTokens = "8000";
+    wrapper.vm.formData.enableMinContributionPerUser = true;
+    wrapper.vm.formData.minContributionPerUser = "500";
+    wrapper.vm.formData.goalNotMet = "proceedWithoutGoalMet";
+    wrapper.vm.formData.enableCancellationFee = true;
+    wrapper.vm.formData.cancellationFee = "15";
+    wrapper.vm.formData.allowAdvanceCancellation = true;
+    wrapper.vm.formData.advanceVoid = "2";
+    wrapper.vm.formData.advanceCancelWindowUnit = "hour";
+    wrapper.vm.formData.addOffHourSurcharge = true;
+    wrapper.vm.formData.offHourSurcharge = "12";
+    wrapper.vm.formData.enableMaxAttendees = true;
+    wrapper.vm.formData.maxAttendees = "12";
+    await nextTick();
+
+    expect(engine.state.priceSetting).toBe("eventGoal");
+    expect(engine.state.eventGoalTokens).toBe("8000");
+    expect(engine.state.enableMinContributionPerUser).toBe(true);
+    expect(engine.state.minContributionPerUser).toBe("500");
+    expect(engine.state.goalNotMet).toBe("proceedWithoutGoalMet");
+    expect(engine.state.enableCancellationFee).toBe(true);
+    expect(engine.state.cancellationFee).toBe("15");
+    expect(engine.state.allowAdvanceCancellation).toBe(true);
+    expect(engine.state.advanceVoid).toBe("2");
+    expect(engine.state.advanceCancelWindowUnit).toBe("hour");
+    expect(engine.state.addOffHourSurcharge).toBe(true);
+    expect(engine.state.offHourSurcharge).toBe("12");
+    expect(engine.state.enableMaxAttendees).toBe(true);
+    expect(engine.state.maxAttendees).toBe("12");
+  });
+
   it("hides waitlist controls in private and group step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"

@@ -326,6 +326,7 @@ export const flowRegistry = {
         { type: "stateEngine", key: "fanBooking.catalog.bookedSlots", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.context.isFirstBookingForCreator", mode: "set", select: "isFirstBookingForCreator", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.context.eventBookingCountsByEventId", mode: "set", select: "eventBookingCountsByEventId", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "set", select: "meta", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "merge", value: { updatedAt: "@now" }, hydrateOnReadHit: true },
       ],

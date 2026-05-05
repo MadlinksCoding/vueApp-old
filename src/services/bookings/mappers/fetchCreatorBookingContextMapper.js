@@ -14,6 +14,7 @@ export function mapFetchCreatorBookingContextFromResponse(responseData = {}) {
     bookedSlots,
     bookedSlotsIndex,
     isFirstBookingForCreator: responseData?.isFirstBookingForCreator ?? null,
+    eventBookingCountsByEventId: responseData?.eventBookingCountsByEventId || {},
     stats: responseData?.stats || {},
     meta: {
       fetchedAt: Date.now(),

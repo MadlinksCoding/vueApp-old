@@ -6,9 +6,22 @@ import {
 } from "@/services/events/eventsApiUtils.js";
 import { formatLocalDateIso } from "@/services/bookings/utils/bookingSlotUtils.js";
 
+const DEFAULT_FAN_TIMEZONE = "Asia/Hong_Kong";
+
 function safeNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolveFanTimezone() {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof timeZone === "string" && timeZone.trim()
+      ? timeZone.trim()
+      : DEFAULT_FAN_TIMEZONE;
+  } catch (error) {
+    return DEFAULT_FAN_TIMEZONE;
+  }
 }
 
 function toWholeTokens(value) {
@@ -39,6 +52,12 @@ function isGroupEvent(event = {}) {
 function isEventGoalGroupEvent(event = {}) {
   const raw = event?.raw || {};
   return isGroupEvent(event) && String(raw?.priceSetting || event?.priceSetting || "").toLowerCase() === "eventgoal";
+}
+
+function isFixedPriceGroupEvent(event = {}) {
+  const raw = event?.raw || {};
+  const priceSetting = String(raw?.priceSetting || event?.priceSetting || "fixedPricePerUser").toLowerCase();
+  return isGroupEvent(event) && priceSetting === "fixedpriceperuser";
 }
 
 function resolveEventGoalMinimum(event = {}) {
@@ -206,6 +225,30 @@ function computeFirstTimeDiscount({ raw = {}, sessionSubtotal = 0, isFirstBookin
   };
 }
 
+function computeRecurringGroupDiscount({ event = {}, sessionSubtotal = 0, priorEventBookingCount = 0 }) {
+  if (!isFixedPriceGroupEvent(event)) return { percent: 0, discountTokens: 0, applies: false, priorEventBookingCount: 0 };
+
+  const raw = event?.raw || {};
+  if (!toBoolean(raw.enableDiscountForRecurring ?? event.enableDiscountForRecurring, false)) {
+    return { percent: 0, discountTokens: 0, applies: false, priorEventBookingCount: 0 };
+  }
+
+  const percent = safeNumber(raw.recurringDiscountPercentOfBase ?? event.recurringDiscountPercentOfBase, 0);
+  const minimumCount = safeNumber(raw.minEventsForRecurringDiscount ?? event.minEventsForRecurringDiscount, 2);
+  const priorCount = Math.max(0, Math.floor(safeNumber(priorEventBookingCount, 0)));
+
+  if (percent <= 0 || percent > 100 || sessionSubtotal <= 0 || priorCount < minimumCount) {
+    return { percent, discountTokens: 0, applies: false, priorEventBookingCount: priorCount };
+  }
+
+  return {
+    percent,
+    discountTokens: toWholeTokens(sessionSubtotal * percent / 100),
+    applies: true,
+    priorEventBookingCount: priorCount,
+  };
+}
+
 export function buildBookingPaymentPreview(
   event = {},
   durationMinutes = 15,
@@ -224,6 +267,7 @@ export function buildBookingPaymentPreview(
   const basePrice = safeNumber(raw.basePriceTokens ?? event.basePriceTokens, 0);
   const baseSessionMinutes = safeNumber(raw.sessionDurationMinutes ?? event.sessionDurationMinutes, 0);
   const eventGoalGroup = isEventGoalGroupEvent(event);
+  const priorEventBookingCount = safeNumber(options?.priorEventBookingCount ?? options?.eventBookingCountForEvent, 0);
   const contributionTokens = eventGoalGroup
     ? resolveContributionTokens(event, options)
     : null;
@@ -258,6 +302,7 @@ export function buildBookingPaymentPreview(
       discounts: {
         longerDiscount: { percent: 0, discountTokens: 0 },
         firstTimeDiscount: { percent: 0, discountTokens: 0 },
+        recurringEventDiscount: { percent: 0, discountTokens: 0, applies: false, priorEventBookingCount: 0 },
       },
     };
   }
@@ -320,6 +365,19 @@ export function buildBookingPaymentPreview(
     });
   }
 
+  const recurringEventDiscount = computeRecurringGroupDiscount({
+    event,
+    sessionSubtotal,
+    priorEventBookingCount,
+  });
+  if (recurringEventDiscount.discountTokens > 0) {
+    lines.push({
+      code: "recurring_event_discount",
+      label: `Recurring Event Discount (${recurringEventDiscount.percent}%)`,
+      amount: -1 * recurringEventDiscount.discountTokens,
+    });
+  }
+
   const offHoursSelected = toBoolean(selectedSlot?.offHours, false);
   const offHourSurchargeEnabled = toBoolean(raw.offHourSurcharge, false);
   const offHourSurchargePercent = safeNumber(raw.offHourSurchargePercent, 0);
@@ -352,6 +410,7 @@ export function buildBookingPaymentPreview(
     discounts: {
       longerDiscount,
       firstTimeDiscount,
+      recurringEventDiscount,
     },
   };
 }
@@ -379,8 +438,11 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   const endHkt = localDateTimeToHkt(endDateIso, endHm);
   const selectedAddOns = resolveAddOnSelections(state);
   const selectedSlot = resolveSelectedSlot(state);
+  const eventBookingCounts = state?.fanBooking?.context?.eventBookingCountsByEventId || {};
+  const priorEventBookingCount = safeNumber(eventBookingCounts?.[eventId], 0);
   const computed = buildBookingPaymentPreview(event, duration, selectedAddOns, selectedSlot, {
     isFirstBookingForCreator: state?.fanBooking?.context?.isFirstBookingForCreator,
+    priorEventBookingCount,
     contributionTokens: state?.bookingDetails?.contributionTokens
       ?? state?.fanBooking?.selection?.contributionTokens,
   });
@@ -391,6 +453,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
     creatorId,
     startIso: startHkt.iso,
     endIso: endHkt.iso,
+    fanTimezone: resolveFanTimezone(),
     durationMinutes: duration,
     ...(computed.contributionTokens != null ? { contributionTokens: computed.contributionTokens } : {}),
     requestedAddOns: computed.requestedAddOns,

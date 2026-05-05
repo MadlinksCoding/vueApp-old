@@ -178,6 +178,32 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
       };
     }
 
+    if (selectedEvent.eventId === "evt_group_step3_discount") {
+      return {
+        payment: {
+          lines: [
+            { code: "base", label: "Base Price", amount: 100 },
+            { code: "recurring_event_discount", label: "Recurring Event Discount (25%)", amount: -25 },
+            { code: "off_hour_surcharge", label: "Off-hour Surcharge (50%)", amount: 38 },
+          ],
+          total: 113,
+        },
+      };
+    }
+
+    if (selectedEvent.eventId === "evt_private_step3_discounts") {
+      return {
+        payment: {
+          lines: [
+            { code: "base", label: "Base Price", amount: 200 },
+            { code: "discount", label: "Longer Session Discount (20%)", amount: -40 },
+            { code: "first_time_discount", label: "First Time Discount (10%)", amount: -20 },
+          ],
+          total: 140,
+        },
+      };
+    }
+
     return {
       payment: {
         lines: [
@@ -233,9 +259,13 @@ vi.mock("@/components/FanBookingFlow/HelperComponents/OneOnOneBookingFlowLeftSid
 vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js", () => ({
   bookingFlowArrowRightIcon: "/arrow.webp",
   bookingFlowBackgroundImage: "/background.webp",
+  bookingFlowCrossWhiteIcon: "/close.webp",
   bookingFlowExBalanceImage: "/balance.webp",
+  bookingFlowMessageGreenIcon: "/message.webp",
+  bookingFlowPendingIcon: "/pending.webp",
   bookingFlowProfileImage: "/profile.webp",
   bookingFlowTokenIcon: "/token.webp",
+  bookingFlowVerifiedIcon: "/verified.webp",
 }));
 
 describe("BookingFlowStep3", () => {
@@ -600,5 +630,139 @@ describe("BookingFlowStep3", () => {
     expect(wrapper.text()).not.toContain("Change Schedule");
     expect(wrapper.text()).not.toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
     expect(wrapper.get("[data-test='left-sidebar']").attributes("data-show-approval-needed")).toBe("false");
+  });
+
+  it("renders recurring group discount and off-hour surcharge payment lines", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.state.bookingDetails = {
+      ...engine.state.bookingDetails,
+      selectedTime: {
+        value: "20:00",
+        startHm: "20:00",
+        endHm: "23:00",
+        offHours: true,
+      },
+      selectedDuration: { value: 180, price: 100 },
+      totalPrice: 113,
+      formattedTimeRange: "8:00 PM-11:00 PM",
+    };
+    engine.state.fanBooking.context.selectedEvent = {
+      eventId: "evt_group_step3_discount",
+      id: "evt_group_step3_discount",
+      type: "group-event",
+      eventType: "group-event",
+      title: "Fixed Group",
+      creatorName: "Creator Name",
+      priceSetting: "fixedPricePerUser",
+      basePriceTokens: 100,
+      raw: {
+        type: "group-event",
+        eventType: "group-event",
+        priceSetting: "fixedPricePerUser",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 180,
+      },
+    };
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain("Recurring Event Discount (25%)");
+    expect(text).toContain("Off-hour Surcharge (50%)");
+    expect(text).toContain("113");
+    expect(text).toContain("USD$ 6.78");
+    expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge (50%)"));
+    expect(text.indexOf("Off-hour Surcharge (50%)")).toBeLessThan(text.indexOf("Session Total"));
+  });
+
+  it("continues rendering longer-session and first-time discount payment lines", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.state.bookingDetails = {
+      ...engine.state.bookingDetails,
+      selectedDuration: { value: 60, price: 200 },
+      totalPrice: 140,
+    };
+    engine.state.fanBooking.context.selectedEvent = {
+      eventId: "evt_private_step3_discounts",
+      id: "evt_private_step3_discounts",
+      type: "1on1-call",
+      title: "Private Discounts",
+      creatorName: "Creator Name",
+      basePriceTokens: 100,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+      },
+    };
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain("Longer Session Discount (20%)");
+    expect(text).toContain("First Time Discount (10%)");
+    expect(text).toContain("140");
+    expect(text).toContain("USD$ 8.40");
+  });
+
+  it("shows the captured booking payment total on the success screen", async () => {
+    const engine = createEngine();
+    engine.state.bookingDetails.totalPrice = 100;
+    engine.state.fanBooking.booking = {
+      bookingId: "booking_discounted",
+      result: {
+        bookingId: "booking_discounted",
+        item: {
+          bookingId: "booking_discounted",
+          approvalStatus: "auto",
+          payment: {
+            total: 75,
+            lines: [
+              { code: "base", label: "Base Price", amount: 100 },
+              { code: "recurring_event_discount", label: "Recurring Event Discount (25%)", amount: -25 },
+            ],
+          },
+        },
+      },
+    };
+
+    const { default: BookingFlowStep4 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue");
+    const wrapper = mount(BookingFlowStep4, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("Total: 75 tokens");
+    expect(wrapper.text()).not.toContain("Total: 100 tokens");
   });
 });

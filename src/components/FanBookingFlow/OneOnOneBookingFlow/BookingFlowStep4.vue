@@ -39,7 +39,11 @@ const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bo
 const formattedDate = computed(() => bookingData.value.headerDateDisplay || '-');
 const timeRange = computed(() => bookingData.value.formattedTimeRange || '-');
 const duration = computed(() => bookingData.value.selectedDuration?.value || '15');
-const totalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
+const totalPrice = computed(() => {
+  const bookingPaymentTotal = Number(bookingItem.value?.payment?.total);
+  if (Number.isFinite(bookingPaymentTotal)) return bookingPaymentTotal;
+  return Number(bookingData.value.totalPrice || 0);
+});
 const firstTimeDiscountAmount = computed(() => Number(bookingData.value.firstTimeDiscountAmount || 0));
 
 const eventTitle = computed(() => (

@@ -280,6 +280,16 @@ describe("booking context flows", () => {
         stats: { total: 1 },
         __meta: { status: 200 },
       },
+      {
+        ok: true,
+        isFirstBookingForCreator: false,
+        __meta: { status: 200 },
+      },
+      {
+        ok: true,
+        countsByEventId: { event_77: 2 },
+        __meta: { status: 200 },
+      },
     ]);
 
     const result = await fetchCreatorBookingContextFlow({
@@ -298,5 +308,16 @@ describe("booking context flows", () => {
         params: expect.objectContaining({ eventId: "event_77" }),
       }),
     );
+    expect(api.get).toHaveBeenNthCalledWith(
+      4,
+      "https://api.example.test/bookings/fans/2615/event-booking-counts",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          eventIds: "event_77",
+          statuses: "confirmed,completed",
+        }),
+      }),
+    );
+    expect(result.data.eventBookingCountsByEventId).toEqual({ event_77: 2 });
   });
 });

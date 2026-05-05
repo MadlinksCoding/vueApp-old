@@ -24,6 +24,48 @@ const baseDraft = {
 };
 
 describe("createEventMapper", () => {
+  it("includes an explicit creator timezone for private events", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      creatorTimezone: "Asia/Manila",
+      basePrice: "120",
+    });
+
+    expect(mapped.type).toBe("1on1-call");
+    expect(mapped.creatorTimezone).toBe("Asia/Manila");
+  });
+
+  it("uses creatorData timezone aliases before browser fallback", () => {
+    const mapped = createEventMapper(
+      {
+        ...baseDraft,
+        eventType: "group-event",
+        priceSetting: "fixedPricePerUser",
+        basePrice: "1000",
+      },
+      {
+        creatorData: {
+          time_zone: "America/New_York",
+        },
+      },
+    );
+
+    expect(mapped.type).toBe("group-event");
+    expect(mapped.creatorTimezone).toBe("America/New_York");
+  });
+
+  it("falls back to a usable creator timezone when none is provided", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+    });
+
+    expect(typeof mapped.creatorTimezone).toBe("string");
+    expect(mapped.creatorTimezone.length).toBeGreaterThan(0);
+  });
+
   it("keeps private event price mapping unchanged", () => {
     const mapped = createEventMapper({
       ...baseDraft,
@@ -156,6 +198,9 @@ describe("createEventMapper", () => {
     expect(mapped.allowFanRecordingTokens).toBeUndefined();
     expect(mapped.allowPersonalRequestRequired).toBeUndefined();
     expect(mapped.addOns).toBeUndefined();
+    expect(mapped.enableDiscountForLonger).toBe(false);
+    expect(mapped.discountMinSessions).toBeUndefined();
+    expect(mapped.discountPercentOfBase).toBeUndefined();
     expect(mapped.enableDiscountForRecurring).toBe(true);
     expect(mapped.minEventsForRecurringDiscount).toBe(3);
     expect(mapped.recurringDiscountPercentOfBase).toBe(20);
@@ -177,6 +222,9 @@ describe("createEventMapper", () => {
       goalNotMet: "cancelEvent",
       enableMaxAttendees: true,
       maxAttendees: "75",
+      enableLongerDiscount: true,
+      discountEventsCount: "3",
+      discountPercentage: "20",
       enableCancellationFee: true,
       cancellationFee: "20",
       allowAdvanceCancellation: true,
@@ -192,6 +240,10 @@ describe("createEventMapper", () => {
     expect(mapped.goalNotMet).toBe("cancelEvent");
     expect(mapped.enableMaxAttendees).toBe(true);
     expect(mapped.maxAttendees).toBe(75);
+    expect(mapped.enableDiscountForLonger).toBe(false);
+    expect(mapped.enableDiscountForRecurring).toBe(false);
+    expect(mapped.minEventsForRecurringDiscount).toBeUndefined();
+    expect(mapped.recurringDiscountPercentOfBase).toBeUndefined();
     expect(mapped).not.toHaveProperty("enableMaxUsersInGroup");
     expect(mapped).not.toHaveProperty("maxUsersInGroup");
     expect(mapped.enableCancellationFee).toBe(true);

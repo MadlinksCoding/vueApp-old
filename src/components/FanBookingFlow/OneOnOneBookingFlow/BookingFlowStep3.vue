@@ -191,8 +191,11 @@ const mappedPayment = computed(() => {
 const mappedPaymentLines = computed(() => (
   Array.isArray(mappedPayment.value?.lines) ? mappedPayment.value.lines : []
 ));
+const findPaymentLine = (code) => (
+  mappedPaymentLines.value.find((row) => String(row?.code) === code) || null
+);
 const findLineAmount = (code) => {
-  const line = mappedPaymentLines.value.find((row) => String(row?.code) === code);
+  const line = findPaymentLine(code);
   return Number(line?.amount || 0);
 };
 const sessionCost = computed(() => {
@@ -204,11 +207,16 @@ const bookingFeeAmount = computed(() => {
   const amount = findLineAmount("booking_fee");
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
+const discountLineCodes = new Set([
+  'discount',
+  'first_time_discount',
+  'recurring_event_discount',
+]);
 const discountLines = computed(() => (
   mappedPaymentLines.value
     .filter((row) => {
       const code = String(row?.code || '');
-      return (code === 'discount' || code === 'first_time_discount') && Number(row?.amount || 0) < 0;
+      return discountLineCodes.has(code) && Number(row?.amount || 0) < 0;
     })
     .map((row) => ({
       code: String(row?.code || ''),
@@ -226,6 +234,10 @@ const firstTimeDiscountAmount = computed(() => {
 const offHourSurchargeAmount = computed(() => {
   const amount = findLineAmount("off_hour_surcharge");
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
+});
+const offHourSurchargeLabel = computed(() => {
+  const label = findPaymentLine("off_hour_surcharge")?.label;
+  return String(label || t("fan_booking_off_hour_surcharge"));
 });
 const baseTotalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
 const mappedPaymentTotal = computed(() => {
@@ -1705,18 +1717,6 @@ onBeforeUnmount(() => {
                             </div>
                           </div>
 
-                          <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
-                            <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
-                              <div class="flex justify-center items-center gap-0.5">
-                                <p class="text-sm leading-[20px]">+</p>
-                                <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
-                              </div>
-                            </div>
-                          </div>
-
                           <div v-if="false && bookingFeeAmount > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_booking_fee_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
@@ -1741,6 +1741,18 @@ onBeforeUnmount(() => {
                                 <p class="text-sm leading-[20px]">-</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                 <p class="text-sm leading-[20px]">{{ formatTokenCompact(row.amount) }}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ offHourSurchargeLabel }}</p>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <p class="text-sm leading-[20px]">+</p>
+                                <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
                               </div>
                             </div>
                           </div>

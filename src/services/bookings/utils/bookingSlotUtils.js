@@ -784,6 +784,25 @@ export function sumEventGoalContributionsForEvent({ eventId, bookedSlotsIndex = 
   return Math.max(0, Math.floor(total));
 }
 
+export function sumEventGoalContributionsForSlot({ eventId, slot, bookedSlotsIndex = {} }) {
+  const bookedRows = getBlockingBookedSlotsForRange({
+    eventId,
+    startMs: slot?.startMs,
+    endMs: slot?.endMs,
+    bookedSlotsIndex,
+  });
+
+  const seen = new Set();
+  const total = bookedRows.reduce((sum, booked, index) => {
+    const key = booked.bookingId || `${booked.startIso || booked.startMs}_${booked.endIso || booked.endMs}_${index}`;
+    if (seen.has(key)) return sum;
+    seen.add(key);
+    return sum + resolveBookedContributionTokens(booked);
+  }, 0);
+
+  return Math.max(0, Math.floor(total));
+}
+
 export function isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex = {} }) {
   if (!isGroupEvent(event)) return false;
   const capacity = resolveGroupCapacity(event);
