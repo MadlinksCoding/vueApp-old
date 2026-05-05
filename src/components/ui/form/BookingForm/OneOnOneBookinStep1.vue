@@ -488,10 +488,15 @@
     return `${twelveHour}:${String(safeMinute).padStart(2, "0")} ${period}`;
   }
 
-  const timeOptions = Array.from({ length: 48 }, (_, index) => {
-    const hours = Math.floor(index / 2);
-    const minutes = index % 2 === 0 ? "00" : "30";
-    const value = `${String(hours).padStart(2, "0")}:${minutes}`;
+  const TIME_OPTION_STEP_MINUTES = 5;
+  const MINUTES_PER_DAY = 24 * 60;
+  const timeSearchPlaceholder = "Search...";
+
+  const timeOptions = Array.from({ length: MINUTES_PER_DAY / TIME_OPTION_STEP_MINUTES }, (_, index) => {
+    const totalMinutes = index * TIME_OPTION_STEP_MINUTES;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     return { value, label: to12HourLabel(value) };
   });
 
@@ -1338,6 +1343,8 @@
                         <CustomDropdown
                           v-model="slot.startTime"
                           :options="timeOptions"
+                          :searchable="true"
+                          :searchPlaceholder="timeSearchPlaceholder"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
                           @update:modelValue="onSlotChanged"
                           buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
@@ -1354,6 +1361,8 @@
                       <CustomDropdown
                         v-model="slot.endTime"
                         :options="timeOptions"
+                        :searchable="true"
+                        :searchPlaceholder="timeSearchPlaceholder"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
                         @update:modelValue="onSlotChanged"
                         buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
@@ -1409,6 +1418,8 @@
                   <CustomDropdown
                     v-model="slot.startTime"
                     :options="timeOptions"
+                    :searchable="true"
+                    :searchPlaceholder="timeSearchPlaceholder"
                     @update:modelValue="onSlotChanged"
                     buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
@@ -1424,6 +1435,8 @@
                 <CustomDropdown
                   v-model="slot.endTime"
                   :options="timeOptions"
+                  :searchable="true"
+                  :searchPlaceholder="timeSearchPlaceholder"
                   @update:modelValue="onSlotChanged"
                   buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                   dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
@@ -1508,6 +1521,8 @@
                   <CustomDropdown
                     v-model="slot.startTime"
                     :options="timeOptions"
+                    :searchable="true"
+                    :searchPlaceholder="timeSearchPlaceholder"
                     @update:modelValue="onSlotChanged"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
@@ -1516,6 +1531,8 @@
                   <CustomDropdown
                     v-model="slot.endTime"
                     :options="timeOptions"
+                    :searchable="true"
+                    :searchPlaceholder="timeSearchPlaceholder"
                     @update:modelValue="onSlotChanged"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
