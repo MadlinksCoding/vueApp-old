@@ -10,6 +10,7 @@ import {
 } from "@/services/events/eventsApiUtils.js";
 
 const HKT_TIMEZONE = "Asia/Hong_Kong";
+const DEFAULT_CREATOR_TIMEZONE = HKT_TIMEZONE;
 
 const DAY_KEY_TO_INDEX = {
   sun: 0,
@@ -43,6 +44,43 @@ function nonEmptyString(value, fallback = "") {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
+}
+
+function readBrowserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function normalizeTimezoneCandidate(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function resolveCreatorTimezone(payload = {}, context = {}) {
+  const creatorData = context.creatorData && typeof context.creatorData === "object"
+    ? context.creatorData
+    : {};
+  const candidates = [
+    payload.creatorTimezone,
+    payload.creatorTimeZone,
+    payload.creator_timezone,
+    creatorData.timezone,
+    creatorData.time_zone,
+    creatorData.creatorTimezone,
+    context.creatorTimezone,
+    context.creatorTimeZone,
+    context.creator_timezone,
+    readBrowserTimezone(),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeTimezoneCandidate(candidate);
+    if (normalized) return normalized;
+  }
+
+  return DEFAULT_CREATOR_TIMEZONE;
 }
 
 function pickNumeric(value, fallback = null) {
@@ -542,9 +580,11 @@ function mapBasePayload(payload = {}, context = {}) {
   const primarySlot = derivePrimarySlot(payload, duration);
   const repeatRule = normalizeRepeatRule(nonEmptyString(payload.repeatRule, "weekly"));
   const dateRange = deriveDateRange(payload, primarySlot);
+  const creatorTimezone = resolveCreatorTimezone(payload, context);
 
   const mapped = {
     creatorId,
+    creatorTimezone,
     type,
     title: nonEmptyString(payload.eventTitle || payload.title, "Untitled Event"),
     description: nonEmptyString(payload.eventDescription || payload.description, "No description provided"),
@@ -559,7 +599,7 @@ function mapBasePayload(payload = {}, context = {}) {
     slots: buildRepeatSlots(repeatRule, payload, primarySlot, duration),
 
     allowLongerSessions: asBoolean(payload.allowLongerSessions, false),
-    enableDiscountForLonger: asBoolean(payload.enableLongerDiscount, false),
+    enableDiscountForLonger: type !== "group-event" && asBoolean(payload.enableLongerDiscount, false),
     enableFirstTimeDiscount: asBoolean(payload.enableFirstTimeDiscount, false),
     enableBookingFee: asBoolean(payload.enableBookingFee, false),
     allowInstantBooking: type === "group-event" ? true : asBoolean(payload.allowInstantBooking, false),
@@ -681,7 +721,8 @@ function mapBasePayload(payload = {}, context = {}) {
       withOptionalField(mapped, "maxAttendees", pickNumeric(payload.maxAttendees, 2));
     }
 
-    mapped.enableDiscountForRecurring = asBoolean(payload.enableLongerDiscount || payload.enableDiscountForRecurring, false);
+    mapped.enableDiscountForRecurring = mapped.priceSetting === "fixedPricePerUser"
+      && asBoolean(payload.enableLongerDiscount || payload.enableDiscountForRecurring, false);
 
     if (mapped.enableDiscountForRecurring) {
       withOptionalField(mapped, "minEventsForRecurringDiscount", pickNumeric(payload.discountEventsCount || payload.minEventsForRecurringDiscount, 2));

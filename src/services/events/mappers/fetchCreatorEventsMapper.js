@@ -8,6 +8,8 @@ import {
   extractHm,
 } from "@/services/events/eventsApiUtils.js";
 
+const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
+
 function normalizeNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -158,6 +160,7 @@ function normalizeEventItem(item = {}) {
     id: stableId,
     eventId: item.eventId || null,
     creatorId: item.creatorId || null,
+    creatorTimezone: normalizeString(item.creatorTimezone, DEFAULT_CREATOR_TIMEZONE),
     type: item.type || "1on1-call",
     status: item.status || "active",
     title: normalizeString(item.title, "Untitled Event"),

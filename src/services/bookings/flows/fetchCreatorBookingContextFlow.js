@@ -54,6 +54,15 @@ function shouldFetchFirstTimeDiscountStatus(payload = {}) {
   return creatorId != null && fanId != null && fanId > 0;
 }
 
+function extractEventIds(events = []) {
+  return Array.from(new Set(
+    events
+      .map((event) => event?.eventId || event?.id)
+      .map((eventId) => String(eventId || "").trim())
+      .filter(Boolean),
+  ));
+}
+
 export async function fetchCreatorBookingContextFlow({ payload, context, api }) {
   const baseUrl = getBookingsApiBaseUrl(context);
   const headers = context.requestHeaders || {};
@@ -108,6 +117,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
 
     const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
     let isFirstBookingForCreator = null;
+    let eventBookingCountsByEventId = {};
 
     const creatorId = toNumber(payload.creatorId, null);
     const fanId = toNumber(payload.fanId, null);
@@ -131,6 +141,31 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       }
 
       isFirstBookingForCreator = Boolean(eligibilityResponse?.isFirstBookingForCreator);
+
+      const eventIds = extractEventIds(rawEvents);
+      if (eventIds.length > 0) {
+        const countsResponse = await api.get(
+          `${baseUrl}/bookings/fans/${fanId}/event-booking-counts`,
+          {
+            params: {
+              eventIds: eventIds.join(","),
+              statuses: "confirmed,completed",
+            },
+            signal: context.signal,
+            timeoutMs: context.requestTimeoutMs,
+          },
+        );
+
+        if (countsResponse?.ok === false) {
+          return fail({
+            code: "FETCH_EVENT_BOOKING_COUNTS_FAILED",
+            message: countsResponse?.error || "Failed to fetch event booking counts.",
+            details: countsResponse,
+          });
+        }
+
+        eventBookingCountsByEventId = countsResponse?.countsByEventId || {};
+      }
     }
 
     return ok(
@@ -138,6 +173,7 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
         rawEvents,
         bookedSlots,
         isFirstBookingForCreator,
+        eventBookingCountsByEventId,
         stats: bookedSlotsResponse?.stats || {},
       },
       {

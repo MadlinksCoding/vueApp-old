@@ -1,10 +1,77 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildBookingPaymentPreview,
   mapCreateBookingToRequest,
 } from "@/services/bookings/mappers/createBookingMapper.js";
 
 describe("create booking mapper", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockBrowserTimezone(timeZone) {
+    const OriginalDateTimeFormat = Intl.DateTimeFormat;
+
+    vi.spyOn(Intl, "DateTimeFormat").mockImplementation((...args) => {
+      const formatter = new OriginalDateTimeFormat(...args);
+      const originalResolvedOptions = formatter.resolvedOptions.bind(formatter);
+
+      formatter.resolvedOptions = () => ({
+        ...originalResolvedOptions(),
+        timeZone: args.length === 0 ? timeZone : originalResolvedOptions().timeZone,
+      });
+
+      return formatter;
+    });
+  }
+
+  function baseBookingState() {
+    return {
+      fanBooking: {
+        context: {
+          fanId: 2615,
+          creatorId: 1407,
+          selectedEvent: {
+            eventId: "evt_private",
+            creatorId: 1407,
+            type: "1on1-call",
+            basePriceTokens: 100,
+            raw: { type: "1on1-call", basePriceTokens: 100 },
+          },
+        },
+        selection: {
+          selectedDate: "2030-01-15",
+        },
+      },
+      bookingDetails: {
+        selectedDate: new Date("2030-01-15T00:00:00"),
+        selectedTime: {
+          localDateIso: "2030-01-15",
+          startHm: "10:00",
+          endHm: "10:30",
+          value: "10:00",
+        },
+        selectedDuration: { value: 30, price: 100 },
+      },
+    };
+  }
+
+  it("includes the fan browser timezone in create booking payloads", () => {
+    mockBrowserTimezone("America/New_York");
+
+    const mapped = mapCreateBookingToRequest(baseBookingState());
+
+    expect(mapped.fanTimezone).toBe("America/New_York");
+  });
+
+  it("falls back to Hong Kong timezone when browser timezone is unavailable", () => {
+    mockBrowserTimezone(undefined);
+
+    const mapped = mapCreateBookingToRequest(baseBookingState());
+
+    expect(mapped.fanTimezone).toBe("Asia/Hong_Kong");
+  });
+
   it("maps group bookings to the selected slot end and derived duration", () => {
     const state = {
       fanBooking: {
@@ -63,6 +130,101 @@ describe("create booking mapper", () => {
     expect(preview.payment.total).toBe(100);
   });
 
+  it("applies group recurring discount once prior confirmed/completed count reaches the minimum", () => {
+    const event = {
+      eventId: "evt_group_discount",
+      creatorId: 1407,
+      type: "group-event",
+      priceSetting: "fixedPricePerUser",
+      basePriceTokens: 200,
+      raw: {
+        type: "group-event",
+        priceSetting: "fixedPricePerUser",
+        basePriceTokens: 200,
+        enableDiscountForRecurring: true,
+        minEventsForRecurringDiscount: 2,
+        recurringDiscountPercentOfBase: 25,
+      },
+    };
+
+    const below = buildBookingPaymentPreview(event, 180, [], {}, { priorEventBookingCount: 1 });
+    expect(below.payment.lines.some((line) => line.code === "recurring_event_discount")).toBe(false);
+    expect(below.payment.total).toBe(200);
+
+    const preview = buildBookingPaymentPreview(event, 180, [], {}, { priorEventBookingCount: 2 });
+    expect(preview.payment.lines).toContainEqual({
+      code: "recurring_event_discount",
+      label: "Recurring Event Discount (25%)",
+      amount: -50,
+    });
+    expect(preview.payment.total).toBe(150);
+
+    const mapped = mapCreateBookingToRequest({
+      fanBooking: {
+        context: {
+          fanId: 2615,
+          creatorId: 1407,
+          selectedEvent: event,
+          eventBookingCountsByEventId: {
+            evt_group_discount: 2,
+          },
+        },
+        selection: {
+          selectedDate: "2030-01-15",
+        },
+      },
+      bookingDetails: {
+        selectedDate: new Date("2030-01-15T00:00:00"),
+        selectedTime: {
+          localDateIso: "2030-01-15",
+          startHm: "10:00",
+          endHm: "13:00",
+          value: "10:00",
+        },
+        selectedDuration: { value: 180, price: 200 },
+      },
+    });
+
+    expect(mapped.payment.lines).toContainEqual({
+      code: "recurring_event_discount",
+      label: "Recurring Event Discount (25%)",
+      amount: -50,
+    });
+    expect(mapped.payment.total).toBe(150);
+  });
+
+  it("adds off-hour surcharge when the selected group slot is marked off-hours", () => {
+    const event = {
+      eventId: "evt_group_off_hour",
+      creatorId: 1407,
+      type: "group-event",
+      priceSetting: "fixedPricePerUser",
+      basePriceTokens: 100,
+      raw: {
+        type: "group-event",
+        priceSetting: "fixedPricePerUser",
+        basePriceTokens: 100,
+        offHourSurcharge: true,
+        offHourSurchargePercent: 8,
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(
+      event,
+      180,
+      [],
+      { offHours: true },
+      {},
+    );
+
+    expect(preview.payment.lines).toContainEqual({
+      code: "off_hour_surcharge",
+      label: "Off-hour Surcharge (8%)",
+      amount: 8,
+    });
+    expect(preview.payment.total).toBe(108);
+  });
+
   it("maps event-goal group contribution into preview and request payload", () => {
     const event = {
       eventId: "evt_goal",
@@ -76,10 +238,13 @@ describe("create booking mapper", () => {
         minContributionPerUser: 100,
         enableBookingFee: true,
         bookingFeeTokens: 25,
+        enableDiscountForRecurring: true,
+        minEventsForRecurringDiscount: 2,
+        recurringDiscountPercentOfBase: 25,
       },
     };
 
-    const preview = buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 250 });
+    const preview = buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 250, priorEventBookingCount: 3 });
     expect(preview.contributionTokens).toBe(250);
     expect(preview.payment.lines).toEqual([
       { code: "event_goal_contribution", label: "Event Goal Contribution", amount: 250 },

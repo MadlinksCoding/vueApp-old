@@ -498,8 +498,9 @@ describe("BookingFlowStep1 group cards", () => {
     },
   );
 
-  it("does not auto-skip to the next occurrence when the current fan booked the first displayed slot", async () => {
+  it("skips to the next occurrence when the current fan booked the first displayed slot", async () => {
     const firstDateIso = localDateOffset(1);
+    const secondDateIso = localDateOffset(2);
     const event = groupEvent(firstDateIso, {
       raw: {
         repeatRule: "daily",
@@ -519,11 +520,74 @@ describe("BookingFlowStep1 group cards", () => {
       }],
     });
 
-    const cta = wrapper.findAll("button").find((button) => button.text().includes("Already booked"));
+    expect(wrapper.text()).toContain(expectedDateLabel(secondDateIso));
+    const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
     expect(cta.exists()).toBe(true);
-    expect(cta.attributes("disabled")).toBeDefined();
+    expect(cta.attributes("disabled")).toBeUndefined();
     await cta.trigger("click");
 
-    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(secondDateIso);
+  });
+
+  it("skips to the next event-goal occurrence when the current fan booked the first displayed slot", async () => {
+    const firstDateIso = localDateOffset(1);
+    const secondDateIso = localDateOffset(2);
+    const thirdDateIso = localDateOffset(3);
+    const event = groupEvent(firstDateIso, {
+      basePriceTokens: 0,
+      eventGoalTokens: 8000,
+      minContributionPerUser: 500,
+      raw: {
+        repeatRule: "daily",
+        priceSetting: "eventGoal",
+        basePriceTokens: 0,
+        eventGoalTokens: 8000,
+        minContributionPerUser: 500,
+        enableMaxAttendees: false,
+      },
+    });
+    const { engine, wrapper } = await mountStep1({
+      event,
+      bookedSlots: [{
+        bookingId: "booking_current_fan_goal",
+        eventId: event.eventId,
+        userId: 2615,
+        startIso: `${firstDateIso}T10:00:00`,
+        endIso: `${firstDateIso}T13:00:00`,
+        status: "confirmed",
+        contributionTokens: 1000,
+      }, {
+        bookingId: "booking_second_slot_goal",
+        eventId: event.eventId,
+        userId: 2616,
+        startIso: `${secondDateIso}T10:00:00`,
+        endIso: `${secondDateIso}T13:00:00`,
+        status: "confirmed",
+        contributionTokens: 750,
+      }, {
+        bookingId: "booking_other_goal_occurrence",
+        eventId: event.eventId,
+        userId: 2617,
+        startIso: `${thirdDateIso}T10:00:00`,
+        endIso: `${thirdDateIso}T13:00:00`,
+        status: "confirmed",
+        contributionTokens: 3000,
+      }],
+    });
+
+    expect(wrapper.text()).toContain(expectedDateLabel(secondDateIso));
+    expect(wrapper.text()).toContain("750/8,000 Tokens");
+    expect(wrapper.text()).toContain("9% event goal reached");
+    expect(wrapper.text()).not.toContain("1,750/8,000 Tokens");
+    expect(wrapper.text()).not.toContain("4,750/8,000 Tokens");
+    const cta = wrapper.findAll("button").find((button) => button.text().includes("Contribute Now"));
+    expect(cta.exists()).toBe(true);
+    expect(cta.attributes("disabled")).toBeUndefined();
+    await cta.trigger("click");
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedDate).toBe(secondDateIso);
+    expect(engine.state.fanBooking.selection.contributionTokens).toBe(500);
   });
 });

@@ -16,14 +16,20 @@ export async function cancelBookingFlow({ payload, context, api }) {
   }
 
   try {
+    const requestBody = {
+      actor: payload?.actor || "creator",
+      reason: payload?.reason || "",
+      waiveFees: !!payload?.waiveFees,
+      args: payload?.args && typeof payload.args === "object" ? payload.args : {},
+    };
+
+    if (typeof payload?.refund === "boolean") {
+      requestBody.refund = payload.refund;
+    }
+
     const response = await api.post(
       `${baseUrl}/bookings/${encodeURIComponent(bookingId)}/cancel`,
-      {
-        actor: payload?.actor || "creator",
-        reason: payload?.reason || "",
-        waiveFees: !!payload?.waiveFees,
-        args: payload?.args && typeof payload.args === "object" ? payload.args : {},
-      },
+      requestBody,
       {
         headers,
         signal: context.signal,
