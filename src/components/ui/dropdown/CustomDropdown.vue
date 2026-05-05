@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { computed, nextTick, ref, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
   modelValue: { type: [String, Array, Object, Number], default: null },
@@ -10,13 +10,42 @@ const props = defineProps({
   dropdownClass: { type: String, default: 'w-full bg-white shadow-lg overflow-y-auto max-h-60 border border-gray-100' },
   optionClass: { type: String, default: 'p-3 text-gray-700' },
   hasCheckboxes: { type: Boolean, default: false },
+  searchable: { type: Boolean, default: false },
+  searchPlaceholder: { type: String, default: 'Search...' },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
 const isOpen = ref(false);
 const dropdownRef = ref(null);
+const searchInputRef = ref(null);
+const searchQuery = ref('');
 
-const toggleDropdown = () => (isOpen.value = !isOpen.value);
+const filteredOptions = computed(() => {
+  if (!props.searchable) return props.options;
+
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return props.options;
+
+  return props.options.filter((option) => {
+    const label = String(option?.label ?? '').toLowerCase();
+    const value = String(option?.value ?? '').toLowerCase();
+    return label.includes(query) || value.includes(query);
+  });
+});
+
+const clearSearch = () => {
+  searchQuery.value = '';
+};
+
+const toggleDropdown = () => {
+  isOpen.value = !isOpen.value;
+  if (isOpen.value) {
+    clearSearch();
+    if (props.searchable) nextTick(() => searchInputRef.value?.focus());
+  } else {
+    clearSearch();
+  }
+};
 
 const selectOption = (option) => {
   if (props.multiple) {
@@ -31,6 +60,7 @@ const selectOption = (option) => {
     emit('update:modelValue', option.value);
     emit('change', option.value);
     isOpen.value = false;
+    clearSearch();
   }
 };
 
@@ -38,6 +68,7 @@ const selectOption = (option) => {
 const handleClickOutside = (event) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     isOpen.value = false;
+    clearSearch();
   }
 };
 
@@ -70,8 +101,28 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
         v-if="isOpen"
         :class="['absolute z-50 mt-1', dropdownClass]"
       >
+        <div
+          v-if="searchable"
+          class="sticky top-0 z-10 bg-white p-1"
+          @click.stop
+        >
+          <input
+            ref="searchInputRef"
+            v-model="searchQuery"
+            type="search"
+            :placeholder="searchPlaceholder"
+            class="w-full bg-white px-2 py-2 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 border-b border-gray-200 focus:border-gray-300"
+            @keydown.stop
+          />
+        </div>
+        <div
+          v-if="filteredOptions.length === 0"
+          class="p-3 text-sm text-gray-500"
+        >
+          No options found
+        </div>
         <div 
-          v-for="option in options" 
+          v-for="option in filteredOptions" 
           :key="option.value"
           @click="selectOption(option)"
           class="cursor-pointer hover:bg-[#EAECF0] transition-colors"

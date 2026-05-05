@@ -78,7 +78,8 @@ function mountOptions(translations = {}) {
         template: "<label><span>{{ label }}</span><span>{{ wrapperLabel }}</span></label>",
       },
       CustomDropdown: {
-        props: ["options"],
+        name: "CustomDropdown",
+        props: ["options", "searchable", "searchPlaceholder"],
         template: "<div><span v-for='option in options' :key='option.value'>{{ option.label }}</span></div>",
       },
       InputComponentDashbaord: {
@@ -132,6 +133,45 @@ describe("one-on-one booking step translations", () => {
     }
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
+  });
+
+  it("offers searchable five-minute availability time options", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          weeklyAvailability: [{
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            offHours: false,
+            slots: [{ startTime: "09:00", endTime: "10:00", offHours: false }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const timeDropdowns = wrapper
+      .findAllComponents({ name: "CustomDropdown" })
+      .filter((dropdown) => dropdown.props("options")?.some((option) => option.value === "09:05"));
+
+    expect(timeDropdowns.length).toBeGreaterThan(0);
+
+    const options = timeDropdowns[0].props("options");
+    expect(options).toHaveLength(288);
+    expect(options[0]).toEqual({ value: "00:00", label: "12:00 AM" });
+    expect(options).toContainEqual({ value: "09:05", label: "9:05 AM" });
+    expect(options.at(-1)).toEqual({ value: "23:55", label: "11:55 PM" });
+
+    timeDropdowns.forEach((dropdown) => {
+      expect(dropdown.props("searchable")).toBe(true);
+      expect(dropdown.props("searchPlaceholder")).toBe("Search...");
+    });
   });
 
   it("renders translated overrides in step 1", async () => {
