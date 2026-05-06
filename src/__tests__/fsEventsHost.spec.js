@@ -59,6 +59,32 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(popup.iframe.src).not.toContain("locale=es-MX");
   });
 
+  it("posts inviteSecret in fan booking bootstrap without putting it in the iframe URL", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 25,
+      eventId: "evt_invite",
+      inviteSecret: "invite_secret_123",
+    });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    popup.iframe.dispatchEvent(new Event("load"));
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_FAN_BOOKING_BOOTSTRAP",
+        payload: expect.objectContaining({
+          eventId: "evt_invite",
+          inviteSecret: "invite_secret_123",
+        }),
+      }),
+      window.location.origin,
+    );
+    expect(popup.iframe.src).toContain("eventId=evt_invite");
+    expect(popup.iframe.src).not.toContain("inviteSecret");
+    expect(popup.iframe.src).not.toContain("invite_secret_123");
+  });
+
   it("posts translations and locale in events mount bootstrap without putting them in the iframe URL", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);

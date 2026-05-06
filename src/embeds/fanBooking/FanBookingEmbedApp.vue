@@ -5,6 +5,7 @@
         :creator-id="bootstrap.creatorId"
         :fan-id="bootstrap.fanId"
         :event-id="bootstrap.eventId"
+        :invite-secret="bootstrap.inviteSecret"
         :api-base-url="bootstrap.apiBaseUrl"
         :creator-data="bootstrap.creatorData"
         embedded

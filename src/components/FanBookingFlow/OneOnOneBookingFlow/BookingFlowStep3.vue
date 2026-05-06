@@ -24,7 +24,8 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatSocket } from '@/composables/useChatSocket';
 import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
 import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
-import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
+import { getBookingsApiBaseUrl } from '@/services/bookings/bookingsApiUtils.js';
+import { formatBookingValidationErrors, useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
 let topUpFormPrefetchPromise = null;
@@ -89,6 +90,8 @@ const props = defineProps({
 
 const emit = defineEmits(['booking-created', 'booking-failed']);
 const { t } = useBookingTranslations();
+const isAcceptingInvite = ref(false);
+let inviteAcceptPromise = null;
 
 // --- RETRIEVE DATA FROM ENGINE ---
 const bookingData = computed(() => {
@@ -107,6 +110,8 @@ const creatorPresentationLoading = computed(() => (
   props.engine.getState('fanBooking.context.creatorPresentationLoading') === true
 ));
 const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bookingFlowBackgroundImage);
+
+const inviteSecret = computed(() => String(props.engine.getState('fanBooking.context.inviteSecret') || '').trim());
 
 const topUpFormRef = ref(null);
 const isSubmitting = ref(false);
@@ -428,6 +433,10 @@ const remainingBalance = computed(() => {
 const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - totalPrice.value);
 const isTopUpSubstep = computed(() => paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
 const isGuestFlow = computed(() => resolveFanId() <= 0 || !getBackendJwtToken());
+const isInviteOnlyEvent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  return String(raw?.whoCanBook || selectedEvent.value?.whoCanBook || '') === 'inviteOnly';
+});
 
 const temporaryHold = computed(() => props.engine.getState('fanBooking.temporaryHold') || {});
 const hasBookingCreated = computed(() => Boolean(
@@ -458,6 +467,84 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+function isInviteAcceptedForCurrentSecret() {
+  const acceptedSecret = String(props.engine.getState('fanBooking.context.inviteAcceptedSecret') || '').trim();
+  return Boolean(
+    props.engine.getState('fanBooking.context.inviteAccepted') === true
+    && acceptedSecret
+    && acceptedSecret === inviteSecret.value
+  );
+}
+
+async function acceptInviteForAuthenticatedFan({ silent = false } = {}) {
+  if (!isInviteOnlyEvent.value || !inviteSecret.value) return true;
+  if (isInviteAcceptedForCurrentSecret()) return true;
+
+  const fanId = resolveFanId();
+  const jwtToken = getBackendJwtToken();
+  if (fanId <= 0 || !jwtToken) {
+    if (!silent) {
+      showToast({
+        type: 'error',
+        title: t('fan_booking_invite_accept_failed_title'),
+        message: t('fan_booking_invite_login_required'),
+      });
+    }
+    return false;
+  }
+
+  if (inviteAcceptPromise) return inviteAcceptPromise;
+  isAcceptingInvite.value = true;
+
+  inviteAcceptPromise = (async () => {
+    const baseUrl = getBookingsApiBaseUrl({ apiBaseUrl: props.apiBaseUrl || undefined });
+    const response = await fetch(`${baseUrl}/events/invite/accept-auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwtToken}`,
+      },
+      body: JSON.stringify({ inviteSecret: inviteSecret.value }),
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.message || payload?.error || t('fan_booking_invite_accept_failed_message'));
+    }
+
+    props.engine.setState('fanBooking.context.inviteAccepted', true, { reason: 'invite-accepted', silent: true });
+    props.engine.setState('fanBooking.context.inviteAcceptedSecret', inviteSecret.value, { reason: 'invite-accepted', silent: true });
+    logFanBookingDebug('step3', 'invite-accept:success', {
+      eventId: payload?.eventId || selectedEvent.value?.eventId || null,
+      fanId,
+      alreadyInvited: !!payload?.alreadyInvited,
+    });
+    return true;
+  })();
+
+  try {
+    return await inviteAcceptPromise;
+  } catch (error) {
+    props.engine.setState('fanBooking.context.inviteAccepted', false, { reason: 'invite-accept-failed', silent: true });
+    props.engine.setState('fanBooking.context.inviteAcceptError', error?.message || '', { reason: 'invite-accept-failed', silent: true });
+    logFanBookingDebug('step3', 'invite-accept:error', {
+      message: error?.message || String(error),
+      fanId,
+    });
+    if (!silent) {
+      showToast({
+        type: 'error',
+        title: t('fan_booking_invite_accept_failed_title'),
+        message: error?.message || t('fan_booking_invite_accept_failed_message'),
+      });
+    }
+    return false;
+  } finally {
+    isAcceptingInvite.value = false;
+    inviteAcceptPromise = null;
+  }
+}
 
 function formatTokenCompact(value) {
   const num = Number(value);
@@ -577,10 +664,20 @@ function extractBackendMessage(flowResult) {
   if (code === "CREATE_BOOKING_MISSING_REQUIRED_FIELDS" && missingFields.length > 0) {
     return t('fan_booking_missing_required_fields', { fields: missingFields.join(', ') });
   }
+  const validationErrors = details?.validation?.errors;
+  if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+    return formatBookingValidationErrors(validationErrors, t).join(' ');
+  }
   const validationMessages = details?.validation?.messages;
   if (Array.isArray(validationMessages) && validationMessages.length > 0) {
     return validationMessages.join(' ');
   }
+  const translatedByCode = {
+    CREATE_BOOKING_FAILED: 'fan_booking_booking_failed_message',
+    HTTP_422: 'fan_booking_validation_failed_review',
+    HTTP_402: 'fan_booking_insufficient_token_balance',
+  }[code];
+  if (translatedByCode) return t(translatedByCode);
   return flowResult?.error?.message
     || flowResult?.meta?.uiErrors?.[0]
     || t('fan_booking_complete_failed_message');
@@ -684,6 +781,7 @@ async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = tru
   if (!hasUserId) return false;
 
   props.engine.setState('fanBooking.context.fanId', userId, { reason: 'auth-user-id', silent: true });
+  await acceptInviteForAuthenticatedFan({ silent: true });
 
   const creatorId = resolveCreatorId();
   if (Number.isFinite(Number(creatorId)) && Number(creatorId) > 0) {
@@ -1245,6 +1343,15 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
       return;
     }
 
+    const inviteAccepted = await acceptInviteForAuthenticatedFan();
+    if (!inviteAccepted) {
+      emit('booking-failed', {
+        type: 'invite-accept',
+        message: t('fan_booking_invite_accept_failed_message'),
+      });
+      return;
+    }
+
     const result = await props.engine.callFlow('bookings.createBooking', null, {
       context: {
         stateEngine: props.engine,
@@ -1499,6 +1606,7 @@ onMounted(() => {
 
   scheduleTopUpPrefetch('step3-mounted');
   ensureContributionDefault();
+  acceptInviteForAuthenticatedFan({ silent: true });
   refreshWalletBalance();
 });
 

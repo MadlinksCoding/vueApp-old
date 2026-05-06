@@ -9,6 +9,7 @@ const DEFAULT_BOOTSTRAP = {
   creatorId: null,
   fanId: null,
   eventId: null,
+  inviteSecret: "",
   apiBaseUrl: "",
   jwtToken: "",
   creatorData: {
@@ -39,6 +40,11 @@ function normalizeEventId(value) {
   return normalized ? normalized : null;
 }
 
+function normalizeInviteSecret(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
 function toPositiveNumberOr(value, fallback = null) {
   const numeric = toNumberOr(value, fallback);
   if (numeric == null) return fallback;
@@ -56,6 +62,7 @@ export function normalizeOneOnOneBookingBootstrap(payload = {}) {
     creatorId: toPositiveNumberOr(payload.creatorId, null),
     fanId: toNonNegativeNumberOr(payload.fanId, null),
     eventId: normalizeEventId(payload.eventId),
+    inviteSecret: normalizeInviteSecret(payload.inviteSecret || payload.invite_secret),
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
@@ -77,6 +84,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.creatorId = normalized.creatorId;
   bootstrapState.fanId = normalized.fanId;
   bootstrapState.eventId = normalized.eventId;
+  bootstrapState.inviteSecret = normalized.inviteSecret;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
@@ -89,6 +97,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
       creatorId: bootstrapState.creatorId,
       fanId: bootstrapState.fanId,
       eventId: bootstrapState.eventId,
+      inviteSecret: bootstrapState.inviteSecret,
       apiBaseUrl: bootstrapState.apiBaseUrl,
       jwtToken: bootstrapState.jwtToken,
       creatorData: bootstrapState.creatorData,
@@ -145,6 +154,7 @@ export function readOneOnOneBookingBootstrapFromUrl() {
     creatorId,
     fanId,
     eventId: params.get("eventId"),
+    inviteSecret: params.get("inviteSecret") || params.get("invite_secret") || "",
     apiBaseUrl: params.get("apiBaseUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     creatorAvatar: params.get("creatorAvatar"),
