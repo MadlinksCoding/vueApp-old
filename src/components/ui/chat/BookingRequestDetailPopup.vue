@@ -126,7 +126,7 @@
               <!-- Date and Time -->
               <div class="inline-flex items-start gap-4">
                 <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden mt-0.5">
-                  <img src="/images/alarmIcon.png" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                  <img :src="AlarmIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
                 </div>
                 <div class="inline-flex flex-col justify-center items-start gap-1">
                   <div class="text-gray-950 text-sm font-semibold leading-5">
@@ -146,7 +146,7 @@
               <!-- Guest -->
               <div v-if="guestLabel" class="inline-flex items-start gap-4">
                 <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden mt-0.5">
-                  <img src="/images/profile.webp" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                  <img :src="ProfileIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
                 </div>
                 <div class="inline-flex flex-col justify-center items-start gap-2">
                   <div class="inline-flex items-center gap-2">
@@ -171,7 +171,7 @@
               <!-- Additional Request -->
               <div v-if="additionalRequestLines.length" class="inline-flex items-start gap-4 w-full">
                 <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden mt-0.5">
-                  <img src="/images/dotpoints.png" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                  <img :src="DotPointsIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
                 </div>
                 <div class="inline-flex flex-col items-start gap-2.5 flex-1">
                   <div class="text-gray-950 text-sm font-semibold leading-5">Additional request</div>
@@ -184,7 +184,7 @@
               <!-- Minimum Charge -->
               <div v-if="minimumChargeLabel" class="inline-flex items-start gap-4">
                 <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden">
-                  <img src="/images/dollar.png" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                  <img :src="DollarIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
                 </div>
                 <div class="inline-flex flex-col items-start gap-1.5">
                   <div class="text-gray-950 text-sm font-semibold leading-5">Minimum charge</div>
@@ -195,7 +195,7 @@
               <!-- Reminder -->
               <div v-if="reminderLabel" class="inline-flex items-center gap-4">
                 <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden">
-                  <img src="/images/bell-1.webp" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                  <img :src="BellIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
                 </div>
                 <div class="text-gray-950 text-sm font-normal leading-5">{{ reminderLabel }}</div>
               </div>
@@ -312,6 +312,11 @@ import MessageTextIconBlue from '@/assets/images/icons/messageblue.webp'
 import ArrowRightIcon     from '@/assets/images/icons/arrow-up-right.webp'
 import EditIcon           from '@/assets/images/icons/edit-05.webp'
 import HourglassIcon      from '@/assets/images/icons/hourglass-03.webp'
+import AlarmIcon          from '@/assets/images/icons/alarmIcon.png'
+import ProfileIcon        from '@/assets/images/icons/profile.webp'
+import DotPointsIcon      from '@/assets/images/icons/dotpoints.png'
+import DollarIcon         from '@/assets/images/icons/dollar.png'
+import BellIcon           from '@/assets/images/icons/bell-1.webp'
 import { localDateTimeToHkt, hktDateTimeToLocalDate } from "@/services/events/eventsApiUtils.js";
 
 const chatStore = useChatStore()
