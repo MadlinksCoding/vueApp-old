@@ -164,12 +164,13 @@ onMounted(() => {
               </div>
             </div>
             <div class="w-full flex flex-col justify-start items-center gap-2 mt-[50px]">
-              <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer">
+              <!-- Nay Temp hide this one: -->
+              <!-- <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer">
                 <div class="w-6 h-6 relative overflow-hidden">
                   <img :src="bookingFlowMessageGreenIcon" alt="message-icon" />
                 </div>
                 <div class="text-center justify-start text-green-500 text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
-              </div>
+              </div> -->
             </div>
           </div>
       </div>
