@@ -1480,7 +1480,7 @@ const createEvent = async () => {
                   <div class="relative">
                     <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
                       <img src="" alt="">
-                      <span class="text-xs text-white">{{ t("booking_count") }}</span>
+                      <span class="hidden text-xs text-white">{{ t("booking_count") }}</span>
                     </div>
                     <img
                     :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"

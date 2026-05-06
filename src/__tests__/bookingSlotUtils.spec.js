@@ -143,6 +143,24 @@ describe("booking slot utilities", () => {
     expect(slots[0].durationMinutes).toBe(180);
   });
 
+  it("respects recurring event dateFrom and dateTo when building monthly candidate slots", () => {
+    const event = {
+      eventId,
+      localDateIso: "2026-05-06",
+      raw: {
+        repeatRule: "monthly",
+        dateFrom: "2026-05-06",
+        dateTo: "2026-05-21",
+        sessionDurationMinutes: 5,
+        slots: [{ startTime: "04:45", endTime: "16:25" }],
+      },
+    };
+
+    expect(buildCandidateSlotsForEventDate(event, "2026-05-06", { eventId })).not.toHaveLength(0);
+    expect(buildCandidateSlotsForEventDate(event, "2026-06-06", { eventId })).toEqual([]);
+    expect(buildCandidateSlotsForEventDate(event, "2026-04-06", { eventId })).toEqual([]);
+  });
+
   it("allows group slot overlaps until capacity is reached", () => {
     const bookedSlotsIndex = buildBookedSlotsIndex([
       {

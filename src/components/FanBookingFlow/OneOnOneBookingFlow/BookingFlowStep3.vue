@@ -657,9 +657,84 @@ const sessionTotalTokens = computed(() => Math.max(0, Number(totalPrice.value ||
 const sessionTotalUsdDisplay = computed(() => tokensToUsdDisplay(sessionTotalTokens.value));
 const amountDueUsdDisplay = computed(() => tokensToUsdDisplay(totalPrice.value));
 
+const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
+  missing_bearer_token: 'fan_booking_error_missing_bearer_token',
+  missing_jwt_secret_key: 'fan_booking_error_missing_jwt_secret_key',
+  invalid_jwt_issuer: 'fan_booking_error_invalid_jwt_issuer',
+  invalid_jwt_audience: 'fan_booking_error_invalid_jwt_audience',
+  jwt_expired: 'fan_booking_error_jwt_expired',
+  invalid_jwt_user_id: 'fan_booking_error_invalid_jwt_user_id',
+  invalid_jwt_token: 'fan_booking_error_invalid_jwt_token',
+  missing_backend_auth_context: 'fan_booking_error_missing_backend_auth_context',
+  auth_user_resolution_failed: 'fan_booking_error_auth_user_resolution_failed',
+  missing_test_fan_id: 'fan_booking_error_missing_test_fan_id',
+  'payload is required': 'fan_booking_error_payload_required',
+  missing_required_fields: 'fan_booking_error_missing_required_fields',
+  invalid_booking_time: 'fan_booking_error_invalid_booking_time',
+  invalid_fan_timezone: 'fan_booking_error_invalid_fan_timezone',
+  temporary_hold_not_found_or_expired: 'fan_booking_error_temporary_hold_not_found_or_expired',
+  temporary_hold_guest_not_converted: 'fan_booking_error_temporary_hold_guest_not_converted',
+  user_blocked: 'fan_booking_error_user_blocked',
+  event_not_found: 'fan_booking_error_event_not_found',
+  event_not_active: 'fan_booking_error_event_not_active',
+  event_full: 'fan_booking_error_event_full',
+  slot_already_taken: 'fan_booking_error_slot_already_taken',
+  already_booked_for_slot: 'fan_booking_error_already_booked_for_slot',
+  booking_already_in_progress: 'fan_booking_error_booking_already_in_progress',
+  invalid_user_event_slot_guard: 'fan_booking_error_invalid_user_event_slot_guard',
+  daily_booking_limit_reached: 'fan_booking_error_daily_booking_limit_reached',
+  creator_mismatch: 'fan_booking_error_creator_mismatch',
+  temporary_hold_mismatch: 'fan_booking_error_temporary_hold_mismatch',
+  token_hold_failed: 'fan_booking_error_token_hold_failed',
+  token_hold_missing_txid: 'fan_booking_error_token_hold_missing_txid',
+  invalid_payment_total: 'fan_booking_error_invalid_payment_total',
+  internal_error: 'fan_booking_error_internal_error',
+});
+
+function normalizeBackendErrorCode(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function resolveBackendErrorTranslationKey(flowResult, wrapperCode) {
+  const errorPayload = flowResult?.error;
+  const errorObject = errorPayload && typeof errorPayload === 'object' ? errorPayload : {};
+  const details = errorObject?.details && typeof errorObject.details === 'object' ? errorObject.details : {};
+  const response = details?.response && typeof details.response === 'object' ? details.response : {};
+  const responseData = response?.data && typeof response.data === 'object' ? response.data : {};
+  const detailsData = details?.data && typeof details.data === 'object' ? details.data : {};
+  const resultData = flowResult?.data && typeof flowResult.data === 'object' ? flowResult.data : {};
+
+  const candidates = [
+    details?.error,
+    details?.code,
+    responseData?.error,
+    responseData?.code,
+    response?.error,
+    response?.code,
+    detailsData?.error,
+    detailsData?.code,
+    resultData?.error,
+    resultData?.code,
+    errorObject?.error,
+    errorObject?.code,
+    typeof errorPayload === 'string' ? errorPayload : '',
+    flowResult?.code,
+    wrapperCode,
+  ];
+
+  for (const candidate of candidates) {
+    const key = BACKEND_BOOKING_ERROR_TRANSLATIONS[normalizeBackendErrorCode(candidate)];
+    if (key) return key;
+  }
+
+  return null;
+}
+
 function extractBackendMessage(flowResult) {
-  const code = flowResult?.error?.code || "";
-  const details = flowResult?.error?.details || {};
+  const errorPayload = flowResult?.error;
+  const errorObject = errorPayload && typeof errorPayload === 'object' ? errorPayload : {};
+  const code = errorObject?.code || (typeof errorPayload === 'string' ? errorPayload : "");
+  const details = errorObject?.details && typeof errorObject.details === 'object' ? errorObject.details : {};
   const missingFields = Array.isArray(details?.missingFields) ? details.missingFields : [];
   if (code === "CREATE_BOOKING_MISSING_REQUIRED_FIELDS" && missingFields.length > 0) {
     return t('fan_booking_missing_required_fields', { fields: missingFields.join(', ') });
@@ -672,6 +747,8 @@ function extractBackendMessage(flowResult) {
   if (Array.isArray(validationMessages) && validationMessages.length > 0) {
     return validationMessages.join(' ');
   }
+  const backendTranslationKey = resolveBackendErrorTranslationKey(flowResult, code);
+  if (backendTranslationKey) return t(backendTranslationKey);
   const translatedByCode = {
     CREATE_BOOKING_FAILED: 'fan_booking_booking_failed_message',
     HTTP_422: 'fan_booking_validation_failed_review',

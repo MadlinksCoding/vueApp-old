@@ -389,6 +389,16 @@ function shouldIncludeWeeklyDate({ repeatRule, repeatX, dateFrom, candidateHktDa
   return gapWeeks % interval === 0;
 }
 
+function isRecurringDateWithinEventRange(event = {}, candidateHktDateIso) {
+  const raw = event?.raw || {};
+  const dateFrom = extractDateIso(raw.dateFrom ?? event.dateFrom, null);
+  const dateTo = extractDateIso(raw.dateTo ?? event.dateTo, null);
+
+  if (dateFrom && candidateHktDateIso < dateFrom) return false;
+  if (dateTo && candidateHktDateIso > dateTo) return false;
+  return true;
+}
+
 function buildLocalSlotFromHkt({
   hktDateIso,
   startHm,
@@ -463,7 +473,10 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
     addDays(centerHktDateIso, -1),
     centerHktDateIso,
     addDays(centerHktDateIso, 1),
-  ];
+  ].filter((candidateHktDateIso) => (
+    repeatRule === "doesNotRepeat"
+      || isRecurringDateWithinEventRange(event, candidateHktDateIso)
+  ));
 
   const built = [];
 

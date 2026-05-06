@@ -160,6 +160,12 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
   mapCreateBookingToRequest: (state = {}) => {
     const selectedEvent = state?.fanBooking?.context?.selectedEvent || {};
     const raw = selectedEvent.raw || {};
+    const requiredBookingFields = {
+      eventId: selectedEvent.eventId || selectedEvent.id || "evt_123",
+      creatorId: state?.fanBooking?.context?.creatorId || 793,
+      startIso: "2026-03-24T10:00:00.000Z",
+      endIso: "2026-03-24T10:15:00.000Z",
+    };
     const isEventGoalGroup = String(selectedEvent.type || raw.type || "").toLowerCase() === "group-event"
       && String(selectedEvent.priceSetting || raw.priceSetting || "").toLowerCase() === "eventgoal";
     if (isEventGoalGroup) {
@@ -170,6 +176,7 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
           ?? 1,
       );
       return {
+        ...requiredBookingFields,
         contributionTokens: contribution,
         payment: {
           lines: [{ code: "event_goal_contribution", amount: contribution }],
@@ -180,6 +187,7 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
 
     if (selectedEvent.eventId === "evt_group_step3_discount") {
       return {
+        ...requiredBookingFields,
         payment: {
           lines: [
             { code: "base", label: "Base Price", amount: 100 },
@@ -193,6 +201,7 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
 
     if (selectedEvent.eventId === "evt_private_step3_discounts") {
       return {
+        ...requiredBookingFields,
         payment: {
           lines: [
             { code: "base", label: "Base Price", amount: 200 },
@@ -205,6 +214,7 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
     }
 
     return {
+      ...requiredBookingFields,
       payment: {
         lines: [
           { code: "base", amount: 900 },
@@ -274,6 +284,24 @@ describe("BookingFlowStep3", () => {
     showToast.mockReset();
     backendJwtToken = "jwt_test";
   });
+
+  async function mountAndSubmitStep3(engine, props = {}) {
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+        ...props,
+      },
+    });
+
+    await flushAsync();
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await flushAsync();
+
+    return wrapper;
+  }
 
   it("checks balance using engine context ids even if the shared resolver falls back", async () => {
     tokenGet.mockResolvedValue({
@@ -484,6 +512,174 @@ describe("BookingFlowStep3", () => {
       }),
     );
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("translates all known direct create-booking backend error codes", async () => {
+    const cases = [
+      ["missing_bearer_token", "Please log in to complete your booking."],
+      ["missing_jwt_secret_key", "Could not verify your session. Please try again."],
+      ["invalid_jwt_issuer", "Your session could not be verified. Please log in again."],
+      ["invalid_jwt_audience", "Your session could not be verified. Please log in again."],
+      ["jwt_expired", "Your session has expired. Please log in again."],
+      ["invalid_jwt_user_id", "Your session could not be verified. Please log in again."],
+      ["invalid_jwt_token", "Your session could not be verified. Please log in again."],
+      ["missing_backend_auth_context", "Your session could not be verified. Please try again."],
+      ["auth_user_resolution_failed", "Could not resolve your account for this booking. Please log in again."],
+      ["missing_test_fan_id", "Could not resolve the fan account for this booking."],
+      ["payload is required", "Could not complete booking because booking details were missing."],
+      ["missing_required_fields", "Some booking details are missing. Please review your selection."],
+      ["invalid_booking_time", "Please choose a valid booking time."],
+      ["invalid_fan_timezone", "Please choose a valid fan timezone."],
+      ["temporary_hold_not_found_or_expired", "Your reserved slot expired. Please choose the time again."],
+      ["temporary_hold_guest_not_converted", "Please log in to finish booking your reserved slot."],
+      ["temporary_hold_mismatch", "Your reserved slot no longer matches this booking. Please choose the time again."],
+      ["event_not_found", "This event is no longer available."],
+      ["event_not_active", "This event is no longer active."],
+      ["creator_mismatch", "This booking could not be matched to the creator."],
+      ["user_blocked", "You are blocked from booking this event."],
+      ["already_booked_for_slot", "You have already booked this time slot."],
+      ["booking_already_in_progress", "A booking is already being created for this event time. Please wait a moment and try again."],
+      ["invalid_user_event_slot_guard", "Could not reserve this group slot. Please try again."],
+      ["event_full", "This event is full."],
+      ["slot_already_taken", "This time slot is no longer available."],
+      ["daily_booking_limit_reached", "This event has reached its booking limit for that day."],
+      ["token_hold_failed", "Could not reserve tokens for this booking."],
+      ["token_hold_missing_txid", "Could not reserve tokens for this booking. Please try again."],
+      ["invalid_payment_total", "The booking total is invalid. Please refresh and try again."],
+      ["internal_error", "Could not complete booking. Please try again."],
+    ];
+
+    for (const [backendCode, expectedMessage] of cases) {
+      tokenGet.mockResolvedValue({
+        data: {
+          balance: 3000,
+        },
+      });
+      showToast.mockReset();
+      const engine = createEngine();
+      engine.callFlow.mockImplementation(async (flowName) => {
+        if (flowName === "bookings.createBooking") {
+          return {
+            ok: false,
+            error: {
+              code: "CREATE_BOOKING_FAILED",
+              details: {
+                error: backendCode,
+              },
+            },
+          };
+        }
+        return { ok: true, data: {} };
+      });
+
+      await mountAndSubmitStep3(engine);
+
+      expect(showToast, backendCode).toHaveBeenCalledWith(expect.objectContaining({
+        type: "error",
+        title: "Booking Failed",
+        message: expectedMessage,
+      }));
+    }
+  });
+
+  it("prefers structured validation errors over mapped backend booking codes", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            details: {
+              error: "user_blocked",
+              validation: {
+                errors: [{
+                  code: "subscription_required",
+                  translationKey: "fan_booking_validation_subscription_required_tier",
+                  params: { tier_name: "Gold" },
+                }],
+              },
+            },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "An active subscription to Gold is required.",
+    }));
+  });
+
+  it("keeps legacy validation messages ahead of backend booking code mapping", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            details: {
+              error: "user_blocked",
+              validation: {
+                messages: ["Legacy validation copy."],
+              },
+            },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "Legacy validation copy.",
+    }));
+  });
+
+  it("falls back to generic booking failure copy for unknown backend booking codes", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            details: {
+              error: "some_new_backend_code",
+            },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "Could not complete booking. Please try again.",
+    }));
   });
 
   it("renders event-goal group contribution controls in step 3 and updates booking state", async () => {

@@ -108,6 +108,23 @@ function createPrivateEvent(dateIso = "2030-01-15") {
   };
 }
 
+function createMonthlyPrivateEventWithDateRange() {
+  return {
+    ...createPrivateEvent("2026-05-06"),
+    eventId: "evt_monthly_range",
+    id: "evt_monthly_range",
+    dateFrom: "2026-05-06",
+    dateTo: "2026-05-21",
+    raw: {
+      ...createPrivateEvent("2026-05-06").raw,
+      repeatRule: "monthly",
+      dateFrom: "2026-05-06",
+      dateTo: "2026-05-21",
+      slots: [{ startTime: "04:45", endTime: "16:25" }],
+    },
+  };
+}
+
 function createMountedStep({
   dateIso = "2030-01-15",
   selectedEvent = createGroupEvent(dateIso),
@@ -151,7 +168,23 @@ function createMountedStep({
           },
           stubs: {
             MiniCalendar: {
-              template: "<div class='mini-calendar-stub' />",
+              props: ["minDate", "maxDate", "events"],
+              emits: ["date-selected"],
+              methods: {
+                formatDate(date) {
+                  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+                  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                },
+              },
+              template: `
+                <div class="mini-calendar-stub">
+                  <span class="mini-calendar-min">{{ formatDate(minDate) }}</span>
+                  <span class="mini-calendar-max">{{ formatDate(maxDate) }}</span>
+                  <span class="mini-calendar-events">{{ events.length }}</span>
+                  <button class="mini-calendar-valid" type="button" @click="$emit('date-selected', new Date('2026-05-06T00:00:00'))">valid</button>
+                  <button class="mini-calendar-after" type="button" @click="$emit('date-selected', new Date('2026-06-06T00:00:00'))">after</button>
+                </div>
+              `,
             },
             OneOnOneBookingFlowLeftSideBar: {
               props: ["timeDisplay", "duration"],
@@ -286,6 +319,36 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
     expect(wrapper.text()).toContain("OTHER REQUEST");
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it("passes event date bounds to the calendar and ignores out-of-range date selections", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-06T09:00:00"));
+
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2026-05-06",
+      selectedEvent: createMonthlyPrivateEventWithDateRange(),
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find(".mini-calendar-min").text()).toBe("2026-05-06");
+    expect(wrapper.find(".mini-calendar-max").text()).toBe("2026-05-21");
+    expect(wrapper.find(".mini-calendar-events").text()).toBe("1");
+
+    await wrapper.find(".mini-calendar-after").trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain("SELECT CALL START TIME");
+
+    await wrapper.find(".mini-calendar-valid").trigger("click");
+    await nextTick();
+
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
   });
 
 });
