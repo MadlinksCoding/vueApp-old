@@ -16,7 +16,7 @@ import {
   isRangeBooked,
   isSlotBookedByUser,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
-import { addMinutesToHm } from '@/services/events/eventsApiUtils.js';
+import { addMinutesToHm, extractDateIso } from '@/services/events/eventsApiUtils.js';
 import {
   bookingFlowArrowRightIcon,
   bookingFlowBackgroundImage,
@@ -98,6 +98,34 @@ const walletBalance = ref(0);
 const groupAutoRedirecting = ref(false);
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
+const todayDateIso = computed(() => formatLocalDateIso(new Date()));
+const eventDateFromIso = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  return extractDateIso(raw.dateFrom ?? event.dateFrom, null);
+});
+const eventDateToIso = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  return extractDateIso(raw.dateTo ?? event.dateTo, null);
+});
+const minSelectableDateIso = computed(() => {
+  const todayIso = todayDateIso.value;
+  const fromIso = eventDateFromIso.value;
+  if (todayIso && fromIso) return todayIso > fromIso ? todayIso : fromIso;
+  return todayIso || fromIso || null;
+});
+const maxSelectableDateIso = computed(() => eventDateToIso.value || null);
+const minSelectableDate = computed(() => {
+  if (!minSelectableDateIso.value) return null;
+  const date = new Date(`${minSelectableDateIso.value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+const maxSelectableDate = computed(() => {
+  if (!maxSelectableDateIso.value) return null;
+  const date = new Date(`${maxSelectableDateIso.value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
 const isGroupEvent = computed(() => String(
   selectedEvent.value?.type
     || selectedEvent.value?.eventType
@@ -634,6 +662,8 @@ const events1 = computed(() => {
     date.setDate(date.getDate() + offset);
     const dateIso = formatLocalDateIso(date);
     if (!dateIso) continue;
+    if (minSelectableDateIso.value && dateIso < minSelectableDateIso.value) continue;
+    if (maxSelectableDateIso.value && dateIso > maxSelectableDateIso.value) continue;
 
     const slots = buildCandidateSlotsForEventDate(event, dateIso, {
       eventId: event.eventId,
@@ -674,6 +704,13 @@ const events1 = computed(() => {
   return rows;
 });
 
+function isDateIsoSelectable(dateIso) {
+  if (!dateIso) return false;
+  if (minSelectableDateIso.value && dateIso < minSelectableDateIso.value) return false;
+  if (maxSelectableDateIso.value && dateIso > maxSelectableDateIso.value) return false;
+  return true;
+}
+
 const onSelectFromMini = (date) => {
   const picked = new Date(date);
   if (Number.isNaN(picked.getTime())) return;
@@ -683,6 +720,7 @@ const onSelectFromMini = (date) => {
   picked.setHours(0, 0, 0, 0);
 
   if (picked < today) return;
+  if (!isDateIsoSelectable(formatLocalDateIso(picked))) return;
 
   state.selected = new Date(picked);
   state.focus = new Date(picked);
@@ -724,9 +762,12 @@ function hydrateFromState() {
 
   if (existing.selectedDate || fallbackSelectedDateIso) {
     const existingDate = new Date(existing.selectedDate || `${fallbackSelectedDateIso}T00:00:00`);
-    if (!Number.isNaN(existingDate.getTime())) {
+    const existingDateIso = formatLocalDateIso(existingDate);
+    if (!Number.isNaN(existingDate.getTime()) && isDateIsoSelectable(existingDateIso)) {
       state.selected = existingDate;
       state.focus = new Date(existingDate);
+    } else {
+      state.selected = null;
     }
   }
 
@@ -1052,6 +1093,8 @@ onMounted(() => {
               class="w-full"
               :month-date="state.focus"
               :selected-date="state.selected || state.focus"
+              :min-date="minSelectableDate"
+              :max-date="maxSelectableDate"
               :events="events1"
               :theme="theme1"
               :data-attrs="{ 'data-calendar':'mini' }"

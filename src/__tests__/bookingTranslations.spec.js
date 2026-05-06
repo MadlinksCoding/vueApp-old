@@ -56,4 +56,24 @@ describe("bookingTranslations", () => {
 
     expect(messages).toEqual(["An active subscription to Tier 1 is required."]);
   });
+
+  it("includes friendly backend create-booking error translations", () => {
+    const { t } = createBookingTranslator();
+    expect(t("fan_booking_error_user_blocked")).toBe("You are blocked from booking this event.");
+    expect(t("fan_booking_error_daily_booking_limit_reached")).toBe("This event has reached its booking limit for that day.");
+    expect(t("fan_booking_error_temporary_hold_not_found_or_expired")).toBe("Your reserved slot expired. Please choose the time again.");
+    expect(t("fan_booking_error_missing_bearer_token")).toBe("Please log in to complete your booking.");
+    expect(t("fan_booking_error_internal_error")).toBe("Could not complete booking. Please try again.");
+  });
+
+  it("interpolates expanded booking validation translations", () => {
+    const { t } = createBookingTranslator();
+
+    expect(t("fan_booking_validation_booking_buffer_after_booked_required", { buffer_minutes: 10 }))
+      .toBe("A 10-minute buffer is required before this booking can start.");
+    expect(t("fan_booking_validation_booking_duration_exceeds_limit", { max_allowed_duration: 60 }))
+      .toBe("Booking duration exceeds the maximum allowed duration of 60 minutes.");
+    expect(t("fan_booking_validation_payment_txid_already_used", { existing_booking_id: "b_123" }))
+      .toBe("This payment transaction has already been used by b_123.");
+  });
 });

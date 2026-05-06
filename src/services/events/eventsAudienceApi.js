@@ -42,7 +42,7 @@ export async function searchInvitableUsers({ query, signal } = {}) {
   const safeQuery = String(query || "").trim();
   if (safeQuery.length === 0) return [];
 
-  const url = `${buildWpApiUrl("/users/search")}?query=${encodeURIComponent(safeQuery)}`;
+  const url = `${buildWpApiUrl("/users/search")}?query=${encodeURIComponent(safeQuery)}&type=fan`;
   const response = await fetch(url, {
     method: "GET",
     signal,
@@ -50,7 +50,7 @@ export async function searchInvitableUsers({ query, signal } = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to search users (HTTP ${response.status}).`);
+    throw new Error(`No user found.`);
   }
 
   const payload = await response.json();
