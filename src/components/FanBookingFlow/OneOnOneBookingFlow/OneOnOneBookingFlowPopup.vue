@@ -7,6 +7,7 @@ const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
   eventId: { type: [String, Number], default: null },
+  inviteSecret: { type: String, default: "" },
   apiBaseUrl: { type: String, default: "" },
   creatorData: { type: Object, default: null },
   previewMode: { type: Boolean, default: false },
@@ -48,6 +49,7 @@ const oneOnOneBookingFlowPopupConfig = {
       :creator-id="creatorId"
       :fan-id="fanId"
       :event-id="eventId"
+      :invite-secret="inviteSecret"
       :api-base-url="apiBaseUrl"
       :creator-data="creatorData"
       :preview-mode="previewMode"

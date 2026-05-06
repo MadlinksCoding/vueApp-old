@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createBookingTranslator,
+  formatBookingValidationErrors,
   normalizeBookingLocale,
   normalizeBookingTranslations,
 } from "@/i18n/bookingTranslations.js";
@@ -41,5 +42,18 @@ describe("bookingTranslations", () => {
   it("uses the key as the last-resort missing-key fallback", () => {
     const { t } = createBookingTranslator();
     expect(t("totally_missing_key")).toBe("totally_missing_key");
+  });
+
+  it("formats structured subscriber-only validation errors with tier names", () => {
+    const { t } = createBookingTranslator();
+    const messages = formatBookingValidationErrors([
+      {
+        code: "subscription_required",
+        translationKey: "fan_booking_validation_subscription_required_tier",
+        params: { tier_name: "Tier 1" },
+      },
+    ], t);
+
+    expect(messages).toEqual(["An active subscription to Tier 1 is required."]);
   });
 });

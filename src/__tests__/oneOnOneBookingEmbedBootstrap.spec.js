@@ -16,6 +16,7 @@ describe("one-on-one booking embed bootstrap", () => {
       creatorId: "1407",
       fanId: "25",
       eventId: "evt_123",
+      inviteSecret: "secret_123",
       apiBaseUrl: "https://api.example.com",
       jwtToken: "jwt_abc",
       creatorData: {
@@ -29,6 +30,7 @@ describe("one-on-one booking embed bootstrap", () => {
     expect(state.creatorId).toBe(1407);
     expect(state.fanId).toBe(25);
     expect(state.eventId).toBe("evt_123");
+    expect(state.inviteSecret).toBe("secret_123");
     expect(state.apiBaseUrl).toBe("https://api.example.com");
     expect(state.jwtToken).toBe("jwt_abc");
     expect(state.creatorData).toEqual({
@@ -43,7 +45,7 @@ describe("one-on-one booking embed bootstrap", () => {
     window.history.replaceState(
       {},
       "",
-      "/?creatorId=1407&fanId=25&eventId=evt_query&apiBaseUrl=https%3A%2F%2Fapi.example.com&jwtToken=jwt_query&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
+      "/?creatorId=1407&fanId=25&eventId=evt_query&inviteSecret=invite_query&apiBaseUrl=https%3A%2F%2Fapi.example.com&jwtToken=jwt_query&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
     );
 
     const { readOneOnOneBookingBootstrapFromUrl } = await import("@/embeds/fanBooking/bootstrap.js");
@@ -53,6 +55,7 @@ describe("one-on-one booking embed bootstrap", () => {
       creatorId: 1407,
       fanId: 25,
       eventId: "evt_query",
+      inviteSecret: "invite_query",
       apiBaseUrl: "https://api.example.com",
       jwtToken: "jwt_query",
       creatorData: {

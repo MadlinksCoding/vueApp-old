@@ -302,6 +302,66 @@ describe("BookingFlowStep3", () => {
     expect(engine.getState("bookingDetails.walletBalance")).toBe(1900);
   });
 
+  it("accepts invite-only event links for authenticated fans before booking", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 1900,
+      },
+    });
+    const originalFetch = global.fetch;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        invited: true,
+        eventId: "evt_invite_step3",
+        userId: 2615,
+      }),
+    }));
+    global.fetch = fetchMock;
+
+    try {
+      const engine = createEngine();
+      engine.state.fanBooking.context.inviteSecret = "invite_secret_step3";
+      engine.state.fanBooking.context.selectedEvent = {
+        eventId: "evt_invite_step3",
+        title: "Private Invite",
+        whoCanBook: "inviteOnly",
+        raw: {
+          whoCanBook: "inviteOnly",
+          sessionDurationMinutes: 15,
+        },
+      };
+
+      const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+      mount(BookingFlowStep3, {
+        props: {
+          engine,
+          embedded: true,
+          apiBaseUrl: "http://localhost:3001",
+        },
+      });
+
+      await flushAsync();
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://localhost:3001/events/invite/accept-auth",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer jwt_test",
+          }),
+          body: JSON.stringify({ inviteSecret: "invite_secret_step3" }),
+        }),
+      );
+      expect(engine.getState("fanBooking.context.inviteAccepted")).toBe(true);
+      expect(engine.getState("fanBooking.context.inviteAcceptedSecret")).toBe("invite_secret_step3");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("renders dynamic booking summary details and navigates back to step 2 when changing schedule", async () => {
     tokenGet.mockResolvedValue({
       data: {

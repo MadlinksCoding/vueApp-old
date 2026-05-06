@@ -465,6 +465,7 @@
       creatorId: null,
       fanId: null,
       eventId: null,
+      inviteSecret: "",
       apiBaseUrl: "",
       jwtToken: "",
       creatorData: null,
@@ -526,6 +527,7 @@
         creatorId: safePositiveNumber(settings.creatorId, null),
         fanId: safeNumber(settings.fanId, null),
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
+        inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
         apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
           creatorData: creatorData,
@@ -540,6 +542,7 @@
           creatorId: safePositiveNumber(settings.creatorId, null),
           fanId: safeNumber(settings.fanId, null),
           eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
+          inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
           apiBaseUrl: settings.apiBaseUrl || "",
           jwtToken: settings.jwtToken || "",
           creatorData: creatorData,
@@ -713,6 +716,7 @@
       creatorId: safePositiveNumber(settings.creatorId, null),
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
+      inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
       creatorData: creatorData,
     }, settings);
     document.body.appendChild(overlay);

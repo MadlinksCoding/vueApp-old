@@ -106,6 +106,7 @@ const props = defineProps({
   creatorId: { type: [Number, String], default: null },
   fanId: { type: [Number, String], default: null },
   eventId: { type: [String, Number], default: null },
+  inviteSecret: { type: String, default: "" },
   apiBaseUrl: { type: String, default: "" },
   creatorData: { type: Object, default: null },
   embedded: { type: Boolean, default: false },
@@ -154,6 +155,8 @@ const engine = createFlowStateEngine({
         creatorPresentationLoading: false,
         selectedEventId: null,
         selectedEvent: null,
+        inviteSecret: "",
+        inviteAccepted: false,
       },
       catalog: {
         events: [],
@@ -379,6 +382,7 @@ function syncBookingContext() {
       creatorId: props.creatorId,
       fanId: props.fanId,
       eventId: props.eventId,
+      inviteSecret: props.inviteSecret,
       creatorData: props.creatorData,
       embedded: props.embedded,
     },
@@ -391,6 +395,7 @@ function syncBookingContext() {
 
   engine.setState("fanBooking.context.creatorId", creatorId, { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.fanId", fanId, { reason: "feature-context", silent: true });
+  engine.setState("fanBooking.context.inviteSecret", String(props.inviteSecret || "").trim(), { reason: "feature-context", silent: true });
   engine.setState("fanBooking.context.creatorPresentation", creatorPresentation, { reason: "feature-context", silent: true });
   fetchCreatorPresentation(creatorId, creatorPresentation);
 
