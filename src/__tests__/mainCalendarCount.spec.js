@@ -26,6 +26,12 @@ vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
         >
           both
         </button>
+        <button
+          data-test="group-off"
+          @click="$emit('update:modelValue', { ...modelValue, video: false, audio: false, groupCall: false })"
+        >
+          group off
+        </button>
       </div>
     `,
   },
@@ -152,6 +158,7 @@ function makeEvent(overrides = {}) {
     end: overrides.end || "2026-04-23T11:00:00Z",
     eventCallType: overrides.eventCallType || "video",
     type: overrides.type || "1on1-call",
+    slot: overrides.slot || null,
     isAvailabilityBlock: overrides.isAvailabilityBlock ?? true,
     isDraftPreview: overrides.isDraftPreview || false,
     raw: {
@@ -163,7 +170,7 @@ function makeEvent(overrides = {}) {
   };
 }
 
-async function mountCalendar(events, extraProps = {}) {
+async function mountCalendar(events, extraProps = {}, mountOptions = {}) {
   const { default: MainCalendar } = await import("@/components/calendar/MainCalendar.vue");
 
   return mount(MainCalendar, {
@@ -177,6 +184,7 @@ async function mountCalendar(events, extraProps = {}) {
       slotMinutes: 60,
       ...extraProps,
     },
+    ...mountOptions,
   });
 }
 
@@ -223,6 +231,59 @@ describe("MainCalendar all events count", () => {
 
     await wrapper.get("[data-test='video-audio']").trigger("click");
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
+  });
+
+  it("includes group availability and bookings by default and hides them when group is disabled", async () => {
+    const wrapper = await mountCalendar([
+      makeEvent({
+        eventId: "group_availability",
+        eventCallType: "video",
+        type: "group-event",
+        isAvailabilityBlock: true,
+      }),
+      makeEvent({
+        id: "group_booking",
+        eventId: "group_booking",
+        eventCallType: "video",
+        type: "group-event",
+        isAvailabilityBlock: false,
+      }),
+    ]);
+
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
+
+    await openFilters(wrapper);
+    await wrapper.get("[data-test='group-off']").trigger("click");
+
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
+  });
+
+  it("renders availability windows that span midnight instead of hiding them", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "overnight_availability",
+          start: new Date(2026, 3, 23, 23, 0, 0),
+          end: new Date(2026, 3, 24, 1, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      {},
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ style }">
+              <div data-test="availability-block" :style="style" />
+            </template>
+          `,
+        },
+      },
+    );
+
+    const blocks = wrapper.findAll("[data-test='availability-block']");
+    expect(blocks.length).toBeGreaterThan(0);
+    expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
   });
 
   it("ignores draft preview events", async () => {

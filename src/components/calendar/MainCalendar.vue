@@ -285,14 +285,14 @@
               :style="{ height: gridMetrics.totalHeight + 'px', overflowY: 'auto' }">
               <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
                 <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
+                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
                 <slot v-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
+                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
                 <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
+                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
                 <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev)" :onClick="dispatchEventClick"></slot>
-                <slot v-else name="event" :event="ev" :day="d" :view="effectiveView" :style="styleBlock(ev)"
+                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                <slot v-else name="event" :event="ev" :day="d" :view="effectiveView" :style="styleBlock(ev, d)"
                   :onClick="dispatchEventClick"></slot>
               </template>
             </div>
@@ -608,7 +608,7 @@ const showSchedule = ref(true); // Checkbox state
 const dropdownFilters = ref({
   video: true,
   audio: true,
-  groupCall: false,
+  groupCall: true,
   showSchedule: true,
   colorByType: {
     video: '#4F46E5',
@@ -1003,10 +1003,17 @@ const handleCancelBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('cancel-booking', payload);
 };
-const getVisualBounds = (ev, sMin, eMin, step, minHeightPx) => {
+const getEventMinutesForDay = (ev, day = null) => {
+  const dayStart = day ? SOD(day) : SOD(ev.start);
+  return {
+    startMin: Math.floor((ev.start.getTime() - dayStart.getTime()) / (60 * 1000)),
+    endMin: Math.ceil((ev.end.getTime() - dayStart.getTime()) / (60 * 1000)),
+  };
+};
+
+const getVisualBounds = (ev, sMin, eMin, step, minHeightPx, day = null) => {
   const pixelsPerMinute = props.rowHeightPx / step;
-  const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
-  const endMin = ev.end.getHours() * 60 + ev.end.getMinutes();
+  const { startMin, endMin } = getEventMinutesForDay(ev, day);
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.max(clippedStart, Math.min(endMin, eMin));
   
@@ -1044,11 +1051,12 @@ const processedEventsByDay = computed(() => {
   
   for (const [dayKeyStr, dayEvents] of Object.entries(eventsByDay)) {
     const dayKey = Number(dayKeyStr);
+    const day = new Date(dayKey);
     const sorted = [...dayEvents].sort((a,b) => a.start - b.start || b.end - a.end);
     
     const stacked = [];
     sorted.forEach(ev => {
-      const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+      const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx, day);
       let order = 0;
       
       if (!boundsEv.isValid) {
@@ -1060,7 +1068,7 @@ const processedEventsByDay = computed(() => {
         const overlappingInOrder = stacked.find(s => {
           if (s.stackOrder !== order) return false;
           if (s.isAvailabilityBlock || ev.isAvailabilityBlock) return false;
-          const boundsS = getVisualBounds(s, sMin, eMin, step, minHeightPx);
+          const boundsS = getVisualBounds(s, sMin, eMin, step, minHeightPx, day);
           if (!boundsS.isValid) return false;
           return boundsS.start < boundsEv.end && boundsS.end > boundsEv.start;
         });
@@ -1093,11 +1101,12 @@ const gridMetrics = computed(() => {
     let maxStackInRow = 0;
     let maxVisualEnd = props.rowHeightPx;
 
-    for (const dayEvents of Object.values(processedEventsByDay.value)) {
+    for (const [dayKeyStr, dayEvents] of Object.entries(processedEventsByDay.value)) {
+      const day = new Date(Number(dayKeyStr));
       for (const ev of dayEvents) {
         if (ev.isAvailabilityBlock) continue;
         
-        const bounds = getVisualBounds(ev, sMin, eMin, step, minHeightPx);
+        const bounds = getVisualBounds(ev, sMin, eMin, step, minHeightPx, day);
         if (!bounds.isValid) continue;
 
         const rowStartMin = sMin + i * step;
@@ -1134,10 +1143,9 @@ const eventsForDay = (day) => {
   return processedEventsByDay.value[key] || [];
 };
 
-const styleBlock = (ev) => {
+const styleBlock = (ev, day = null) => {
   const { sMin, eMin, step } = range.value;
-  const startMin = ev.start.getHours() * 60 + ev.start.getMinutes();
-  const endMin = ev.end.getHours() * 60 + ev.end.getMinutes();
+  const { startMin, endMin } = getEventMinutesForDay(ev, day);
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.min(endMin, eMin);
   if (clippedEnd <= clippedStart) return 'display:none';

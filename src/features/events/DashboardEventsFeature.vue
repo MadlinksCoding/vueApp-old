@@ -883,6 +883,7 @@ function buildCalendarSlotsFromContext({
     focusDate,
     rangeDaysBefore: 14,
     rangeDaysAfter: 56,
+    mode: "scheduleWindow",
   }).map((slot) => ({
     ...slot,
     color: "#98A2B3",

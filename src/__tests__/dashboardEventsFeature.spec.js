@@ -65,7 +65,7 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["eventsData"],
+    props: ["events", "eventsData"],
     emits: ["create-event"],
     template: `
       <div class='main-calendar-stub'>
@@ -503,6 +503,84 @@ describe("DashboardEventsFeature", () => {
       expect.objectContaining({ name: "Ava", src: "https://example.test/ava.png" }),
       expect.objectContaining({ name: "Ben" }),
     ]);
+  });
+
+  it("passes group availability windows and fan bookings into the main calendar events", async () => {
+    const slotDate = isoDaysFromToday(1, 12).slice(0, 10);
+    const startIso = isoDaysFromToday(1, 10);
+    const endIso = isoDaysFromToday(1, 11);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_group_calendar",
+          type: "group-event",
+          status: "active",
+          eventCallType: "video",
+          eventColorSkin: "#E11D48",
+          raw: {
+            repeatRule: "doesNotRepeat",
+            dates: [{
+              date: slotDate,
+              times: [{ startTime: "10:00", endTime: "12:00" }],
+            }],
+          },
+        }],
+        bookedSlots: [{
+          bookingId: "booking_group_calendar",
+          eventId: "evt_group_calendar",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Calendar Group Hang",
+          eventType: "group-event",
+          eventCallType: "video",
+        }],
+        bookedSlotsIndex: {
+          evt_group_calendar: {
+            [slotDate]: [{
+              bookingId: "booking_group_calendar",
+              userId: 2615,
+              startIso,
+              endIso,
+              startMs: new Date(startIso).getTime(),
+              endMs: new Date(endIso).getTime(),
+              status: "confirmed",
+            }],
+          },
+        },
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+
+    expect(calendarEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventId: "evt_group_calendar",
+        isAvailabilityBlock: true,
+        slot: "availability",
+      }),
+      expect.objectContaining({
+        bookingId: "booking_group_calendar",
+        eventId: "evt_group_calendar",
+        title: "Calendar Group Hang",
+        type: "group-event",
+      }),
+    ]));
   });
 
   it("cancels grouped group sessions through the existing cancel booking flow", async () => {

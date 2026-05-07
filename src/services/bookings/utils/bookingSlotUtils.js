@@ -440,6 +440,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
   const eventId = options.eventId || event?.eventId || event?.id;
   const bookedSlotsIndex = options.bookedSlotsIndex || {};
   const applyBufferAfterBooked = options.applyBufferAfterBooked !== false;
+  const preserveScheduleWindow = options.preserveScheduleWindow === true;
   const groupEvent = isGroupEvent(event);
   const sessionMinutes = normalizePositiveMinutes(
     raw.sessionDurationMinutes ?? event?.sessionDurationMinutes,
@@ -563,7 +564,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
 
   const segmented = [];
   built.forEach((slotWindow) => {
-    if (groupEvent) {
+    if (groupEvent || preserveScheduleWindow) {
       segmented.push({
         ...slotWindow,
         windowEndMs: slotWindow.endMs,
@@ -623,7 +624,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
           label: hmToLabel(fallbackStart),
         };
 
-        if (groupEvent) {
+        if (groupEvent || preserveScheduleWindow) {
           dedupe.set(`${localDateIso}_${fallbackStart}_${fallbackEnd}`, fallbackWindow);
         } else {
           const fallbackParts = sliceWindowIntoSessionSlots(fallbackWindow, sessionMinutes, 0);
@@ -1113,7 +1114,9 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
     focusDate = new Date(),
     rangeDaysBefore = 14,
     rangeDaysAfter = 56,
+    mode = "freeSlots",
   } = options;
+  const showScheduleWindows = mode === "scheduleWindow";
 
   const start = addDaysToDate(startOfDay(focusDate), -Math.max(0, Number(rangeDaysBefore) || 0));
   const end = addDaysToDate(startOfDay(focusDate), Math.max(0, Number(rangeDaysAfter) || 0));
@@ -1143,15 +1146,18 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
       const candidates = buildCandidateSlotsForEventDate(event, localDateIso, {
         eventId,
         bookedSlotsIndex,
-        applyBufferAfterBooked: true,
+        applyBufferAfterBooked: !showScheduleWindows,
+        preserveScheduleWindow: showScheduleWindows,
       });
 
-      const freeSlots = candidates.filter((slot) => !isSlotBooked({
-        eventId,
-        localDateIso,
-        slot,
-        bookedSlotsIndex,
-      }));
+      const freeSlots = showScheduleWindows
+        ? candidates
+        : candidates.filter((slot) => !isSlotBooked({
+          eventId,
+          localDateIso,
+          slot,
+          bookedSlotsIndex,
+        }));
 
       if (freeSlots.length === 0) continue;
 
