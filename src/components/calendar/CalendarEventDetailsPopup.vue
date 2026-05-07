@@ -4,10 +4,10 @@
         :style="popupStyle"
     >
         <div class="w-1 relative" :style="{ backgroundColor: eventColor }" />
-        <div class="w-full p-4 flex items-start gap-1">
+        <div class="w-full p-2 md:p-4 flex items-start gap-1">
             <div class="flex-1 inline-flex flex-col items-start gap-6">
                 <div class="w-full inline-flex justify-between items-center">
-                    <div class="text-2xl font-semibold font-['Poppins'] leading-8" :style="{ color: eventColor }">
+                    <div class="text-2xl font-semibold font-['Poppins'] leading-8 truncate w-20 min-[480px]:w-[50%]" :style="{ color: eventColor }">
                         {{ titleText }}
                     </div>
                     <div class="flex items-center gap-2">

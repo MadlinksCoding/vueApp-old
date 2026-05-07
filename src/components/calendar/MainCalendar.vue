@@ -729,7 +729,7 @@ const eventDetailsPopupConfig = {
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
-  width: { default: "auto", "<480": "90%" },
+  width: { default: "auto", "<480": "98%" },
   height: "auto",
   scrollable: false,
   closeSpeed: "250ms",

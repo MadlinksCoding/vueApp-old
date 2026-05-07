@@ -47,13 +47,15 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-[0.375rem] text-xs shadow-custom min-h-[20px]'
+              ' rounded-[0.375rem] text-xs  min-h-[20px] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="flex items-center font-medium truncate">{{ event.title }}</div>
+              <div class="flex items-center min-w-0 w-full">
+                <div class="block font-medium truncate w-full">{{ event.title }}</div>
+              </div>
               <div hidden class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
