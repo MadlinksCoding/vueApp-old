@@ -139,6 +139,18 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
         >
           Join
         </button>
+        <button
+          data-test="widget-cancel-group"
+          @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_group_1', eventId: 'evt_group', start: '2026-03-23T10:00:00Z', end: '2026-03-23T11:00:00Z', status: 'confirmed', type: 'group-event', raw: { bookingId: 'booking_group_1', bookingIds: ['booking_group_1', 'booking_group_2'], isGroupedGroupSlot: true } } } })"
+        >
+          Cancel Group
+        </button>
+        <button
+          data-test="widget-cancel-private"
+          @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_private_1', eventId: 'evt_private', start: '2026-03-23T12:00:00Z', end: '2026-03-23T12:30:00Z', status: 'confirmed', type: '1on1-call', raw: { bookingId: 'booking_private_1' } } } })"
+        >
+          Cancel Private
+        </button>
       </div>
     `,
   },
@@ -491,6 +503,123 @@ describe("DashboardEventsFeature", () => {
       expect.objectContaining({ name: "Ava", src: "https://example.test/ava.png" }),
       expect.objectContaining({ name: "Ben" }),
     ]);
+  });
+
+  it("cancels grouped group sessions through the existing cancel booking flow", async () => {
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          bookingId: "booking_group_1",
+          cancelledCount: 2,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator(),
+        },
+      },
+    });
+
+    await flushPromises();
+    await wrapper.find("[data-test='widget-cancel-group']").trigger("click");
+    await flushPromises();
+
+    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    expect(confirmButton).toBeTruthy();
+    await confirmButton.trigger("click");
+    await flushPromises();
+
+    const cancelCall = callFlow.mock.calls.find(([flowName]) => flowName === "bookings.cancelBooking");
+    expect(cancelCall).toEqual(expect.arrayContaining([
+      "bookings.cancelBooking",
+      expect.objectContaining({
+        bookingId: "booking_group_1",
+        actor: "creator",
+        reason: "creator_cancelled_from_events_widget",
+      }),
+    ]));
+  });
+
+  it("keeps private widget cancellation on the same single-booking flow", async () => {
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          bookingId: "booking_private_1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator(),
+        },
+      },
+    });
+
+    await flushPromises();
+    await wrapper.find("[data-test='widget-cancel-private']").trigger("click");
+    await flushPromises();
+
+    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    expect(confirmButton).toBeTruthy();
+    await confirmButton.trigger("click");
+    await flushPromises();
+
+    const cancelCall = callFlow.mock.calls.find(([flowName]) => flowName === "bookings.cancelBooking");
+    expect(cancelCall).toEqual(expect.arrayContaining([
+      "bookings.cancelBooking",
+      expect.objectContaining({
+        bookingId: "booking_private_1",
+        actor: "creator",
+        reason: "creator_cancelled_from_events_widget",
+      }),
+    ]));
   });
 
   it("keeps current-week group sessions visible with group styling and join metadata", async () => {

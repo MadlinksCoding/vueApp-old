@@ -168,7 +168,7 @@ function createMountedStep({
           },
           stubs: {
             MiniCalendar: {
-              props: ["minDate", "maxDate", "events"],
+              props: ["minDate", "maxDate", "events", "monthDate", "selectedDate"],
               emits: ["date-selected"],
               methods: {
                 formatDate(date) {
@@ -180,6 +180,8 @@ function createMountedStep({
                 <div class="mini-calendar-stub">
                   <span class="mini-calendar-min">{{ formatDate(minDate) }}</span>
                   <span class="mini-calendar-max">{{ formatDate(maxDate) }}</span>
+                  <span class="mini-calendar-month">{{ formatDate(monthDate) }}</span>
+                  <span class="mini-calendar-selected">{{ formatDate(selectedDate) }}</span>
                   <span class="mini-calendar-events">{{ events.length }}</span>
                   <button class="mini-calendar-valid" type="button" @click="$emit('date-selected', new Date('2026-05-06T00:00:00'))">valid</button>
                   <button class="mini-calendar-after" type="button" @click="$emit('date-selected', new Date('2026-06-06T00:00:00'))">after</button>
@@ -321,6 +323,81 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
   });
 
+  it("defaults a private booking to today's date and shows today's slots", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const today = "2030-01-15";
+    const { wrapperPromise } = createMountedStep({
+      dateIso: today,
+      selectedEvent: createPrivateEvent(today),
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find(".mini-calendar-month").text()).toBe(today);
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe(today);
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+  });
+
+  it("defaults a private booking to the first selectable future event date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const futureDate = "2030-01-17";
+    const selectedEvent = {
+      ...createPrivateEvent(futureDate),
+      dateFrom: futureDate,
+      raw: {
+        ...createPrivateEvent(futureDate).raw,
+        dateFrom: futureDate,
+      },
+    };
+
+    const { wrapperPromise } = createMountedStep({
+      dateIso: futureDate,
+      selectedEvent,
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find(".mini-calendar-min").text()).toBe(futureDate);
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe(futureDate);
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+  });
+
+  it("leaves private booking unselected when no selectable date exists", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      dateTo: "2030-01-14",
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        dateTo: "2030-01-14",
+      },
+    };
+
+    const { wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-15",
+      selectedEvent,
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain("SELECT CALL START TIME");
+  });
+
   it("passes event date bounds to the calendar and ignores out-of-range date selections", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-06T09:00:00"));
@@ -343,7 +420,7 @@ describe("BookingFlowStep2", () => {
     await wrapper.find(".mini-calendar-after").trigger("click");
     await nextTick();
 
-    expect(wrapper.text()).not.toContain("SELECT CALL START TIME");
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe("2026-05-06");
 
     await wrapper.find(".mini-calendar-valid").trigger("click");
     await nextTick();
