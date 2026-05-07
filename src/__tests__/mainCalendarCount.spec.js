@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
   default: {
@@ -149,11 +149,24 @@ const theme = {
 
 const baseDate = new Date("2026-04-23T00:00:00Z");
 
+function setWindowWidth(width) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  window.dispatchEvent(new Event("resize"));
+}
+
+function findMonthDayButton(wrapper, dayNumber) {
+  return wrapper.findAll("button").find((button) => button.text().trim().startsWith(String(dayNumber)));
+}
+
 function makeEvent(overrides = {}) {
   return {
     id: overrides.id || `${overrides.eventId || "event"}_${overrides.start || "start"}`,
     eventId: overrides.eventId || "event_1",
-    title: "Event",
+    title: overrides.title || "Event",
     start: overrides.start || "2026-04-23T10:00:00Z",
     end: overrides.end || "2026-04-23T11:00:00Z",
     eventCallType: overrides.eventCallType || "video",
@@ -197,7 +210,51 @@ async function openMobilePopup(wrapper) {
   await mobileActions[mobileActions.length - 1].trigger("click");
 }
 
+afterEach(() => {
+  setWindowWidth(1024);
+});
+
 describe("MainCalendar all events count", () => {
+  it("exposes a reset that clears root, body, and time-column scroll positions", async () => {
+    const wrapper = await mountCalendar([
+      makeEvent({
+        id: "booking_reset",
+        eventId: "video_reset",
+        start: "2026-04-23T10:00:00Z",
+        end: "2026-04-23T11:00:00Z",
+        isAvailabilityBlock: false,
+      }),
+    ]);
+
+    const root = wrapper.element;
+    const body = wrapper.get("[data-cal-time-grid]").element;
+    const columnScrollers = wrapper.findAll("[data-cal-scroll]").map((node) => node.element);
+    const attachScrollSpy = (element) => {
+      element.scrollTop = 48;
+      element.scrollLeft = 12;
+      element.scrollTo = vi.fn(({ top = 0, left = 0 }) => {
+        element.scrollTop = top;
+        element.scrollLeft = left;
+      });
+    };
+
+    attachScrollSpy(root);
+    attachScrollSpy(body);
+    columnScrollers.forEach(attachScrollSpy);
+
+    wrapper.vm.resetScrollToTop();
+
+    expect(root.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(body.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(root.scrollTop).toBe(0);
+    expect(body.scrollTop).toBe(0);
+    expect(columnScrollers.length).toBeGreaterThan(0);
+    columnScrollers.forEach((element) => {
+      expect(element.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+      expect(element.scrollTop).toBe(0);
+    });
+  });
+
   it("counts one video event once across multiple availability entries and bookings", async () => {
     const wrapper = await mountCalendar([
       makeEvent({ eventId: "video_1", start: "2026-04-23T10:00:00Z", end: "2026-04-23T11:00:00Z" }),
@@ -286,6 +343,93 @@ describe("MainCalendar all events count", () => {
     expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
   });
 
+  it("routes confirmed month bookings with slot event through the default event slot", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "confirmed_booking",
+          title: "Confirmed Booking",
+          start: "2026-04-23T10:00:00",
+          end: "2026-04-23T11:00:00",
+          slot: "event",
+          isAvailabilityBlock: false,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, view }">
+              <div data-test="month-default-event">{{ view }} {{ event.title }}</div>
+            </template>
+          `,
+          "event-event": `
+            <template #event-event="{ event }">
+              <div data-test="month-wrong-event">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    expect(wrapper.get("[data-test='month-default-event']").text()).toBe("month Confirmed Booking");
+    expect(wrapper.find("[data-test='month-wrong-event']").exists()).toBe(false);
+  });
+
+  it("routes month availability through the availability slot", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "availability_block",
+          title: "",
+          start: "2026-04-23T10:00:00",
+          end: "2026-04-23T11:00:00",
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, view }">
+              <div data-test="month-availability">{{ view }} {{ event.eventId }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    expect(wrapper.get("[data-test='month-availability']").text()).toBe("month event_1");
+  });
+
+  it("keeps custom month events on their named slots", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "pending_booking",
+          title: "Pending Booking",
+          start: "2026-04-23T10:00:00",
+          end: "2026-04-23T11:00:00",
+          slot: "custom",
+          isAvailabilityBlock: false,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        slots: {
+          "event-custom": `
+            <template #event-custom="{ event, view }">
+              <div data-test="month-custom-event">{{ view }} {{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    expect(wrapper.get("[data-test='month-custom-event']").text()).toBe("month Pending Booking");
+  });
+
   it("ignores draft preview events", async () => {
     const wrapper = await mountCalendar([
       makeEvent({ eventId: "video_1", eventCallType: "video" }),
@@ -312,6 +456,66 @@ describe("MainCalendar all events count", () => {
     await openMobilePopup(wrapper);
 
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("expands mobile month rows with real booked events instead of dummy content", async () => {
+    setWindowWidth(500);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        id: "booking_real",
+        eventId: "video_real",
+        title: "Real Live Call",
+        start: "2026-04-23T10:00:00",
+        end: "2026-04-23T11:00:00",
+        status: "confirmed",
+        isAvailabilityBlock: false,
+      }),
+    ], { initialView: "month" });
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+
+    const expanded = wrapper.get("[data-test='month-expanded-default']");
+    expect(expanded.text()).toContain("Real Live Call");
+    expect(expanded.text()).toContain("10:00am-11:00am");
+    expect(expanded.text()).not.toContain("Apples");
+    expect(expanded.text()).not.toContain("Mangoes");
+  });
+
+  it("does not expand mobile month rows for availability-only dates", async () => {
+    setWindowWidth(500);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        eventId: "availability_only",
+        start: "2026-04-23T10:00:00",
+        end: "2026-04-23T11:00:00",
+        slot: "availability",
+        isAvailabilityBlock: true,
+      }),
+    ], { initialView: "month" });
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+
+    expect(wrapper.find("[data-test='month-expanded-default']").exists()).toBe(false);
+  });
+
+  it("opens event details from the mobile month expanded row", async () => {
+    setWindowWidth(500);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        id: "booking_real",
+        eventId: "video_real",
+        title: "Expanded Detail Source",
+        start: "2026-04-23T10:00:00",
+        end: "2026-04-23T11:00:00",
+        status: "confirmed",
+        isAvailabilityBlock: false,
+      }),
+    ], { initialView: "month" });
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+    await wrapper.get("[data-test='month-expanded-event']").trigger("click");
+
+    expect(wrapper.get("[data-test='event-details']").text()).toBe("Expanded Detail Source");
   });
 
   it("allows creators to open new events from the mobile popup", async () => {

@@ -23,6 +23,8 @@ const DAY_NAME_TO_INDEX = {
   sat: 6,
 };
 
+const ACTIVE_BOOKING_EXTENSION_STATUSES = new Set(["held", "captured"]);
+
 function pad2(value) {
   return String(value).padStart(2, "0");
 }
@@ -74,6 +76,39 @@ function formatLocalDateIso(date) {
 function formatLocalHm(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+function toValidDate(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function resolveBookedSlotEffectiveEndIso(slot = {}) {
+  const baseEndIso = slot?.endIso || slot?.endAtIso || slot?.endAt || null;
+  const baseEndDate = toValidDate(baseEndIso);
+  if (!baseEndDate) return baseEndIso;
+
+  let effectiveEndIso = baseEndIso;
+  let effectiveEndMs = baseEndDate.getTime();
+  const extensions = Array.isArray(slot?.extensions) ? slot.extensions : [];
+
+  extensions.forEach((extension) => {
+    const status = String(extension?.status || "").trim().toLowerCase();
+    if (!ACTIVE_BOOKING_EXTENSION_STATUSES.has(status)) return;
+
+    const extensionEndIso = extension?.endAtIso || extension?.endIso || extension?.endAt || null;
+    const extensionEndDate = toValidDate(extensionEndIso);
+    if (!extensionEndDate) return;
+
+    const extensionEndMs = extensionEndDate.getTime();
+    if (extensionEndMs > effectiveEndMs) {
+      effectiveEndIso = extensionEndIso;
+      effectiveEndMs = extensionEndMs;
+    }
+  });
+
+  return effectiveEndIso;
 }
 
 function toSlotDateTimeMs(localDateIso, hm) {
@@ -657,7 +692,7 @@ export function buildBookedSlotsIndex(slots = []) {
   (Array.isArray(slots) ? slots : []).forEach((slot) => {
     const eventId = slot?.eventId;
     const startIso = slot?.startIso;
-    const endIso = slot?.endIso;
+    const endIso = resolveBookedSlotEffectiveEndIso(slot);
     if (!eventId || !startIso || !endIso) return;
 
     const startDate = new Date(startIso);
@@ -943,7 +978,7 @@ function chooseGroupedStatus(currentStatus, nextStatus) {
 
 function makeBookedSlotCalendarEvent(slot, { titleFallback = "Booked Slot" } = {}) {
   const start = slot?.startIso;
-  const end = slot?.endIso;
+  const end = resolveBookedSlotEffectiveEndIso(slot);
   const status = String(slot?.status || "").toLowerCase();
 
   const startDate = new Date(start);

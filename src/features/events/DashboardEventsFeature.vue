@@ -10,6 +10,7 @@
 
   <div
     v-else
+    ref="dashboardRootRef"
     :class="[
       embedded ? 'h-full min-h-0' : 'h-[calc(100vh-2rem)]',
       'flex flex-col overflow-hidden relative'
@@ -18,7 +19,10 @@
     <div class="flex w-full h-full">
       <MainCalendar
         ref="mainCalendarRef"
-        class="flex-1 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        :class="[
+          'flex-1 w-full h-full relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
+          embedded ? 'lg:overflow-y-auto' : 'overflow-y-auto'
+        ]"
         variant="default"
         :focus-date="state.focus"
         :events="events1"
@@ -47,16 +51,19 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              ' rounded-[0.375rem] text-xs  min-h-[20px] w-full overflow-hidden'
+              view === 'month'
+                ? 'hidden lg:block rounded-[0.25rem] text-[10px] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
+                : 'rounded-[0.375rem] text-xs min-h-[20px] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
                 <div class="block font-medium truncate w-full">{{ event.title }}</div>
               </div>
-              <div hidden class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div :hidden="view === 'month' ? null : true" class="text-[10px] opacity-90 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -116,10 +123,25 @@
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
-              'pointer-events-none rounded-md min-h-[6px] w-full'
+              view === 'month'
+                ? 'hidden lg:block pointer-events-none rounded-sm h-1.5 min-h-1.5 w-full'
+                : 'pointer-events-none rounded-md min-h-[6px] w-full'
             ]"
-            :style="[style, getCalendarEventStyle(event)]"
+            :style="[style, view === 'month' ? getMonthAvailabilityStyle() : getCalendarEventStyle(event)]"
+            data-test="dashboard-month-availability-marker"
           />
+        </template>
+
+        <template #month-expanded="{ events, day, onClick }">
+          <div class="w-full p-2 bg-black/10 flex flex-col min-h-[8rem]" data-test="dashboard-month-expanded">
+            <EventsWidget
+              :sections="buildExpandedMonthSections(events, day)"
+              @join-click="handleJoin"
+              @reply-click="handleReply"
+              @event-click="handleMonthExpandedEventClick($event, onClick)"
+              @menu-action="handleWidgetMenuAction"
+            />
+          </div>
         </template>
       </MainCalendar>
 
@@ -355,6 +377,7 @@ const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
+const dashboardRootRef = ref(null);
 const mainCalendarRef = ref(null);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
@@ -369,6 +392,30 @@ const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
 const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
+
+const isEmbeddedMobileViewport = () => (
+  props.embedded
+  && typeof window !== "undefined"
+  && window.innerWidth < 1024
+);
+
+const scrollElementToTop = (element) => {
+  if (!element) return;
+  if (typeof element.scrollTo === "function") {
+    element.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    return;
+  }
+  element.scrollTop = 0;
+  element.scrollLeft = 0;
+};
+
+const resetEmbeddedMobileScrollToTop = () => {
+  if (!isEmbeddedMobileViewport()) return false;
+
+  scrollElementToTop(dashboardRootRef.value);
+  mainCalendarRef.value?.resetScrollToTop?.();
+  return true;
+};
 
 const normalizedCreatorId = computed(() => toNumberOr(props.creatorId, null));
 const normalizedFanId = computed(() => resolveFanIdFromContext({
@@ -632,6 +679,15 @@ function getCalendarEventStyle(event) {
   };
 }
 
+function getMonthAvailabilityStyle() {
+  return {
+    backgroundColor: "rgba(102, 112, 133, 0.55)",
+    border: "1px solid rgba(102, 112, 133, 0.18)",
+    color: "transparent",
+    zIndex: 1,
+  };
+}
+
 function asDate(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -790,6 +846,7 @@ function toWidgetItem(event, options = {}) {
       showJoin: joinState.canJoin,
       joinUrl: joinState.joinUrl,
       statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
+      showReply: options.showReply === true,
       avatars: makeAvatar(event),
       sourceEvent: event,
       accentColor,
@@ -1152,6 +1209,22 @@ const eventsData = computed(() => {
   ];
 });
 
+const buildExpandedMonthSections = (events = [], day = null) => {
+  const items = events.map((event) => {
+    const status = String(event?.status || "").toLowerCase();
+    return toWidgetItem(event, {
+      layout: "today",
+      showReply: status === "pending" || status === "pending_hold",
+    });
+  });
+  const sectionDate = asDate(day);
+  const title = sectionDate
+    ? sectionDate.toLocaleDateString(locale.value, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()
+    : t("dashboard_today_section");
+
+  return [{ title, items }];
+};
+
 const onSelectFromMini = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
@@ -1195,6 +1268,15 @@ const handleWidgetEventClick = (item) => {
   const event = item?.sourceEvent;
   if (!event) return;
   mainCalendarRef.value?.openEventDetails?.(event);
+};
+
+const handleMonthExpandedEventClick = (item, onClick) => {
+  const event = item?.sourceEvent;
+  if (event && typeof onClick === "function") {
+    onClick(event);
+    return;
+  }
+  handleWidgetEventClick(item);
 };
 
 const handleWidgetMenuAction = (payload) => {
@@ -1356,5 +1438,9 @@ onUnmounted(() => {
   window.removeEventListener("storage", handleEventTypeColorsStorageChanged);
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);
+});
+
+defineExpose({
+  resetEmbeddedMobileScrollToTop,
 });
 </script>

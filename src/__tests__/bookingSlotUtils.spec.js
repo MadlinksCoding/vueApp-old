@@ -9,6 +9,7 @@ import {
   computeNextAvailableSlot,
   mapBookedSlotsToCalendarEvents,
   mapAvailabilityToCalendarEvents,
+  resolveBookedSlotEffectiveEndIso,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 
@@ -106,6 +107,72 @@ describe("booking slot utilities", () => {
     const endMs = new Date(`${localDateIso}T10:45:00`).getTime();
 
     expect(isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex })).toBe(true);
+  });
+
+  it("uses the latest held or captured extension as a booked slot's effective end", () => {
+    const slot = {
+      eventId,
+      startIso: `${localDateIso}T10:00:00`,
+      endIso: `${localDateIso}T10:30:00`,
+      status: "confirmed",
+      extensions: [
+        { status: "captured", endAtIso: `${localDateIso}T10:45:00` },
+        { status: "cancelled", endAtIso: `${localDateIso}T11:15:00` },
+        { status: "held", endAtIso: `${localDateIso}T10:50:00` },
+        { status: "failed", endAtIso: `${localDateIso}T12:00:00` },
+      ],
+    };
+
+    expect(resolveBookedSlotEffectiveEndIso(slot)).toBe(`${localDateIso}T10:50:00`);
+  });
+
+  it("does not shorten bookings when an active extension ends before the base booking", () => {
+    expect(resolveBookedSlotEffectiveEndIso({
+      eventId,
+      startIso: `${localDateIso}T10:00:00`,
+      endIso: `${localDateIso}T10:30:00`,
+      status: "confirmed",
+      extensions: [{ status: "captured", endAtIso: `${localDateIso}T10:20:00` }],
+    })).toBe(`${localDateIso}T10:30:00`);
+  });
+
+  it("maps booked slot calendar events through the effective extension end", () => {
+    const [event] = mapBookedSlotsToCalendarEvents([{
+      bookingId: "booking_extended",
+      eventId,
+      startIso: `${localDateIso}T10:00:00`,
+      endIso: `${localDateIso}T10:30:00`,
+      status: "confirmed",
+      eventTitle: "Extended Private Call",
+      eventType: "1on1-call",
+      extensions: [{ status: "held", endAtIso: `${localDateIso}T10:45:00` }],
+    }]);
+
+    expect(event).toEqual(expect.objectContaining({
+      bookingId: "booking_extended",
+      start: `${localDateIso}T10:00:00`,
+      end: `${localDateIso}T10:45:00`,
+    }));
+  });
+
+  it("indexes booked slot overlaps through the effective extension end", () => {
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "booking_extended",
+      eventId,
+      startIso: `${localDateIso}T10:00:00`,
+      endIso: `${localDateIso}T10:30:00`,
+      status: "confirmed",
+      extensions: [{ status: "captured", endAtIso: `${localDateIso}T10:45:00` }],
+    }]);
+    const extendedOverlapSlot = makeSlot("10:35", "10:40");
+    const afterExtensionSlot = makeSlot("10:45", "11:00");
+
+    expect(bookedSlotsIndex[eventId][localDateIso][0]).toEqual(expect.objectContaining({
+      endIso: `${localDateIso}T10:45:00`,
+      endHm: "10:45",
+    }));
+    expect(isSlotBooked({ eventId, localDateIso, slot: extendedOverlapSlot, bookedSlotsIndex })).toBe(true);
+    expect(isSlotBooked({ eventId, localDateIso, slot: afterExtensionSlot, bookedSlotsIndex })).toBe(false);
   });
 
   it("does not apply post-booked buffer after cancelled bookings", () => {

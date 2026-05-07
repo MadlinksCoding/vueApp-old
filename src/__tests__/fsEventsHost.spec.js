@@ -121,6 +121,108 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(embed.iframe.src).toContain("initialRoute=create-group");
   });
 
+  it("scrolls the parent page to the events iframe when the child requests top reset", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+    const originalScrollTo = window.scrollTo;
+
+    window.scrollTo = vi.fn();
+    embed.root.scrollIntoView = vi.fn();
+    embed.root.getBoundingClientRect = vi.fn(() => ({ top: 240 }));
+    Object.defineProperty(window, "pageYOffset", {
+      configurable: true,
+      value: 60,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_SCROLL_TO_TOP",
+        payload: { behavior: "auto", reason: "created" },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(embed.root.scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      inline: "nearest",
+      behavior: "auto",
+    });
+    expect(window.scrollTo).toHaveBeenCalledWith({
+      top: 300,
+      left: 0,
+      behavior: "auto",
+    });
+
+    window.scrollTo = originalScrollTo;
+  });
+
+  it("applies viewport resize payload height to the events iframe", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_RESIZE",
+        payload: { mode: "viewport", height: 512 },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--viewport")).toBe(true);
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("512px");
+  });
+
+  it("refreshes viewport iframe height from the parent visual viewport and stops after destroy", () => {
+    const visualViewport = new EventTarget();
+    Object.defineProperty(visualViewport, "height", {
+      configurable: true,
+      writable: true,
+      value: 640,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_RESIZE",
+        payload: { mode: "viewport", height: 512 },
+      },
+      origin: window.location.origin,
+    }));
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("512px");
+
+    visualViewport.height = 590;
+    visualViewport.dispatchEvent(new Event("resize"));
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("590px");
+
+    embed.destroy();
+    visualViewport.height = 700;
+    visualViewport.dispatchEvent(new Event("resize"));
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("590px");
+  });
+
   it("posts auth updates to the active booking popup without remounting", () => {
     const popup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,

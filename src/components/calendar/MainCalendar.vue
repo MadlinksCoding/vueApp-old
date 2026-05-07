@@ -1,5 +1,5 @@
 <template>
-  <section :class="theme.main.wrapper" v-bind="dataAttrs" :data-view="effectiveView"
+  <section ref="calendarRootRef" :class="theme.main.wrapper" v-bind="dataAttrs" :data-view="effectiveView"
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
@@ -222,7 +222,7 @@
     </div>
 
 
-    <div v-if="effectiveView !== 'month'" class="h-full flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
@@ -317,7 +317,7 @@
         <div v-for="(row, rowIndex) in monthRows" :key="'row-' + rowIndex" class="contents">
 
           <div class="grid grid-cols-7 flex-1">
-            <button v-for="(d, i) in row" :key="'m-' + i" type="button" @click="handleMonthDateClick(d)" :class="[
+            <button v-for="(d, i) in row" :key="'m-' + i" type="button" :data-date="d.toISOString().slice(0, 10)" @click="handleMonthDateClick(d)" :class="[
               theme.month.cellBase,
               d.getMonth() !== cursor.getMonth() ? theme.month.outside : '',
               (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '',
@@ -330,184 +330,47 @@
 
               <div class="space-y-1 w-full">
                 <template v-for="ev in eventsForDay(d)" :key="ev.id || ev.title + ev.start">
-                  <slot :name="ev.slot ? 'event-' + ev.slot : 'event'" :event="ev" :day="d" view="month"
+                  <slot :name="resolveEventSlotName(ev)" :event="ev" :day="d" view="month"
                     :onClick="dispatchEventClick" />
                 </template>
               </div>
             </button>
           </div>
 
-          <div v-if="isRowExpanded(row)" class="w-full transition-all duration-300 lg:hidden">
-            <div class="w-full p-2 bg-black/10 flex flex-col h-[500px]">
-              <div class="w-full flex flex-col  gap-2">
-                <div class="w-full flex flex-col  gap-2">
-                  <div
-                    class=" pr-1 bg-[#FFFFFF] rounded shadow-[0px_0px_8px_0px_rgba(99,88,255,0.50)] inline-flex  gap-1.5 overflow-hidden">
-                    <div class="w-1  relative bg-indigo-600" />
-                    <div class="flex-1  py-2 flex  gap-1">
-                      <div class="w-14  justify-center text-slate-700 text-xs font-medium font-['Poppins'] leading-4">
-                        2:15pm- 9:30pm</div>
-                      <div class="flex-1 inline-flex flex-col  gap-1">
-                        <div class=" justify-center text-indigo-600 text-sm font-semibold font-['Poppins'] leading-5">
-                          Live Call</div>
-                        <div class="inline-flex justify-start items-center gap-1">
-                          <div class="w-5 h-5 relative">
-                            <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                              src="https://i.ibb.co/0VQJ0swt/Vector.png" />
-                          </div>
-                          <div class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] leading-4">
-                            Apples</div>
-                        </div>
+          <div v-if="isRowExpanded(row) && expandedDayEvents.length > 0" class="w-full transition-all duration-300 lg:hidden">
+            <slot name="month-expanded" :events="expandedDayEvents" :day="expandedDate" :onClick="dispatchEventClick">
+              <div class="w-full p-2 bg-black/10 flex flex-col gap-2" data-test="month-expanded-default">
+                <button
+                  v-for="event in expandedDayEvents"
+                  :key="event.id || event.title + event.start"
+                  type="button"
+                  class="w-full min-h-[4.125rem] pr-1 bg-gradient-to-r from-gray-50/50 to-gray-50/20 rounded inline-flex gap-1.5 overflow-hidden text-left shadow-sm"
+                  data-test="month-expanded-event"
+                  @click.stop="dispatchEventClick(event)"
+                >
+                  <div class="w-1 shrink-0" :style="{ backgroundColor: monthEventAccent(event) }" />
+                  <div class="flex-1 min-w-0 py-2 flex gap-2">
+                    <div class="w-14 shrink-0 text-slate-700 text-xs font-medium font-['Poppins'] leading-4">
+                      {{ formatMonthEventTimeRange(event) }}
+                    </div>
+                    <div class="flex-1 min-w-0 flex flex-col gap-1">
+                      <div
+                        class="text-sm font-semibold font-['Poppins'] leading-5 truncate"
+                        :style="{ color: monthEventAccent(event) }"
+                      >
+                        {{ event.title || t("dashboard_booked_slot") }}
                       </div>
-                      <div class="h-12 inline-flex flex-col justify-between items-end">
-                        <div class=" inline-flex justify-start items-center gap-1">
-                          <div class="w-1.5 h-1.5 bg-[#5549FF] rounded-full" />
-                          <div class="justify-start text-gray-500 text-xs font-medium font-['Poppins'] leading-4">in
-                            5
-                            min</div>
-                        </div>
-                        <div class="px-2 py-[3px] bg-[#5549FF] rounded inline-flex justify-start items-center gap-1">
-                          <div class="w-4 h-4 relative overflow-hidden">
-                            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"
-                              xmlns="http://www.w3.org/2000/svg">
-                              <path
-                                d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z"
-                                stroke="white" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                          </div>
-                          <div class="justify-start text-white text-xs font-semibold font-['Poppins'] leading-4">
-                            {{ t("common_join_call") }}</div>
-                        </div>
-                      </div>
-                      <div class="w-4 h-4 relative overflow-hidden">
-                        <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
+                      <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4 truncate">
+                        {{ monthEventMeta(event) }}
                       </div>
                     </div>
-                  </div>
-                  <div
-                    class=" pr-1 bg-gradient-to-r from-gray-50/50 to-gray-50/20 rounded inline-flex  gap-1.5 overflow-hidden">
-                    <div class="w-1  relative bg-indigo-600" />
-                    <div class="flex-1 py-2 flex  gap-1.5">
-                      <div class="w-14  justify-center text-slate-700 text-xs font-medium font-['Poppins'] leading-4">
-                        9:40pm- 9:55pm</div>
-                      <div class="flex-1 inline-flex flex-col  gap-1">
-                        <div class=" justify-center text-indigo-600 text-sm font-semibold font-['Poppins'] leading-5">
-                          Live Call</div>
-                        <div class="inline-flex justify-start items-center gap-1">
-                          <div class="w-5 h-5 relative">
-                            <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                              src="https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png" />
-                          </div>
-                          <div class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] leading-4">
-                            Mangoes</div>
-                        </div>
-                      </div>
-                      <div class="w-4 h-4 relative overflow-hidden">
-                        <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </div>
+                    <div v-if="event.status" class="shrink-0 text-gray-500 text-xs font-medium font-['Poppins'] leading-4 capitalize">
+                      {{ event.status }}
                     </div>
                   </div>
-                </div>
-                <div class="w-full flex flex-col  gap-2">
-                  <div
-                    class=" pr-1 bg-gradient-to-r from-gray-50/50 to-gray-50/20 rounded inline-flex  gap-1.5 overflow-hidden">
-                    <div class="w-1  relative bg-rose-600" />
-                    <div class="flex-1 py-2 flex  gap-0.5">
-                      <div class="w-14  justify-center text-slate-700 text-xs font-medium font-['Poppins'] leading-4">
-                        9:40pm- 9:55pm</div>
-                      <div class="flex-1 inline-flex flex-col  gap-1">
-                        <div class=" justify-center text-rose-600 text-sm font-semibold font-['Poppins'] leading-5">
-                          Group Call</div>
-                        <div class="inline-flex justify-start items-center gap-1">
-                          <div class="flex justify-start items-center">
-                            <div class="w-5 h-5 relative shadow-[1px_0px_2px_0px_rgba(0,0,0,0.15)]">
-                              <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                                src="https://i.ibb.co/Y7qvLWpv/user-avatar-but-with-green-pear-face-as-head-pink-background-1.png" />
-                            </div>
-                            <div class="w-5 h-5 relative shadow-[1px_0px_2px_0px_rgba(0,0,0,0.15)]">
-                              <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                                src="https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png" />
-                            </div>
-                            <div class="w-5 h-5 relative shadow-[1px_0px_2px_0px_rgba(0,0,0,0.15)]">
-                              <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                                src="https://i.ibb.co/0VQJ0swt/Vector.png" />
-                            </div>
-                          </div>
-                          <div class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] leading-4">
-                            Mangoes, Apples and 30+</div>
-                        </div>
-                      </div>
-                      <div class="w-4 h-4 relative overflow-hidden">
-                        <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    class=" pr-1 bg-gradient-to-r from-gray-50/50 to-gray-50/20 rounded inline-flex  gap-1.5 overflow-hidden">
-                    <div class="w-1  relative bg-indigo-600" />
-                    <div class="flex-1 py-2 flex  gap-1.5">
-                      <div class="w-14  justify-center text-slate-700 text-xs font-medium font-['Poppins'] leading-4">
-                        9:40pm- 9:55pm</div>
-                      <div class="flex-1 inline-flex flex-col  gap-1">
-                        <div class=" justify-center text-indigo-600 text-sm font-semibold font-['Poppins'] leading-5">
-                          Live Call</div>
-                        <div class="inline-flex justify-start items-center gap-1">
-                          <div class="w-5 h-5 relative">
-                            <img class="w-5 h-5 left-[0.97px] top-[0.83px] absolute"
-                              src="https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png" />
-                          </div>
-                          <div class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] leading-4">
-                            Mangoes</div>
-                        </div>
-                      </div>
-                      <div class="w-4 h-4 relative overflow-hidden">
-                        <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                          <path
-                            d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z"
-                            stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </button>
               </div>
-            </div>
+            </slot>
           </div>
         </div>
       </div>
@@ -599,6 +462,8 @@ const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
+const calendarRootRef = ref(null);
+const timeGridBodyRef = ref(null);
 const nowTimer = ref(null);
 const nowY = ref(0);
 // State for dropdown
@@ -662,11 +527,28 @@ const monthRows = computed(() => {
   return result;
 });
 
+const isExpandableMonthEvent = (event) => event
+  && event.isAvailabilityBlock !== true
+  && event.isDraftPreview !== true;
+
+const getExpandableMonthEvents = (day) => [...eventsForDay(day)]
+  .filter(isExpandableMonthEvent)
+  .sort((left, right) => left.start - right.start || left.end - right.end);
+
+const expandedDayEvents = computed(() => (
+  expandedDate.value ? getExpandableMonthEvents(expandedDate.value) : []
+));
+
+const resolveEventSlotName = (event = {}) => {
+  if (!event?.slot || event.slot === 'event') return 'event';
+  return `event-${event.slot}`;
+};
+
 const handleMonthDateClick = (d) => {
   // Check if it's a large screen (lg breakpoint is usually 1024px)
   if (window.innerWidth >= 1024) return;
 
-  const dayEvents = eventsForDay(d);
+  const dayEvents = getExpandableMonthEvents(d);
 
   if (dayEvents.length > 0) {
     if (expandedDate.value && sameDay(d, expandedDate.value)) {
@@ -918,6 +800,45 @@ function formatTime(time) {
   const [hour, rest] = time.split(':');
   const period = rest.split(' ')[1];
   return `${hour}${period}`;
+}
+
+function formatMonthClock(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString(locale.value, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).replace(/\s/g, '').toLowerCase();
+}
+
+function formatMonthEventTimeRange(event = {}) {
+  const start = formatMonthClock(event.start);
+  const end = formatMonthClock(event.end);
+  return start && end ? `${start}-${end}` : start || end;
+}
+
+function monthEventAccent(event = {}) {
+  if (event?.color) return event.color;
+  if (event?.eventColorSkin) return event.eventColorSkin;
+  if (event?.raw?.eventColorSkin) return event.raw.eventColorSkin;
+
+  const eventType = String(event?.type || event?.eventType || event?.raw?.eventType || event?.raw?.type || '').toLowerCase();
+  if (eventType.includes('group')) return '#E11D48';
+
+  const callType = String(event?.eventCallType || event?.raw?.eventCallType || '').toLowerCase();
+  if (callType.includes('audio')) return '#06B6D4';
+
+  return '#5549FF';
+}
+
+function monthEventMeta(event = {}) {
+  const raw = event?.raw && typeof event.raw === 'object' ? event.raw : {};
+  const eventType = String(event?.type || event?.eventType || raw.eventType || raw.type || '').toLowerCase();
+  if (eventType.includes('group')) return t('dashboard_group_event');
+  const callType = String(event?.eventCallType || raw.eventCallType || '').toLowerCase();
+  if (callType.includes('audio')) return t('dashboard_audio_call');
+  return t('dashboard_video_call');
 }
 
 const sd = (d) => SOD(d);
@@ -1251,8 +1172,25 @@ watch(showSchedule, (value) => {
   }
 });
 
+const resetElementScroll = (element) => {
+  if (!element) return;
+  if (typeof element.scrollTo === 'function') {
+    element.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    return;
+  }
+  element.scrollTop = 0;
+  element.scrollLeft = 0;
+};
+
+const resetScrollToTop = () => {
+  resetElementScroll(calendarRootRef.value);
+  resetElementScroll(timeGridBodyRef.value);
+  calendarRootRef.value?.querySelectorAll?.('[data-cal-scroll]').forEach(resetElementScroll);
+};
+
 defineExpose({
   openEventDetails,
   closeEventDetails,
+  resetScrollToTop,
 });
 </script>

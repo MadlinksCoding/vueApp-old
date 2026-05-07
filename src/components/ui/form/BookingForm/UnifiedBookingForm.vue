@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref, computed, watch } from "vue";
+import { nextTick, onMounted, reactive, ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import { createFlowStateEngine, attachEngineLogging } from "@/utils/flowStateEngine.js"; // Adjust path if needed
@@ -48,7 +48,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["created", "back"]);
+const emit = defineEmits(["created", "back", "scroll-top-request"]);
 const route = useRoute();
 const router = useRouter();
 const { t } = useBookingTranslations();
@@ -174,6 +174,7 @@ attachEngineLogging(bookingFlow);
 // Sync engine with component to make it reactive for the template
 const currentStep = ref(1);
 const previewSchedule = ref(false);
+const formScrollContainer = ref(null);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
 const creatorEventsForCalendar = ref([]);
@@ -337,6 +338,28 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     calendarLoading.value = false;
 };
 
+const scrollToStepTopOnMobile = async () => {
+    if (typeof window === "undefined" || window.innerWidth >= 1024) return;
+
+    await nextTick();
+
+    const container = formScrollContainer.value;
+    if (container?.scrollTo) {
+        container.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } else if (container) {
+        container.scrollTop = 0;
+    }
+
+    if (typeof window !== "undefined" && window.scrollTo) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+
+    emit("scroll-top-request", {
+        reason: "step-advanced",
+        behavior: "auto",
+    });
+};
+
 // Init
 onMounted(() => {
     bookingFlow.initialize();
@@ -351,8 +374,11 @@ onMounted(() => {
     );
 
     // Listen to engine changes to update UI
-    bookingFlow.on('step:changed', ({ next }) => {
+    bookingFlow.on('step:changed', ({ prev, next }) => {
         currentStep.value = next;
+        if (prev === 1 && next === 2) {
+            void scrollToStepTopOnMobile();
+        }
     });
 
     const shouldForceRefresh = route.query?.refresh === "1";
@@ -919,7 +945,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </div>
                 </div>
 
-                <div :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto overflow-x-hidden' : 'w-full h-dvh max-h-dvh overflow-y-auto overflow-x-hidden']">
+                <div ref="formScrollContainer" :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto overflow-x-hidden' : 'w-full h-dvh max-h-dvh overflow-y-auto overflow-x-hidden']">
                     <!-- Private Form -->
                     <template v-if="currentType === 'private'">
                         <OneOnOneBookinStep1
