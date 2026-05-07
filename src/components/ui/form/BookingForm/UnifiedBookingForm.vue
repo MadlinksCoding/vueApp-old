@@ -893,7 +893,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     <div class="flex items-center gap-3 min-w-0">
                         <button
                             hidden
-                            v-if="embedded"
+                            v-if="false && embedded"
                             type="button"
                             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
                             :aria-label="t('booking_back_to_events')"

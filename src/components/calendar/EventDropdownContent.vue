@@ -28,7 +28,7 @@ const props = defineProps({
     default: () => ({
       video: true,
       audio: true,
-      groupCall: false,
+      groupCall: true,
       showSchedule: false,
     }),
   },
@@ -128,7 +128,7 @@ function persistTypeColors(colors = {}) {
 const filters = computed(() => ({
   video: props.modelValue?.video !== false,
   audio: props.modelValue?.audio !== false,
-  groupCall: props.modelValue?.groupCall === true,
+  groupCall: props.modelValue?.groupCall !== false,
   showSchedule: props.modelValue?.showSchedule !== false,
   colorByType: {
     video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
@@ -289,10 +289,11 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors opacity-50 pointer-events-none">
+    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         :label="t('dashboard_group_event')"
         :model-value="filters.groupCall"
+        @update:modelValue="(value) => updateFilter('groupCall', value)"
         checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
         :checkboxStyle="getCheckboxStyle('groupCall')"
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
@@ -302,8 +303,28 @@ onBeforeUnmount(() => {
         <div class="flex justify-start items-center gap-2">
           <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('groupCall') }" />
         </div>
-        <div class="w-5 h-5 relative overflow-hidden">
+        <div class="w-5 h-5 relative overflow-visible">
+          <button type="button" class="w-5 h-5 relative overflow-hidden" @click.stop="toggleColorPicker('groupCall')">
             <img :src="editIcon" :alt="t('common_edit')" />
+          </button>
+          <div
+            v-if="openColorPickerFor === 'groupCall'"
+            class="absolute right-0 top-[1.7rem] z-[1200] bg-[#E5E7EB] rounded-[0.25rem] px-3 py-2 flex flex-col gap-3 shadow-lg"
+          >
+            <button
+              v-for="option in getPickerOptions('groupCall')"
+              :key="option.key"
+              type="button"
+              :class="[
+                'w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border',
+                isTypeColorSelected('groupCall', option.value) ? 'ring-2 ring-slate-500 ring-offset-1' : 'border-transparent',
+              ]"
+              :style="option.isNone ? { backgroundColor: '#FFFFFF', borderColor: '#98A2B3' } : { backgroundColor: option.value }"
+              @click.stop="updateTypeColor('groupCall', option.value)"
+            >
+              <img v-if="option.isNone" :src="slashCircleIcon" :alt="t('dashboard_no_color')" class="w-full h-full object-contain" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

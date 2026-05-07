@@ -8,6 +8,7 @@ import {
   isSlotBookedByUser,
   computeNextAvailableSlot,
   mapBookedSlotsToCalendarEvents,
+  mapAvailabilityToCalendarEvents,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
 
@@ -141,6 +142,82 @@ describe("booking slot utilities", () => {
     expect(slots[0].startHm).toBe("10:00");
     expect(slots[0].endHm).toBe("13:00");
     expect(slots[0].durationMinutes).toBe(180);
+  });
+
+  it("keeps a partially booked group availability window visible in scheduleWindow mode", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "group-event",
+      status: "active",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "13:00",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+      },
+    }], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "scheduleWindow",
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual(expect.objectContaining({
+      eventId,
+      isAvailabilityBlock: true,
+      slot: "availability",
+      start: new Date(`${localDateIso}T10:00:00`).toISOString(),
+      end: new Date(`${localDateIso}T13:00:00`).toISOString(),
+    }));
+  });
+
+  it("keeps a private availability window whole behind booked sessions in scheduleWindow mode", () => {
+    const blocks = mapAvailabilityToCalendarEvents([makeBufferedEvent()], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "scheduleWindow",
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual(expect.objectContaining({
+      eventId,
+      isAvailabilityBlock: true,
+      slot: "availability",
+      start: new Date(`${localDateIso}T10:00:00`).toISOString(),
+      end: new Date(`${localDateIso}T11:30:00`).toISOString(),
+    }));
+  });
+
+  it("does not trim a private schedule window to the last session chunk in scheduleWindow mode", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      localDateIso,
+      localStartHm: "00:00",
+      localEndHm: "21:45",
+      status: "active",
+      raw: {
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+      },
+    }], {
+      bookedSlotsIndex: {},
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "scheduleWindow",
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual(expect.objectContaining({
+      start: new Date(`${localDateIso}T00:00:00`).toISOString(),
+      end: new Date(`${localDateIso}T21:45:00`).toISOString(),
+    }));
   });
 
   it("respects recurring event dateFrom and dateTo when building monthly candidate slots", () => {

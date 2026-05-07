@@ -57,9 +57,10 @@ const { resolvedBackgroundImageUrl } = useEventBackgroundImage(selectedEvent, bo
 const now = new Date();
 const y = now.getFullYear();
 const m = now.getMonth();
+const d = now.getDate();
 
 const state = reactive({
-  focus: new Date(y, m, 23),
+  focus: new Date(y, m, d),
   selected: null
 });
 
@@ -711,6 +712,19 @@ function isDateIsoSelectable(dateIso) {
   return true;
 }
 
+function dateFromIso(dateIso) {
+  if (!dateIso) return null;
+  const date = new Date(`${dateIso}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function resolveDefaultSelectedDate() {
+  const todayIso = todayDateIso.value;
+  const defaultIso = isDateIsoSelectable(todayIso) ? todayIso : minSelectableDateIso.value;
+  if (!isDateIsoSelectable(defaultIso)) return null;
+  return dateFromIso(defaultIso);
+}
+
 const onSelectFromMini = (date) => {
   const picked = new Date(date);
   if (Number.isNaN(picked.getTime())) return;
@@ -759,6 +773,7 @@ function hydrateAddons() {
 function hydrateFromState() {
   const existing = props.engine.getState('bookingDetails') || {};
   const fallbackSelectedDateIso = props.engine.getState('fanBooking.selection.selectedDate');
+  let restoredSavedDate = false;
 
   if (existing.selectedDate || fallbackSelectedDateIso) {
     const existingDate = new Date(existing.selectedDate || `${fallbackSelectedDateIso}T00:00:00`);
@@ -766,19 +781,26 @@ function hydrateFromState() {
     if (!Number.isNaN(existingDate.getTime()) && isDateIsoSelectable(existingDateIso)) {
       state.selected = existingDate;
       state.focus = new Date(existingDate);
+      restoredSavedDate = true;
     } else {
       state.selected = null;
     }
+  } else if (!isGroupEvent.value) {
+    const defaultSelectedDate = resolveDefaultSelectedDate();
+    state.selected = defaultSelectedDate;
+    if (defaultSelectedDate) {
+      state.focus = new Date(defaultSelectedDate);
+    }
   }
 
-  if (existing.selectedTime?.value) {
+  if (restoredSavedDate && existing.selectedTime?.value) {
     const matchedSlot = timeSlots.value.find((slot) => slot.value === existing.selectedTime.value && !slot.disabled);
     selectedTime.value = matchedSlot || null;
   } else {
     selectedTime.value = null;
   }
 
-  if (existing.selectedDuration) {
+  if (restoredSavedDate && existing.selectedDuration) {
     const matchedDuration = durationOptions.value.find((d) => d.value === existing.selectedDuration.value && !d.disabled);
     selectedDurationObj.value = matchedDuration || null;
   } else {
