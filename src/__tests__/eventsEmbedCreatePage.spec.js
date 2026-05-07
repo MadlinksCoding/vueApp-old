@@ -1,5 +1,10 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(() => Promise.resolve()),
+  requestEventsEmbedScrollToTop: vi.fn(),
+}));
 
 const mockBootstrap = {
   creatorId: 1407,
@@ -14,16 +19,18 @@ const mockBootstrap = {
   bootstrapped: true,
 };
 
-const push = vi.fn();
-
 vi.mock("vue-router", () => ({
   useRouter: () => ({
-    push,
+    push: mocks.push,
   }),
 }));
 
 vi.mock("@/embeds/events/bootstrap.js", () => ({
   useEventsEmbedBootstrap: () => mockBootstrap,
+}));
+
+vi.mock("@/embeds/events/bridge.js", () => ({
+  requestEventsEmbedScrollToTop: mocks.requestEventsEmbedScrollToTop,
 }));
 
 vi.mock("@/components/ui/form/BookingForm/UnifiedBookingForm.vue", () => ({
@@ -34,7 +41,36 @@ vi.mock("@/components/ui/form/BookingForm/UnifiedBookingForm.vue", () => ({
   },
 }));
 
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function setWindowWidth(width) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+}
+
 describe("EventsEmbedCreatePage", () => {
+  let originalScrollTo;
+
+  beforeEach(() => {
+    mocks.push.mockReset();
+    mocks.push.mockResolvedValue();
+    mocks.requestEventsEmbedScrollToTop.mockReset();
+    originalScrollTo = window.scrollTo;
+    window.scrollTo = vi.fn();
+    setWindowWidth(500);
+  });
+
+  afterEach(() => {
+    window.scrollTo = originalScrollTo;
+    setWindowWidth(1024);
+  });
+
   it("passes creatorData into UnifiedBookingForm", async () => {
     const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
 
@@ -49,5 +85,69 @@ describe("EventsEmbedCreatePage", () => {
     expect(bookingForm.props("creatorId")).toBe(1407);
     expect(bookingForm.props("apiBaseUrl")).toBe("https://api.example.com");
     expect(bookingForm.props("embedded")).toBe(true);
+  });
+
+  it("posts a parent scroll request when the form asks to scroll on mobile", async () => {
+    const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
+
+    const wrapper = mount(EventsEmbedCreatePage, {
+      props: {
+        type: "private",
+      },
+    });
+    const scrollRoot = wrapper.element;
+    scrollRoot.scrollTo = vi.fn();
+
+    wrapper.getComponent({ name: "UnifiedBookingForm" }).vm.$emit("scroll-top-request", {
+      reason: "step-advanced",
+      behavior: "auto",
+    });
+    await flushPromises();
+
+    expect(scrollRoot.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(mocks.requestEventsEmbedScrollToTop).toHaveBeenCalledWith({
+      reason: "step-advanced",
+      behavior: "auto",
+    });
+  });
+
+  it("routes back to events and posts a parent scroll request after creation on mobile", async () => {
+    const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
+
+    const wrapper = mount(EventsEmbedCreatePage, {
+      props: {
+        type: "group",
+      },
+    });
+
+    wrapper.getComponent({ name: "UnifiedBookingForm" }).vm.$emit("created", { id: "evt_created" });
+    await flushPromises();
+
+    expect(mocks.push).toHaveBeenCalledWith({ name: "events-embed-events" });
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(mocks.requestEventsEmbedScrollToTop).toHaveBeenCalledWith({
+      reason: "created",
+      behavior: "auto",
+    });
+  });
+
+  it("does not post parent scroll requests on desktop", async () => {
+    setWindowWidth(1024);
+    const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
+
+    const wrapper = mount(EventsEmbedCreatePage, {
+      props: {
+        type: "private",
+      },
+    });
+
+    wrapper.getComponent({ name: "UnifiedBookingForm" }).vm.$emit("scroll-top-request", {
+      reason: "step-advanced",
+    });
+    await flushPromises();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(mocks.requestEventsEmbedScrollToTop).not.toHaveBeenCalled();
   });
 });

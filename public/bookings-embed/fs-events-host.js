@@ -3,6 +3,7 @@
   var FS_EVENTS_CHILD_READY = "FS_EVENTS_CHILD_READY";
   var FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
+  var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -296,6 +297,24 @@
     }, 220);
   }
 
+  function resolveViewportHeight() {
+    var visualHeight = safeNumber(global.visualViewport && global.visualViewport.height, null);
+    var fallbackHeight = safeNumber(global.innerHeight, null);
+    var height = visualHeight || fallbackHeight || 320;
+    return Math.max(320, Math.round(height));
+  }
+
+  function applyViewportIframeHeight(iframe, nextHeight) {
+    if (!iframe) return;
+    var height = safeNumber(nextHeight, null) || resolveViewportHeight();
+    iframe.style.setProperty("--fs-events-embed-height", String(Math.max(320, Math.round(height))) + "px");
+  }
+
+  function refreshViewportIframeHeight(iframe) {
+    if (!iframe || !iframe.classList.contains(EVENTS_EMBED_IFRAME_VIEWPORT_CLASS)) return;
+    applyViewportIframeHeight(iframe);
+  }
+
   function setIframeHeightMode(iframe, mode, nextHeight) {
     if (!iframe) return;
 
@@ -303,7 +322,7 @@
 
     if (mode === "viewport") {
       iframe.classList.add(EVENTS_EMBED_IFRAME_VIEWPORT_CLASS);
-      iframe.style.removeProperty("--fs-events-embed-height");
+      applyViewportIframeHeight(iframe, nextHeight);
       return;
     }
 
@@ -312,6 +331,35 @@
       iframe.style.setProperty("--fs-events-embed-height", String(Number(nextHeight)) + "px");
     } else {
       iframe.style.removeProperty("--fs-events-embed-height");
+    }
+  }
+
+  function scrollEventsEmbedToTop(wrapper, payload) {
+    if (!wrapper) return;
+
+    var behavior = payload && payload.behavior === "smooth" ? "smooth" : "auto";
+
+    try {
+      if (typeof wrapper.scrollIntoView === "function") {
+        wrapper.scrollIntoView({ block: "start", inline: "nearest", behavior: behavior });
+      }
+    } catch (_error) {
+      // Fall back to absolute window scrolling below.
+    }
+
+    try {
+      var rect = wrapper.getBoundingClientRect ? wrapper.getBoundingClientRect() : null;
+      if (!rect) return;
+
+      var pageOffset = global.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      var top = Math.max(0, rect.top + pageOffset);
+      if (typeof global.scrollTo === "function") {
+        global.scrollTo({ top: top, left: 0, behavior: behavior });
+      }
+    } catch (_error) {
+      if (typeof global.scrollTo === "function") {
+        global.scrollTo({ top: 0, left: 0, behavior: behavior });
+      }
     }
   }
 
@@ -397,6 +445,10 @@
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
 
+    function syncViewportIframeHeight() {
+      refreshViewportIframeHeight(iframe);
+    }
+
     function sendBootstrap() {
       if (!iframe.contentWindow) return;
 
@@ -434,10 +486,18 @@
 
       if (data.type === FS_EVENTS_OPEN_URL) {
         openUrl(data.payload || {}, settings);
+        return;
+      }
+
+      if (data.type === FS_EVENTS_SCROLL_TO_TOP) {
+        scrollEventsEmbedToTop(wrapper, data.payload || {});
       }
     }
 
     window.addEventListener("message", onMessage);
+    window.addEventListener("resize", syncViewportIframeHeight);
+    window.addEventListener("orientationchange", syncViewportIframeHeight);
+    global.visualViewport && global.visualViewport.addEventListener && global.visualViewport.addEventListener("resize", syncViewportIframeHeight);
     container.innerHTML = "";
     wrapper.appendChild(iframe);
     container.appendChild(wrapper);
@@ -448,6 +508,9 @@
       sendBootstrap: sendBootstrap,
       destroy: function () {
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("resize", syncViewportIframeHeight);
+        window.removeEventListener("orientationchange", syncViewportIframeHeight);
+        global.visualViewport && global.visualViewport.removeEventListener && global.visualViewport.removeEventListener("resize", syncViewportIframeHeight);
         if (wrapper.parentNode === container) {
           container.removeChild(wrapper);
         }

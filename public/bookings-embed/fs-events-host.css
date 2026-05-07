@@ -16,6 +16,7 @@
 
 .fs-events-embed__iframe--viewport {
   height: 100vh;
+  height: var(--fs-events-embed-height, 100dvh);
 }
 
 /* Skeleton CSS starts here */

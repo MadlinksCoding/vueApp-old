@@ -1,12 +1,13 @@
 import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 let engine;
 const callFlow = vi.fn();
 const showToast = vi.fn();
 const getBookingJoinState = vi.fn();
+const mainCalendarResetScrollToTop = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -66,11 +67,80 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["events", "eventsData"],
-    emits: ["create-event"],
+    emits: ["create-event", "month-event-click"],
+    data() {
+      return {
+        monthExpandedDay: new Date("2026-03-23T00:00:00"),
+        monthExpandedEvents: [
+          {
+            id: "expanded-pending",
+            eventId: "evt_expanded",
+            title: "Expanded Pending Event",
+            start: "2026-03-23T10:00:00",
+            end: "2026-03-23T10:30:00",
+            status: "pending",
+            type: "1on1-call",
+            eventCallType: "video",
+            raw: {
+              bookingId: "booking_expanded",
+              creatorName: "Expanded Creator",
+              eventCallType: "video",
+            },
+          },
+        ],
+        monthBookedEvent: {
+          id: "month-booked",
+          eventId: "evt_month_booked",
+          title: "Month Booked Slot",
+          start: "2026-03-23T12:00:00",
+          end: "2026-03-23T12:30:00",
+          status: "confirmed",
+          type: "1on1-call",
+          eventCallType: "video",
+          isAvailabilityBlock: false,
+        },
+        monthAvailabilityEvent: {
+          id: "month-availability",
+          eventId: "evt_month_availability",
+          title: "",
+          start: "2026-03-23T09:00:00",
+          end: "2026-03-23T10:00:00",
+          status: "available",
+          slot: "availability",
+          isAvailabilityBlock: true,
+        },
+      };
+    },
+    methods: {
+      handleMonthEventClick(event) {
+        this.$emit("month-event-click", event);
+      },
+      resetScrollToTop: mainCalendarResetScrollToTop,
+    },
     template: `
       <div class='main-calendar-stub'>
         <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
         <slot />
+        <slot
+          name="event"
+          :event="monthBookedEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          name="event-availability"
+          :event="monthAvailabilityEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          name="month-expanded"
+          :events="monthExpandedEvents"
+          :day="monthExpandedDay"
+          :onClick="handleMonthEventClick"
+        />
       </div>
     `,
   },
@@ -131,26 +201,45 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
     name: "EventsWidget",
     props: ["sections"],
     emits: ["join-click", "reply-click", "event-click", "menu-action"],
+    computed: {
+      shouldRenderActionMocks() {
+        const titles = (this.sections || []).map((section) => section.title);
+        return titles.includes("TODAY") || titles.includes("WEEK") || titles.includes("PENDING EVENTS");
+      },
+    },
     template: `
       <div>
-        <button
-          data-test="widget-join"
-          @click="$emit('join-click', { sourceEvent: { bookingId: 77, start: '2026-03-23T10:00:00Z', end: '2026-03-23T10:30:00Z', status: 'confirmed', raw: { enableCallReminderMinutesBefore: true, callReminderMinutesBefore: 15, extensions: [{ status: 'held', endAtIso: '2026-03-23T10:45:00Z' }] } } })"
-        >
-          Join
-        </button>
-        <button
-          data-test="widget-cancel-group"
-          @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_group_1', eventId: 'evt_group', start: '2026-03-23T10:00:00Z', end: '2026-03-23T11:00:00Z', status: 'confirmed', type: 'group-event', raw: { bookingId: 'booking_group_1', bookingIds: ['booking_group_1', 'booking_group_2'], isGroupedGroupSlot: true } } } })"
-        >
-          Cancel Group
-        </button>
-        <button
-          data-test="widget-cancel-private"
-          @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_private_1', eventId: 'evt_private', start: '2026-03-23T12:00:00Z', end: '2026-03-23T12:30:00Z', status: 'confirmed', type: '1on1-call', raw: { bookingId: 'booking_private_1' } } } })"
-        >
-          Cancel Private
-        </button>
+        <template v-for="section in sections || []" :key="section.title">
+          <div data-test="widget-section-title">{{ section.title }}</div>
+          <button
+            v-for="event in section.items || []"
+            :key="event.title"
+            data-test="widget-section-event"
+            @click="$emit('event-click', event)"
+          >
+            {{ event.title }} {{ event.time }} {{ event.showReply ? 'reply' : '' }}
+          </button>
+        </template>
+        <template v-if="shouldRenderActionMocks">
+          <button
+            data-test="widget-join"
+            @click="$emit('join-click', { sourceEvent: { bookingId: 77, start: '2026-03-23T10:00:00Z', end: '2026-03-23T10:30:00Z', status: 'confirmed', raw: { enableCallReminderMinutesBefore: true, callReminderMinutesBefore: 15, extensions: [{ status: 'held', endAtIso: '2026-03-23T10:45:00Z' }] } } })"
+          >
+            Join
+          </button>
+          <button
+            data-test="widget-cancel-group"
+            @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_group_1', eventId: 'evt_group', start: '2026-03-23T10:00:00Z', end: '2026-03-23T11:00:00Z', status: 'confirmed', type: 'group-event', raw: { bookingId: 'booking_group_1', bookingIds: ['booking_group_1', 'booking_group_2'], isGroupedGroupSlot: true } } } })"
+          >
+            Cancel Group
+          </button>
+          <button
+            data-test="widget-cancel-private"
+            @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_private_1', eventId: 'evt_private', start: '2026-03-23T12:00:00Z', end: '2026-03-23T12:30:00Z', status: 'confirmed', type: '1on1-call', raw: { bookingId: 'booking_private_1' } } } })"
+          >
+            Cancel Private
+          </button>
+        </template>
       </div>
     `,
   },
@@ -161,6 +250,14 @@ async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+}
+
+function setWindowWidth(width) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
 }
 
 function isoTodayAt(hour, minute = 0) {
@@ -188,6 +285,7 @@ describe("DashboardEventsFeature", () => {
     callFlow.mockReset();
     showToast.mockReset();
     getBookingJoinState.mockReset();
+    mainCalendarResetScrollToTop.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -204,6 +302,11 @@ describe("DashboardEventsFeature", () => {
     });
 
     engine = createMockEngine();
+    setWindowWidth(1024);
+  });
+
+  afterEach(() => {
+    setWindowWidth(1024);
   });
 
   it("loads booking context from the creatorId prop", async () => {
@@ -225,6 +328,76 @@ describe("DashboardEventsFeature", () => {
         context: expect.objectContaining({ creatorId: 99 }),
       }),
     );
+  });
+
+  it("resets embedded mobile dashboard and calendar scroll through the exposed method", async () => {
+    setWindowWidth(500);
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 99,
+        userRole: "creator",
+        embedded: true,
+      },
+    });
+    await flushPromises();
+
+    wrapper.element.scrollTo = vi.fn();
+
+    expect(wrapper.vm.resetEmbeddedMobileScrollToTop()).toBe(true);
+    expect(wrapper.element.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(mainCalendarResetScrollToTop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reset dashboard calendar scroll outside embedded mobile", async () => {
+    setWindowWidth(1024);
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 99,
+        userRole: "creator",
+        embedded: true,
+      },
+    });
+    await flushPromises();
+
+    wrapper.element.scrollTo = vi.fn();
+
+    expect(wrapper.vm.resetEmbeddedMobileScrollToTop()).toBe(false);
+    expect(wrapper.element.scrollTo).not.toHaveBeenCalled();
+    expect(mainCalendarResetScrollToTop).not.toHaveBeenCalled();
+  });
+
+  it("keeps the main calendar root from owning mobile scroll in embedded mode", async () => {
+    setWindowWidth(500);
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const embeddedWrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 99,
+        userRole: "creator",
+        embedded: true,
+      },
+    });
+    await flushPromises();
+
+    const embeddedClasses = embeddedWrapper.getComponent({ name: "MainCalendar" }).attributes("class").split(/\s+/);
+    expect(embeddedClasses).not.toContain("overflow-y-auto");
+    expect(embeddedClasses).toContain("lg:overflow-y-auto");
+
+    const standardWrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 99,
+        userRole: "creator",
+        embedded: false,
+      },
+    });
+    await flushPromises();
+
+    const standardClasses = standardWrapper.getComponent({ name: "MainCalendar" }).attributes("class").split(/\s+/);
+    expect(standardClasses).toContain("overflow-y-auto");
   });
 
   it("loads agent dashboard context as creator context", async () => {
@@ -375,6 +548,61 @@ describe("DashboardEventsFeature", () => {
     ]);
   });
 
+  it("renders expanded month events through widget items and opens the source event", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const expandedButton = wrapper.findAll("[data-test='widget-section-event']")
+      .find((button) => button.text().includes("Expanded Pending Event"));
+
+    expect(expandedButton.exists()).toBe(true);
+    expect(expandedButton.text()).toContain("10:00am-10:30am");
+    expect(expandedButton.text()).toContain("reply");
+
+    await expandedButton.trigger("click");
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).emitted("month-event-click")).toEqual([
+      [expect.objectContaining({
+        id: "expanded-pending",
+        title: "Expanded Pending Event",
+      })],
+    ]);
+  });
+
+  it("renders visible desktop month markers for bookings and availability", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const bookingMarker = wrapper.get("[data-test='dashboard-month-booking-marker']");
+    expect(bookingMarker.text()).toContain("Month Booked Slot");
+    expect(bookingMarker.text()).toContain("12:00pm - 12:30pm");
+    expect(bookingMarker.classes()).toContain("static");
+    expect(bookingMarker.classes()).toContain("hidden");
+    expect(bookingMarker.classes()).toContain("lg:block");
+
+    const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
+    expect(availabilityMarker.classes()).toContain("static");
+    expect(availabilityMarker.classes()).toContain("hidden");
+    expect(availabilityMarker.classes()).toContain("lg:block");
+    expect(availabilityMarker.attributes("style")).toContain("rgba(102, 112, 133, 0.55)");
+  });
+
   it("emits open-url for join actions in embedded mode", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
@@ -503,6 +731,74 @@ describe("DashboardEventsFeature", () => {
       expect.objectContaining({ name: "Ava", src: "https://example.test/ava.png" }),
       expect.objectContaining({ name: "Ben" }),
     ]);
+  });
+
+  it("shows extended private booking end times in the calendar and widget sections", async () => {
+    const startIso = isoTodayAt(10);
+    const endIso = isoTodayAt(10, 30);
+    const capturedEndIso = isoTodayAt(10, 38);
+    const heldEndIso = isoTodayAt(10, 43);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_private_extended",
+          type: "1on1-call",
+          eventCallType: "video",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [{
+          bookingId: "booking_private_extended",
+          eventId: "evt_private_extended",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Extended Private Call",
+          eventType: "1on1-call",
+          eventCallType: "video",
+          extensions: [
+            { status: "captured", endAtIso: capturedEndIso, durationMinutes: 8 },
+            { status: "held", endAtIso: heldEndIso, durationMinutes: 5 },
+          ],
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    expect(calendarEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        bookingId: "booking_private_extended",
+        start: startIso,
+        end: heldEndIso,
+      }),
+    ]));
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const [privateItem] = widgetSections.find((section) => section.title === "TODAY").items;
+
+    expect(privateItem).toEqual(expect.objectContaining({
+      title: "Extended Private Call",
+      time: "10:00am-10:43am",
+      sourceEvent: expect.objectContaining({
+        bookingId: "booking_private_extended",
+        end: heldEndIso,
+      }),
+    }));
   });
 
   it("passes group availability windows and fan bookings into the main calendar events", async () => {

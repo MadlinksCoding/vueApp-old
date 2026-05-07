@@ -2,6 +2,7 @@ export const FS_EVENTS_BOOTSTRAP = "FS_EVENTS_BOOTSTRAP";
 export const FS_EVENTS_CHILD_READY = "FS_EVENTS_CHILD_READY";
 export const FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
 export const FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
+export const FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
 
 const MESSAGE_SOURCE = "fs-events-embed";
 
@@ -33,6 +34,13 @@ export function notifyEventsEmbedResize(height, options = {}) {
 
 export function requestEventsEmbedOpenUrl(payload = {}) {
   postToParent(FS_EVENTS_OPEN_URL, payload);
+}
+
+export function requestEventsEmbedScrollToTop(payload = {}) {
+  postToParent(FS_EVENTS_SCROLL_TO_TOP, {
+    reason: typeof payload.reason === "string" ? payload.reason : "",
+    behavior: payload.behavior === "smooth" ? "smooth" : "auto",
+  });
 }
 
 export function installEventsEmbedBootstrapListener(handler) {
