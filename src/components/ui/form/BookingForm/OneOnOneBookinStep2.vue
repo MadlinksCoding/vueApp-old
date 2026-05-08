@@ -1658,7 +1658,7 @@ const createEvent = async () => {
               uploaderName: 'on_schedule_live_media_url',
             })"
           >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1676,7 +1676,7 @@ const createEvent = async () => {
               uploaderName: 'on_booking_received_media_url',
             })"
           >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1694,7 +1694,7 @@ const createEvent = async () => {
               uploaderName: 'on_in_session_media_url',
             })"
           >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 
@@ -1712,7 +1712,7 @@ const createEvent = async () => {
               uploaderName: 'on_tipped_session_media_url',
             })"
           >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
         </div>
 

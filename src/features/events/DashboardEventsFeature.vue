@@ -61,7 +61,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
-                <div class="block font-medium truncate w-full">{{ event.title }}</div>
+                <div class="block font-medium truncate w-full py-[2px] px-1">{{ event.title }}</div>
               </div>
               <div :hidden="view === 'month' ? null : true" class="text-[10px] opacity-90 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
@@ -493,7 +493,7 @@ const theme1 = computed(() => ({
     header: "font-semibold",
     dayBase: "w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
-    expired: "opacity-100",
+    expired: "opacity-40",
     today: "bg-gray-500 font-semibold text-white",
     selected: "rounded-full",
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
