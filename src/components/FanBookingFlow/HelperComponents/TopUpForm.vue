@@ -116,6 +116,7 @@ function normalizeAuthPayload(response = {}) {
     ?? response?.token
     ?? response?.data?.backendJwtToken
     ?? response?.data?.jwtToken
+    ?? response?.userData?.jwtToken
     ?? '';
 
   return {
