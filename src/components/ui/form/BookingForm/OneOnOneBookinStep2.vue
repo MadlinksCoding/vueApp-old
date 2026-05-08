@@ -1797,8 +1797,8 @@ const createEvent = async () => {
             </div>
           </div>
         </div>
-      </BookingSectionsWrapper>
-    </template>
+      </div>
+    </BookingSectionsWrapper>
 
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
