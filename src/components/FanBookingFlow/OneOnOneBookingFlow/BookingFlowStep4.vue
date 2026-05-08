@@ -98,7 +98,7 @@ const instantFromEvent = computed(() => toBoolean(
   ?? selectedEvent.value?.raw?.allowInstantBooking,
   false,
 ));
-const isInstantConfirmed = computed(() => instantFromEvent.value );
+const isInstantConfirmed = computed(() => approvalStatus.value === 'auto' || instantFromEvent.value);
 const topTitle = computed(() => (
   isInstantConfirmed.value
     ? t('fan_booking_confirmed_with_creator', { creator: creatorLabel.value })
