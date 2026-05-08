@@ -69,14 +69,14 @@
 
         <!-- Action buttons -->
         <div class="flex items-center gap-2 mt-1">
-          <a
+          <button
             v-if="sessionLink"
-            :href="isExpired ? undefined : sessionLink"
-            rel="noopener noreferrer"
+            type="button"
             class="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold text-white transition-colors"
             :class="isExpired
               ? 'bg-gray-300 cursor-not-allowed pointer-events-none opacity-60'
               : 'bg-[#4F46E5] hover:bg-[#4338CA] cursor-pointer'"
+            @click.stop="handleJoin"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -84,7 +84,7 @@
               />
             </svg>
             Join Call
-          </a>
+          </button>
           <button
             class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border text-gray-300 border-gray-200 pointer-events-none cursor-default"
           >
@@ -203,6 +203,12 @@ const isCancelled    = computed(() => {
 })
 const isAccepted     = computed(() => content.value.action === 'accepted')
 const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
+// ── Join ──────────────────────────────────────────────────────────────────────
+function handleJoin() {
+  if (!sessionLink.value || isExpired.value) return
+  window.open(sessionLink.value, '_top')
+}
+
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 const showDropdown = ref(false)
 

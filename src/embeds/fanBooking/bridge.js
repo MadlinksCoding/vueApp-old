@@ -4,6 +4,7 @@ export const FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
 export const FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
 export const FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
 export const FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
+export const FS_FAN_BOOKING_OPEN_CHAT = "FS_FAN_BOOKING_OPEN_CHAT";
 
 const MESSAGE_SOURCE = "fs-fan-booking-embed";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
@@ -37,6 +38,10 @@ export function notifyOneOnOneBookingCreated(payload = {}) {
 
 export function notifyOneOnOneBookingFailed(payload = {}) {
   postToParent(FS_FAN_BOOKING_FAILED, payload);
+}
+
+export function requestFanBookingOpenChat(payload = {}) {
+  postToParent(FS_FAN_BOOKING_OPEN_CHAT, payload);
 }
 
 export function installOneOnOneBookingBootstrapListener(handler) {

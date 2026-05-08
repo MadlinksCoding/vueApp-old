@@ -499,15 +499,45 @@ function rgba(hexColor, alpha = 1) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const GENERIC_EVENT_TITLE_FALLBACKS = new Set(["event title", "untitled event"]);
+
+function normalizeEventTitleCandidate(value) {
+    if (typeof value !== "string") return "";
+    return value.trim();
+}
+
+function isGenericEventTitle(value) {
+    return GENERIC_EVENT_TITLE_FALLBACKS.has(String(value || "").trim().toLowerCase());
+}
+
 function resolveEventTitle(event) {
-    return String(
-        event?.title
-        || event?.eventTitle
-        || event?.name
-        || event?.raw?.title
-        || event?.raw?.eventTitle
-        || "Event Title",
-    ).trim();
+    const candidates = [
+        event?.title,
+        event?.eventTitle,
+        event?.eventName,
+        event?.event_name,
+        event?.name,
+        event?.raw?.title,
+        event?.raw?.eventTitle,
+        event?.raw?.eventName,
+        event?.raw?.event_name,
+        event?.raw?.name,
+    ];
+    let genericFallback = "";
+
+    for (const candidate of candidates) {
+        const normalized = normalizeEventTitleCandidate(candidate);
+        if (!normalized) continue;
+
+        if (isGenericEventTitle(normalized)) {
+            genericFallback = genericFallback || normalized;
+            continue;
+        }
+
+        return normalized;
+    }
+
+    return genericFallback || "Untitled Event";
 }
 
 function buildCalendarSlotsFromContext({
@@ -1071,8 +1101,14 @@ useBodyOverflowHidden({ minWidth: 1010 });
                     </template>
 
                     <template #event-availability="{ event, style }">
-                        <div class="absolute pointer-events-none min-h-[6px] w-full"
-                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]" />
+                        <div
+                            class="absolute pointer-events-none min-h-[6px] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4"
+                            :title="event.title"
+                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]">
+                            <span v-if="event.title" data-test="calendar-availability-title" class="block truncate">
+                                {{ event.title }}
+                            </span>
+                        </div>
                     </template>
 
                 </MainCalendar>

@@ -1148,6 +1148,10 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       actor: 'fan',
     });
 
+    // Mirror into engine state so Step 4 can read without a backend round-trip
+    props.engine.setState('fanBooking.booking.chatId', chatId, { reason: 'post-booking-chat', silent: true })
+    props.engine.setState('fanBooking.booking.bookingMessageId', messageId, { reason: 'post-booking-chat', silent: true })
+
     // Step 4 — pin the message
     await FlowHandler.run('chat.pinMessage', { chatId, messageId });
   } catch (_) {

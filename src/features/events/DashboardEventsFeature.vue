@@ -791,8 +791,10 @@ function getGroupParticipantCount(event = {}) {
 }
 
 function getWidgetGroupText(event = {}) {
-  const count = getGroupParticipantCount(event);
   const base = t("dashboard_group_event");
+  if (!isCreator.value) return base;
+
+  const count = getGroupParticipantCount(event);
   return count > 0 ? `${base} (${count})` : base;
 }
 
@@ -835,6 +837,7 @@ function toWidgetItem(event, options = {}) {
   const styles = isGroup
     ? { titleColorClass: "text-activePink", borderClass: "bg-brightPink" }
     : { titleColorClass: "text-lightViolet", borderClass: "bg-lightViolet" };
+  const participantCount = isGroup && isCreator.value ? getGroupParticipantCount(event) : undefined;
 
   if (options.layout === "today") {
     return {
@@ -852,7 +855,7 @@ function toWidgetItem(event, options = {}) {
       accentColor,
       isGroup,
       groupText: isGroup ? getWidgetGroupText(event) : undefined,
-      participantCount: isGroup ? getGroupParticipantCount(event) : undefined,
+      participantCount,
     };
   }
 
@@ -865,7 +868,7 @@ function toWidgetItem(event, options = {}) {
     bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
     isGroup,
     groupText: isGroup ? getWidgetGroupText(event) : undefined,
-    participantCount: isGroup ? getGroupParticipantCount(event) : undefined,
+    participantCount,
     showJoin: joinState.canJoin,
     joinUrl: joinState.joinUrl,
     statusText: event.status === "active" ? t("dashboard_status_active") : event.status,

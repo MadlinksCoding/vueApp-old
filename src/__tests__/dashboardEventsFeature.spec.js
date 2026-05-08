@@ -716,6 +716,7 @@ describe("DashboardEventsFeature", () => {
     expect(groupItem).toEqual(expect.objectContaining({
       title: "Group Hang",
       isGroup: true,
+      groupText: "Group event (2)",
       participantCount: 2,
       showJoin: true,
       joinUrl: expect.stringContaining("event_id=evt_group"),
@@ -1035,7 +1036,8 @@ describe("DashboardEventsFeature", () => {
     expect(groupItem).toEqual(expect.objectContaining({
       title: "Week Group Hang",
       isGroup: true,
-      groupText: expect.stringContaining("Group event"),
+      groupText: "Group event",
+      participantCount: undefined,
       showJoin: true,
       joinUrl: "https://example.com/join/77",
     }));

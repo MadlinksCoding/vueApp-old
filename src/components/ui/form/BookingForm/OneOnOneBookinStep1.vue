@@ -168,6 +168,13 @@
     maxAttendees: props.engine.state.maxAttendees || "",
   });
 
+  function discountTokensPerSession(basePrice, percent) {
+    const numericBasePrice = Number(basePrice || 0);
+    const numericPercent = Number(percent || 0);
+    const discount = numericBasePrice * numericPercent / 100;
+    return Math.floor(Math.max(0, Number.isFinite(discount) ? discount : 0));
+  }
+
   // Watch for changes and update engine state
   // Watch for changes and update engine state
   watch(formData, (newVal) => {
@@ -925,7 +932,7 @@
                       {{ t("booking_percent_off_base_price") }}
                     </div>
                     <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.discountPercentage) / 100 ) ) }) }})
+                      ({{ t("booking_tokens_per_session", { tokens: discountTokensPerSession(formData.basePrice, formData.discountPercentage) }) }})
                     </div>
                   </div>
                 </div>
@@ -954,7 +961,7 @@
                       {{ t("booking_off_entire_session") }}
                     </div>
                     <div v-if="formData.basePrice && formData.firstTimeDiscount" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_per_session", { tokens: Math.round( formData.basePrice * ( (100 - formData.firstTimeDiscount) / 100 ) ) }) }})
+                      ({{ t("booking_tokens_per_session", { tokens: discountTokensPerSession(formData.basePrice, formData.firstTimeDiscount) }) }})
                     </div>
                   </div>
                 </div>

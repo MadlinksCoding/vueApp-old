@@ -174,6 +174,34 @@ describe("one-on-one booking step translations", () => {
     });
   });
 
+  it("floors private percentage discount helper amounts per session", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          basePrice: "1",
+          enableLongerDiscount: true,
+          discountPercentage: "1",
+          enableFirstTimeDiscount: true,
+          firstTimeDiscount: "1",
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.text().match(/0 tokens\/session/g)).toHaveLength(2);
+
+    wrapper.vm.formData.basePrice = "100";
+    await nextTick();
+
+    expect(wrapper.text().match(/1 tokens\/session/g)).toHaveLength(2);
+  });
+
   it("renders translated overrides in step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
