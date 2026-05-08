@@ -85,7 +85,7 @@ export const bookingMessages = {
   dashboard_waiting_parent_context: "Waiting for the parent page to provide dashboard context.",
   dashboard_waiting_context: "Waiting for dashboard context",
   dashboard_context_missing: "The events embed will load once a valid {role} id is provided.",
-  dashboard_new_events: "NEW EVENTS",
+  dashboard_new_events: "Create Schedule",
   dashboard_create_private_booking: "Create Private Booking",
   dashboard_create_private_booking_body: "Let your fans schedule one on one time with you via video or audio call.",
   dashboard_create_group_event: "Create Group Event",

@@ -191,7 +191,7 @@ const groupPolicyItems = computed(() => {
   >
     <template v-if="props.isGroupEvent">
       <div class="absolute inset-0 bg-[#7A174A]/70 pointer-events-none"></div>
-      <div class="relative z-10 flex h-full min-h-[31rem] flex-col justify-between text-white">
+      <div class="relative z-10 flex h-full flex-col justify-between text-white">
         <div class="flex flex-col gap-5 px-4 pt-8 md:px-4 lg:px-4">
           <div class="absolute top-0 left-0 flex flex-row items-center">
             <div class="bg-[#FF0066] rounded-br-[4px] md:rounded-br-md px-4 py-1 w-fit h-[28px] flex justify-center items-center">
@@ -231,7 +231,7 @@ const groupPolicyItems = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-col w-full gap-3 px-4 pb-5 pt-10">
+        <div class="flex flex-col w-full gap-3 px-4 pb-5">
           <h3 class="text-sm text-[#EAECF0]">{{ t("fan_booking_group_event_policy_title") }}</h3>
           <ul class="text-sm pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
             <li v-for="item in groupPolicyItems" :key="item" class="flex items-start gap-2">
