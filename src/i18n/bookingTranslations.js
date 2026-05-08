@@ -385,6 +385,7 @@ export const bookingMessages = {
   booking_validation_subscription_tiers_required: "Please select at least one subscription tier.",
   booking_validation_invite_secret_required: "Invite link is not ready yet. Please try again.",
   booking_validation_required_products_required: "Please add at least one product for spending requirement.",
+  booking_validation_buffer_time_min: "Buffer time must be at least 5 minutes.",
   booking_validation_addon_title_required: "Add-on service {index} title is required.",
   booking_validation_addon_price_min: "Add-on service {index} price must be 0 or higher.",
 
@@ -773,4 +774,53 @@ export function translateBookingValidationError(error, t = bookingT) {
 export function formatBookingValidationErrors(errors = [], t = bookingT) {
   const list = Array.isArray(errors) ? errors : [];
   return list.map((error) => translateBookingValidationError(error, t));
+}
+
+function firstArray(...values) {
+  return values.find((value) => Array.isArray(value)) || [];
+}
+
+function extractCreateEventValidationDetails(errorLike = {}) {
+  return firstArray(
+    errorLike,
+    errorLike?.details,
+    errorLike?.details?.details,
+    errorLike?.details?.errors,
+    errorLike?.error?.details,
+    errorLike?.error?.details?.details,
+    errorLike?.error?.details?.errors,
+  );
+}
+
+function translateCreateEventValidationDetail(detail, t = bookingT) {
+  if (!detail || typeof detail !== "object") return "";
+
+  if (detail.field === "bookingBufferMinutes") {
+    return t("booking_validation_buffer_time_min");
+  }
+
+  const key = detail.translationKey || detail.code;
+  if (typeof key === "string" && key.startsWith("booking_validation_")) {
+    return t(key, detail.params || {});
+  }
+
+  return "";
+}
+
+export function formatCreateEventValidationErrors(errorLike = {}, t = bookingT) {
+  const details = extractCreateEventValidationDetails(errorLike);
+  const messages = details
+    .map((detail) => translateCreateEventValidationDetail(detail, t))
+    .filter(Boolean);
+
+  return [...new Set(messages)];
+}
+
+export function formatCreateEventFailureMessage(errorLike = {}, t = bookingT) {
+  const validationMessages = formatCreateEventValidationErrors(errorLike, t);
+  if (validationMessages.length > 0) {
+    return validationMessages.join(" ");
+  }
+
+  return t("booking_create_failed_message");
 }

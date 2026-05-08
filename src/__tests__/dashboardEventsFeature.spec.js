@@ -619,7 +619,7 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.emitted("open-url")).toEqual([
       [{
         url: "https://example.com/join/77",
-        target: "_blank",
+        target: "_self",
       }],
     ]);
     expect(getBookingJoinState).toHaveBeenCalledWith(expect.objectContaining({

@@ -189,6 +189,7 @@
   "booking_validation_addon_title_required": "Add-on service {index} title is required.",
   "booking_validation_base_price_min": "Base price must be 0 or higher.",
   "booking_validation_base_price_required": "Base price is required.",
+  "booking_validation_buffer_time_min": "Buffer time must be at least 5 minutes.",
   "booking_validation_cancellation_fee_min": "Cancellation fee must be 0 or higher.",
   "booking_validation_duration_min": "Session duration must be at least 5 minutes.",
   "booking_validation_event_goal_required": "Event goal must be greater than 0.",

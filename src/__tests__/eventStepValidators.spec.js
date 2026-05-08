@@ -89,6 +89,71 @@ describe("event step validators", () => {
     expect(result.errors.some((error) => error.field === "minContributionPerUser")).toBe(true);
   });
 
+  it("rejects enabled buffer time below five minutes", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      setBufferTime: true,
+      bufferUnit: "minutes",
+      bufferTime: "2",
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field: "bookingBufferMinutes",
+        translationKey: "booking_validation_buffer_time_min",
+      }),
+    ]));
+  });
+
+  it("accepts enabled buffer time at five minutes", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      setBufferTime: true,
+      bufferUnit: "minutes",
+      bufferTime: "5",
+    });
+
+    expect(result.errors.some((error) => error.field === "bookingBufferMinutes")).toBe(false);
+  });
+
+  it("validates hourly buffer time after converting to minutes", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      setBufferTime: true,
+      bufferUnit: "hours",
+      bufferTime: "2",
+    });
+
+    expect(result.errors.some((error) => error.field === "bookingBufferMinutes")).toBe(false);
+  });
+
+  it("does not validate buffer time while disabled", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      setBufferTime: false,
+      bufferUnit: "minutes",
+      bufferTime: "2",
+    });
+
+    expect(result.errors.some((error) => error.field === "bookingBufferMinutes")).toBe(false);
+  });
+
   it("validates cancellation and advance-cancel values only when enabled", () => {
     const disabled = step2Validator({
       enableCancellationFee: false,

@@ -121,6 +121,34 @@ describe("createEventMapper", () => {
     });
   });
 
+  it("converts hourly buffer time to backend minutes", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      setBufferTime: true,
+      bufferUnit: "hours",
+      bufferTime: "2",
+    });
+
+    expect(mapped.enableBufferTime).toBe(true);
+    expect(mapped.bookingBufferMinutes).toBe(120);
+  });
+
+  it("omits booking buffer minutes when buffer time is disabled", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      setBufferTime: false,
+      bufferUnit: "minutes",
+      bufferTime: "2",
+    });
+
+    expect(mapped.enableBufferTime).toBe(false);
+    expect(mapped).not.toHaveProperty("bookingBufferMinutes");
+  });
+
   it("omits private-only call settings for group events", () => {
     const mapped = createEventMapper({
       ...baseDraft,

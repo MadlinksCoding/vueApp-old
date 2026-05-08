@@ -63,11 +63,6 @@ const handleCreateEvent = async ({ type }) => {
 const handleOpenUrl = ({ url, target = "_self" }) => {
   if (!url) return;
 
-  if (target === "_blank") {
-    window.open(url, "_blank", "noopener");
-    return;
-  }
-
   if (target === "_top" && window.top) {
     window.top.location.assign(url);
     return;
