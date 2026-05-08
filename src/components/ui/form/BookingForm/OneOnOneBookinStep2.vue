@@ -16,7 +16,11 @@ import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
 import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
 import { showToast } from "@/utils/toastBus.js";
-import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import {
+  formatBookingValidationErrors,
+  formatCreateEventFailureMessage,
+  useBookingTranslations,
+} from "@/i18n/bookingTranslations.js";
 import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
@@ -1091,13 +1095,10 @@ const createEvent = async () => {
       });
 
       if (!flowResult?.ok) {
-        const message = flowResult?.meta?.uiErrors?.[0]
-          || flowResult?.error?.message
-          || t("booking_create_failed_message");
         showToast({
           type: "error",
           title: t("common_create_event_failed"),
-          message,
+          message: formatCreateEventFailureMessage(flowResult, t),
         });
         return;
       }

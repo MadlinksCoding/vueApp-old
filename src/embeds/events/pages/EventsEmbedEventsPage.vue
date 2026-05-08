@@ -79,16 +79,13 @@ const handleCreateEvent = ({ type }) => {
   });
 };
 
-const handleOpenUrl = ({ url, target = "_blank" }) => {
+const handleOpenUrl = ({ url, target = "_self" }) => {
   if (!url) return;
 
-  if (isEmbeddedIframe()) {
-    requestEventsEmbedOpenUrl({ url, target });
-    return;
-  }
+  const sameTabTarget = target === "_top" ? "_top" : "_self";
 
-  if (target === "_blank") {
-    window.open(url, "_blank", "noopener");
+  if (isEmbeddedIframe()) {
+    requestEventsEmbedOpenUrl({ url, target: sameTabTarget });
     return;
   }
 

@@ -72,7 +72,6 @@
           <a
             v-if="sessionLink"
             :href="isExpired ? undefined : sessionLink"
-            :target="isExpired ? undefined : '_blank'"
             rel="noopener noreferrer"
             class="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold text-white transition-colors"
             :class="isExpired
