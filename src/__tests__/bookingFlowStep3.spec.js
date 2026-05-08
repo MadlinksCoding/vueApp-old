@@ -232,8 +232,12 @@ vi.mock("@/utils/contextIds.js", () => ({
 }));
 
 vi.mock("@/components/FanBookingFlow/HelperComponents/TopUpForm.vue", () => ({
+  __esModule: true,
+  __isKeepAlive: false,
+  __isTeleport: false,
   default: {
     name: "TopUpForm",
+    props: ["beforeSubmit"],
     template: "<div data-test='top-up-form' />",
   },
 }));
@@ -512,6 +516,67 @@ describe("BookingFlowStep3", () => {
       }),
     );
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("enters group top-up without creating or polling a temporary hold", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 300,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await flushAsync();
+
+    const flowNames = engine.callFlow.mock.calls.map(([flowName]) => flowName);
+    expect(flowNames).not.toContain("bookings.createTemporaryHold");
+    expect(flowNames).not.toContain("bookings.getTemporaryHoldStatus");
+    expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("does not require an active temporary hold before group top-up submit", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 300,
+      },
+    });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: {
+        engine,
+        embedded: true,
+      },
+    });
+
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+
+    const flowNames = engine.callFlow.mock.calls.map(([flowName]) => flowName);
+    const topUpForm = wrapper.getComponent({ name: "TopUpForm" });
+    expect(wrapper.find("[data-testid='temporary-hold-banner']").exists()).toBe(false);
+    expect(flowNames).not.toContain("bookings.createTemporaryHold");
+    expect(flowNames).not.toContain("bookings.getTemporaryHoldStatus");
+    expect(topUpForm.props("beforeSubmit")()).toBe(true);
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("translates all known direct create-booking backend error codes", async () => {

@@ -340,7 +340,7 @@
   "dashboard_join_unavailable_title": "Join Unavailable",
   "dashboard_load_failed_message": "Could not load events.",
   "dashboard_loading_events_embed": "Loading events embed",
-  "dashboard_new_events": "NEW EVENTS",
+  "dashboard_new_events": "Create Schedule",
   "dashboard_no_color": "No color",
   "dashboard_pending_events": "PENDING EVENTS",
   "dashboard_scheduled_events": "scheduled events",

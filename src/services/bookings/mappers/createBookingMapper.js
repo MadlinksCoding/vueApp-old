@@ -437,6 +437,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   );
 
   const eventId = event?.eventId || event?.id || null;
+  const groupEvent = isGroupEvent(event);
   const { localDateIso, endDateIso, startHm, endHm, duration } = resolveSlotRange(state);
 
   const startHkt = localDateTimeToHkt(localDateIso, startHm);
@@ -465,7 +466,7 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
     additionalRequests: computed.additionalRequests,
     personalRequestText: resolvePersonalRequestText(state),
     payment: computed.payment,
-    temporaryHoldId: state?.fanBooking?.temporaryHold?.temporaryHoldId || null,
+    temporaryHoldId: groupEvent ? null : (state?.fanBooking?.temporaryHold?.temporaryHoldId || null),
     idempotencyKey: state?.fanBooking?.booking?.idempotencyKey || buildIdempotencyKey("fan_booking"),
   };
 }

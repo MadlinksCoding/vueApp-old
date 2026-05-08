@@ -72,6 +72,17 @@ describe("create booking mapper", () => {
     expect(mapped.fanTimezone).toBe("Asia/Hong_Kong");
   });
 
+  it("keeps temporary hold ids for private booking payloads", () => {
+    const state = baseBookingState();
+    state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_private_123",
+    };
+
+    const mapped = mapCreateBookingToRequest(state);
+
+    expect(mapped.temporaryHoldId).toBe("temphold_private_123");
+  });
+
   it("maps group bookings to the selected slot end and derived duration", () => {
     const state = {
       fanBooking: {
@@ -106,6 +117,34 @@ describe("create booking mapper", () => {
 
     expect(mapped.durationMinutes).toBe(180);
     expect((new Date(mapped.endIso).getTime() - new Date(mapped.startIso).getTime()) / 60000).toBe(180);
+  });
+
+  it("drops stale temporary hold ids for group booking payloads", () => {
+    const state = baseBookingState();
+    state.fanBooking.context.selectedEvent = {
+      eventId: "evt_group_stale_hold",
+      creatorId: 1407,
+      eventType: "group-event",
+      basePriceTokens: 100,
+      raw: {
+        eventType: "group-event",
+        basePriceTokens: 100,
+      },
+    };
+    state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_stale_group_123",
+    };
+    state.bookingDetails.selectedTime = {
+      localDateIso: "2030-01-15",
+      startHm: "10:00",
+      endHm: "13:00",
+      value: "10:00",
+    };
+    state.bookingDetails.selectedDuration = { value: 180, price: 100 };
+
+    const mapped = mapCreateBookingToRequest(state);
+
+    expect(mapped.temporaryHoldId).toBeNull();
   });
 
   it("charges group fixed price once per selected slot", () => {
