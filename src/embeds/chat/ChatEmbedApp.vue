@@ -53,14 +53,23 @@ if (jwtToken) {
 window.__fsChatEmbed = true
 
 const FS_CHAT_AUTH_UPDATE = 'FS_CHAT_AUTH_UPDATE'
+const FS_CHAT_OPEN_CHAT   = 'FS_CHAT_OPEN_CHAT'
 
-function onAuthUpdateMessage(event) {
+function onParentMessage(event) {
   if (event.source !== window.parent) return
   const data = event.data || {}
-  if (data.type !== FS_CHAT_AUTH_UPDATE) return
-  const payload = data.payload || {}
-  if (typeof payload.jwtToken === 'string') {
-    setBackendJwtToken(payload.jwtToken)
+
+  if (data.type === FS_CHAT_AUTH_UPDATE) {
+    const payload = data.payload || {}
+    if (typeof payload.jwtToken === 'string') {
+      setBackendJwtToken(payload.jwtToken)
+    }
+    return
+  }
+
+  if (data.type === FS_CHAT_OPEN_CHAT) {
+    const payload = data.payload || {}
+    widgetRef.value?.openChat(payload)
   }
 }
 
@@ -151,7 +160,7 @@ function attachObserver(el) {
 }
 
 onMounted(() => {
-  window.addEventListener('message', onAuthUpdateMessage)
+  window.addEventListener('message', onParentMessage)
 
   const stopWatch = watch(
     () => widgetRef.value?.widgetEl,
@@ -165,7 +174,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('message', onAuthUpdateMessage)
+  window.removeEventListener('message', onParentMessage)
   clearTimeout(resizeTimer)
   resizeObserver?.disconnect()
   mutationObserver?.disconnect()

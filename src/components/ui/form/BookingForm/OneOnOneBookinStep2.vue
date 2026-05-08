@@ -60,7 +60,7 @@ const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
-const X_REPOST_ALLOWED_CREATOR_ID = 566;
+const currentCreatorId = computed(() => Number(resolveCreatorId()))
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -1701,30 +1701,28 @@ const createEvent = async () => {
       </div>
     </BookingSectionsWrapper>
 
-    <template v-if="isXRepostAllowed">
-      <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
+    <div v-if="currentCreatorId === 566" class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-      <BookingSectionsWrapper :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
-        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.xRepost"
-        @toggle="toggleSection('xRepost')">
-        <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
+    <BookingSectionsWrapper v-if="currentCreatorId === 566" :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
+      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.xRepost"
+      @toggle="toggleSection('xRepost')">
+      <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
 
-          <div class="inline-flex gap-2 justify-between">
-            <CheckboxSwitch v-model="formData.xPostLive" :label="t('booking_x_post_live')"
-              version="dashboard" :wrapper-label="t('booking_dark_mode')" />
-            <div
-              class="flex justify-end cursor-pointer"
-              @click="openXRepostPopup({
-                title: t('booking_x_repost_settings'),
-                checkboxLabel: t('booking_x_post_live'),
-                checkboxField: 'xPostLive',
-                inputName: 'on_schedule_live',
-                textareaName: 'on_schedule_live_message',
-                uploaderName: 'on_schedule_live_media_url',
-              })"
-            >
-              <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
-            </div>
+        <div class="inline-flex gap-2 justify-between">
+          <CheckboxSwitch v-model="formData.xPostLive" :label="t('booking_x_post_live')"
+            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
+          <div
+            class="flex justify-end cursor-pointer"
+            @click="openXRepostPopup({
+              title: t('booking_x_repost_settings'),
+              checkboxLabel: t('booking_x_post_live'),
+              checkboxField: 'xPostLive',
+              inputName: 'on_schedule_live',
+              textareaName: 'on_schedule_live_message',
+              uploaderName: 'on_schedule_live_media_url',
+            })"
+          >
+            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
 
           <div class="inline-flex gap-2  justify-between">

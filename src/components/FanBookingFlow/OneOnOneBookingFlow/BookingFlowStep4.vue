@@ -10,6 +10,7 @@ import {
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
+import { requestFanBookingOpenChat } from '@/embeds/fanBooking/bridge.js';
 
 const props = defineProps({
   engine: {
@@ -52,7 +53,33 @@ const eventTitle = computed(() => (
   || t('fan_booking_untitled_event')
 ));
 
-const creatorLabel = computed(() => creatorPresentation.value.name);
+const creatorLabel = computed(() => creatorPresentation.value.name)
+
+const creatorChatId = computed(() =>
+  props.engine.getState('fanBooking.booking.chatId')
+  || bookingItem.value?.meta?.chatId
+  || null
+)
+const creatorUserId = computed(() =>
+  selectedEvent.value?.creatorId
+  ?? selectedEvent.value?.raw?.creatorId
+  ?? props.engine.getState('fanBooking.context.creatorId')
+  ?? null
+)
+
+function handleViewCalendar() {
+  window.open('/dashboard/events', '_top')
+}
+
+function handleMessageCreator() {
+  // console.error('bookingItem', bookingItem.value)
+  // console.error('selectedEvent', selectedEvent.value)
+  requestFanBookingOpenChat({
+    chatId: creatorChatId.value || undefined,
+    userId: creatorUserId.value ? String(creatorUserId.value) : undefined,
+  })
+  emit('close-popup');
+};
 
 function toBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;
@@ -165,12 +192,25 @@ onMounted(() => {
             </div>
             <div class="w-full flex flex-col justify-start items-center gap-2 mt-[50px]">
               <!-- Nay Temp hide this one: -->
-              <!-- <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer">
+              <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-gray-900 inline-flex justify-center items-center gap-2 cursor-pointer" @click="handleMessageCreator">
                 <div class="w-6 h-6 relative overflow-hidden">
                   <img :src="bookingFlowMessageGreenIcon" alt="message-icon" />
                 </div>
                 <div class="text-center justify-start text-green-500 text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
-              </div> -->
+              </div>
+              <div
+                v-if="isInstantConfirmed"
+                class="self-stretch h-10 min-w-24 px-4 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2 cursor-pointer rounded-sm"
+                @click="handleViewCalendar"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <div class="text-center text-gray-900 text-base font-medium leading-6">View events on your calendar</div>
+              </div>
             </div>
           </div>
       </div>

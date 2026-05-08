@@ -199,13 +199,29 @@
       }, "*");
     }
 
+    function onFanBookingMessage(event) {
+      var data = event.data || {};
+      if (data.type !== "FS_FAN_BOOKING_OPEN_CHAT") return;
+      openChat(data.payload || {});
+    }
+
     window.addEventListener("message", onMessage);
+    window.addEventListener("message", onFanBookingMessage);
     window.addEventListener("resize", onHostResize);
+
+    function openChat(options) {
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_OPEN_CHAT",
+        payload: options || {},
+      }, "*");
+    }
 
     return {
       iframe: iframe,
       container: chatContainer,
       updateAuth: updateAuth,
+      openChat: openChat,
       refreshProductRecommendation: function (payload) {
         iframe.contentWindow.postMessage({
           type: "FS_CHAT_PRODUCT_REFRESH",
@@ -214,6 +230,7 @@
       },
       destroy: function () {
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("message", onFanBookingMessage);
         window.removeEventListener("resize", onHostResize);
         if (chatContainer.parentNode) {
           chatContainer.parentNode.removeChild(chatContainer);
