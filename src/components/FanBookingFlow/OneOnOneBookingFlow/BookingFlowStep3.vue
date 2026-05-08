@@ -267,9 +267,10 @@ const isGroupEvent = computed(() => {
       || selectedEvent.value?.eventType
       || raw?.type
       || raw?.eventType
-      || '',
+    || '',
   ).toLowerCase() === 'group-event';
 });
+const requiresTemporaryHold = computed(() => !isGroupEvent.value);
 
 const isEventGoalGroupEvent = computed(() => {
   const raw = selectedEvent.value?.raw || {};
@@ -1224,6 +1225,13 @@ async function refreshTemporaryHoldStatus(temporaryHoldId) {
 
 async function ensureTemporaryHold() {
   if (hasBookingCreated.value) return true;
+  if (!requiresTemporaryHold.value) {
+    clearHoldTimer();
+    secondsRemaining.value = 0;
+    holdLoading.value = false;
+    holdError.value = '';
+    return true;
+  }
 
   holdLoading.value = true;
   holdError.value = '';
@@ -1546,8 +1554,9 @@ const enterTopUpSubstep = async () => {
 };
 
 function validateBeforeTopUpSubmit() {
-  if (isSubmitting.value || holdLoading.value || hasBookingCreated.value) return false;
-  if (!hasActiveHold.value) {
+  if (isSubmitting.value || hasBookingCreated.value) return false;
+  if (requiresTemporaryHold.value && holdLoading.value) return false;
+  if (requiresTemporaryHold.value && !hasActiveHold.value) {
     showToast({
       type: 'error',
       title: t('fan_booking_slot_hold_expired_title'),
@@ -1729,7 +1738,7 @@ watch(
 watch(
   () => isTopUpSubstep.value,
   async (isTopUp) => {
-    if (!isTopUp) return;
+    if (!isTopUp || !requiresTemporaryHold.value) return;
     await ensureTemporaryHold();
   },
   { immediate: true },
@@ -2016,7 +2025,11 @@ onBeforeUnmount(() => {
               </template>
 
               <template v-else>
-                <div class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3">
+                <div
+                  v-if="requiresTemporaryHold"
+                  class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3"
+                  data-testid="temporary-hold-banner"
+                >
                   <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">{{ t("fan_booking_reserving_slot") }}</p>
                   <p v-else-if="holdError" class="text-xs text-red-300 font-medium">{{ holdError }}</p>
                   <p v-else class="text-xs text-[#07F468] font-semibold">{{ t("fan_booking_slot_reserved_for", { time: formattedHoldTimer }) }}</p>
