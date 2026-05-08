@@ -21,6 +21,37 @@ function normalizeString(value, fallback = "") {
   return trimmed || fallback;
 }
 
+const GENERIC_EVENT_TITLE_FALLBACKS = new Set(["event title", "untitled event"]);
+
+function isGenericEventTitle(value) {
+  return GENERIC_EVENT_TITLE_FALLBACKS.has(String(value || "").trim().toLowerCase());
+}
+
+function resolveEventDisplayTitle(item = {}) {
+  const candidates = [
+    item?.title,
+    item?.eventTitle,
+    item?.eventName,
+    item?.event_name,
+    item?.name,
+  ];
+  let genericFallback = "";
+
+  for (const candidate of candidates) {
+    const normalized = normalizeString(candidate, "");
+    if (!normalized) continue;
+
+    if (isGenericEventTitle(normalized)) {
+      genericFallback = genericFallback || normalized;
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return genericFallback || "Untitled Event";
+}
+
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
@@ -163,7 +194,7 @@ function normalizeEventItem(item = {}) {
     creatorTimezone: normalizeString(item.creatorTimezone, DEFAULT_CREATOR_TIMEZONE),
     type: item.type || "1on1-call",
     status: item.status || "active",
-    title: normalizeString(item.title, "Untitled Event"),
+    title: resolveEventDisplayTitle(item),
     description: normalizeString(item.description, ""),
     sessionDurationMinutes: normalizeNumber(item.sessionDurationMinutes, 15),
     basePriceTokens: normalizeNumber(item.basePriceTokens, 0),

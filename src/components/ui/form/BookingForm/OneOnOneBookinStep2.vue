@@ -67,6 +67,12 @@ const isGroupBooking = computed(() => (
   || props.engine?.getState?.("eventType") === "group-event"
 ));
 
+function isCreatorAllowedForXRepost(creatorId = resolveCreatorId()) {
+  return Number(creatorId) === X_REPOST_ALLOWED_CREATOR_ID;
+}
+
+const isXRepostAllowed = computed(() => isCreatorAllowedForXRepost());
+
 function normalizeSelectionArray(value) {
   if (Array.isArray(value)) {
     return value
@@ -169,6 +175,43 @@ const formData = ref({
   on_tipped_session_media_url: props.engine.state.on_tipped_session_media_url || "",
   on_purchased_media_url: props.engine.state.on_purchased_media_url || "",
 });
+
+const X_REPOST_BOOLEAN_FIELDS = [
+  "xPostLive",
+  "xPostBooked",
+  "xPostInSession",
+  "xPostTipped",
+  "xPostPurchase",
+  "on_schedule_live",
+  "on_booking_received",
+  "on_in_session",
+  "on_tipped_session",
+  "on_purchased",
+];
+
+const X_REPOST_TEXT_FIELDS = [
+  "on_schedule_live_message",
+  "on_booking_received_message",
+  "on_in_session_message",
+  "on_tipped_session_message",
+  "on_purchased_message",
+  "on_schedule_live_media_url",
+  "on_booking_received_media_url",
+  "on_in_session_media_url",
+  "on_tipped_session_media_url",
+  "on_purchased_media_url",
+];
+
+function resetXRepostFields() {
+  X_REPOST_BOOLEAN_FIELDS.forEach((field) => {
+    formData.value[field] = false;
+    props.engine?.setState?.(field, false, { silent: true });
+  });
+  X_REPOST_TEXT_FIELDS.forEach((field) => {
+    formData.value[field] = "";
+    props.engine?.setState?.(field, "", { silent: true });
+  });
+}
 
 watch(formData, (newVal) => {
   Object.keys(newVal).forEach(key => {
@@ -442,6 +485,12 @@ const xRepostPopupMediaModel = computed({
 });
 
 function openXRepostPopup(config = {}) {
+  if (!isCreatorAllowedForXRepost()) {
+    xRepostPopupOpen.value = false;
+    resetXRepostFields();
+    return;
+  }
+
   xRepostPopupState.value = {
     title: String(config.title || t("booking_x_repost_settings")),
     checkboxLabel: String(config.checkboxLabel || t("booking_post_to_x")),
@@ -454,6 +503,12 @@ function openXRepostPopup(config = {}) {
   };
   xRepostPopupOpen.value = true;
 }
+
+watch(isXRepostAllowed, (allowed) => {
+  if (allowed) return;
+  xRepostPopupOpen.value = false;
+  resetXRepostFields();
+}, { immediate: true });
 
 watch(() => formData.value.xPostLive, (value) => {
   formData.value.on_schedule_live = Boolean(value);
@@ -988,6 +1043,7 @@ function resolveCreatedEventName(flowResult = {}) {
 
 async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) {
   console.error("Event created:", { creatorId, eventName, eventType, eventId });
+  const canUseXRepost = isCreatorAllowedForXRepost(creatorId);
   const payload = {
     creator_id: creatorId,
     event_name: eventName,
@@ -996,21 +1052,21 @@ async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) 
     event_id: String(eventId || props.engine.getState("eventId") || ""),
     booking_name: eventName,
     profile_url: String(props.engine.state.profile_url || props.engine.state.profileUrl || ""),
-    on_schedule_live: Boolean(formData.value.on_schedule_live ?? formData.value.xPostLive),
-    on_booking_received: Boolean(formData.value.on_booking_received ?? formData.value.xPostBooked),
-    on_in_session: Boolean(formData.value.on_in_session ?? formData.value.xPostInSession),
-    on_tipped_session: Boolean(formData.value.on_tipped_session ?? formData.value.xPostTipped),
-    on_purchased: Boolean(formData.value.on_purchased ?? formData.value.xPostPurchase),
-    on_schedule_live_message: String(formData.value.on_schedule_live_message || ""),
-    on_booking_received_message: String(formData.value.on_booking_received_message || ""),
-    on_in_session_message: String(formData.value.on_in_session_message || ""),
-    on_tipped_session_message: String(formData.value.on_tipped_session_message || ""),
-    on_purchased_message: String(formData.value.on_purchased_message || ""),
-    on_schedule_live_media_url: String(formData.value.on_schedule_live_media_url || ""),
-    on_booking_received_media_url: String(formData.value.on_booking_received_media_url || ""),
-    on_in_session_media_url: String(formData.value.on_in_session_media_url || ""),
-    on_tipped_session_media_url: String(formData.value.on_tipped_session_media_url || ""),
-    on_purchased_media_url: String(formData.value.on_purchased_media_url || ""),
+    on_schedule_live: canUseXRepost && Boolean(formData.value.on_schedule_live ?? formData.value.xPostLive),
+    on_booking_received: canUseXRepost && Boolean(formData.value.on_booking_received ?? formData.value.xPostBooked),
+    on_in_session: canUseXRepost && Boolean(formData.value.on_in_session ?? formData.value.xPostInSession),
+    on_tipped_session: canUseXRepost && Boolean(formData.value.on_tipped_session ?? formData.value.xPostTipped),
+    on_purchased: canUseXRepost && Boolean(formData.value.on_purchased ?? formData.value.xPostPurchase),
+    on_schedule_live_message: canUseXRepost ? String(formData.value.on_schedule_live_message || "") : "",
+    on_booking_received_message: canUseXRepost ? String(formData.value.on_booking_received_message || "") : "",
+    on_in_session_message: canUseXRepost ? String(formData.value.on_in_session_message || "") : "",
+    on_tipped_session_message: canUseXRepost ? String(formData.value.on_tipped_session_message || "") : "",
+    on_purchased_message: canUseXRepost ? String(formData.value.on_purchased_message || "") : "",
+    on_schedule_live_media_url: canUseXRepost ? String(formData.value.on_schedule_live_media_url || "") : "",
+    on_booking_received_media_url: canUseXRepost ? String(formData.value.on_booking_received_media_url || "") : "",
+    on_in_session_media_url: canUseXRepost ? String(formData.value.on_in_session_media_url || "") : "",
+    on_tipped_session_media_url: canUseXRepost ? String(formData.value.on_tipped_session_media_url || "") : "",
+    on_purchased_media_url: canUseXRepost ? String(formData.value.on_purchased_media_url || "") : "",
   };
 
   const endpoint = import.meta.env.VITE_WEB_BASE_URL + "/wp-json/api/event/create";
@@ -1079,10 +1135,17 @@ const createEvent = async () => {
 
   if (result.valid) {
     isCreating.value = true;
-    props.engine.setState("creatorId", resolveCreatorId(), { reason: "create-event-flow", silent: true });
+    const creatorId = resolveCreatorId();
+    const eventType = props.bookingType === "group" ? "group-event" : "1on1-call";
+
+    if (!isCreatorAllowedForXRepost(creatorId)) {
+      resetXRepostFields();
+    }
+
+    props.engine.setState("creatorId", creatorId, { reason: "create-event-flow", silent: true });
     props.engine.setState(
       "eventType",
-      props.bookingType === "group" ? "group-event" : "1on1-call",
+      eventType,
       { reason: "create-event-flow", silent: true },
     );
 
@@ -1090,7 +1153,7 @@ const createEvent = async () => {
       const flowResult = await props.engine.callFlow("events.createEvent", null, {
         context: {
           stateEngine: props.engine,
-          creatorId: resolveCreatorId(),
+          creatorId,
           apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
         },
       });
@@ -1105,9 +1168,9 @@ const createEvent = async () => {
       }
 
       const notifyResult = await notifyEventCreated({
-        creatorId: resolveCreatorId(),
+        creatorId,
         eventName: resolveCreatedEventName(flowResult),
-        eventType: props.engine.getState("eventType") || (props.bookingType === "group" ? "group-event" : "1on1-call"),
+        eventType: props.engine.getState("eventType") || eventType,
         eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
       });
 
@@ -1117,7 +1180,7 @@ const createEvent = async () => {
         console.info("Event create notification status", notifyResult);
       }
       emit("created", {
-        creatorId: resolveCreatorId(),
+        creatorId,
         flowResult,
       });
     } finally {
@@ -1661,86 +1724,86 @@ const createEvent = async () => {
           >
             <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
           </div>
-        </div>
 
-        <div class="inline-flex gap-2  justify-between">
-          <CheckboxSwitch v-model="formData.xPostBooked" :label="t('booking_x_post_booked')"
-            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
-          <div
-            class="flex justify-end cursor-pointer"
-            @click="openXRepostPopup({
-              title: t('booking_x_repost_settings'),
-              checkboxLabel: t('booking_x_post_booked'),
-              checkboxField: 'xPostBooked',
-              inputName: 'on_booking_received',
-              textareaName: 'on_booking_received_message',
-              uploaderName: 'on_booking_received_media_url',
-            })"
-          >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+          <div class="inline-flex gap-2  justify-between">
+            <CheckboxSwitch v-model="formData.xPostBooked" :label="t('booking_x_post_booked')"
+              version="dashboard" :wrapper-label="t('booking_dark_mode')" />
+            <div
+              class="flex justify-end cursor-pointer"
+              @click="openXRepostPopup({
+                title: t('booking_x_repost_settings'),
+                checkboxLabel: t('booking_x_post_booked'),
+                checkboxField: 'xPostBooked',
+                inputName: 'on_booking_received',
+                textareaName: 'on_booking_received_message',
+                uploaderName: 'on_booking_received_media_url',
+              })"
+            >
+              <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            </div>
+          </div>
+
+          <div class="inline-flex gap-2 justify-between">
+            <CheckboxSwitch v-model="formData.xPostInSession" :label="t('booking_x_post_in_session')" version="dashboard"
+              :wrapper-label="t('booking_dark_mode')" />
+            <div
+              class="flex justify-end cursor-pointer"
+              @click="openXRepostPopup({
+                title: t('booking_x_repost_settings'),
+                checkboxLabel: t('booking_x_post_in_session'),
+                checkboxField: 'xPostInSession',
+                inputName: 'on_in_session',
+                textareaName: 'on_in_session_message',
+                uploaderName: 'on_in_session_media_url',
+              })"
+            >
+              <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            </div>
+          </div>
+
+          <div class="inline-flex gap-2 justify-between">
+            <CheckboxSwitch v-model="formData.xPostTipped" :label="t('booking_x_post_tipped')"
+              version="dashboard" :wrapper-label="t('booking_dark_mode')" />
+            <div
+              class="flex justify-end cursor-pointer"
+              @click="openXRepostPopup({
+                title: t('booking_x_repost_settings'),
+                checkboxLabel: t('booking_x_post_tipped'),
+                checkboxField: 'xPostTipped',
+                inputName: 'on_tipped_session',
+                textareaName: 'on_tipped_session_message',
+                uploaderName: 'on_tipped_session_media_url',
+              })"
+            >
+              <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            </div>
+          </div>
+
+          <div class="inline-flex gap-2 justify-between w-full">
+            <CheckboxSwitch v-model="formData.xPostPurchase" :label="t('booking_x_post_purchase')"
+              version="dashboard" :wrapper-label="t('booking_dark_mode')" />
+            <div
+              class="flex justify-end cursor-pointer"
+              @click="openXRepostPopup({
+                title: t('booking_x_repost_settings'),
+                checkboxLabel: t('booking_x_post_purchase'),
+                checkboxField: 'xPostPurchase',
+                inputName: 'on_purchased',
+                textareaName: 'on_purchased_message',
+                uploaderName: 'on_purchased_media_url',
+              })"
+            >
+              <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
+            </div>
           </div>
         </div>
-
-        <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostInSession" :label="t('booking_x_post_in_session')" version="dashboard"
-            :wrapper-label="t('booking_dark_mode')" />
-          <div
-            class="flex justify-end cursor-pointer"
-            @click="openXRepostPopup({
-              title: t('booking_x_repost_settings'),
-              checkboxLabel: t('booking_x_post_in_session'),
-              checkboxField: 'xPostInSession',
-              inputName: 'on_in_session',
-              textareaName: 'on_in_session_message',
-              uploaderName: 'on_in_session_media_url',
-            })"
-          >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
-          </div>
-        </div>
-
-        <div class="inline-flex gap-2 justify-between">
-          <CheckboxSwitch v-model="formData.xPostTipped" :label="t('booking_x_post_tipped')"
-            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
-          <div
-            class="flex justify-end cursor-pointer"
-            @click="openXRepostPopup({
-              title: t('booking_x_repost_settings'),
-              checkboxLabel: t('booking_x_post_tipped'),
-              checkboxField: 'xPostTipped',
-              inputName: 'on_tipped_session',
-              textareaName: 'on_tipped_session_message',
-              uploaderName: 'on_tipped_session_media_url',
-            })"
-          >
-            <img class="w-5 h-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
-          </div>
-        </div>
-
-        <div class="inline-flex gap-2 justify-between w-full">
-          <CheckboxSwitch v-model="formData.xPostPurchase" :label="t('booking_x_post_purchase')"
-            version="dashboard" :wrapper-label="t('booking_dark_mode')" />
-          <div
-            class="flex justify-end cursor-pointer"
-            @click="openXRepostPopup({
-              title: t('booking_x_repost_settings'),
-              checkboxLabel: t('booking_x_post_purchase'),
-              checkboxField: 'xPostPurchase',
-              inputName: 'on_purchased',
-              textareaName: 'on_purchased_message',
-              uploaderName: 'on_purchased_media_url',
-            })"
-          >
-            <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
-          </div>
-        </div>
-      </div>
-    </BookingSectionsWrapper>
+      </BookingSectionsWrapper>
+    </template>
 
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
   </div>
-  <PopupHandler v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
+  <PopupHandler v-if="isXRepostAllowed" v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
     <TwitterRepostSettings
       v-model="xRepostPopupCheckboxModel"
       v-model:message-value="xRepostPopupMessageModel"

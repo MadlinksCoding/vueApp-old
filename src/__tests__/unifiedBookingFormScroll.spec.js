@@ -6,6 +6,7 @@ const mock = vi.hoisted(() => ({
   callbacks: {},
   route: { path: "/UnifiedBookingForm", query: {} },
   router: { push: vi.fn(), replace: vi.fn() },
+  mapAvailabilityToCalendarEvents: vi.fn(() => []),
 }));
 
 function setByPath(target, path, value) {
@@ -87,7 +88,7 @@ vi.mock("@/services/events/mappers/mapDraftEventToFanBookingPreview.js", () => (
 }));
 
 vi.mock("@/services/bookings/utils/bookingSlotUtils.js", () => ({
-  mapAvailabilityToCalendarEvents: vi.fn(() => []),
+  mapAvailabilityToCalendarEvents: mock.mapAvailabilityToCalendarEvents,
 }));
 
 vi.mock("@/utils/calendarHelpers.js", () => ({
@@ -141,7 +142,32 @@ vi.mock("@/components/ui/form/BookingForm/GroupBookingStep2.vue", () => ({
 }));
 
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
-  default: { name: "MainCalendar", template: "<div data-test='calendar' />" },
+  default: {
+    name: "MainCalendar",
+    props: ["events"],
+    methods: {
+      noop() {},
+    },
+    template: `
+      <div data-test="calendar">
+        <template v-for="event in events || []" :key="event.id || event.eventId || event.title">
+          <slot
+            v-if="event.slot === 'availability'"
+            name="event-availability"
+            :event="event"
+            style="top:0;height:32px;left:2px;right:2px;"
+          />
+          <slot
+            v-else-if="event.slot === 'custom'"
+            name="event-custom"
+            :event="event"
+            style="top:0;height:32px;left:2px;right:2px;"
+            :onClick="noop"
+          />
+        </template>
+      </div>
+    `,
+  },
 }));
 
 vi.mock("@/components/dev/card/notification/NotificationCard.vue", () => ({
@@ -165,6 +191,8 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     mock.route.query = {};
     mock.router.push.mockReset();
     mock.router.replace.mockReset();
+    mock.mapAvailabilityToCalendarEvents.mockReset();
+    mock.mapAvailabilityToCalendarEvents.mockReturnValue([]);
     originalScrollTo = window.scrollTo;
     window.scrollTo = vi.fn();
     setWindowWidth(500);
@@ -225,5 +253,54 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(scrollContainer.scrollTo).not.toHaveBeenCalled();
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(wrapper.emitted("scroll-top-request")).toBeUndefined();
+  });
+
+  it("renders fetched availability blocks with the real event title", async () => {
+    mock.engine.callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [
+          {
+            id: "evt_real_title",
+            eventId: "evt_real_title",
+            title: "Untitled Event",
+            status: "active",
+            eventColorSkin: "#22C55E",
+            eventCallType: "video",
+            raw: {
+              eventName: "Creator Strategy Call",
+            },
+          },
+        ],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+    mock.mapAvailabilityToCalendarEvents.mockReturnValueOnce([
+      {
+        id: "availability_evt_real_title",
+        eventId: "evt_real_title",
+        title: "",
+        start: "2030-01-15T10:00:00",
+        end: "2030-01-15T11:00:00",
+        isAvailabilityBlock: true,
+        raw: { eventId: "evt_real_title" },
+      },
+    ]);
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(wrapper.get("[data-test='calendar-availability-title']").text()).toBe("Creator Strategy Call");
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("events")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "evt_real_title",
+          slot: "availability",
+          title: "Creator Strategy Call",
+        }),
+      ]),
+    );
   });
 });
