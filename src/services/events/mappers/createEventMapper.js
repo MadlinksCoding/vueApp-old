@@ -8,6 +8,7 @@ import {
   addMinutesToHm,
   localDateTimeToHkt,
 } from "@/services/events/eventsApiUtils.js";
+import { normalizeBookingBufferMinutes } from "@/services/events/validators/eventStepValidators.js";
 
 const HKT_TIMEZONE = "Asia/Hong_Kong";
 const DEFAULT_CREATOR_TIMEZONE = HKT_TIMEZONE;
@@ -86,6 +87,17 @@ function resolveCreatorTimezone(payload = {}, context = {}) {
 function pickNumeric(value, fallback = null) {
   const numeric = toNumberOr(value, null);
   return numeric == null ? fallback : numeric;
+}
+
+function pickBookingBufferMinutes(payload = {}) {
+  const rawBufferTime = payload.bufferTime;
+  const hasBufferTime = rawBufferTime !== null
+    && rawBufferTime !== undefined
+    && String(rawBufferTime).trim() !== "";
+  const rawValue = hasBufferTime ? rawBufferTime : payload.bookingBufferMinutes;
+  const normalized = normalizeBookingBufferMinutes(rawValue, payload.bufferUnit);
+
+  return normalized == null ? 5 : normalized;
 }
 
 function deriveEventType(payload = {}) {
@@ -688,7 +700,7 @@ function mapBasePayload(payload = {}, context = {}) {
   }
 
   if (mapped.enableBufferTime) {
-    withOptionalField(mapped, "bookingBufferMinutes", pickNumeric(payload.bufferTime || payload.bookingBufferMinutes, 5));
+    withOptionalField(mapped, "bookingBufferMinutes", pickBookingBufferMinutes(payload));
   }
 
   if (type !== "group-event") {

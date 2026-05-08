@@ -1256,7 +1256,7 @@ const handleJoin = (item) => {
 
   emit("open-url", {
     url: joinState.joinUrl,
-    target: props.embedded ? "_blank" : "_self",
+    target: "_self",
   });
 };
 

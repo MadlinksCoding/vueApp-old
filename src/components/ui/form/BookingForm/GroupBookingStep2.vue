@@ -10,7 +10,11 @@ import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSecti
 import BaseInput from "@/components/dev/input/BaseInput.vue";
 import { showToast } from "@/utils/toastBus.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
-import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import {
+  formatBookingValidationErrors,
+  formatCreateEventFailureMessage,
+  useBookingTranslations,
+} from "@/i18n/bookingTranslations.js";
 
 const props = defineProps(["engine"]);
 const emit = defineEmits(["created"]);
@@ -83,13 +87,10 @@ const createEvent = async () => {
       });
 
       if (!flowResult?.ok) {
-        const message = flowResult?.meta?.uiErrors?.[0]
-          || flowResult?.error?.message
-          || t("booking_create_failed_message");
         showToast({
           type: "error",
           title: t("common_create_event_failed"),
-          message,
+          message: formatCreateEventFailureMessage(flowResult, t),
         });
         return;
       }

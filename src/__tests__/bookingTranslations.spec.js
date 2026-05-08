@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createBookingTranslator,
+  formatCreateEventFailureMessage,
+  formatCreateEventValidationErrors,
   formatBookingValidationErrors,
   normalizeBookingLocale,
   normalizeBookingTranslations,
@@ -75,5 +77,45 @@ describe("bookingTranslations", () => {
       .toBe("Booking duration exceeds the maximum allowed duration of 60 minutes.");
     expect(t("fan_booking_validation_payment_txid_already_used", { existing_booking_id: "b_123" }))
       .toBe("This payment transaction has already been used by b_123.");
+  });
+
+  it("formats create-event backend buffer validation details with translated copy", () => {
+    const { t } = createBookingTranslator();
+    const flowResult = {
+      ok: false,
+      error: {
+        code: "HTTP_400",
+        message: "Validation failed",
+        details: {
+          ok: false,
+          error: "Validation failed",
+          details: [{
+            field: "bookingBufferMinutes",
+            errors: ['sanitizeValidate(): "bookingBufferMinutes" must be >= 5. Got: 2'],
+          }],
+        },
+      },
+    };
+
+    expect(formatCreateEventValidationErrors(flowResult, t)).toEqual([
+      "Buffer time must be at least 5 minutes.",
+    ]);
+    expect(formatCreateEventFailureMessage(flowResult, t))
+      .toBe("Buffer time must be at least 5 minutes.");
+  });
+
+  it("uses translated generic create-event copy for unknown backend validation details", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatCreateEventFailureMessage({
+      ok: false,
+      error: {
+        code: "HTTP_400",
+        message: "Validation failed",
+        details: {
+          details: [{ field: "unknownBackendField", errors: ["Raw backend detail"] }],
+        },
+      },
+    }, t)).toBe("Could not create event. Please try again.");
   });
 });

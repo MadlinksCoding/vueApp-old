@@ -3,6 +3,20 @@ function asNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function normalizeBookingBufferMinutes(value, unit = "minutes") {
+  if (isBlank(value)) return null;
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return null;
+
+  const normalizedUnit = String(unit || "minutes").trim().toLowerCase();
+  if (normalizedUnit === "hour" || normalizedUnit === "hours") {
+    return parsed * 60;
+  }
+
+  return parsed;
+}
+
 function isBlank(value) {
   return value === null || value === undefined || String(value).trim().length === 0;
 }
@@ -146,6 +160,13 @@ export function step1Validator(state = {}) {
     const firstTimeDiscount = asNumber(state?.firstTimeDiscount);
     if (firstTimeDiscount == null || firstTimeDiscount <= 0 || firstTimeDiscount > 100) {
       errors.push(asError("firstTimeDiscount", "booking_validation_first_time_discount_range", "First-time discount must be greater than 0 and no more than 100."));
+    }
+  }
+
+  if (state?.setBufferTime) {
+    const bookingBufferMinutes = normalizeBookingBufferMinutes(state?.bufferTime ?? state?.bookingBufferMinutes, state?.bufferUnit);
+    if (bookingBufferMinutes == null || bookingBufferMinutes < 5) {
+      errors.push(asError("bookingBufferMinutes", "booking_validation_buffer_time_min", "Buffer time must be at least 5 minutes."));
     }
   }
 
