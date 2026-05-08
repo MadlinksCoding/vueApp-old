@@ -118,4 +118,26 @@ describe("bookingTranslations", () => {
       },
     }, t)).toBe("Could not create event. Please try again.");
   });
+
+  it("formats create-event event-limit failures with backend counts", () => {
+    const { t } = createBookingTranslator();
+    const flowResult = {
+      ok: false,
+      error: {
+        code: "HTTP_403",
+        message: "Event limit reached",
+        details: {
+          ok: false,
+          error: "Event limit reached",
+          details: {
+            limit: 5,
+            current: 5,
+          },
+        },
+      },
+    };
+
+    expect(formatCreateEventFailureMessage(flowResult, t))
+      .toBe("You have reached the event limit (5/5).");
+  });
 });

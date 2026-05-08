@@ -352,6 +352,7 @@ export const bookingMessages = {
   booking_create_success_title: "Event Created",
   booking_create_success_message: "Your event was created successfully.",
   booking_create_failed_message: "Could not create event. Please try again.",
+  booking_event_limit_reached_message: "You have reached the event limit ({current}/{limit}).",
   booking_load_products_failed: "Could not load products.",
   booking_load_active_tiers_failed: "Could not load active tiers.",
   booking_search_users_failed: "Could not search users.",
@@ -807,6 +808,44 @@ function translateCreateEventValidationDetail(detail, t = bookingT) {
   return "";
 }
 
+function isEventLimitReachedError(value) {
+  return String(value || "").trim().toLowerCase() === "event limit reached";
+}
+
+function getCreateEventEventLimitInfo(errorLike = {}) {
+  const candidates = [
+    errorLike,
+    errorLike?.details,
+    errorLike?.details?.details,
+    errorLike?.error,
+    errorLike?.error?.details,
+    errorLike?.error?.details?.details,
+  ];
+
+  const limitSource = candidates.find((candidate) => (
+    candidate
+    && typeof candidate === "object"
+    && (
+      isEventLimitReachedError(candidate.error)
+      || isEventLimitReachedError(candidate.message)
+    )
+  ));
+
+  if (!limitSource) return null;
+
+  const details = limitSource.details && typeof limitSource.details === "object"
+    ? limitSource.details
+    : {};
+  const nestedDetails = details.details && typeof details.details === "object"
+    ? details.details
+    : {};
+
+  return {
+    limit: nestedDetails.limit ?? details.limit ?? limitSource.limit ?? "",
+    current: nestedDetails.current ?? details.current ?? limitSource.current ?? "",
+  };
+}
+
 export function formatCreateEventValidationErrors(errorLike = {}, t = bookingT) {
   const details = extractCreateEventValidationDetails(errorLike);
   const messages = details
@@ -820,6 +859,11 @@ export function formatCreateEventFailureMessage(errorLike = {}, t = bookingT) {
   const validationMessages = formatCreateEventValidationErrors(errorLike, t);
   if (validationMessages.length > 0) {
     return validationMessages.join(" ");
+  }
+
+  const eventLimitInfo = getCreateEventEventLimitInfo(errorLike);
+  if (eventLimitInfo) {
+    return t("booking_event_limit_reached_message", eventLimitInfo);
   }
 
   return t("booking_create_failed_message");

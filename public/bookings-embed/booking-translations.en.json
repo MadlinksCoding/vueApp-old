@@ -75,6 +75,7 @@
   "booking_event_description_placeholder": "Event Description...",
   "booking_event_image": "Event Image",
   "booking_event_image_preview_alt": "Event image preview",
+  "booking_event_limit_reached_message": "You have reached the event limit ({current}/{limit}).",
   "booking_event_time": "Event time",
   "booking_event_title_placeholder": "Event Title",
   "booking_everyone": "Everyone",
