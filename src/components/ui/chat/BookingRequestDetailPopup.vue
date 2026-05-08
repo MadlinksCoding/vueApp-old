@@ -498,7 +498,7 @@ function handleJoin() {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
-  window.location.assign(joinState.value.joinUrl)
+  window.open(joinState.value.joinUrl, '_top')
 }
 
 function parseDate(iso) {
