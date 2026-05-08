@@ -7,7 +7,7 @@
             <div class="flex-1 px-2 py-3 flex items-center gap-2 border-l-[3px] border-[#5549FF]">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
-                        <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8">
+                        <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8 whitespace-nowrap">
                             {{ t("dashboard_create_private_booking") }}
                         </div>
                         <div
@@ -25,7 +25,7 @@
             <div class="flex-1 px-2 py-3 flex border-l-[3px] border-[#FF0464] items-center gap-2">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
-                        <div class="justify-center text-rose-600 text-xl font-semibold font-['Poppins'] md:leading-8">
+                        <div class="justify-center text-rose-600 text-xl font-semibold font-['Poppins'] md:leading-8 whitespace-nowrap">
                             {{ t("dashboard_create_group_event") }}</div>
                         <div
                             class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 text-nowrap">
