@@ -50,12 +50,14 @@ function onChatCreated(uid, newChatId) {
   if (entry) entry.chatId = newChatId
 }
 
-function findExistingDirectChat(targetUserId) {
+function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   const targetId = Number(targetUserId)
   const myId = Number(currentUserId.value)
   return chatStore.userChats.find(chat => {
     const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
-    return parts.length === 2 && parts.includes(myId) && parts.includes(targetId)
+    if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
+    const bookingFlag = chat.metadata?.is_booking_request === true
+    return isBookingRequest ? bookingFlag : !bookingFlag
   })
 }
 
@@ -121,7 +123,40 @@ const widgetEl  = ref(null)
 // Track host width for iframe embeds, while still allowing normal tailwind md classes
 const hostWidth = ref(window.innerWidth)
 
-defineExpose({ widgetEl })
+async function openChat({ chatId, userId } = {}) {
+  var isExist = false;
+  let chatName = ''
+  if (chatId) {
+    const existing = chatStore.userChats.find(c => String(c.chat_id) === String(chatId))
+    if (existing) {
+      chatName = existing.chat_name || existing.name || ''
+      isExist = true
+    } else {
+      const res = await FlowHandler.run('chat.getChat', { chatId })
+      if (res?.ok) {
+        const item = res.data?.item || {}
+        chatName = item.chat_name || item.name || ''
+        isExist = true
+      }
+    }
+  }
+  if( chatId && isExist) {
+    openChatWindow({ chatId, chatName })
+  } else if (userId) {
+    const uid = String(userId)
+    let userData = chatStore.chatUsersData[uid]
+    if (!userData) {
+      await FlowHandler.run('chat.fetchChatUsersData', { userIds: [uid] })
+      userData = chatStore.chatUsersData[uid]
+    }
+    const displayName = userData?.display_name || userData?.username || ''
+    const username    = userData?.username || ''
+    const avatar      = userData?.avatar || null
+    onStartChat({ userId: uid, displayName, username, avatar })
+  }
+}
+
+defineExpose({ widgetEl, openChat })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
