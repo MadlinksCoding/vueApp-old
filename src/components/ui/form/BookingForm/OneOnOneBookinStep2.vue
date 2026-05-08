@@ -60,6 +60,7 @@ const emit = defineEmits(["created"]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
+const currentCreatorId = computed(() => Number(resolveCreatorId()))
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -1637,9 +1638,9 @@ const createEvent = async () => {
       </div>
     </BookingSectionsWrapper>
 
-    <div class="w-full bg-[#D0D5DD] h-[1px]"></div>
+    <div v-if="currentCreatorId === 566" class="w-full bg-[#D0D5DD] h-[1px]"></div>
 
-    <BookingSectionsWrapper :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
+    <BookingSectionsWrapper v-if="currentCreatorId === 566" :title="t('booking_x_repost_settings')" leftIcon="https://i.ibb.co/7t7vR7n8/Vector.png"
       accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.xRepost"
       @toggle="toggleSection('xRepost')">
       <div v-show="sectionsState.xRepost" class="flex flex-col gap-5 mt-5">
