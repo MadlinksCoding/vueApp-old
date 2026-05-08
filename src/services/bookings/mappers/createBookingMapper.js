@@ -29,6 +29,11 @@ function toWholeTokens(value) {
   return Math.ceil(numeric);
 }
 
+function toDiscountTokens(value) {
+  const numeric = safeNumber(value, 0);
+  return Math.floor(Math.max(0, numeric));
+}
+
 function hmToMinutes(value) {
   const hm = toHm(value, "00:00");
   const hours = safeNumber(hm.slice(0, 2), 0);
@@ -206,7 +211,7 @@ function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal 
 
   return {
     percent,
-    discountTokens: toWholeTokens(sessionSubtotal * percent / 100),
+    discountTokens: toDiscountTokens(sessionSubtotal * percent / 100),
   };
 }
 
@@ -221,7 +226,7 @@ function computeFirstTimeDiscount({ raw = {}, sessionSubtotal = 0, isFirstBookin
 
   return {
     percent,
-    discountTokens: toWholeTokens(sessionSubtotal * percent / 100),
+    discountTokens: toDiscountTokens(sessionSubtotal * percent / 100),
   };
 }
 
@@ -243,7 +248,7 @@ function computeRecurringGroupDiscount({ event = {}, sessionSubtotal = 0, priorE
 
   return {
     percent,
-    discountTokens: toWholeTokens(sessionSubtotal * percent / 100),
+    discountTokens: toDiscountTokens(sessionSubtotal * percent / 100),
     applies: true,
     priorEventBookingCount: priorCount,
   };

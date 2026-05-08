@@ -193,6 +193,58 @@ describe("create booking mapper", () => {
     expect(mapped.payment.total).toBe(150);
   });
 
+  it("rounds fractional first-time percentage discounts down to zero whole tokens", () => {
+    const event = {
+      eventId: "evt_tiny_first_time_discount",
+      type: "1on1-call",
+      basePriceTokens: 1,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 1,
+        sessionDurationMinutes: 30,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscount: 1,
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(event, 30, [], {}, {
+      isFirstBookingForCreator: true,
+    });
+
+    expect(preview.discounts.firstTimeDiscount).toEqual({
+      percent: 1,
+      discountTokens: 0,
+    });
+    expect(preview.payment.lines.some((line) => line.code === "first_time_discount")).toBe(false);
+    expect(preview.payment.total).toBe(1);
+  });
+
+  it("keeps first-time percentage discounts once they reach a whole token", () => {
+    const event = {
+      eventId: "evt_whole_first_time_discount",
+      type: "1on1-call",
+      basePriceTokens: 100,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscount: 1,
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(event, 30, [], {}, {
+      isFirstBookingForCreator: true,
+    });
+
+    expect(preview.payment.lines).toContainEqual({
+      code: "first_time_discount",
+      label: "First Time Discount (1%)",
+      amount: -1,
+    });
+    expect(preview.payment.total).toBe(99);
+  });
+
   it("adds off-hour surcharge when the selected group slot is marked off-hours", () => {
     const event = {
       eventId: "evt_group_off_hour",
