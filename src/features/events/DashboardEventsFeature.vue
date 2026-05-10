@@ -284,9 +284,9 @@
 
     <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
       <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
-        <h3 class="text-[1rem] font-semibold text-gray-700">{{ t("dashboard_cancel_confirm_title") }}</h3>
+        <h3 class="text-[1rem] font-semibold text-gray-700">{{ cancelBookingConfirmTitle }}</h3>
         <p class="mt-2 text-black">
-          {{ t("dashboard_cancel_confirm_body") }}
+          {{ cancelBookingConfirmBody }}
         </p>
         <div class="mt-2 bg-gray-50 px-3 py-2 text-[0.75rem] text-gray-700">
           <p class="font-semibold truncate">{{ cancelBookingCandidateTitle }}</p>
@@ -307,7 +307,7 @@
             :disabled="cancelBookingLoading"
             @click="confirmCancelBooking"
           >
-            {{ cancelBookingLoading ? t("common_loading") : t("dashboard_cancel_confirm_action") }}
+            {{ cancelBookingLoading ? t("common_loading") : cancelBookingConfirmAction }}
           </button>
         </div>
       </div>
@@ -1132,6 +1132,142 @@ const goToCreateEvent = (type) => {
 
 const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));
 
+const cancelBookingConfirmTitle = computed(() => (
+  isFan.value ? t("dashboard_fan_cancel_confirm_title") : t("dashboard_cancel_confirm_title")
+));
+
+const cancelBookingConfirmBody = computed(() => (
+  isFan.value ? fanCancelBookingConfirmBody.value : t("dashboard_cancel_confirm_body")
+));
+
+const cancelBookingConfirmAction = computed(() => (
+  isFan.value ? t("dashboard_fan_cancel_confirm_action") : t("dashboard_cancel_confirm_action")
+));
+
+const toBoolean = (value) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+};
+
+const toPositiveNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const firstDefinedFromSources = (sources, keys) => {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const key of keys) {
+      if (source[key] !== undefined && source[key] !== null && source[key] !== "") {
+        return source[key];
+      }
+    }
+  }
+  return null;
+};
+
+const getCancellationEventSources = (event = {}) => {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  return [
+    raw.eventCurrent,
+    raw.eventSnapshot,
+    raw,
+    event,
+  ].filter((source) => source && typeof source === "object");
+};
+
+const getPaymentSources = (event = {}) => {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  return [raw.payment, event.payment].filter((payment) => payment && typeof payment === "object");
+};
+
+const hasBookingFeeForCancelEvent = (event = {}) => {
+  const hasBookingFeeLine = getPaymentSources(event).some((payment) => (
+    Array.isArray(payment.lines)
+    && payment.lines.some((line) => {
+      const code = String(line?.code || "").trim().toLowerCase();
+      const label = String(line?.label || "").trim().toLowerCase();
+      return (code === "booking_fee" || label === "booking fee")
+        && toPositiveNumber(line?.amount) > 0;
+    })
+  ));
+  if (hasBookingFeeLine) return true;
+
+  const sources = getCancellationEventSources(event);
+  const bookingFeeEnabled = toBoolean(firstDefinedFromSources(sources, ["enableBookingFee"]));
+  const bookingFeeTokens = toPositiveNumber(firstDefinedFromSources(sources, ["bookingFeeTokens", "bookingFee"]));
+  return bookingFeeEnabled && bookingFeeTokens > 0;
+};
+
+const advanceCancelWindowMs = (event = {}) => {
+  const sources = getCancellationEventSources(event);
+  const quantity = toPositiveNumber(firstDefinedFromSources(sources, [
+    "advanceCancelWindowQuantity",
+    "advanceCancelWindow",
+    "advanceVoid",
+  ]));
+  const unit = String(firstDefinedFromSources(sources, ["advanceCancelWindowUnit"]) || "").trim().toLowerCase();
+  if (quantity <= 0) return 0;
+  if (unit === "day" || unit === "days") return quantity * 24 * 60 * 60 * 1000;
+  if (unit === "hour" || unit === "hours") return quantity * 60 * 60 * 1000;
+  if (unit === "minute" || unit === "minutes") return quantity * 60 * 1000;
+  return 0;
+};
+
+const isInsideAdvanceCancelWindow = (event = {}) => {
+  const sources = getCancellationEventSources(event);
+  const advanceCancelEnabled = toBoolean(firstDefinedFromSources(sources, [
+    "allowAdvanceCancelToAvoidMinCharge",
+    "allowAdvanceCancellation",
+  ]));
+  if (!advanceCancelEnabled) return false;
+
+  const windowMs = advanceCancelWindowMs(event);
+  if (windowMs <= 0) return false;
+
+  const start = asDate(event?.start || event?.raw?.startIso || event?.raw?.startAtIso);
+  if (!start) return false;
+
+  return (start.getTime() - Date.now()) >= windowMs;
+};
+
+const getCancellationFeeTokensForCancelEvent = (event = {}) => {
+  const sources = getCancellationEventSources(event);
+  const cancellationFeeEnabled = toBoolean(firstDefinedFromSources(sources, ["enableCancellationFee"]));
+  const cancellationFeeTokens = toPositiveNumber(firstDefinedFromSources(sources, ["cancellationFeeTokens", "cancellationFee"]));
+  if (!cancellationFeeEnabled || cancellationFeeTokens <= 0) return 0;
+
+  const status = String(event?.status || event?.raw?.status || "").trim().toLowerCase();
+  if (status !== "confirmed") return 0;
+  if (isInsideAdvanceCancelWindow(event)) return 0;
+
+  return cancellationFeeTokens;
+};
+
+const fanCancelBookingConfirmMessages = computed(() => {
+  const event = cancelBookingCandidate.value?.event || {};
+  const messages = [];
+
+  if (hasBookingFeeForCancelEvent(event)) {
+    messages.push(t("dashboard_fan_cancel_confirm_booking_fee_body"));
+  }
+
+  const cancellationFeeTokens = getCancellationFeeTokensForCancelEvent(event);
+  if (cancellationFeeTokens > 0) {
+    messages.push(t("dashboard_fan_cancel_confirm_cancellation_fee_body", {
+      tokens: Math.ceil(cancellationFeeTokens),
+    }));
+  }
+
+  return messages.length > 0
+    ? messages
+    : [t("dashboard_fan_cancel_confirm_neutral_body")];
+});
+
+const fanCancelBookingConfirmBody = computed(() => fanCancelBookingConfirmMessages.value.join(" "));
+
 const cancelBookingCandidateTime = computed(() => {
   const event = cancelBookingCandidate.value?.event;
   const start = asDate(event?.start);
@@ -1329,15 +1465,23 @@ const confirmCancelBooking = async () => {
   const bookingId = cancelBookingCandidate.value?.bookingId;
   if (!bookingId || cancelBookingLoading.value) return;
 
+  const cancellationRequest = isFan.value
+    ? {
+        bookingId,
+        actor: "fan",
+        reason: "fan_cancelled_from_events_widget",
+      }
+    : {
+        bookingId,
+        actor: "creator",
+        reason: "creator_cancelled_from_events_widget",
+      };
+
   cancelBookingLoading.value = true;
   try {
     const result = await dashboardEventsEngine.callFlow(
       "bookings.cancelBooking",
-      {
-        bookingId,
-        actor: "creator",
-        reason: "creator_cancelled_from_events_widget",
-      },
+      cancellationRequest,
       {
         context: {
           stateEngine: dashboardEventsEngine,

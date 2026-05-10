@@ -3,6 +3,39 @@ const DEBUG_STORAGE_KEY = "fsFanBookingDebug";
 const DEBUG_MESSAGE_TYPE = "FS_FAN_BOOKING_DEBUG";
 const DEBUG_MESSAGE_SOURCE = "fs-fan-booking-embed";
 
+function redactJwtFromDebugString(value) {
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/([?&]jwtToken=)[^&#]*/g, "$1[redacted]")
+    .replace(/([?&]backendJwtToken=)[^&#]*/g, "$1[redacted]");
+}
+
+function isJwtDebugKey(key) {
+  const normalized = String(key || "").toLowerCase().replace(/[_-]/g, "");
+  return normalized === "jwttoken" || normalized === "backendjwttoken";
+}
+
+function redactJwtFromDebugPayload(value) {
+  if (typeof value === "string") return redactJwtFromDebugString(value);
+  if (!value || typeof value !== "object") return value;
+
+  if (Array.isArray(value)) {
+    return value.map(redactJwtFromDebugPayload);
+  }
+
+  return Object.keys(value).reduce((output, key) => {
+    const normalizedKey = String(key || "").toLowerCase().replace(/[_-]/g, "");
+    if (isJwtDebugKey(key)) {
+      output[normalizedKey === "backendjwttoken" ? "hasBackendJwtToken" : "hasJwtToken"] =
+        typeof value[key] === "string" && value[key].trim() !== "";
+      return output;
+    }
+
+    output[key] = redactJwtFromDebugPayload(value[key]);
+    return output;
+  }, {});
+}
+
 function readWindowFlag() {
   if (typeof window === "undefined") return false;
 
@@ -49,11 +82,12 @@ export function logFanBookingDebug(scope, event, payload = undefined) {
   if (!isFanBookingDebugEnabled()) return;
   if (typeof window === "undefined") return;
 
+  const safePayload = payload === undefined ? null : redactJwtFromDebugPayload(payload);
   const entry = {
     at: new Date().toISOString(),
     scope,
     event,
-    payload: payload === undefined ? null : payload,
+    payload: safePayload,
   };
 
   if (!window.__FSFanBookingDebug || window.__FSFanBookingDebug === true) {
@@ -68,7 +102,7 @@ export function logFanBookingDebug(scope, event, payload = undefined) {
   }
 
   try {
-    console.log(`[FSFanBooking][${scope}] ${event}`, payload === undefined ? "" : payload);
+    console.log(`[FSFanBooking][${scope}] ${event}`, payload === undefined ? "" : safePayload);
   } catch (_) {
     // Ignore console serialization errors.
   }

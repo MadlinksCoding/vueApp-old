@@ -298,10 +298,20 @@
   }
 
   function getTodayIsoDate() {
-    return new Date().toISOString().slice(0, 10);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   const todayIsoDate = getTodayIsoDate();
+
+  function getDateFromMax() {
+    const dateTo = formData.value.dateTo;
+    if (!isIsoDate(dateTo)) return undefined;
+    return dateTo >= todayIsoDate ? dateTo : undefined;
+  }
 
   function getDateToMin() {
     if (!isIsoDate(formData.value.dateFrom)) return todayIsoDate;
@@ -309,9 +319,7 @@
   }
 
   function getOneTimeDateMin() {
-    const fromDate = isIsoDate(formData.value.dateFrom) ? formData.value.dateFrom : null;
-    if (!fromDate) return todayIsoDate;
-    return fromDate > todayIsoDate ? fromDate : todayIsoDate;
+    return todayIsoDate;
   }
 
   function createOneTimeDate(date = getTodayIsoDate()) {
@@ -536,13 +544,21 @@
     }));
 
     if (formData.value.repeatRule === "doesNotRepeat") {
-      const firstDate = oneTimeDates.value[0];
-      if (firstDate && firstDate.slots.length > 0) {
-        formData.value.selectedDate = firstDate.date;
-        formData.value.dateFrom = firstDate.date;
-        formData.value.dateTo = firstDate.date;
-        formData.value.selectedStartTime = firstDate.slots[0].startTime;
-        formData.value.selectedEndTime = firstDate.slots[0].endTime;
+      const sortedOneTimeDates = oneTimeDates.value
+        .map((entry) => entry?.date)
+        .filter((date) => isIsoDate(date))
+        .sort();
+      formData.value.dateFrom = sortedOneTimeDates[0] || "";
+      formData.value.dateTo = sortedOneTimeDates.at(-1) || "";
+
+      const firstDateWithSlot = oneTimeDates.value.find((entry) => (
+        entry && isIsoDate(entry.date) && Array.isArray(entry.slots) && entry.slots.length > 0
+      ));
+      if (firstDateWithSlot) {
+        const firstSlot = firstDateWithSlot.slots[0];
+        formData.value.selectedDate = firstDateWithSlot.date;
+        formData.value.selectedStartTime = firstSlot.startTime;
+        formData.value.selectedEndTime = firstSlot.endTime;
       }
       return;
     }
@@ -649,7 +665,7 @@
   }
 
   function addOneTimeDate() {
-    oneTimeDates.value.push(createOneTimeDate(formData.value.dateFrom || getTodayIsoDate()));
+    oneTimeDates.value.push(createOneTimeDate(getTodayIsoDate()));
     syncAvailabilityToForm();
   }
 
@@ -675,7 +691,19 @@
     syncAvailabilityToForm();
   }
 
-  function onRepeatRuleChange() {
+  function onRepeatRuleChange(newRepeatRule = formData.value.repeatRule, oldRepeatRule = null) {
+    if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "weekly") {
+      formData.value.dateFrom = "";
+      formData.value.dateTo = "";
+    }
+
+    if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "monthly") {
+      if (!isIsoDate(formData.value.dateFrom) || formData.value.dateFrom < todayIsoDate) {
+        formData.value.dateFrom = todayIsoDate;
+      }
+      formData.value.dateTo = "";
+    }
+
     if (formData.value.repeatRule === "doesNotRepeat" && oneTimeDates.value.length === 0) {
       oneTimeDates.value = normalizeOneTimeAvailability([]);
     }
@@ -730,8 +758,8 @@
 
   watch(
     () => formData.value.repeatRule,
-    () => {
-      onRepeatRuleChange();
+    (newRepeatRule, oldRepeatRule) => {
+      onRepeatRuleChange(newRepeatRule, oldRepeatRule);
       applyWeeklyRangeLocking();
     }
   );
@@ -1286,7 +1314,7 @@
                     type="date"
                     v-model="formData.dateFrom"
                     :min="todayIsoDate"
-                    :max="formData.dateTo || undefined"
+                    :max="getDateFromMax()"
                     class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
                   />
                 </div>
@@ -1501,7 +1529,6 @@
                     v-model="entry.date"
                     @change="onSlotChanged"
                     :min="getOneTimeDateMin()"
-                    :max="formData.dateTo || undefined"
                     class="bg-white/75 w-full pl-10 pr-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-datetime-edit]:text-gray-900"
                   />
                 </div>

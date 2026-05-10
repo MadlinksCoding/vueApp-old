@@ -78,8 +78,16 @@ export function normalizeOneOnOneBookingBootstrap(payload = {}) {
 export function applyOneOnOneBookingBootstrap(payload = {}) {
   const normalized = normalizeOneOnOneBookingBootstrap(payload);
   logFanBookingDebug("bootstrap", "apply:start", {
-    payload,
-    normalized,
+    payload: {
+      ...payload,
+      hasJwtToken: typeof payload.jwtToken === "string" && payload.jwtToken.trim() !== "",
+      jwtToken: undefined,
+    },
+    normalized: {
+      ...normalized,
+      hasJwtToken: normalized.jwtToken !== "",
+      jwtToken: undefined,
+    },
   });
   bootstrapState.creatorId = normalized.creatorId;
   bootstrapState.fanId = normalized.fanId;
@@ -99,7 +107,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
       eventId: bootstrapState.eventId,
       inviteSecret: bootstrapState.inviteSecret,
       apiBaseUrl: bootstrapState.apiBaseUrl,
-      jwtToken: bootstrapState.jwtToken,
+      hasJwtToken: bootstrapState.jwtToken !== "",
       creatorData: bootstrapState.creatorData,
       translations: bootstrapState.translations,
       locale: bootstrapState.locale,
@@ -115,8 +123,12 @@ export function applyOneOnOneBookingAuthUpdate(payload = {}) {
   const jwtToken = hasJwtToken && typeof payload.jwtToken === "string" ? payload.jwtToken : "";
 
   logFanBookingDebug("bootstrap", "auth-update:start", {
-    payload,
-    normalized: { fanId, jwtToken },
+    payload: {
+      ...payload,
+      hasJwtToken: hasJwtToken && jwtToken !== "",
+      jwtToken: undefined,
+    },
+    normalized: { fanId, hasJwtToken: hasJwtToken && jwtToken !== "" },
   });
 
   if (fanId != null) {
@@ -162,7 +174,11 @@ export function readOneOnOneBookingBootstrapFromUrl() {
     creatorVerified: params.get("creatorVerified"),
     locale: params.get("locale") || "en",
   });
-  logFanBookingDebug("bootstrap", "url:resolved", normalized);
+  logFanBookingDebug("bootstrap", "url:resolved", {
+    ...normalized,
+    hasJwtToken: normalized.jwtToken !== "",
+    jwtToken: undefined,
+  });
   return normalized;
 }
 
