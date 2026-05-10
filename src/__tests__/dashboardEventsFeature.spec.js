@@ -201,6 +201,33 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
     name: "EventsWidget",
     props: ["sections"],
     emits: ["join-click", "reply-click", "event-click", "menu-action"],
+    methods: {
+      isoHoursFromNow(hours) {
+        return new Date(Date.now() + (hours * 60 * 60 * 1000)).toISOString();
+      },
+      emitCancelPrivate(rawOverrides = {}, eventOverrides = {}) {
+        const start = eventOverrides.start || this.isoHoursFromNow(eventOverrides.startOffsetHours ?? 1);
+        const end = eventOverrides.end || this.isoHoursFromNow(eventOverrides.endOffsetHours ?? 2);
+        this.$emit('menu-action', {
+          action: 'cancel_call',
+          event: {
+            sourceEvent: {
+              bookingId: eventOverrides.bookingId || 'booking_private_1',
+              eventId: eventOverrides.eventId || 'evt_private',
+              title: eventOverrides.title || 'Private Booking',
+              start,
+              end,
+              status: eventOverrides.status || 'confirmed',
+              type: '1on1-call',
+              raw: {
+                bookingId: eventOverrides.bookingId || 'booking_private_1',
+                ...rawOverrides,
+              },
+            },
+          },
+        });
+      },
+    },
     computed: {
       shouldRenderActionMocks() {
         const titles = (this.sections || []).map((section) => section.title);
@@ -235,9 +262,33 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
           </button>
           <button
             data-test="widget-cancel-private"
-            @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { bookingId: 'booking_private_1', eventId: 'evt_private', start: '2026-03-23T12:00:00Z', end: '2026-03-23T12:30:00Z', status: 'confirmed', type: '1on1-call', raw: { bookingId: 'booking_private_1' } } } })"
+            @click="emitCancelPrivate()"
           >
             Cancel Private
+          </button>
+          <button
+            data-test="widget-cancel-booking-fee"
+            @click="emitCancelPrivate({ payment: { currency: 'TOKENS', lines: [{ code: 'booking_fee', label: 'Booking Fee', amount: 5 }], total: 5 } })"
+          >
+            Cancel Booking Fee
+          </button>
+          <button
+            data-test="widget-cancel-cancellation-fee"
+            @click="emitCancelPrivate({ eventCurrent: { enableCancellationFee: true, cancellationFeeTokens: 13, allowAdvanceCancelToAvoidMinCharge: true, advanceCancelWindowQuantity: 1, advanceCancelWindowUnit: 'day' } }, { startOffsetHours: 1, endOffsetHours: 2 })"
+          >
+            Cancel Cancellation Fee
+          </button>
+          <button
+            data-test="widget-cancel-both-fees"
+            @click="emitCancelPrivate({ payment: { currency: 'TOKENS', lines: [{ code: 'booking_fee', label: 'Booking Fee', amount: 5 }], total: 5 }, eventCurrent: { enableCancellationFee: true, cancellationFeeTokens: 21, allowAdvanceCancelToAvoidMinCharge: true, advanceCancelWindowQuantity: 1, advanceCancelWindowUnit: 'day' } }, { startOffsetHours: 1, endOffsetHours: 2 })"
+          >
+            Cancel Both Fees
+          </button>
+          <button
+            data-test="widget-cancel-inside-advance-window"
+            @click="emitCancelPrivate({ eventCurrent: { enableCancellationFee: true, cancellationFeeTokens: 34, allowAdvanceCancelToAvoidMinCharge: true, advanceCancelWindowQuantity: 1, advanceCancelWindowUnit: 'day' } }, { startOffsetHours: 72, endOffsetHours: 73 })"
+          >
+            Cancel Inside Advance Window
           </button>
         </template>
       </div>
@@ -250,6 +301,20 @@ async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+}
+
+async function mountDashboardEventsFeature(props = {}) {
+  const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+  const wrapper = mount(DashboardEventsFeature, {
+    props,
+    global: {
+      provide: {
+        [bookingTranslationSymbol]: createBookingTranslator(),
+      },
+    },
+  });
+  await flushPromises();
+  return wrapper;
 }
 
 function setWindowWidth(width) {
@@ -995,6 +1060,124 @@ describe("DashboardEventsFeature", () => {
         reason: "creator_cancelled_from_events_widget",
       }),
     ]));
+  });
+
+  it("uses fan copy and fan cancellation payload from the dashboard widget", async () => {
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          bookingId: "booking_private_1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        fanId: 2615,
+        userRole: "fan",
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator(),
+        },
+      },
+    });
+
+    await flushPromises();
+    await wrapper.find("[data-test='widget-cancel-private']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Are you sure you want to cancel this event?");
+    expect(wrapper.text()).toContain("Cancelling this event will notify the host and remove it from your schedule.");
+    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+
+    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    expect(confirmButton).toBeTruthy();
+    await confirmButton.trigger("click");
+    await flushPromises();
+
+    const cancelCall = callFlow.mock.calls.find(([flowName]) => flowName === "bookings.cancelBooking");
+    expect(cancelCall).toEqual(expect.arrayContaining([
+      "bookings.cancelBooking",
+      expect.objectContaining({
+        bookingId: "booking_private_1",
+        actor: "fan",
+        reason: "fan_cancelled_from_events_widget",
+      }),
+    ]));
+  });
+
+  it("shows the booking fee warning only when the selected fan booking includes a booking fee", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      fanId: 2615,
+      userRole: "fan",
+    });
+
+    await wrapper.find("[data-test='widget-cancel-booking-fee']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).not.toContain("tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
+  });
+
+  it("shows the cancellation fee token warning when fan cancellation is outside the advance window", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      fanId: 2615,
+      userRole: "fan",
+    });
+
+    await wrapper.find("[data-test='widget-cancel-cancellation-fee']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("13 tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
+  });
+
+  it("shows both booking fee and cancellation fee warnings when both apply", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      fanId: 2615,
+      userRole: "fan",
+    });
+
+    await wrapper.find("[data-test='widget-cancel-both-fees']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).toContain("21 tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
+  });
+
+  it("does not show the cancellation fee warning when fan cancellation is inside the advance window", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      fanId: 2615,
+      userRole: "fan",
+    });
+
+    await wrapper.find("[data-test='widget-cancel-inside-advance-window']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Cancelling this event will notify the host and remove it from your schedule.");
+    expect(wrapper.text()).not.toContain("34 tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
   });
 
   it("keeps current-week group sessions visible with group styling and join metadata", async () => {

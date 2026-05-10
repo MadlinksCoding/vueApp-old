@@ -109,6 +109,14 @@ function findSectionByTitle(wrapper, title) {
   return wrapper.findAll("section").find((section) => section.find("h2").text() === title);
 }
 
+function findStartDateInput(wrapper) {
+  return wrapper.findAll("input[type='date']")[0];
+}
+
+function findDateInputs(wrapper) {
+  return wrapper.findAll("input[type='date']");
+}
+
 describe("one-on-one booking step translations", () => {
   beforeEach(() => {
     sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
@@ -126,6 +134,7 @@ describe("one-on-one booking step translations", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (sendBeaconDescriptor) {
       Object.defineProperty(navigator, "sendBeacon", sendBeaconDescriptor);
     } else {
@@ -172,6 +181,191 @@ describe("one-on-one booking step translations", () => {
       expect(dropdown.props("searchable")).toBe(true);
       expect(dropdown.props("searchPlaceholder")).toBe("Search...");
     });
+  });
+
+  it("does not cap the start date with a stale past end date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "weekly",
+          dateTo: "2026-05-01",
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const startDateInput = findStartDateInput(wrapper);
+
+    expect(startDateInput.attributes("min")).toBe("2026-05-09");
+    expect(startDateInput.attributes("max")).toBeUndefined();
+  });
+
+  it("caps the start date when the end date is today or later", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "weekly",
+          dateTo: "2026-05-21",
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const startDateInput = findStartDateInput(wrapper);
+
+    expect(startDateInput.attributes("min")).toBe("2026-05-09");
+    expect(startDateInput.attributes("max")).toBe("2026-05-21");
+  });
+
+  it("does not cap a one-time date with a stale past end date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "doesNotRepeat",
+          dateTo: "2026-05-01",
+          oneTimeAvailability: [{
+            id: "date_existing",
+            date: "2026-05-09",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const oneTimeDateInput = findDateInputs(wrapper)[0];
+
+    expect(oneTimeDateInput.attributes("min")).toBe("2026-05-09");
+    expect(oneTimeDateInput.attributes("max")).toBeUndefined();
+  });
+
+  it("keeps added one-time date inputs uncapped", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "doesNotRepeat",
+          oneTimeAvailability: [{
+            id: "date_existing",
+            date: "2026-05-10",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.addOneTimeDate();
+    await nextTick();
+
+    const oneTimeDateInputs = findDateInputs(wrapper);
+
+    expect(oneTimeDateInputs).toHaveLength(2);
+    oneTimeDateInputs.forEach((input) => {
+      expect(input.attributes("min")).toBe("2026-05-09");
+      expect(input.attributes("max")).toBeUndefined();
+    });
+    expect(wrapper.vm.formData.dateFrom).toBe("2026-05-09");
+    expect(wrapper.vm.formData.dateTo).toBe("2026-05-10");
+  });
+
+  it("clears custom date bounds when switching the repeat rule back to weekly", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "doesNotRepeat",
+          oneTimeAvailability: [{
+            id: "date_existing",
+            date: "2026-05-10",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+
+    const startDateInput = findStartDateInput(wrapper);
+
+    expect(wrapper.vm.formData.dateFrom).toBe("");
+    expect(wrapper.vm.formData.dateTo).toBe("");
+    expect(startDateInput.attributes("min")).toBe("2026-05-09");
+    expect(startDateInput.attributes("max")).toBeUndefined();
+  });
+
+  it("resets stale custom date bounds when switching the repeat rule to monthly", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-09T12:00:00"));
+
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "doesNotRepeat",
+          oneTimeAvailability: [{
+            id: "date_existing",
+            date: "2026-05-01",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.formData.repeatRule = "monthly";
+    await nextTick();
+
+    const startDateInput = findStartDateInput(wrapper);
+
+    expect(wrapper.vm.formData.dateFrom).toBe("2026-05-09");
+    expect(wrapper.vm.formData.dateTo).toBe("");
+    expect(startDateInput.attributes("min")).toBe("2026-05-09");
+    expect(startDateInput.attributes("max")).toBeUndefined();
   });
 
   it("floors private percentage discount helper amounts per session", async () => {

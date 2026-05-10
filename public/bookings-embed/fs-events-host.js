@@ -49,10 +49,45 @@
     }
   }
 
+  function redactJwtFromDebugString(value) {
+    if (typeof value !== "string") return value;
+    return value
+      .replace(/([?&]jwtToken=)[^&#]*/g, "$1[redacted]")
+      .replace(/([?&]backendJwtToken=)[^&#]*/g, "$1[redacted]");
+  }
+
+  function isJwtDebugKey(key) {
+    var normalized = String(key || "").toLowerCase().replace(/[_-]/g, "");
+    return normalized === "jwttoken" || normalized === "backendjwttoken";
+  }
+
+  function redactJwtFromDebugPayload(value) {
+    if (typeof value === "string") return redactJwtFromDebugString(value);
+    if (!value || typeof value !== "object") return value;
+
+    if (Array.isArray(value)) {
+      return value.map(redactJwtFromDebugPayload);
+    }
+
+    var output = {};
+    Object.keys(value).forEach(function (key) {
+      var normalizedKey = String(key || "").toLowerCase().replace(/[_-]/g, "");
+      if (isJwtDebugKey(key)) {
+        output[normalizedKey === "backendjwttoken" ? "hasBackendJwtToken" : "hasJwtToken"] =
+          typeof value[key] === "string" && value[key].trim() !== "";
+        return;
+      }
+      output[key] = redactJwtFromDebugPayload(value[key]);
+    });
+    return output;
+  }
+
   function logFanBookingDebug(scope, event, payload, options) {
     if (!isFanBookingDebugEnabled(options)) return;
 
     try {
+      var safePayload = payload === undefined ? null : redactJwtFromDebugPayload(payload);
+
       if (!global.__FSFanBookingDebug || global.__FSFanBookingDebug === true) {
         global.__FSFanBookingDebug = {
           enabled: true,
@@ -65,11 +100,11 @@
           at: new Date().toISOString(),
           scope: scope,
           event: event,
-          payload: payload === undefined ? null : payload,
+          payload: safePayload,
         });
       }
 
-      console.log("[FSFanBooking][" + scope + "] " + event, payload === undefined ? "" : payload);
+      console.log("[FSFanBooking][" + scope + "] " + event, payload === undefined ? "" : safePayload);
     } catch (_error) {
       // Ignore debug logging issues.
     }
@@ -592,7 +627,7 @@
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
         apiBaseUrl: settings.apiBaseUrl || "",
-          jwtToken: settings.jwtToken || "",
+          hasJwtToken: !!settings.jwtToken,
           creatorData: creatorData,
           translations: translations,
           locale: locale,

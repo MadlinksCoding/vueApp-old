@@ -54,6 +54,13 @@ export default defineConfig(({ command, mode }) => {
   const proxyTarget = PROXY_TARGETS[env.PROXY_MODE] ?? PROXY_TARGETS.staging;
   const explicitBase = typeof env.VITE_PUBLIC_BASE === "string" ? env.VITE_PUBLIC_BASE.trim() : "";
   const isVercelBuild = env.VERCEL === "1" || process.env.VERCEL === "1";
+  const allowDevTestJwtFallback = command !== "build" && (command === "serve" || process.env.NODE_ENV === "test");
+  const devTestJwtFallback = allowDevTestJwtFallback && typeof env.VITE_JWT_TEST_KEY === "string"
+    ? env.VITE_JWT_TEST_KEY
+    : "";
+  const devTokenHandlerFallback = allowDevTestJwtFallback && typeof env.VITE_JWT_TOKEN_KEY === "string"
+    ? env.VITE_JWT_TOKEN_KEY
+    : "";
   const base = command === "serve"
     ? "/"
     : (explicitBase || (isVercelBuild ? "/" : FAN_SOCIAL_PLUGIN_BASE));
@@ -62,6 +69,8 @@ export default defineConfig(({ command, mode }) => {
     plugins: [vue(), vueDevTools()],
     define: {
       global: "globalThis",
+      __FS_DEV_JWT_TEST_KEY__: JSON.stringify(devTestJwtFallback),
+      __FS_DEV_TOKEN_HANDLER_KEY__: JSON.stringify(devTokenHandlerFallback),
     },
     server: {
       proxy: {

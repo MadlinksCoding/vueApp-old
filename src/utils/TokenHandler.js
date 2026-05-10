@@ -1,20 +1,33 @@
-const TOKEN_HANDLER_API_URL = "https://sy9ci2wju3.execute-api.ap-northeast-1.amazonaws.com/dev-tokens-handler-lambda";
-const TOKEN_HANDLER_TOKEN = "7da80697cf54a3a12e6fa4dd8162d3011749723e414b5b9c688d71c3582e43a1";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
+import { getRuntimeBackendJwtToken } from "@/utils/backendJwt.js";
+
+const TOKEN_HANDLER_API_URL = "https://sy9ci2wju3.execute-api.ap-northeast-1.amazonaws.com/dev-tokens-handler-lambda";
+const TOKEN_HANDLER_TOKEN_FALLBACK = typeof __FS_DEV_TOKEN_HANDLER_KEY__ === "string" ? __FS_DEV_TOKEN_HANDLER_KEY__ : "";
+
+function normalizeToken(value) {
+    if (typeof value !== "string") return "";
+    return value.trim();
+}
 
 class TokenHandler {
     static apiUrl = TOKEN_HANDLER_API_URL;
-    static token = TOKEN_HANDLER_TOKEN;
+    static tokenFallback = TOKEN_HANDLER_TOKEN_FALLBACK;
 
     constructor() { }
 
+    static getToken() {
+        return getRuntimeBackendJwtToken() || normalizeToken(this.tokenFallback);
+    }
+
     static getAuthHeaders() {
-        if (!this.token) {
-            throw new Error("TOKEN_HANDLER_TOKEN is not configured.");
+        const token = this.getToken();
+
+        if (!token) {
+            throw new Error("Backend JWT token is not configured.");
         }
 
         return {
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         };
     }
