@@ -29,6 +29,11 @@ function toWholeTokens(value) {
   return Math.ceil(numeric);
 }
 
+function toSurchargeTokens(value) {
+  const numeric = safeNumber(value, 0);
+  return Math.ceil(Math.max(0, numeric));
+}
+
 function toDiscountTokens(value) {
   const numeric = safeNumber(value, 0);
   return Math.floor(Math.max(0, numeric));
@@ -187,11 +192,24 @@ function computeSessionSubtotal({ basePriceTokens, baseSessionMinutes, durationM
   return toWholeTokens(perMinute * duration);
 }
 
-function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal = 0, baseSessionMinutes = 0 }) {
-  if (!toBoolean(raw.enableDiscountForLonger, false)) return { percent: 0, discountTokens: 0 };
+function firstFiniteTokenAmount(...values) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return toDiscountTokens(parsed);
+  }
+  return 0;
+}
 
-  const percent = safeNumber(raw.discountPercentOfBase, 0);
-  if (percent <= 0 || sessionSubtotal <= 0) return { percent, discountTokens: 0 };
+function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal = 0, baseSessionMinutes = 0 }) {
+  if (!toBoolean(raw.enableDiscountForLonger, false)) return { amountTokens: 0, discountTokens: 0 };
+
+  const amountTokens = firstFiniteTokenAmount(
+    raw.longerSessionDiscountTokens,
+    raw.discountPercentOfBase,
+    raw.discountPercentage,
+  );
+  if (amountTokens <= 0 || sessionSubtotal <= 0) return { amountTokens, discountTokens: 0 };
 
   const minSessions = safeNumber(raw.discountMinSessions, NaN);
   const legacyMinMinutes = safeNumber(raw.discountMinSessionMinutes, NaN);
@@ -202,31 +220,31 @@ function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal 
   }
 
   if (!Number.isFinite(minimumMinutes) || minimumMinutes <= 0) {
-    return { percent, discountTokens: 0 };
+    return { amountTokens, discountTokens: 0 };
   }
 
   if (safeNumber(durationMinutes, 0) < minimumMinutes) {
-    return { percent, discountTokens: 0 };
+    return { amountTokens, discountTokens: 0 };
   }
 
   return {
-    percent,
-    discountTokens: toDiscountTokens(sessionSubtotal * percent / 100),
+    amountTokens,
+    discountTokens: amountTokens,
   };
 }
 
 function computeFirstTimeDiscount({ raw = {}, sessionSubtotal = 0, isFirstBookingForCreator = false }) {
-  if (!isFirstBookingForCreator) return { percent: 0, discountTokens: 0 };
-  if (!toBoolean(raw.enableFirstTimeDiscount, false)) return { percent: 0, discountTokens: 0 };
+  if (!isFirstBookingForCreator) return { amountTokens: 0, discountTokens: 0 };
+  if (!toBoolean(raw.enableFirstTimeDiscount, false)) return { amountTokens: 0, discountTokens: 0 };
 
-  const percent = safeNumber(raw.firstTimeDiscount, 0);
-  if (percent <= 0 || percent > 100 || sessionSubtotal <= 0) {
-    return { percent, discountTokens: 0 };
+  const amountTokens = firstFiniteTokenAmount(raw.firstTimeDiscountTokens, raw.firstTimeDiscount);
+  if (amountTokens <= 0 || sessionSubtotal <= 0) {
+    return { amountTokens, discountTokens: 0 };
   }
 
   return {
-    percent,
-    discountTokens: toDiscountTokens(sessionSubtotal * percent / 100),
+    amountTokens,
+    discountTokens: amountTokens,
   };
 }
 
@@ -305,8 +323,8 @@ export function buildBookingPaymentPreview(
         offHours: false,
       },
       discounts: {
-        longerDiscount: { percent: 0, discountTokens: 0 },
-        firstTimeDiscount: { percent: 0, discountTokens: 0 },
+        longerDiscount: { amountTokens: 0, discountTokens: 0 },
+        firstTimeDiscount: { amountTokens: 0, discountTokens: 0 },
         recurringEventDiscount: { percent: 0, discountTokens: 0, applies: false, priorEventBookingCount: 0 },
       },
     };
@@ -343,29 +361,41 @@ export function buildBookingPaymentPreview(
     });
   });
 
-  const longerDiscount = computeLongerDiscount({
+  let remainingDiscountableSessionSubtotal = sessionSubtotal;
+
+  const longerDiscountRequest = computeLongerDiscount({
     raw,
     durationMinutes,
     sessionSubtotal,
     baseSessionMinutes,
   });
+  const longerDiscount = {
+    ...longerDiscountRequest,
+    discountTokens: Math.min(longerDiscountRequest.discountTokens, remainingDiscountableSessionSubtotal),
+  };
   if (longerDiscount.discountTokens > 0) {
+    remainingDiscountableSessionSubtotal -= longerDiscount.discountTokens;
     lines.push({
       code: "discount",
-      label: `Longer Session Discount (${longerDiscount.percent}%)`,
+      label: "Longer Session Discount",
       amount: -1 * longerDiscount.discountTokens,
     });
   }
 
-  const firstTimeDiscount = computeFirstTimeDiscount({
+  const firstTimeDiscountRequest = computeFirstTimeDiscount({
     raw,
     sessionSubtotal,
     isFirstBookingForCreator,
   });
+  const firstTimeDiscount = {
+    ...firstTimeDiscountRequest,
+    discountTokens: Math.min(firstTimeDiscountRequest.discountTokens, remainingDiscountableSessionSubtotal),
+  };
   if (firstTimeDiscount.discountTokens > 0) {
+    remainingDiscountableSessionSubtotal -= firstTimeDiscount.discountTokens;
     lines.push({
       code: "first_time_discount",
-      label: `First Time Discount (${firstTimeDiscount.percent}%)`,
+      label: "First Time Discount",
       amount: -1 * firstTimeDiscount.discountTokens,
     });
   }
@@ -388,7 +418,7 @@ export function buildBookingPaymentPreview(
   const offHourSurchargePercent = safeNumber(raw.offHourSurchargePercent, 0);
   if (offHoursSelected && offHourSurchargeEnabled && offHourSurchargePercent > 0) {
     const subtotalBeforeSurcharge = Number(lines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0).toFixed(2));
-    const surcharge = toWholeTokens(subtotalBeforeSurcharge * offHourSurchargePercent / 100);
+    const surcharge = toSurchargeTokens(subtotalBeforeSurcharge * offHourSurchargePercent / 100);
     if (surcharge > 0) {
       lines.push({
         code: "off_hour_surcharge",

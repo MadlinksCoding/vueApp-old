@@ -368,7 +368,7 @@ describe("one-on-one booking step translations", () => {
     expect(startDateInput.attributes("max")).toBeUndefined();
   });
 
-  it("floors private percentage discount helper amounts per session", async () => {
+  it("shows private fixed discount helper amounts", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -379,21 +379,23 @@ describe("one-on-one booking step translations", () => {
           eventType: "1on1-call",
           basePrice: "1",
           enableLongerDiscount: true,
-          discountPercentage: "1",
+          longerSessionDiscountTokens: "1",
           enableFirstTimeDiscount: true,
-          firstTimeDiscount: "1",
+          firstTimeDiscountTokens: "1",
         }),
         bookingType: "private",
       },
       global: mountOptions(),
     });
 
-    expect(wrapper.text().match(/0 tokens\/session/g)).toHaveLength(2);
+    expect(wrapper.text().match(/1 tokens off/g)).toHaveLength(2);
 
-    wrapper.vm.formData.basePrice = "100";
+    wrapper.vm.formData.longerSessionDiscountTokens = "12";
+    wrapper.vm.formData.firstTimeDiscountTokens = "8";
     await nextTick();
 
-    expect(wrapper.text().match(/1 tokens\/session/g)).toHaveLength(2);
+    expect(wrapper.text()).toContain("12 tokens off");
+    expect(wrapper.text()).toContain("8 tokens off");
   });
 
   it("renders translated overrides in step 1", async () => {
@@ -707,6 +709,27 @@ describe("one-on-one booking step translations", () => {
     expect(engine.state.offHourSurcharge).toBe("10");
     expect(engine.state.enableMaxAttendees).toBe(true);
     expect(engine.state.maxAttendees).toBe("8");
+  });
+
+  it("ceils the off-hour surcharge token preview", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: "1on1-call",
+      basePrice: "15",
+      addOffHourSurcharge: true,
+      offHourSurcharge: "30",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: { engine, bookingType: "private" },
+      global: mountOptions(),
+    });
+
+    await nextTick();
+
+    expect(wrapper.text()).toContain("5 tokens/session");
+    expect(wrapper.text()).not.toContain("4.5 tokens/session");
   });
 
   it("syncs group event-goal pricing controls into engine state", async () => {

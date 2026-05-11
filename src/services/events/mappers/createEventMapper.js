@@ -658,11 +658,11 @@ function mapBasePayload(payload = {}, context = {}) {
 
   if (mapped.enableDiscountForLonger) {
     withOptionalField(mapped, "discountMinSessions", pickNumeric(payload.sessionMinimum || payload.discountMinSessions || payload.discountEventsCount, 2));
-    withOptionalField(mapped, "discountPercentOfBase", pickNumeric(payload.discountPercentage || payload.discountPercentOfBase, 0));
+    withOptionalField(mapped, "longerSessionDiscountTokens", pickNumeric(payload.longerSessionDiscountTokens || payload.discountPercentage || payload.discountPercentOfBase, 0));
   }
 
   if (mapped.enableFirstTimeDiscount) {
-    withOptionalField(mapped, "firstTimeDiscount", pickNumeric(payload.firstTimeDiscount, 0));
+    withOptionalField(mapped, "firstTimeDiscountTokens", pickNumeric(payload.firstTimeDiscountTokens || payload.firstTimeDiscount, 0));
   }
 
   if (mapped.enableBookingFee) {
@@ -687,7 +687,7 @@ function mapBasePayload(payload = {}, context = {}) {
   }
 
   if (type !== "group-event" && mapped.fanCanRequestExtend) {
-    withOptionalField(mapped, "extendMaxSessionMinutes", pickNumeric(payload.extendSessionMax || payload.extendMaxSessionMinutes, duration));
+    withOptionalField(mapped, "extendMaxSessions", pickNumeric(payload.extendSessionMax ?? payload.extendMaxSessions, null));
   }
 
   const reminderEnabled = asBoolean(payload.setReminders ?? payload.enableCallReminderMinutesBefore, false);

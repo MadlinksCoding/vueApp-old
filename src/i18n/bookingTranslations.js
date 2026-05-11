@@ -220,6 +220,8 @@ export const bookingMessages = {
   booking_base_price: "Base Price",
   booking_per_session: "/session",
   booking_tokens_per_session: "{tokens} tokens/session",
+  booking_tokens_off_session_price: "tokens off session price",
+  booking_tokens_off_booking: "{tokens} tokens off",
   booking_sessions_minimum: "sessions minimum",
   booking_session_minimum_summary: "{count} x {duration} = {minutes} minutes",
   booking_off_entire_session: "off entire session",

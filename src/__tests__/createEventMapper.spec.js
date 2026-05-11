@@ -97,6 +97,27 @@ describe("createEventMapper", () => {
     expect(mapped.eventGoalTokens).toBeUndefined();
   });
 
+  it("maps private discounts to fixed token fields", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "50",
+      enableLongerDiscount: true,
+      sessionMinimum: "2",
+      longerSessionDiscountTokens: "10",
+      enableFirstTimeDiscount: true,
+      firstTimeDiscountTokens: "8",
+    });
+
+    expect(mapped.enableDiscountForLonger).toBe(true);
+    expect(mapped.discountMinSessions).toBe(2);
+    expect(mapped.longerSessionDiscountTokens).toBe(10);
+    expect(mapped.discountPercentOfBase).toBeUndefined();
+    expect(mapped.enableFirstTimeDiscount).toBe(true);
+    expect(mapped.firstTimeDiscountTokens).toBe(8);
+    expect(mapped.firstTimeDiscount).toBeUndefined();
+  });
+
   it("preserves private-only call settings for private events", () => {
     const mapped = createEventMapper({
       ...baseDraft,
@@ -114,7 +135,7 @@ describe("createEventMapper", () => {
     expect(mapped.disableChatDuringCall).toBe(true);
     expect(mapped.disableChatDuringCallAllowEmoji).toBe(true);
     expect(mapped.fanCanRequestExtend).toBe(true);
-    expect(mapped.extendMaxSessionMinutes).toBe(2);
+    expect(mapped.extendMaxSessions).toBe(2);
     expect(mapped.lateStartPolicy).toEqual({
       action: "nextDiscount",
       discountPercent: 15,
@@ -167,7 +188,7 @@ describe("createEventMapper", () => {
     expect(mapped).not.toHaveProperty("disableChatDuringCall");
     expect(mapped).not.toHaveProperty("disableChatDuringCallAllowEmoji");
     expect(mapped).not.toHaveProperty("fanCanRequestExtend");
-    expect(mapped).not.toHaveProperty("extendMaxSessionMinutes");
+    expect(mapped).not.toHaveProperty("extendMaxSessions");
     expect(mapped).not.toHaveProperty("lateStartPolicy");
   });
 
