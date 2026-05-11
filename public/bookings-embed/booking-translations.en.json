@@ -180,6 +180,8 @@
   "booking_subscribers_only": "Subscribers only",
   "booking_tier_selected_one": "1 Tier selected",
   "booking_tiers_selected_count": "{count} Tiers selected",
+  "booking_tokens_off_booking": "{tokens} tokens off",
+  "booking_tokens_off_session_price": "tokens off session price",
   "booking_tokens_per_session": "{tokens} tokens/session",
   "booking_upload_allowed_types": "SVG, PNG, JPG or GIF",
   "booking_upload_click": "Click to upload",
