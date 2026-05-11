@@ -687,7 +687,7 @@ function mapBasePayload(payload = {}, context = {}) {
   }
 
   if (type !== "group-event" && mapped.fanCanRequestExtend) {
-    withOptionalField(mapped, "extendMaxSessionMinutes", pickNumeric(payload.extendSessionMax || payload.extendMaxSessionMinutes, duration));
+    withOptionalField(mapped, "extendMaxSessions", pickNumeric(payload.extendSessionMax ?? payload.extendMaxSessions, null));
   }
 
   const reminderEnabled = asBoolean(payload.setReminders ?? payload.enableCallReminderMinutesBefore, false);

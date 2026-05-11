@@ -135,7 +135,7 @@ describe("createEventMapper", () => {
     expect(mapped.disableChatDuringCall).toBe(true);
     expect(mapped.disableChatDuringCallAllowEmoji).toBe(true);
     expect(mapped.fanCanRequestExtend).toBe(true);
-    expect(mapped.extendMaxSessionMinutes).toBe(2);
+    expect(mapped.extendMaxSessions).toBe(2);
     expect(mapped.lateStartPolicy).toEqual({
       action: "nextDiscount",
       discountPercent: 15,
@@ -188,7 +188,7 @@ describe("createEventMapper", () => {
     expect(mapped).not.toHaveProperty("disableChatDuringCall");
     expect(mapped).not.toHaveProperty("disableChatDuringCallAllowEmoji");
     expect(mapped).not.toHaveProperty("fanCanRequestExtend");
-    expect(mapped).not.toHaveProperty("extendMaxSessionMinutes");
+    expect(mapped).not.toHaveProperty("extendMaxSessions");
     expect(mapped).not.toHaveProperty("lateStartPolicy");
   });
 
