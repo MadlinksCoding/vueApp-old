@@ -658,11 +658,11 @@ function mapBasePayload(payload = {}, context = {}) {
 
   if (mapped.enableDiscountForLonger) {
     withOptionalField(mapped, "discountMinSessions", pickNumeric(payload.sessionMinimum || payload.discountMinSessions || payload.discountEventsCount, 2));
-    withOptionalField(mapped, "discountPercentOfBase", pickNumeric(payload.discountPercentage || payload.discountPercentOfBase, 0));
+    withOptionalField(mapped, "longerSessionDiscountTokens", pickNumeric(payload.longerSessionDiscountTokens || payload.discountPercentage || payload.discountPercentOfBase, 0));
   }
 
   if (mapped.enableFirstTimeDiscount) {
-    withOptionalField(mapped, "firstTimeDiscount", pickNumeric(payload.firstTimeDiscount, 0));
+    withOptionalField(mapped, "firstTimeDiscountTokens", pickNumeric(payload.firstTimeDiscountTokens || payload.firstTimeDiscount, 0));
   }
 
   if (mapped.enableBookingFee) {
