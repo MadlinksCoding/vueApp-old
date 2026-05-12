@@ -94,6 +94,10 @@
     });
 
     function applyContainerSize(w, payload = {}) {
+      let isEventPage = /\/events\//.test(window?.parent?.location.href);
+      if (!isEventPage) return;
+      // console.error("Applying c÷ntainer size for width", w,payload, isEventPage);
+
       if (payload.is_open && w < 768) {
         chatContainer.style.bottom = "0";
         chatContainer.style.right = "0";
