@@ -388,6 +388,7 @@
   "date_wed_short": "Wed",
   "date_wed_tiny": "W",
   "fan_booking_1on1_call": "1 on 1 call",
+  "fan_booking_Non_Refundable": "NON-REFUNDABLE",
   "fan_booking_account_email": "ACCOUNT EMAIL",
   "fan_booking_account_exists": "An account exists for this email.",
   "fan_booking_account_verification_needed_message": "Payment succeeded, but we could not verify your account for booking. Please log in and try again.",
