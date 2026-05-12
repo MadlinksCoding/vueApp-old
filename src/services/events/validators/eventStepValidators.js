@@ -157,9 +157,21 @@ export function step1Validator(state = {}) {
   }
 
   if (state?.enableFirstTimeDiscount) {
-    const firstTimeDiscount = asNumber(state?.firstTimeDiscount);
-    if (firstTimeDiscount == null || firstTimeDiscount <= 0 || firstTimeDiscount > 100) {
-      errors.push(asError("firstTimeDiscount", "booking_validation_first_time_discount_range", "First-time discount must be greater than 0 and no more than 100."));
+    const firstTimeDiscountTokens = asNumber(state?.firstTimeDiscountTokens ?? state?.firstTimeDiscount);
+    if (firstTimeDiscountTokens == null || firstTimeDiscountTokens <= 0) {
+      errors.push(asError("firstTimeDiscountTokens", "booking_validation_first_time_discount_range", "First-time discount must be greater than 0 tokens."));
+    }
+  }
+
+  if (!isGroupEvent && state?.enableLongerDiscount) {
+    const sessionMinimum = asNumber(state?.sessionMinimum ?? state?.discountMinSessions);
+    if (sessionMinimum == null || sessionMinimum < 2) {
+      errors.push(asError("sessionMinimum", "booking_validation_discount_min_sessions", "Longer-session discount minimum must be at least 2 sessions."));
+    }
+
+    const longerSessionDiscountTokens = asNumber(state?.longerSessionDiscountTokens ?? state?.discountPercentage ?? state?.discountPercentOfBase);
+    if (longerSessionDiscountTokens == null || longerSessionDiscountTokens <= 0) {
+      errors.push(asError("longerSessionDiscountTokens", "booking_validation_longer_discount_tokens", "Longer-session discount must be greater than 0 tokens."));
     }
   }
 

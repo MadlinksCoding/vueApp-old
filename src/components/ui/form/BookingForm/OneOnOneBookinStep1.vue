@@ -128,6 +128,7 @@
     basePrice: props.engine.state.basePrice || "",
     sessionMinimum: props.engine.state.sessionMinimum || "",
     discountPercentage: props.engine.state.discountPercentage || "",
+    longerSessionDiscountTokens: props.engine.state.longerSessionDiscountTokens || props.engine.state.discountPercentage || "",
     bookingFee: props.engine.state.bookingFee || "",
     waitlistSpots: props.engine.state.waitlistSpots || "",
     advanceVoid: props.engine.state.advanceVoid || "",
@@ -143,6 +144,7 @@
     allowLongerSessions: props.engine.state.allowLongerSessions || false,
     enableLongerDiscount: props.engine.state.enableLongerDiscount || false,
     enableFirstTimeDiscount: props.engine.state.enableFirstTimeDiscount || false,
+    firstTimeDiscountTokens: props.engine.state.firstTimeDiscountTokens || props.engine.state.firstTimeDiscount || "",
     firstTimeDiscount: props.engine.state.firstTimeDiscount || "",
     enableBookingFee: props.engine.state.enableBookingFee || false,
     allowInstantBooking: props.engine.state.allowInstantBooking || false,
@@ -168,12 +170,13 @@
     maxAttendees: props.engine.state.maxAttendees || "",
   });
 
-  function discountTokensPerSession(basePrice, percent) {
-    const numericBasePrice = Number(basePrice || 0);
-    const numericPercent = Number(percent || 0);
-    const discount = numericBasePrice * numericPercent / 100;
-    return Math.floor(Math.max(0, Number.isFinite(discount) ? discount : 0));
-  }
+  const offHourSurchargePreviewTokens = computed(() => {
+    if (!formData.value.addOffHourSurcharge) return 0;
+    const basePrice = Number(formData.value.basePrice);
+    const percent = Number(formData.value.offHourSurcharge);
+    if (!Number.isFinite(basePrice) || !Number.isFinite(percent) || basePrice <= 0 || percent <= 0) return 0;
+    return Math.ceil(basePrice * percent / 100);
+  });
 
   // Watch for changes and update engine state
   // Watch for changes and update engine state
@@ -952,15 +955,15 @@
                   </div>
                 </div>
                 <div :class="['inline-flex justify-end items-center gap-2',!formData.enableLongerDiscount? 'opacity-50':'opacity-100']">
-                  <BaseInput type="number" placeholder="" v-model="formData.discountPercentage"
+                  <BaseInput type="number" placeholder="" v-model="formData.longerSessionDiscountTokens"
                     :disabled="!formData.enableLongerDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
-                      {{ t("booking_percent_off_base_price") }}
+                      {{ t("booking_tokens_off_session_price") }}
                     </div>
-                    <div v-if="formData.basePrice && formData.discountPercentage" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_per_session", { tokens: discountTokensPerSession(formData.basePrice, formData.discountPercentage) }) }})
+                    <div v-if="formData.longerSessionDiscountTokens" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
+                      ({{ t("booking_tokens_off_booking", { tokens: formData.longerSessionDiscountTokens }) }})
                     </div>
                   </div>
                 </div>
@@ -979,17 +982,16 @@
             <div class="self-stretch inline-flex justify-start items-start gap-2">
               <div class="w-6 h-10" />
               <div class="inline-flex flex-col justify-start items-start gap-2">
-                <div :class="['relative inline-flex justify-end items-center gap-2',!formData.enableFirstTimeDiscount? 'opacity-50':'opacity-100']">
-                  <span class="absolute left-28 top-2 justify-center text-black text-base font-medium font-['Poppins'] leading-normal">%</span>
-                  <BaseInput type="number" placeholder="" v-model="formData.firstTimeDiscount"
+                <div :class="['inline-flex justify-end items-center gap-2',!formData.enableFirstTimeDiscount? 'opacity-50':'opacity-100']">
+                  <BaseInput type="number" placeholder="" v-model="formData.firstTimeDiscountTokens"
                     :disabled="!formData.enableFirstTimeDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       {{ t("booking_off_entire_session") }}
                     </div>
-                    <div v-if="formData.basePrice && formData.firstTimeDiscount" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_per_session", { tokens: discountTokensPerSession(formData.basePrice, formData.firstTimeDiscount) }) }})
+                    <div v-if="formData.firstTimeDiscountTokens" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
+                      ({{ t("booking_tokens_off_booking", { tokens: formData.firstTimeDiscountTokens }) }})
                     </div>
                   </div>
                 </div>
@@ -1286,7 +1288,7 @@
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
                 <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_percent_from_base_price") }}</div>
-                <div v-if="formData.addOffHourSurcharge && formData.basePrice" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: formData.basePrice * (formData.offHourSurcharge / 100) }) }})</div>
+                <div v-if="offHourSurchargePreviewTokens > 0" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: offHourSurchargePreviewTokens }) }})</div>
               </div>
             </div>
           </div>

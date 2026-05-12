@@ -170,6 +170,14 @@ function buildFallbackSlot(item) {
 
 function normalizeEventItem(item = {}) {
   const normalizedRaw = { ...item };
+  normalizedRaw.longerSessionDiscountTokens = normalizeNumber(
+    item.longerSessionDiscountTokens ?? item.discountPercentOfBase,
+    0,
+  );
+  normalizedRaw.firstTimeDiscountTokens = normalizeNumber(
+    item.firstTimeDiscountTokens ?? item.firstTimeDiscount,
+    0,
+  );
   if (String(normalizedRaw.repeatRule || "") === "doesNotRepeat") {
     if (!Array.isArray(normalizedRaw.slots) && Array.isArray(normalizedRaw.dates)) {
       normalizedRaw.slots = normalizedRaw.dates;
@@ -199,8 +207,10 @@ function normalizeEventItem(item = {}) {
     sessionDurationMinutes: normalizeNumber(item.sessionDurationMinutes, 15),
     basePriceTokens: normalizeNumber(item.basePriceTokens, 0),
     allowLongerSessions: normalizeBoolean(item.allowLongerSessions, false),
+    longerSessionDiscountTokens: normalizeNumber(item.longerSessionDiscountTokens ?? item.discountPercentOfBase, 0),
     enableFirstTimeDiscount: normalizeBoolean(item.enableFirstTimeDiscount, false),
-    firstTimeDiscount: normalizeNumber(item.firstTimeDiscount, 0),
+    firstTimeDiscountTokens: normalizeNumber(item.firstTimeDiscountTokens ?? item.firstTimeDiscount, 0),
+    firstTimeDiscount: normalizeNumber(item.firstTimeDiscountTokens ?? item.firstTimeDiscount, 0),
     eventImageUrl: normalizeString(item.eventImageUrl, ""),
     eventColorSkin: item.eventColorSkin || "#5549FF",
     start,

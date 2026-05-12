@@ -205,8 +205,8 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
         payment: {
           lines: [
             { code: "base", label: "Base Price", amount: 200 },
-            { code: "discount", label: "Longer Session Discount (20%)", amount: -40 },
-            { code: "first_time_discount", label: "First Time Discount (10%)", amount: -20 },
+            { code: "discount", label: "Longer Session Discount", amount: -40 },
+            { code: "first_time_discount", label: "First Time Discount", amount: -20 },
           ],
           total: 140,
         },
@@ -1046,8 +1046,8 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     const text = wrapper.text();
-    expect(text).toContain("Longer Session Discount (20%)");
-    expect(text).toContain("First Time Discount (10%)");
+    expect(text).toContain("Longer Session Discount");
+    expect(text).toContain("First Time Discount");
     expect(text).toContain("140");
     expect(text).toContain("USD$ 8.40");
   });
