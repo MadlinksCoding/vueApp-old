@@ -1,8 +1,7 @@
 <template>
   <div
-    class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm font-['Poppins']"
+    class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm font-['Poppins'] w-full"
     :class="pinned ? 'w-full rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded'"
-    :style="pinned ? '' : 'min-width: 210px; max-width: 252px;'"
   >
     <div class="p-3 flex flex-col gap-2">
 

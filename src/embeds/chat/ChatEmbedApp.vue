@@ -97,16 +97,15 @@ function notifyResize(el) {
     }
   })
 
-  // Since the iframe is anchored to the right/bottom in the host page, resizing width/height moves its left/top edges.
-  // Therefore, the required width is the distance from the right edge to minLeft, plus padding.
-  // The distance from the right edge to minLeft is (window.innerWidth - minLeft).
-  // const w = Math.ceil(window.innerWidth - minLeft) + 32
-  // const h = Math.ceil(window.innerHeight - minTop) + 32
-
   const w = Math.ceil(maxRight - minLeft) + 32
   const h = Math.ceil(root.bottom - minTop) + 32
 
-  window.parent.postMessage({ type: 'FS_CHAT_RESIZE', payload: { width: w, height: h } }, '*')
+  const isOpen = !!(widgetRef.value?.isListOpen || (widgetRef.value?.openChats?.length > 0))
+
+  window.parent.postMessage({
+    type: 'FS_CHAT_RESIZE',
+    payload: { width: w, height: h, is_open: isOpen }
+  }, '*')
 }
 
 function sendFullViewport() {
@@ -170,6 +169,15 @@ onMounted(() => {
       attachObserver(el)
     },
     { immediate: true }
+  )
+
+  watch(
+    () => [widgetRef.value?.isListOpen, widgetRef.value?.openChats?.length],
+    () => {
+      if (widgetRef.value?.widgetEl) {
+        notifyResize(widgetRef.value.widgetEl)
+      }
+    }
   )
 })
 

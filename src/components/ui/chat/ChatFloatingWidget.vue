@@ -156,7 +156,7 @@ async function openChat({ chatId, userId } = {}) {
   }
 }
 
-defineExpose({ widgetEl, openChat })
+defineExpose({ widgetEl, openChat, isListOpen, openChats })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -208,11 +208,13 @@ onMounted(async () => {
     :class="[
       hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
       hostWidth > 1024 ? 'bottom-4 right-2' : '',
+      hostWidth >= 768 ? '!bottom-0' : '',
     ]"
   >
 
     <!-- Open chat windows (stack left of the trigger) -->
-    <div class="flex items-end gap-2">
+    <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[1]"
+         :class="[(hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '']">
       <ChatWindow
         v-for="chat in openChats"
         :key="chat.uid"
@@ -224,6 +226,7 @@ onMounted(async () => {
         :group-type="chat.groupType"
         :socket="socket"
         :current-user-id="currentUserId"
+        :host-width="hostWidth"
         @close="closeChatWindow(chat.uid)"
         @minimize="closeChatWindow(chat.uid)"
         @chat-created="(id) => onChatCreated(chat.uid, id)"
@@ -238,6 +241,7 @@ onMounted(async () => {
         v-if="isListOpen"
         ref="chatListRef"
         :current-user-id="currentUserId"
+        :host-width="hostWidth"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
         @start-chat="onStartChat"
@@ -255,9 +259,10 @@ onMounted(async () => {
          lg:right-auto lg:bottom-4
          chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
         :class="[
-          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 !rounded-t-[10px] !rounded-b-none' : '',
+          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0' : '',
           hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0' : '',
-          hostWidth >= 1024 ? '!right-auto !bottom-4' : ''
+          hostWidth >= 1024 ? '!right-auto !bottom-4' : '',
+          hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0' : 'rounded-full',
         ]"
       >
         <!-- Chat icon with unread badge -->

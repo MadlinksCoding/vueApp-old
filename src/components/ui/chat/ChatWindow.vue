@@ -45,6 +45,7 @@ const props = defineProps({
   targetUserIds: { type: Array, default: () => [] },
   groupType:     { type: String, default: null },
   currentUserId: { type: [String, Number], default: null },
+  hostWidth:     { type: Number, default: window.innerWidth },
 })
 
 const emit = defineEmits(['close', 'minimize', 'chat-created'])
@@ -1236,7 +1237,7 @@ function messageAttrs(msg) {
 
 // ── Same theme as DemoChats ───────────────────────────────────────────────────
 const chatTheme = {
-  container:        'relative bg-[#f4f4f5] rounded-tl rounded-tr flex flex-col h-full overflow-hidden',
+  container:        'relative bg-[#f4f4f5] flex flex-col h-full overflow-hidden',
   header:           'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative',
   body:             'flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
   compose:          'bg-white px-4 py-3 shrink-0',
@@ -1454,7 +1455,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[300px] h-[480px] rounded-t-xl shadow-2xl overflow-hidden border border-zinc-200">
+  <div class="flex flex-col w-[450px] h-[640px] rounded-t-xl shadow-2xl overflow-hidden border border-zinc-200"
+       :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
     <FlexChat
       ref="flexChatRef"
       :messages="messages"
@@ -1507,24 +1509,24 @@ onUnmounted(() => {
       <!-- Header -->
       <template #header>
         <div class="flex items-center gap-2.5">
-          <img v-if="avatar" :src="avatar" class="w-8 h-8 rounded-full object-cover shrink-0" alt="avatar" />
+          <img v-if="avatar" :src="avatar" class="w-12 h-12 rounded-full object-cover shrink-0" alt="avatar" />
           <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-semibold truncate">{{ chatName }} <span class="text-zinc-400">•••</span></div>
+            <div class="text-white text-xl font-semibold truncate">{{ chatName }} <span class="text-zinc-400">•••</span></div>
             <div class="flex items-center gap-1">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-              <span class="text-zinc-400 text-[10px]">online</span>
+              <span class="text-zinc-400 text-base">online</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3 text-zinc-400 shrink-0">
-            <svg class="w-4 h-4 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4" />
             </svg>
-            <svg @click="emit('close')" class="w-4 h-4 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
