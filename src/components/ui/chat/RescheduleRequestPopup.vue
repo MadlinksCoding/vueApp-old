@@ -39,7 +39,7 @@
 
           <!-- Send button -->
           <button
-            :disabled="submitting || !newDate || !newStartTime"
+            :disabled="submitting || !newDate || !newStartTime || !hasChanged"
             class="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-black bg-[#07F468] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             @click="handleSubmit"
           >
@@ -121,8 +121,15 @@ function getInitialTime() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const newDate      = ref(getInitialDate())
-const newStartTime = ref(getInitialTime())
+const originalDate = getInitialDate()
+const originalTime = getInitialTime()
+
+const newDate      = ref(originalDate)
+const newStartTime = ref(originalTime)
+
+const hasChanged = computed(() =>
+  newDate.value !== originalDate || newStartTime.value !== originalTime
+)
 
 // ── Original session duration ─────────────────────────────────────────────────
 const durationMs = computed(() => {
