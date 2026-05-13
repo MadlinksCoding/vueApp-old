@@ -10,7 +10,7 @@ defineProps({
 <template>
   <div
     data-test="booking-flow-step-loading-skeleton"
-    class="relative h-dvh w-full overflow-hidden bg-[#0C111D] lg:h-full lg:w-[852px] lg:rounded-[20px]"
+    class="relative h-dvh w-full overflow-hidden bg-[#0C111D] lg:h-full lg:max-h-[29.4rem] lg:w-[852px] lg:rounded-[20px]"
   >
     <div
       :class="[
