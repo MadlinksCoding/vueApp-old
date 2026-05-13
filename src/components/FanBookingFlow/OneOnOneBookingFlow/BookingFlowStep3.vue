@@ -655,7 +655,9 @@ const sessionBreakdownLabel = computed(() => {
 });
 
 const sessionTotalTokens = computed(() => Math.max(0, Number(totalPrice.value || 0)));
-const sessionTotalUsdDisplay = computed(() => tokensToUsdDisplay(sessionTotalTokens.value));
+const sessionTotalUsdDisplay = computed(() =>
+  tokensToUsdDisplay(sessionTotalTokens.value).replace(/^USD\$\s*/, '').trim()
+);
 const amountDueUsdDisplay = computed(() => tokensToUsdDisplay(totalPrice.value));
 
 const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
@@ -1902,6 +1904,7 @@ onBeforeUnmount(() => {
                               </div>
                             </div>
                           </div>
+                          
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
@@ -1926,6 +1929,7 @@ onBeforeUnmount(() => {
                               </div>
                             </div>
                           </div>
+                          
 
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
@@ -1955,10 +1959,24 @@ onBeforeUnmount(() => {
                             </div>
                           </div>
 
+                          <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
+                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_Non_Refundable") }}</h4>
+                            <div class="flex flex-row justify-between items-center text-white">
+                              <div class="flex items-center">
+                                <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
+                                <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ formatTokenCompact(bookingFeeAmount) }} {{ t("fan_booking_booking_fee_included") }}</p>
+                              </div>
+                              <div class="flex justify-center items-center gap-0.5">
+                                <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p class="text-sm leading-[20px]">{{ sessionTotalUsdDisplay }}</p>
+                              </div>
+                            </div>
+                          </div>
+
                           <div class="flex gap-3 justify-between">
                             <div class="flex flex-col gap-1">
                               <h4 class="text-base font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
-                              <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] flex">
+                              <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] dn">
                                 <span class="whitespace-nowrap">{{ t("fan_booking_non_refundable") }}</span>
                                 <span class="flex items-center gap-[2px] mx-1">
                                   <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
@@ -1972,7 +1990,7 @@ onBeforeUnmount(() => {
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                 <p class="text-base lfont-semibold text-white">{{ formatTokenExact(sessionTotalTokens) }}</p>
                               </div>
-                              <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ sessionTotalUsdDisplay }}</span>
+                              <span class="dn text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ sessionTotalUsdDisplay }}</span>
                             </div>
                           </div>
                         </div>
