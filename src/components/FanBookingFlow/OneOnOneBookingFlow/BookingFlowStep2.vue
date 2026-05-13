@@ -1131,7 +1131,7 @@ onMounted(() => {
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
