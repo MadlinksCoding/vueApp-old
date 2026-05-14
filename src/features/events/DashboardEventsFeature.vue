@@ -63,7 +63,7 @@
               <div class="flex items-center min-w-0 w-full">
                 <div class="block font-medium truncate w-full py-[2px] px-1">{{ event.title }}</div>
               </div>
-              <div :hidden="view === 'month' ? null : true" class="text-[10px] opacity-90 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="text-[10px] opacity-90 truncate py-[2px] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>

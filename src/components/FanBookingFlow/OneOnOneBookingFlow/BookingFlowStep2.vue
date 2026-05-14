@@ -787,7 +787,6 @@ function hydrateFromState() {
     }
   } else if (!isGroupEvent.value) {
     const defaultSelectedDate = resolveDefaultSelectedDate();
-    state.selected = defaultSelectedDate;
     if (defaultSelectedDate) {
       state.focus = new Date(defaultSelectedDate);
     }
@@ -1114,7 +1113,7 @@ onMounted(() => {
             <mini-calendar
               class="w-full"
               :month-date="state.focus"
-              :selected-date="state.selected || state.focus"
+              :selected-date="state.selected"
               :min-date="minSelectableDate"
               :max-date="maxSelectableDate"
               :events="events1"
@@ -1132,7 +1131,7 @@ onMounted(() => {
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10 lg:overflow-hidden lg:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -1148,13 +1147,13 @@ onMounted(() => {
               <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
                 {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
               </h3>
-              <div class="flex flex-wrap w-full gap-2">
+              <div class="grid grid-cols-3 w-full gap-2">
                 <div
                   v-for="(slot, index) in timeSlots"
                   :key="index"
                   data-testid="booking-flow-time-slot"
                   @click="selectTime(slot)"
-                  class="flex justify-between items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
+                  class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
                   :class="[
                     slot.disabled
                       ? 'opacity-50 border border-white/30 cursor-not-allowed'

@@ -98,18 +98,19 @@
       if (!isEventPage) return;
       // console.error("Applying c÷ntainer size for width", w,payload, isEventPage);
 
+      if (payload.is_open && w < 768) {
+        chatContainer.style.bottom = "0";
+        chatContainer.style.right = "0";
+        return;
+      }
+
       if (w < 768) {
-        // if( payload?.width &&
-        // chatContainer.style.width  = "60px";
-        // chatContainer.style.height = "40px";
         chatContainer.style.bottom = "3rem";
       }
       else if (w > 768 && w < 1024) {
         chatContainer.style.right = "4rem";
       }
       else {
-        // chatContainer.style.width  = String(settings.width)  + "px";
-        // chatContainer.style.height = String(settings.height) + "px";
         chatContainer.style.bottom = "0";
       }
     }
@@ -157,8 +158,13 @@
       } else if (data.type === "FS_CHAT_RESIZE" && data.payload) {
         var w = data.payload.width;
         var h = data.payload.height;
-        if (w > 0) chatContainer.style.width = String(w) + "px";
-        if (h > 0) chatContainer.style.height = String(h) + "px";
+        if (data.payload.is_open && window.innerWidth < 768) {
+          chatContainer.style.width = "100vw";
+          chatContainer.style.height = "100vh";
+        } else {
+          if (w > 0) chatContainer.style.width = String(w) + "px";
+          if (h > 0) chatContainer.style.height = String(h) + "px";
+        }
         applyContainerSize(window.innerWidth, data.payload);
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
