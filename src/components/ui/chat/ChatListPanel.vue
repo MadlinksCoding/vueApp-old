@@ -10,6 +10,7 @@ import { resolveParentUserData } from '@/utils/resolveParentUserData.js'
 
 const props = defineProps({
   currentUserId: { type: [String, Number], default: null },
+  hostWidth: { type: Number, default: window.innerWidth },
 })
 const emit = defineEmits(['open-chat', 'close', 'start-chat', 'chat-ready'])
 
@@ -156,6 +157,7 @@ function getLastMessageText(chat) {
 <template>
   <div
     class="absolute bottom-full right-0 mb-2 w-72 h-[480px] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
+    :class="[hostWidth < 768 ? '!fixed !bottom-0 !left-0 !right-0 !w-full !h-[50vh] !mb-0 !rounded-t-[1.25rem] !rounded-b-none' : '']"
     style="background-color: #F2F4F7;"
   >
 
