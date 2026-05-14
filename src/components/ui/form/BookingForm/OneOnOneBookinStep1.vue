@@ -1282,7 +1282,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-show="sectionsState.groupPricing" v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
+      <BookingSectionsWrapper v-show="sectionsState.groupPricing && sectionsState.privatePricing" v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
