@@ -1143,7 +1143,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
         leftIconClass="mt-[4px]" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.groupPricing"
         @toggle="toggleSection('groupPricing')">
         <div v-show="sectionsState.groupPricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
@@ -1282,7 +1282,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
+      <BookingSectionsWrapper v-show="sectionsState.groupPricing || sectionsState.privatePricing"  v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period.">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
@@ -1302,7 +1302,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.calendarAvailability"
+      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.calendarAvailability"
         @toggle="toggleSection('calendarAvailability')">
         <div v-show="sectionsState.calendarAvailability" class="w-full flex flex-col gap-5 mt-5">
           <div class="flex flex-col gap-3 w-full">
