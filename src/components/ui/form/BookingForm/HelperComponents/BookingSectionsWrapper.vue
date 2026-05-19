@@ -15,7 +15,7 @@
           <div
             class="justify-start text-gray-700 text-base font-medium leading-normal"
           >
-            {{ title }}
+            {{ title }} <span v-if="isOptional" class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none ml-1">{{ t("common_optional") }}</span>
           </div>
           <div v-if="titleIcon && !tooltipText">
             <img :src="titleIcon" alt="titleIcon" />
@@ -38,11 +38,16 @@
 
 <script>
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 export default {
   name: "WrapperContainer",
   components: {
     TooltipIcon,
+  },
+  setup() {
+    const { t } = useBookingTranslations();
+    return { t };
   },
   props: {
     title: {
@@ -76,6 +81,10 @@ export default {
     visible: {
       type: Boolean,
       default: true,
+    },
+    isOptional: {
+      type: Boolean,
+      default: false,
     },
   },
 };

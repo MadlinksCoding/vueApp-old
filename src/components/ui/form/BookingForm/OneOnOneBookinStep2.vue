@@ -1206,7 +1206,7 @@ const createEvent = async () => {
 
 
     <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_additional_request')" leftIcon="https://i.ibb.co/39kq5wcX/Icon-3.png"
-      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.additionalRequest"
+      accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :isOptional="true" :is-open="sectionsState.additionalRequest"
       @toggle="toggleSection('additionalRequest')">
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
         <div class="flex flex-col justify-center items-start gap-1">

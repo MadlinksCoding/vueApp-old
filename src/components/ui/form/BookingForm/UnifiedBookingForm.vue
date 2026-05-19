@@ -439,14 +439,14 @@ const theme2 = {
     mini: {},
     main: {
         wrapper: 'relative flex flex-col gap-[0px] overflow-hidden rounded-xl',
-        title: ' text-[16px] font-semibold text-slate-800 ',
+        title: ' text-base font-semibold text-slate-800 ',
         xHeader: '',
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
-        axisXDay: 'py-1 text-center h-[63.92px] text-slate-500 font-medium',
+        axisXDay: 'py-1 text-center h-[3.995rem] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[62.62px] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[11px] font-medium leading-4 pt-1',
+        axisYRow: 'h-[3.914rem] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
-        gridRow: 'h-[62.61px] border-b border-white/50',
+        gridRow: 'h-[3.914rem] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
     },
     month: {}
@@ -943,8 +943,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
-                        : 'flex h-full flex-col gap-6 relative w-full lg:w-[500px] lg:min-w-[500px] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
+                        ? 'flex h-full flex-col gap-6 relative w-full lg:w-[31.25rem] lg:min-w-[31.25rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
+                        : 'flex h-full flex-col gap-6 relative w-full lg:w-[31.25rem] lg:min-w-[31.25rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
                 ]">
 
                 <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center gap-3">
@@ -1104,7 +1104,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
                     <template #event-availability="{ event, style }">
                         <div
-                            class="absolute pointer-events-none min-h-[6px] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4"
+                            class="absolute pointer-events-none min-h-[0.375rem] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4"
                             :title="event.title"
                             :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]">
                             <span v-if="event.title" data-test="calendar-availability-title" class="block truncate">
