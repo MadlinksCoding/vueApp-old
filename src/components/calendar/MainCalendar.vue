@@ -4,7 +4,7 @@
 
     <!-- default-header-theme-1 -->
     <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-1 md:px-0 md:pl-0">
-      <div class="flex items-center gap-[11px]">
+      <div class="flex items-center gap-3">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
         <div class="cursor-pointer flex lg:hidden" @click="toggleMobileCalendar">
@@ -16,9 +16,9 @@
         </div>
 
         <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
-          class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[12px] rounded-br-[12px] overflow-hidden">
+          class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[0.75rem] rounded-br-[0.75rem] overflow-hidden">
           <div
-            class="p-2 bg-white/80 backdrop-blur-[10px] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
+            class="p-2 bg-white/80 backdrop-blur-[0.625rem] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
                 <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
@@ -33,14 +33,14 @@
                 </svg>
               </div>
 
-              <span class="flex items-center justify-between gap-[16px]">
-                <button class="w-[6px] h-[12px] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+              <span class="flex items-center justify-between gap-4">
+                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
                   <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
                       stroke-linejoin="round" />
                   </svg>
                 </button>
-                <button class="w-[6px] h-[12px] flex items-center justify-center" @click="shift(1)" data-main-next>
+                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(1)" data-main-next>
                   <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
                       stroke-linejoin="round" />
@@ -51,11 +51,11 @@
             <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
               ...theme,
               mini: {
-                wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]',
+                wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]',
                 header: 'font-semibold',
                 // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
                 // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                dayBase: 'w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                dayBase: 'w-[2.339rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
                 outside: 'opacity-0',
                 expired: 'opacity-100',
                 today: 'bg-[#FF0066] font-semibold text-white',
@@ -72,7 +72,7 @@
         <button
           class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
+          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
         </button>
         <span class="lg:flex items-center justify-between hidden ">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -99,7 +99,7 @@
             <span class="flex items-center justify-center h-full py-2">
               <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
               </h2>
-              <p data-test="all-events-count" class="text-pink-500 text-[10px] font-bold h-full ml-1">
+              <p data-test="all-events-count" class="text-pink-500 text-[0.625rem] font-bold h-full ml-1">
                 {{ filteredBookedSlotsCount }}
               </p>
             </span>
@@ -154,7 +154,7 @@
         <button
           class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
-          <p class="font-medium text-[14px] text-pink-500">{{ t("common_today") }}</p>
+          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
         </button>
         <div class="cursor-pointer relative flex xl:hidden">
           <div @click="toggleDropdown">
@@ -185,7 +185,7 @@
     <div v-else-if="variant === 'theme2'"
       class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem]">
 
-      <div class="flex items-center gap-[11px] order-1">
+      <div class="flex items-center gap-3 order-1">
         <div class="font-bold" :class="theme.main.title">{{ title }}</div>
         <span class="flex items-center justify-between">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -205,8 +205,8 @@
 
       <div class="flex items-center gap-3 order-3 w-full mt-1 lg:w-auto lg:order-2 lg:mt-0">
         <CheckboxGroup :label="t('dashboard_show_existing_schedule')" v-model="showSchedule"
-          checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[4px] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
-          labelClass="text-xs sm:text-[12px] leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[2px]"
+          checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:white checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-w-0 checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
+          labelClass="text-xs sm:text-xs leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer mt-[0.125rem]"
           wrapperClass="flex items-center" />
       </div>
 
@@ -214,7 +214,7 @@
         class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
         {{ t("common_preview_booking_schedule") }}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-          stroke-linecap="round" stroke-linejoin="round" class="mb-[1px]">
+          stroke-linecap="round" stroke-linejoin="round" class="mb-[0.063rem]">
           <line x1="7" y1="17" x2="17" y2="7"></line>
           <polyline points="7 7 17 7 17 17"></polyline>
         </svg>
@@ -227,34 +227,40 @@
 
         <div :class="theme.main.axisXLabel">
           <div v-if="variant === 'default'" class="lg:flex hidden justify-end items-center px-[0.25rem] gap-[0.125rem]">
-            <span class="flex items-center justify-center w-[10px] h-[10px] flex-1 text-right">
+            <span class="flex items-center justify-center w-[0.625rem] h-[0.625rem] flex-1 text-right">
               <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round"
                   stroke-linejoin="round" />
               </svg>
             </span>
-            <p class="text-[11px] text-gray-400 font-medium leading-[18px]">GMT +08</p>
+            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">GMT +08</p>
           </div>
           <div v-else class="flex flex-col items-center justify-end pb-2">
-            <span class="text-[10px] font-bold text-slate-400">GMT+5</span>
+            <span class="text-[0.625rem] font-bold text-slate-400">GMT+5</span>
           </div>
         </div>
 
-        <div class="grid h-[3.995rem] w-full" :class="effectiveView === 'day' ? 'grid-cols-1' : 'grid-cols-7'">
-
-          <div v-for="(d, i) in days" :key="'xh-' + i" class="text-center flex flex-col items-center justify-center"
+        <div class="grid h-[3.995rem] w-full" :class="effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7'">
+          <div v-for="(d, i) in headerDays" :key="'xh-' + i" 
+            class="text-center flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
             :class="[
               theme.main.axisXDay,
-              (sd(d).getDay() === 0 && variant === 'default') ? 'text-[#FF6A6A]' : ''
-            ]" :data-date="d.toISOString().slice(0, 10)">
+              (sd(d).getDay() === 0 && variant === 'default') ? 'text-[#FF6A6A]' : '',
+              sameDay(d, cursor) ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'
+            ]" 
+            :data-date="d.toISOString().slice(0, 10)"
+            @click="emitDate(d)">
 
-            <div class="text-[11px] font-semibold leading-[1.25rem] uppercase"
+            <div class="text-xs font-semibold leading-[1.25rem] uppercase"
               :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">
               {{ shortWeekdays[d.getDay()] }}
             </div>
 
             <div class="text-[1rem] w-[2rem] text-center font-semibold leading-[2rem]"
-              :class="[(highlightTodayColumn && sameDay(d, today)) ? theme.main.axisXToday : '']">
+              :class="[
+                (highlightTodayColumn && sameDay(d, today)) ? theme.main.axisXToday : '',
+                sameDay(d, cursor) && !sameDay(d, today) ? 'bg-pink-500/20 rounded-full' : ''
+              ]">
               {{ d.getDate() }}
             </div>
           </div>
@@ -306,7 +312,7 @@
 
       <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
         <div v-for="(w, index) in shortWeekdays" :key="w"
-          class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[10px]"
+          class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[0.625rem]"
           :class="index === 0 ? 'text-red-400' : 'text-gray-500'">
           {{ w }}
         </div>
@@ -579,7 +585,7 @@ const calendarPopupConfig = {
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
-  width: { default: "384px", "<500": "90%" },
+  width: { default: "24rem", "<500": "90%" },
   height: { default: "100%", "<768": "100%" },
   scrollable: true,
   closeSpeed: "250ms",
@@ -591,7 +597,7 @@ const newEventsPopupConfig = {
   from: "right",
   offset: "0px",
   verticalAlign: "bottom",
-  width: { default: "384px" },
+  width: { default: "24rem" },
   height: { default: "auto" },
   speed: "300ms",
   effect: "ease-in-out",
@@ -669,6 +675,13 @@ const range = computed(() => {
 const weekDays = computed(() => {
   const s = startOfWeek(cursor.value);
   return Array.from({ length: 7 }, (_, i) => addDays(s, i));
+});
+
+const headerDays = computed(() => {
+  if (effectiveView.value === 'day') {
+    return [addDays(cursor.value, -1), cursor.value, addDays(cursor.value, 1)];
+  }
+  return days.value;
 });
 
 const days = computed(() => {
