@@ -30,7 +30,11 @@
       <!-- Optional Accordion Icon -->
       <div v-if="accordionIcon" class="cursor-pointer absolute top-0 right-0"
       @click="$emit('toggle')">
-        <img :src="accordionIcon" alt="accordion icon" />
+        <img
+          :src="accordionIcon"
+          alt="accordion icon"
+          :class="['transition-transform duration-200', { 'rotate-180': !isOpen }]"
+        />
       </div>
     </div>
   </div>
@@ -61,6 +65,10 @@ export default {
     accordionIcon: {
       type: String,
       default: null, // optional icon
+    },
+    isOpen: {
+      type: Boolean,
+      default: true,
     },
     titleIcon: {
       type: String,

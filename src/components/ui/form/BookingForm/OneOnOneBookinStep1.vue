@@ -192,8 +192,11 @@
 
   // Accordion State
   const sectionsState = ref({
-    callSettings: true,
-    bookingSettings: true
+    callSettings: false,
+    bookingSettings: false,
+    calendarAvailability: false,
+    groupPricing: false,
+    privatePricing: false,
   });
 
   const toggleSection = (key) => {
@@ -913,11 +916,14 @@
           </div>
         </div>
       </BookingSectionsWrapper>
+      
 
       <template v-for="section in step1SectionOrder" :key="section">
+        
       <BookingSectionsWrapper v-if="section === 'privatePricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
-        leftIconClass="mt-[0.25rem]">
-        <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
+        leftIconClass="mt-[0.25rem]" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.privatePricing"
+        @toggle="toggleSection('privatePricing')">
+        <div v-show="sectionsState.privatePricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
               {{ t("booking_base_price") }}
@@ -1137,9 +1143,10 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
-        leftIconClass="mt-[4px]">
-        <div class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
+      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'groupPricing'" :title="t('booking_pricing_settings')" leftIcon="https://i.ibb.co/F47R5CqG/Icon-1.png"
+        leftIconClass="mt-[4px]" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.groupPricing"
+        @toggle="toggleSection('groupPricing')">
+        <div v-show="sectionsState.groupPricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-2 w-full">
             <div class="justify-start text-slate-700 text-base font-normal leading-normal">
               {{ t("booking_group_charge_question") }}
@@ -1275,7 +1282,7 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
+      <BookingSectionsWrapper v-show="sectionsState.groupPricing || sectionsState.privatePricing"  v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period." :isOptional="true">
         <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
           <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
@@ -1295,8 +1302,9 @@
         </div>
       </BookingSectionsWrapper>
 
-      <BookingSectionsWrapper v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png">
-        <div class="w-full flex flex-col gap-5 mt-5">
+      <BookingSectionsWrapper class="border-t border-[#D0D5DD] pt-6" v-else-if="section === 'calendarAvailability'" :title="t(isGroupBooking ? 'booking_event_date_time' : 'booking_calendar_availability')" leftIcon="https://i.ibb.co/Ldw310vp/Icon.png" accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :is-open="sectionsState.calendarAvailability"
+        @toggle="toggleSection('calendarAvailability')">
+        <div v-show="sectionsState.calendarAvailability" class="w-full flex flex-col gap-5 mt-5">
           <div class="flex flex-col gap-3 w-full">
             <div class="self-stretch justify-start text-gray-900 text-xs font-normal font-['Poppins'] leading-none">
               GMT +8 Hong Kong Standard time

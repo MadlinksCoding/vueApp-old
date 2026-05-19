@@ -532,10 +532,10 @@ watch(() => formData.value.xPostPurchase, (value) => {
 
 // Accordion State for Step 2 Sections
 const sectionsState = ref({
-  additionalRequest: true, // Section 8
-  audienceSettings: true, // Section 9
-  coPerformer: true, // Section 10
-  xRepost: true, // Section 11
+  additionalRequest: false, // Section 8
+  audienceSettings: false, // Section 9
+  coPerformer: false, // Section 10
+  xRepost: false, // Section 11
 });
 
 const toggleSection = (key) => {
