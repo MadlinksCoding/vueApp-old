@@ -142,6 +142,20 @@ describe("createEventMapper", () => {
     });
   });
 
+  it("clears during-call emoji replies when in-call chat is not disabled", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      disableChatDuringCall: false,
+      disableChatDuringCallAllowEmoji: true,
+    });
+
+    expect(mapped.type).toBe("1on1-call");
+    expect(mapped.disableChatDuringCall).toBe(false);
+    expect(mapped.disableChatDuringCallAllowEmoji).toBe(false);
+  });
+
   it("converts hourly buffer time to backend minutes", () => {
     const mapped = createEventMapper({
       ...baseDraft,

@@ -127,6 +127,24 @@ function isGroupEvent(event = {}) {
   return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
 }
 
+function resolveEventCreatedAtMs(event = {}) {
+  const raw = event?.raw || {};
+  const value = event?.createdAt ?? raw?.createdAt ?? event?.created_at ?? raw?.created_at ?? null;
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  const ms = parsed.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function isGroupSlotBeforeEventCreated(event = {}, slot = {}) {
+  if (!isGroupEvent(event)) return false;
+
+  const createdAtMs = resolveEventCreatedAtMs(event);
+  const startMs = Number(slot?.startMs);
+  return createdAtMs != null && Number.isFinite(startMs) && startMs < createdAtMs;
+}
+
 function resolveBookedSlotEventType(slot = {}) {
   const eventSnapshot = slot?.eventSnapshot && typeof slot.eventSnapshot === "object" ? slot.eventSnapshot : {};
   const eventCurrent = slot?.eventCurrent && typeof slot.eventCurrent === "object" ? slot.eventCurrent : {};
@@ -949,7 +967,8 @@ export function createSlotUiModel({ event, eventId, localDateIso, slot, bookedSl
         : Number.isFinite(slot?.startMs) && slot.startMs < today.getTime()
     )
   );
-  const disabled = bookedDisabled || pastDisabled;
+  const creationDisabled = groupEvent && isGroupSlotBeforeEventCreated(event, slot);
+  const disabled = bookedDisabled || pastDisabled || creationDisabled;
   return {
     ...slot,
     disabled,

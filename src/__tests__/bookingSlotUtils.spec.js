@@ -345,6 +345,7 @@ describe("booking slot utilities", () => {
       type: "group-event",
       enableMaxAttendees: true,
       maxAttendees: 5,
+      createdAt: "2030-01-15T04:30:00.000Z",
       raw: { type: "group-event", enableMaxAttendees: true, maxAttendees: 5 },
     };
     const ongoingSlot = makeSlot("11:00", "13:00");
@@ -352,6 +353,25 @@ describe("booking slot utilities", () => {
 
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: ongoingSlot, bookedSlotsIndex: {} }).disabled).toBe(false);
     expect(createSlotUiModel({ event, eventId, localDateIso, slot: endedSlot, bookedSlotsIndex: {} }).disabled).toBe(true);
+  });
+
+  it("disables group slots that started before the event was created", () => {
+    setFixedNow();
+    const slot = makeSlot("11:00", "13:00");
+    const eligibleEvent = {
+      eventId,
+      type: "group-event",
+      createdAt: "2030-01-15T04:30:00.000Z",
+      raw: { type: "group-event" },
+    };
+    const justCreatedEvent = {
+      eventId,
+      type: "group-event",
+      raw: { type: "group-event", createdAt: "2030-01-15T05:30:00.000Z" },
+    };
+
+    expect(createSlotUiModel({ event: eligibleEvent, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(false);
+    expect(createSlotUiModel({ event: justCreatedEvent, eventId, localDateIso, slot, bookedSlotsIndex: {} }).disabled).toBe(true);
   });
 
   it("keeps private slots disabled once their start time has passed", () => {
@@ -622,12 +642,15 @@ describe("booking slot utilities", () => {
       localDateIso: first,
       localStartHm: "10:00",
       localEndHm: "13:00",
+      dateFrom: first,
       raw: {
         type: "group-event",
         repeatRule: "daily",
+        dateFrom: first,
         sessionDurationMinutes: 180,
         enableMaxAttendees: true,
         maxAttendees: 2,
+        slots: [{ day: "monday", startTime: "10:00", endTime: "13:00" }],
       },
     };
     const bookedSlotsIndex = buildBookedSlotsIndex([
@@ -659,6 +682,7 @@ describe("booking slot utilities", () => {
     const event = {
       eventId,
       type: "group-event",
+      createdAt: "2030-01-15T04:30:00.000Z",
       raw: {
         type: "group-event",
         repeatRule: "daily",
@@ -672,6 +696,32 @@ describe("booking slot utilities", () => {
     const next = computeNextAvailableSlot(event, {}, 2, { skipBookedByUserId: 2615 });
 
     expect(next?.dateIso).toBe(localDateIso);
+    expect(next?.slot?.startHm).toBe("11:00");
+    expect(next?.slot?.endHm).toBe("13:00");
+  });
+
+  it("skips an ongoing group slot when it started before the event was created", () => {
+    setFixedNow();
+    const tomorrowDate = new Date(`${localDateIso}T00:00:00`);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrow = dateIsoFromDate(tomorrowDate);
+    const event = {
+      eventId,
+      type: "group-event",
+      createdAt: "2030-01-15T05:30:00.000Z",
+      raw: {
+        type: "group-event",
+        repeatRule: "daily",
+        sessionDurationMinutes: 120,
+        enableMaxAttendees: true,
+        maxAttendees: 5,
+        slots: [{ day: "monday", startTime: "13:00", endTime: "15:00" }],
+      },
+    };
+
+    const next = computeNextAvailableSlot(event, {}, 2, { skipBookedByUserId: 2615 });
+
+    expect(next?.dateIso).toBe(tomorrow);
     expect(next?.slot?.startHm).toBe("11:00");
     expect(next?.slot?.endHm).toBe("13:00");
   });

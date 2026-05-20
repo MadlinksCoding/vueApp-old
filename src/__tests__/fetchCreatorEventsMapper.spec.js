@@ -39,4 +39,11 @@ describe("fetchCreatorEventsMapper", () => {
   it("falls back to Untitled Event when no title field is available", () => {
     expect(mappedTitle()).toBe("Untitled Event");
   });
+
+  it("exposes createdAt on mapped events", () => {
+    expect(mapSingleEventFromResponse({
+      ...baseEvent,
+      createdAt: "2030-01-15T05:30:00.000Z",
+    }).createdAt).toBe("2030-01-15T05:30:00.000Z");
+  });
 });

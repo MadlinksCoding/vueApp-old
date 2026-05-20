@@ -631,8 +631,9 @@ function mapBasePayload(payload = {}, context = {}) {
   };
 
   if (type !== "group-event") {
-    mapped.disableChatDuringCall = asBoolean(payload.disableChatDuringCall, false);
-    mapped.disableChatDuringCallAllowEmoji = asBoolean(payload.disableChatDuringCallAllowEmoji, false);
+    const disableChatDuringCall = asBoolean(payload.disableChatDuringCall, false);
+    mapped.disableChatDuringCall = disableChatDuringCall;
+    mapped.disableChatDuringCallAllowEmoji = disableChatDuringCall && asBoolean(payload.disableChatDuringCallAllowEmoji, false);
     mapped.fanCanRequestExtend = asBoolean(payload.requestExtendSession, false);
     mapped.lateStartPolicy = buildLateStartPolicy(payload);
     mapped.addOns = normalizeAddOns(payload.addOns);
