@@ -147,7 +147,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden lg:flex flex-col gap-4 px-6 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'pt-12']"
+        :class="['hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-6 xl:pt-12 pb-6 md:px-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
