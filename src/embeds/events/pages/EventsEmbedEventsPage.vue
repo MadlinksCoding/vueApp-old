@@ -1,5 +1,5 @@
 <template>
-  <div ref="eventsScrollRoot" class="h-full overflow-y-auto md:px-4">
+  <div ref="eventsScrollRoot" class="h-full overflow-y-auto">
     <DashboardEventsFeature
       ref="dashboardFeatureRef"
       :creator-id="bootstrap.creatorId"
