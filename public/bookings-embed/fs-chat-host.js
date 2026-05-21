@@ -152,6 +152,17 @@
     function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
       var data = event.data || {};
+
+      // State response — resolve a pending getState() Promise
+      if (data.type === "FS_CHAT_STATE_RESPONSE") {
+        var pending = pendingStateRequests[data.payload && data.payload.requestId];
+        if (pending) {
+          clearTimeout(pending.timer);
+          delete pendingStateRequests[data.payload.requestId];
+          pending.resolve(data.payload.data || {});
+        }
+        return;
+      }
       if (data.type === "FS_CHAT_FULLSCREEN") {
         chatContainer.style.width = String(window.innerWidth) + "px";
         chatContainer.style.height = String(window.innerHeight) + "px";
@@ -193,6 +204,17 @@
         window.dispatchEvent(new CustomEvent("FS_CHAT_PRODUCT_SELECTED", {
           detail: productPayload,
         }));
+      } else if (data.type === "FS_CHAT_EVENT") {
+        var eventPayload = data.payload || {};
+        // Stamp the last activity timestamp on the parent window
+        window._fsChatLastTimestamp = eventPayload.timestamp || Date.now();
+        // Dispatch a single event — listeners branch on e.detail.type
+        window.dispatchEvent(new CustomEvent("FS_CHAT_EVENT", {
+          bubbles: true,
+          detail: eventPayload,
+        }));
+        // Keep DOM attributes in sync after any chat activity
+        refreshStats();
       }
     }
 
@@ -215,6 +237,9 @@
     window.addEventListener("message", onFanBookingMessage);
     window.addEventListener("resize", onHostResize);
 
+    // Pending getState() requests keyed by requestId
+    var pendingStateRequests = {};
+
     function openChat(options) {
       if (!iframe.contentWindow) return;
       iframe.contentWindow.postMessage({
@@ -223,11 +248,72 @@
       }, "*");
     }
 
+    function openNewChatPopup() {
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_OPEN_NEW_CHAT_POPUP",
+      }, "*");
+    }
+
+    function getState(options) {
+      return new Promise(function (resolve, reject) {
+        if (!iframe.contentWindow) {
+          return reject(new Error("FSChatEmbed: iframe not ready"));
+        }
+        var requestId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        var timer = setTimeout(function () {
+          delete pendingStateRequests[requestId];
+          reject(new Error("FSChatEmbed.getState: timed out after 5s"));
+        }, 5000);
+        pendingStateRequests[requestId] = { resolve: resolve, timer: timer };
+        iframe.contentWindow.postMessage({
+          type: "FS_CHAT_GET_STATE",
+          payload: {
+            requestId: requestId,
+            only: (options && Array.isArray(options.only)) ? options.only : null,
+          },
+        }, "*");
+      });
+    }
+
+    function refreshStats() {
+      return getState({ only: ['total', 'totalUnread'] }).then(function (state) {
+        var total       = state.total       !== null && state.total       !== undefined ? String(state.total)       : null;
+        var totalUnread = state.totalUnread !== null && state.totalUnread !== undefined ? String(state.totalUnread) : null;
+
+        if (total !== null) {
+          document.querySelectorAll('[data-header-chats-total]').forEach(function (el) {
+            el.textContent = total;
+            el.setAttribute('data-header-chats-total', total);
+          });
+        }
+        if (totalUnread !== null) {
+          document.querySelectorAll('[data-header-user-chats-unread-count]').forEach(function (el) {
+            el.textContent = totalUnread;
+            el.setAttribute('data-header-user-chats-unread-count', totalUnread);
+            if(totalUnread>0){
+              el.removeAttribute('hidden');
+              el.parentNode?.setAttribute('data-has-unread-chats', 'true');
+            } else {
+              el.setAttribute('hidden', '');
+              el.parentNode?.setAttribute('data-has-unread-chats', 'false');
+            }
+          });
+        }
+        console.log("Refreshed chat stats:", { total, totalUnread });
+
+        return { total: state.total, totalUnread: state.totalUnread };
+      }).catch(function () {}); // silent fail — never crash the host page
+    }
+
     return {
       iframe: iframe,
       container: chatContainer,
       updateAuth: updateAuth,
       openChat: openChat,
+      openNewChatPopup: openNewChatPopup,
+      getState: getState,
+      refreshStats: refreshStats,
       refreshProductRecommendation: function (payload) {
         iframe.contentWindow.postMessage({
           type: "FS_CHAT_PRODUCT_REFRESH",

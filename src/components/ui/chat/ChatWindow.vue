@@ -28,6 +28,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatResolverUtils'
 import TokenHandler from '@/utils/TokenHandler.js'
 import { showToast } from '@/utils/toastBus.js'
+import { postToParent } from '@/utils/postToParent'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
@@ -482,16 +483,13 @@ async function onConfirmCounter(message) {
   _pendingTopupBookingId.value = bookingId
   _pendingTopupMessage.value   = message
 
-  window.parent.postMessage({
-    type:    'FS_CHAT_TOPUP_REQUIRED',
-    payload: {
-      bookingId,
-      requiredTokens: diffTokens,
-      currentUserId:  String(currentUserId),
-      creatorUserId:  String(creatorId || ''),
-      topupFor:       'booking_confirm',
-    },
-  }, '*')
+  postToParent('FS_CHAT_TOPUP_REQUIRED', {
+    bookingId,
+    requiredTokens: diffTokens,
+    currentUserId:  String(currentUserId),
+    creatorUserId:  String(creatorId || ''),
+    topupFor:       'booking_confirm',
+  })
 }
 
 function onCancelBooking() {
@@ -852,6 +850,14 @@ async function ensureActiveChat() {
   activeChatId.value = createRes.data.chatId
   emit('chat-created', createRes.data.chatId)
   resolveAndSyncChat(activeChatId.value)
+
+  // Notify parent window of new chat creation
+  postToParent('FS_CHAT_EVENT', {
+    type:      'chat_created',
+    chatId:    createRes.data.chatId,
+    timestamp: Date.now(),
+  })
+
   return true
 }
 
@@ -1030,14 +1036,9 @@ function onProductCardClick(message, { action = '' } = {}) {
   })
   if (!payload) return
 
-  const parentMessage = {
-    type: 'FS_CHAT_PRODUCT_SELECTED',
-    payload,
-  }
-
   try {
-    if (typeof structuredClone === 'function') structuredClone(parentMessage)
-    window.parent.postMessage(parentMessage, '*')
+    if (typeof structuredClone === 'function') structuredClone({ type: 'FS_CHAT_PRODUCT_SELECTED', payload })
+    postToParent('FS_CHAT_PRODUCT_SELECTED', payload)
   } catch (error) {
     console.error('[ChatWindow] Product recommendation payload could not be posted', error)
     showToast({ type: 'error', title: 'Product', message: 'Product details could not be sent.' })
@@ -1170,6 +1171,13 @@ function _flushVisibleBatch() {
 
   if (!latestEntry) return
   const { messageId, senderId } = latestEntry
+
+  postToParent('FS_CHAT_EVENT', {
+    type:      'message_read',
+    chatId:    activeChatId.value,
+    messageId: messageId,
+    timestamp: Date.now(),
+  })
 
   FlowHandler.run('chat.markMessageRead', {
     chatId: activeChatId.value,
@@ -1317,8 +1325,16 @@ async function sendMessage() {
 
   if (res?.ok) {
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
-
     props.socket?.sendChatMessage(res.data.item, getMessageRecipients())
+
+    // Notify parent window of sent message
+    postToParent('FS_CHAT_EVENT', {
+      type:      'message_sent',
+      chatId:    activeChatId.value,
+      messageId: res.data.item?.message_id,
+      senderId:  currentUserId,
+      timestamp: res.data.item?.message_ts || Date.now(),
+    })
   } else {
     composeText.value = text
   }

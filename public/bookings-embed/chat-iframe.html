@@ -23,6 +23,36 @@
     .open-chat-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; padding: 10px 20px; background: #5549FF; color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
     .open-chat-btn:hover { background: #4338ca; }
     .open-chat-btn svg { flex-shrink: 0; }
+    .search-user-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; margin-left: 12px; padding: 10px 20px; background: #0f766e; color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .search-user-btn:hover { background: #0d6660; }
+    .search-user-btn svg { flex-shrink: 0; }
+    .get-state-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; margin-left: 12px; padding: 10px 20px; background: #92400e; color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .get-state-btn:hover { background: #78350f; }
+    .get-state-btn svg { flex-shrink: 0; }
+    #state-result { display: none; max-width: 960px; margin: 0 auto 32px; padding: 0 32px; }
+    #state-result pre { background: #1e1e2e; color: #cdd6f4; font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.6; padding: 20px; border-radius: 10px; overflow-x: auto; max-height: 320px; }
+    /* ── Live Stats Bar ─────────────────────────────────────── */
+    .stats-bar { display: inline-flex; align-items: center; gap: 16px; margin-top: 20px; padding: 10px 20px; background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.9); border-radius: 999px; font-size: 14px; color: #374151; }
+    .stats-bar .stat { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+    .stats-bar .stat span.label { font-weight: 400; color: #6b7280; }
+    .stats-bar .stat .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .stats-bar .stat .badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .stats-bar .stat .badge.red  { background: #fee2e2; color: #dc2626; }
+    .stats-bar .divider { width: 1px; height: 16px; background: #d1d5db; }
+    /* ── Event Log Panel ────────────────────────────────────── */
+    #event-log { display: none; max-width: 960px; margin: 0 auto 24px; padding: 0 32px; }
+    #event-log .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    #event-log .log-header span { font-size: 13px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
+    #event-log .log-header button { font-size: 11px; padding: 2px 10px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; }
+    #event-log ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    #event-log ol li { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 14px; font-size: 13px; }
+    #event-log ol li .ev-type { font-weight: 700; font-family: 'Fira Code', monospace; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+    #event-log ol li .ev-type.message_received { background: #dbeafe; color: #1d4ed8; }
+    #event-log ol li .ev-type.message_sent     { background: #d1fae5; color: #065f46; }
+    #event-log ol li .ev-type.message_read     { background: #ede9fe; color: #6d28d9; }
+    #event-log ol li .ev-type.chat_created     { background: #fef9c3; color: #854d0e; }
+    #event-log ol li .ev-meta { color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #event-log ol li .ev-ts { color: #9ca3af; font-size: 11px; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -48,6 +78,47 @@
       </svg>
       Open Chat
     </button>
+    <button class="search-user-btn" onclick="handleSearchUser()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Search User
+    </button>
+    <button class="get-state-btn" onclick="handleGetState()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      </svg>
+      Get State
+    </button>
+    <br>
+    <!-- Live stats bar -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat">
+        <span class="label">💬 Chats</span>
+        <span class="badge blue" id="stat-total">—</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <span class="label">🔴 Unread</span>
+        <span class="badge red" id="stat-unread">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- State result panel -->
+  <div id="state-result">
+    <div class="section-title" style="margin:0 0 8px; padding:0;">Vue Store State</div>
+    <pre id="state-pre"></pre>
+  </div>
+
+  <!-- Event log panel -->
+  <div id="event-log">
+    <div class="log-header">
+      <span>Live Events</span>
+      <button onclick="clearEventLog()">Clear</button>
+    </div>
+    <ol id="event-log-list"></ol>
   </div>
 
   <!-- Content cards -->
@@ -76,12 +147,19 @@
   </div>
 
   <!-- Chat widget injected here (fixed overlay) -->
-  <script src="/bookings-embed/fs-chat-host.js"></script>
+  <script type="module" src="./fs-chat-host.js"></script>
   <script>
     var params = new URLSearchParams(location.search);
 
+    // Derive the base URL of this page at runtime so relative asset paths
+    // work correctly on both dev (/) and WordPress (/wp-content/plugins/fansocial/).
+    var __embedBase__ = (function () {
+      var href = window.location.href.split('?')[0];
+      return href.substring(0, href.lastIndexOf('/') + 1);
+    })();
+
     var chatEmbed = window.FSChatEmbed.mountChatEmbed(document.body, {
-      src:           '/bookings-embed/chat.html',
+      src:           __embedBase__ + 'chat.html',
       currentUserId: params.get('currentUserId') || '',
       userRole:      params.get('userRole')      || 'fan',
       apiBaseUrl:    params.get('apiBaseUrl')    || '',
@@ -100,6 +178,104 @@
         displayName: defaultName    || undefined,
       });
     }
+
+    function handleSearchUser() {
+      chatEmbed.openNewChatPopup();
+    }
+
+    async function handleGetState() {
+      var btn = document.querySelector('.get-state-btn');
+      var panel = document.getElementById('state-result');
+      var pre   = document.getElementById('state-pre');
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+      try {
+        var state = await chatEmbed.getState();
+        // Build a readable summary
+        var summary = {
+          chats_count:    (state.chats || []).length,
+          chats:          state.chats || [],
+          message_chat_ids: Object.keys(state.messages || {}),
+          messages:       state.messages || {},
+          users_count:    Object.keys(state.usersData || {}).length,
+          usersData:      state.usersData || {},
+          participants:   state.participants || {},
+          pinnedMessages: state.pinnedMessages || {},
+          bookings:       state.bookings || {},
+          events:         state.events || {},
+          hasMore:        state.hasMore,
+          nextCursor:     state.nextCursor,
+          total:          state.total,
+          totalUnread:    state.totalUnread,
+        };
+        pre.textContent = JSON.stringify(summary, null, 2);
+        panel.style.display = 'block';
+        console.log('[FSChatEmbed] getState() result:', state);
+      } catch (err) {
+        pre.textContent = 'Error: ' + err.message;
+        panel.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Get State';
+      }
+    }
+
+    // ── Live Stats ──────────────────────────────────────────────────────────
+    // Delegate to chatEmbed.refreshStats() (defined in fs-chat-host.js).
+    // Also update the demo stats bar badges on this page.
+    function refreshStats() {
+      return chatEmbed.refreshStats().then(function (result) {
+        console.error("refreshStats result:", result);
+        if (!result) return;
+        var totalEl  = document.getElementById('stat-total');
+        var unreadEl = document.getElementById('stat-unread');
+        if (totalEl)  totalEl.textContent  = result.total       !== null ? result.total       : '—';
+        if (unreadEl) unreadEl.textContent = result.totalUnread !== null ? result.totalUnread : '—';
+      }).catch(function () {});
+    }
+
+    // ── Event Log ───────────────────────────────────────────────────────────
+    var MAX_LOG_ENTRIES = 20;
+
+    function appendEventLog(detail) {
+      var list = document.getElementById('event-log-list');
+      var panel = document.getElementById('event-log');
+      if (!list) return;
+      panel.style.display = 'block';
+
+      var ts = detail.timestamp ? new Date(detail.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+      var meta = [];
+      if (detail.chatId)    meta.push('chat:' + detail.chatId);
+      if (detail.messageId) meta.push('msg:' + detail.messageId);
+      if (detail.senderId)  meta.push('from:' + detail.senderId);
+
+      var li = document.createElement('li');
+      li.innerHTML =
+        '<span class="ev-type ' + (detail.type || '') + '">' + (detail.type || 'unknown') + '</span>' +
+        '<span class="ev-meta">' + (meta.join(' · ') || '—') + '</span>' +
+        '<span class="ev-ts">' + ts + '</span>';
+
+      list.insertBefore(li, list.firstChild);
+      // Keep list trimmed
+      while (list.children.length > MAX_LOG_ENTRIES) list.removeChild(list.lastChild);
+    }
+
+    function clearEventLog() {
+      var list = document.getElementById('event-log-list');
+      if (list) list.innerHTML = '';
+      document.getElementById('event-log').style.display = 'none';
+    }
+
+    // Listen to all FS_CHAT_EVENTs dispatched by fs-chat-host.js
+    // Note: chatEmbed.refreshStats() already fires inside fs-chat-host.js on each event
+    // (to update data-header-* attrs). Here we additionally update the demo stats bar.
+    window.addEventListener('FS_CHAT_EVENT', function (e) {
+      appendEventLog(e.detail || {});
+      refreshStats();
+    });
+
+    // Initial stats load (after a short delay to let the iframe boot)
+    setTimeout(refreshStats, 5000);
   </script>
 
 </body>

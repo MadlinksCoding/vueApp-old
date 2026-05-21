@@ -14,7 +14,7 @@ export async function fetchUserChatsFlow({ payload, context, api }) {
     });
   }
 
-  const params = { limit };
+  const params = { limit, includes: 'total,total_unread' };
   if (cursor) params.cursor = cursor;
 
   try {
@@ -38,7 +38,14 @@ export async function fetchUserChatsFlow({ payload, context, api }) {
     }));
 
     return ok(
-      { items, userId, nextCursor: response?.nextCursor ?? null, append: !!cursor },
+      {
+        items,
+        userId,
+        nextCursor: response?.nextCursor ?? null,
+        append: !!cursor,
+        total: response?.total ?? null,
+        totalUnread: response?.totalUnread ?? null,
+      },
       { flow: "chat.fetchUserChats", status }
     );
   } catch (error) {

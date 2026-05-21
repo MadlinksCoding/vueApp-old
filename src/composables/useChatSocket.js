@@ -2,6 +2,7 @@ import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
 import FlowHandler from '@/services/flow-system/FlowHandler';
 import { resolveAndSyncChat } from '@/services/chat/chatResolverUtils';
+import { postToParent } from '@/utils/postToParent';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -54,6 +55,15 @@ export function useChatSocket(userId) {
     chatStore.addMessage(body.chat_id, body);
     chatStore.updateChatLastMessage(body.chat_id, body);
     chatStore.updateChatUnread(body.chat_id, true);
+
+    // Notify parent window of incoming message
+    postToParent('FS_CHAT_EVENT', {
+      type:      'message_received',
+      chatId:    body.chat_id,
+      messageId: body.message_id || body.id,
+      senderId:  body.sender_id  || body.senderId,
+      timestamp: body.message_ts || Date.now(),
+    });
 
     const messageId = body.message_id || body.id;
     if (!messageId) return;
@@ -111,6 +121,16 @@ export function useChatSocket(userId) {
         chatId: body.chat_id,
         messageId: body.message_id,
         status: body.status,
+      });
+    }
+
+    // Notify parent window when a message is marked read
+    if (body.status === 'read') {
+      postToParent('FS_CHAT_EVENT', {
+        type:      'message_read',
+        chatId:    body.chat_id,
+        messageId: body.message_id,
+        timestamp: Date.now(),
       });
     }
   }

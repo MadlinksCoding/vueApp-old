@@ -124,24 +124,43 @@ const widgetEl  = ref(null)
 const hostWidth = ref(window.innerWidth)
 
 async function openChat({ chatId, userId } = {}) {
-  var isExist = false;
-  let chatName = ''
   if (chatId) {
-    const existing = chatStore.userChats.find(c => String(c.chat_id) === String(chatId))
-    if (existing) {
-      chatName = existing.chat_name || existing.name || ''
-      isExist = true
-    } else {
+    // Resolve the chat item — from store or API
+    let item = chatStore.userChats.find(c => String(c.chat_id) === String(chatId))
+    if (!item) {
       const res = await FlowHandler.run('chat.getChat', { chatId })
-      if (res?.ok) {
-        const item = res.data?.item || {}
-        chatName = item.chat_name || item.name || ''
-        isExist = true
-      }
+      if (!res?.ok) return
+      item = res.data?.item || {}
+      chatStore.prependChat(item) // keep store + participants map in sync
     }
-  }
-  if( chatId && isExist) {
-    openChatWindow({ chatId, chatName })
+
+    // Participants may be plain IDs (numbers) or objects with a user_id field
+    const rawParticipants = chatStore.chatParticipants[chatId]
+      || item.participants
+      || []
+    const myId = String(currentUserId.value)
+    const participantIds = rawParticipants.map(p =>
+      String(typeof p === 'object' ? (p.user_id ?? p.userId ?? p.id) : p)
+    )
+
+    // Fetch user data for any participant not yet in the store
+    const missingIds = participantIds.filter(id => id !== myId && !chatStore.chatUsersData[id])
+    if (missingIds.length > 0) {
+      const udRes = await FlowHandler.run('chat.fetchChatUsersData', { userIds: missingIds })
+      if (udRes?.ok) chatStore.setChatUsersDataAction({ users: udRes.data?.users })
+    }
+
+    // Resolve the other participant's avatar from the now-populated store
+    const otherId = participantIds.find(id => id !== myId)
+    const otherUser = otherId ? chatStore.chatUsersData[otherId] : null
+    const avatar = otherUser?.avatar || null
+    var chatName = otherUser?.display_name || otherUser?.username || ''
+    if( item?.is_group ) {
+      console.error("Group chat - using group name:", item)
+      chatName = item.chat_name || item.name || otherUser?.display_name || otherUser?.username || ''
+    }
+
+    openChatWindow({ chatId, chatName, avatar })
   } else if (userId) {
     const uid = String(userId)
     let userData = chatStore.chatUsersData[uid]
@@ -156,7 +175,17 @@ async function openChat({ chatId, userId } = {}) {
   }
 }
 
-defineExpose({ widgetEl, openChat, isListOpen, openChats })
+
+
+function openNewChatPopup() {
+  isListOpen.value = true
+  // Defer until ChatListPanel has mounted and its ref is populated
+  setTimeout(() => {
+    chatListRef.value?.openNewChatPopup?.()
+  }, 0)
+}
+
+defineExpose({ widgetEl, openChat, openNewChatPopup, isListOpen, openChats })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
