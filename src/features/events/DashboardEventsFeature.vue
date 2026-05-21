@@ -39,6 +39,7 @@
         :row-height-px="64"
         :min-event-height-px="0"
         @date-selected="onSelectFromMain"
+        @view-changed="state.view = $event"
         @join-call="handleJoin"
         @approve-booking="onApprovePendingBooking"
         @reject-booking="onRejectPendingBooking"
@@ -52,8 +53,8 @@
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               view === 'month'
-                ? 'hidden lg:block rounded-[0.25rem] text-[10px] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
-                : 'rounded-[0.375rem] text-xs min-h-[20px] w-full overflow-hidden'
+                ? 'hidden lg:block rounded-[0.25rem] text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
+                : 'rounded-[0.375rem] text-xs min-h-[1.25rem] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
@@ -61,9 +62,9 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
-                <div class="block font-medium truncate w-full py-[2px] px-1">{{ event.title }}</div>
+                <div class="block font-medium truncate w-full py-[0.125rem] px-1">{{ event.title }}</div>
               </div>
-              <div class="text-[10px] opacity-90 truncate py-[2px] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="text-[0.625rem] opacity-90 truncate py-[0.125rem] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -80,7 +81,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -90,14 +91,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[20px]'
+              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[1.25rem]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div hidden class="opacity-90 text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div hidden class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -114,7 +115,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div class="text-[10px]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -125,7 +126,7 @@
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
                 ? 'hidden lg:block pointer-events-none rounded-sm h-1.5 min-h-1.5 w-full'
-                : 'pointer-events-none rounded-md min-h-[6px] w-full'
+                : 'pointer-events-none rounded-md min-h-[0.375rem] w-full'
             ]"
             :style="[style, view === 'month' ? getMonthAvailabilityStyle() : getCalendarEventStyle(event)]"
             data-test="dashboard-month-availability-marker"
@@ -146,7 +147,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden lg:flex flex-col gap-[16px] px-[24px] h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'pt-12']"
+        :class="['hidden lg:flex flex-col gap-4 px-6 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -170,7 +171,7 @@
         >
           <div
             v-if="isCreator"
-            class="h-12 w-full rounded-[48px] bg-[#101828]/10 animate-pulse"
+            class="h-12 w-full rounded-[3rem] bg-[#101828]/10 animate-pulse"
           />
 
           <div class="flex flex-col gap-3">
@@ -227,7 +228,7 @@
           <ButtonComponent
             :text="t('dashboard_new_events')"
             variant="none"
-            customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
+            customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[3rem] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
             :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
             :leftIconClass="'w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
             @click="togglePopup"
@@ -265,7 +266,7 @@
         </button>
         <div
           v-show="isFloatingPopupOpen"
-          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[50px] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto"
+          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto"
         >
           <CreateEventPopup
             @create-private="goToCreateEvent('private')"
@@ -319,7 +320,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { hhmm } from "@/utils/calendarHelpers.js";
+import { hhmm, addDays } from "@/utils/calendarHelpers.js";
 import MiniCalendar from "@/components/calendar/MiniCalendar.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
@@ -456,7 +457,7 @@ const newEventsPopupConfig = {
   from: "right",
   offset: "0px",
   verticalAlign: "bottom",
-  width: { default: "384px", "<768": "100%" },
+  width: { default: "24rem", "<768": "100%" },
   height: { default: "auto" },
   speed: "300ms",
   effect: "ease-in-out",
@@ -489,9 +490,9 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[10px] gap-[0.625rem] rounded-xl w-[20.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]",
     header: "font-semibold",
-    dayBase: "w-[37.43px] h-[37px] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
+    dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
     expired: "opacity-40",
     today: "bg-gray-500 font-semibold text-white",
@@ -500,22 +501,22 @@ const theme1 = computed(() => ({
   },
   main: {
     wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-0 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
-    title: "sm:text-[1.5rem] text-[16px] font-semibold text-slate-800",
-    xHeader: "text-[11px] uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
+    title: "sm:text-[1.5rem] text-base font-semibold text-slate-800",
+    xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
-    axisXDay: "py-1 text-center h-[63.92px]",
+    axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
-    axisYRow: "h-[62.62px] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
+    axisYRow: "h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
     colBase: "relative bg-white/20",
-    gridRow: "h-[64px] border-b border-white/50",
+    gridRow: "h-[4rem] border-b border-white/50",
     eventBase: "absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm",
   },
   month: {
-    weekHeader: "text-[11px] uppercase tracking-wide text-slate-500",
+    weekHeader: "text-xs uppercase tracking-wide text-slate-500",
     cellBase: "h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden",
     outside: "opacity-40",
     today: "border-2 border-emerald-500",
-    cellEvent: "w-full text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer",
+    cellEvent: "w-full text-[0.563rem] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer",
   },
 }));
 
@@ -1315,6 +1316,33 @@ const events1 = computed(() => calendarEvents.value.filter((event) => !String(ev
 const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
 
 const eventsData = computed(() => {
+  const focus = state.focus || new Date();
+  
+  if (state.view === "day") {
+    const yesterday = addDays(focus, -1);
+    const tomorrow = addDays(focus, 1);
+
+    const filterByDay = (date) => allEvents.value.filter(ev => sameDay(asDate(ev.start), date));
+
+    const yesterdaySections = buildExpandedMonthSections(filterByDay(yesterday), yesterday);
+    const todaySections = buildExpandedMonthSections(filterByDay(focus), focus);
+    const tomorrowSections = buildExpandedMonthSections(filterByDay(tomorrow), tomorrow);
+
+    const pendingItems = allEvents.value
+      .filter(event => {
+        const status = String(event.status || "").toLowerCase();
+        return status === "pending" || status === "pending_hold";
+      })
+      .map(event => toWidgetItem(event, { showReply: true }));
+
+    return [
+      ...yesterdaySections,
+      ...todaySections,
+      ...tomorrowSections,
+      { title: t("dashboard_pending_events"), items: pendingItems },
+    ];
+  }
+
   const now = new Date();
 
   const todayItems = [];

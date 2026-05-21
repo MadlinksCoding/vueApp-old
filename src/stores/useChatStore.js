@@ -7,6 +7,8 @@ export const useChatStore = defineStore("chat", {
     userChats: [],
     chatsNextCursor: null,
     chatsHasMore: false,
+    chatsTotal: null,
+    chatsTotalUnread: null,
     chatParticipants: {},
     chatUsersData: {},
     chatPinnedMessages: {},
@@ -102,7 +104,7 @@ export const useChatStore = defineStore("chat", {
       this.userChats = items;
     },
 
-    fetchUserChatsAction({ items, nextCursor = null, append = false }) {
+    fetchUserChatsAction({ items, nextCursor = null, append = false, total = null, totalUnread = null }) {
       const incoming = Array.isArray(items) ? items : [];
 
       if (append) {
@@ -123,6 +125,8 @@ export const useChatStore = defineStore("chat", {
 
       this.chatsNextCursor = nextCursor;
       this.chatsHasMore = !!nextCursor;
+      if (total !== null)       this.chatsTotal = total;
+      if (totalUnread !== null) this.chatsTotalUnread = totalUnread;
 
       incoming.forEach((c) => {
         if (c.chat_id && Array.isArray(c.participants)) {
@@ -171,12 +175,28 @@ export const useChatStore = defineStore("chat", {
     updateChatUnread(chatId, hasUnread) {
       const chat = this.userChats.find((c) => c.chat_id === chatId);
       if (!chat) return;
-      chat.unread_count = hasUnread ? Math.max((chat.unread_count || 0) + 1, 1) : 0;
+      const prev = chat.unread_count || 0;
+      chat.unread_count = hasUnread ? Math.max(prev + 1, 1) : 0;
+      // Mirror the delta onto chatsTotalUnread
+      if (this.chatsTotalUnread !== null) {
+        if (hasUnread) {
+          this.chatsTotalUnread += 1;
+        } else {
+          this.chatsTotalUnread = Math.max(0, this.chatsTotalUnread - prev);
+        }
+      }
     },
 
     setChatUnreadCount(chatId, count) {
       const chat = this.userChats.find((c) => c.chat_id === chatId);
-      if (chat) chat.unread_count = count ?? 0;
+      if (!chat) return;
+      const prev = chat.unread_count ?? 0;
+      const next = count ?? 0;
+      chat.unread_count = next;
+      // Adjust chatsTotalUnread by the difference
+      if (this.chatsTotalUnread !== null) {
+        this.chatsTotalUnread = Math.max(0, this.chatsTotalUnread - prev + next);
+      }
     },
 
     prependChat(item) {
@@ -184,6 +204,8 @@ export const useChatStore = defineStore("chat", {
       const exists = this.userChats.some((c) => c.chat_id === item.chat_id);
       if (!exists) {
         this.userChats.unshift(item);
+        // Keep total in sync with the newly created chat
+        if (this.chatsTotal !== null) this.chatsTotal += 1;
       }
       if (item.chat_id && Array.isArray(item.participants)) {
         this.chatParticipants[item.chat_id] = item.participants;
@@ -226,6 +248,8 @@ export const useChatStore = defineStore("chat", {
       this.userChats = [];
       this.chatsNextCursor = null;
       this.chatsHasMore = false;
+      this.chatsTotal = null;
+      this.chatsTotalUnread = null;
       this.chatParticipants = {};
       this.chatUsersData = {};
       this.chatPinnedMessages = {};

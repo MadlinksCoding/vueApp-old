@@ -53,7 +53,11 @@ function onChatReady() {
   showNewChatPopup.value = false
 }
 
-defineExpose({ chatReady: onChatReady })
+function openNewChatPopup() {
+  showNewChatPopup.value = true
+}
+
+defineExpose({ chatReady: onChatReady, openNewChatPopup })
 
 const isCreator = computed(() => {
   const ud = resolveParentUserData()

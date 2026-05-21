@@ -1144,7 +1144,7 @@ onMounted(() => {
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">
+              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">
                 {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
               </h3>
               <div class="grid grid-cols-3 w-full gap-2">
@@ -1188,7 +1188,7 @@ onMounted(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
+              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
               <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
                 <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem]">
                   <div
@@ -1260,7 +1260,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -1289,7 +1289,7 @@ onMounted(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-semibold leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
+              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm leading-[20px] text-[#F2F4F7]">
                   {{ t("fan_booking_other_request_body") }}

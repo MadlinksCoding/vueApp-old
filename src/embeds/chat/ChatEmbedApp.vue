@@ -8,6 +8,8 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue'
 import { setBackendJwtToken } from '@/utils/backendJwt.js'
+import { useChatStore } from '@/stores/useChatStore'
+import { postToParent } from '@/utils/postToParent'
 
 const widgetRef = ref(null)
 let resizeObserver   = null
@@ -52,8 +54,11 @@ if (jwtToken) {
 
 window.__fsChatEmbed = true
 
-const FS_CHAT_AUTH_UPDATE = 'FS_CHAT_AUTH_UPDATE'
-const FS_CHAT_OPEN_CHAT   = 'FS_CHAT_OPEN_CHAT'
+const FS_CHAT_AUTH_UPDATE         = 'FS_CHAT_AUTH_UPDATE'
+const FS_CHAT_OPEN_CHAT           = 'FS_CHAT_OPEN_CHAT'
+const FS_CHAT_OPEN_NEW_CHAT_POPUP = 'FS_CHAT_OPEN_NEW_CHAT_POPUP'
+const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
+const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
 
 function onParentMessage(event) {
   if (event.source !== window.parent) return
@@ -70,6 +75,36 @@ function onParentMessage(event) {
   if (data.type === FS_CHAT_OPEN_CHAT) {
     const payload = data.payload || {}
     widgetRef.value?.openChat(payload)
+  }
+
+  if (data.type === FS_CHAT_OPEN_NEW_CHAT_POPUP) {
+    widgetRef.value?.openNewChatPopup()
+  }
+
+  if (data.type === FS_CHAT_GET_STATE) {
+    const { requestId, only } = data.payload || {}
+    const store = useChatStore()
+
+    const allState = {
+      chats:          store.userChats,
+      messages:       store.messages,
+      usersData:      store.chatUsersData,
+      participants:   store.chatParticipants,
+      pinnedMessages: store.chatPinnedMessages,
+      bookings:       store.chatBookings,
+      events:         store.chatEvents,
+      hasMore:        store.chatsHasMore,
+      nextCursor:     store.chatsNextCursor,
+      total:          store.chatsTotal,
+      totalUnread:    store.chatsTotalUnread,
+    }
+
+    const result = (Array.isArray(only) && only.length > 0)
+      ? Object.fromEntries(only.filter(k => k in allState).map(k => [k, allState[k]]))
+      : allState
+
+    postToParent(FS_CHAT_STATE_RESPONSE, { requestId, data: JSON.parse(JSON.stringify(result)) })
+
   }
 }
 
@@ -102,14 +137,11 @@ function notifyResize(el) {
 
   const isOpen = !!(widgetRef.value?.isListOpen || (widgetRef.value?.openChats?.length > 0))
 
-  window.parent.postMessage({
-    type: 'FS_CHAT_RESIZE',
-    payload: { width: w, height: h, is_open: isOpen }
-  }, '*')
+  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen })
 }
 
 function sendFullViewport() {
-  window.parent.postMessage({ type: 'FS_CHAT_FULLSCREEN' }, '*')
+  postToParent('FS_CHAT_FULLSCREEN')
 }
 
 function checkPopupState(el) {

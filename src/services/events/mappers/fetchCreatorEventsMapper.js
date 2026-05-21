@@ -204,6 +204,7 @@ function normalizeEventItem(item = {}) {
     status: item.status || "active",
     title: resolveEventDisplayTitle(item),
     description: normalizeString(item.description, ""),
+    createdAt: normalizeString(item.createdAt, "") || null,
     sessionDurationMinutes: normalizeNumber(item.sessionDurationMinutes, 15),
     basePriceTokens: normalizeNumber(item.basePriceTokens, 0),
     allowLongerSessions: normalizeBoolean(item.allowLongerSessions, false),

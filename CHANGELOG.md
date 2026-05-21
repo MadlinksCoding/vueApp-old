@@ -1,6 +1,89 @@
 # Changelog
 
+## 2026-05-21 — Refactor: `postToParent()` Helper for `window.parent.postMessage`
+
+### Added
+
+#### `src/utils/postToParent.js` _(new)_
+- **`postToParent(type, payload?)`** — shared utility that wraps every `window.parent.postMessage` call in a single place.
+  - Silently no-ops when `window.parent` is inaccessible (cross-origin, sandboxed iframe, same-window context).
+  - Always targets `'*'` — consistent with existing behaviour.
+  - Builds `{ type, payload }` message shape (payload omitted when not provided).
+  - Centralises the `try/catch` so call-sites are a single line.
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- Imported `postToParent` and replaced all 5 raw `window.parent.postMessage` blocks:
+  - `FS_CHAT_TOPUP_REQUIRED` (topup flow)
+  - `FS_CHAT_EVENT { type: 'chat_created' }` (ensureActiveChat)
+  - `FS_CHAT_PRODUCT_SELECTED` (product recommendation)
+  - `FS_CHAT_EVENT { type: 'message_read' }` (_flushVisibleBatch — also removed a duplicate fire inside the `.then()` callback)
+  - `FS_CHAT_EVENT { type: 'message_sent' }` (sendMessage)
+
+#### `src/composables/useChatSocket.js`
+- Imported `postToParent` and replaced the 2 `FS_CHAT_EVENT` try/catch blocks (`message_received`, `message_read`).
+- Socket-protocol messages (`PARENT_CHECK_MSG`, `PARENT_SEND_MSG`) intentionally left as raw `window.parent.postMessage` — they are low-level bridge internals.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- Imported `postToParent` and replaced all 3 raw calls: `FS_CHAT_STATE_RESPONSE`, `FS_CHAT_RESIZE`, `FS_CHAT_FULLSCREEN`.
+
+> **Not changed**: `embeds/events/bridge.js`, `embeds/fanBooking/bridge.js` — each already has its own local `postToParent` with an `isEmbeddedIframe()` guard and embed-specific `source` field; they remain independent.
+
+---
+
+## 2026-05-21 — Chat Embed: Live Stats, Parent Window Events & `totalUnread` Sync
+
+
+### Added
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **`FS_CHAT_EVENT` handler** — intercepts `FS_CHAT_EVENT` postMessages from the iframe, stamps `window._fsChatLastTimestamp` with the event timestamp, and dispatches a single `CustomEvent('FS_CHAT_EVENT', { detail })` on the parent window. Listeners branch on `e.detail.type` (`message_received`, `message_sent`, `message_read`, `chat_created`).
+- **`refreshStats()`** — new function that calls `getState({ only: ['total', 'totalUnread'] })` via the iframe bridge, then updates all matching DOM elements in the host page:
+  - Elements with `[data-header-user-chats-unread-count]` — text content and attribute value set to current unread count.
+  - Elements with `[data-header-chats-total]` — text content and attribute value set to current chat total.
+  - Returns `Promise<{ total, totalUnread }>` so callers can `await chatEmbed.refreshStats()`.
+  - Auto-called after every `FS_CHAT_EVENT` so DOM attributes stay live.
+  - Exposed on the returned API object alongside `openChat`, `getState`, etc.
+
+#### `public/bookings-embed/chat-iframe.html`
+- **Live stats bar** — pill-shaped glassmorphism badge in the hero section showing 💬 Chats and 🔴 Unread counts. Populated 2 seconds after load and refreshed on every `FS_CHAT_EVENT`.
+- **Event log panel** — appears below the stats bar on first event; shows the last 20 events color-coded by type (`message_received` blue, `message_sent` green, `message_read` purple, `chat_created` yellow) with chat ID, message ID, sender, and timestamp. Includes a **Clear** button.
+
+#### `src/composables/useChatSocket.js`
+- After `_handleIncomingChatMessage` stores the message, posts `FS_CHAT_EVENT { type: 'message_received', chatId, messageId, senderId, timestamp }` to the parent window.
+- After `_handleIncomingStatusUpdate` processes a `read` status, posts `FS_CHAT_EVENT { type: 'message_read', chatId, messageId, timestamp }` to the parent window.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- `ensureActiveChat`: after a new chat is created, posts `FS_CHAT_EVENT { type: 'chat_created', chatId, timestamp }` to the parent window.
+- `sendMessage`: after a message is sent successfully, posts `FS_CHAT_EVENT { type: 'message_sent', chatId, messageId, senderId, timestamp }` to the parent window.
+- `_flushVisibleBatch`: after updating the store (marking messages read), posts `FS_CHAT_EVENT { type: 'message_read', chatId, messageId, timestamp }` to the parent window **before** the `chat.markMessageRead` API call — so `refreshStats()` reads the already-decremented store value.
+
+#### `src/services/chat/flows/fetchUserChatsFlow.js`
+- Added `includes: 'total,total_unread'` query parameter to the `GET /chats/user/:userId` request.
+- Returns `total` and `totalUnread` in the `ok()` payload.
+
+### Changed
+
+#### `src/stores/useChatStore.js`
+- Added `chatsTotal: null` and `chatsTotalUnread: null` state fields.
+- `fetchUserChatsAction`: stores `total` and `totalUnread` from the API response. Guards with `!== null` so a missing API value never overwrites a live-computed value.
+- `prependChat`: increments `chatsTotal` by 1 when a new chat is added (keeps total in sync without an API re-fetch).
+- `updateChatUnread(chatId, hasUnread)`: now also mirrors the delta onto `chatsTotalUnread` — increments by 1 when `hasUnread = true`, decrements by `prev` when `hasUnread = false`. Bounded by `Math.max(0, ...)`.
+- `setChatUnreadCount(chatId, count)`: now also adjusts `chatsTotalUnread` by `(next - prev)` so explicit count resets (e.g. user reads a chat) are reflected immediately. Bounded by `Math.max(0, ...)`.
+- `clearCache`: resets `chatsTotal` and `chatsTotalUnread` to `null`.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- `getState()` bridge now includes `total` (→ `chatsTotal`) and `totalUnread` (→ `chatsTotalUnread`) in the serialized state response.
+
+#### `public/bookings-embed/chat-iframe.html`
+- `handleGetState()` summary now includes `total` and `totalUnread` fields.
+- Local `refreshStats()` replaced with a thin wrapper delegating to `chatEmbed.refreshStats()` (canonical implementation moved to `fs-chat-host.js`); uses the returned `{ total, totalUnread }` to update the demo stats bar badges.
+
+---
+
 ## 2026-04-29 — Booking Bubble 3-Dot Menu, Cancel Confirmation & Submit Flow Fixes
+
 
 ### Added
 
