@@ -6,6 +6,7 @@
       :fan-id="fanId"
       :refresh-signal="route.query?.refresh"
       @create-event="handleCreateEvent"
+      @edit-event="handleEditEvent"
       @open-url="handleOpenUrl"
     />
   </DashboardWrapperTwoColContainer>
@@ -53,6 +54,19 @@ const handleCreateEvent = async ({ type }) => {
   await router.push({
     path: "/UnifiedBookingForm",
     query: {
+      type,
+      creatorId: String(creatorId.value),
+      refresh: "1",
+    },
+  });
+};
+
+const handleEditEvent = async ({ eventId, type }) => {
+  await router.push({
+    path: "/UnifiedBookingForm",
+    query: {
+      mode: "edit",
+      eventId,
       type,
       creatorId: String(creatorId.value),
       refresh: "1",

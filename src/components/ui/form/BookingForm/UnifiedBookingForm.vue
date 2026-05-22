@@ -17,6 +17,7 @@ import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/booki
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
+import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormStateMapper.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import closeIcon from "@/assets/images/icons/close.png";
@@ -46,6 +47,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    mode: {
+        type: String,
+        default: "",
+    },
+    eventId: {
+        type: [String, Number],
+        default: "",
+    },
 });
 
 const emit = defineEmits(["created", "back", "scroll-top-request"]);
@@ -54,6 +63,17 @@ const router = useRouter();
 const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
+const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
+
+const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
+const resolvedEditEventId = computed(() => {
+    const candidate = props.eventId || route.query.eventId || route.query.event_id || "";
+    return candidate == null ? "" : String(candidate).trim();
+});
+const editFormReady = ref(false);
+const editLoading = ref(false);
+const editError = ref("");
+const editEventType = ref("");
 
 /**
  * Determine the active type.
@@ -63,6 +83,9 @@ const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
  * 3. Default to 'private'
  */
 const currentType = computed(() => {
+    if (editEventType.value === "group" || editEventType.value === "private") {
+        return editEventType.value;
+    }
     if (props.type === "group" || props.type === "private") {
         return props.type;
     }
@@ -184,6 +207,88 @@ const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
+
+function asDate(value) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getBookedSlotEventId(slot = {}) {
+    const snapshot = slot?.eventSnapshot && typeof slot.eventSnapshot === "object" ? slot.eventSnapshot : {};
+    const raw = slot?.raw && typeof slot.raw === "object" ? slot.raw : {};
+    const rawSnapshot = raw?.eventSnapshot && typeof raw.eventSnapshot === "object" ? raw.eventSnapshot : {};
+    return String(
+        slot?.eventId
+        || slot?.event_id
+        || snapshot.eventId
+        || snapshot.id
+        || raw.eventId
+        || raw.event_id
+        || rawSnapshot.eventId
+        || rawSnapshot.id
+        || "",
+    );
+}
+
+function getBookedSlotStatus(slot = {}) {
+    return String(slot?.status || slot?.bookingStatus || slot?.approvalStatus || slot?.raw?.status || "").toLowerCase();
+}
+
+function getBookedSlotEnd(slot = {}) {
+    return asDate(
+        slot?.endIso
+        || slot?.endAtIso
+        || slot?.endAt
+        || slot?.end
+        || slot?.raw?.endIso
+        || slot?.raw?.endAtIso
+        || slot?.raw?.endAt
+        || slot?.raw?.end,
+    );
+}
+
+function hasActiveFutureBookedSlotForEvent(eventId) {
+    const targetEventId = String(eventId || "").trim();
+    if (!targetEventId) return false;
+
+    const nowMs = Date.now();
+    return bookedSlotsRawForCalendar.value.some((slot) => {
+        if (getBookedSlotEventId(slot) !== targetEventId) return false;
+        if (!ACTIVE_BOOKING_LOCK_STATUSES.has(getBookedSlotStatus(slot))) return false;
+
+        const endDate = getBookedSlotEnd(slot);
+        return endDate ? endDate.getTime() >= nowMs : true;
+    });
+}
+
+function resolveCreatorEventId(event = {}) {
+    const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+    return String(event?.eventId || event?.id || raw.eventId || raw.id || "").trim();
+}
+
+function filterCreatorEventsForAvailabilityPreview(events = []) {
+    const list = Array.isArray(events) ? events : [];
+    const editEventId = resolvedEditEventId.value;
+    if (!isEditMode.value || !editEventId) return list;
+
+    return list.filter((event) => resolveCreatorEventId(event) !== editEventId);
+}
+
+const editGroupBookedFieldsLocked = computed(() => (
+    isEditMode.value
+    && currentType.value === "group"
+    && hasActiveFutureBookedSlotForEvent(resolvedEditEventId.value)
+));
+const editScheduleLocked = computed(() => editGroupBookedFieldsLocked.value);
+const editPricingLocked = computed(() => editGroupBookedFieldsLocked.value);
+
+watch(editScheduleLocked, (locked) => {
+    bookingFlow.setState("isGroupScheduleLocked", locked, { reason: "edit-schedule-lock-sync", silent: true });
+}, { immediate: true });
+
+watch(editPricingLocked, (locked) => {
+    bookingFlow.setState("isGroupPricingLocked", locked, { reason: "edit-pricing-lock-sync", silent: true });
+}, { immediate: true });
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
 const DAY_KEY_TO_INDEX = {
@@ -326,8 +431,9 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         creatorEventsForCalendar.value = creatorEvents;
         bookedSlotsRawForCalendar.value = bookedSlotsRaw;
         bookedSlotsIndexForCalendar.value = bookedSlotsIndex;
+        const availabilityPreviewEvents = filterCreatorEventsForAvailabilityPreview(creatorEvents);
         const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
-            creatorEvents,
+            creatorEvents: availabilityPreviewEvents,
             bookedSlotsRaw,
             bookedSlotsIndex,
             focusDate: state.focus,
@@ -339,6 +445,65 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
 
     calendarLoading.value = false;
 };
+
+function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
+    Object.entries(formState).forEach(([key, value]) => {
+        bookingFlow.setState(key, value, { reason, silent: true });
+    });
+    bookingFlow.initializeFromState?.();
+}
+
+async function hydrateEditEventIfNeeded() {
+    if (!isEditMode.value) {
+        editFormReady.value = true;
+        return;
+    }
+
+    const eventId = resolvedEditEventId.value;
+    if (!eventId) {
+        editError.value = t("booking_edit_missing_event_id");
+        editFormReady.value = true;
+        return;
+    }
+
+    editLoading.value = true;
+    editError.value = "";
+
+    try {
+        const result = await bookingFlow.callFlow(
+            "events.fetchEvent",
+            { eventId },
+            {
+                forceRefresh: true,
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+
+        if (!result?.ok) {
+            editError.value = result?.meta?.uiErrors?.[0]
+                || result?.error?.message
+                || t("booking_edit_load_failed");
+            return;
+        }
+
+        const event = result?.data?.item || null;
+        if (!event) {
+            editError.value = t("booking_edit_load_failed");
+            return;
+        }
+
+        const formState = mapEventToBookingFormState(event);
+        editEventType.value = formState.eventType === "group-event" ? "group" : "private";
+        applyFormStateToEngine(formState);
+    } finally {
+        editLoading.value = false;
+        editFormReady.value = true;
+    }
+}
 
 const scrollToStepTopOnMobile = async () => {
     if (typeof window === "undefined" || window.innerWidth >= 1024) return;
@@ -363,7 +528,7 @@ const scrollToStepTopOnMobile = async () => {
 };
 
 // Init
-onMounted(() => {
+onMounted(async () => {
     bookingFlow.initialize();
     const resolvedCreatorId = resolveCreatorId();
     bookingFlow.setState("apiBaseUrl", props.apiBaseUrl || "", { reason: "initial-api-base-url", silent: true });
@@ -383,8 +548,10 @@ onMounted(() => {
         }
     });
 
+    await hydrateEditEventIfNeeded();
+
     const shouldForceRefresh = route.query?.refresh === "1";
-    fetchCreatorBookedSlots(shouldForceRefresh);
+    await fetchCreatorBookedSlots(shouldForceRefresh || isEditMode.value);
     if (shouldForceRefresh) {
         clearRefreshQueryFlag();
     }
@@ -539,7 +706,7 @@ function resolveEventTitle(event) {
         return normalized;
     }
 
-    return genericFallback || "Untitled Event";
+    return genericFallback || t("dashboard_booking_schedule_untitled_event");
 }
 
 function buildCalendarSlotsFromContext({
@@ -549,7 +716,7 @@ function buildCalendarSlotsFromContext({
     const colorByEventId = new Map(
         creatorEvents
             .map((event) => [
-                String(event?.eventId || event?.id || ""),
+                resolveCreatorEventId(event),
                 event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
             ])
             .filter(([eventId]) => Boolean(eventId))
@@ -558,7 +725,7 @@ function buildCalendarSlotsFromContext({
     const titleByEventId = new Map(
         creatorEvents
             .map((event) => [
-                String(event?.eventId || event?.id || ""),
+                resolveCreatorEventId(event),
                 resolveEventTitle(event),
             ])
             .filter(([eventId]) => Boolean(eventId))
@@ -567,7 +734,7 @@ function buildCalendarSlotsFromContext({
     const callTypeByEventId = new Map(
         creatorEvents
             .map((event) => [
-                String(event?.eventId || event?.id || ""),
+                resolveCreatorEventId(event),
                 String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase(),
             ])
             .filter(([eventId]) => Boolean(eventId))
@@ -576,7 +743,7 @@ function buildCalendarSlotsFromContext({
     const eventTypeByEventId = new Map(
         creatorEvents
             .map((event) => [
-                String(event?.eventId || event?.id || ""),
+                resolveCreatorEventId(event),
                 String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
             ])
             .filter(([eventId]) => Boolean(eventId))
@@ -896,8 +1063,9 @@ function rebuildAvailabilityPreview() {
         return;
     }
 
+    const availabilityPreviewEvents = filterCreatorEventsForAvailabilityPreview(creatorEvents);
     const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
-        creatorEvents,
+        creatorEvents: availabilityPreviewEvents,
         bookedSlotsRaw,
         bookedSlotsIndex,
         focusDate: state.focus,
@@ -978,18 +1146,35 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 </div>
 
                 <div ref="formScrollContainer" :class="[embedded ? 'w-full h-full min-h-0 overflow-y-auto overflow-x-hidden' : 'w-full h-dvh max-h-dvh overflow-y-auto overflow-x-hidden']">
+                    <div v-if="editLoading || !editFormReady" class="px-6 py-10">
+                        <div class="h-4 w-40 rounded-full bg-[#101828]/10 animate-pulse" />
+                        <div class="mt-5 space-y-3">
+                            <div class="h-10 rounded bg-[#101828]/10 animate-pulse" />
+                            <div class="h-24 rounded bg-[#101828]/10 animate-pulse" />
+                            <div class="h-16 rounded bg-[#101828]/10 animate-pulse" />
+                        </div>
+                    </div>
+
+                    <div v-else-if="editError" class="mx-6 mt-6 rounded bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                        {{ editError }}
+                    </div>
+
                     <!-- Private Form -->
-                    <template v-if="currentType === 'private'">
+                    <template v-else-if="currentType === 'private'">
                         <OneOnOneBookinStep1
                             v-if="currentStep === 1"
                             :engine="bookingFlow"
                             :embedded="embedded"
+                            :schedule-locked="false"
+                            :pricing-locked="false"
                         />
 
                         <OneOnOneBookinStep2
                             v-if="currentStep === 2"
                             :engine="bookingFlow"
                             :embedded="embedded"
+                            :is-edit-mode="isEditMode"
+                            :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
                         />
                     </template>
@@ -1001,6 +1186,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :engine="bookingFlow"
                             :embedded="embedded"
                             bookingType="group"
+                            :schedule-locked="editScheduleLocked"
+                            :pricing-locked="editPricingLocked"
                         />
 
                         <OneOnOneBookinStep2
@@ -1008,6 +1195,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :engine="bookingFlow"
                             :embedded="embedded"
                             bookingType="group"
+                            :is-edit-mode="isEditMode"
+                            :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
                         />
                     </template>

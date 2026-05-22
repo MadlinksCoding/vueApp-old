@@ -1,7 +1,10 @@
 import { createEventFlow } from "@/services/events/flows/createEventFlow.js";
+import { updateEventFlow } from "@/services/events/flows/updateEventFlow.js";
+import { deleteEventFlow } from "@/services/events/flows/deleteEventFlow.js";
 import { fetchCreatorEventsFlow } from "@/services/events/flows/fetchCreatorEventsFlow.js";
 import { fetchEventFlow } from "@/services/events/flows/fetchEventFlow.js";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
+import { updateEventMapper } from "@/services/events/mappers/updateEventMapper.js";
 import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fetchCreatorEventsMapper.js";
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
 import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
@@ -253,6 +256,59 @@ export const flowRegistry = {
       uiErrorMap: {
         CREATE_EVENT_FAILED: "Could not create event. Please try again.",
         CREATE_EVENT_UNEXPECTED: "Unexpected error while creating event.",
+      },
+    },
+  },
+
+  "events.updateEvent": {
+    flowKind: "write",
+    flow: updateEventFlow,
+    mapper: { toRequest: updateEventMapper },
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 24000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
+      destinations: [
+        {
+          type: "stateEngine",
+          key: "events.lastUpdated",
+          mode: "set",
+          select: "item",
+        },
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { lastUpdateAt: "@now" },
+        },
+        { type: "localFlush", key: "events:creator:list" },
+      ],
+      uiErrorMap: {
+        UPDATE_EVENT_FAILED: "Could not update event. Please try again.",
+        UPDATE_EVENT_UNEXPECTED: "Unexpected error while updating event.",
+      },
+    },
+  },
+
+  "events.deleteEvent": {
+    flowKind: "write",
+    flow: deleteEventFlow,
+    pipeline: {
+      timeouts: { requestMs: 12000, totalFlowMs: 18000 },
+      retry: { enabled: false },
+      concurrency: { policy: "firstWins", dedupe: false, keyByPayload: true },
+      destinations: [
+        {
+          type: "stateEngine",
+          key: "events.meta",
+          mode: "merge",
+          value: { lastDeleteAt: "@now" },
+        },
+        { type: "localFlush", key: "events:creator:list" },
+      ],
+      uiErrorMap: {
+        DELETE_EVENT_FAILED: "Could not delete event. Please try again.",
+        DELETE_EVENT_UNEXPECTED: "Unexpected error while deleting event.",
       },
     },
   },

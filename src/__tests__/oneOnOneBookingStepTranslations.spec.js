@@ -62,16 +62,16 @@ function mountOptions(translations = {}) {
         template: "<section><h2>{{ title }}</h2><slot /></section>",
       },
       BaseInput: {
-        props: ["placeholder"],
-        template: "<input :placeholder='placeholder' />",
+        props: ["placeholder", "disabled"],
+        template: "<input :placeholder='placeholder' :disabled='disabled' />",
       },
       ButtonComponent: {
         props: ["text"],
         template: "<button>{{ text }}</button>",
       },
       CheckboxGroup: {
-        props: ["label"],
-        template: "<label><span>{{ label }}</span><slot name='label' /></label>",
+        props: ["label", "disabled"],
+        template: "<label><input type='checkbox' :disabled='disabled' /><span>{{ label }}</span><slot name='label' /></label>",
       },
       CheckboxSwitch: {
         props: ["label", "wrapperLabel"],
@@ -79,8 +79,8 @@ function mountOptions(translations = {}) {
       },
       CustomDropdown: {
         name: "CustomDropdown",
-        props: ["options", "searchable", "searchPlaceholder"],
-        template: "<div><span v-for='option in options' :key='option.value'>{{ option.label }}</span></div>",
+        props: ["options", "searchable", "searchPlaceholder", "disabled"],
+        template: "<div :data-disabled='disabled ? \"true\" : \"false\"'><span v-for='option in options' :key='option.value'>{{ option.label }}</span></div>",
       },
       InputComponentDashbaord: {
         props: ["placeholder", "labelText"],
@@ -573,6 +573,9 @@ describe("one-on-one booking step translations", () => {
         engine: createEngine({
           eventType: "group-event",
           priceSetting: "fixedPricePerUser",
+          enableLongerDiscount: true,
+          enableCancellationFee: true,
+          allowAdvanceCancellation: true,
         }),
         embedded: true,
         bookingType: "group",
@@ -619,6 +622,9 @@ describe("one-on-one booking step translations", () => {
         engine: createEngine({
           eventType: "group-event",
           priceSetting: "fixedPricePerUser",
+          enableLongerDiscount: true,
+          enableCancellationFee: true,
+          allowAdvanceCancellation: true,
         }),
         embedded: true,
         bookingType: "group",
@@ -822,6 +828,7 @@ describe("one-on-one booking step translations", () => {
     const wrapper = shallowMount(OneOnOneBookinStep2, {
       props: {
         engine: createEngine({
+          creatorId: 566,
           spendingRequirement: "mustOwnProducts",
           addOns: [{ title: "VIP setup", description: "", priceTokens: "25" }],
           requiredProducts: [{
@@ -851,6 +858,137 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).toContain("Comprar");
     expect(wrapper.text()).toContain("Configurar X");
     expect(wrapper.text()).toContain("Publicar agenda en X");
+  });
+
+  it("disables group event date and time controls when schedule editing is locked", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+          repeatRule: "weekly",
+        }),
+        bookingType: "group",
+        scheduleLocked: true,
+      },
+      global: mountOptions({
+        booking_schedule_locked_tooltip: "No se puede editar fecha y hora con reservas activas.",
+        booking_remove_availability: "Tooltip quitar disponibilidad",
+        booking_add_period_day: "Tooltip agregar periodo",
+        booking_mark_off_hours: "Tooltip marcar fuera de horario",
+        booking_add_availability: "Tooltip agregar disponibilidad",
+      }),
+    });
+
+    const dateTimeSection = wrapper.get("[data-test='event-date-time-section']");
+    const lockTooltip = wrapper.get("[data-test='event-date-time-lock-tooltip']");
+
+    expect(dateTimeSection.attributes("aria-disabled")).toBe("true");
+    expect(dateTimeSection.attributes("title")).toBeUndefined();
+    expect(dateTimeSection.classes()).toContain("group/schedule-lock");
+    expect(dateTimeSection.classes()).not.toContain("group");
+    expect(lockTooltip.classes()).toContain("group-hover/schedule-lock:opacity-100");
+    expect(lockTooltip.classes()).not.toContain("group-hover:opacity-100");
+    expect(lockTooltip.text()).toBe(
+      "No se puede editar fecha y hora con reservas activas.",
+    );
+    expect(dateTimeSection.text()).not.toContain("Tooltip quitar disponibilidad");
+    expect(dateTimeSection.text()).not.toContain("Tooltip agregar periodo");
+    expect(dateTimeSection.text()).not.toContain("Tooltip marcar fuera de horario");
+    expect(dateTimeSection.text()).not.toContain("Tooltip agregar disponibilidad");
+  });
+
+  it("keeps active date and time section hover scoped away from child tooltip groups", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "weekly",
+        }),
+        bookingType: "private",
+        scheduleLocked: false,
+      },
+      global: mountOptions(),
+    });
+
+    const dateTimeSection = wrapper.get("[data-test='event-date-time-section']");
+
+    expect(dateTimeSection.attributes("aria-disabled")).toBe("false");
+    expect(dateTimeSection.classes()).toContain("group/schedule-lock");
+    expect(dateTimeSection.classes()).not.toContain("group");
+    expect(wrapper.find("[data-test='event-date-time-lock-tooltip']").exists()).toBe(false);
+  });
+
+  it("disables group pricing controls when pricing editing is locked", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+          enableLongerDiscount: true,
+          enableCancellationFee: true,
+          allowAdvanceCancellation: true,
+        }),
+        bookingType: "group",
+        pricingLocked: true,
+      },
+      global: mountOptions({
+        booking_pricing_locked_tooltip: "No se puede editar precios con reservas activas.",
+        booking_cancellation_fee_tooltip: "Tooltip cargo cancelacion",
+      }),
+    });
+
+    const pricingSection = wrapper.get("[data-test='group-pricing-section']");
+    const lockTooltip = wrapper.get("[data-test='group-pricing-lock-tooltip']");
+
+    expect(pricingSection.attributes("aria-disabled")).toBe("true");
+    expect(pricingSection.attributes("title")).toBeUndefined();
+    expect(pricingSection.classes()).toContain("group/pricing-lock");
+    expect(pricingSection.classes()).not.toContain("group");
+    expect(lockTooltip.classes()).toContain("group-hover/pricing-lock:opacity-100");
+    expect(lockTooltip.text()).toBe("No se puede editar precios con reservas activas.");
+    expect(pricingSection.text()).not.toContain("Tooltip cargo cancelacion");
+    expect(pricingSection.find("input[disabled]").exists()).toBe(true);
+    expect(pricingSection.find("[data-disabled='true']").exists()).toBe(true);
+  });
+
+  it("keeps group pricing controls interactive when pricing editing is unlocked", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          priceSetting: "fixedPricePerUser",
+        }),
+        bookingType: "group",
+        pricingLocked: false,
+      },
+      global: mountOptions({
+        booking_cancellation_fee_tooltip: "Tooltip cargo cancelacion",
+      }),
+    });
+
+    const pricingSection = wrapper.get("[data-test='group-pricing-section']");
+
+    expect(pricingSection.attributes("aria-disabled")).toBe("false");
+    expect(wrapper.find("[data-test='group-pricing-lock-tooltip']").exists()).toBe(false);
+    expect(pricingSection.text()).toContain("Tooltip cargo cancelacion");
+    expect(pricingSection.findAll("[data-disabled]")[0]?.attributes("data-disabled")).toBe("false");
   });
 
   it("shows additional request only for private step 2", async () => {
@@ -891,6 +1029,62 @@ describe("one-on-one booking step translations", () => {
     expect(groupWrapper.text()).not.toContain("Allow fan record the session");
     expect(groupWrapper.text()).not.toContain("Allow personal request");
     expect(groupWrapper.text()).not.toContain("Add-on service 1");
+  });
+
+  it("submits update flow in edit mode and skips create notification", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventId: "evt_edit",
+      eventTitle: "Edited Event",
+      eventType: "1on1-call",
+      isGroupScheduleLocked: false,
+      isGroupPricingLocked: false,
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        eventId: "evt_edit",
+      },
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_edit",
+      },
+      global: mountOptions({
+        booking_update_publish: "Actualizar y publicar",
+      }),
+    });
+
+    const submitButton = wrapper.findAll("button").find((button) => button.text() === "Actualizar y publicar");
+    expect(submitButton).toBeTruthy();
+
+    await submitButton.trigger("click");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(engine.callFlow).toHaveBeenCalledWith(
+      "events.updateEvent",
+      null,
+      expect.objectContaining({
+        context: expect.objectContaining({
+          creatorId: 1407,
+          eventId: "evt_edit",
+          isGroupScheduleLocked: false,
+          isGroupPricingLocked: false,
+        }),
+      }),
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
   });
 
   it("uses the engine event title for create notification names", async () => {

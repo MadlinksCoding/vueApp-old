@@ -303,13 +303,13 @@ async function flushPromises() {
   await Promise.resolve();
 }
 
-async function mountDashboardEventsFeature(props = {}) {
+async function mountDashboardEventsFeature(props = {}, translations = {}) {
   const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
   const wrapper = mount(DashboardEventsFeature, {
     props,
     global: {
       provide: {
-        [bookingTranslationSymbol]: createBookingTranslator(),
+        [bookingTranslationSymbol]: createBookingTranslator({ translations }),
       },
     },
   });
@@ -865,6 +865,103 @@ describe("DashboardEventsFeature", () => {
         end: heldEndIso,
       }),
     }));
+  });
+
+  it("emits edit requests from the creator booking schedule list", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_schedule_edit",
+          title: "High School simulator",
+          status: "active",
+          type: "1on1-call",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    await wrapper.get("button[aria-label='Open options for High School simulator']").trigger("click");
+    const editButton = wrapper
+      .find("[data-test='booking-schedule-menu']")
+      .findAll("button")
+      .find((button) => button.text() === "Edit");
+    await editButton.trigger("click");
+
+    expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_schedule_edit",
+      type: "private",
+    }));
+  });
+
+  it("confirms schedule deletion through events.deleteEvent and refreshes context", async () => {
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [{
+            eventId: "evt_schedule_delete",
+            title: "Maid cafe simulator",
+            status: "active",
+            type: "group-event",
+            eventColorSkin: "#E11D48",
+          }],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    }, {
+      dashboard_delete_booking_schedule_title: "Eliminar agenda '{title}'?",
+      dashboard_delete_booking_schedule_body: "Las reservas confirmadas no se cancelaran.",
+      dashboard_delete_booking_schedule_action: "Eliminar agenda",
+    });
+
+    await wrapper.get("button[aria-label='Open options for Maid cafe simulator']").trigger("click");
+    const deleteMenuButton = wrapper
+      .find("[data-test='booking-schedule-menu']")
+      .findAll("button")
+      .find((button) => button.text() === "Delete");
+    await deleteMenuButton.trigger("click");
+
+    expect(wrapper.text()).toContain("Eliminar agenda 'Maid cafe simulator'?");
+    expect(wrapper.text()).toContain("Las reservas confirmadas no se cancelaran.");
+
+    const confirmButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Eliminar agenda");
+    await confirmButton.trigger("click");
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "events.deleteEvent",
+      { eventId: "evt_schedule_delete" },
+      expect.objectContaining({
+        context: expect.objectContaining({
+          creatorId: 77,
+        }),
+      }),
+    );
+    expect(callFlow.mock.calls.filter(([flowName]) => flowName === "bookings.fetchDashboardBookingContext")).toHaveLength(2);
   });
 
   it("passes group availability windows and fan bookings into the main calendar events", async () => {

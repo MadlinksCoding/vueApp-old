@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 
+const push = vi.fn();
 const replace = vi.fn();
 
 let routeQuery = {};
@@ -12,7 +13,7 @@ vi.mock("vue-router", () => ({
     query: routeQuery,
   }),
   useRouter: () => ({
-    push: vi.fn(),
+    push,
     replace,
   }),
 }));
@@ -32,6 +33,7 @@ vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
   default: {
     name: "DashboardEventsFeature",
     props: ["creatorId", "userRole", "fanId", "refreshSignal"],
+    emits: ["edit-event"],
     template: "<div />",
   },
 }));
@@ -70,5 +72,36 @@ describe("agent dashboard events page", () => {
 
     const feature = wrapper.getComponent({ name: "DashboardEventsFeature" });
     expect(feature.props("creatorId")).toBe(55);
+  });
+
+  it("routes edit events into UnifiedBookingForm edit mode", async () => {
+    push.mockClear();
+    routeQuery = {};
+    authState = {
+      simulate: { role: "creator" },
+      currentUser: {
+        role: "creator",
+        raw: { user_id: 793 },
+      },
+    };
+
+    const { default: DashboardEvents } = await import("@/templates/dashboard/page/agent/DashboardEvents.vue");
+    const wrapper = mount(DashboardEvents);
+
+    wrapper.getComponent({ name: "DashboardEventsFeature" }).vm.$emit("edit-event", {
+      eventId: "evt_edit",
+      type: "group",
+    });
+
+    expect(push).toHaveBeenCalledWith({
+      path: "/UnifiedBookingForm",
+      query: {
+        mode: "edit",
+        eventId: "evt_edit",
+        type: "group",
+        creatorId: "793",
+        refresh: "1",
+      },
+    });
   });
 });

@@ -32,7 +32,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
 vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
   default: {
     name: "DashboardEventsFeature",
-    emits: ["create-event", "open-url"],
+    emits: ["create-event", "edit-event", "open-url"],
     methods: {
       resetEmbeddedMobileScrollToTop: mocks.resetDashboardScroll,
     },
@@ -40,6 +40,7 @@ vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
       <div>
         <button data-test="create-private" @click="$emit('create-event', { type: 'private' })">private</button>
         <button data-test="create-group" @click="$emit('create-event', { type: 'group' })">group</button>
+        <button data-test="edit-group" @click="$emit('edit-event', { eventId: 'evt_edit', type: 'group' })">edit</button>
       </div>
     `,
   },
@@ -105,6 +106,22 @@ describe("EventsEmbedEventsPage", () => {
     expect(mocks.push).toHaveBeenCalledWith({
       name: "events-embed-create",
       params: { type: "group" },
+    });
+  });
+
+  it("routes edit events to the embedded booking form in edit mode", async () => {
+    const { default: EventsEmbedEventsPage } = await import("@/embeds/events/pages/EventsEmbedEventsPage.vue");
+    const wrapper = mount(EventsEmbedEventsPage);
+
+    await wrapper.get("[data-test='edit-group']").trigger("click");
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: "events-embed-create",
+      params: { type: "group" },
+      query: {
+        mode: "edit",
+        eventId: "evt_edit",
+      },
     });
   });
 
