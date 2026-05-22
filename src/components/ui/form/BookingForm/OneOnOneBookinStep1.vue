@@ -1403,7 +1403,7 @@
                       v-model="formData.dateFrom"
                       :min="todayIsoDate"
                       :max="getDateFromMax()"
-                      class="bg-transparent w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      class="bg-transparent h-10 w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       :class="[!formData.dateFrom ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
                     />
                   </div>
@@ -1426,7 +1426,7 @@
                       type="date"
                       v-model="formData.dateTo"
                       :min="getDateToMin()"
-                      class="bg-transparent w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      class="bg-transparent h-10 w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       :class="[!formData.dateTo ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
                     />
                   </div>
