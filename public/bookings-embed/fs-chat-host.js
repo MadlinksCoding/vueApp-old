@@ -293,10 +293,10 @@
             el.setAttribute('data-header-user-chats-unread-count', totalUnread);
             if(totalUnread>0){
               el.removeAttribute('hidden');
-              el.parentNode?.setAttribute('data-has-unread-chats', 'true');
+              el.closest(".target-id")?.setAttribute('data-has-unread-chats', 'true');
             } else {
               el.setAttribute('hidden', '');
-              el.parentNode?.setAttribute('data-has-unread-chats', 'false');
+              el.closest(".target-id")?.setAttribute('data-has-unread-chats', 'false');
             }
           });
         }
