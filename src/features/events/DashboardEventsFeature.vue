@@ -536,7 +536,7 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
     dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
