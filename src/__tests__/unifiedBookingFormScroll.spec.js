@@ -7,6 +7,12 @@ const mock = vi.hoisted(() => ({
   route: { path: "/UnifiedBookingForm", query: {} },
   router: { push: vi.fn(), replace: vi.fn() },
   mapAvailabilityToCalendarEvents: vi.fn(() => []),
+  mapEventToBookingFormState: vi.fn(() => ({
+    eventType: "1on1-call",
+    eventTitle: "Edited Preview",
+    repeatRule: "doesNotRepeat",
+    eventColorSkin: "#FF00AA",
+  })),
 }));
 
 function setByPath(target, path, value) {
@@ -87,6 +93,10 @@ vi.mock("@/services/events/mappers/mapDraftEventToFanBookingPreview.js", () => (
   mapDraftEventToFanBookingPreview: vi.fn(() => null),
 }));
 
+vi.mock("@/services/events/mappers/eventFormStateMapper.js", () => ({
+  mapEventToBookingFormState: mock.mapEventToBookingFormState,
+}));
+
 vi.mock("@/services/bookings/utils/bookingSlotUtils.js", () => ({
   mapAvailabilityToCalendarEvents: mock.mapAvailabilityToCalendarEvents,
 }));
@@ -120,7 +130,7 @@ vi.mock("@/components/dashboard/DashboardWrapperTwoColContainer.vue", () => ({
 vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
   default: {
     name: "OneOnOneBookinStep1",
-    props: ["engine", "embedded", "bookingType"],
+    props: ["engine", "embedded", "bookingType", "scheduleLocked", "pricingLocked"],
     template: "<div data-test='step-1'>Step 1</div>",
   },
 }));
@@ -191,6 +201,13 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     mock.route.query = {};
     mock.router.push.mockReset();
     mock.router.replace.mockReset();
+    mock.mapEventToBookingFormState.mockClear();
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventTitle: "Edited Preview",
+      repeatRule: "doesNotRepeat",
+      eventColorSkin: "#FF00AA",
+    });
     mock.mapAvailabilityToCalendarEvents.mockReset();
     mock.mapAvailabilityToCalendarEvents.mockReturnValue([]);
     originalScrollTo = window.scrollTo;
@@ -299,6 +316,211 @@ describe("UnifiedBookingForm mobile step scroll", () => {
           eventId: "evt_real_title",
           slot: "availability",
           title: "Creator Strategy Call",
+        }),
+      ]),
+    );
+  });
+
+  it("skips only the edited persisted event while keeping other events and the draft preview", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_edit" };
+    mock.engine.state.selectedStartTime = "10:00";
+    mock.engine.state.selectedEndTime = "11:00";
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_edit",
+              title: "Existing Edited Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [
+            {
+              raw: { eventId: "evt_edit" },
+              title: "Existing Edited Event",
+              status: "active",
+              eventColorSkin: "#FF00AA",
+            },
+            {
+              eventId: "evt_other",
+              title: "Other Creator Event",
+              status: "active",
+              eventColorSkin: "#22C55E",
+            },
+          ],
+          bookedSlots: [
+            {
+              eventId: "evt_edit",
+              status: "confirmed",
+              endAtIso: "2999-01-01T00:00:00.000Z",
+            },
+          ],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+    mock.mapAvailabilityToCalendarEvents.mockImplementation((events = []) => events.map((event) => {
+      const eventId = event.eventId || event.id || event.raw?.eventId || event.raw?.id;
+      return {
+        id: `availability_${eventId}`,
+        eventId,
+        title: "",
+        start: "2030-01-15T10:00:00",
+        end: "2030-01-15T11:00:00",
+        isAvailabilityBlock: true,
+        raw: { eventId },
+      };
+    }));
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    expect(mock.mapAvailabilityToCalendarEvents).toHaveBeenCalledWith(
+      [expect.objectContaining({ eventId: "evt_other" })],
+      expect.objectContaining({ bookedSlotsIndex: {} }),
+    );
+    expect(calendarEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "evt_other",
+          slot: "availability",
+          title: "Other Creator Event",
+        }),
+        expect.objectContaining({
+          slot: "custom",
+          isDraftPreview: true,
+        }),
+      ]),
+    );
+    expect(calendarEvents).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "evt_edit",
+          slot: "availability",
+        }),
+      ]),
+    );
+  });
+
+  it("passes schedule and pricing locks to step 1 for edit-mode group events with active booked slots", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_group_locked", type: "group" };
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "group-event",
+      eventId: "evt_group_locked",
+      eventTitle: "Locked Group",
+      repeatRule: "weekly",
+      eventColorSkin: "#22C55E",
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_group_locked",
+              title: "Locked Group",
+              type: "group-event",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [
+            {
+              eventId: "evt_group_locked",
+              status: "confirmed",
+              endAtIso: "2999-01-01T00:00:00.000Z",
+            },
+          ],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const step1 = wrapper.getComponent({ name: "OneOnOneBookinStep1" });
+    expect(step1.props("bookingType")).toBe("group");
+    expect(step1.props("scheduleLocked")).toBe(true);
+    expect(step1.props("pricingLocked")).toBe(true);
+    expect(mock.engine.state.isGroupScheduleLocked).toBe(true);
+    expect(mock.engine.state.isGroupPricingLocked).toBe(true);
+  });
+
+  it("shows all persisted events in create mode", async () => {
+    mock.engine.callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [
+          {
+            raw: { eventId: "evt_edit" },
+            title: "Existing Event",
+            status: "active",
+            eventColorSkin: "#FF00AA",
+          },
+          {
+            eventId: "evt_other",
+            title: "Other Creator Event",
+            status: "active",
+            eventColorSkin: "#22C55E",
+          },
+        ],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+    mock.mapAvailabilityToCalendarEvents.mockImplementation((events = []) => events.map((event) => {
+      const eventId = event.eventId || event.id || event.raw?.eventId || event.raw?.id;
+      return {
+        id: `availability_${eventId}`,
+        eventId,
+        title: "",
+        start: "2030-01-15T10:00:00",
+        end: "2030-01-15T11:00:00",
+        isAvailabilityBlock: true,
+        raw: { eventId },
+      };
+    }));
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    expect(mock.mapAvailabilityToCalendarEvents).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ raw: expect.objectContaining({ eventId: "evt_edit" }) }),
+        expect.objectContaining({ eventId: "evt_other" }),
+      ],
+      expect.objectContaining({ bookedSlotsIndex: {} }),
+    );
+    expect(calendarEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "evt_edit",
+          slot: "availability",
+          title: "Existing Event",
+        }),
+        expect.objectContaining({
+          eventId: "evt_other",
+          slot: "availability",
+          title: "Other Creator Event",
         }),
       ]),
     );

@@ -12,6 +12,7 @@ const props = defineProps({
   hasCheckboxes: { type: Boolean, default: false },
   searchable: { type: Boolean, default: false },
   searchPlaceholder: { type: String, default: 'Search...' },
+  disabled: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
@@ -38,6 +39,7 @@ const clearSearch = () => {
 };
 
 const toggleDropdown = () => {
+  if (props.disabled) return;
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     clearSearch();
@@ -48,6 +50,7 @@ const toggleDropdown = () => {
 };
 
 const selectOption = (option) => {
+  if (props.disabled) return;
   if (props.multiple) {
     const currentValues = Array.isArray(props.modelValue) ? [...props.modelValue] : [];
     const index = currentValues.indexOf(option.value);
@@ -80,7 +83,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
   <div class="relative w-full h-full" ref="dropdownRef">
     <!-- Trigger Button -->
     <div 
-      :class="['flex items-center justify-between cursor-pointer select-none', buttonClass]"
+      :class="[
+        'flex items-center justify-between cursor-pointer select-none',
+        buttonClass,
+        disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : '',
+      ]"
+      :aria-disabled="disabled ? 'true' : 'false'"
       @click="toggleDropdown"
     >
       <slot name="trigger" :selected="modelValue" :isOpen="isOpen">

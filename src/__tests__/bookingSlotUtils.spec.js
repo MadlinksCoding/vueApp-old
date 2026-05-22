@@ -242,6 +242,116 @@ describe("booking slot utilities", () => {
     }));
   });
 
+  it("keeps unlimited group availability open in freeSlots mode after a confirmed booking", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "group-event",
+      status: "active",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "10:30",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+      },
+    }], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "freeSlots",
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual(expect.objectContaining({
+      eventId,
+      isAvailabilityBlock: true,
+      start: new Date(`${localDateIso}T10:00:00`).toISOString(),
+      end: new Date(`${localDateIso}T10:30:00`).toISOString(),
+    }));
+  });
+
+  it("closes a group availability block in freeSlots mode when max attendee capacity is reached", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "group-event",
+      status: "active",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "10:30",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+        enableMaxAttendees: true,
+        maxAttendees: 1,
+      },
+    }], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "freeSlots",
+    });
+
+    expect(blocks).toHaveLength(0);
+  });
+
+  it("keeps a group availability block open in freeSlots mode when capacity remains", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "group-event",
+      status: "active",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "10:30",
+      raw: {
+        type: "group-event",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+        enableMaxAttendees: true,
+        maxAttendees: 2,
+      },
+    }], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "freeSlots",
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual(expect.objectContaining({
+      eventId,
+      isAvailabilityBlock: true,
+    }));
+  });
+
+  it("closes a private availability block in freeSlots mode after an overlapping confirmed booking", () => {
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "1on1-call",
+      status: "active",
+      localDateIso,
+      localStartHm: "10:00",
+      localEndHm: "10:30",
+      raw: {
+        type: "1on1-call",
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 30,
+      },
+    }], {
+      bookedSlotsIndex: makeIndex("confirmed"),
+      focusDate: new Date(`${localDateIso}T00:00:00`),
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "freeSlots",
+    });
+
+    expect(blocks).toHaveLength(0);
+  });
+
   it("keeps a private availability window whole behind booked sessions in scheduleWindow mode", () => {
     const blocks = mapAvailabilityToCalendarEvents([makeBufferedEvent()], {
       bookedSlotsIndex: makeIndex("confirmed"),

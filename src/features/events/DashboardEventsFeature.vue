@@ -242,6 +242,14 @@
           </div>
         </div>
 
+        <BookingScheduleList
+          v-if="isCreator && !dashboardEventsEngine.state.events.loading"
+          :events="bookingScheduleEvents"
+          :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+          @edit="handleEditScheduleEvent"
+          @delete="openDeleteEventPopup"
+        />
+
         <div v-if="!dashboardEventsEngine.state.events.loading">
           <EventsWidget
             :sections="eventsData"
@@ -314,6 +322,35 @@
       </div>
     </PopupHandler>
 
+    <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
+      <div class="w-[32.875rem] max-w-[90vw] rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+        <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
+          {{ deleteEventConfirmTitle }}
+        </h3>
+        <p class="mt-2 text-base leading-6 text-slate-700">
+          {{ t("dashboard_delete_booking_schedule_body") }}
+        </p>
+        <div class="mt-6 flex items-center justify-end gap-6">
+          <button
+            type="button"
+            class="h-10 px-4 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50 disabled:opacity-60"
+            :disabled="deleteEventLoading"
+            @click="closeDeleteEventPopup"
+          >
+            {{ t("common_cancel") }}
+          </button>
+          <button
+            type="button"
+            class="h-10 bg-[#ff4405] px-6 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60"
+            :disabled="deleteEventLoading"
+            @click="confirmDeleteEvent"
+          >
+            {{ deleteEventLoading ? t("common_loading") : t("dashboard_delete_booking_schedule_action") }}
+          </button>
+        </div>
+      </div>
+    </PopupHandler>
+
     <ToastHost />
   </div>
 </template>
@@ -325,6 +362,7 @@ import MiniCalendar from "@/components/calendar/MiniCalendar.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
+import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
@@ -364,7 +402,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["create-event", "open-url"]);
+const emit = defineEmits(["create-event", "edit-event", "open-url"]);
 const { t, locale } = useBookingTranslations();
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = "calendar:eventTypeColors";
@@ -383,6 +421,9 @@ const mainCalendarRef = ref(null);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const deleteEventPopupOpen = ref(false);
+const deleteEventLoading = ref(false);
+const deleteEventCandidate = ref(null);
 const eventTypeColors = ref({
   video: null,
   audio: null,
@@ -480,6 +521,11 @@ const cancelBookingPopupConfig = {
   width: { default: "auto", "<480": "90%" },
   height: "auto",
   scrollable: false,
+};
+
+const deleteEventPopupConfig = {
+  ...cancelBookingPopupConfig,
+  closeOnOutside: !deleteEventLoading.value,
 };
 
 const state = reactive({
@@ -1129,6 +1175,91 @@ const goToCreateEvent = (type) => {
   newEventsPopupOpen.value = false;
   isFloatingPopupOpen.value = false;
   emit("create-event", { type });
+};
+
+const bookingScheduleEvents = computed(() => {
+  const events = dashboardEventsEngine.state?.events?.catalogEvents;
+  if (!Array.isArray(events)) return [];
+  return events.filter((event) => String(event?.status || event?.raw?.status || "active").toLowerCase() === "active");
+});
+
+const handleEditScheduleEvent = (event) => {
+  const eventId = String(event?.eventId || event?.id || "").trim();
+  if (!eventId) return;
+
+  emit("edit-event", {
+    eventId,
+    type: event?.type === "group" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
+      ? "group"
+      : "private",
+    event,
+  });
+};
+
+const deleteEventCandidateTitle = computed(() => (
+  String(deleteEventCandidate.value?.title || deleteEventCandidate.value?.eventTitle || t("dashboard_booking_schedule_untitled_event")).trim()
+));
+const deleteEventConfirmTitle = computed(() => (
+  t("dashboard_delete_booking_schedule_title", { title: deleteEventCandidateTitle.value })
+));
+
+const openDeleteEventPopup = (event) => {
+  const eventId = String(event?.eventId || event?.id || "").trim();
+  if (!eventId) return;
+  deleteEventCandidate.value = {
+    ...event,
+    eventId,
+    title: String(event?.title || event?.eventTitle || t("dashboard_booking_schedule_untitled_event")).trim(),
+  };
+  deleteEventPopupOpen.value = true;
+};
+
+const closeDeleteEventPopup = () => {
+  if (deleteEventLoading.value) return;
+  deleteEventPopupOpen.value = false;
+  deleteEventCandidate.value = null;
+};
+
+const confirmDeleteEvent = async () => {
+  const eventId = deleteEventCandidate.value?.eventId;
+  if (!eventId || deleteEventLoading.value) return;
+
+  deleteEventLoading.value = true;
+  try {
+    const result = await dashboardEventsEngine.callFlow(
+      "events.deleteEvent",
+      { eventId },
+      {
+        context: {
+          stateEngine: dashboardEventsEngine,
+          creatorId: normalizedCreatorId.value,
+          apiBaseUrl: props.apiBaseUrl || undefined,
+        },
+      },
+    );
+
+    if (!result?.ok) {
+      showToast({
+        type: "error",
+        title: t("dashboard_delete_booking_schedule_failed_title"),
+        message: result?.meta?.uiErrors?.[0]
+          || result?.error?.message
+          || t("common_try_again"),
+      });
+      return;
+    }
+
+    showToast({
+      type: "success",
+      title: t("dashboard_delete_booking_schedule_success_title"),
+      message: t("dashboard_delete_booking_schedule_success_message"),
+    });
+    deleteEventPopupOpen.value = false;
+    deleteEventCandidate.value = null;
+    await fetchDashboardContext(true);
+  } finally {
+    deleteEventLoading.value = false;
+  }
 };
 
 const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));

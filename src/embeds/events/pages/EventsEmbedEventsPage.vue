@@ -8,6 +8,7 @@
       :api-base-url="bootstrap.apiBaseUrl"
       :embedded="true"
       @create-event="handleCreateEvent"
+      @edit-event="handleEditEvent"
       @open-url="handleOpenUrl"
     />
   </div>
@@ -75,6 +76,19 @@ const handleCreateEvent = ({ type }) => {
     name: "events-embed-create",
     params: {
       type: type === "group" ? "group" : "private",
+    },
+  });
+};
+
+const handleEditEvent = ({ eventId, type }) => {
+  router.push({
+    name: "events-embed-create",
+    params: {
+      type: type === "group" ? "group" : "private",
+    },
+    query: {
+      mode: "edit",
+      eventId,
     },
   });
 };

@@ -55,6 +55,14 @@ const props = defineProps({
     default: "private",
     validator: (value) => ["private", "group"].includes(value),
   },
+  isEditMode: {
+    type: Boolean,
+    default: false,
+  },
+  editEventId: {
+    type: [String, Number],
+    default: "",
+  },
 });
 const emit = defineEmits(["created"]);
 const route = useRoute();
@@ -66,6 +74,7 @@ const isGroupBooking = computed(() => (
   || props.engine?.state?.eventType === "group-event"
   || props.engine?.getState?.("eventType") === "group-event"
 ));
+const submitButtonText = computed(() => (props.isEditMode ? t("booking_update_publish") : t("common_create_event")));
 
 function isCreatorAllowedForXRepost(creatorId = resolveCreatorId()) {
   return Number(creatorId) === X_REPOST_ALLOWED_CREATOR_ID;
@@ -1148,40 +1157,56 @@ const createEvent = async () => {
       eventType,
       { reason: "create-event-flow", silent: true },
     );
+    if (props.isEditMode) {
+      props.engine.setState("eventId", props.editEventId || props.engine.getState("eventId"), {
+        reason: "update-event-flow",
+        silent: true,
+      });
+      props.engine.setState("editEventId", props.editEventId || props.engine.getState("editEventId"), {
+        reason: "update-event-flow",
+        silent: true,
+      });
+    }
 
     try {
-      const flowResult = await props.engine.callFlow("events.createEvent", null, {
+      const flowResult = await props.engine.callFlow(props.isEditMode ? "events.updateEvent" : "events.createEvent", null, {
         context: {
           stateEngine: props.engine,
           creatorId,
           apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
+          eventId: props.editEventId || props.engine.getState("eventId") || undefined,
+          isGroupScheduleLocked: !!props.engine.getState("isGroupScheduleLocked"),
+          isGroupPricingLocked: !!props.engine.getState("isGroupPricingLocked"),
         },
       });
 
       if (!flowResult?.ok) {
         showToast({
           type: "error",
-          title: t("common_create_event_failed"),
+          title: props.isEditMode ? "Could not update event" : t("common_create_event_failed"),
           message: formatCreateEventFailureMessage(flowResult, t),
         });
         return;
       }
 
-      const notifyResult = await notifyEventCreated({
-        creatorId,
-        eventName: resolveCreatedEventName(flowResult),
-        eventType: props.engine.getState("eventType") || eventType,
-        eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
-      });
+      if (!props.isEditMode) {
+        const notifyResult = await notifyEventCreated({
+          creatorId,
+          eventName: resolveCreatedEventName(flowResult),
+          eventType: props.engine.getState("eventType") || eventType,
+          eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
+        });
 
-      if (!notifyResult?.ok) {
-        console.error("Event create notification failed", notifyResult);
-      } else {
-        console.info("Event create notification status", notifyResult);
+        if (!notifyResult?.ok) {
+          console.error("Event create notification failed", notifyResult);
+        } else {
+          console.info("Event create notification status", notifyResult);
+        }
       }
       emit("created", {
         creatorId,
         flowResult,
+        mode: props.isEditMode ? "edit" : "create",
       });
     } finally {
       isCreating.value = false;
@@ -1830,7 +1855,7 @@ const createEvent = async () => {
     @confirm="onConfirmSpendingProducts"
   />
   <div class="absolute right-0 bottom-0">
-    <ButtonComponent @click="createEvent" :disabled="isCreating" :text="t('common_create_event')" variant="polygonLeft"
+    <ButtonComponent @click="createEvent" :disabled="isCreating" :text="submitButtonText" variant="polygonLeft"
       :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`
         w-6 h-6 transition duration-200
         filter brightness-0

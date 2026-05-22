@@ -1162,6 +1162,19 @@ function mergeContiguousSlots(slots = []) {
   return merged;
 }
 
+function isAvailabilityCandidateFree({ event, eventId, localDateIso, slot, bookedSlotsIndex = {} }) {
+  if (isGroupEvent(event)) {
+    return !isGroupSlotAtCapacity({ event, eventId, slot, bookedSlotsIndex });
+  }
+
+  return !isSlotBooked({
+    eventId,
+    localDateIso,
+    slot,
+    bookedSlotsIndex,
+  });
+}
+
 export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
   const {
     bookedSlotsIndex = {},
@@ -1206,7 +1219,8 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
 
       const freeSlots = showScheduleWindows
         ? candidates
-        : candidates.filter((slot) => !isSlotBooked({
+        : candidates.filter((slot) => isAvailabilityCandidateFree({
+          event,
           eventId,
           localDateIso,
           slot,
