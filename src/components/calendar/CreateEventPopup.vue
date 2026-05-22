@@ -1,6 +1,6 @@
 <template>
     <div
-        class="w-full md:w-[26.813rem] bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col overflow-hidden">
+        class="w-full min-w-[26.813rem] md:w-[26.813rem] md:max-w-[26.813rem] bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col overflow-hidden">
         <div
             class="border-b border-gray-300 inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors"
             @click="onCreatePrivate">
