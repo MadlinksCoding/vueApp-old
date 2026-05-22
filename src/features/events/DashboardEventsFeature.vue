@@ -529,8 +529,11 @@ const toggleFloatingPopup = () => {
 const updatePopupPosition = () => {
   if (!popupTrigger.value) return;
   const rect = popupTrigger.value.getBoundingClientRect();
-  popupStyle.top = `${rect.bottom + 8}px`;
-  popupStyle.left = `${rect.right - 429}px`;
+  
+
+  popupStyle.top = `${(rect.bottom + 8) / 16}rem`;
+  popupStyle.right = `${(window.innerWidth - rect.right) / 16}rem`;
+  popupStyle.left = "auto";
 };
 
 const togglePopup = () => {
