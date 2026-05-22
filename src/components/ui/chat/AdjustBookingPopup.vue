@@ -88,7 +88,8 @@
 
           <!-- Adjustment -->
           <div class="flex flex-col gap-2">
-            <label class="text-gray-700 text-base font-medium">Adjustment</label>
+            <!-- Add Adjustment (Original Price = 200 Tokens) -->
+            <label class="text-gray-700 text-base font-medium">Adjustment ( Original Price = {{ baseTokens }} Tokens )</label>
             <BaseInput
               v-model="form.adjustmentTokens"
               type="number"
