@@ -1,5 +1,5 @@
 <template>
-  <section v-if="items.length > 0" class="flex w-[20.375rem] flex-col gap-3" data-test="booking-schedule-list">
+  <section v-if="items.length > 0" class="flex w-full flex-col gap-3" data-test="booking-schedule-list">
     <div class="flex items-center justify-between gap-3 px-0.5">
       <div class="flex items-center gap-2">
         <h3 class="text-[0.75rem] font-bold uppercase leading-[1.125rem] tracking-wide text-slate-900">
@@ -38,39 +38,38 @@
       <article
         v-for="item in items"
         :key="item.eventId"
-        class="relative flex h-16 items-center rounded-[0.5rem] px-3 shadow-sm"
+        class="relative flex p-3 items-center gap-1.5 rounded-[0.5rem] shadow-sm"
         :style="{ backgroundColor: rgba(item.color, 0.16) }"
         data-test="booking-schedule-row"
       >
-        <span class="mr-3 inline-flex h-10 w-10 shrink-0 items-center justify-center" :style="{ color: item.color }">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-            <path d="M11 9V6M29 9V6M9 15H31M12.5 34H27.5C30.5376 34 33 31.5376 33 28.5V13.5C33 10.4624 30.5376 8 27.5 8H12.5C9.46243 8 7 10.4624 7 13.5V28.5C7 31.5376 9.46243 34 12.5 34Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M21.5 23.5C20.3809 22.381 19.5394 21.1889 18.9749 19.9529C18.885 19.756 18.8401 19.6576 18.8112 19.5266C18.7121 19.0779 18.8065 18.6217 19.0684 18.2444C19.1448 18.1343 19.237 18.0421 19.4213 17.8578C19.7378 17.5412 19.8961 17.3829 20.0022 17.2068C20.3191 16.6809 20.3191 16.0236 20.0022 15.4977C19.8961 15.3216 19.7378 15.1633 19.4213 14.8467L19.2218 14.6473C18.7606 14.186 18.53 13.9554 18.2514 13.8587C17.8865 13.732 17.4868 13.7602 17.1431 13.937C16.8808 14.0719 16.681 14.3306 16.2814 14.8481C15.8406 15.419 15.6202 15.7044 15.5004 16.0677C15.3679 16.4695 15.3587 17.091 15.4812 17.4965C15.5919 17.8628 15.7506 18.1499 16.0681 18.7241C16.9439 20.3078 18.0703 21.7774 19.448 23.1551C20.8258 24.5328 22.2954 25.6592 23.8791 26.535C24.4532 26.8525 24.7403 27.0112 25.1066 27.1219C25.5121 27.2444 26.1337 27.2352 26.5355 27.1027C26.8987 26.9829 27.1842 26.7625 27.755 26.3217C28.2725 25.9221 28.5312 25.7223 28.6661 25.46C28.8429 25.1163 28.8711 24.7166 28.7444 24.3517C28.6477 24.0731 28.4171 23.8425 27.9558 23.3813L27.7564 23.1818C27.4398 22.8653 27.2815 22.707 27.1054 22.6009C26.5795 22.284 25.9222 22.284 25.3963 22.6009C25.2202 22.707 25.0619 22.8653 24.7453 23.1818C24.561 23.3661 24.4688 23.4583 24.3587 23.5347C23.9814 23.7966 23.5252 23.891 23.0765 23.7919C22.9455 23.763 22.8471 23.7181 22.6502 23.6282C22.2524 23.4465 21.8689 23.246 21.5 23.5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+        <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center" :style="{ color: item.color }">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <path d="M33.6416 15.2037H3.6416M33.6416 15.2037V13.2037C33.6416 10.4034 33.6416 10.1144 33.0966 9.04483C32.6173 8.10402 31.8524 7.33911 30.9116 6.85975C29.842 6.31478 28.4419 6.31478 25.6416 6.31478H24.1972M33.6416 15.2037V26.0023M3.6416 15.2037V28.3148C3.6416 31.115 3.6416 32.5152 4.18657 33.5847C4.66594 34.5255 5.43084 35.2904 6.37165 35.7698C7.44121 36.3148 8.84134 36.3148 11.6416 36.3148H19.769M3.6416 15.2037V13.2037C3.6416 10.4034 3.6416 10.1144 4.18657 9.04483C4.66594 8.10402 5.43084 7.33911 6.37165 6.85975C7.44121 6.31478 8.84134 6.31478 11.6416 6.31478H13.086M13.086 6.31478H24.1972M13.086 6.31478V2.98145M13.086 6.31478V9.64811M24.1972 6.31478V2.98145M24.1972 6.31478V9.64811M26.4435 29.0376C25.2877 27.8818 24.3751 26.575 23.7056 25.1806C23.648 25.0606 23.6192 25.0006 23.5971 24.9248C23.5185 24.6551 23.575 24.3239 23.7385 24.0956C23.7845 24.0313 23.8395 23.9763 23.9495 23.8664C24.2857 23.5301 24.4539 23.3619 24.5638 23.1928C24.9784 22.5552 24.9784 21.7332 24.5638 21.0956C24.4539 20.9265 24.2857 20.7583 23.9495 20.422L23.762 20.2346C23.2508 19.7234 22.9952 19.4678 22.7207 19.329C22.1748 19.0528 21.53 19.0528 20.9841 19.329C20.7096 19.4678 20.454 19.7234 19.9428 20.2346L19.7912 20.3862C19.2817 20.8957 19.027 21.1504 18.8325 21.4967C18.6166 21.881 18.4614 22.4778 18.4627 22.9186C18.4639 23.3158 18.5409 23.5873 18.695 24.1302C19.5232 27.0481 21.0858 29.8014 23.3828 32.0984C25.6798 34.3954 28.4331 35.958 31.3509 36.7862C31.8939 36.9403 32.1654 37.0173 32.5626 37.0185C33.0033 37.0198 33.6002 36.8646 33.9845 36.6487C34.3308 36.4542 34.5855 36.1995 35.095 35.69L35.2466 35.5384C35.7578 35.0272 36.0134 34.7716 36.1522 34.4971C36.4284 33.9511 36.4284 33.3064 36.1522 32.7605C36.0134 32.486 35.7578 32.2304 35.2466 31.7192L35.0591 31.5317C34.7229 31.1954 34.5547 31.0273 34.3856 30.9174C33.748 30.5028 32.926 30.5028 32.2883 30.9174C32.1193 31.0273 31.9511 31.1954 31.6148 31.5317C31.5049 31.6417 31.4499 31.6967 31.3856 31.7427C31.1572 31.9062 30.8261 31.9627 30.5564 31.8841C30.4805 31.8619 30.4206 31.8331 30.3006 31.7756C28.9062 31.1061 27.5993 30.1934 26.4435 29.0376Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
         </span>
 
-        <div class="min-w-0 flex-1">
-          <h4 class="truncate text-[0.9rem] font-bold leading-5" :style="{ color: item.color }">
+        <div class="min-w-0 flex-1 flex flex-col gap-0.5">
+          <h4 class="truncate text-sm font-semibold leading-5" :style="{ color: item.color }">
             {{ item.title }}
           </h4>
-          <div class="mt-0.5 flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5">
             <span
-              class="h-1.5 w-1.5 rounded-full"
+              class="h-2 w-2 rounded-full"
               :class="item.openToday ? 'bg-emerald-500' : 'bg-[#ff4405]'"
             />
             <span
-              class="truncate text-[0.7rem] font-bold uppercase leading-4"
-              :class="item.openToday ? 'text-[#00A88E]' : 'text-slate-500'"
+              class="truncate text-[0.688rem] font-medium uppercase leading-4"
+              :class="item.openToday ? 'text-[#0E9384]' : 'text-gray-500'"
             >
               {{ item.openToday ? t("dashboard_booking_schedule_open_today") : t("dashboard_booking_schedule_closed_today") }}
             </span>
           </div>
         </div>
 
-        <div class="relative ml-2 flex h-8 w-6 shrink-0 items-center justify-center">
+        <div class="relative ml-2 flex h-full shrink-0 items-start justify-center">
           <button
             type="button"
-            class="inline-flex h-8 w-6 items-center justify-center rounded text-slate-700 hover:bg-white/40"
+            class="inline-flex h-5 w-3 items-center justify-center rounded text-slate-700 hover:bg-white/40"
             :aria-expanded="openMenuEventId === item.eventId"
             :aria-label="t('dashboard_booking_schedule_menu_aria', { title: item.title })"
             @click.stop="toggleMenu(item.eventId)"
@@ -84,32 +83,24 @@
 
           <div
             v-if="openMenuEventId === item.eventId"
-            class="absolute right-0 top-8 z-[1200] w-[12.25rem] overflow-hidden rounded-[0.125rem] border border-[#EAECF0] bg-white py-1 shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+            class="absolute right-0 top-8 z-[1200] w-[12.25rem] overflow-hidden rounded-[0.125rem] border border-[#EAECF0] bg-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
             data-test="booking-schedule-menu"
             @click.stop
           >
-            <button type="button" class="schedule-menu-item text-slate-700 hover:bg-slate-50" @click.stop="selectAction('edit', item)">
-              <span class="schedule-menu-icon">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 20H8L18.5 9.5C19.6046 8.39543 19.6046 6.60457 18.5 5.5C17.3954 4.39543 15.6046 4.39543 14.5 5.5L4 16V20Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
+            <button type="button" class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200" @click.stop="selectAction('edit', item)">
+              <img :src="editIcon" alt="edit" class="w-4 h-4" />
               {{ t("common_edit") }}
             </button>
-            <button type="button" disabled class="schedule-menu-item cursor-not-allowed text-slate-500 opacity-40">
-              <span class="schedule-menu-icon">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 3H21V9M10 14L21 3M20 13V19C20 20.1046 19.1046 21 18 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
+            <button type="button" disabled class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200 cursor-not-allowed text-slate-500 opacity-40">
+              <img :src="externalLinkIcon" alt="external link" class="w-4 h-4" />
               {{ t("dashboard_booking_schedule_view_profile") }}
             </button>
-            <button type="button" disabled class="schedule-menu-item cursor-not-allowed text-slate-500 opacity-40">
-              <span class="schedule-menu-icon">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12V20H20V12M16 6L12 2M12 2L8 6M12 2V14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
+            <button type="button" disabled class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200 cursor-not-allowed text-slate-500 opacity-40">
+              <img :src="shareIcon" alt="share" class="w-4 h-4" />
               {{ t("dashboard_booking_schedule_share_booking_page") }}
             </button>
-            <button type="button" class="schedule-menu-item text-[#ff4405] hover:bg-[#fff4ef]" @click.stop="selectAction('delete', item)">
-              <span class="schedule-menu-icon">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6H5H21M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6V20C19 21.1046 18.1046 22 17 22H7C5.89543 22 5 21.1046 5 20V6H19ZM10 11V17M14 11V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              </span>
+            <button type="button" class="w-full flex p-2 items-center gap-2 text-xs font-semibold text-[#FF4405] hover:bg-[#fff4ef]" @click.stop="selectAction('delete', item)">
+              <img :src="deleteIcon" alt="delete" class="w-4 h-4" />
               {{ t("common_delete") }}
             </button>
           </div>
@@ -123,6 +114,10 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import editIcon from '@/assets/images/icons/edit-02-gray.svg';
+import shareIcon from '@/assets/images/icons/share-06.svg';
+import externalLinkIcon from '@/assets/images/icons/link-external-02-gray.svg';
+import deleteIcon from '@/assets/images/icons/trash-01.svg';
 
 const props = defineProps({
   events: {
@@ -259,26 +254,3 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
-.schedule-menu-item {
-  display: flex;
-  min-height: 2.5rem;
-  width: 100%;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.25rem;
-}
-
-.schedule-menu-icon {
-  display: inline-flex;
-  height: 1.25rem;
-  width: 1.25rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-}
-</style>
