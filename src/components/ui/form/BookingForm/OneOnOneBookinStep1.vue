@@ -569,6 +569,12 @@
       return;
     }
 
+    if (formData.value.repeatRule === "weekly") {
+      if (!formData.value.dateFrom) {
+        formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
+      }
+    }
+
     if (formData.value.repeatRule === "monthly") {
       if (!formData.value.dateFrom) {
         formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
@@ -699,7 +705,9 @@
 
   function onRepeatRuleChange(newRepeatRule = formData.value.repeatRule, oldRepeatRule = null) {
     if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "weekly") {
-      formData.value.dateFrom = "";
+      if (!isIsoDate(formData.value.dateFrom) || formData.value.dateFrom < todayIsoDate) {
+        formData.value.dateFrom = todayIsoDate;
+      }
       formData.value.dateTo = "";
     }
 
@@ -1320,13 +1328,22 @@
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                     {{ t("booking_start_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
                   </div>
-                  <input
-                    type="date"
-                    v-model="formData.dateFrom"
-                    :min="todayIsoDate"
-                    :max="getDateFromMax()"
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  />
+                  <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
+                    </div>
+                    <div v-if="!formData.dateFrom" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-400">
+                     From
+                    </div>
+                    <input
+                      type="date"
+                      v-model="formData.dateFrom"
+                      :min="todayIsoDate"
+                      :max="getDateFromMax()"
+                      class="bg-transparent w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      :class="[!formData.dateFrom ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1335,12 +1352,21 @@
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                     {{ t("booking_end_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
                   </div>
-                  <input
-                    type="date"
-                    v-model="formData.dateTo"
-                    :min="getDateToMin()"
-                    class="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal"
-                  />
+                  <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
+                    </div>
+                    <div v-if="!formData.dateTo" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-400">
+                     To
+                    </div>
+                    <input
+                      type="date"
+                      v-model="formData.dateTo"
+                      :min="getDateToMin()"
+                      class="bg-transparent w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      :class="[!formData.dateTo ? 'text-transparent [&::-webkit-datetime-edit]:text-transparent' : 'text-gray-900 [&::-webkit-datetime-edit]:text-gray-900']"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
