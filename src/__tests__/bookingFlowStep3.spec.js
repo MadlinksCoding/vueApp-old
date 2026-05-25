@@ -518,6 +518,42 @@ describe("BookingFlowStep3", () => {
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
   });
 
+  it("translates temporary hold validation failures before wrapper error codes", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 300,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        return {
+          ok: false,
+          error: {
+            code: "HTTP_400",
+            message: "validation_failed",
+            details: {
+              ok: false,
+              error: "validation_failed",
+              failures: ["booking_in_past"],
+              messages: ["Backend says this booking is in the past."],
+            },
+          },
+        };
+      }
+
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Could Not Hold Slot",
+      message: "Bookings must be scheduled for a future time.",
+    }));
+  });
+
   it("enters group top-up without creating or polling a temporary hold", async () => {
     tokenGet.mockResolvedValue({
       data: {

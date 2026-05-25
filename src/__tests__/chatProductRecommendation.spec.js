@@ -251,6 +251,31 @@ describe("chat product recommendations", () => {
     expect(embedSource).toContain("window.__fsChatFanUid = fanUid");
   });
 
+  it("passes tokenHandlerApiUrl through the chat host iframe URL and Vue embed source", () => {
+    const hostSource = readFileSync(
+      resolve(process.cwd(), "public/bookings-embed/fs-chat-host.js"),
+      "utf8"
+    );
+    window.eval(hostSource);
+
+    const handle = window.FSChatEmbed.mountChatEmbed(document.body, {
+      src: "/bookings-embed/chat.html",
+      currentUserId: "2615",
+      userRole: "fan",
+      apiBaseUrl: "http://localhost:3001",
+      tokenHandlerApiUrl: "https://tokens.example.test/dev",
+    });
+
+    expect(new URL(handle.iframe.src).searchParams.get("tokenHandlerApiUrl")).toBe("https://tokens.example.test/dev");
+
+    const embedSource = readFileSync(
+      resolve(process.cwd(), "src/embeds/chat/ChatEmbedApp.vue"),
+      "utf8"
+    );
+    expect(embedSource).toContain("params.get('tokenHandlerApiUrl')");
+    expect(embedSource).toContain("setRuntimeTokenHandlerApiUrl(tokenHandlerApiUrl)");
+  });
+
   it("resolves fan uid from iframe globals, query params, and host userData fallbacks", () => {
     expect(resolveChatFanUid({
       windowRef: { __fsChatFanUid: "global-fan-token" },

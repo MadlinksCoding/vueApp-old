@@ -2,6 +2,7 @@ import { reactive } from "vue";
 import { toNumberOr } from "@/utils/contextIds.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 import { setBackendJwtToken } from "@/utils/backendJwt.js";
+import { setRuntimeTokenHandlerApiUrl } from "@/utils/TokenHandler.js";
 import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 
@@ -10,6 +11,7 @@ const DEFAULT_BOOTSTRAP = {
   fanId: null,
   userRole: "creator",
   apiBaseUrl: "",
+  tokenHandlerApiUrl: "",
   jwtToken: "",
   initialRoute: "events",
   creatorData: {
@@ -40,6 +42,22 @@ function normalizeInitialRoute(value) {
   return "events";
 }
 
+function normalizeRuntimeUrl(value) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function applyTokenHandlerApiUrlSafely(tokenHandlerApiUrl = "") {
+  const normalized = normalizeRuntimeUrl(tokenHandlerApiUrl);
+  if (!normalized) return "";
+
+  try {
+    return setRuntimeTokenHandlerApiUrl(normalized);
+  } catch (_error) {
+    return normalized;
+  }
+}
+
 export function normalizeEventsEmbedBootstrap(payload = {}) {
   const normalizedUserRole = typeof payload.userRole === "string" && payload.userRole
     ? payload.userRole
@@ -51,6 +69,7 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     fanId: normalizedFanId,
     userRole: normalizedUserRole,
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    tokenHandlerApiUrl: normalizeRuntimeUrl(payload.tokenHandlerApiUrl),
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     initialRoute: normalizeInitialRoute(payload.initialRoute),
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
@@ -69,6 +88,7 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.fanId = normalized.fanId;
   bootstrapState.userRole = normalized.userRole;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
+  bootstrapState.tokenHandlerApiUrl = applyTokenHandlerApiUrlSafely(normalized.tokenHandlerApiUrl);
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.creatorData = normalized.creatorData;
@@ -100,6 +120,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     fanId,
     userRole,
     apiBaseUrl: params.get("apiBaseUrl") || "",
+    tokenHandlerApiUrl: params.get("tokenHandlerApiUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
     creatorAvatar: params.get("creatorAvatar"),

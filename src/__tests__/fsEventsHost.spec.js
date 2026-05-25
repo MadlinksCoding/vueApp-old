@@ -121,6 +121,52 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(embed.iframe.src).toContain("initialRoute=create-group");
   });
 
+  it("passes tokenHandlerApiUrl through events mount URL and bootstrap payload", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      tokenHandlerApiUrl: "https://tokens.example.test/dev",
+    });
+    const postMessage = vi.spyOn(embed.iframe.contentWindow, "postMessage");
+
+    embed.sendBootstrap();
+
+    expect(new URL(embed.iframe.src).searchParams.get("tokenHandlerApiUrl")).toBe("https://tokens.example.test/dev");
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_EVENTS_BOOTSTRAP",
+        payload: expect.objectContaining({
+          tokenHandlerApiUrl: "https://tokens.example.test/dev",
+        }),
+      }),
+      window.location.origin,
+    );
+  });
+
+  it("passes tokenHandlerApiUrl through fan booking popup URL and bootstrap payload", () => {
+    const popup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 25,
+      tokenHandlerApiUrl: "https://tokens.example.test/dev",
+    });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    popup.iframe.dispatchEvent(new Event("load"));
+
+    expect(new URL(popup.iframe.src).searchParams.get("tokenHandlerApiUrl")).toBe("https://tokens.example.test/dev");
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_FAN_BOOKING_BOOTSTRAP",
+        payload: expect.objectContaining({
+          tokenHandlerApiUrl: "https://tokens.example.test/dev",
+        }),
+      }),
+      window.location.origin,
+    );
+  });
+
   it("scrolls the parent page to the events iframe when the child requests top reset", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);

@@ -9,7 +9,7 @@
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="text-xs font-semibold uppercase tracking-wide">{{ toast.title }}</div>
-            <div class="text-sm leading-5">{{ toast.message }}</div>
+            <div class="text-sm leading-5 whitespace-pre-line">{{ toast.message }}</div>
           </div>
           <button
             class="text-xs opacity-70 hover:opacity-100"
