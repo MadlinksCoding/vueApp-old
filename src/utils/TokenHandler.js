@@ -1,7 +1,6 @@
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 import { getRuntimeBackendJwtToken } from "@/utils/backendJwt.js";
 
-const TOKEN_HANDLER_API_URL = "https://sy9ci2wju3.execute-api.ap-northeast-1.amazonaws.com/dev-tokens-handler-lambda";
 const TOKEN_HANDLER_TOKEN_FALLBACK = typeof __FS_DEV_TOKEN_HANDLER_KEY__ === "string" ? __FS_DEV_TOKEN_HANDLER_KEY__ : "";
 
 function normalizeToken(value) {
@@ -9,11 +8,39 @@ function normalizeToken(value) {
     return value.trim();
 }
 
+function normalizeTokenHandlerApiUrl(value) {
+    if (typeof value !== "string") return "";
+    return value.trim().replace(/\/+$/, "");
+}
+
+const TOKEN_HANDLER_API_URL = normalizeTokenHandlerApiUrl(import.meta.env?.VITE_TOKEN_HANDLER_API_URL);
+
 class TokenHandler {
     static apiUrl = TOKEN_HANDLER_API_URL;
     static tokenFallback = TOKEN_HANDLER_TOKEN_FALLBACK;
 
     constructor() { }
+
+    static setApiUrl(apiUrl = "") {
+        this.apiUrl = normalizeTokenHandlerApiUrl(apiUrl);
+        return this.apiUrl;
+    }
+
+    static getApiUrl() {
+        return normalizeTokenHandlerApiUrl(this.apiUrl);
+    }
+
+    static requireApiUrl() {
+        const apiUrl = this.getApiUrl();
+        if (!apiUrl) {
+            throw new Error("Token handler API URL is not configured.");
+        }
+        return apiUrl;
+    }
+
+    static buildUrl(path = "") {
+        return `${this.requireApiUrl()}${path}`;
+    }
 
     static getToken() {
         return getRuntimeBackendJwtToken() || normalizeToken(this.tokenFallback);
@@ -33,15 +60,16 @@ class TokenHandler {
     }
 
     static async get({ userId, receiverId = null, defaultValue = null } = {}) {
-        // API URL
-        const url = this.apiUrl + "/balance/" + userId;
-        logFanBookingDebug("token-handler", "get:start", {
-            userId,
-            receiverId,
-            url,
-        });
+        let url = "";
 
         try {
+            url = this.buildUrl("/balance/" + userId);
+            logFanBookingDebug("token-handler", "get:start", {
+                userId,
+                receiverId,
+                url,
+            });
+
             const response = await fetch(url, {
                 method: 'GET',
                 headers: this.getAuthHeaders(),
@@ -106,10 +134,9 @@ class TokenHandler {
             ...args,
         };
 
-        // Construct the API URL
-        const url = this.apiUrl + '/deduct';
-
         try {
+            const url = this.buildUrl('/deduct');
+
             // Send POST request to the API with JSON data
             const response = await fetch(url, {
                 method: "POST",
@@ -153,10 +180,9 @@ class TokenHandler {
             ...args,
         };
 
-        // Construct the API URL
-        const url = this.apiUrl + '/hold';
-
         try {
+            const url = this.buildUrl('/hold');
+
             // Send POST request to the API with JSON data
             const response = await fetch(url, {
                 method: "POST",
@@ -210,10 +236,9 @@ class TokenHandler {
             data.refId = referenceId;
         }
 
-        // Construct the API URL
-        const url = this.apiUrl + '/capture';
-
         try {
+            const url = this.buildUrl('/capture');
+
             // Send POST request to the API with JSON data
             const response = await fetch(url, {
                 method: "POST",
@@ -267,10 +292,9 @@ class TokenHandler {
             data.refId = referenceId;
         }
 
-        // Construct the API URL
-        const url = this.apiUrl + '/reverse';
-
         try {
+            const url = this.buildUrl('/reverse');
+
             // Send POST request to the API with JSON data
             const response = await fetch(url, {
                 method: "POST",
@@ -322,10 +346,9 @@ class TokenHandler {
             ...args,
         };
 
-        // Construct the API URL
-        const url = this.apiUrl + (type === 'tip' ? '/tip' : '/transfer');
-
         try {
+            const url = this.buildUrl(type === 'tip' ? '/tip' : '/transfer');
+
             // Send POST request to the API with JSON data
             const response = await fetch(url, {
                 method: "POST",
@@ -359,6 +382,10 @@ class TokenHandler {
             return { ok: false, error };
         }
     }
+}
+
+export function setRuntimeTokenHandlerApiUrl(apiUrl = "") {
+    return TokenHandler.setApiUrl(apiUrl);
 }
 
 export default TokenHandler;
