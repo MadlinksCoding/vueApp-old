@@ -32,6 +32,9 @@ import { postToParent } from '@/utils/postToParent'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
+import minusIcon from '@/assets/images/icons/minus.svg'
+import shareIcon from '@/assets/images/icons/share-04.svg'
+import closeIcon from '@/assets/images/icons/x-close-grey-1.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
@@ -1246,14 +1249,14 @@ function messageAttrs(msg) {
 // ── Same theme as DemoChats ───────────────────────────────────────────────────
 const chatTheme = {
   container:        'relative bg-[#f4f4f5] flex flex-col h-full overflow-hidden',
-  header:           'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative',
+  header:           'bg-[#EDEDED] p-2 shrink-0 z-10 shadow-sm relative',
   body:             'flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
-  compose:          'bg-white px-4 py-3 shrink-0',
+  compose:          'bg-white py-2.5 px-2 shrink-0',
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-white text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-slate-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
-  otherBubble:      'text-[#344054] text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
+  myBubble:         'text-white text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-slate-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-[#344054] text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
@@ -1471,7 +1474,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[450px] h-[640px] rounded-t-xl shadow-2xl overflow-hidden border border-zinc-200"
+  <div class="flex flex-col w-[450px] h-[640px] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
        :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
     <FlexChat
       ref="flexChatRef"
@@ -1525,26 +1528,25 @@ onUnmounted(() => {
       <!-- Header -->
       <template #header>
         <div class="flex items-center gap-2.5">
-          <img v-if="avatar" :src="avatar" class="w-12 h-12 rounded-full object-cover shrink-0" alt="avatar" />
+          <img v-if="avatar" :src="avatar" class="w-12 h-12  rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shrink-0" alt="avatar" />
           <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-xl font-semibold truncate">{{ chatName }} <span class="text-zinc-400">•••</span></div>
+            <div class="text-gray-950 text-sm font-semibold truncate">{{ chatName }} <span class="text-zinc-400 text-xs">•••</span></div>
             <div class="flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-              <span class="text-zinc-400 text-base">online</span>
+              <div class="flex items-center self-stretch">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+              </div>
+              <span class="text-gray-700 text-xs">online</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3 text-zinc-400 shrink-0">
-            <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4" />
-            </svg>
-            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <img :src="shareIcon" alt="share" class="w-6 h-6 cursor-pointer hover:text-white transition-colors hidden" />
+            <img :src="minusIcon" alt="minus" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" />
+            <img @click="emit('close')" :src="closeIcon" alt="close" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" />
           </div>
         </div>
       </template>
@@ -1694,31 +1696,20 @@ onUnmounted(() => {
 
       <!-- My avatar — shows reader avatars from read_receipts -->
       <template #message.avatar.me="{ message }">
-        <!-- <template v-if="message.time || message.message_ts">
-          <div v-if="getMessageReaders(message).length > 0" class="flex items-center gap-0.5">
-            <div
-              v-for="reader in getMessageReaders(message)"
-              :key="reader.id"
-              class="overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
-            >
-              <img v-if="reader.avatar" :src="reader.avatar" class="w-[16px] h-[16px] object-cover" alt="" />
-              <div v-else class="w-[16px] h-[16px] bg-zinc-400 flex items-center justify-center text-white text-[7px] font-semibold">
-                {{ reader.initial }}
-              </div>
-            </div>
+        <div class="overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%] w-4 h-4">
+          <img v-if="currentUserAvatar" :src="currentUserAvatar" class="w-full h-full object-cover" alt="" />
+          <div v-else class="w-full h-full bg-slate-500 flex items-center justify-center text-white text-[7px] font-semibold">
+            {{ currentUserInitial }}
           </div>
-          <div v-else class="w-[16px] h-[16px]"></div>
-        </template>
-        <div v-else class="w-[16px] h-[16px]"></div> -->
+        </div>
       </template>
 
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
-        <img v-if="message.time && avatar" :src="avatar" class="w-[16px] h-[16px] rounded-full object-cover" />
-        <div v-else-if="message.time" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
+        <img v-if="avatar" :src="avatar" class="w-4 h-4 rounded-full object-cover shrink-0" />
+        <div v-else class="w-4 h-4 rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ chatName.charAt(0).toUpperCase() }}
         </div>
-        <div v-else class="w-[16px] h-[16px]"></div>
       </template>
 
       <!-- Compose -->

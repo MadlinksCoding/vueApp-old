@@ -299,46 +299,42 @@ defineExpose({ bodyEl })
                             <!-- WRAPPER -->
                             <div class="flex flex-col" :class="isMe(msg) ? 'items-end' : 'items-start'">
 
-                                <!-- HEADER (AVATAR & TIME) -->
-                                <div v-if="isFirstInGroup(msg, rIdx)"
-                                    class="flex items-center gap-2 mb-1.5 px-0.5 w-full"
-                                    :class="isMe(msg) ? 'justify-end' : 'justify-start'">
-
-                                    <!-- OTHER SIDE: Avatar then Time -->
-                                    <template v-if="!isMe(msg)">
-                                        <div :class="theme.avatarWrapper">
-                                            <slot name="message.avatar" :message="msg">
-                                                <img v-if="msg.avatar" :src="msg.avatar" :class="theme.avatarImg"
-                                                    alt="Avatar" />
-                                            </slot>
-                                        </div>
-                                        <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
-                                            <span v-if="msg.time" :class="theme.otherTimeMeta">{{ msg.time }}</span>
-                                        </slot>
-                                    </template>
-
-                                    <!-- MY SIDE: Time then Avatar -->
-                                    <template v-if="isMe(msg)">
-                                        <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
-                                            <span v-if="msg.time" :class="theme.myTimeMeta">{{ msg.time }}</span>
-                                        </slot>
-                                        <div :class="[theme.avatarWrapper, '']">
-                                            <slot name="message.avatar.me" :message="msg"></slot>
-                                        </div>
-                                    </template>
-
-                                </div>
-
-                                <!-- NAME (FOR OTHERS) -->
-                                <span v-if="!isMe(msg) && msg.senderName" :class="[theme.otherNameMeta, 'mb-1 ml-1']">{{
-                                    msg.senderName }}</span>
-
                                 <!-- BUBBLE -->
                                 <div :class="isMe(msg) ? theme.myBubble : theme.otherBubble"
                                     :style="!isLastInGroup(msg, rIdx) ? 'margin-bottom: 2px;' : ''">
                                     <slot name="message.content" :message="msg">
                                         <div class="whitespace-pre-wrap break-words text-sm">{{ msg.text }}</div>
                                     </slot>
+                                </div>
+
+                                <!-- FOOTER (AVATAR & TIME) — Shows only after the last message in a group -->
+                                <div v-if="isLastInGroup(msg, rIdx)"
+                                    class="flex items-center gap-1.5 mt-1.5 px-0.5 w-full"
+                                    :class="isMe(msg) ? 'justify-end' : 'justify-start'">
+
+                                    <!-- OTHER SIDE: Avatar then Time -->
+                                    <template v-if="!isMe(msg)">
+                                        <div :class="theme.avatarWrapper" class="!mr-1">
+                                            <slot name="message.avatar" :message="msg">
+                                                <img v-if="msg.avatar" :src="msg.avatar" :class="theme.avatarImg"
+                                                    alt="Avatar" class="!w-4 !h-4" />
+                                            </slot>
+                                        </div>
+                                        <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
+                                            <span v-if="msg.time" :class="theme.otherTimeMeta" class="text-xs text-gray-500">{{ msg.time }}</span>
+                                        </slot>
+                                    </template>
+
+                                    <!-- MY SIDE: Time then Avatar -->
+                                    <template v-if="isMe(msg)">
+                                        <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
+                                            <span v-if="msg.time" :class="theme.myTimeMeta" class="text-[10px]">{{ msg.time }}</span>
+                                        </slot>
+                                        <div :class="[theme.avatarWrapper, '!mr-0 !ml-1']">
+                                            <slot name="message.avatar.me" :message="msg"></slot>
+                                        </div>
+                                    </template>
+
                                 </div>
 
                             </div>

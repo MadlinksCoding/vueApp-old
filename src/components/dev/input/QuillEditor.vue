@@ -1,7 +1,7 @@
 <template>
     <div
-        class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full dark:bg-[#181a1b4d] dark:border-[#3b4043]">
-        <div ref="quillEditor"></div>
+        class="tier-description-quill-container flex flex-col px-3.5 py-2.5 border-b border-[#D0D5DD] rounded-t-sm shadow-sm bg-white/30 w-full max-w-full overflow-hidden dark:bg-[#181a1b4d] dark:border-[#3b4043]">
+        <div ref="quillEditor" class="max-w-full overflow-hidden"></div>
     </div>
 </template>
 
@@ -75,7 +75,7 @@ onMounted(() => {
     }
     const editor = container.querySelector('.ql-editor');
     if (editor) {
-        editor.classList.add('!px-0', '!py-2', '!text-[#101828]', 'dark:!text-[#dbd8d3]', 'min-h-[80px]');
+        editor.classList.add('!px-0', '!py-2', '!text-[#101828]', 'dark:!text-[#dbd8d3]', 'min-h-[80px]', '!break-all', '!whitespace-pre-wrap', '!max-w-full', '!overflow-x-hidden');
     }
 });
 
