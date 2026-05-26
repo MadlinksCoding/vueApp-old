@@ -4,6 +4,7 @@
   var FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
+  var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -27,6 +28,7 @@
   var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
   var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
   var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
+  var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
 
@@ -481,9 +483,18 @@
     setIframeHeightMode(iframe, "content", settings.minHeight);
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
+    var hasUnsavedFormChanges = false;
 
     function syncViewportIframeHeight() {
       refreshViewportIframeHeight(iframe);
+    }
+
+    function onBeforeUnload(event) {
+      if (!hasUnsavedFormChanges) return;
+
+      event.preventDefault();
+      event.returnValue = EVENTS_FORM_UNSAVED_CHANGES_MESSAGE;
+      return EVENTS_FORM_UNSAVED_CHANGES_MESSAGE;
     }
 
     function sendBootstrap() {
@@ -529,10 +540,16 @@
 
       if (data.type === FS_EVENTS_SCROLL_TO_TOP) {
         scrollEventsEmbedToTop(wrapper, data.payload || {});
+        return;
+      }
+
+      if (data.type === FS_EVENTS_FORM_DIRTY_STATE) {
+        hasUnsavedFormChanges = Boolean(data.payload && data.payload.dirty);
       }
     }
 
     window.addEventListener("message", onMessage);
+    window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("resize", syncViewportIframeHeight);
     window.addEventListener("orientationchange", syncViewportIframeHeight);
     global.visualViewport && global.visualViewport.addEventListener && global.visualViewport.addEventListener("resize", syncViewportIframeHeight);
@@ -546,6 +563,7 @@
       sendBootstrap: sendBootstrap,
       destroy: function () {
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("beforeunload", onBeforeUnload);
         window.removeEventListener("resize", syncViewportIframeHeight);
         window.removeEventListener("orientationchange", syncViewportIframeHeight);
         global.visualViewport && global.visualViewport.removeEventListener && global.visualViewport.removeEventListener("resize", syncViewportIframeHeight);

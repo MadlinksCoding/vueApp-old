@@ -172,6 +172,7 @@ describe("one-on-one booking step translations", () => {
       type: "error",
       title: "Please fill these fields",
       message: "1. Event title\n2. Session duration\n3. Base price",
+      autoClose: false,
     });
   });
 
@@ -204,6 +205,7 @@ describe("one-on-one booking step translations", () => {
       type: "error",
       title: "Completa estos campos",
       message: "1. Titulo del evento\n2. Base price",
+      autoClose: false,
     });
   });
 

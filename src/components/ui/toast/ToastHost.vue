@@ -58,13 +58,16 @@ function onToastEvent(event) {
     title: detail.title || "Notice",
     message: detail.message || "Something went wrong.",
     duration: Number.isFinite(Number(detail.duration)) ? Number(detail.duration) : 4500,
+    autoClose: detail.persistent === true ? false : detail.autoClose !== false,
   };
 
   toasts.value = [...toasts.value, toast];
 
-  window.setTimeout(() => {
-    removeToast(id);
-  }, toast.duration);
+  if (toast.autoClose && toast.duration > 0) {
+    window.setTimeout(() => {
+      removeToast(id);
+    }, toast.duration);
+  }
 }
 
 onMounted(() => {
