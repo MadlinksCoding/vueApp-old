@@ -7,14 +7,18 @@ function normalizeToast(input) {
       type: "error",
       title: "Notice",
       duration: 4500,
+      autoClose: true,
     };
   }
+
+  const autoClose = input?.persistent === true ? false : input?.autoClose !== false;
 
   return {
     message: input?.message || "Something went wrong.",
     type: input?.type || "error",
     title: input?.title || "Notice",
     duration: Number.isFinite(Number(input?.duration)) ? Number(input.duration) : 4500,
+    autoClose,
   };
 }
 

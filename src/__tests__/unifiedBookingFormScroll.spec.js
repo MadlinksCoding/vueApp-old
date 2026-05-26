@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   engine: null,
   callbacks: {},
+  routeLeaveGuard: null,
   route: { path: "/UnifiedBookingForm", query: {} },
   router: { push: vi.fn(), replace: vi.fn() },
   mapAvailabilityToCalendarEvents: vi.fn(() => []),
@@ -71,6 +72,9 @@ function setWindowWidth(width) {
 }
 
 vi.mock("vue-router", () => ({
+  onBeforeRouteLeave: (guard) => {
+    mock.routeLeaveGuard = guard;
+  },
   useRoute: () => mock.route,
   useRouter: () => mock.router,
 }));
@@ -131,7 +135,7 @@ vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
   default: {
     name: "OneOnOneBookinStep1",
     props: ["engine", "embedded", "bookingType", "scheduleLocked", "pricingLocked"],
-    template: "<div data-test='step-1'>Step 1</div>",
+    template: "<div data-test='step-1'>Step 1<input data-test='step-1-input' /></div>",
   },
 }));
 
@@ -198,6 +202,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
   beforeEach(() => {
     mock.engine = createMockEngine();
     mock.callbacks = {};
+    mock.routeLeaveGuard = null;
     mock.route.query = {};
     mock.router.push.mockReset();
     mock.router.replace.mockReset();
@@ -524,5 +529,38 @@ describe("UnifiedBookingForm mobile step scroll", () => {
         }),
       ]),
     );
+  });
+
+  it("warns before leaving after the form is edited", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    await wrapper.get("[data-test='step-1-input']").trigger("input");
+
+    const leavePromise = mock.routeLeaveGuard();
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(true);
+
+    await wrapper.get("[data-test='unsaved-leave-stay']").trigger("click");
+    await expect(leavePromise).resolves.toBe(false);
+  });
+
+  it("emits back after confirming the unsaved changes warning", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    await wrapper.get("[data-test='step-1-input']").trigger("input");
+    await wrapper.get("[data-test='booking-form-close']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(true);
+
+    await wrapper.get("[data-test='unsaved-leave-confirm']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.emitted("back")).toHaveLength(1);
   });
 });

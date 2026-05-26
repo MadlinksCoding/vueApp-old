@@ -230,6 +230,42 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("512px");
   });
 
+  it("warns the WordPress host page before unload when the events form is dirty", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "create-private",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_FORM_DIRTY_STATE",
+        payload: { dirty: true },
+      },
+      origin: window.location.origin,
+    }));
+
+    const dirtyBeforeUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(dirtyBeforeUnload);
+    expect(dirtyBeforeUnload.defaultPrevented).toBe(true);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_FORM_DIRTY_STATE",
+        payload: { dirty: false },
+      },
+      origin: window.location.origin,
+    }));
+
+    const cleanBeforeUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(cleanBeforeUnload);
+    expect(cleanBeforeUnload.defaultPrevented).toBe(false);
+  });
+
   it("refreshes viewport iframe height from the parent visual viewport and stops after destroy", () => {
     const visualViewport = new EventTarget();
     Object.defineProperty(visualViewport, "height", {

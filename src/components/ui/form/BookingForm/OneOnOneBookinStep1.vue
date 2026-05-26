@@ -291,6 +291,7 @@
         type: "error",
         title: translateWithFallback("booking_validation_required_fields_title", "Please fill these fields"),
         message: fieldList || fallback,
+        autoClose: false,
       });
     }
   };

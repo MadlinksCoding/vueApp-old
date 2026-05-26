@@ -240,7 +240,10 @@
           </div>
         </div>
 
-        <div class="grid h-[3.995rem] w-full" :class="effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7'">
+        <div class="grid w-full" :class="[
+          effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7',
+          variant === 'theme2' ? 'min-h-[5rem]' : 'h-[3.995rem]'
+        ]">
           <div v-for="(d, i) in headerDays" :key="'xh-' + i" 
             class="text-center flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
             :class="[
@@ -250,6 +253,13 @@
             ]" 
             :data-date="d.toISOString().slice(0, 10)"
             @click="emitDate(d)">
+
+            <div v-if="variant === 'theme2'"
+              class="h-4 text-[0.625rem] font-bold leading-4 tracking-wider uppercase text-slate-500">
+              <span v-if="highlightTodayColumn && sameDay(d, today)" data-test="calendar-today-label">
+                {{ t("common_today") }}
+              </span>
+            </div>
 
             <div class="text-xs font-semibold leading-[1.25rem] uppercase"
               :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">

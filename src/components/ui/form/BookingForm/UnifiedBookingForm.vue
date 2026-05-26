@@ -1,6 +1,6 @@
 <script setup>
-import { nextTick, onMounted, reactive, ref, computed, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref, computed, watch } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import { createFlowStateEngine, attachEngineLogging } from "@/utils/flowStateEngine.js"; // Adjust path if needed
 
@@ -20,6 +20,7 @@ import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapD
 import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormStateMapper.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { notifyEventsEmbedFormDirtyState } from "@/embeds/events/bridge.js";
 import closeIcon from "@/assets/images/icons/close.png";
 
 // Import Validators
@@ -74,6 +75,45 @@ const editFormReady = ref(false);
 const editLoading = ref(false);
 const editError = ref("");
 const editEventType = ref("");
+const hasUnsavedChanges = ref(false);
+const dirtyTrackingStarted = ref(false);
+const dirtyBaselineSignature = ref("");
+const unsavedLeaveDialogOpen = ref(false);
+const suppressUnsavedLeaveWarning = ref(false);
+let pendingUnsavedLeaveResolve = null;
+let pendingUnsavedLeavePromise = null;
+
+const ADDITIONAL_BOOKING_FORM_DIRTY_DEFAULTS = Object.freeze({
+    eventImageUrl: "",
+    on_schedule_live: false,
+    on_booking_received: false,
+    on_in_session: false,
+    on_tipped_session: false,
+    on_purchased: false,
+    on_schedule_live_message: "",
+    on_booking_received_message: "",
+    on_in_session_message: "",
+    on_tipped_session_message: "",
+    on_purchased_message: "",
+    on_schedule_live_media_url: "",
+    on_booking_received_media_url: "",
+    on_in_session_media_url: "",
+    on_tipped_session_media_url: "",
+    on_purchased_media_url: "",
+});
+
+const NON_FORM_DIRTY_STATE_KEYS = new Set([
+    "apiBaseUrl",
+    "creatorId",
+    "creatorTimezone",
+    "editEventId",
+    "eventId",
+    "eventType",
+    "events",
+    "fanBooking",
+    "isGroupPricingLocked",
+    "isGroupScheduleLocked",
+]);
 
 /**
  * Determine the active type.
@@ -207,6 +247,150 @@ const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
+
+function getUnsavedChangesMessage() {
+    const translated = t("booking_unsaved_changes_body");
+    return translated && translated !== "booking_unsaved_changes_body"
+        ? translated
+        : "You will lose all your changes if you leave.";
+}
+
+function normalizeDirtyValue(value) {
+    if (value === null || value === undefined) return "";
+
+    if (Array.isArray(value)) {
+        return value.map((item) => normalizeDirtyValue(item));
+    }
+
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? "" : value.toISOString();
+    }
+
+    if (typeof value === "object") {
+        return Object.keys(value)
+            .sort()
+            .reduce((normalized, key) => {
+                normalized[key] = normalizeDirtyValue(value[key]);
+                return normalized;
+            }, {});
+    }
+
+    return value;
+}
+
+function stableStringify(value) {
+    return JSON.stringify(normalizeDirtyValue(value));
+}
+
+function getBookingFormDirtyFields() {
+    const stateKeys = bookingFlow.state && typeof bookingFlow.state === "object"
+        ? Object.keys(bookingFlow.state)
+        : [];
+
+    return Array.from(new Set([
+        ...stateKeys,
+        ...Object.keys(ADDITIONAL_BOOKING_FORM_DIRTY_DEFAULTS),
+    ])).filter((key) => !NON_FORM_DIRTY_STATE_KEYS.has(key));
+}
+
+function getBookingFormStateValueForDirty(field) {
+    const stateValue = bookingFlow.state?.[field];
+    if (stateValue !== undefined) return stateValue;
+
+    if (Object.prototype.hasOwnProperty.call(ADDITIONAL_BOOKING_FORM_DIRTY_DEFAULTS, field)) {
+        return ADDITIONAL_BOOKING_FORM_DIRTY_DEFAULTS[field];
+    }
+
+    return "";
+}
+
+function createBookingFormDirtySnapshot() {
+    return getBookingFormDirtyFields().reduce((snapshot, field) => {
+        snapshot[field] = getBookingFormStateValueForDirty(field);
+        return snapshot;
+    }, {});
+}
+
+function hasDirtyChangesComparedToBaseline() {
+    if (!dirtyTrackingStarted.value || !dirtyBaselineSignature.value) return false;
+    return stableStringify(createBookingFormDirtySnapshot()) !== dirtyBaselineSignature.value;
+}
+
+function setUnsavedChanges(value) {
+    hasUnsavedChanges.value = Boolean(value);
+}
+
+function resetDirtyTracking() {
+    dirtyBaselineSignature.value = stableStringify(createBookingFormDirtySnapshot());
+    dirtyTrackingStarted.value = true;
+    setUnsavedChanges(false);
+}
+
+async function startDirtyTrackingFromCurrentState() {
+    if (dirtyTrackingStarted.value) return;
+
+    await nextTick();
+    await nextTick();
+    dirtyBaselineSignature.value = stableStringify(createBookingFormDirtySnapshot());
+    dirtyTrackingStarted.value = true;
+    setUnsavedChanges(hasUnsavedChanges.value || hasDirtyChangesComparedToBaseline());
+}
+
+function markFormDirtyFromUserInteraction(event) {
+    const target = event?.target;
+    const tagName = String(target?.tagName || "").toLowerCase();
+    const isFormElement = ["input", "textarea", "select"].includes(tagName)
+        || target?.isContentEditable === true;
+
+    if (!isFormElement || suppressUnsavedLeaveWarning.value) return;
+    setUnsavedChanges(true);
+}
+
+function shouldWarnBeforeLeaving() {
+    return hasUnsavedChanges.value && !suppressUnsavedLeaveWarning.value;
+}
+
+function resolvePendingUnsavedLeave(shouldLeave) {
+    const resolver = pendingUnsavedLeaveResolve;
+    pendingUnsavedLeaveResolve = null;
+    pendingUnsavedLeavePromise = null;
+    unsavedLeaveDialogOpen.value = false;
+
+    if (shouldLeave) {
+        resetDirtyTracking();
+    }
+
+    resolver?.(Boolean(shouldLeave));
+}
+
+function requestUnsavedLeaveConfirmation() {
+    if (!shouldWarnBeforeLeaving()) return Promise.resolve(true);
+
+    if (pendingUnsavedLeavePromise) {
+        return pendingUnsavedLeavePromise;
+    }
+
+    unsavedLeaveDialogOpen.value = true;
+    pendingUnsavedLeavePromise = new Promise((resolve) => {
+        pendingUnsavedLeaveResolve = resolve;
+    });
+    return pendingUnsavedLeavePromise;
+}
+
+async function requestFormExit() {
+    const canLeave = await requestUnsavedLeaveConfirmation();
+    if (!canLeave) return;
+    emit("back");
+}
+
+function handleBeforeUnload(event) {
+    if (!shouldWarnBeforeLeaving()) return undefined;
+
+    const message = getUnsavedChangesMessage();
+    event.preventDefault();
+    event.returnValue = message;
+    return message;
+}
 
 function asDate(value) {
     const parsed = new Date(value);
@@ -529,6 +713,7 @@ const scrollToStepTopOnMobile = async () => {
 
 // Init
 onMounted(async () => {
+    window.addEventListener("beforeunload", handleBeforeUnload);
     bookingFlow.initialize();
     const resolvedCreatorId = resolveCreatorId();
     bookingFlow.setState("apiBaseUrl", props.apiBaseUrl || "", { reason: "initial-api-base-url", silent: true });
@@ -552,6 +737,7 @@ onMounted(async () => {
 
     const shouldForceRefresh = route.query?.refresh === "1";
     await fetchCreatorBookedSlots(shouldForceRefresh || isEditMode.value);
+    await startDirtyTrackingFromCurrentState();
     if (shouldForceRefresh) {
         clearRefreshQueryFlag();
     }
@@ -597,6 +783,31 @@ watch(
     },
 );
 
+watch(
+    () => bookingFlow.state,
+    () => {
+        if (!dirtyTrackingStarted.value) return;
+        setUnsavedChanges(hasDirtyChangesComparedToBaseline());
+    },
+    { deep: true },
+);
+
+watch(hasUnsavedChanges, (isDirty) => {
+    notifyEventsEmbedFormDirtyState(isDirty);
+}, { immediate: true });
+
+onBeforeRouteLeave(async () => {
+    return requestUnsavedLeaveConfirmation();
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+    notifyEventsEmbedFormDirtyState(false);
+    if (pendingUnsavedLeaveResolve) {
+        resolvePendingUnsavedLeave(false);
+    }
+});
+
 const now = new Date();
 const y = now.getFullYear();
 const m = now.getMonth();
@@ -609,8 +820,8 @@ const theme2 = {
         wrapper: 'relative flex flex-col gap-[0px] overflow-hidden rounded-xl',
         title: ' text-base font-semibold text-slate-800 ',
         xHeader: '',
-        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
-        axisXDay: 'py-1 text-center h-[3.995rem] text-slate-500 font-medium',
+        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem] min-h-[5rem]',
+        axisXDay: 'py-1 text-center min-h-[5rem] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
         axisYRow: 'booking-form-calendar-time-label h-[3.914rem] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
@@ -1087,6 +1298,9 @@ const formTitle = computed(() => {
 });
 
 const handleCreateFlowCreated = async (payload) => {
+    suppressUnsavedLeaveWarning.value = true;
+    resetDirtyTracking();
+
     if (props.embedded) {
         emit("created", payload);
         return;
@@ -1106,7 +1320,12 @@ useBodyOverflowHidden({ minWidth: 1010 });
 </script>
 
 <template>
-    <component :is="embedded ? 'div' : DashboardWrapperTwoColContainer" :class="embedded ? 'h-full' : ''">
+    <component
+        :is="embedded ? 'div' : DashboardWrapperTwoColContainer"
+        :class="embedded ? 'h-full' : ''"
+        @input.capture="markFormDirtyFromUserInteraction"
+        @change.capture="markFormDirtyFromUserInteraction"
+    >
         <ToastHost />
         <div :class="[embedded ? '' : '', 'flex w-full flex-col lg:flex-row gap-4 lg:gap-0']">
             <div
@@ -1124,7 +1343,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             type="button"
                             class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
                             :aria-label="t('booking_back_to_events')"
-                            @click="emit('back')"
+                            @click="requestFormExit"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path
@@ -1141,7 +1360,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             {{ formTitle }}
                         </div>
                     </div>
-                    <div  @click="emit('back')" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
+                    <div data-test="booking-form-close" @click="requestFormExit" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
                         <img :src="closeIcon" alt="" />
                     </div>
                 </div>
@@ -1338,6 +1557,43 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <pre
                     class="max-h-80 overflow-auto bg-slate-950 text-blue-300 p-3 rounded text-xs leading-relaxed font-mono">
                 {{ bookingFlow.logs.slice(-20).join("\n") }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <div
+        v-if="unsavedLeaveDialogOpen"
+        data-test="unsaved-leave-dialog"
+        class="fixed inset-0 z-[10050] flex items-center justify-center bg-black/10 px-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('booking_unsaved_changes_title')"
+        @click.self="resolvePendingUnsavedLeave(false)"
+    >
+        <div class="w-full max-w-[26rem] rounded-lg bg-white p-5 shadow-xl">
+            <div class="text-base font-semibold leading-6 text-slate-900">
+                {{ t("booking_unsaved_changes_title") }}
+            </div>
+            <div class="mt-2 text-sm leading-5 text-slate-600">
+                {{ t("booking_unsaved_changes_body") }}
+            </div>
+            <div class="mt-5 flex justify-end gap-3">
+                <button
+                    type="button"
+                    data-test="unsaved-leave-stay"
+                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    @click="resolvePendingUnsavedLeave(false)"
+                >
+                    {{ t("booking_unsaved_changes_stay") }}
+                </button>
+                <button
+                    type="button"
+                    data-test="unsaved-leave-confirm"
+                    class="rounded-md bg-[#5549FF] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#473CE6]"
+                    @click="resolvePendingUnsavedLeave(true)"
+                >
+                    {{ t("booking_unsaved_changes_leave") }}
+                </button>
             </div>
         </div>
     </div>
