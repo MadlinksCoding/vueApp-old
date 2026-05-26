@@ -21,18 +21,6 @@ html {
     -webkit-text-size-adjust: 100%;
 }
 
-@media screen and (max-width: 375px) {
-    html {
-    font-size: 14px !important;
-    }
-}
-
-@media screen and (max-width: 329px) {
-    html {
-    font-size: 12px !important;
-    }
-}
-
 /* md breakpoint = min-width: 768px */
 @media (min-width: 768px) {
     .chat-panel-trigger {
