@@ -552,7 +552,7 @@ const theme1 = computed(() => ({
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
-    axisYRow: "h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
+    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
     colBase: "relative bg-white/20",
     gridRow: "h-[4rem] border-b border-white/50",
     eventBase: "absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm",
@@ -1751,3 +1751,9 @@ defineExpose({
   resetEmbeddedMobileScrollToTop,
 });
 </script>
+
+<style scoped>
+:deep(.dashboard-events-calendar-time-label:last-child) {
+  display: none;
+}
+</style>

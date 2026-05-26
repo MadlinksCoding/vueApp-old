@@ -1355,11 +1355,6 @@ useBodyOverflowHidden({ minWidth: 1010 });
 
 <style scoped>
 :deep(.booking-form-calendar-time-label:last-child) {
-    font-size: 0;
-}
-
-:deep(.booking-form-calendar-time-label:last-child)::after {
-    content: "12am";
-    font-size: 0.688rem;
+    display: none;
 }
 </style>
