@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:wordpress": "node ./scripts/exportBookingTranslations.mjs && VITE_PUBLIC_BASE=/wp-content/plugins/fansocial/ vite build",
+    "build:wordpress": "node ./scripts/exportBookingTranslations.mjs && VITE_PUBLIC_BASE=/wp-content/plugins/fansocial/ VITE_TOKEN_HANDLER_API_URL= vite build",
     "build:vercel": "VITE_PUBLIC_BASE=/ vite build",
     "preview": "vite preview",
     "test:unit": "vitest",

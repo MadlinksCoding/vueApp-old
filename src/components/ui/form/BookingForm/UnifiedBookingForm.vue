@@ -600,6 +600,7 @@ watch(
 const now = new Date();
 const y = now.getFullYear();
 const m = now.getMonth();
+const todayForCalendar = new Date(y, m, now.getDate());
 
 // --- THEME 2 ---
 const theme2 = {
@@ -611,7 +612,7 @@ const theme2 = {
         axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem]',
         axisXDay: 'py-1 text-center h-[3.995rem] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'h-[3.914rem] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
+        axisYRow: 'booking-form-calendar-time-label h-[3.914rem] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
         gridRow: 'h-[3.914rem] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
@@ -1037,8 +1038,8 @@ const events2 = computed(() => {
 });
 
 const state = reactive({
-    focus: new Date(y, m, 23),
-    selected: null,
+    focus: new Date(todayForCalendar),
+    selected: new Date(todayForCalendar),
     view: 'week'
 });
 
@@ -1266,7 +1267,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 </div>
                 <MainCalendar v-else class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
-                    :highlight-today-column="true" time-start="00:00" time-end="23:00" :slot-minutes="60"
+                    :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
                     :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
                     @preview-schedule="previewSchedule = true">
 
@@ -1351,3 +1352,14 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :preview-read-only="true"
     />
 </template>
+
+<style scoped>
+:deep(.booking-form-calendar-time-label:last-child) {
+    font-size: 0;
+}
+
+:deep(.booking-form-calendar-time-label:last-child)::after {
+    content: "12am";
+    font-size: 0.688rem;
+}
+</style>

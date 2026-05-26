@@ -398,6 +398,20 @@ export const bookingMessages = {
   booking_private_booking_settings: "Private Booking Settings",
   booking_calendar_notice_description: "To preview how your booking schedule will look like on your profile, go to preview booking schedule.",
 
+  booking_validation_required_fields_title: "Please fill these fields",
+  booking_field_event_title: "Event title",
+  booking_field_session_duration: "Session duration",
+  booking_field_base_price: "Base price",
+  booking_field_event_goal: "Event goal",
+  booking_field_minimum_contribution_per_user: "Minimum contribution per user",
+  booking_field_first_time_discount: "First-time discount",
+  booking_field_session_minimum: "Session minimum",
+  booking_field_longer_session_discount: "Longer session discount",
+  booking_field_buffer_time: "Buffer time",
+  booking_field_start_date: "Start date",
+  booking_field_weekly_availability: "Weekly availability",
+  booking_field_monthly_availability: "Monthly availability",
+  booking_field_available_time_slot: "Available time slot",
   booking_validation_event_title_required: "Event title is required.",
   booking_validation_duration_min: "Session duration must be at least 5 minutes.",
   booking_validation_base_price_required: "Base price is required.",
@@ -474,6 +488,10 @@ export const bookingMessages = {
   fan_booking_error_daily_booking_limit_reached: "This event has reached its booking limit for that day.",
   fan_booking_error_creator_mismatch: "This booking could not be matched to the creator.",
   fan_booking_error_temporary_hold_mismatch: "Your reserved slot no longer matches this booking. Please choose the time again.",
+  fan_booking_error_invalid_temporary_hold_time: "Please choose a valid booking time.",
+  fan_booking_error_event_not_available: "This event is no longer available.",
+  fan_booking_error_slot_already_held: "This time slot is temporarily reserved. Please choose another time.",
+  fan_booking_error_temporary_hold_already_exists: "You already have an active hold for this event. Please continue or wait for it to expire.",
   fan_booking_error_token_hold_failed: "Could not reserve tokens for this booking.",
   fan_booking_error_token_hold_missing_txid: "Could not reserve tokens for this booking. Please try again.",
   fan_booking_error_invalid_payment_total: "The booking total is invalid. Please refresh and try again.",
@@ -494,6 +512,7 @@ export const bookingMessages = {
   fan_booking_validation_booking_end_exceeds_limit: "This booking ends after the event booking window ends.",
   fan_booking_validation_booking_in_past: "Bookings must be scheduled for a future time.",
   fan_booking_validation_booking_end_in_past: "Bookings must end in the future.",
+  fan_booking_validation_group_booking_before_event_created: "This group event slot started before the event was created.",
   fan_booking_validation_booking_not_in_slot: "This time does not match the event's available slots.",
   fan_booking_validation_booking_overlaps_existing: "Selected booking time overlaps with an existing booking.",
   fan_booking_validation_booking_buffer_after_booked_required: "A {buffer_minutes}-minute buffer is required before this booking can start.",
@@ -794,9 +813,51 @@ export function bookingT(key, params = {}) {
   return fallbackTranslator.t(key, params);
 }
 
+export const bookingValidationCodeTranslationKeys = Object.freeze({
+  event_not_found: "fan_booking_validation_event_not_found",
+  not_invited: "fan_booking_validation_not_invited",
+  subscription_required: "fan_booking_validation_subscription_required",
+  must_own_products_not_met: "fan_booking_validation_must_own_products_not_met",
+  min_spend_not_met: "fan_booking_validation_min_spend_not_met",
+  min_past_sessions_not_met: "fan_booking_validation_min_past_sessions_not_met",
+  booking_start_exceeds_limit: "fan_booking_validation_booking_start_exceeds_limit",
+  booking_end_exceeds_limit: "fan_booking_validation_booking_end_exceeds_limit",
+  booking_in_past: "fan_booking_validation_booking_in_past",
+  booking_end_in_past: "fan_booking_validation_booking_end_in_past",
+  group_booking_before_event_created: "fan_booking_validation_group_booking_before_event_created",
+  booking_not_in_slot: "fan_booking_validation_booking_not_in_slot",
+  booking_overlaps_existing: "fan_booking_validation_booking_overlaps_existing",
+  booking_buffer_after_booked_required: "fan_booking_validation_booking_buffer_after_booked_required",
+  booking_duration_invalid: "fan_booking_validation_booking_duration_invalid",
+  booking_duration_must_match_base: "fan_booking_validation_booking_duration_must_match_base",
+  booking_duration_below_minimum: "fan_booking_validation_booking_duration_below_minimum",
+  booking_duration_invalid_multiple: "fan_booking_validation_booking_duration_invalid_multiple",
+  booking_duration_exceeds_limit: "fan_booking_validation_booking_duration_exceeds_limit",
+  payment_validation_failed: "fan_booking_validation_payment_validation_failed",
+  payment_payload_mismatch: "fan_booking_validation_payment_payload_mismatch",
+  payment_txid_missing: "fan_booking_validation_payment_txid_missing",
+  payment_txid_already_used: "fan_booking_validation_payment_txid_already_used",
+  currency_mismatch: "fan_booking_validation_currency_mismatch",
+  line_amount_mismatch: "fan_booking_validation_line_amount_mismatch",
+  line_missing_in_provided: "fan_booking_validation_line_missing_in_provided",
+  line_unexpected_in_provided: "fan_booking_validation_line_unexpected_in_provided",
+  total_mismatch: "fan_booking_validation_total_mismatch",
+  insufficient_tokens: "fan_booking_validation_insufficient_tokens",
+  booking_validation_unhandled: "fan_booking_validation_booking_validation_unhandled",
+});
+
+function normalizeBookingValidationCode(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+export function resolveBookingValidationTranslationKey(value) {
+  const code = typeof value === "string" ? value : value?.code;
+  return bookingValidationCodeTranslationKeys[normalizeBookingValidationCode(code)] || "";
+}
+
 export function translateBookingValidationError(error, t = bookingT) {
-  if (typeof error === "string") return t(error);
-  const key = error?.translationKey || error?.code;
+  if (typeof error === "string") return t(resolveBookingValidationTranslationKey(error) || error);
+  const key = error?.translationKey || resolveBookingValidationTranslationKey(error) || error?.code;
   if (key) return t(key, error?.params || {});
   return error?.message || t("common_error");
 }

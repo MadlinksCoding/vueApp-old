@@ -16,6 +16,7 @@ describe("events embed bootstrap", () => {
       creatorId: "123",
       userRole: "creator",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev/",
       initialRoute: "create-group",
       creatorData: {
         avatar: "https://example.com/avatar.webp",
@@ -28,6 +29,7 @@ describe("events embed bootstrap", () => {
     expect(state.creatorId).toBe(123);
     expect(state.userRole).toBe("creator");
     expect(state.apiBaseUrl).toBe("https://api.example.com");
+    expect(state.tokenHandlerApiUrl).toBe("https://tokens.example.com/dev");
     expect(state.initialRoute).toBe("create-group");
     expect(state.creatorData).toEqual({
       avatar: "https://example.com/avatar.webp",
@@ -35,6 +37,9 @@ describe("events embed bootstrap", () => {
       isVerified: true,
     });
     expect(state.bootstrapped).toBe(true);
+
+    const { default: TokenHandler } = await import("@/utils/TokenHandler.js");
+    expect(TokenHandler.apiUrl).toBe("https://tokens.example.com/dev");
   });
 
   it("bootstraps fan embeds from fanId without requiring creatorId", async () => {
@@ -47,6 +52,7 @@ describe("events embed bootstrap", () => {
       userRole: "fan",
       fanId: "2615",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev",
       initialRoute: "events",
     });
 
@@ -54,6 +60,7 @@ describe("events embed bootstrap", () => {
     expect(state.creatorId).toBe(null);
     expect(state.fanId).toBe(2615);
     expect(state.userRole).toBe("fan");
+    expect(state.tokenHandlerApiUrl).toBe("https://tokens.example.com/dev");
     expect(state.bootstrapped).toBe(true);
   });
 
@@ -61,7 +68,7 @@ describe("events embed bootstrap", () => {
     window.history.replaceState(
       {},
       "",
-      "/?creatorId=55&userRole=agent&initialRoute=create-private&apiBaseUrl=https%3A%2F%2Fapi.example.com&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
+      "/?creatorId=55&userRole=agent&initialRoute=create-private&apiBaseUrl=https%3A%2F%2Fapi.example.com&tokenHandlerApiUrl=https%3A%2F%2Ftokens.example.com%2Fdev&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
     );
 
     const { readEventsEmbedBootstrapFromUrl } = await import("@/embeds/events/bootstrap.js");
@@ -72,6 +79,7 @@ describe("events embed bootstrap", () => {
       fanId: null,
       userRole: "agent",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "create-private",
       translations: {},
@@ -88,7 +96,7 @@ describe("events embed bootstrap", () => {
     window.history.replaceState(
       {},
       "",
-      "/?userRole=fan&fanId=2615&apiBaseUrl=https%3A%2F%2Fapi.example.com",
+      "/?userRole=fan&fanId=2615&apiBaseUrl=https%3A%2F%2Fapi.example.com&tokenHandlerApiUrl=https%3A%2F%2Ftokens.example.com%2Fdev",
     );
 
     const { readEventsEmbedBootstrapFromUrl } = await import("@/embeds/events/bootstrap.js");
@@ -99,6 +107,7 @@ describe("events embed bootstrap", () => {
       fanId: 2615,
       userRole: "fan",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "events",
       translations: {},
