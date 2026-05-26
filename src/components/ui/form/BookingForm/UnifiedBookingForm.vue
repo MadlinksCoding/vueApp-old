@@ -600,6 +600,7 @@ watch(
 const now = new Date();
 const y = now.getFullYear();
 const m = now.getMonth();
+const todayForCalendar = new Date(y, m, now.getDate());
 
 // --- THEME 2 ---
 const theme2 = {
@@ -1037,8 +1038,8 @@ const events2 = computed(() => {
 });
 
 const state = reactive({
-    focus: new Date(y, m, 23),
-    selected: null,
+    focus: new Date(todayForCalendar),
+    selected: new Date(todayForCalendar),
     view: 'week'
 });
 
