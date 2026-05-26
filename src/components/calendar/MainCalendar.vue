@@ -1077,30 +1077,38 @@ const eventsForDay = (day) => {
   return processedEventsByDay.value[key] || [];
 };
 
+const minuteToGridOffset = (minute) => {
+  const { sMin, step } = range.value;
+  const rows = gridMetrics.value.rows;
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+
+  const rowFloat = (minute - sMin) / step;
+  const rowIndex = Math.max(0, Math.min(rows.length - 1, Math.floor(rowFloat)));
+  const rowMetric = rows[rowIndex];
+  if (!rowMetric) return 0;
+
+  const fraction = Math.max(0, Math.min(1, rowFloat - rowIndex));
+  return rowMetric.offset + fraction * rowMetric.height;
+};
+
 const styleBlock = (ev, day = null) => {
   const { sMin, eMin, step } = range.value;
   const { startMin, endMin } = getEventMinutesForDay(ev, day);
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.min(endMin, eMin);
   if (clippedEnd <= clippedStart) return 'display:none';
-  
-  const startRowFloat = (clippedStart - sMin) / step;
-  const startRowIdx = Math.floor(startRowFloat);
-  
-  const startMetric = gridMetrics.value.rows[startRowIdx];
-  let topPx = startMetric ? startMetric.offset : 0;
-  
+
+  const baseTopPx = minuteToGridOffset(clippedStart);
+  let topPx = baseTopPx;
+  const endPx = minuteToGridOffset(clippedEnd);
   const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
   const stackOffset = minHeightPx + 2;
 
-  const fraction = startRowFloat - startRowIdx;
-  topPx += fraction * props.rowHeightPx; 
   if (ev.stackOrder) {
      topPx += ev.stackOrder * stackOffset;
   }
-  
-  const durationRows = (clippedEnd - clippedStart) / step;
-  let heightPx = durationRows * props.rowHeightPx;
+
+  let heightPx = endPx - baseTopPx;
   heightPx = Math.max(props.minEventHeightPx, heightPx);
 
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;

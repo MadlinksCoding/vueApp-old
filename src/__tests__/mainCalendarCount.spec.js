@@ -343,6 +343,55 @@ describe("MainCalendar all events count", () => {
     expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
   });
 
+  it("keeps late-night availability aligned when earlier evening rows expand", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "late_availability_with_expanded_rows",
+          start: new Date(2026, 3, 23, 17, 0, 0),
+          end: new Date(2026, 3, 23, 23, 55, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+        makeEvent({
+          id: "evening_booking_1",
+          eventId: "booking_1",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "evening_booking_2",
+          eventId: "booking_2",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "evening_booking_3",
+          eventId: "booking_3",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+      ],
+      {},
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ style }">
+              <div data-test="availability-block" :style="style" />
+            </template>
+          `,
+        },
+      },
+    );
+
+    const block = wrapper.get("[data-test='availability-block']");
+    const height = Number(block.attributes("style")?.match(/height:\s*([\d.]+)px/)?.[1]);
+    expect(height).toBeGreaterThan(442.66);
+  });
+
   it("routes confirmed month bookings with slot event through the default event slot", async () => {
     const wrapper = await mountCalendar(
       [
