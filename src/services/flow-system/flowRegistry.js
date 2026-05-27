@@ -10,6 +10,7 @@ import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
 import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
 import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
+import { removeChatParticipantFlow } from "@/services/chat/flows/removeChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
 import { sendProductRecommendationFlow } from "@/services/chat/flows/sendProductRecommendationFlow.js";
@@ -1488,6 +1489,23 @@ export const flowRegistry = {
       destinations: [],
       uiErrorMap: {
         ADD_CHAT_PARTICIPANT_FAILED: "Could not add participant to chat.",
+      },
+    },
+  },
+  "chat.removeChatParticipant": {
+    flowKind: "write",
+    flow: removeChatParticipantFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: false,
+      },
+      destinations: [],
+      uiErrorMap: {
+        REMOVE_CHAT_PARTICIPANT_FAILED: "Could not remove participant from chat.",
       },
     },
   },

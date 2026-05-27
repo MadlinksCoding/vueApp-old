@@ -52,6 +52,20 @@ export function useChatSocket(userId) {
       })
     }
 
+    // If the message is an activity log indicating that a user was kicked
+    if (body.content_type === 'activity_log' && body.content?.meta?.kicked_user_id) {
+      const kickedId = String(body.content.meta.kicked_user_id)
+      const parts = chatStore.chatParticipants[body.chat_id] || chat?.participants || []
+      chatStore.chatParticipants[body.chat_id] = parts.filter(id => String(id) !== kickedId)
+
+      // Refetch chat participants and metadata in background and store sync
+      FlowHandler.run('chat.getChat', { chatId: body.chat_id }).then(function (res) {
+        if (res?.ok && res.data?.item) {
+          chatStore.prependChat(res.data.item)
+        }
+      })
+    }
+
     chatStore.addMessage(body.chat_id, body);
     chatStore.updateChatLastMessage(body.chat_id, body);
     chatStore.updateChatUnread(body.chat_id, true);

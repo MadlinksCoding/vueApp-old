@@ -106,6 +106,14 @@ function getOtherParticipantId(chatId) {
 
 function getChatDisplayName(chat) {
   if (chat?.metadata?.is_booking_request) return chat.name || 'Chat'
+  
+  // Check if group chat
+  const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
+  const isGroup = chat.is_group === true || chat.is_group === 1 || chat.group_type === 'group' || chat.type === 'group' || participants.length > 2
+  if (isGroup) {
+    return chat.name || 'Group Chat'
+  }
+
   const otherId = getOtherParticipantId(chat.chat_id)
   if (otherId) {
     const userData = chatStore.chatUsersData[String(otherId)]
@@ -117,6 +125,12 @@ function getChatDisplayName(chat) {
 }
 
 function getChatAvatar(chat) {
+  const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
+  const isGroup = chat.is_group === true || chat.is_group === 1 || chat.group_type === 'group' || chat.type === 'group' || participants.length > 2
+  if (isGroup) {
+    return chat.avatar || null
+  }
+
   const otherId = getOtherParticipantId(chat.chat_id)
   if (otherId) {
     const userData = chatStore.chatUsersData[String(otherId)]

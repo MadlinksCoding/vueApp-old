@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-05-27 — Group Chat: Action Filter, Persistent Layouts, Socket Kick Sync & Read-Receipt Backfill
+
+### Added
+
+#### `src/components/ui/chat/ChatMembersPopup.vue` _(new)_
+- **Group Members Management** — Created a new members list popup with strict creator-only controls.
+  - Hides the actions trigger menu (⋮) for non-creators.
+  - Disables row click actions and hover styling for non-creators.
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Persistent Group Layout** — Updated group checks to examine `is_group === true || chat.is_group === 1`, preventing group chats from morphing into a 1-on-1 layout when the participant list falls to 2.
+- **Universal Input Disablement** — Implemented reactive compose locking: disables inputs and shows a centered status description ("You have been removed from this group." or "There are no other active participants in this chat.") when the participant count is <= 1 or if the user is kicked.
+- **Member Kick Timing** — Adjusted the kick flow to broadcast the socket kick activity log *before* local removal of the participant, ensuring the kicked user's ID is included in socket recipients.
+- **Read-Receipt Helper** — Updated the `allParticipantsRead` helper to recognize 1-on-1 direct chats and zero-participant fallbacks, allowing direct chats to correctly display blue checkmarks when `status === 'read'` without checking group-style individual read receipt arrays.
+
+#### `src/stores/useChatStore.js`
+- **Chronological Read-Receipt Backfill** — Updated `updateMessageStatusAction` (for 1-on-1 chats) and `updateMessageReadReceiptsAction` (for group chats) to backfill the read state. When a subsequent message is marked as `'read'`, all older messages in that chat's list inherit the `'read'` status and merge receipts.
+- **Robust Key Parsing** — Added a `getReceiptUserId` helper supporting both `userId` and `user_id` structures inside `updateMessageReadReceiptsAction` to resolve deduplication discrepancy. Forces `'read'` status updates even if no new receipts were merged (`changed || prevMsg.status !== 'read'`), preventing older messages from getting stuck as "delivered".
+
+#### `src/composables/useChatSocket.js`
+- **Real-Time Kick updates** — Enhanced `_handleIncomingChatMessage` to intercept kick activity logs, filter out the kicked ID locally, dispatch the background `'chat.getChat'` metadata refetch, and run `chatStore.prependChat` to authoritatively synchronize active participants.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Persistent Group Row styling** — Updated `getChatDisplayName` and `getChatAvatar` to inspect `chat.is_group === true || chat.is_group === 1` instead of participant counts, preserving group styling in the sidebar even when the member list drops.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- Excluded group chats from 1-on-1 direct chat resolution matches in `findExistingDirectChat`.
+
+#### `src/services/flow-system/flowRegistry.js`
+- Registered the missing `'chat.removeChatParticipant'` flow in the system's registry.
+
+#### `public/bookings-embed/chat-iframe.html`
+- Relocated the "Create Group Chat" button below the stats bar.
+- Added dropdown selectors for Group Type and multiple pre-selected Users (`6064`, `6065`), enforcing creator-only validations on submission.
+
+#### `public/bookings-embed/fs-chat-host.js` & `src/embeds/chat/ChatEmbedApp.vue` & `src/components/ui/chat/FlexChat.vue`
+- Integrated host, embed app, and flex chat updates supporting creator role verification and iframe auto-resizing.
+
+---
+
 ## 2026-05-21 — Refactor: `postToParent()` Helper for `window.parent.postMessage`
 
 ### Added

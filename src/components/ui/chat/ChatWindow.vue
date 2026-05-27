@@ -8,6 +8,8 @@ import AdjustBookingPopup        from '@/components/ui/chat/AdjustBookingPopup.v
 import MoreTimeRequestPopup      from '@/components/ui/chat/MoreTimeRequestPopup.vue'
 import RescheduleRequestPopup    from '@/components/ui/chat/RescheduleRequestPopup.vue'
 import CancelCallConfirmPopup    from '@/components/ui/chat/CancelCallConfirmPopup.vue'
+import ChatMembersPopup          from '@/components/ui/chat/ChatMembersPopup.vue'
+import PopupHandler              from '@/components/ui/popup/PopupHandler.vue'
 import SpendingRequirementProductPopup from '@/components/ui/form/BookingForm/HelperComponents/SpendingRequirementProductPopup.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
@@ -49,7 +51,7 @@ const props = defineProps({
   hostWidth:     { type: Number, default: window.innerWidth },
 })
 
-const emit = defineEmits(['close', 'minimize', 'chat-created'])
+const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
 
 const chatStore = useChatStore()
 const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
@@ -72,6 +74,83 @@ const bookingSenderName = computed(() => {
   return props.chatName
 })
 
+const isGroupChat = computed(() => {
+  if (props.groupType === 'group') return true
+  if (props.targetUserIds && props.targetUserIds.length > 0) return true
+  
+  // Retrieve active chat metadata
+  const chat = activeChatId.value ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value)) : null
+  if (chat?.is_group === true || chat?.is_group === 1) return true
+  
+  const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
+  return participants.length > 2
+})
+
+const isChatInputDisabled = computed(() => {
+  if (!activeChatId.value) return false
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  
+  // Case 1: Active chat has 1 or fewer participants loaded
+  if (participants.length > 0 && participants.length <= 1) {
+    return true
+  }
+
+  // Case 2: Kicked from group chat
+  if (isGroupChat.value && participants.length > 0 && !participants.map(String).includes(String(currentUserId))) {
+    return true
+  }
+
+  return false
+})
+
+const disabledInputMessage = computed(() => {
+  if (!isChatInputDisabled.value) return ''
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  
+  if (isGroupChat.value && participants.length > 0 && !participants.map(String).includes(String(currentUserId))) {
+    return 'You have been removed from this group.'
+  }
+  
+  return 'There are no other active participants in this chat.'
+})
+
+const participantCount = computed(() => {
+  const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
+  if (participants.length === 0) {
+    const targetCount = props.targetUserIds?.length || 0
+    return targetCount + 1
+  }
+  return participants.length
+})
+
+const displayAvatars = computed(() => {
+  const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
+  const sourceIds = participants.length > 0 ? participants.map(String) : []
+  
+  const list = sourceIds.map(id => {
+    const ud = chatStore.chatUsersData[id]
+    const avatar = ud?.avatar || null
+    const name = ud?.display_name || ud?.username || (id === String(currentUserId) ? 'You' : 'User')
+    const initial = name.charAt(0).toUpperCase()
+    return {
+      id: `user-${id}`,
+      avatar,
+      initial
+    }
+  })
+
+  // If no participants loaded, show chatName initial as fallback
+  if (list.length === 0) {
+    return [{
+      id: 'fallback',
+      avatar: props.avatar || null,
+      initial: props.chatName.charAt(0).toUpperCase()
+    }]
+  }
+
+  return list.slice(0, 3)
+})
+
 function getSenderName(message) {
   const senderId = String(message.senderId || message.sender_id || '')
   if (!senderId) return props.chatName
@@ -81,6 +160,21 @@ function getSenderName(message) {
   }
   const ud = chatStore.chatUsersData[senderId]
   return ud?.display_name || ud?.username || props.chatName
+}
+
+function getSenderAvatar(message) {
+  const senderId = String(message.senderId || message.sender_id || '')
+  if (!senderId) return props.avatar
+  const ud = chatStore.chatUsersData[senderId]
+  return ud?.avatar || props.avatar
+}
+
+function getSenderInitial(message) {
+  const senderId = String(message.senderId || message.sender_id || '')
+  if (!senderId) return props.chatName.charAt(0).toUpperCase()
+  const ud = chatStore.chatUsersData[senderId]
+  const name = ud?.display_name || ud?.username || props.chatName
+  return name.charAt(0).toUpperCase()
 }
 
 // ── Topup flow state (iframe → parent communication) ─────────────────────────
@@ -93,8 +187,72 @@ const showAdjustPopup         = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
 const showCancelCallPopup     = ref(false)
+const showMembersPopup        = ref(false)
+const membersPopupConfig = {
+  actionType: 'popup',
+  position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
+  customEffect: 'scale',
+  speed: '250ms',
+  effect: 'ease-in-out',
+  closeSpeed: '250ms',
+  showOverlay: true,
+  closeOnOutside: true,
+  lockScroll: false,
+  escToClose: true,
+  width: window.__fsChatEmbed ? '675px' : { default: '100%', '>768': '675px' },
+  height: window.__fsChatEmbed ? '90vh' : { default: '100vh', '>768': '90vh' },
+  scrollable: false,
+  zIndex: 10000,
+}
 const activeBookingMessage = ref(null)
 const bookingActionLoading = ref(false)
+
+function handleMessagePrivately(member) {
+  showMembersPopup.value = false
+  if (String(member.id) === String(currentUserId)) return
+
+  emit('start-chat', {
+    userId: member.id,
+    displayName: member.displayName,
+    username: member.username,
+    avatar: member.avatar,
+  })
+}
+
+async function handleKickMember(member) {
+  if (!activeChatId.value) return
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  
+  const res = await FlowHandler.run('chat.removeChatParticipant', {
+    chatId: activeChatId.value,
+    userId: member.id
+  })
+  
+  if (res?.ok) {
+    showToast({ type: 'success', title: 'Member Kicked', message: `@${member.username} was removed.` })
+    await sendChatActivityLog(`removed @${member.username} from group`, {
+      kicked_user_id: member.id,
+      kicked_username: member.username
+    })
+    chatStore.chatParticipants[activeChatId.value] = participants.filter(id => String(id) !== String(member.id))
+  } else {
+    showToast({ type: 'error', title: 'Failed', message: 'Could not remove member.' })
+  }
+}
+
+function handleBlockMember(member) {
+  FlowHandler.run('users.blockUser', { targetUserId: member.id }).then(res => {
+    if (res?.ok) {
+      showToast({ type: 'success', title: 'Blocked', message: `Blocked @${member.username}` })
+    } else {
+      showToast({ type: 'error', title: 'Failed', message: `Could not block @${member.username}` })
+    }
+  })
+}
+
+function handleReportMember(member) {
+  showToast({ type: 'success', title: 'Reported', message: `Reported @${member.username}` })
+}
 
 // Pre-fetched booking for the active popup message (may be null until loaded)
 const activeBookingData = computed(() => {
@@ -1060,9 +1218,15 @@ async function refreshProductRecommendationMessages(payload = {}) {
 
 // Returns true only when every non-sender participant has a read receipt
 function allParticipantsRead(msg) {
+  const chat = chatStore.userChats.find((c) => c.chat_id === activeChatId.value)
+  const isGroup = chat?.is_group === true || chat?.is_group === 1
+  if (!isGroup) {
+    return msg.status === 'read'
+  }
+
   const participants = chatStore.chatParticipants[activeChatId.value] || []
   const others = participants.map(String).filter(id => id !== String(currentUserId))
-  if (others.length === 0) return false
+  if (others.length === 0) return msg.status === 'read'
   const receipts = Array.isArray(msg.read_receipts) ? msg.read_receipts : []
   const readerIds = new Set(receipts.map(r => String(r.user_id || r.userId || '')))
   return others.every(id => readerIds.has(id))
@@ -1244,9 +1408,8 @@ function messageAttrs(msg) {
 }
 
 // ── Same theme as DemoChats ───────────────────────────────────────────────────
-const chatTheme = {
+const baseThemeStyles = {
   container:        'relative bg-[#f4f4f5] flex flex-col h-full overflow-hidden',
-  header:           'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative',
   body:             'flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
   compose:          'bg-white px-4 py-3 shrink-0',
   myMessageRow:     'flex w-full justify-end mt-1',
@@ -1264,6 +1427,15 @@ const chatTheme = {
   avatarImg:        'w-4 h-4 rounded-full object-cover',
   loaderWrapper:    'p-2 flex justify-center shrink-0 w-full',
 }
+
+const chatTheme = computed(() => {
+  return {
+    ...baseThemeStyles,
+    header: isGroupChat.value
+      ? 'bg-gray-200 font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative' // Matching DemoChats.vue
+      : 'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative' // Existing Dark Theme
+  }
+})
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchMore() {
@@ -1524,14 +1696,64 @@ onUnmounted(() => {
 
       <!-- Header -->
       <template #header>
-        <div class="flex items-center gap-2.5">
-          <img v-if="avatar" :src="avatar" class="w-12 h-12 rounded-full object-cover shrink-0" alt="avatar" />
-          <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold">
+        <!-- Group Chat Header Design (Light Theme) -->
+        <div v-if="isGroupChat" class="flex items-center justify-between w-full h-full">
+          <div class="flex items-center gap-2">
+            <div class="flex -space-x-6 cursor-pointer hover:opacity-85 transition-opacity" @click="showMembersPopup = true">
+              <template v-if="displayAvatars && displayAvatars.length > 0">
+                <template v-for="participant in displayAvatars" :key="participant.id">
+                  <img v-if="participant.avatar" :src="participant.avatar"
+                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white" />
+                  <div v-else
+                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold">
+                    {{ participant.initial }}
+                  </div>
+                </template>
+              </template>
+              <template v-else>
+                <div class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-500 flex items-center justify-center text-white text-xs font-semibold">
+                  {{ chatName.charAt(0).toUpperCase() }}
+                </div>
+              </template>
+            </div>
+            <div class="flex flex-col ml-1">
+              <div class="flex items-center gap-2">
+                <div class="text-[#0C111D] font-semibold text-[14px]">
+                  {{ chatName }}
+                </div>
+                <div class="flex items-center text-slate-700">
+                  <img src="/images/users.png" alt="" class="size-3 brightness-0">
+                  <span class="text-xs font-[400] text-[#0C111D] ml-0.5">{{ participantCount }}</span>
+                </div>
+                <!-- No need right now -->
+                <!-- <span class="text-zinc-500 font-bold ml-0.5 mt-0.5 text-xs">•••</span> -->
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 text-zinc-600">
+            <!-- No need right now -->
+            <!-- <img class="w-4 h-4 cursor-pointer" src="/images/share-icon.png" alt="">
+            <svg class="w-5 h-5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4"></path>
+            </svg> -->
+            <svg @click="emit('close')" class="w-5 h-5 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
+        <div v-else class="flex items-center gap-2.5 w-full">
+          <img v-if="avatar" :src="avatar" class="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true" />
+          <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-xl font-semibold truncate">{{ chatName }} <span class="text-zinc-400">•••</span></div>
+            <div class="text-white text-xl font-semibold truncate">{{ chatName }} 
+              <!-- No need right now --> 
+               <!-- <span class="text-zinc-400">•••</span> -->
+            </div>
             <div class="flex items-center gap-1">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
               <span class="text-zinc-400 text-base">online</span>
@@ -1539,9 +1761,10 @@ onUnmounted(() => {
           </div>
 
           <div class="flex items-center gap-3 text-zinc-400 shrink-0">
-            <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- No need right now -->
+            <!-- <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4" />
-            </svg>
+            </svg> -->
             <svg @click="emit('close')" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -1692,38 +1915,30 @@ onUnmounted(() => {
         </span>
       </template>
 
-      <!-- My avatar — shows reader avatars from read_receipts -->
+      <!-- My avatar -->
       <template #message.avatar.me="{ message }">
-        <!-- <template v-if="message.time || message.message_ts">
-          <div v-if="getMessageReaders(message).length > 0" class="flex items-center gap-0.5">
-            <div
-              v-for="reader in getMessageReaders(message)"
-              :key="reader.id"
-              class="overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
-            >
-              <img v-if="reader.avatar" :src="reader.avatar" class="w-[16px] h-[16px] object-cover" alt="" />
-              <div v-else class="w-[16px] h-[16px] bg-zinc-400 flex items-center justify-center text-white text-[7px] font-semibold">
-                {{ reader.initial }}
-              </div>
-            </div>
-          </div>
-          <div v-else class="w-[16px] h-[16px]"></div>
-        </template>
-        <div v-else class="w-[16px] h-[16px]"></div> -->
+        <img v-if="message.message_ts && currentUserAvatar" :src="currentUserAvatar" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-slate-500 flex items-center justify-center text-white text-[8px] font-semibold">
+          {{ currentUserInitial }}
+        </div>
+        <div v-else class="w-[16px] h-[16px]">M</div>
       </template>
 
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
-        <img v-if="message.time && avatar" :src="avatar" class="w-[16px] h-[16px] rounded-full object-cover" />
-        <div v-else-if="message.time" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
-          {{ chatName.charAt(0).toUpperCase() }}
+        <img v-if="message.message_ts && getSenderAvatar(message)" :src="getSenderAvatar(message)" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
+          {{ getSenderInitial(message) }}
         </div>
         <div v-else class="w-[16px] h-[16px]"></div>
       </template>
 
       <!-- Compose -->
       <template #compose>
-        <div class="relative flex items-center gap-2 my-1 w-full">
+        <div v-if="isChatInputDisabled" class="w-full text-center py-3 text-sm text-gray-500 font-medium font-['Poppins']">
+          {{ disabledInputMessage }}
+        </div>
+        <div v-else class="relative flex items-center gap-2 my-1 w-full">
           <!-- Current user avatar -->
           <div class="shrink-0 overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
             <img v-if="currentUserAvatar" :src="currentUserAvatar" class="w-7 h-7 object-cover" alt="" />
@@ -1874,4 +2089,22 @@ onUnmounted(() => {
     @load-more="handleProductPopupLoadMore"
     @confirm="onConfirmChatProducts"
   />
+
+  <PopupHandler
+    v-model="showMembersPopup"
+    :config="membersPopupConfig"
+    @closed="showMembersPopup = false"
+  >
+    <ChatMembersPopup
+      :chat-id="activeChatId"
+      :current-user-id="currentUserId"
+      :is-creator="isCreatorAccount"
+      :is-group-chat="isGroupChat"
+      @close="showMembersPopup = false"
+      @message-privately="handleMessagePrivately"
+      @kick="handleKickMember"
+      @block="handleBlockMember"
+      @report="handleReportMember"
+    />
+  </PopupHandler>
 </template>

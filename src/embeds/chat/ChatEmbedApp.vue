@@ -56,6 +56,7 @@ window.__fsChatEmbed = true
 
 const FS_CHAT_AUTH_UPDATE         = 'FS_CHAT_AUTH_UPDATE'
 const FS_CHAT_OPEN_CHAT           = 'FS_CHAT_OPEN_CHAT'
+const FS_CHAT_OPEN_GROUP_CHAT     = 'FS_CHAT_OPEN_GROUP_CHAT'
 const FS_CHAT_OPEN_NEW_CHAT_POPUP = 'FS_CHAT_OPEN_NEW_CHAT_POPUP'
 const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
 const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
@@ -79,6 +80,11 @@ function onParentMessage(event) {
 
   if (data.type === FS_CHAT_OPEN_NEW_CHAT_POPUP) {
     widgetRef.value?.openNewChatPopup()
+  }
+
+  if (data.type === FS_CHAT_OPEN_GROUP_CHAT) {
+    const payload = data.payload || {}
+    widgetRef.value?.openGroupChat(payload)
   }
 
   if (data.type === FS_CHAT_GET_STATE) {

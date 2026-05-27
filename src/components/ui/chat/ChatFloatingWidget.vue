@@ -54,6 +54,7 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   const targetId = Number(targetUserId)
   const myId = Number(currentUserId.value)
   return chatStore.userChats.find(chat => {
+    if (chat.is_group === true || chat.is_group === 1 || chat.type === 'group') return false
     const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
     if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
     const bookingFlag = chat.metadata?.is_booking_request === true
@@ -185,7 +186,12 @@ function openNewChatPopup() {
   }, 0)
 }
 
-defineExpose({ widgetEl, openChat, openNewChatPopup, isListOpen, openChats })
+async function openGroupChat({ userIds = [], displayName = 'Group Chat', groupType = null } = {}) {
+  if (!userIds.length) return
+  onStartChat({ userIds: userIds.map(String), displayName, groupType })
+}
+
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -259,6 +265,7 @@ onMounted(async () => {
         @close="closeChatWindow(chat.uid)"
         @minimize="closeChatWindow(chat.uid)"
         @chat-created="(id) => onChatCreated(chat.uid, id)"
+        @start-chat="onStartChat"
       />
     </div>
 
