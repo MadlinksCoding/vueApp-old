@@ -47,6 +47,8 @@ const props = defineProps({
   targetUserId:  { type: [String, Number], default: null },
   targetUserIds: { type: Array, default: () => [] },
   groupType:     { type: String, default: null },
+  groupCategory: { type: String, default: null },
+  coverImageUrl: { type: String, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
 })
@@ -125,8 +127,13 @@ const participantCount = computed(() => {
 
 const displayAvatars = computed(() => {
   const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
-  const sourceIds = participants.length > 0 ? participants.map(String) : []
+  let sourceIds = participants.length > 0 ? participants.map(String) : []
   
+  // Fallback to targetUserIds if activeChatId is null (pending group chat)
+  if (sourceIds.length === 0 && props.targetUserIds && props.targetUserIds.length > 0) {
+    sourceIds = [String(currentUserId), ...props.targetUserIds.map(String)]
+  }
+
   const list = sourceIds.map(id => {
     const ud = chatStore.chatUsersData[id]
     const avatar = ud?.avatar || null
@@ -784,6 +791,7 @@ const inputRef        = ref(null)
 const showProductPopup = ref(false)
 const productCatalog = ref(emptyProductCatalogState())
 const productStatusByKey = ref({})
+const avatarErrors = ref({})
 const currentUserAvatar = computed(() => chatStore.chatUsersData[String(currentUserId)]?.avatar || null)
 const currentUserInitial = computed(() => {
   const d = chatStore.chatUsersData[String(currentUserId)]
@@ -996,6 +1004,8 @@ async function ensureActiveChat() {
         createdBy:    String(currentUserId),
         participants: [String(currentUserId), ...props.targetUserIds],
         name:         props.chatName,
+        category:     props.groupCategory,
+        coverImageUrl: props.coverImageUrl,
       })
     : await FlowHandler.run('chat.createChat', {
         type:         'direct',
@@ -1281,6 +1291,23 @@ watch(productRecommendationStatusWatchKey, () => {
   messages.value
     .filter((message) => message.content_type === 'product_recommendation')
     .forEach((message) => fetchProductRecommendationStatus(message))
+}, { immediate: true })
+
+watch([() => props.targetUserIds, () => currentUserId], ([newIds, cId]) => {
+  const idsToCheck = []
+  if (newIds && newIds.length > 0) {
+    idsToCheck.push(...newIds.map(String))
+  }
+  if (cId) {
+    idsToCheck.push(String(cId))
+  }
+  
+  if (idsToCheck.length > 0) {
+    const missing = [...new Set(idsToCheck)].filter(id => !chatStore.chatUsersData[String(id)])
+    if (missing.length > 0) {
+      FlowHandler.run('chat.fetchChatUsersData', { userIds: missing })
+    }
+  }
 }, { immediate: true })
 
 // The pinned banner message — requestJoinCallNotification takes priority over booking_request.
@@ -1702,7 +1729,8 @@ onUnmounted(() => {
             <div class="flex -space-x-6 cursor-pointer hover:opacity-85 transition-opacity" @click="showMembersPopup = true">
               <template v-if="displayAvatars && displayAvatars.length > 0">
                 <template v-for="participant in displayAvatars" :key="participant.id">
-                  <img v-if="participant.avatar" :src="participant.avatar"
+                  <img v-if="participant.avatar && !avatarErrors[participant.id]" :src="participant.avatar"
+                    @error="avatarErrors[participant.id] = true"
                     class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white" />
                   <div v-else
                     class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold">
@@ -1744,7 +1772,7 @@ onUnmounted(() => {
 
         <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
         <div v-else class="flex items-center gap-2.5 w-full">
-          <img v-if="avatar" :src="avatar" class="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true" />
+          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" class="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true" />
           <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
@@ -1917,7 +1945,7 @@ onUnmounted(() => {
 
       <!-- My avatar -->
       <template #message.avatar.me="{ message }">
-        <img v-if="message.message_ts && currentUserAvatar" :src="currentUserAvatar" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <img v-if="message.message_ts && currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-slate-500 flex items-center justify-center text-white text-[8px] font-semibold">
           {{ currentUserInitial }}
         </div>
@@ -1926,7 +1954,7 @@ onUnmounted(() => {
 
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
-        <img v-if="message.message_ts && getSenderAvatar(message)" :src="getSenderAvatar(message)" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ getSenderInitial(message) }}
         </div>
@@ -1941,7 +1969,7 @@ onUnmounted(() => {
         <div v-else class="relative flex items-center gap-2 my-1 w-full">
           <!-- Current user avatar -->
           <div class="shrink-0 overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-            <img v-if="currentUserAvatar" :src="currentUserAvatar" class="w-7 h-7 object-cover" alt="" />
+            <img v-if="currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-7 h-7 object-cover" alt="" />
             <div v-else class="w-7 h-7 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
               {{ currentUserInitial }}
             </div>

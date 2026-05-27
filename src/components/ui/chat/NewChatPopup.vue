@@ -131,12 +131,12 @@
                             <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">
                                 Subscribers</div>
                         </div>
-                        <div class="self-stretch flex-col md:flex-row inline-flex justify-start items-start gap-2">
+                        <div class="self-stretch flex-col md:flex-row inline-flex justify-start md:items-stretch items-start gap-3">
                             <div v-for="tier in data.subscribers" :key="tier.tier_id"
-                                class="inline-flex justify-start items-start gap-2 w-full md:w-auto">
+                                class="inline-flex justify-start items-stretch gap-2 w-full md:w-[135px] flex-1">
                                 <div
-                                    class="flex-1 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-start gap-2">
-                                    <div class="self-stretch flex md:flex-col justify-center items-center gap-1">
+                                    class="flex-1 md:px-1 inline-flex md:flex-col justify-between items-center md:items-center gap-4 w-full md:h-full">
+                                    <div class="self-stretch flex md:flex-col justify-start items-center gap-2 flex-1">
                                         <div class="inline-flex justify-start items-center">
                                             <div v-if="tier.subscriber_count > 0" class="flex items-center">
                                                 <div v-for="(sub, i) in tier.subscribers.slice(0, 3)" :key="sub.id"
@@ -154,10 +154,10 @@
                                         </div>
                                         <div class="self-stretch flex flex-col justify-start items-center gap-1">
                                             <div
-                                                class="self-stretch flex flex-col justify-center md:items-center gap-1">
+                                                class="self-stretch flex flex-col justify-center items-center gap-1">
                                                 <div
-                                                    class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center gap-1 md:gap-0">
-                                                    <span class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px] ">{{ tier.tier_title }}</span>
+                                                    class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center justify-center gap-1 md:gap-0">
+                                                    <span class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px]">{{ tier.tier_title }}</span>
                                                     <span class="text-xs font-medium text-[#344054] md:hidden">({{
                                                         tier.subscriber_count }})</span>
                                                 </div>
@@ -166,9 +166,9 @@
                                                     {{ tier.subscriber_count }} subscriber</div>
                                             </div>
                                             <div
-                                                class="self-stretch text-center text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">
+                                                class="self-stretch text-center text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4 min-h-[32px] flex items-center justify-center">
                                                 <template v-if="tier.subscriber_count > 0">
-                                                    {{ tier.subscriber_preview.join(', ') }}
+                                                    <span class="line-clamp-2">{{ tier.subscriber_preview.join(', ') }}</span>
                                                 </template>
                                                 <template v-else>
                                                     <span class="text-gray-400 italic font-normal">No active subscribers</span>
@@ -178,20 +178,20 @@
                                     </div>
                                     <button v-if="tier.subscriber_count === 0"
                                         disabled
-                                        class="md:self-stretch min-w-[120px] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-2 cursor-not-allowed rounded opacity-60">
+                                        class="self-stretch w-full min-h-[36px] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed rounded opacity-60 leading-tight">
                                         <img :src="MessageCircleIcon" alt="" class="w-4 h-4 opacity-30" />
                                         <span class="text-center text-gray-400 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message All</span>
                                     </button>
-                                    <button v-else @click="messageAll(tier.tier_title, 'subscribers_' + tier.tier_id, tier.tier_id)"
+                                    <button v-else @click="messageAll(tier.tier_title, 'subscribers-' + tier.tier_id, tier.tier_id, tier.cover_image)"
                                         :disabled="!!loadingGroupType"
-                                        class="md:self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
-                                        <svg v-if="loadingGroupType === 'subscribers_' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        class="self-stretch w-full min-h-[36px] px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold text-xs transition-opacity hover:opacity-90 leading-tight">
+                                        <svg v-if="loadingGroupType === 'subscribers-' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                                         </svg>
                                         <img v-else :src="MessageCircleIcon" alt="" class="w-4 h-4" />
                                         <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
-                                            {{ loadingGroupType === 'subscribers_' + tier.tier_id ? '...' : 'Message All' }}
+                                            {{ loadingGroupType === 'subscribers-' + tier.tier_id ? '...' : 'Message All' }}
                                         </span>
                                     </button>
                                 </div>
@@ -205,19 +205,19 @@
                     <div class="self-stretch py-1 inline-flex justify-between items-center">
                         <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Top Followers
                         </div>
-                        <button @click="messageAll('Top Followers', 'top_followers')"
+                        <button @click="messageAll('Top Followers', 'top-followers')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
-                            <svg v-if="loadingGroupType === 'top_followers'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold transition-opacity hover:opacity-90">
+                            <svg v-if="loadingGroupType === 'top-followers'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                             </svg>
                             <img v-else :src="MessageCircleIcon" alt="" class="w-4 h-4" />
                             <div class="h-4 flex justify-start items-center gap-1">
                                 <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
-                                    {{ loadingGroupType === 'top_followers' ? '...' : 'Message All' }}
+                                    {{ loadingGroupType === 'top-followers' ? '...' : 'Message All' }}
                                 </span>
-                                <span v-if="loadingGroupType !== 'top_followers'" class="w-4 text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.top_followers.total }}</span>
+                                <span v-if="loadingGroupType !== 'top-followers'" class="w-4 text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.top_followers.total }}</span>
                             </div>
                         </button>
                     </div>
@@ -262,7 +262,7 @@
                         </div>
                         <button @click="messageAll('Unsubscribed Users', 'unsubscribed')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
+                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold transition-opacity hover:opacity-90">
                             <svg v-if="loadingGroupType === 'unsubscribed'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -472,12 +472,23 @@ function onMessage(user) {
     })
 }
 
-async function messageAll(name, groupType, tierId = null) {
+async function messageAll(name, groupType, tierId = null, coverImage = null) {
     if (loadingGroupType.value) return
     loadingGroupType.value = groupType
+    
+    // Resolve section name expected by the REST API
+    let apiSection = groupType
+    if (groupType.startsWith('subscribers-') || groupType.startsWith('subscribers_')) {
+        apiSection = 'subscribers'
+    } else if (groupType === 'top-followers' || groupType === 'fop-followers' || groupType === 'top_followers') {
+        apiSection = 'top_followers'
+    } else if (groupType === 'unsubscribed' || groupType === 'unsubscribed-users') {
+        apiSection = 'unsubscribed'
+    }
+
     try {
         const res = await fetchGroupUserIdsFlow({
-            payload: { creatorId: props.creatorId, section: groupType.startsWith('subscribers_') ? 'subscribers' : groupType, tierId: tierId || undefined },
+            payload: { creatorId: props.creatorId, section: apiSection, tierId: tierId || undefined },
             context: {},
             api: buildApi(),
         })
@@ -486,6 +497,8 @@ async function messageAll(name, groupType, tierId = null) {
                 userIds: res.data.userIds.map(String),
                 displayName: name,
                 groupType,
+                groupCategory: apiSection,
+                coverImageUrl: coverImage,
             })
         }
     } finally {

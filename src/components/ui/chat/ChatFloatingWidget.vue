@@ -62,7 +62,7 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   })
 }
 
-async function onStartChat({ userId, userIds, displayName, username, avatar, groupType }) {
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, groupCategory, coverImageUrl }) {
   // --- Group chat (Message All) ---
   if (userIds && userIds.length > 0) {
     // Check for existing group with same type
@@ -77,10 +77,10 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
         userIds: userIds.map(String),
         invitedBy: String(currentUserId.value),
       })
-      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType })
+      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType, groupCategory, coverImageUrl })
     } else {
       // Open pending group window — chat created on first message
-      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType })
+      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType, groupCategory, coverImageUrl })
     }
     chatListRef.value?.chatReady?.()
     isListOpen.value = false
@@ -259,6 +259,8 @@ onMounted(async () => {
         :target-user-id="chat.targetUserId"
         :target-user-ids="chat.targetUserIds"
         :group-type="chat.groupType"
+        :group-category="chat.groupCategory"
+        :cover-image-url="chat.coverImageUrl"
         :socket="socket"
         :current-user-id="currentUserId"
         :host-width="hostWidth"
