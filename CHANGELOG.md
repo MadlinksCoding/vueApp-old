@@ -1,6 +1,54 @@
 # Changelog
 
+## 2026-05-27 — Message All Group Schema, Avatar Fallbacks, Banned Words Filter & rawText Metadata
+
+### Added
+
+#### `src/utils/bannedWordsFilter.js` _(new)_
+- **Banned Words Filter** — Created a standalone utility module with a 5-minute in-memory cache and concurrent request locking.
+  - `fetchBannedWords()` — fetches `/wp-json/api/chat/banned-lists` and caches the `bannedWords` array for 300,000ms. Deduplicates concurrent in-flight calls via a shared promise lock.
+  - `filterBannedWords(text)` — applies case-insensitive wildcard masking. `*` in a pattern matches exactly one alphanumeric character (e.g. `*ape` masks `tape`, `rape`, `cape`). Patterns sorted by descending length to prevent sub-pattern conflicts. Falls back to literal index-based replacement if regex compilation fails.
+  - `resetBannedWordsCache()` — test-facing helper to reset module-level cache state.
+
+#### `src/__tests__/bannedWordsFilter.spec.js` _(new)_
+- **Unit Tests** — Vitest suite covering:
+  - Cache hit: second call within 5 min does not trigger a new fetch.
+  - Concurrent lock: simultaneous calls share a single in-flight promise (1 HTTP request).
+  - Cache expiry: fetch is re-triggered after the 5-minute window elapses.
+  - Masking accuracy: `6teen` → `*****`, `tape` → `****`, `hope` → `****`.
+  - Null/empty/undefined inputs are returned unchanged.
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Message All Button Schema** — Updated click handlers to pass hyphenated group types and cover image URLs:
+  - Subscribers: type `'subscribers-{tier_id}'`, name `tier.tier_title`, cover image `tier.cover_image`.
+  - Top Followers: type `'top-followers'`, name `'Top Followers'`.
+  - Unsubscribed: type `'unsubscribed'`.
+- **API Section Resolver** — Added `apiSection` mapping inside `messageAll()` to translate hyphenated frontend types back to the underscore/singular keys expected by the REST API (`subscribers`, `top_followers`, `unsubscribed`).
+- **Button Interactivity** — Removed hardcoded `pointer-events-none opacity-30` from active buttons; replaced with vibrant rose-pink styles (`bg-rose-600`, hover states). Disabled gray state only applied when subscriber count is strictly 0.
+- **Card Layout** — Applied `md:items-stretch` and `flex-1` to cards; set `min-h-[32px]` on preview text; aligned all Message All buttons to a consistent horizontal baseline.
+- **Pagination** — Set `perPage: 4` for Top Followers and Unsubscribed "View More" section loaders.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Prop Bridge** — Extended `onStartChat` to receive and forward `groupCategory` and `coverImageUrl` when adding a new pending chat window. Bound `:group-category` and `:cover-image-url` to child `<ChatWindow>` components.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Group Chat Creation Payload** — Added `groupCategory` and `coverImageUrl` props; forwarded to `FlowHandler.run('chat.createGroupChat', ...)` so category and cover image are stored when the first message is sent.
+- **Participant Avatar Auto-Fetch** — Upgraded the `props.targetUserIds` watcher to also monitor `currentUserId`. Fetches any missing profile entries (name + avatar) for both the participant list and the current user on mount/swap via `FlowHandler.run('chat.fetchChatUsersData', ...)`.
+- **Stacked Pending Avatars** — Updated `displayAvatars` computed to fall back to `[currentUserId, ...props.targetUserIds]` when `activeChatId` is null (pending chat), enabling real participant photos in the group header before the first message is sent.
+- **Avatar Error Fallbacks** — Declared reactive `avatarErrors` map. Added `@error` listeners to all user `<img>` tags (stacked group header, 1-on-1 header, compose input, sent bubble, received bubble). Failed image loads are instantly replaced by styled initial-letter fallback circles.
+- **Banned Words — Mount Pre-Fetch** — Calls `fetchBannedWords().catch(() => {})` in `onMounted` to warm the cache in the background, eliminating HTTP latency on the first send.
+- **Banned Words — Send Intercept** — `sendMessage` now runs `const text = await filterBannedWords(rawText)` before optimistic store insertion and API submission. On `ensureActiveChat` failure, restores the original `rawText` to the compose input.
+- **`chat.sendMessage` Metadata** — Added `metadata: { rawText }` to the `FlowHandler.run('chat.sendMessage', ...)` payload so the backend receives the original unfiltered message text for audit/moderation purposes, per the API spec (`POST /chats/:chatId/messages` → `metadata: object`).
+
+#### `includes/class-api-chat-users.php`
+- **Pagination Default** — Changed the fallback `$per_page` value from a conditional `( $section ? 10 : 4 )` to a strict `4` to align with the frontend "View More" page size.
+
+---
+
 ## 2026-05-27 — Group Chat: Action Filter, Persistent Layouts, Socket Kick Sync, Read-Receipt Backfill, Post-Kick Prevention & Empty Tiers Fix
+
 
 ### Added
 

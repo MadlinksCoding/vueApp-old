@@ -31,6 +31,7 @@ import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatRes
 import TokenHandler from '@/utils/TokenHandler.js'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
+import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
@@ -1483,15 +1484,18 @@ async function fetchMore() {
 
 // ── Send ─────────────────────────────────────────────────────────────────────
 async function sendMessage() {
-  const text = composeText.value.trim().slice(0, MAX_MESSAGE_LENGTH)
-  if (!text || isSending.value) return
+  const rawText = composeText.value.trim().slice(0, MAX_MESSAGE_LENGTH)
+  if (!rawText || isSending.value) return
 
   isSending.value = true
   composeText.value = ''
   showEmojiPicker.value = false
 
+  // Filter banned words dynamically before sending
+  const text = await filterBannedWords(rawText)
+
   if (!(await ensureActiveChat())) {
-    composeText.value = text
+    composeText.value = rawText
     isSending.value = false
     return
   }
@@ -1512,6 +1516,7 @@ async function sendMessage() {
     senderId: currentUserId,
     text,
     type:     'text',
+    metadata: { rawText },
   })
 
   // Remove optimistic placeholder once real message arrives via addMessageAction
@@ -1641,6 +1646,9 @@ function _onTopupMessage(e) {
 
 onMounted(async () => {
   window.addEventListener('message', _onTopupMessage)
+
+  // Pre-fetch banned words list for early cache warming
+  fetchBannedWords().catch(() => {})
 
   const root = await new Promise((resolve) => {
     // Wait one tick for FlexChat to mount and expose bodyEl
