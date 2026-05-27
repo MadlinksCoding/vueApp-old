@@ -139,8 +139,25 @@ function getChatAvatar(chat) {
   return chat.avatar || null
 }
 
+function getAllowedLastMessage(chat) {
+  const allMsgs = chatStore.getMessagesByChatId(chat.chat_id)
+  const kickMsg = allMsgs.find(m => 
+    m.content_type === 'activity_log' && 
+    String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '') === String(props.currentUserId)
+  )
+  if (kickMsg) {
+    const kickTs = kickMsg.message_ts ?? kickMsg.time ?? 0
+    const allowed = allMsgs.filter(m => (m.message_ts ?? m.time ?? 0) <= kickTs)
+    if (allowed.length > 0) {
+      return allowed[allowed.length - 1]
+    }
+    return kickMsg
+  }
+  return chat.last_message
+}
+
 function getLastMessageText(chat) {
-  const msg = chat.last_message
+  const msg = getAllowedLastMessage(chat)
   if (!msg) return null
 
   const contentType = msg.content_type

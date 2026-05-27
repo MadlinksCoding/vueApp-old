@@ -138,13 +138,18 @@
                                     class="flex-1 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-start gap-2">
                                     <div class="self-stretch flex md:flex-col justify-center items-center gap-1">
                                         <div class="inline-flex justify-start items-center">
-                                            <div class="flex items-center">
+                                            <div v-if="tier.subscriber_count > 0" class="flex items-center">
                                                 <div v-for="(sub, i) in tier.subscribers.slice(0, 3)" :key="sub.id"
                                                     class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
                                                     :class="i > 0 ? '-ml-8' : ''" :style="{ zIndex: 30 - i * 10 }">
                                                     <img :src="sub.avatar || SmilingPeachIcon"
                                                         class="w-12 h-12 md:w-[3.625rem] md:h-[3.625rem] object-cover" />
                                                 </div>
+                                            </div>
+                                            <div v-else class="flex items-center justify-center bg-gray-100 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] w-12 h-12 md:w-[3.625rem] md:h-[3.625rem]">
+                                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
                                             </div>
                                         </div>
                                         <div class="self-stretch flex flex-col justify-start items-center gap-1">
@@ -162,10 +167,22 @@
                                             </div>
                                             <div
                                                 class="self-stretch text-center text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4">
-                                                {{ tier.subscriber_preview.join(', ') }}</div>
+                                                <template v-if="tier.subscriber_count > 0">
+                                                    {{ tier.subscriber_preview.join(', ') }}
+                                                </template>
+                                                <template v-else>
+                                                    <span class="text-gray-400 italic font-normal">No active subscribers</span>
+                                                </template>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button @click="messageAll(tier.tier_title, 'subscribers_' + tier.tier_id, tier.tier_id)"
+                                    <button v-if="tier.subscriber_count === 0"
+                                        disabled
+                                        class="md:self-stretch min-w-[120px] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-2 cursor-not-allowed rounded opacity-60">
+                                        <img :src="MessageCircleIcon" alt="" class="w-4 h-4 opacity-30" />
+                                        <span class="text-center text-gray-400 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message All</span>
+                                    </button>
+                                    <button v-else @click="messageAll(tier.tier_title, 'subscribers_' + tier.tier_id, tier.tier_id)"
                                         :disabled="!!loadingGroupType"
                                         class="md:self-stretch min-w-14 px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-30">
                                         <svg v-if="loadingGroupType === 'subscribers_' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -404,7 +421,7 @@ async function loadMoreTopFollowers() {
     try {
         const nextPage = topFollowersPage.value + 1
         const res = await fetchNewMessageUsersFlow({
-            payload: { creatorId: props.creatorId, section: 'top_followers', page: nextPage, perPage: 10 },
+            payload: { creatorId: props.creatorId, section: 'top_followers', page: nextPage, perPage: 4 },
             context: {},
             api: buildApi(),
         })
@@ -428,7 +445,7 @@ async function loadMoreUnsubscribed() {
     try {
         const nextPage = unsubscribedPage.value + 1
         const res = await fetchNewMessageUsersFlow({
-            payload: { creatorId: props.creatorId, section: 'unsubscribed', page: nextPage, perPage: 10 },
+            payload: { creatorId: props.creatorId, section: 'unsubscribed', page: nextPage, perPage: 4 },
             context: {},
             api: buildApi(),
         })

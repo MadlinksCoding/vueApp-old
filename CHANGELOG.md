@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-05-27 — Group Chat: Action Filter, Persistent Layouts, Socket Kick Sync & Read-Receipt Backfill
+## 2026-05-27 — Group Chat: Action Filter, Persistent Layouts, Socket Kick Sync, Read-Receipt Backfill, Post-Kick Prevention & Empty Tiers Fix
 
 ### Added
 
@@ -10,6 +10,23 @@
   - Disables row click actions and hover styling for non-creators.
 
 ### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Empty Subscriber Tiers Refinement** — Patched empty states (`0 subscribers`) to prevent grid container distortions and layout collapses.
+  - Renders a fluid organic shape-matched user avatar placeholder (`rounded-[25%_75%_50%_51%/45%_65%_36%_55%]`) when the subscriber count is 0.
+  - Renders a light-gray italicized placeholder (`"No active subscribers"`) to preserve grid vertical spacing.
+  - Disables and style-neutralizes the `"Message All"` button with gray backgrounds (`bg-gray-100` / `border-gray-200`) and disabled cursors.
+
+#### `src/services/chat/flows/fetchMessagesFlow.js`
+- **Post-Kick Message Prevention (API)** — Updated flow to accept `userId` / `currentUserId` in the payload and forward it as the `userId` query parameter to the `GET /chats/:chatId/messages` API call. This enables native server-side message history filtering for kicked users when reloading the widget.
+
+#### `src/composables/useChatSocket.js`
+- **Post-Kick Message Prevention (Socket)** — Added a real-time message guard inside `_handleIncomingChatMessage` to immediately ignore and drop incoming socket messages if the user has already been kicked from the group chat, preventing real-time notifications or unread/preview updates.
+- **Real-Time Kick updates** — Enhanced `_handleIncomingChatMessage` to intercept kick activity logs, filter out the kicked ID locally, dispatch the background `'chat.getChat'` metadata refetch, and run `chatStore.prependChat` to authoritatively synchronize active participants.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Post-Kick Message Prevention (Sidebar)** — Implemented `getAllowedLastMessage` to check if the current user was kicked and lock the sidebar message preview text on the removal activity log (or the latest message prior to it), hiding any subsequent messages.
+- **Persistent Group Row styling** — Updated `getChatDisplayName` and `getChatAvatar` to inspect `chat.is_group === true || chat.is_group === 1` instead of participant counts, preserving group styling in the sidebar even when the member list drops.
 
 #### `src/components/ui/chat/ChatWindow.vue`
 - **Persistent Group Layout** — Updated group checks to examine `is_group === true || chat.is_group === 1`, preventing group chats from morphing into a 1-on-1 layout when the participant list falls to 2.

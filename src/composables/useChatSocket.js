@@ -34,6 +34,14 @@ export function useChatSocket(userId) {
   async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
 
+    // Discard any incoming messages if the current user is already kicked from this chat
+    const allMsgs = chatStore.messages[body.chat_id] || []
+    const alreadyKicked = allMsgs.some(m => 
+      m.content_type === 'activity_log' && 
+      String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '') === String(userId)
+    )
+    if (alreadyKicked) return;
+
     // If this chat isn't in the list yet, fetch it and sync unread count
     const knownChat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
     if (!knownChat) {
