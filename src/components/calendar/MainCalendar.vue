@@ -240,7 +240,10 @@
           </div>
         </div>
 
-        <div class="grid h-[3.995rem] w-full" :class="effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7'">
+        <div class="grid w-full" :class="[
+          effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7',
+          variant === 'theme2' ? 'min-h-[5rem]' : 'h-[3.995rem]'
+        ]">
           <div v-for="(d, i) in headerDays" :key="'xh-' + i" 
             class="text-center flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
             :class="[
@@ -250,6 +253,13 @@
             ]" 
             :data-date="d.toISOString().slice(0, 10)"
             @click="emitDate(d)">
+
+            <div v-if="variant === 'theme2'"
+              class="h-4 text-[0.625rem] font-bold leading-4 tracking-wider uppercase text-slate-500">
+              <span v-if="highlightTodayColumn && sameDay(d, today)" data-test="calendar-today-label">
+                {{ t("common_today") }}
+              </span>
+            </div>
 
             <div class="text-xs font-semibold leading-[1.25rem] uppercase"
               :class="variant === 'theme2' ? 'text-slate-500 tracking-wider mb-1' : ''">
@@ -1077,30 +1087,38 @@ const eventsForDay = (day) => {
   return processedEventsByDay.value[key] || [];
 };
 
+const minuteToGridOffset = (minute) => {
+  const { sMin, step } = range.value;
+  const rows = gridMetrics.value.rows;
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+
+  const rowFloat = (minute - sMin) / step;
+  const rowIndex = Math.max(0, Math.min(rows.length - 1, Math.floor(rowFloat)));
+  const rowMetric = rows[rowIndex];
+  if (!rowMetric) return 0;
+
+  const fraction = Math.max(0, Math.min(1, rowFloat - rowIndex));
+  return rowMetric.offset + fraction * rowMetric.height;
+};
+
 const styleBlock = (ev, day = null) => {
   const { sMin, eMin, step } = range.value;
   const { startMin, endMin } = getEventMinutesForDay(ev, day);
   const clippedStart = Math.max(startMin, sMin);
   const clippedEnd = Math.min(endMin, eMin);
   if (clippedEnd <= clippedStart) return 'display:none';
-  
-  const startRowFloat = (clippedStart - sMin) / step;
-  const startRowIdx = Math.floor(startRowFloat);
-  
-  const startMetric = gridMetrics.value.rows[startRowIdx];
-  let topPx = startMetric ? startMetric.offset : 0;
-  
+
+  const baseTopPx = minuteToGridOffset(clippedStart);
+  let topPx = baseTopPx;
+  const endPx = minuteToGridOffset(clippedEnd);
   const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
   const stackOffset = minHeightPx + 2;
 
-  const fraction = startRowFloat - startRowIdx;
-  topPx += fraction * props.rowHeightPx; 
   if (ev.stackOrder) {
      topPx += ev.stackOrder * stackOffset;
   }
-  
-  const durationRows = (clippedEnd - clippedStart) / step;
-  let heightPx = durationRows * props.rowHeightPx;
+
+  let heightPx = endPx - baseTopPx;
   heightPx = Math.max(props.minEventHeightPx, heightPx);
 
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;

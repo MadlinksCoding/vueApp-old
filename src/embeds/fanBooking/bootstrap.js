@@ -3,6 +3,7 @@ import { toNumberOr } from "@/utils/contextIds.js";
 import { logFanBookingDebug } from "@/embeds/fanBooking/debug.js";
 import { normalizeCreatorPresentationInput } from "@/components/FanBookingFlow/OneOnOneBookingFlow/creatorPresentation.js";
 import { setBackendJwtToken } from "@/utils/backendJwt.js";
+import { setRuntimeTokenHandlerApiUrl } from "@/utils/TokenHandler.js";
 import { normalizeBookingLocale, normalizeBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const DEFAULT_BOOTSTRAP = {
@@ -11,6 +12,7 @@ const DEFAULT_BOOTSTRAP = {
   eventId: null,
   inviteSecret: "",
   apiBaseUrl: "",
+  tokenHandlerApiUrl: "",
   jwtToken: "",
   creatorData: {
     avatar: null,
@@ -45,6 +47,25 @@ function normalizeInviteSecret(value) {
   return String(value).trim();
 }
 
+function normalizeRuntimeUrl(value) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function applyTokenHandlerApiUrlSafely(tokenHandlerApiUrl = "") {
+  const normalized = normalizeRuntimeUrl(tokenHandlerApiUrl);
+  if (!normalized) return "";
+
+  try {
+    return setRuntimeTokenHandlerApiUrl(normalized);
+  } catch (error) {
+    logFanBookingDebug("bootstrap", "token-handler-url:set-failed", {
+      message: error?.message || "Failed to set token handler API URL.",
+    });
+    return normalized;
+  }
+}
+
 function toPositiveNumberOr(value, fallback = null) {
   const numeric = toNumberOr(value, fallback);
   if (numeric == null) return fallback;
@@ -64,6 +85,7 @@ export function normalizeOneOnOneBookingBootstrap(payload = {}) {
     eventId: normalizeEventId(payload.eventId),
     inviteSecret: normalizeInviteSecret(payload.inviteSecret || payload.invite_secret),
     apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    tokenHandlerApiUrl: normalizeRuntimeUrl(payload.tokenHandlerApiUrl),
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
@@ -94,6 +116,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
   bootstrapState.eventId = normalized.eventId;
   bootstrapState.inviteSecret = normalized.inviteSecret;
   bootstrapState.apiBaseUrl = normalized.apiBaseUrl;
+  bootstrapState.tokenHandlerApiUrl = applyTokenHandlerApiUrlSafely(normalized.tokenHandlerApiUrl);
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.creatorData = normalized.creatorData;
   bootstrapState.translations = normalized.translations;
@@ -107,6 +130,7 @@ export function applyOneOnOneBookingBootstrap(payload = {}) {
       eventId: bootstrapState.eventId,
       inviteSecret: bootstrapState.inviteSecret,
       apiBaseUrl: bootstrapState.apiBaseUrl,
+      tokenHandlerApiUrl: bootstrapState.tokenHandlerApiUrl,
       hasJwtToken: bootstrapState.jwtToken !== "",
       creatorData: bootstrapState.creatorData,
       translations: bootstrapState.translations,
@@ -168,6 +192,7 @@ export function readOneOnOneBookingBootstrapFromUrl() {
     eventId: params.get("eventId"),
     inviteSecret: params.get("inviteSecret") || params.get("invite_secret") || "",
     apiBaseUrl: params.get("apiBaseUrl") || "",
+    tokenHandlerApiUrl: params.get("tokenHandlerApiUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),

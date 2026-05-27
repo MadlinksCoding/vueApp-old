@@ -674,6 +674,7 @@ async function copyInviteLink() {
       type: "error",
       title: t("booking_invite_only"),
       message: t("booking_validation_invite_secret_required"),
+      autoClose: false,
     });
     return;
   }
@@ -701,6 +702,7 @@ async function copyInviteLink() {
       type: "error",
       title: t("booking_copy_failed_title"),
       message: t("booking_copy_failed_message"),
+      autoClose: false,
     });
   }
 }
@@ -1185,6 +1187,7 @@ const createEvent = async () => {
           type: "error",
           title: props.isEditMode ? "Could not update event" : t("common_create_event_failed"),
           message: formatCreateEventFailureMessage(flowResult, t),
+          autoClose: false,
         });
         return;
       }
@@ -1217,6 +1220,7 @@ const createEvent = async () => {
       type: "error",
       title: t("common_validation_failed"),
       message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
+      autoClose: false,
     });
   }
 };

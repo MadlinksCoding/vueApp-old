@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 
 vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
   default: {
@@ -211,10 +212,41 @@ async function openMobilePopup(wrapper) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   setWindowWidth(1024);
 });
 
 describe("MainCalendar all events count", () => {
+  it("renders a translated Today label above the current date in the theme2 header", async () => {
+    vi.useFakeTimers();
+    const currentDate = new Date(2026, 3, 23, 9, 0, 0);
+    vi.setSystemTime(currentDate);
+
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const wrapper = await mountCalendar(
+      [],
+      {
+        focusDate: currentDate,
+        highlightTodayColumn: true,
+        variant: "theme2",
+      },
+      {
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("en"),
+              t: (key) => (key === "common_today" ? "Hoy" : key),
+            },
+          },
+        },
+      },
+    );
+
+    const label = wrapper.get("[data-test='calendar-today-label']");
+    expect(label.text()).toBe("Hoy");
+    expect(label.element.closest("[data-date]")?.textContent).toContain("23");
+  });
+
   it("exposes a reset that clears root, body, and time-column scroll positions", async () => {
     const wrapper = await mountCalendar([
       makeEvent({
@@ -341,6 +373,55 @@ describe("MainCalendar all events count", () => {
     const blocks = wrapper.findAll("[data-test='availability-block']");
     expect(blocks.length).toBeGreaterThan(0);
     expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
+  });
+
+  it("keeps late-night availability aligned when earlier evening rows expand", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "late_availability_with_expanded_rows",
+          start: new Date(2026, 3, 23, 17, 0, 0),
+          end: new Date(2026, 3, 23, 23, 55, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+        makeEvent({
+          id: "evening_booking_1",
+          eventId: "booking_1",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "evening_booking_2",
+          eventId: "booking_2",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "evening_booking_3",
+          eventId: "booking_3",
+          start: new Date(2026, 3, 23, 18, 0, 0),
+          end: new Date(2026, 3, 23, 18, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+      ],
+      {},
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ style }">
+              <div data-test="availability-block" :style="style" />
+            </template>
+          `,
+        },
+      },
+    );
+
+    const block = wrapper.get("[data-test='availability-block']");
+    const height = Number(block.attributes("style")?.match(/height:\s*([\d.]+)px/)?.[1]);
+    expect(height).toBeGreaterThan(442.66);
   });
 
   it("routes confirmed month bookings with slot event through the default event slot", async () => {

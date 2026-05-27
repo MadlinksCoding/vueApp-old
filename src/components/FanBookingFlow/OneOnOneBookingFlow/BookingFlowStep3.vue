@@ -688,6 +688,12 @@ const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
   daily_booking_limit_reached: 'fan_booking_error_daily_booking_limit_reached',
   creator_mismatch: 'fan_booking_error_creator_mismatch',
   temporary_hold_mismatch: 'fan_booking_error_temporary_hold_mismatch',
+  invalid_temporary_hold_time: 'fan_booking_error_invalid_temporary_hold_time',
+  event_not_available: 'fan_booking_error_event_not_available',
+  slot_already_booked: 'fan_booking_error_slot_already_taken',
+  slot_already_held: 'fan_booking_error_slot_already_held',
+  temporary_hold_already_exists: 'fan_booking_error_temporary_hold_already_exists',
+  validation_failed: 'fan_booking_validation_failed_review',
   token_hold_failed: 'fan_booking_error_token_hold_failed',
   token_hold_missing_txid: 'fan_booking_error_token_hold_missing_txid',
   invalid_payment_total: 'fan_booking_error_invalid_payment_total',
@@ -731,6 +737,14 @@ function resolveBackendErrorTranslationKey(flowResult, wrapperCode) {
   }
 
   return null;
+}
+
+function firstNonEmptyArray(...values) {
+  return values.find((value) => Array.isArray(value) && value.length > 0) || [];
+}
+
+function formatValidationMessageList(errors = []) {
+  return formatBookingValidationErrors(errors, t).filter(Boolean).join(' ');
 }
 
 function extractBackendMessage(flowResult) {
@@ -1206,9 +1220,58 @@ function applyHoldTimer({ expiresAt, initialSeconds = 0 } = {}) {
 }
 
 function getHoldStatusMessage(result) {
-  return result?.error?.details?.message
-    || result?.error?.details?.error
-    || result?.error?.message
+  const errorPayload = result?.error;
+  const errorObject = errorPayload && typeof errorPayload === 'object' ? errorPayload : {};
+  const code = errorObject?.code || (typeof errorPayload === 'string' ? errorPayload : '');
+  const details = errorObject?.details && typeof errorObject.details === 'object' ? errorObject.details : {};
+  const detailsData = details?.data && typeof details.data === 'object' ? details.data : {};
+  const response = details?.response && typeof details.response === 'object' ? details.response : {};
+  const responseData = response?.data && typeof response.data === 'object' ? response.data : {};
+  const resultData = result?.data && typeof result.data === 'object' ? result.data : {};
+
+  const validationErrors = firstNonEmptyArray(
+    details?.validation?.errors,
+    details?.errors,
+    detailsData?.validation?.errors,
+    detailsData?.errors,
+    responseData?.validation?.errors,
+    responseData?.errors,
+    resultData?.validation?.errors,
+    resultData?.errors,
+  );
+  const validationMessage = formatValidationMessageList(validationErrors);
+  if (validationMessage) return validationMessage;
+
+  const validationFailures = firstNonEmptyArray(
+    details?.validation?.failures,
+    details?.failures,
+    detailsData?.validation?.failures,
+    detailsData?.failures,
+    responseData?.validation?.failures,
+    responseData?.failures,
+    resultData?.validation?.failures,
+    resultData?.failures,
+  );
+  const failureMessage = formatValidationMessageList(validationFailures);
+  if (failureMessage) return failureMessage;
+
+  const backendTranslationKey = resolveBackendErrorTranslationKey(result, code);
+  if (backendTranslationKey) return t(backendTranslationKey);
+
+  const validationMessages = firstNonEmptyArray(
+    details?.validation?.messages,
+    details?.messages,
+    detailsData?.validation?.messages,
+    detailsData?.messages,
+    responseData?.validation?.messages,
+    responseData?.messages,
+    resultData?.validation?.messages,
+    resultData?.messages,
+  );
+  if (validationMessages.length > 0) return validationMessages.join(' ');
+
+  return details?.message
+    || errorObject?.message
     || result?.meta?.uiErrors?.[0]
     || t('fan_booking_reserve_slot_failed');
 }

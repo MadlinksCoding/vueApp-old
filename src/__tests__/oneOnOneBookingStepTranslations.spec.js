@@ -2,6 +2,7 @@ import { shallowMount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+import { showToast } from "@/utils/toastBus.js";
 
 let sendBeaconDescriptor;
 
@@ -142,6 +143,70 @@ describe("one-on-one booking step translations", () => {
     }
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
+  });
+
+  it("shows step 1 validation as numbered friendly field names", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.goToStep.mockRejectedValue({
+      errors: [
+        { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+        { field: "duration", translationKey: "booking_validation_duration_min" },
+        { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+      ],
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.goToNext();
+
+    expect(showToast).toHaveBeenCalledWith({
+      type: "error",
+      title: "Please fill these fields",
+      message: "1. Event title\n2. Session duration\n3. Base price",
+      autoClose: false,
+    });
+  });
+
+  it("uses translations for step 1 validation toast title and field labels", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.goToStep.mockRejectedValue({
+      errors: [
+        { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+        { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+      ],
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions({
+        booking_validation_required_fields_title: "Completa estos campos",
+        booking_field_event_title: "Titulo del evento",
+      }),
+    });
+
+    await wrapper.vm.goToNext();
+
+    expect(showToast).toHaveBeenCalledWith({
+      type: "error",
+      title: "Completa estos campos",
+      message: "1. Titulo del evento\n2. Base price",
+      autoClose: false,
+    });
   });
 
   it("offers searchable five-minute availability time options", async () => {

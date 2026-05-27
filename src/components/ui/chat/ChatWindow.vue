@@ -35,6 +35,9 @@ import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.j
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
+import minusIcon from '@/assets/images/icons/minus.svg'
+import shareIcon from '@/assets/images/icons/share-04.svg'
+import closeIcon from '@/assets/images/icons/x-close-grey-1.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
@@ -1438,13 +1441,14 @@ function messageAttrs(msg) {
 // ── Same theme as DemoChats ───────────────────────────────────────────────────
 const baseThemeStyles = {
   container:        'relative bg-[#f4f4f5] flex flex-col h-full overflow-hidden',
+  header:           'bg-[#EDEDED] p-2 shrink-0 z-10 shadow-sm relative',
   body:             'flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
-  compose:          'bg-white px-4 py-3 shrink-0',
+  compose:          'bg-white py-2.5 px-2 shrink-0',
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-white text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-slate-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
-  otherBubble:      'text-[#344054] text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5',
+  myBubble:         'text-white text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-slate-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-[#344054] text-sm font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
@@ -1678,7 +1682,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[450px] h-[640px] rounded-t-xl shadow-2xl overflow-hidden border border-zinc-200"
+  <div class="flex flex-col w-[450px] h-[640px] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
        :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
     <FlexChat
       ref="flexChatRef"
@@ -1791,8 +1795,10 @@ onUnmounted(() => {
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
             <div class="flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-              <span class="text-zinc-400 text-base">online</span>
+              <div class="flex items-center self-stretch">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+              </div>
+              <span class="text-gray-700 text-xs">online</span>
             </div>
           </div>
 
@@ -1966,7 +1972,6 @@ onUnmounted(() => {
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ getSenderInitial(message) }}
         </div>
-        <div v-else class="w-[16px] h-[16px]"></div>
       </template>
 
       <!-- Compose -->

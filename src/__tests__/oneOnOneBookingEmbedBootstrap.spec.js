@@ -18,6 +18,7 @@ describe("one-on-one booking embed bootstrap", () => {
       eventId: "evt_123",
       inviteSecret: "secret_123",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev/",
       jwtToken: "jwt_abc",
       creatorData: {
         avatar: "https://example.com/avatar.webp",
@@ -32,6 +33,7 @@ describe("one-on-one booking embed bootstrap", () => {
     expect(state.eventId).toBe("evt_123");
     expect(state.inviteSecret).toBe("secret_123");
     expect(state.apiBaseUrl).toBe("https://api.example.com");
+    expect(state.tokenHandlerApiUrl).toBe("https://tokens.example.com/dev");
     expect(state.jwtToken).toBe("jwt_abc");
     expect(state.creatorData).toEqual({
       avatar: "https://example.com/avatar.webp",
@@ -39,13 +41,16 @@ describe("one-on-one booking embed bootstrap", () => {
       isVerified: true,
     });
     expect(state.bootstrapped).toBe(true);
+
+    const { default: TokenHandler } = await import("@/utils/TokenHandler.js");
+    expect(TokenHandler.apiUrl).toBe("https://tokens.example.com/dev");
   });
 
   it("reads fallback bootstrap data from URL params", async () => {
     window.history.replaceState(
       {},
       "",
-      "/?creatorId=1407&fanId=25&eventId=evt_query&inviteSecret=invite_query&apiBaseUrl=https%3A%2F%2Fapi.example.com&jwtToken=jwt_query&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
+      "/?creatorId=1407&fanId=25&eventId=evt_query&inviteSecret=invite_query&apiBaseUrl=https%3A%2F%2Fapi.example.com&tokenHandlerApiUrl=https%3A%2F%2Ftokens.example.com%2Fdev&jwtToken=jwt_query&creatorAvatar=https%3A%2F%2Fexample.com%2Favatar.webp&creatorName=Creator%20Name&creatorVerified=true",
     );
 
     const { readOneOnOneBookingBootstrapFromUrl } = await import("@/embeds/fanBooking/bootstrap.js");
@@ -57,6 +62,7 @@ describe("one-on-one booking embed bootstrap", () => {
       eventId: "evt_query",
       inviteSecret: "invite_query",
       apiBaseUrl: "https://api.example.com",
+      tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "jwt_query",
       creatorData: {
         avatar: "https://example.com/avatar.webp",
@@ -85,6 +91,7 @@ describe("one-on-one booking embed bootstrap", () => {
     expect(state.creatorId).toBe(null);
     expect(state.fanId).toBe(0);
     expect(state.apiBaseUrl).toBe("https://api.example.com");
+    expect(state.tokenHandlerApiUrl).toBe("");
     expect(state.jwtToken).toBe("jwt_invalid");
     expect(state.bootstrapped).toBe(false);
   });

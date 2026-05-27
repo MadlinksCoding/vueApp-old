@@ -20,9 +20,75 @@
   import trashIcon from '@/assets/images/icons/trash-01.svg'
 
   import { showToast } from "@/utils/toastBus.js";
-  import { formatBookingValidationErrors, useBookingTranslations } from "@/i18n/bookingTranslations.js";
+  import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
   const { t } = useBookingTranslations();
+
+  const STEP1_FIELD_LABEL_KEYS = Object.freeze({
+    eventTitle: "booking_field_event_title",
+    duration: "booking_field_session_duration",
+    basePrice: "booking_field_base_price",
+    eventGoalTokens: "booking_field_event_goal",
+    minContributionPerUser: "booking_field_minimum_contribution_per_user",
+    firstTimeDiscountTokens: "booking_field_first_time_discount",
+    sessionMinimum: "booking_field_session_minimum",
+    longerSessionDiscountTokens: "booking_field_longer_session_discount",
+    bookingBufferMinutes: "booking_field_buffer_time",
+    dateFrom: "booking_field_start_date",
+    weeklyAvailability: "booking_field_weekly_availability",
+    monthlyAvailability: "booking_field_monthly_availability",
+    oneTimeAvailability: "booking_field_available_time_slot",
+  });
+
+  const STEP1_FIELD_LABEL_FALLBACKS = Object.freeze({
+    eventTitle: "Event title",
+    duration: "Session duration",
+    basePrice: "Base price",
+    eventGoalTokens: "Event goal",
+    minContributionPerUser: "Minimum contribution per user",
+    firstTimeDiscountTokens: "First-time discount",
+    sessionMinimum: "Session minimum",
+    longerSessionDiscountTokens: "Longer session discount",
+    bookingBufferMinutes: "Buffer time",
+    dateFrom: "Start date",
+    weeklyAvailability: "Weekly availability",
+    monthlyAvailability: "Monthly availability",
+    oneTimeAvailability: "Available time slot",
+  });
+
+  function translateWithFallback(key, fallback) {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  }
+
+  function humanizeFieldName(field) {
+    const normalized = String(field || "").trim();
+    if (!normalized) return "";
+    const words = normalized
+      .replace(/[_-]+/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .trim()
+      .toLowerCase();
+    return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+  }
+
+  function formatRequiredFieldToastMessage(errors = []) {
+    const seen = new Set();
+    const labels = (Array.isArray(errors) ? errors : [])
+      .map((error) => {
+        const field = String(error?.field || "").trim();
+        const key = STEP1_FIELD_LABEL_KEYS[field];
+        const fallback = STEP1_FIELD_LABEL_FALLBACKS[field] || humanizeFieldName(field);
+        return key ? translateWithFallback(key, fallback) : fallback;
+      })
+      .filter((label) => {
+        if (!label || seen.has(label)) return false;
+        seen.add(label);
+        return true;
+      });
+
+    return labels.map((label, index) => `${index + 1}. ${label}`).join("\n");
+  }
 
   const callTypeOptions = [
     { label: t('dashboard_video_call'), value: 'video', image: videoIcon },
@@ -219,13 +285,13 @@
     try {
       await props.engine.goToStep(2, { throwOnBlocked: true });
     } catch (error) {
-      const messages = formatBookingValidationErrors(error?.errors || [], t);
+      const fieldList = formatRequiredFieldToastMessage(error?.errors || []);
       const fallback = error?.message || t("booking_validation_weekly_slot_required");
-      const body = messages.length ? messages.join(" ") : fallback;
       showToast({
         type: "error",
-        title: t("common_validation_failed"),
-        message: body,
+        title: translateWithFallback("booking_validation_required_fields_title", "Please fill these fields"),
+        message: fieldList || fallback,
+        autoClose: false,
       });
     }
   };

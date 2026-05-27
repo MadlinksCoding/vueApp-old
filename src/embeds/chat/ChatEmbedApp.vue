@@ -8,6 +8,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue'
 import { setBackendJwtToken } from '@/utils/backendJwt.js'
+import { setRuntimeTokenHandlerApiUrl } from '@/utils/TokenHandler.js'
 import { useChatStore } from '@/stores/useChatStore'
 import { postToParent } from '@/utils/postToParent'
 
@@ -38,6 +39,11 @@ if (role) {
 const apiBase = params.get('apiBaseUrl')
 if (apiBase) {
   window.__fsChatApiBaseUrl = apiBase
+}
+
+const tokenHandlerApiUrl = params.get('tokenHandlerApiUrl')
+if (tokenHandlerApiUrl) {
+  setRuntimeTokenHandlerApiUrl(tokenHandlerApiUrl)
 }
 
 const fanUid = params.get('fanUid')

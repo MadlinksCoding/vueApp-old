@@ -59,11 +59,32 @@ describe("bookingTranslations", () => {
     expect(messages).toEqual(["An active subscription to Tier 1 is required."]);
   });
 
+  it("formats backend validation failure codes with translated copy", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatBookingValidationErrors(["booking_in_past"], t)).toEqual([
+      "Bookings must be scheduled for a future time.",
+    ]);
+
+    const custom = createBookingTranslator({
+      translations: {
+        fan_booking_validation_booking_in_past: "Choose a future time.",
+      },
+    });
+
+    expect(formatBookingValidationErrors(["booking_in_past"], custom.t)).toEqual([
+      "Choose a future time.",
+    ]);
+  });
+
   it("includes friendly backend create-booking error translations", () => {
     const { t } = createBookingTranslator();
     expect(t("fan_booking_error_user_blocked")).toBe("You are blocked from booking this event.");
     expect(t("fan_booking_error_daily_booking_limit_reached")).toBe("This event has reached its booking limit for that day.");
     expect(t("fan_booking_error_temporary_hold_not_found_or_expired")).toBe("Your reserved slot expired. Please choose the time again.");
+    expect(t("fan_booking_error_invalid_temporary_hold_time")).toBe("Please choose a valid booking time.");
+    expect(t("fan_booking_error_event_not_available")).toBe("This event is no longer available.");
+    expect(t("fan_booking_error_slot_already_held")).toBe("This time slot is temporarily reserved. Please choose another time.");
     expect(t("fan_booking_error_missing_bearer_token")).toBe("Please log in to complete your booking.");
     expect(t("fan_booking_error_internal_error")).toBe("Could not complete booking. Please try again.");
   });

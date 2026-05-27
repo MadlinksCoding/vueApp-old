@@ -4,6 +4,7 @@
   var FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
+  var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -27,6 +28,7 @@
   var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
   var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
   var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
+  var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
 
@@ -440,6 +442,7 @@
       fanId: null,
       userRole: "creator",
       apiBaseUrl: "",
+      tokenHandlerApiUrl: "",
       jwtToken: "",
       initialRoute: "events",
       creatorData: null,
@@ -468,6 +471,7 @@
       userRole: settings.userRole || "creator",
       initialRoute: settings.initialRoute || "events",
       apiBaseUrl: settings.apiBaseUrl || "",
+      tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
       jwtToken: settings.jwtToken || "",
       creatorAvatar: creatorData.avatar,
       creatorName: creatorData.name,
@@ -479,9 +483,18 @@
     setIframeHeightMode(iframe, "content", settings.minHeight);
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
+    var hasUnsavedFormChanges = false;
 
     function syncViewportIframeHeight() {
       refreshViewportIframeHeight(iframe);
+    }
+
+    function onBeforeUnload(event) {
+      if (!hasUnsavedFormChanges) return;
+
+      event.preventDefault();
+      event.returnValue = EVENTS_FORM_UNSAVED_CHANGES_MESSAGE;
+      return EVENTS_FORM_UNSAVED_CHANGES_MESSAGE;
     }
 
     function sendBootstrap() {
@@ -494,6 +507,7 @@
           fanId: safePositiveNumber(settings.fanId, null),
           userRole: settings.userRole || "creator",
           apiBaseUrl: settings.apiBaseUrl || "",
+          tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           jwtToken: settings.jwtToken || "",
           initialRoute: settings.initialRoute || "events",
           creatorData: creatorData,
@@ -526,10 +540,16 @@
 
       if (data.type === FS_EVENTS_SCROLL_TO_TOP) {
         scrollEventsEmbedToTop(wrapper, data.payload || {});
+        return;
+      }
+
+      if (data.type === FS_EVENTS_FORM_DIRTY_STATE) {
+        hasUnsavedFormChanges = Boolean(data.payload && data.payload.dirty);
       }
     }
 
     window.addEventListener("message", onMessage);
+    window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("resize", syncViewportIframeHeight);
     window.addEventListener("orientationchange", syncViewportIframeHeight);
     global.visualViewport && global.visualViewport.addEventListener && global.visualViewport.addEventListener("resize", syncViewportIframeHeight);
@@ -543,6 +563,7 @@
       sendBootstrap: sendBootstrap,
       destroy: function () {
         window.removeEventListener("message", onMessage);
+        window.removeEventListener("beforeunload", onBeforeUnload);
         window.removeEventListener("resize", syncViewportIframeHeight);
         window.removeEventListener("orientationchange", syncViewportIframeHeight);
         global.visualViewport && global.visualViewport.removeEventListener && global.visualViewport.removeEventListener("resize", syncViewportIframeHeight);
@@ -565,6 +586,7 @@
       eventId: null,
       inviteSecret: "",
       apiBaseUrl: "",
+      tokenHandlerApiUrl: "",
       jwtToken: "",
       creatorData: null,
       translations: {},
@@ -611,6 +633,7 @@
       fanId: safeNumber(settings.fanId, null),
       eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
       apiBaseUrl: settings.apiBaseUrl || "",
+      tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
       jwtToken: settings.jwtToken || "",
       creatorAvatar: creatorData.avatar,
       creatorName: creatorData.name,
@@ -627,6 +650,7 @@
         eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
         inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
         apiBaseUrl: settings.apiBaseUrl || "",
+        tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           hasJwtToken: !!settings.jwtToken,
           creatorData: creatorData,
           translations: translations,
@@ -642,6 +666,7 @@
           eventId: settings.eventId == null || settings.eventId === "" ? null : String(settings.eventId),
           inviteSecret: typeof settings.inviteSecret === "string" ? settings.inviteSecret.trim() : "",
           apiBaseUrl: settings.apiBaseUrl || "",
+          tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           jwtToken: settings.jwtToken || "",
           creatorData: creatorData,
           translations: translations,

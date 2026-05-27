@@ -325,10 +325,10 @@ defineExpose({ bodyEl })
 
                                     <!-- OTHER SIDE: Avatar then Time -->
                                     <template v-if="!isMe(msg)">
-                                        <div :class="theme.avatarWrapper">
+                                        <div :class="theme.avatarWrapper" class="!mr-1">
                                             <slot name="message.avatar" :message="msg">
                                                 <img v-if="msg.avatar" :src="msg.avatar" :class="theme.avatarImg"
-                                                    alt="Avatar" />
+                                                    alt="Avatar" class="!w-4 !h-4" />
                                             </slot>
                                         </div>
                                         <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
@@ -341,7 +341,7 @@ defineExpose({ bodyEl })
                                         <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
                                             <span v-if="msg.time || msg.message_ts" :class="theme.myTimeMeta">{{ msg.time || formatTime(msg.message_ts) }}</span>
                                         </slot>
-                                        <div :class="[theme.avatarWrapper, '']">
+                                        <div :class="[theme.avatarWrapper, '!mr-0 !ml-1']">
                                             <slot name="message.avatar.me" :message="msg"></slot>
                                         </div>
                                     </template>

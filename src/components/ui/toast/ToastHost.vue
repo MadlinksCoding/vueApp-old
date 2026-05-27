@@ -9,7 +9,7 @@
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="text-xs font-semibold uppercase tracking-wide">{{ toast.title }}</div>
-            <div class="text-sm leading-5">{{ toast.message }}</div>
+            <div class="text-sm leading-5 whitespace-pre-line">{{ toast.message }}</div>
           </div>
           <button
             class="text-xs opacity-70 hover:opacity-100"
@@ -58,13 +58,16 @@ function onToastEvent(event) {
     title: detail.title || "Notice",
     message: detail.message || "Something went wrong.",
     duration: Number.isFinite(Number(detail.duration)) ? Number(detail.duration) : 4500,
+    autoClose: detail.persistent === true ? false : detail.autoClose !== false,
   };
 
   toasts.value = [...toasts.value, toast];
 
-  window.setTimeout(() => {
-    removeToast(id);
-  }, toast.duration);
+  if (toast.autoClose && toast.duration > 0) {
+    window.setTimeout(() => {
+      removeToast(id);
+    }, toast.duration);
+  }
 }
 
 onMounted(() => {
