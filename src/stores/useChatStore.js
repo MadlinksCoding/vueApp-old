@@ -221,8 +221,16 @@ export const useChatStore = defineStore("chat", {
       const idx = msgs.findIndex(
         (m) => (m.id || m.message_id) === messageId
       );
-      if (idx !== -1) {
-        msgs[idx] = { ...msgs[idx], status };
+      if (idx === -1) return;
+      msgs[idx] = { ...msgs[idx], status };
+
+      // Chronological backfill: if marked as read, all previous messages are also read
+      if (status === 'read') {
+        for (let i = 0; i < idx; i++) {
+          if (msgs[i].status !== 'read') {
+            msgs[i] = { ...msgs[i], status: 'read' };
+          }
+        }
       }
     },
 
@@ -232,14 +240,37 @@ export const useChatStore = defineStore("chat", {
       if (!msgs) return;
       const idx = msgs.findIndex((m) => (m.id || m.message_id) === messageId);
       if (idx === -1) return;
+
+      const getReceiptUserId = (r) => String(r.user_id || r.userId || '');
+
       const existing = Array.isArray(msgs[idx].read_receipts) ? msgs[idx].read_receipts : [];
       const merged = [...existing];
       for (const receipt of readReceipts) {
-        if (!merged.some((r) => String(r.user_id) === String(receipt.user_id))) {
+        const rId = getReceiptUserId(receipt);
+        if (rId && !merged.some((r) => getReceiptUserId(r) === rId)) {
           merged.push(receipt);
         }
       }
       msgs[idx] = { ...msgs[idx], status: 'read', read_receipts: merged };
+
+      // Chronological backfill: merge read receipts into all previous messages
+      for (let i = 0; i < idx; i++) {
+        const prevMsg = msgs[i];
+        const prevExisting = Array.isArray(prevMsg.read_receipts) ? prevMsg.read_receipts : [];
+        const prevMerged = [...prevExisting];
+        let changed = false;
+
+        for (const receipt of readReceipts) {
+          const rId = getReceiptUserId(receipt);
+          if (rId && !prevMerged.some((r) => getReceiptUserId(r) === rId)) {
+            prevMerged.push(receipt);
+            changed = true;
+          }
+        }
+        if (changed || prevMsg.status !== 'read') {
+          msgs[i] = { ...prevMsg, status: 'read', read_receipts: prevMerged };
+        }
+      }
     },
 
     clearCache() {
