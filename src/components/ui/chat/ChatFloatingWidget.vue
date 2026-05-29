@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
+import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 
 const props = defineProps({
@@ -288,29 +289,40 @@ onMounted(async () => {
          lg:right-auto lg:bottom-4
          chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
         :class="[
-          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0' : '',
-          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0' : '',
-          hostWidth >= 1024 ? '!right-auto !bottom-4' : '',
-          hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0' : 'rounded-full',
+          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 p-3' : '',
+          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0 p-3' : '',
+          hostWidth >= 1024 ? '!right-auto !bottom-4 p-3' : '',
+          hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0 p-3' : 'rounded-full',
         ]"
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
-          <img :src="MessageTextIcon" alt="" class="w-6 h-6 filter brightness-0 cursor-pointer" />
+          <img
+            :src="hostWidth < 768 ? MessageTextIconPink : MessageTextIcon"
+            alt=""
+            class="cursor-pointer"
+            :class="[
+              hostWidth > 768 ? 'w-8 h-8 filter brightness-0' : 'w-[1.875rem] h-[1.875rem]'
+            ]"
+          />
           <span
             v-if="unreadCount > 0"
-            class="unread-badge absolute -top-0 -right-0 bg-[#FF0066] text-white text-[9px] font-bold rounded-full w-1.5 h-1.5 items-center justify-center leading-none"
+            class="unread-badge absolute -top-0.5 -right-0.5 bg-[#FF0066] text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"
+            :class="[
+              hostWidth < 768 ? 'p-[3px] !-top-[0.75rem] !-right-[0.5rem]' : 'w-1.5 h-1.5'
+            ]"
           >
+            {{ hostWidth < 768 ? unreadCount : '' }}
           </span>
         </div>
 
-        <span class="hidden md:flex unread-text" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span class="hidden md:flex chat-text" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
+        <span class="hidden md:flex unread-text text-xl" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex chat-text text-xl" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
 
         <!-- Chevron -->
         <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
-              class="w-3.5 h-3.5 text-zinc-400 transition-transform"
+              class="w-5 h-5 text-zinc-400 transition-transform"
               :class="isListOpen ? 'rotate-180' : ''"
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
