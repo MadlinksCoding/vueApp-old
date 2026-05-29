@@ -280,7 +280,7 @@
 
     function refreshStats() {
       return getState({ only: ['total', 'totalUnread'] }).then(function (state) {
-        var total       = state.total       !== null && state.total       !== undefined ? String(state.total)       : null;
+        var total = state.total !== null && state.total !== undefined ? String(state.total) : null;
         var totalUnread = state.totalUnread !== null && state.totalUnread !== undefined ? String(state.totalUnread) : null;
 
         if (total !== null) {
@@ -293,7 +293,7 @@
           document.querySelectorAll('[data-header-user-chats-unread-count]').forEach(function (el) {
             el.textContent = totalUnread;
             el.setAttribute('data-header-user-chats-unread-count', totalUnread);
-            if(totalUnread>0){
+            if (totalUnread > 0) {
               el.removeAttribute('hidden');
               el.closest(".target-id")?.setAttribute('data-has-unread-chats', 'true');
             } else {
@@ -305,7 +305,7 @@
         console.log("Refreshed chat stats:", { total, totalUnread });
 
         return { total: state.total, totalUnread: state.totalUnread };
-      }).catch(function () {}); // silent fail — never crash the host page
+      }).catch(function () { }); // silent fail — never crash the host page
     }
 
     return {

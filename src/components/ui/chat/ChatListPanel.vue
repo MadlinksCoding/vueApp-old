@@ -160,19 +160,20 @@ function getLastMessageText(chat) {
 
 <template>
   <div
-    class="absolute bottom-full right-0 mb-2 w-72 h-[480px] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
+    class="absolute bottom-full right-0 mb-2 w-[28.125rem] h-[40rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
     :class="[hostWidth < 768 ? '!fixed !bottom-0 !left-0 !right-0 !w-full !h-[50vh] !mb-0 !rounded-t-[1.25rem] !rounded-b-none' : '']"
     style="background-color: #F2F4F7;"
   >
 
     <!-- Header -->
-    <div class="px-2 py-1 flex justify-center items-center gap-2.5">
-      <div class="flex-1 text-gray-500 text-sm font-medium font-['Poppins'] leading-5">Chat</div>
+    <div class="px-2 py-1 flex justify-center items-center gap-2.5"
+     :class="[hostWidth > 768 ? 'px-3 py-2' : '']">
+      <div class="flex-1 text-gray-500 text-sm font-medium font-['Poppins'] leading-5" :class="[hostWidth > 768 ? '!text-base' : '']">Chat</div>
       <button v-if="isCreator" title="New chat" @click="showNewChatPopup = true">
-        <img :src="EditIcon" alt="edit" class="w-5 h-5" />
+        <img :src="EditIcon" alt="edit" class="w-5 h-5" :class="[hostWidth > 768 ? 'w-6 h-6' : '']" />
       </button>
       <button @click="emit('close')" title="Close">
-        <img :src="DropdownIcon" alt="close" class="w-5 h-5" />
+        <img :src="DropdownIcon" alt="close" class="w-5 h-5" :class="[hostWidth > 768 ? 'w-6 h-6' : '']" />
       </button>
     </div>
 
