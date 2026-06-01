@@ -79,6 +79,14 @@ describe("Banned Words Filter & Cache", () => {
     expect(filtered3).toBe("I **** this is clear.");
   });
 
+  it("should not mask innocent words containing banned substrings (word boundaries)", async () => {
+    const text = "Send a message about the assassin.";
+    // "***e" could match "sage" inside "message" if there were no word boundaries.
+    // "**ss" (not banned) could match "ass" inside "assassin".
+    const filtered = await filterBannedWords(text);
+    expect(filtered).toBe("Send a message about the assassin.");
+  });
+
   it("should gracefully handle null/empty inputs", async () => {
     expect(await filterBannedWords(null)).toBeNull();
     expect(await filterBannedWords("")).toBe("");

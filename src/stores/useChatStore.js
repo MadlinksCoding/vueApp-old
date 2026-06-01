@@ -155,7 +155,9 @@ export const useChatStore = defineStore("chat", {
 
     setChatUsersDataAction({ users }) {
       if (users && typeof users === "object") {
-        this.chatUsersData = { ...this.chatUsersData, ...users };
+        for (const [key, val] of Object.entries(users)) {
+          this.chatUsersData[key] = val;
+        }
       }
     },
 

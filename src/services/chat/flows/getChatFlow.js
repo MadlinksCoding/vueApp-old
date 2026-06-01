@@ -4,14 +4,15 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 
 export async function getChatFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
-  const { chatId } = payload;
+  const { chatId, userId } = payload;
 
   if (!chatId) {
     return fail({ code: "GET_CHAT_MISSING_CHAT_ID", message: "chatId is required." });
   }
 
   try {
-    const response = await api.get(`${baseUrl}/chats/${encodeURIComponent(chatId)}`);
+    const queryParam = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+    const response = await api.get(`${baseUrl}/chats/${encodeURIComponent(chatId)}${queryParam}`);
     const status = getHttpStatus(response, 200);
 
     if (response?.ok === false) {

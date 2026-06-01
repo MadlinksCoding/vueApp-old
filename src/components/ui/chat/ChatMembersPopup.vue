@@ -34,9 +34,9 @@
     </div>
 
     <!-- Members Scrollable Body -->
-    <div class="flex-1 flex flex-col bg-[rgba(242,244,247,0.7)] overflow-y-auto p-4 gap-3">
+    <div class="flex-1 flex flex-col bg-[rgba(242,244,247,0.7)] overflow-y-auto p-4 gap-3" @scroll="onScroll">
       <div
-        v-for="member in filteredMembers"
+        v-for="member in filteredMembers.slice(0, visibleCount)"
         :key="member.id"
         class="self-stretch px-2 py-1.5 inline-flex justify-between items-center rounded-lg transition-colors"
         :class="(isChatCreator && !member.isCurrentUser) ? 'hover:bg-white/40 cursor-pointer' : 'cursor-default'"
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useChatStore } from '@/stores/useChatStore'
 
 const props = defineProps({
@@ -169,6 +169,20 @@ const emit = defineEmits(['close', 'message-privately', 'kick', 'block', 'report
 const chatStore = useChatStore()
 const searchQuery = ref('')
 const selectedMember = ref(null)
+const visibleCount = ref(50)
+
+watch(searchQuery, () => {
+  visibleCount.value = 50
+})
+
+function onScroll(e) {
+  const target = e.target
+  if (target.scrollHeight - target.scrollTop <= target.clientHeight + 150) {
+    if (visibleCount.value < filteredMembers.value.length) {
+      visibleCount.value += 50
+    }
+  }
+}
 
 const isChatCreator = computed(() => {
   const chat = chatStore.userChats.find(c => c.chat_id === props.chatId)

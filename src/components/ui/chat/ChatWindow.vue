@@ -14,6 +14,7 @@ import SpendingRequirementProductPopup from '@/components/ui/form/BookingForm/He
 import { useChatStore } from '@/stores/useChatStore'
 import { resolveUserId } from '@/utils/resolveUserId'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
+import { ensureChatUsersData } from '@/services/chat/chatResolverUtils'
 import {
   buildProductSelectedPayload,
   extractProductRecommendation,
@@ -29,9 +30,10 @@ import {
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatResolverUtils'
 import TokenHandler from '@/utils/TokenHandler.js'
+import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.js'
+import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
-import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
@@ -53,6 +55,7 @@ const props = defineProps({
   groupType:     { type: String, default: null },
   groupCategory: { type: String, default: null },
   coverImageUrl: { type: String, default: null },
+  rulesJson:     { type: Object, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
 })
@@ -71,7 +74,8 @@ const isCreatorAccount = computed(() => {
 // Resolve the other participant's username for "@name" in the booking bubble
 const bookingSenderName = computed(() => {
   const participants = chatStore.chatParticipants[activeChatId.value] || []
-  const otherId = participants.map(String).find(id => id !== String(currentUserId))
+  const other = participants.find(id => String(id) !== String(currentUserId))
+  const otherId = other ? String(other) : null
   if (otherId) {
     const ud = chatStore.chatUsersData[otherId]
     if (ud?.username) return ud.username
@@ -92,6 +96,42 @@ const isGroupChat = computed(() => {
   return participants.length > 2
 })
 
+const isBroadcast = computed(() => {
+  if (props.rulesJson?.broadcastMode === true) return true
+  const chat = activeChatId.value ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value)) : null
+  let rules = chat?.rules_json || chat?.rulesJson || {}
+  if (typeof rules === 'string') {
+    try { rules = JSON.parse(rules) } catch (e) { rules = {} }
+  }
+  return rules.broadcastMode === true || chat?.name === 'Subscribers Broadcast' || props.chatName === 'Subscribers Broadcast'
+})
+
+// Resolves the ID of the creator who owns this broadcast channel.
+// Reads `created_by` from the chat record in the store once the chat exists.
+const broadcastCreatorId = computed(() => {
+  if (!isBroadcast.value) return null
+  const chat = activeChatId.value
+    ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value))
+    : null
+  if (chat?.created_by || chat?.createdBy) {
+    return String(chat.created_by || chat.createdBy)
+  }
+  // Fallback if missing before getChat API completes:
+  // Since broadcast chats are essentially 1-on-1s from the fan's perspective,
+  // the other participant is the creator.
+  if (!isCreatorAccount.value) {
+    const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
+    const other = participants.find(id => String(id) !== String(currentUserId))
+    if (other) return String(other)
+  }
+  return ''
+})
+
+// Returns true when the given senderId belongs to the broadcast creator.
+function isCreatorSender(senderId) {
+  return !!(broadcastCreatorId.value && String(senderId) === broadcastCreatorId.value)
+}
+
 const isChatInputDisabled = computed(() => {
   if (!activeChatId.value) return false
   const participants = chatStore.chatParticipants[activeChatId.value] || []
@@ -102,7 +142,7 @@ const isChatInputDisabled = computed(() => {
   }
 
   // Case 2: Kicked from group chat
-  if (isGroupChat.value && participants.length > 0 && !participants.map(String).includes(String(currentUserId))) {
+  if (isGroupChat.value && participants.length > 0 && !participants.some(id => String(id) === String(currentUserId))) {
     return true
   }
 
@@ -113,7 +153,7 @@ const disabledInputMessage = computed(() => {
   if (!isChatInputDisabled.value) return ''
   const participants = chatStore.chatParticipants[activeChatId.value] || []
   
-  if (isGroupChat.value && participants.length > 0 && !participants.map(String).includes(String(currentUserId))) {
+  if (isGroupChat.value && participants.length > 0 && !participants.some(id => String(id) === String(currentUserId))) {
     return 'You have been removed from this group.'
   }
   
@@ -131,14 +171,36 @@ const participantCount = computed(() => {
 
 const displayAvatars = computed(() => {
   const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : []
-  let sourceIds = participants.length > 0 ? participants.map(String) : []
+  let sourceIds = participants
   
   // Fallback to targetUserIds if activeChatId is null (pending group chat)
   if (sourceIds.length === 0 && props.targetUserIds && props.targetUserIds.length > 0) {
-    sourceIds = [String(currentUserId), ...props.targetUserIds.map(String)]
+    sourceIds = [currentUserId, ...props.targetUserIds]
   }
 
-  const list = sourceIds.map(id => {
+  // If no participants loaded, show chatName initial as fallback
+  if (sourceIds.length === 0) {
+    return [{
+      id: 'fallback',
+      avatar: props.avatar || null,
+      initial: props.chatName.charAt(0).toUpperCase()
+    }]
+  }
+
+  // Broadcast fan view override: only show the creator's avatar
+  if (isBroadcast.value && !isCreatorAccount.value && broadcastCreatorId.value) {
+    const creatorId = broadcastCreatorId.value
+    const ud = chatStore.chatUsersData[creatorId]
+    const name = ud?.display_name || ud?.username || 'Creator'
+    return [{
+      id: `user-${creatorId}`,
+      avatar: ud?.avatar || null,
+      initial: name.charAt(0).toUpperCase()
+    }]
+  }
+
+  return sourceIds.slice(0, 3).map(rawId => {
+    const id = String(rawId)
     const ud = chatStore.chatUsersData[id]
     const avatar = ud?.avatar || null
     const name = ud?.display_name || ud?.username || (id === String(currentUserId) ? 'You' : 'User')
@@ -149,17 +211,6 @@ const displayAvatars = computed(() => {
       initial
     }
   })
-
-  // If no participants loaded, show chatName initial as fallback
-  if (list.length === 0) {
-    return [{
-      id: 'fallback',
-      avatar: props.avatar || null,
-      initial: props.chatName.charAt(0).toUpperCase()
-    }]
-  }
-
-  return list.slice(0, 3)
 })
 
 function getSenderName(message) {
@@ -615,7 +666,7 @@ async function onConfirmCounter(message) {
 
   // Resolve creator ID (the other participant)
   const participants = chatStore.chatParticipants[activeChatId.value] || []
-  const creatorId    = participants.map(String).find(id => id !== String(currentUserId)) || null
+  const creatorId    = participants.find(id => String(id) !== String(currentUserId)) || null
 
   // Fetch fan's spendable token balance
   let userBalance = 0
@@ -759,7 +810,7 @@ function resolveActivityLogText(message) {
   // ── Step 2: generic token replacer ───────────────────────────────────────
   // Resolve creator/audience token placeholders
   const participants = chatStore.chatParticipants[activeChatId.value] || []
-  const otherParticipantId = participants.map(String).find(id => id !== String(currentUserId)) || ''
+  const otherParticipantId = participants.find(id => String(id) !== String(currentUserId)) || ''
 
   const getName = (id) => {
     if (!id) return null
@@ -888,7 +939,8 @@ function resolveCreatorIdForProducts() {
   if (isCreatorAccount.value) return ud?.userID ?? currentUserId
 
   const participants = chatStore.chatParticipants[activeChatId.value] || []
-  return participants.map(String).find(id => id !== String(currentUserId)) || props.targetUserId || null
+  const found = participants.find(id => String(id) !== String(currentUserId))
+  return found ? String(found) : (props.targetUserId || null)
 }
 
 function setProductCatalogTab(type, nextState = {}) {
@@ -991,10 +1043,27 @@ function handleProductPopupLoadMore(type) {
 }
 
 function getMessageRecipients() {
-  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  let participants = chatStore.chatParticipants[activeChatId.value] || []
+
+  // Fallback if chat metadata is still loading in background (new chats / just opened)
+  if (participants.length <= 1) {
+    if (props.targetUserIds && props.targetUserIds.length > 0) {
+      participants = [String(currentUserId), ...props.targetUserIds.map(String)]
+    } else if (props.targetUserId) {
+      participants = [String(currentUserId), String(props.targetUserId)]
+    }
+  }
+  
+  // Broadcast mode (Fan view): Only send the socket event to the creator
+  if (isBroadcast.value && !isCreatorAccount.value && broadcastCreatorId.value) {
+    return [String(broadcastCreatorId.value)]
+  }
+
+  // Normal group chat (or Creator view of broadcast): Send to everyone else
   const recipients = participants
-    .map((id) => parseInt(id, 10))
-    .filter((id) => !Number.isNaN(id) && id !== parseInt(currentUserId, 10))
+    .map(String)
+    .filter((id) => id && id !== String(currentUserId))
+  
   return recipients
 }
 
@@ -1002,24 +1071,45 @@ async function ensureActiveChat() {
   if (activeChatId.value) return true
 
   const isGroup = props.targetUserIds && props.targetUserIds.length > 0
-  const createRes = isGroup
-    ? await FlowHandler.run('chat.createGroupChat', {
-        type:         props.groupType,
-        createdBy:    String(currentUserId),
-        participants: [String(currentUserId), ...props.targetUserIds],
-        name:         props.chatName,
-        category:     props.groupCategory,
-        coverImageUrl: props.coverImageUrl,
-      })
-    : await FlowHandler.run('chat.createChat', {
-        type:         'direct',
-        createdBy:    String(currentUserId),
-        participants: [String(currentUserId), String(props.targetUserId)],
-        name:         props.chatName,
-      })
+  
+  let createRes;
+  let remainingUserIds = [];
+
+  if (isGroup) {
+    const allTargetIds = props.targetUserIds || [];
+
+    createRes = await FlowHandler.run('chat.createGroupChat', {
+      type:         props.groupType,
+      createdBy:    String(currentUserId),
+      participants: [String(currentUserId)],
+      name:         props.chatName,
+      category:     props.groupCategory,
+      coverImageUrl: props.coverImageUrl,
+      rulesJson:     props.rulesJson ?? undefined,
+    });
+  } else {
+    createRes = await FlowHandler.run('chat.createChat', {
+      type:         'direct',
+      createdBy:    String(currentUserId),
+      participants: [String(currentUserId), String(props.targetUserId)],
+      name:         props.chatName,
+    });
+  }
 
   if (!createRes?.ok) return false
   activeChatId.value = createRes.data.chatId
+
+  // Add all target users via addParticipants so they get 'member' role and 'invitedBy'
+  if (isGroup && props.targetUserIds?.length > 0) {
+    await addParticipantsInChunks({
+      chatId: activeChatId.value,
+      userIds: props.targetUserIds,
+      currentUserId: currentUserId.value,
+      chatStore,
+      role: 'member'
+    })
+  }
+
   emit('chat-created', createRes.data.chatId)
   resolveAndSyncChat(activeChatId.value)
 
@@ -1239,11 +1329,25 @@ function allParticipantsRead(msg) {
   }
 
   const participants = chatStore.chatParticipants[activeChatId.value] || []
-  const others = participants.map(String).filter(id => id !== String(currentUserId))
-  if (others.length === 0) return msg.status === 'read'
+  if (participants.length <= 1) return msg.status === 'read'
+
   const receipts = Array.isArray(msg.read_receipts) ? msg.read_receipts : []
   const readerIds = new Set(receipts.map(r => String(r.user_id || r.userId || '')))
-  return others.every(id => readerIds.has(id))
+
+  const myIdStr = String(currentUserId)
+  let otherCount = 0
+
+  for (let i = 0; i < participants.length; i++) {
+    const pId = String(participants[i])
+    if (pId !== myIdStr) {
+      otherCount++
+      if (!readerIds.has(pId)) {
+        return false // Short-circuit: not everyone has read it
+      }
+    }
+  }
+
+  return otherCount > 0
 }
 
 // Readers of a message — returns array of { id, avatar, initial } for all non-current-user readers
@@ -1278,6 +1382,15 @@ const allMessages = computed(() => activeChatId.value ? chatStore.getMessagesByC
 const messages = computed(() => allMessages.value.filter(m => {
   if (m.content_type === 'requestJoinCallNotification') return false
   if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
+
+  // Broadcast mode — fan/member view: only show messages from the creator or themselves.
+  // The creator (isCreatorAccount) always sees every message (group-style view).
+  if (isBroadcast.value && !isCreatorAccount.value) {
+    const senderId = String(m.sender_id || m.senderId || '')
+    const myId     = String(currentUserId)
+    if (senderId !== myId && !isCreatorSender(senderId)) return false
+  }
+
   return true
 }))
 
@@ -1309,7 +1422,7 @@ watch([() => props.targetUserIds, () => currentUserId], ([newIds, cId]) => {
   if (idsToCheck.length > 0) {
     const missing = [...new Set(idsToCheck)].filter(id => !chatStore.chatUsersData[String(id)])
     if (missing.length > 0) {
-      FlowHandler.run('chat.fetchChatUsersData', { userIds: missing })
+      ensureChatUsersData(missing)
     }
   }
 }, { immediate: true })
@@ -1669,6 +1782,9 @@ onMounted(async () => {
     hasMore.value = true
     await fetchMore()
     observeNewRows()
+
+    // Background fetch full chat metadata (e.g. rules_json) in case it was opened from list
+    resolveAndSyncChat(activeChatId.value).catch(() => {})
   } else if (isPending) {
     hasMore.value = false
   }
@@ -1736,9 +1852,9 @@ onUnmounted(() => {
       <!-- Header -->
       <template #header>
         <!-- Group Chat Header Design (Light Theme) -->
-        <div v-if="isGroupChat" class="flex items-center justify-between w-full h-full">
-          <div class="flex items-center gap-2">
-            <div class="flex -space-x-6 cursor-pointer hover:opacity-85 transition-opacity" @click="showMembersPopup = true">
+        <div v-if="isGroupChat" class="flex items-center justify-between w-full h-full min-w-0 gap-2">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <div :class="['flex -space-x-6 transition-opacity shrink-0', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" @click="isCreatorAccount && (showMembersPopup = true)">
               <template v-if="displayAvatars && displayAvatars.length > 0">
                 <template v-for="participant in displayAvatars" :key="participant.id">
                   <img v-if="participant.avatar && !avatarErrors[participant.id]" :src="participant.avatar"
@@ -1756,12 +1872,12 @@ onUnmounted(() => {
                 </div>
               </template>
             </div>
-            <div class="flex flex-col ml-1">
-              <div class="flex items-center gap-2">
-                <div class="text-[#0C111D] font-semibold text-[14px]">
+            <div class="flex flex-col ml-1 min-w-0 flex-1">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="text-[#0C111D] font-semibold text-[14px] truncate">
                   {{ chatName }}
                 </div>
-                <div class="flex items-center text-slate-700">
+                <div v-if="!(isBroadcast && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
                   <img src="/images/users.png" alt="" class="size-3 brightness-0">
                   <span class="text-xs font-[400] text-[#0C111D] ml-0.5">{{ participantCount }}</span>
                 </div>
@@ -1784,8 +1900,8 @@ onUnmounted(() => {
 
         <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
         <div v-else class="flex items-center gap-2.5 w-full">
-          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" class="w-12 h-12 rounded-full object-cover shrink-0 cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true" />
-          <div v-else class="w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:opacity-85 transition-opacity" alt="avatar" @click="showMembersPopup = true">
+          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-12 h-12 rounded-full object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
+          <div v-else :class="['w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
@@ -1974,8 +2090,15 @@ onUnmounted(() => {
         </div>
       </template>
 
-      <!-- Compose -->
+
+      <!-- Broadcast banner -->
       <template #compose>
+        <div v-if="isBroadcast && 1 != 1" class="w-full px-3 py-1.5 flex items-center gap-1.5 bg-rose-50 border-t border-rose-100">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+          </svg>
+          <span class="text-[11px] text-rose-500 font-medium leading-tight">Broadcast — each subscriber receives this as a private message</span>
+        </div>
         <div v-if="isChatInputDisabled" class="w-full text-center py-3 text-sm text-gray-500 font-medium font-['Poppins']">
           {{ disabledInputMessage }}
         </div>
@@ -2137,6 +2260,7 @@ onUnmounted(() => {
     @closed="showMembersPopup = false"
   >
     <ChatMembersPopup
+      v-if="showMembersPopup"
       :chat-id="activeChatId"
       :current-user-id="currentUserId"
       :is-creator="isCreatorAccount"

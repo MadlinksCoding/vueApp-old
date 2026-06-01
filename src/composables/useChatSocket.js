@@ -1,8 +1,9 @@
 import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
 import FlowHandler from '@/services/flow-system/FlowHandler';
-import { resolveAndSyncChat } from '@/services/chat/chatResolverUtils';
+import { resolveAndSyncChat, ensureChatUsersData } from '@/services/chat/chatResolverUtils';
 import { postToParent } from '@/utils/postToParent';
+import { resolveUserId } from '@/utils/resolveUserId';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -55,9 +56,7 @@ export function useChatSocket(userId) {
     const candidateIds = [...new Set([...participants.map(String), msgSenderId].filter(Boolean))]
     const missingIds = candidateIds.filter(id => !chatStore.chatUsersData[id])
     if (missingIds.length > 0) {
-      FlowHandler.run('chat.fetchChatUsersData', { userIds: missingIds }).then((res) => {
-        if (res?.ok) chatStore.setChatUsersDataAction({ users: res.data?.users })
-      })
+      ensureChatUsersData(missingIds)
     }
 
     // If the message is an activity log indicating that a user was kicked
@@ -66,12 +65,7 @@ export function useChatSocket(userId) {
       const parts = chatStore.chatParticipants[body.chat_id] || chat?.participants || []
       chatStore.chatParticipants[body.chat_id] = parts.filter(id => String(id) !== kickedId)
 
-      // Refetch chat participants and metadata in background and store sync
-      FlowHandler.run('chat.getChat', { chatId: body.chat_id }).then(function (res) {
-        if (res?.ok && res.data?.item) {
-          chatStore.prependChat(res.data.item)
-        }
-      })
+      resolveAndSyncChat(body.chat_id)
     }
 
     chatStore.addMessage(body.chat_id, body);

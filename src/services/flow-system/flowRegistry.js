@@ -9,6 +9,7 @@ import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fet
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
 import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
 import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
+import { addParticipantsFlow } from "@/services/chat/flows/addParticipantsFlow.js";
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
 import { removeChatParticipantFlow } from "@/services/chat/flows/removeChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
@@ -1451,6 +1452,25 @@ export const flowRegistry = {
         policy: "allowParallel",
         dedupe: false,
         keyByPayload: true,
+      },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
+  "chat.addParticipants": {
+    flowKind: "write",
+    flow: addParticipantsFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 250,
+        maxDelayMs: 1000,
+        jitterRatio: 0.1,
+        shouldRetryPredicate: (ctx) => {
+          return ctx?.response?.status === 429 || ctx?.response?.status >= 500;
+        },
       },
       destinations: [],
       uiErrorMap: {},

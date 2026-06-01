@@ -74,7 +74,7 @@ export async function filterBannedWords(text) {
       .replace(/\*/g, "[a-zA-Z0-9]");       // '*' matches single word char
       
     try {
-      const regex = new RegExp(escaped, "gi");
+      const regex = new RegExp(`\\b${escaped}\\b`, "gi");
       filteredText = filteredText.replace(regex, (match) => {
         return "*".repeat(match.length);
       });
@@ -83,8 +83,18 @@ export async function filterBannedWords(text) {
       let idx = filteredText.toLowerCase().indexOf(trimmed.toLowerCase());
       while (idx !== -1) {
         const matchLen = trimmed.length;
-        filteredText = filteredText.substring(0, idx) + "*".repeat(matchLen) + filteredText.substring(idx + matchLen);
-        idx = filteredText.toLowerCase().indexOf(trimmed.toLowerCase(), idx + matchLen);
+        const beforeChar = idx > 0 ? filteredText[idx - 1] : "";
+        const afterChar = idx + matchLen < filteredText.length ? filteredText[idx + matchLen] : "";
+        
+        const isBeforeBoundary = !beforeChar || /\\W/.test(beforeChar);
+        const isAfterBoundary = !afterChar || /\\W/.test(afterChar);
+        
+        if (isBeforeBoundary && isAfterBoundary) {
+          filteredText = filteredText.substring(0, idx) + "*".repeat(matchLen) + filteredText.substring(idx + matchLen);
+          idx = filteredText.toLowerCase().indexOf(trimmed.toLowerCase(), idx + matchLen);
+        } else {
+          idx = filteredText.toLowerCase().indexOf(trimmed.toLowerCase(), idx + 1);
+        }
       }
     }
   }

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-06-01 — Banned Words Fix & Chat UI/Layout Adjustments
+
+### Changed
+
+#### `src/utils/bannedWordsFilter.js`
+- **Profanity Filter Boundaries** — Wrapped the generated regular expression with `\b` word boundaries to ensure the filter only targets full words. This prevents legitimate words from being incorrectly censored when they happen to contain a banned substring (e.g. the word "message" is no longer masked for containing "sage").
+- **Fallback Logic** — Updated the literal fallback `indexOf` loop with manual boundary checks (checking surrounding characters for non-word `\W` characteristics) to maintain parity with the regex fixes.
+
+#### `src/__tests__/bannedWordsFilter.spec.js`
+- **Unit Tests** — Added test cases to explicitly verify that substrings within innocent words do not trigger the masking function.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Creator-Only Member Popup** — Restricted the ability to click the group avatar header to open the Member Popup solely to creators. Removed `cursor-pointer` and hover opacity styling for non-creator accounts.
+- **Group Name Truncation** — Added flex minimum widths (`min-w-0`, `flex-1`) and `truncate` classes to the group chat header to prevent long group names from breaking the UI layout.
+- **Participant Parsing** — Enhanced `getMessageRecipients` to strictly map all participant IDs to Strings.
+- **Background Sync** — Optimized background chat metadata sync using the updated `resolveAndSyncChat` helper.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Persistent Chat List** — Disabled the automatic closing of the Chat List when a user opens a Chat Window. The Chat List must now be closed manually via its toggle button.
+- **Z-Index Layering Fix** — Increased the z-index of the open chat windows wrapper from `z-[1]` to `z-[10000]`. Since the Chat List has a z-index of `z-[9999]`, this ensures that any launched Chat Window correctly renders completely on top of the Chat List without visual overlap glitches.
+- **Participant Background Sync** — Refactored to leverage `resolveAndSyncChat` for fetching the latest chat details when opening a chat window from external sources.
+
+---
+
 ## 2026-05-27 — Message All Group Schema, Avatar Fallbacks, Banned Words Filter & rawText Metadata
 
 ### Added
@@ -755,6 +779,31 @@
 
 ### Changes (`ChatFloatingWidget.vue`)
 - `openChats` entries have stable `uid: Date.now()` — prevents component remount when `chatId` updates from null to real ID
+
+## Large Group Chat Optimizations (Current Session)
+
+### Features & Performance
+- **Massive Group Creation Support**: Group chats with thousands of members (e.g. 4000+) are now supported without timing out the UI.
+  - Groups are initially created with **only the creator** in the `participants` array (so the backend correctly assigns them the `admin` role).
+  - All target users are subsequently added using the `chat.addParticipants` flow, ensuring they receive the `member` role and the correct `invitedBy` tracking.
+- **Participant Chunking Helper**: Introduced `addParticipantsInChunks` in `chatParticipantUtils.js` which:
+  1. Filters out any users who are *already* in the group (`chatStore.chatParticipants`) to prevent redundant API calls.
+  2. Slices the remaining users into batches of 500.
+  3. Uses `Promise.all` to execute bulk updates concurrently.
+- **Race Condition Fixed**: `ChatWindow.vue` now correctly `await`s the completion of all chunked participant additions *before* broadcasting the first socket message. This guarantees that all fans are fully registered in the database and nobody misses the first broadcast notification.
+
+### Changes (`ChatWindow.vue`)
+- Replaced monolithic `createGroupChat` payload with creator-only initialization followed by chunked additions.
+- Imported and utilized `addParticipantsInChunks` helper.
+
+### Changes (`ChatFloatingWidget.vue`)
+- Replaced the single `chat.addChatParticipant` call in `onStartChat` (when opening an existing group) with the `addParticipantsInChunks` helper to leverage the new filtering and chunking logic.
+
+### New Flows & Files
+- `src/services/chat/flows/addParticipantsFlow.js` — handles `POST /chats/:chatId/participants` for bulk updates, taking `userIds`, `role`, and `invitedBy`.
+- `src/services/chat/chatParticipantUtils.js` — houses the reusable chunking/filtering logic.
+
+---
 - `openChatWindow` deduplicates by `chatId`, `targetUserId`, and `groupType`
 - `closeChatWindow(uid)` and `onChatCreated(uid, newChatId)` use `uid` instead of `chatId`
 - `chatListRef` template ref on `<ChatListPanel>`; `chatListRef.value?.chatReady?.()` called in all `onStartChat` paths to close popup after window opens

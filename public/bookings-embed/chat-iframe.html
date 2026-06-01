@@ -32,6 +32,8 @@
     .get-state-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; margin-left: 12px; padding: 10px 20px; background: #92400e; color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
     .get-state-btn:hover { background: #78350f; }
     .get-state-btn svg { flex-shrink: 0; }
+    .broadcast-chat-btn { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 12px 28px; background: #e11d48; color: #fff; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; box-shadow: 0 4px 6px -1px rgba(225,29,72,0.25); }
+    .broadcast-chat-btn:hover { background: #be123c; }
     #state-result { display: none; max-width: 960px; margin: 0 auto 32px; padding: 0 32px; }
     #state-result pre { background: #1e1e2e; color: #cdd6f4; font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.6; padding: 20px; border-radius: 10px; overflow-x: auto; max-height: 320px; }
     /* ── Live Stats Bar ─────────────────────────────────────── */
@@ -164,6 +166,14 @@
         </svg>
         Create Group Chat
       </button>
+
+      <!-- Broadcast Group Chat Button -->
+      <button class="broadcast-chat-btn" onclick="handleCreateBroadcastGroupChat()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+        </svg>
+        Create Group Chat (Broadcast)
+      </button>
     </div>
   </div>
 
@@ -269,6 +279,33 @@
         userIds:     selectedUsers,
         displayName: groupType ? (groupType + ' Group') : 'Group Chat',
         groupType:   groupType,
+      });
+    }
+
+    function handleCreateBroadcastGroupChat() {
+      if (currentUserRole !== 'creator') {
+        alert('Only creator accounts are allowed to create broadcast group chats.');
+        return;
+      }
+
+      var typeSelect = document.getElementById('group-type');
+      var groupType = typeSelect.value || null;
+
+      var usersSelect = document.getElementById('group-users');
+      var selectedUsers = Array.from(usersSelect.selectedOptions).map(function(opt) {
+        return opt.value;
+      });
+
+      if (selectedUsers.length === 0) {
+        alert('Please select at least one user to create a broadcast group chat.');
+        return;
+      }
+
+      chatEmbed.openGroupChat({
+        userIds:     selectedUsers,
+        displayName: groupType ? (groupType + ' Broadcast') : 'Broadcast Group',
+        groupType:   groupType,
+        rulesJson:   { broadcastMode: true, creatorView: 'group_chat', memberView: '1to1_private' },
       });
     }
 

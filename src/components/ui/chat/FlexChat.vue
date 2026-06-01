@@ -332,7 +332,10 @@ defineExpose({ bodyEl })
                                             </slot>
                                         </div>
                                         <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
-                                            <span v-if="msg.time || msg.message_ts" :class="theme.otherTimeMeta">{{ msg.time || formatTime(msg.message_ts) }}</span>
+                                            <span v-if="msg.time || msg.message_ts" :class="theme.otherTimeMeta">
+                                                {{ msg.time || formatTime(msg.message_ts) }}
+                                                <!-- ({{ msg?.sender_id }}) -->
+                                            </span>
                                         </slot>
                                     </template>
 

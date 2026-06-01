@@ -499,6 +499,7 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
                 groupType,
                 groupCategory: apiSection,
                 coverImageUrl: coverImage,
+                rulesJson: { broadcastMode: true, creatorView: 'group_chat', memberView: '1to1_private' },
             })
         }
     } finally {
