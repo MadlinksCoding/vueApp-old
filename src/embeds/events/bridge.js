@@ -4,6 +4,7 @@ export const FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
 export const FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
 export const FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
 export const FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
+export const FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
 
 const MESSAGE_SOURCE = "fs-events-embed";
 
@@ -47,6 +48,12 @@ export function requestEventsEmbedScrollToTop(payload = {}) {
 export function notifyEventsEmbedFormDirtyState(isDirty) {
   postToParent(FS_EVENTS_FORM_DIRTY_STATE, {
     dirty: Boolean(isDirty),
+  });
+}
+
+export function notifyEventsEmbedFormOpenState(isOpen) {
+  postToParent(FS_EVENTS_FORM_OPEN_STATE, {
+    isOpen: Boolean(isOpen),
   });
 }
 
