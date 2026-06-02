@@ -82,6 +82,7 @@
     settings.fanUid = resolveFanUid(settings.fanUid);
 
     var chatContainer = document.createElement("div");
+    chatContainer.className = "fs-chat-embed-container";
     Object.assign(chatContainer.style, {
       position: "fixed",
       bottom: "0",

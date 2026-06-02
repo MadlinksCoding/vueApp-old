@@ -20,7 +20,7 @@ import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapD
 import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormStateMapper.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
-import { notifyEventsEmbedFormDirtyState } from "@/embeds/events/bridge.js";
+import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
 import closeIcon from "@/assets/images/icons/close.png";
 
 // Import Validators
@@ -741,6 +741,9 @@ onMounted(async () => {
     if (shouldForceRefresh) {
         clearRefreshQueryFlag();
     }
+
+    document.body.classList.add("event-form-open");
+    notifyEventsEmbedFormOpenState(true);
 });
 
 watch(currentType, (nextType) => {
@@ -803,6 +806,10 @@ onBeforeRouteLeave(async () => {
 onBeforeUnmount(() => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
     notifyEventsEmbedFormDirtyState(false);
+    
+    document.body.classList.remove("event-form-open");
+    notifyEventsEmbedFormOpenState(false);
+    
     if (pendingUnsavedLeaveResolve) {
         resolvePendingUnsavedLeave(false);
     }

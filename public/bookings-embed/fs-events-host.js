@@ -5,6 +5,7 @@
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
   var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
+  var FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -545,6 +546,14 @@
 
       if (data.type === FS_EVENTS_FORM_DIRTY_STATE) {
         hasUnsavedFormChanges = Boolean(data.payload && data.payload.dirty);
+      }
+
+      if (data.type === FS_EVENTS_FORM_OPEN_STATE) {
+        if (data.payload && data.payload.isOpen) {
+          document.body.classList.add("event-form-open");
+        } else {
+          document.body.classList.remove("event-form-open");
+        }
       }
     }
 
