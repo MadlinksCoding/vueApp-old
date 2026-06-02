@@ -1,13 +1,13 @@
 <template>
     <div
-        class="w-full min-w-[26.813rem] md:w-[26.813rem] md:max-w-[26.813rem] bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col overflow-hidden">
+        class="w-full md:min-w-[26.813rem] md:w-[26.813rem] md:max-w-[26.813rem] bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col overflow-hidden">
         <div
             class="border-b border-gray-300 inline-flex items-center cursor-pointer hover:bg-gray-50/50 transition-colors"
             @click="onCreatePrivate">
             <div class="flex-1 px-2 py-3 flex items-center gap-2 border-l-[0.188rem] border-[#5549FF]">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
-                        <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8 whitespace-nowrap">
+                        <div class="justify-center text-indigo-600 text-xl font-semibold font-['Poppins'] md:leading-8 ">
                             {{ t("dashboard_create_private_booking") }}
                         </div>
                         <div
@@ -25,10 +25,10 @@
             <div class="flex-1 px-2 py-3 flex border-l-[0.188rem] border-[#FF0464] items-center gap-2">
                 <div class="flex-1 inline-flex flex-col gap-2">
                     <div class="inline-flex justify-between items-center">
-                        <div class="justify-center text-rose-600 text-xl font-semibold font-['Poppins'] md:leading-8 whitespace-nowrap">
+                        <div class="justify-center text-rose-600 text-xl font-semibold font-['Poppins'] md:leading-8 ">
                             {{ t("dashboard_create_group_event") }}</div>
                         <div
-                            class="justify-center text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 text-nowrap">
+                            class="justify-center text-right text-gray-500 text-xs font-medium font-['Poppins'] uppercase leading-4 ">
                             {{ t("dashboard_scheduled_events") }}</div>
                     </div>
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-6">
