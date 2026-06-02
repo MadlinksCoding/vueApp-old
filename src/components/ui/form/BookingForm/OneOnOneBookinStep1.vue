@@ -303,13 +303,13 @@
   ];
 
   const colorOptions = [
-    { label: t("booking_color_blue"), value: "#5549FF" },
-    { label: t("booking_color_red"), value: "#FF3B30" },
-    { label: t("booking_color_green"), value: "#22C55E" },
-    { label: t("booking_color_pink"), value: "#FF2D92" },
-    { label: t("booking_color_orange"), value: "#F97316" },
-    { label: t("booking_color_purple"), value: "#8B5CF6" },
-    { label: t("booking_color_teal"), value: "#14B8A6" },
+    { label: t("booking_color_blue"), value: "#5549FF", color: "#5549FF" },
+    { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
+    { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
+    { label: t("booking_color_pink"), value: "#FF2D92", color: "#FF2D92" },
+    { label: t("booking_color_orange"), value: "#F97316", color: "#F97316" },
+    { label: t("booking_color_purple"), value: "#8B5CF6", color: "#8B5CF6" },
+    { label: t("booking_color_teal"), value: "#14B8A6", color: "#14B8A6" },
   ];
 
   const bufferUnitOptions = [
@@ -894,20 +894,15 @@
               <CustomDropdown
                 v-model="formData.eventColorSkin"
                 :options="colorOptions"
+                layout="grid"
+                placeholder="Choose Event Color"
                 buttonClass="h-full bg-white/50 border-l pr-3 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
-                dropdownClass="w-full bg-white shadow-lg overflow-y-auto max-h-60 border border-gray-100 right-0 origin-top-right mt-0"
+                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0"
               >
                 <!-- Trigger: Only show the selected color dot -->
                 <template #trigger="{ selected }">
                   <div class="flex items-center justify-center p-2">
                     <div class="w-4 h-4 rounded-full shadow-sm" :style="{ backgroundColor: selected }"></div>
-                  </div>
-                </template>
-                
-                <!-- Option: Only show the color dot, centered -->
-                <template #option="{ option }">
-                  <div class="flex justify-start p-3">
-                    <div class="w-4 h-4 rounded-full shadow-sm" :style="{ backgroundColor: option.value }"></div>
                   </div>
                 </template>
               </CustomDropdown>
@@ -943,7 +938,7 @@
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span><span
-                class="text-gray-500 text-xs italic font-normal leading-none">{{ t("common_optional") }}</span></div>
+                class="text-gray-500 text-xs italic font-normal leading-none ml-1">{{ t("common_optional") }}</span></div>
             <div class="w-full">
               <!-- Uploaded image preview with delete button -->
               <div v-if="formData.eventImageUrl" class="relative mb-2">
@@ -1455,13 +1450,13 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                    {{ t("booking_start_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
+                    {{ t("booking_duration") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
                   </div>
                   <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
                     </div>
-                    <div v-if="!formData.dateFrom" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-400">
+                    <div v-if="!formData.dateFrom" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
                      From
                     </div>
                     <input
@@ -1478,14 +1473,14 @@
 
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                  <!-- <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                     {{ t("booking_end_date") }} <span class="text-gray-500 text-xs italic font-normal font-['Poppins'] leading-none">{{ t("common_optional") }}</span>
-                  </div>
+                  </div> -->
                   <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <img :src="calendarIcon" alt="" class="w-5 h-5 opacity-50" />
                     </div>
-                    <div v-if="!formData.dateTo" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-400">
+                    <div v-if="!formData.dateTo" class="absolute inset-y-0 left-10 flex items-center pointer-events-none text-gray-900">
                      To
                     </div>
                     <input
@@ -1508,14 +1503,14 @@
           <div v-if="formData.repeatRule === 'weekly'" class="flex flex-col gap-4 w-full">
 
             <div v-for="(day, index) in weekDays" :key="index"
-              class="self-stretch inline-flex justify-start items-start gap-1"
+              class="self-stretch inline-flex justify-start items-start gap-3"
               :class="{
                 'items-center min-h-10 gap-3': day.unavailable,
                 'opacity-60': isWeeklyDayLocked(day.key || day.name),
               }">
 
               <div class="justify-start text-gray-500 text-base font-normal font-['Poppins'] leading-normal"
-                :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center justify-center'">
+                :class="day.unavailable ? 'w-12' : 'w-10 h-10 flex items-center w-12'">
                 {{ getWeekdayLabel(day) }}
               </div>
 

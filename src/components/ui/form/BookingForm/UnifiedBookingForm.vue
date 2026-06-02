@@ -1610,6 +1610,11 @@ useBodyOverflowHidden({ minWidth: 1010 });
 </template>
 
 <style scoped>
+:deep(.ql-editor.ql-blank::before) {
+    color: #667085 !important;
+    font-style: normal !important;
+    left: 0 !important;
+}
 :deep(.booking-form-calendar-time-label:last-child) {
     display: none;
 }

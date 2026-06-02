@@ -268,7 +268,7 @@
         >
           <img
             src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
-            class="w-6 h-6 filter brightness-0 invert"
+            class="w-8 h-8 filter brightness-0 invert"
             :alt="t('common_add')"
           />
         </button>
@@ -546,8 +546,8 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-0 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
-    title: "sm:text-[1.5rem] text-base font-semibold text-slate-800",
+    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
+    title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",

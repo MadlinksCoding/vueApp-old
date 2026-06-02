@@ -7,7 +7,7 @@
 
       <!-- Title + expand icon -->
       <div class="flex justify-between items-start gap-1">
-        <div class="text-gray-700 text-[15px] font-semibold leading-snug">
+        <div class="text-gray-700 text-base font-semibold leading-snug">
           {{ resolvedTitle }}
         </div>
         <!-- {{ resolvedAction }} -->
@@ -95,7 +95,7 @@
           <span class="text-[#5549FF] font-semibold text-xs">{{ counterSlotDate }}</span>
         </div>
         <!-- Normal date row -->
-        <div v-else class="text-slate-600 text-xs font-medium">
+        <div v-else class="text-slate-600 text-sm font-medium">
           {{ resolvedDateTime }}
         </div>
       </template>
@@ -244,10 +244,10 @@
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <!-- Badge -->
           <div
-            class="flex items-center gap-1 text-xs font-semibold"
-            :style="{ color: resolvedAction === 'accepted' ? '#059669' : '#DC2626' }"
+            class="flex items-center gap-1 text-sm font-semibold"
+            :style="{ color: resolvedAction === 'accepted' ? '#15B79E' : '#DC2626' }"
           >
-            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="8" cy="8" r="6.5" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l2 2 4-4" />
             </svg>
@@ -259,12 +259,12 @@
           <!-- View in Calendar (accepted) / View Details (declined) -->
           <button
             type="button"
-            class="flex items-center gap-0.5 text-[#5549FF] text-xs font-medium hover:opacity-80 shrink-0"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
             @click.stop="$emit('view-details')"
           >
             <template v-if="resolvedAction === 'accepted'">
               <!-- Calendar icon -->
-              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <svg class="w-5 h-5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" />
                 <path stroke-linecap="round" d="M1.5 6h13M5 1.5v2M11 1.5v2" />
               </svg>
@@ -273,7 +273,7 @@
             <template v-else>
               View Details
             </template>
-            <img :src="ArrowRightIcon" class="w-3 h-3" alt="" />
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
           </button>
         </div>
       </template>
