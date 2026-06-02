@@ -464,6 +464,7 @@ async function loadMoreUnsubscribed() {
 }
 
 function onMessage(user) {
+    console.log('Starting chat with user:', user)
     emit('start-chat', {
         userId: user.id,
         displayName: user.display_name || user.username,
@@ -493,13 +494,39 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
             api: buildApi(),
         })
         if (res?.ok) {
+            const isUserScopedGroup = ['subscribers', 'top_followers', 'subscription', 'unsubscribed'].includes(apiSection)
+            const chatVisibility = isUserScopedGroup ? 'userScoped' : null
+            
+            let chatSubtype = 'standard'
+            let contextFlags = []
+            let metadata = { nativeType: groupType }
+            
+            if (apiSection === 'subscribers') {
+                chatSubtype = 'subscription'
+                contextFlags = ['subscription']
+                if (tierId) metadata.tierId = tierId
+            } else if (apiSection === 'top_followers' || apiSection === 'unsubscribed') {
+                chatSubtype = 'support_group'
+                contextFlags = ['support']
+            }
+
+            console.log('Starting group chat with userIds:', res.data.userIds, 'groupType:', groupType, 'apiSection:', apiSection, chatVisibility, 'metadata:', metadata)
+
             emit('start-chat', {
                 userIds: res.data.userIds.map(String),
                 displayName: name,
                 groupType,
+                chatType: 'group',
+                chatSubtype,
+                contextFlags,
+                metadata,
                 groupCategory: apiSection,
                 coverImageUrl: coverImage,
-                rulesJson: { broadcastMode: true, creatorView: 'group_chat', memberView: '1to1_private' },
+                visibilitySettings: { 
+                  chatOwner: String(props.creatorId), 
+                  chatVisibility, 
+                  fullAccessUsers: [String(props.creatorId)] 
+                },
             })
         }
     } finally {

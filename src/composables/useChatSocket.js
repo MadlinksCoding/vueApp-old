@@ -151,6 +151,19 @@ export function useChatSocket(userId) {
     }
   }
 
+  function _handleIncomingBlockUpdate(body) {
+    if (!body || !body.from) return;
+    const blockerId = String(body.from);
+    
+    if (body.is_blocked) {
+      if (!chatStore.blockedUserIds.includes(blockerId)) {
+        chatStore.blockedUserIds.push(blockerId);
+      }
+    } else {
+      chatStore.blockedUserIds = chatStore.blockedUserIds.filter(id => id !== blockerId);
+    }
+  }
+
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
   function _attachOwnSocket(SH, fromParent = false) {
     SH.identifyCurrentUser(userId);
@@ -160,6 +173,7 @@ export function useChatSocket(userId) {
       const { flag, body } = e.detail || {};
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
       else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
+      else if (flag === 'chat:block') _handleIncomingBlockUpdate(body);
     };
     if( fromParent ) {
       SH.registerSocketListener({
@@ -169,6 +183,10 @@ export function useChatSocket(userId) {
       SH.registerSocketListener({
         flag: 'chat:status',
         callback: (body) => _handleIncomingStatusUpdate(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:block',
+        callback: (body) => _handleIncomingBlockUpdate(body),
       });
     } else {
       window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
@@ -245,6 +263,8 @@ export function useChatSocket(userId) {
     const { flag, body } = e.data.payload;
     if (flag === 'chat:status') {
       _handleIncomingStatusUpdate(body ?? e.data.payload);
+    } else if (flag === 'chat:block') {
+      _handleIncomingBlockUpdate(body ?? e.data.payload);
     } else {
       _handleIncomingChatMessage(e.data.payload);
     }
@@ -307,6 +327,15 @@ export function useChatSocket(userId) {
     });
   }
 
+  function sendBlockUpdate(recipientId, isBlocked) {
+    console.log("[ChatSocket] Sending block update", { recipientId, isBlocked });
+    sendSocket('chat:block', {
+      from: userId,
+      to: recipientId,
+      is_blocked: isBlocked
+    });
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   onUnmounted(() => {
     if (_ownSocketHandler) {
@@ -321,5 +350,5 @@ export function useChatSocket(userId) {
     socketState.isReady.value = false;
   });
 
-  return { init, sendChatMessage, sendStatusUpdate, isReady: socketState.isReady };
+  return { init, sendChatMessage, sendStatusUpdate, sendBlockUpdate, isReady: socketState.isReady };
 }

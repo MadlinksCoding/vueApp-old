@@ -32,6 +32,7 @@ function toggleList() {
 }
 
 function openChatWindow(chat) {
+  console.error("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
     (chat.chatId && c.chatId === chat.chatId) ||
@@ -63,15 +64,17 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   })
 }
 
-async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, groupCategory, coverImageUrl, rulesJson }) {
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings }) {
+  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
   // --- Group chat (Message All) ---
   if (userIds && userIds.length > 0) {
     // Check for existing group with same type
     const existing = groupType
-      ? chatStore.userChats.find((c) => c.type === groupType)
+      ? chatStore.userChats.find((c) => c.type === groupType || c.metadata?.nativeType === groupType)
       : null
 
     if (existing) {
+      console.log("Existing group chat found - adding participants if needed and opening:", existing)
       // Add new participants to existing group using the chunking helper
       addParticipantsInChunks({
         chatId: existing.chat_id,
@@ -80,10 +83,10 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
         chatStore,
         role: 'member'
       })
-      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType, groupCategory, coverImageUrl, rulesJson })
+      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
     } else {
       // Open pending group window — chat created on first message
-      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType, groupCategory, coverImageUrl, rulesJson })
+      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
     }
     chatListRef.value?.chatReady?.()
     return
@@ -183,9 +186,9 @@ function openNewChatPopup() {
   }, 0)
 }
 
-async function openGroupChat({ userIds = [], displayName = 'Group Chat', groupType = null, rulesJson = null } = {}) {
+async function openGroupChat({ userIds = [], displayName = 'Group Chat', groupType = null, visibilitySettings = null } = {}) {
   if (!userIds.length) return
-  onStartChat({ userIds: userIds.map(String), displayName, groupType, rulesJson })
+  onStartChat({ userIds: userIds.map(String), displayName, groupType, visibilitySettings })
 }
 
 defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })
@@ -256,9 +259,13 @@ onMounted(async () => {
         :target-user-id="chat.targetUserId"
         :target-user-ids="chat.targetUserIds"
         :group-type="chat.groupType"
+        :chat-type="chat.chatType"
+        :chat-subtype="chat.chatSubtype"
+        :context-flags="chat.contextFlags"
+        :metadata="chat.metadata"
         :group-category="chat.groupCategory"
         :cover-image-url="chat.coverImageUrl"
-        :rules-json="chat.rulesJson"
+        :visibility-settings="chat.visibilitySettings"
         :socket="socket"
         :current-user-id="currentUserId"
         :host-width="hostWidth"

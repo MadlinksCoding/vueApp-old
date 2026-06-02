@@ -14,6 +14,7 @@ export const useChatStore = defineStore("chat", {
     chatPinnedMessages: {},
     chatBookings: {},
     chatEvents: {},
+    blockedUserIds: [],
   }),
 
   getters: {
@@ -274,6 +275,37 @@ export const useChatStore = defineStore("chat", {
         }
       }
     },
+    
+    async fetchBlockedUsers(currentUserId, isCreator) {
+      // Lazy import FlowHandler to prevent circular dependencies in stores
+      const { default: FlowHandler } = await import('@/services/flow-system/FlowHandler');
+      
+      if (isCreator) {
+        const payload = { scope: 'private_chat', limit: 500, from: currentUserId };
+        const res = await FlowHandler.run('blocks.listUserBlocks', payload);
+        
+        if (res?.ok && Array.isArray(res.data?.items)) {
+          // If creator, extract the blocked_id (fans they blocked) for active blocks only
+          const activeBlocks = res.data.items.filter(b => !b.deleted_at);
+          this.blockedUserIds = activeBlocks.map(b => String(b.blocked_id));
+        } else {
+          this.blockedUserIds = [];
+        }
+      } else {
+        const payload = { to: currentUserId };
+        const res = await FlowHandler.run('blocks.getBlocksForUser', payload);
+        
+        if (res?.ok && Array.isArray(res.data?.blocks?.user_blocks)) {
+          // If fan, extract the blocker_id (creators who blocked them) for active private_chat blocks
+          const activeBlocks = res.data.blocks.user_blocks.filter(b => 
+            !b.deleted_at && b.scope === 'private_chat'
+          );
+          this.blockedUserIds = activeBlocks.map(b => String(b.blocker_id));
+        } else {
+          this.blockedUserIds = [];
+        }
+      }
+    },
 
     clearCache() {
       this.messages = {};
@@ -288,6 +320,7 @@ export const useChatStore = defineStore("chat", {
       this.chatPinnedMessages = {};
       this.chatBookings = {};
       this.chatEvents = {};
+      this.blockedUserIds = [];
     },
   },
 });

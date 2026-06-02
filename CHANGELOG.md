@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-06-02 — Group Chat Blocking Logic & Socket Security
+
+### Added
+
+#### `src/services/block-users/flows/getBlocksForUserFlow.js` _(new)_
+- **Fan Block Fetching** — Created a new flow `getBlocksForUserFlow` to hit `GET /block-users/getBlocksForUser` allowing fans to efficiently retrieve their block data across all scopes.
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Group Payload Structuring** — Overhauled the schema for creating "Message All" broadcast groups. Instead of overloading the root `type` field, all broadcast chats are now strictly created with `type: "group"`.
+- **Contextual Categorization** — Added native mapping for group specific contexts:
+  - `"top_followers"` and `"unsubscribed"` now inject `chatSubtype: 'support_group'` and `contextFlags: ['support']`.
+  - `"subscribers"` injects `chatSubtype: 'subscription'` and `contextFlags: ['subscription']`.
+- **Metadata Identity** — Automatically preserved the original target identifier (e.g. `subscribers-25`) by appending it into `metadata.nativeType` for deep routing support.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Schema Propogation** — Updated `onStartChat` and the component template to accept and bridge the new payload fields (`chatType`, `chatSubtype`, `contextFlags`, `metadata`).
+- **Visibility Settings** — Replaced the legacy `rulesJson` property with the more standard `visibilitySettings` field.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Group Creation Props** — Added explicit prop definitions for `chatType`, `chatSubtype`, `contextFlags`, and `metadata`.
+- **API Payload Delivery** — Updated the `createGroupChat` flow invocation to bundle and submit the full structural schema (along with `visibilitySettings` and `coverImageUrl`) directly to the backend.
+- **Group Chat UI Locking** — Updated `isChatBlocked` logic so that `userScoped` broadcast groups are treated like private 1-on-1 chats. If a block exists between the fan and the creator, the chat input is instantly disabled with the placeholder "You cannot send messages to this user."
+- **Socket Broadcast Security** — Filtered the `getMessageRecipients` list to strictly exclude any user IDs present in `chatStore.blockedUserIds`. This guarantees that if a creator blocks a fan (or vice versa), the backend socket event for new messages will never be emitted to the blocked user.
+- **Socket Real-Time Block Sync** — Wired up `handleBlockMember` and `handleUnblockMember` to emit `chat:block` events (via `sendBlockUpdate`) immediately after a successful database update, ensuring real-time UI lockdown on the recipient's device.
+
+#### `src/composables/useChatSocket.js`
+- **Socket Real-Time Block Emitter** — Added `sendBlockUpdate(recipientId, isBlocked)` helper to emit the `chat:block` event, strictly including the `from: userId` parameter in the payload to ensure accurate identification across the network.
+- **Socket Real-Time Block Listener** — Implemented `_handleIncomingBlockUpdate` to intercept `'chat:block'` socket events. Instantly pushes or pulls the blocker's ID into `chatStore.blockedUserIds`, automatically syncing the UI without requiring a page refresh. Hooked this listener into all three socket contexts (standalone, parent window, and iframe bridge).
+
+#### `src/stores/useChatStore.js`
+- **Soft-Delete Block Filtering** — Updated `fetchBlockedUsers` to explicitly strip out any block records containing a `deleted_at` timestamp. This prevents soft-deleted (unblocked) records from persistently locking the chat UI.
+- **Role-Based Block Fetching** — Routed `fetchBlockedUsers` dynamically: Creators continue using `listUserBlocks`, while Fans now route through the optimized `getBlocksForUser` flow, filtering strictly for the `private_chat` scope.
+
+#### `src/services/flow-system/flowRegistry.js`
+- **Flow Registration** — Registered `"blocks.getBlocksForUser"` to hook the new fan block-fetching pipeline into the centralized flow handler.
+
 ## 2026-06-01 — Banned Words Fix & Chat UI/Layout Adjustments
 
 ### Changed

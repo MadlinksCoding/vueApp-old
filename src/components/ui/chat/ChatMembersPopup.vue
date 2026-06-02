@@ -39,8 +39,8 @@
         v-for="member in filteredMembers.slice(0, visibleCount)"
         :key="member.id"
         class="self-stretch px-2 py-1.5 inline-flex justify-between items-center rounded-lg transition-colors"
-        :class="(isChatCreator && !member.isCurrentUser) ? 'hover:bg-white/40 cursor-pointer' : 'cursor-default'"
-        @click="(isChatCreator && !member.isCurrentUser) ? openMenu(member) : null"
+        :class="(!member.isCurrentUser) ? 'hover:bg-white/40 cursor-pointer' : 'cursor-default'"
+        @click="(!member.isCurrentUser) ? openMenu(member) : null"
       >
         <div class="flex justify-start items-center gap-3 min-w-0">
           <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%] border border-white shrink-0 shadow-sm">
@@ -72,7 +72,7 @@
 
         <!-- Vertical three-dots ⋮ action trigger -->
         <button
-          v-if="!member.isCurrentUser && isChatCreator"
+          v-if="!member.isCurrentUser"
           class="p-2 text-gray-400 hover:text-gray-700 transition-colors shrink-0"
           @click.stop="openMenu(member)"
           title="Actions"
@@ -117,7 +117,7 @@
 
         <!-- Kick Member Out (Creator accounts only) -->
         <button
-          v-if="isGroupChat && isCreator"
+          v-if="isGroupChat && isChatCreator"
           class="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-slate-50 transition-colors border-b border-gray-100 text-slate-700 font-semibold font-['Poppins'] text-sm"
           @click="handleKick"
         >
@@ -127,20 +127,23 @@
           <span>Kick @{{ selectedMember.username }} out</span>
         </button>
 
-        <!-- Block Member -->
+        <!-- Block/Unblock Member -->
         <button
           class="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-rose-50 transition-colors border-b border-gray-100 text-rose-600 font-semibold font-['Poppins'] text-sm"
-          @click="handleBlock"
+          @click="handleBlockToggle"
+          :disabled="isCheckingBlock"
         >
           <svg class="w-5 h-5 text-rose-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
-          <span>Block @{{ selectedMember.username }}</span>
+          <span v-if="isCheckingBlock">Checking...</span>
+          <span v-else-if="isBlocked">Unblock @{{ selectedMember.username }}</span>
+          <span v-else>Block @{{ selectedMember.username }}</span>
         </button>
 
         <!-- Report Member -->
         <button
-          class="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-slate-50 transition-colors text-slate-700 font-semibold font-['Poppins'] text-sm"
+          class="w-full flex items-center gap-3 px-6 py-4 text-left hover:bg-slate-50 transition-colors text-slate-700 font-semibold font-['Poppins'] text-sm opacity-40 pointer-events-none cursor-not-allowed"
           @click="handleReport"
         >
           <svg class="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -164,12 +167,15 @@ const props = defineProps({
   isGroupChat: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['close', 'message-privately', 'kick', 'block', 'report'])
+const emit = defineEmits(['close', 'message-privately', 'kick', 'block', 'unblock', 'report'])
 
 const chatStore = useChatStore()
+import FlowHandler from '@/services/flow-system/FlowHandler'
 const searchQuery = ref('')
 const selectedMember = ref(null)
 const visibleCount = ref(50)
+const isBlocked = ref(false)
+const isCheckingBlock = ref(false)
 
 watch(searchQuery, () => {
   visibleCount.value = 50
@@ -187,7 +193,10 @@ function onScroll(e) {
 const isChatCreator = computed(() => {
   const chat = chatStore.userChats.find(c => c.chat_id === props.chatId)
   if (!chat) return false
-  const creatorId = chat.created_by || chat.creator_id || chat.created_by_id
+  
+  const settings = chat.visibility_settings || chat.visibilitySettings || {}
+  const creatorId = settings.chatOwner || chat.created_by || chat.creator_id || chat.created_by_id
+  
   return String(props.currentUserId) === String(creatorId)
 })
 
@@ -232,8 +241,21 @@ const filteredMembers = computed(() => {
   )
 })
 
-function openMenu(member) {
+async function openMenu(member) {
   selectedMember.value = member
+  isCheckingBlock.value = true
+  isBlocked.value = false
+  
+  const res = await FlowHandler.run('blocks.isUserBlocked', {
+    from: props.currentUserId,
+    to: member.id,
+    scope: 'private_chat',
+  })
+  
+  if (res?.ok) {
+    isBlocked.value = res.data?.blocked === true
+  }
+  isCheckingBlock.value = false
 }
 
 function closeMenu() {
@@ -254,9 +276,13 @@ function handleKick() {
   }
 }
 
-function handleBlock() {
-  if (selectedMember.value) {
-    emit('block', selectedMember.value)
+function handleBlockToggle() {
+  if (selectedMember.value && !isCheckingBlock.value) {
+    if (isBlocked.value) {
+      emit('unblock', selectedMember.value)
+    } else {
+      emit('block', selectedMember.value)
+    }
     closeMenu()
   }
 }

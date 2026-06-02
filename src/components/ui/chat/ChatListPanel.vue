@@ -46,6 +46,7 @@ onUnmounted(() => {
 })
 
 function onNewChatMessage(payload) {
+  console.log('Starting new chat with payload:', payload)
   emit('start-chat', payload)
 }
 

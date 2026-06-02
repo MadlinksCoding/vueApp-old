@@ -53,9 +53,13 @@ const props = defineProps({
   targetUserId:  { type: [String, Number], default: null },
   targetUserIds: { type: Array, default: () => [] },
   groupType:     { type: String, default: null },
+  chatType:      { type: String, default: null },
+  chatSubtype:   { type: String, default: 'standard' },
+  contextFlags:  { type: Array, default: () => [] },
+  metadata:      { type: Object, default: () => ({}) },
   groupCategory: { type: String, default: null },
   coverImageUrl: { type: String, default: null },
-  rulesJson:     { type: Object, default: null },
+  visibilitySettings: { type: Object, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
 })
@@ -96,20 +100,20 @@ const isGroupChat = computed(() => {
   return participants.length > 2
 })
 
-const isBroadcast = computed(() => {
-  if (props.rulesJson?.broadcastMode === true) return true
+const isUserScoped = computed(() => {
+  if (props.visibilitySettings?.chatVisibility === 'userScoped') return true
   const chat = activeChatId.value ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value)) : null
-  let rules = chat?.rules_json || chat?.rulesJson || {}
-  if (typeof rules === 'string') {
-    try { rules = JSON.parse(rules) } catch (e) { rules = {} }
+  let settings = chat?.visibility_settings || chat?.visibilitySettings || {}
+  if (typeof settings === 'string') {
+    try { settings = JSON.parse(settings) } catch (e) { settings = {} }
   }
-  return rules.broadcastMode === true || chat?.name === 'Subscribers Broadcast' || props.chatName === 'Subscribers Broadcast'
+  return settings.chatVisibility === 'userScoped' || chat?.name === 'Subscribers Broadcast' || props.chatName === 'Subscribers Broadcast'
 })
 
 // Resolves the ID of the creator who owns this broadcast channel.
 // Reads `created_by` from the chat record in the store once the chat exists.
-const broadcastCreatorId = computed(() => {
-  if (!isBroadcast.value) return null
+const groupOwnerId = computed(() => {
+  if (!isUserScoped.value) return null
   const chat = activeChatId.value
     ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value))
     : null
@@ -129,7 +133,7 @@ const broadcastCreatorId = computed(() => {
 
 // Returns true when the given senderId belongs to the broadcast creator.
 function isCreatorSender(senderId) {
-  return !!(broadcastCreatorId.value && String(senderId) === broadcastCreatorId.value)
+  return !!(groupOwnerId.value && String(senderId) === groupOwnerId.value)
 }
 
 const isChatInputDisabled = computed(() => {
@@ -146,6 +150,11 @@ const isChatInputDisabled = computed(() => {
     return true
   }
 
+  // Case 3: Blocked in 1on1 chat
+  if (isChatBlocked.value) {
+    return true
+  }
+
   return false
 })
 
@@ -155,6 +164,10 @@ const disabledInputMessage = computed(() => {
   
   if (isGroupChat.value && participants.length > 0 && !participants.some(id => String(id) === String(currentUserId))) {
     return 'You have been removed from this group.'
+  }
+  
+  if (isChatBlocked.value) {
+    return 'You cannot send messages to this user.'
   }
   
   return 'There are no other active participants in this chat.'
@@ -188,8 +201,8 @@ const displayAvatars = computed(() => {
   }
 
   // Broadcast fan view override: only show the creator's avatar
-  if (isBroadcast.value && !isCreatorAccount.value && broadcastCreatorId.value) {
-    const creatorId = broadcastCreatorId.value
+  if (isUserScoped.value && !isCreatorAccount.value && groupOwnerId.value) {
+    const creatorId = groupOwnerId.value
     const ud = chatStore.chatUsersData[creatorId]
     const name = ud?.display_name || ud?.username || 'Creator'
     return [{
@@ -250,6 +263,31 @@ const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
 const showCancelCallPopup     = ref(false)
 const showMembersPopup        = ref(false)
+
+const isChatBlocked = computed(() => {
+  // If it's a userScoped group, treat it like a 1-on-1 between the current user and the creator
+  if (isUserScoped.value && groupOwnerId.value) {
+    if (String(currentUserId) === String(groupOwnerId.value)) {
+      return false
+    }
+    return chatStore.blockedUserIds.includes(String(groupOwnerId.value))
+  }
+
+  // Only apply blocking logic for 1on1 chats
+  if (!activeChatId.value && props.targetUserIds?.length !== 1 && props.groupType !== '1on1') {
+    return false
+  }
+  if (activeChatId.value && isGroupChat.value) {
+    return false
+  }
+  
+  const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : (props.targetUserIds || [])
+  const otherUserId = participants.find(id => String(id) !== String(currentUserId))
+  
+  if (!otherUserId) return false
+  
+  return chatStore.blockedUserIds.includes(String(otherUserId))
+})
 const membersPopupConfig = {
   actionType: 'popup',
   position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
@@ -302,14 +340,38 @@ async function handleKickMember(member) {
   }
 }
 
-function handleBlockMember(member) {
-  FlowHandler.run('users.blockUser', { targetUserId: member.id }).then(res => {
-    if (res?.ok) {
-      showToast({ type: 'success', title: 'Blocked', message: `Blocked @${member.username}` })
-    } else {
-      showToast({ type: 'error', title: 'Failed', message: `Could not block @${member.username}` })
+async function handleBlockMember(member) {
+  const res = await FlowHandler.run('blocks.blockUser', { 
+    from: currentUserId, 
+    to: member.id,
+    scope: 'private_chat' 
+  });
+  
+  if (res?.ok) {
+    showToast({ type: 'success', title: 'Blocked', message: `Blocked @${member.username}` });
+    if (!chatStore.blockedUserIds.includes(String(member.id))) {
+      chatStore.blockedUserIds.push(String(member.id));
     }
-  })
+    props.socket?.sendBlockUpdate?.(String(member.id), true);
+  } else {
+    showToast({ type: 'error', title: 'Failed', message: `Could not block @${member.username}` });
+  }
+}
+
+async function handleUnblockMember(member) {
+  const res = await FlowHandler.run('blocks.unblockUser', { 
+    from: currentUserId, 
+    to: member.id,
+    scope: 'private_chat' 
+  });
+  
+  if (res?.ok) {
+    showToast({ type: 'success', title: 'Unblocked', message: `Unblocked @${member.username}` });
+    chatStore.blockedUserIds = chatStore.blockedUserIds.filter(id => id !== String(member.id));
+    props.socket?.sendBlockUpdate?.(String(member.id), false);
+  } else {
+    showToast({ type: 'error', title: 'Failed', message: `Could not unblock @${member.username}` });
+  }
 }
 
 function handleReportMember(member) {
@@ -1055,14 +1117,14 @@ function getMessageRecipients() {
   }
   
   // Broadcast mode (Fan view): Only send the socket event to the creator
-  if (isBroadcast.value && !isCreatorAccount.value && broadcastCreatorId.value) {
-    return [String(broadcastCreatorId.value)]
+  if (isUserScoped.value && !isCreatorAccount.value && groupOwnerId.value) {
+    return [String(groupOwnerId.value)]
   }
 
   // Normal group chat (or Creator view of broadcast): Send to everyone else
   const recipients = participants
     .map(String)
-    .filter((id) => id && id !== String(currentUserId))
+    .filter((id) => id && id !== String(currentUserId) && !chatStore.blockedUserIds.includes(id))
   
   return recipients
 }
@@ -1079,13 +1141,17 @@ async function ensureActiveChat() {
     const allTargetIds = props.targetUserIds || [];
 
     createRes = await FlowHandler.run('chat.createGroupChat', {
-      type:         props.groupType,
+      type:         'group',
+      chatType:     props.chatType || 'group',
+      chatSubtype:  props.chatSubtype,
+      contextFlags: props.contextFlags,
+      metadata:     props.metadata,
       createdBy:    String(currentUserId),
       participants: [String(currentUserId)],
       name:         props.chatName,
       category:     props.groupCategory,
       coverImageUrl: props.coverImageUrl,
-      rulesJson:     props.rulesJson ?? undefined,
+      visibilitySettings: props.visibilitySettings ?? undefined,
     });
   } else {
     createRes = await FlowHandler.run('chat.createChat', {
@@ -1385,7 +1451,7 @@ const messages = computed(() => allMessages.value.filter(m => {
 
   // Broadcast mode — fan/member view: only show messages from the creator or themselves.
   // The creator (isCreatorAccount) always sees every message (group-style view).
-  if (isBroadcast.value && !isCreatorAccount.value) {
+  if (isUserScoped.value && !isCreatorAccount.value) {
     const senderId = String(m.sender_id || m.senderId || '')
     const myId     = String(currentUserId)
     if (senderId !== myId && !isCreatorSender(senderId)) return false
@@ -1766,6 +1832,9 @@ onMounted(async () => {
 
   // Pre-fetch banned words list for early cache warming
   fetchBannedWords().catch(() => {})
+  
+  // Pre-fetch blocked users for the current user
+  chatStore.fetchBlockedUsers(currentUserId, isCreatorAccount.value).catch(() => {})
 
   const root = await new Promise((resolve) => {
     // Wait one tick for FlexChat to mount and expose bodyEl
@@ -1877,7 +1946,7 @@ onUnmounted(() => {
                 <div class="text-[#0C111D] font-semibold text-[14px] truncate">
                   {{ chatName }}
                 </div>
-                <div v-if="!(isBroadcast && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
+                <div v-if="!(isUserScoped && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
                   <img src="/images/users.png" alt="" class="size-3 brightness-0">
                   <span class="text-xs font-[400] text-[#0C111D] ml-0.5">{{ participantCount }}</span>
                 </div>
@@ -2010,7 +2079,7 @@ onUnmounted(() => {
               v-if="productForMessage(message).subscribePrice > 0"
               type="button"
               class="flex-1 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message)"
+              :disabled="productCardCtaDisabled(message) || isChatBlocked"
               @click.stop="onProductCtaClick(message)"
             >
               <span>Subscribe</span>
@@ -2020,7 +2089,7 @@ onUnmounted(() => {
               v-if="productForMessage(message).buyPrice > 0 || productForMessage(message).subscribePrice <= 0"
               type="button"
               class="flex-1 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message)"
+              :disabled="productCardCtaDisabled(message) || isChatBlocked"
               @click.stop="onProductCtaClick(message)"
             >
               <span>Buy</span>
@@ -2047,7 +2116,7 @@ onUnmounted(() => {
       <template #message.content="{ message }">
         <div v-if="message.text">{{ message.text }}</div>
         <span
-          v-if="(message.senderId || message.sender_id) === currentUserId"
+          v-if="1 != 1 && (message.senderId || message.sender_id) === currentUserId"
           class="shrink-0 ml-1 inline-flex items-center"
           style="line-height:1"
         >
@@ -2093,7 +2162,7 @@ onUnmounted(() => {
 
       <!-- Broadcast banner -->
       <template #compose>
-        <div v-if="isBroadcast && 1 != 1" class="w-full px-3 py-1.5 flex items-center gap-1.5 bg-rose-50 border-t border-rose-100">
+        <div v-if="isUserScoped && 1 != 1" class="w-full px-3 py-1.5 flex items-center gap-1.5 bg-rose-50 border-t border-rose-100">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11l19-9-9 19-2-8-8-2z"/>
           </svg>
@@ -2115,8 +2184,9 @@ onUnmounted(() => {
             v-model="composeText"
             type="text"
             maxlength="2000"
-            placeholder="Write a reply..."
-            class="flex-1 text-sm bg-transparent outline-none text-[#667085] placeholder-[#667085]"
+            :placeholder="isChatBlocked ? 'You cannot send messages to this user.' : 'Write a reply...'"
+            :disabled="isChatBlocked"
+            class="flex-1 text-sm bg-transparent outline-none text-[#667085] placeholder-[#667085] disabled:opacity-50"
             @keydown="onKeydown"
           />
           <div class="flex items-center gap-2 text-zinc-400 shrink-0">
@@ -2269,6 +2339,7 @@ onUnmounted(() => {
       @message-privately="handleMessagePrivately"
       @kick="handleKickMember"
       @block="handleBlockMember"
+      @unblock="handleUnblockMember"
       @report="handleReportMember"
     />
   </PopupHandler>

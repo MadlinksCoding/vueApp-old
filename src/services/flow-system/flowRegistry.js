@@ -43,6 +43,11 @@ import { createTemporaryHoldFlow } from "@/services/bookings/flows/createTempora
 import { getTemporaryHoldStatusFlow } from "@/services/bookings/flows/getTemporaryHoldStatusFlow.js";
 import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTemporaryHoldFlow.js";
 import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTemporaryHoldUserFlow.js";
+import { blockUserFlow } from "@/services/block-users/flows/blockUserFlow.js";
+import { unblockUserFlow } from "@/services/block-users/flows/unblockUserFlow.js";
+import { isUserBlockedFlow } from "@/services/block-users/flows/isUserBlockedFlow.js";
+import { listUserBlocksFlow } from "@/services/block-users/flows/listUserBlocksFlow.js";
+import { getBlocksForUserFlow } from "@/services/block-users/flows/getBlocksForUserFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
@@ -1766,6 +1771,35 @@ export const flowRegistry = {
       uiErrorMap: {
         SUBMIT_FAILED: "Registration failed. Please check form data.",
       },
+    },
+  },
+  "blocks.blockUser": {
+    flowKind: "write",
+    flow: blockUserFlow,
+  },
+  "blocks.unblockUser": {
+    flowKind: "write",
+    flow: unblockUserFlow,
+  },
+  "blocks.isUserBlocked": {
+    flowKind: "read",
+    flow: isUserBlockedFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
+    },
+  },
+  "blocks.listUserBlocks": {
+    flowKind: "read",
+    flow: listUserBlocksFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
+    },
+  },
+  "blocks.getBlocksForUser": {
+    flowKind: "read",
+    flow: getBlocksForUserFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
     },
   },
 };
