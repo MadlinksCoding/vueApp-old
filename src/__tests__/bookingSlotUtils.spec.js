@@ -12,12 +12,50 @@ import {
   resolveBookedSlotEffectiveEndIso,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 
 const eventId = "event_77";
 const localDateIso = "2030-01-15";
 
 function dateIsoFromDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function diffDateIsoDays(fromDateIso, toDateIso) {
+  const from = new Date(`${fromDateIso}T00:00:00`);
+  const to = new Date(`${toDateIso}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function makeCrossMidnightWeeklyEvent({
+  localStartDateIso = "2030-01-15",
+  localEndDateIso = "2030-01-16",
+  localStartHm = "23:30",
+  localEndHm = "02:00",
+  sessionDurationMinutes = 5,
+  enableBufferTime = false,
+  bookingBufferMinutes = 0,
+} = {}) {
+  const startHkt = localDateTimeToHkt(localStartDateIso, localStartHm);
+  const endHkt = localDateTimeToHkt(localEndDateIso, localEndHm);
+
+  return {
+    eventId,
+    raw: {
+      repeatRule: "weekly",
+      sessionDurationMinutes,
+      enableBufferTime,
+      bookingBufferMinutes,
+      slots: [{
+        day: startHkt.weekday,
+        startTime: startHkt.hm,
+        endTime: endHkt.hm,
+        endDayOffset: Math.max(0, diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
+        offHours: false,
+      }],
+    },
+  };
 }
 
 function makeIndex(status) {
@@ -189,6 +227,91 @@ describe("booking slot utilities", () => {
 
     expect(cancelledSlots.map((slot) => slot.startHm)).toEqual(["10:00", "10:30", "11:00"]);
     expect(activeSlots.map((slot) => slot.startHm)).toEqual(["10:00", "10:45"]);
+  });
+
+  it("assigns private session starts after local midnight to the next local date", () => {
+    const localStartDateIso = "2030-01-15";
+    const localNextDateIso = "2030-01-16";
+    const event = makeCrossMidnightWeeklyEvent({
+      localStartDateIso,
+      localEndDateIso: localNextDateIso,
+    });
+
+    const startDaySlots = buildCandidateSlotsForEventDate(event, localStartDateIso, { eventId });
+    const nextDaySlots = buildCandidateSlotsForEventDate(event, localNextDateIso, { eventId });
+
+    expect(startDaySlots.map((slot) => slot.startHm)).toEqual([
+      "23:30",
+      "23:35",
+      "23:40",
+      "23:45",
+      "23:50",
+      "23:55",
+    ]);
+    expect(startDaySlots.every((slot) => slot.localDateIso === localStartDateIso)).toBe(true);
+    expect(nextDaySlots).toHaveLength(24);
+    expect(nextDaySlots[0]).toEqual(expect.objectContaining({
+      localDateIso: localNextDateIso,
+      startHm: "00:00",
+    }));
+    expect(nextDaySlots.at(-1)).toEqual(expect.objectContaining({
+      localDateIso: localNextDateIso,
+      startHm: "01:55",
+    }));
+    expect(nextDaySlots.some((slot) => slot.startHm === "23:30")).toBe(false);
+  });
+
+  it("applies bookings and post-booked buffers across the local midnight boundary", () => {
+    const localStartDateIso = "2030-01-15";
+    const localNextDateIso = "2030-01-16";
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "booking_cross_midnight",
+      eventId,
+      startIso: `${localStartDateIso}T23:55:00`,
+      endIso: `${localNextDateIso}T00:05:00`,
+      status: "confirmed",
+    }]);
+    const unbufferedEvent = makeCrossMidnightWeeklyEvent({
+      localStartDateIso,
+      localEndDateIso: localNextDateIso,
+      localEndHm: "00:30",
+    });
+    const [midnightSlot] = buildCandidateSlotsForEventDate(unbufferedEvent, localNextDateIso, {
+      eventId,
+      bookedSlotsIndex,
+    });
+
+    expect(midnightSlot.startHm).toBe("00:00");
+    expect(isSlotBooked({
+      eventId,
+      localDateIso: localNextDateIso,
+      slot: midnightSlot,
+      bookedSlotsIndex,
+    })).toBe(true);
+    expect(createSlotUiModel({
+      event: unbufferedEvent,
+      eventId,
+      localDateIso: localNextDateIso,
+      slot: midnightSlot,
+      bookedSlotsIndex,
+    }).disabled).toBe(true);
+
+    const bufferedEvent = makeCrossMidnightWeeklyEvent({
+      localStartDateIso,
+      localEndDateIso: localNextDateIso,
+      localEndHm: "00:30",
+      enableBufferTime: true,
+      bookingBufferMinutes: 10,
+    });
+    const bufferedSlots = buildCandidateSlotsForEventDate(bufferedEvent, localNextDateIso, {
+      eventId,
+      bookedSlotsIndex,
+      applyBufferAfterBooked: true,
+    });
+
+    expect(bufferedSlots.map((slot) => slot.startHm).slice(0, 2)).toEqual(["00:00", "00:15"]);
+    expect(bufferedSlots.some((slot) => slot.startHm === "00:05")).toBe(false);
+    expect(bufferedSlots.some((slot) => slot.startHm === "00:10")).toBe(false);
   });
 
   it("keeps group availability windows whole instead of slicing by session duration", () => {
