@@ -430,6 +430,49 @@ describe("BookingFlowStep3", () => {
     expect(engine.goToStep).toHaveBeenCalledWith(2);
   });
 
+  it("formats compact token balances with one non-zero decimal across suffixes", async () => {
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    async function renderBalanceText(paidTokens) {
+      tokenGet.mockReset();
+      tokenGet.mockResolvedValue({
+        data: {
+          paidTokens,
+          freeTokensPerBeneficiary: {},
+          totalFreeTokens: 0,
+        },
+      });
+
+      const engine = createEngine();
+      const wrapper = mount(BookingFlowStep3, {
+        props: {
+          engine,
+          embedded: true,
+        },
+      });
+
+      await flushAsync();
+      const text = wrapper.text();
+      wrapper.unmount();
+      return text;
+    }
+
+    const kText = await renderBalanceText(42956);
+    expect(kText).toContain("42.9K");
+    expect(kText).not.toContain("43K");
+
+    const exactKText = await renderBalanceText(42000);
+    expect(exactKText).toContain("42K");
+    expect(exactKText).not.toContain("42.0K");
+
+    const mText = await renderBalanceText(1250000);
+    expect(mText).toContain("1.2M");
+    expect(mText).not.toContain("1.0M");
+
+    const bText = await renderBalanceText(2500000000);
+    expect(bText).toContain("2.5B");
+  });
+
   it("defaults guests to top-up without checking token balance", async () => {
     backendJwtToken = "";
     const engine = createEngine();
