@@ -1002,7 +1002,7 @@
                 </div>
                 <div class="flex flex-col">
                   <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions") }}</div>
-                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.maxSessionDuration}` }) }})</div>
+                  <div v-if="formData.duration && formData.maxSessionDuration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.maxSessionDuration}` }) }})</div>
                 </div>
               </div>
             </div>
