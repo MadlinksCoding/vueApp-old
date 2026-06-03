@@ -1184,7 +1184,11 @@ async function ensureActiveChat() {
     });
   } else {
     createRes = await FlowHandler.run('chat.createChat', {
-      type:         'direct',
+      chatType:     props.chatType || 'private',
+      chatSubtype:  props.chatSubtype || 'standard',
+      contextFlags: props.contextFlags || [],
+      metadata:     props.metadata || {},
+      visibilitySettings: props.visibilitySettings ?? undefined,
       createdBy:    String(currentUserId),
       participants: [String(currentUserId), String(props.targetUserId)],
       name:         props.chatName,
