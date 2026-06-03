@@ -46,6 +46,7 @@ onUnmounted(() => {
 })
 
 function onNewChatMessage(payload) {
+  console.log('Starting new chat with payload:', payload)
   emit('start-chat', payload)
 }
 
@@ -106,6 +107,14 @@ function getOtherParticipantId(chatId) {
 
 function getChatDisplayName(chat) {
   if (chat?.metadata?.is_booking_request) return chat.name || 'Chat'
+  
+  // Check if group chat
+  const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
+  const isGroup = chat.is_group === true || chat.is_group === 1 || chat.group_type === 'group' || chat.type === 'group' || participants.length > 2
+  if (isGroup) {
+    return chat.name || 'Group Chat'
+  }
+
   const otherId = getOtherParticipantId(chat.chat_id)
   if (otherId) {
     const userData = chatStore.chatUsersData[String(otherId)]
@@ -117,6 +126,12 @@ function getChatDisplayName(chat) {
 }
 
 function getChatAvatar(chat) {
+  const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
+  const isGroup = chat.is_group === true || chat.is_group === 1 || chat.group_type === 'group' || chat.type === 'group' || participants.length > 2
+  if (isGroup) {
+    return chat.avatar || null
+  }
+
   const otherId = getOtherParticipantId(chat.chat_id)
   if (otherId) {
     const userData = chatStore.chatUsersData[String(otherId)]
@@ -125,8 +140,44 @@ function getChatAvatar(chat) {
   return chat.avatar || null
 }
 
+function getAllowedLastMessage(chat) {
+  const allMsgs = chatStore.getMessagesByChatId(chat.chat_id)
+  const kickMsg = allMsgs.find(m => 
+    m.content_type === 'activity_log' && 
+    String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '') === String(props.currentUserId)
+  )
+  if (kickMsg) {
+    const kickTs = kickMsg.message_ts ?? kickMsg.time ?? 0
+    const allowed = allMsgs.filter(m => (m.message_ts ?? m.time ?? 0) <= kickTs)
+    if (allowed.length > 0) {
+      return allowed[allowed.length - 1]
+    }
+    return kickMsg
+  }
+  // 2. Fallback check: if the standard last_message is a kick log for SOMEONE ELSE,
+  // we must traverse backwards to find the last allowed message.
+  const lastMsg = chat.last_message
+  if (lastMsg?.content_type === 'activity_log') {
+    const kickedId = String(lastMsg.meta?.kicked_user_id || lastMsg.content?.meta?.kicked_user_id || '')
+    if (kickedId && kickedId !== String(props.currentUserId) && props.userRole !== 'creator') {
+      // Traverse allMsgs backward to find the last valid message
+      for (let i = allMsgs.length - 1; i >= 0; i--) {
+        const m = allMsgs[i]
+        const kId = String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '')
+        if (m.content_type === 'activity_log' && kId && kId !== String(props.currentUserId)) {
+            continue
+        }
+        return m
+      }
+      return null
+    }
+  }
+
+  return chat.last_message
+}
+
 function getLastMessageText(chat) {
-  const msg = chat.last_message
+  const msg = getAllowedLastMessage(chat)
   if (!msg) return null
 
   const contentType = msg.content_type

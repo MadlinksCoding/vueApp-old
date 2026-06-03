@@ -1,8 +1,9 @@
 import { ref, onUnmounted } from 'vue';
 import { useChatStore } from '@/stores/useChatStore';
 import FlowHandler from '@/services/flow-system/FlowHandler';
-import { resolveAndSyncChat } from '@/services/chat/chatResolverUtils';
+import { resolveAndSyncChat, ensureChatUsersData } from '@/services/chat/chatResolverUtils';
 import { postToParent } from '@/utils/postToParent';
+import { resolveUserId } from '@/utils/resolveUserId';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -34,6 +35,14 @@ export function useChatSocket(userId) {
   async function _handleIncomingChatMessage(body) {
     if (!body?.chat_id) return;
 
+    // Discard any incoming messages if the current user is already kicked from this chat
+    const allMsgs = chatStore.messages[body.chat_id] || []
+    const alreadyKicked = allMsgs.some(m => 
+      m.content_type === 'activity_log' && 
+      String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '') === String(userId)
+    )
+    if (alreadyKicked) return;
+
     // If this chat isn't in the list yet, fetch it and sync unread count
     const knownChat = chatStore.userChats.find((c) => c.chat_id === body.chat_id)
     if (!knownChat) {
@@ -47,9 +56,16 @@ export function useChatSocket(userId) {
     const candidateIds = [...new Set([...participants.map(String), msgSenderId].filter(Boolean))]
     const missingIds = candidateIds.filter(id => !chatStore.chatUsersData[id])
     if (missingIds.length > 0) {
-      FlowHandler.run('chat.fetchChatUsersData', { userIds: missingIds }).then((res) => {
-        if (res?.ok) chatStore.setChatUsersDataAction({ users: res.data?.users })
-      })
+      ensureChatUsersData(missingIds)
+    }
+
+    // If the message is an activity log indicating that a user was kicked
+    if (body.content_type === 'activity_log' && body.content?.meta?.kicked_user_id) {
+      const kickedId = String(body.content.meta.kicked_user_id)
+      const parts = chatStore.chatParticipants[body.chat_id] || chat?.participants || []
+      chatStore.chatParticipants[body.chat_id] = parts.filter(id => String(id) !== kickedId)
+
+      resolveAndSyncChat(body.chat_id)
     }
 
     chatStore.addMessage(body.chat_id, body);
@@ -135,6 +151,25 @@ export function useChatSocket(userId) {
     }
   }
 
+  function _handleIncomingBlockUpdate(body) {
+    if (!body || !body.from) return;
+    const blockerId = String(body.from);
+    
+    if (body.is_blocked) {
+      if (!chatStore.blockedUserIds.includes(blockerId)) {
+        chatStore.blockedUserIds.push(blockerId);
+      }
+    } else {
+      chatStore.blockedUserIds = chatStore.blockedUserIds.filter(id => id !== blockerId);
+    }
+  }
+
+  function _handleIncomingSettingUpdate(body) {
+    if (!body?.chat_id) return;
+    console.log("[ChatSocket] Received chat:setting-update for chat_id:", body.chat_id);
+    resolveAndSyncChat(body.chat_id);
+  }
+
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
   function _attachOwnSocket(SH, fromParent = false) {
     SH.identifyCurrentUser(userId);
@@ -144,6 +179,8 @@ export function useChatSocket(userId) {
       const { flag, body } = e.detail || {};
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
       else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
+      else if (flag === 'chat:block') _handleIncomingBlockUpdate(body);
+      else if (flag === 'chat:setting-update') _handleIncomingSettingUpdate(body);
     };
     if( fromParent ) {
       SH.registerSocketListener({
@@ -153,6 +190,14 @@ export function useChatSocket(userId) {
       SH.registerSocketListener({
         flag: 'chat:status',
         callback: (body) => _handleIncomingStatusUpdate(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:block',
+        callback: (body) => _handleIncomingBlockUpdate(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:setting-update',
+        callback: (body) => _handleIncomingSettingUpdate(body),
       });
     } else {
       window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
@@ -229,6 +274,10 @@ export function useChatSocket(userId) {
     const { flag, body } = e.data.payload;
     if (flag === 'chat:status') {
       _handleIncomingStatusUpdate(body ?? e.data.payload);
+    } else if (flag === 'chat:block') {
+      _handleIncomingBlockUpdate(body ?? e.data.payload);
+    } else if (flag === 'chat:setting-update') {
+      _handleIncomingSettingUpdate(body ?? e.data.payload);
     } else {
       _handleIncomingChatMessage(e.data.payload);
     }
@@ -291,6 +340,24 @@ export function useChatSocket(userId) {
     });
   }
 
+  function sendBlockUpdate(recipientId, isBlocked) {
+    console.log("[ChatSocket] Sending block update", { recipientId, isBlocked });
+    sendSocket('chat:block', {
+      from: userId,
+      to: recipientId,
+      is_blocked: isBlocked
+    });
+  }
+
+  function sendChatSettingUpdate(chatId, recipients = []) {
+    console.log("[ChatSocket] Sending chat setting update", { chatId, recipients });
+    const list = Array.isArray(recipients) ? recipients : [];
+    const targets = list.length > 0 ? list : [null];
+    targets.forEach((to) => {
+      sendSocket('chat:setting-update', { chat_id: chatId, ...(to !== null && { to }) });
+    });
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   onUnmounted(() => {
     if (_ownSocketHandler) {
@@ -305,5 +372,5 @@ export function useChatSocket(userId) {
     socketState.isReady.value = false;
   });
 
-  return { init, sendChatMessage, sendStatusUpdate, isReady: socketState.isReady };
+  return { init, sendChatMessage, sendStatusUpdate, sendBlockUpdate, sendChatSettingUpdate, isReady: socketState.isReady };
 }

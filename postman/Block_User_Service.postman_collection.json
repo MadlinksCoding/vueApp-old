@@ -1,0 +1,376 @@
+{
+	"info": {
+		"_postman_id": "b1f3c3a4-9e1d-4a1b-8e1c-5d1b1c1d1e1f",
+		"name": "Block User Service",
+		"description": "Full CRUD Documentation for Block User Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "CREATE Endpoints",
+			"item": [
+				{
+					"name": "1. Block User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from\": \"user_A\",\n  \"to\": \"user_B\",\n  \"scope\": \"private_chat\",\n  \"reason\": \"harassment\",\n  \"is_permanent\": true\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/blockUser",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "blockUser" ]
+						}
+					}
+				},
+				{
+					"name": "2. Block IP Address",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ip\": \"192.168.1.100\",\n  \"reason\": \"suspicious activity\",\n  \"permanent\": true\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/blockIP",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "blockIP" ]
+						}
+					}
+				},
+				{
+					"name": "3. Block Email",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"spam@example.com\",\n  \"reason\": \"spam account\",\n  \"permanent\": true\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/blockEmail",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "blockEmail" ]
+						}
+					}
+				},
+				{
+					"name": "4. Block App Access",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user_A\",\n  \"scope\": \"marketplace\",\n  \"reason\": \"policy violation\",\n  \"permanent\": true\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/blockAppAccess",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "blockAppAccess" ]
+						}
+					}
+				},
+				{
+					"name": "5. Suspend User",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user_A\",\n  \"reason\": \"repeated violations\",\n  \"adminId\": \"admin_001\",\n  \"flag\": \"severe\",\n  \"note\": \"3rd offense\"\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/suspendUser",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "suspendUser" ]
+						}
+					}
+				},
+				{
+					"name": "6. Warn User",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user_A\",\n  \"flag\": \"language\",\n  \"adminId\": \"admin_001\",\n  \"note\": \"inappropriate language in chat\"\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/warnUser",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "warnUser" ]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "READ Endpoints",
+			"item": [
+				{
+					"name": "7. Is User Blocked",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/isUserBlocked?from=user_A&to=user_B",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "isUserBlocked" ],
+							"query": [
+								{ "key": "from", "value": "user_A" },
+								{ "key": "to", "value": "user_B" },
+								{ "key": "scope", "value": "private_chat", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "8. List User Blocks",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/listUserBlocks?limit=20",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "listUserBlocks" ],
+							"query": [
+								{ "key": "limit", "value": "20" },
+								{ "key": "from", "value": "user_A", "disabled": true }
+							]
+						}
+					}
+				},
+				{
+					"name": "9. Get Blocks For User",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/getBlocksForUser?to=user_B",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "getBlocksForUser" ],
+							"query": [
+								{ "key": "to", "value": "user_B" }
+							]
+						}
+					}
+				},
+				{
+					"name": "10. Is IP Blocked",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/isIPBlocked?ip=192.168.1.100",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "isIPBlocked" ],
+							"query": [
+								{ "key": "ip", "value": "192.168.1.100" }
+							]
+						}
+					}
+				},
+				{
+					"name": "11. Is Email Blocked",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/isEmailBlocked?email=spam@example.com",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "isEmailBlocked" ],
+							"query": [
+								{ "key": "email", "value": "spam@example.com" }
+							]
+						}
+					}
+				},
+				{
+					"name": "12. Is App Access Blocked",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/isAppAccessBlocked?userId=user_A&scope=marketplace",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "isAppAccessBlocked" ],
+							"query": [
+								{ "key": "userId", "value": "user_A" },
+								{ "key": "scope", "value": "marketplace" }
+							]
+						}
+					}
+				},
+				{
+					"name": "13. List System Blocks",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/listSystemBlocks?limit=20",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "listSystemBlocks" ],
+							"query": [
+								{ "key": "limit", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "14. Is User Suspended",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/isUserSuspended?userId=user_A",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "isUserSuspended" ],
+							"query": [
+								{ "key": "userId", "value": "user_A" }
+							]
+						}
+					}
+				},
+				{
+					"name": "15. List Manual Actions",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/listManualActions?limit=20",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "listManualActions" ],
+							"query": [
+								{ "key": "limit", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "19. Get User Manual Actions",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/getUserManualActions?userId=user_A",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "getUserManualActions" ],
+							"query": [
+								{ "key": "userId", "value": "user_A" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "DELETE Endpoints",
+			"item": [
+				{
+					"name": "16. Unblock User",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from\": \"user_A\",\n  \"to\": \"user_B\",\n  \"scope\": \"private_chat\"\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/unblockUser",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "unblockUser" ]
+						}
+					}
+				},
+				{
+					"name": "17. Unsuspend User",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user_A\"\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/unsuspendUser",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "unsuspendUser" ]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "BATCH / UTILITY Endpoints",
+			"item": [
+				{
+					"name": "18. Batch Check User Blocks",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"blocks\": [\n    { \"from\": \"user_A\", \"to\": \"user_B\", \"scope\": \"private_chat\" },\n    { \"from\": \"user_C\", \"to\": \"user_D\", \"scope\": \"feed\" }\n  ]\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/batchCheckUserBlocks",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "batchCheckUserBlocks" ]
+						}
+					}
+				},
+				{
+					"name": "20. User Activity Stats (Risk Score)",
+					"request": {
+						"method": "POST",
+						"header": [ { "key": "Content-Type", "value": "application/json" } ],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"user_A\"\n}"
+						},
+						"url": {
+							"raw": "http://168.144.35.180:3000/block-users/UserStats",
+							"protocol": "http",
+							"host": [ "168", "144", "35", "180" ],
+							"port": "3000",
+							"path": [ "block-users", "UserStats" ]
+						}
+					}
+				}
+			]
+		}
+	]
+}

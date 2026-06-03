@@ -5,6 +5,8 @@ import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
+import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
+import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
 import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
@@ -31,7 +33,7 @@ function toggleList() {
 }
 
 function openChatWindow(chat) {
-  isListOpen.value = false
+  console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
     (chat.chatId && c.chatId === chat.chatId) ||
@@ -55,6 +57,7 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   const targetId = Number(targetUserId)
   const myId = Number(currentUserId.value)
   return chatStore.userChats.find(chat => {
+    if (chat.is_group === true || chat.is_group === 1 || chat.type === 'group') return false
     const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
     if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
     const bookingFlag = chat.metadata?.is_booking_request === true
@@ -62,28 +65,40 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   })
 }
 
-async function onStartChat({ userId, userIds, displayName, username, avatar, groupType }) {
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings }) {
+  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
   // --- Group chat (Message All) ---
   if (userIds && userIds.length > 0) {
     // Check for existing group with same type
     const existing = groupType
-      ? chatStore.userChats.find((c) => c.type === groupType)
+      ? chatStore.userChats.find((c) => c.type === groupType || c.metadata?.nativeType === groupType)
       : null
 
     if (existing) {
-      // Add new participants to existing group
-      FlowHandler.run('chat.addChatParticipant', {
+      console.log("Existing group chat found - adding participants if needed and opening:", existing)
+      // Add new participants to existing group using the chunking helper
+      await addParticipantsInChunks({
         chatId: existing.chat_id,
-        userIds: userIds.map(String),
-        invitedBy: String(currentUserId.value),
+        userIds,
+        currentUserId: currentUserId.value,
+        chatStore,
+        role: 'member',
+        updateChat: true,
       })
-      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType })
+
+      if (socket.value?.sendChatSettingUpdate) {
+        socket.value.sendChatSettingUpdate(
+          existing.chat_id, 
+          chatStore.chatParticipants[existing.chat_id] || []
+        )
+      }
+
+      openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
     } else {
       // Open pending group window — chat created on first message
-      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType })
+      openChatWindow({ chatId: null, chatName: displayName, avatar: null, targetUserIds: userIds.map(String), groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
     }
     chatListRef.value?.chatReady?.()
-    isListOpen.value = false
     return
   }
 
@@ -99,7 +114,6 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
     }
     openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: avatar || null })
     chatListRef.value?.chatReady?.()
-    isListOpen.value = false
     return
   }
 
@@ -115,7 +129,6 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
   // --- 1-on-1: open pending window, chat created on first message ---
   openChatWindow({ chatId: null, chatName: displayName, avatar: avatar || null, targetUserId: String(userId) })
   chatListRef.value?.chatReady?.()
-  isListOpen.value = false
 }
 
 const socket    = ref(null)
@@ -129,10 +142,8 @@ async function openChat({ chatId, userId } = {}) {
     // Resolve the chat item — from store or API
     let item = chatStore.userChats.find(c => String(c.chat_id) === String(chatId))
     if (!item) {
-      const res = await FlowHandler.run('chat.getChat', { chatId })
-      if (!res?.ok) return
-      item = res.data?.item || {}
-      chatStore.prependChat(item) // keep store + participants map in sync
+      item = await resolveAndSyncChat(chatId)
+      if (!item) return
     }
 
     // Participants may be plain IDs (numbers) or objects with a user_id field
@@ -147,8 +158,7 @@ async function openChat({ chatId, userId } = {}) {
     // Fetch user data for any participant not yet in the store
     const missingIds = participantIds.filter(id => id !== myId && !chatStore.chatUsersData[id])
     if (missingIds.length > 0) {
-      const udRes = await FlowHandler.run('chat.fetchChatUsersData', { userIds: missingIds })
-      if (udRes?.ok) chatStore.setChatUsersDataAction({ users: udRes.data?.users })
+      await ensureChatUsersData(missingIds)
     }
 
     // Resolve the other participant's avatar from the now-populated store
@@ -166,7 +176,7 @@ async function openChat({ chatId, userId } = {}) {
     const uid = String(userId)
     let userData = chatStore.chatUsersData[uid]
     if (!userData) {
-      await FlowHandler.run('chat.fetchChatUsersData', { userIds: [uid] })
+      await ensureChatUsersData([uid])
       userData = chatStore.chatUsersData[uid]
     }
     const displayName = userData?.display_name || userData?.username || ''
@@ -186,7 +196,30 @@ function openNewChatPopup() {
   }, 0)
 }
 
-defineExpose({ widgetEl, openChat, openNewChatPopup, isListOpen, openChats })
+async function openGroupChat({ 
+  userIds = [], 
+  displayName = 'Group Chat', 
+  groupType = null, 
+  chatType, 
+  chatSubtype, 
+  contextFlags, 
+  metadata, 
+  visibilitySettings = null 
+} = {}) {
+  if (!userIds.length) return
+  onStartChat({ 
+    userIds: userIds.map(String), 
+    displayName, 
+    groupType, 
+    chatType, 
+    chatSubtype, 
+    contextFlags, 
+    metadata, 
+    visibilitySettings 
+  })
+}
+
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -223,7 +256,7 @@ onMounted(async () => {
       ),
     ]
     if (allParticipantIds.length > 0) {
-      FlowHandler.run('chat.fetchChatUsersData', { userIds: allParticipantIds })
+      ensureChatUsersData(allParticipantIds)
     }
   }
 })
@@ -243,7 +276,7 @@ onMounted(async () => {
   >
 
     <!-- Open chat windows (stack left of the trigger) -->
-    <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[1]"
+    <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[10000]"
          :class="[(hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '']">
       <ChatWindow
         v-for="chat in openChats"
@@ -254,12 +287,20 @@ onMounted(async () => {
         :target-user-id="chat.targetUserId"
         :target-user-ids="chat.targetUserIds"
         :group-type="chat.groupType"
+        :chat-type="chat.chatType"
+        :chat-subtype="chat.chatSubtype"
+        :context-flags="chat.contextFlags"
+        :metadata="chat.metadata"
+        :group-category="chat.groupCategory"
+        :cover-image-url="chat.coverImageUrl"
+        :visibility-settings="chat.visibilitySettings"
         :socket="socket"
         :current-user-id="currentUserId"
         :host-width="hostWidth"
         @close="closeChatWindow(chat.uid)"
         @minimize="closeChatWindow(chat.uid)"
         @chat-created="(id) => onChatCreated(chat.uid, id)"
+        @start-chat="onStartChat"
       />
     </div>
 

@@ -1,5 +1,195 @@
 # Changelog
 
+## 2026-06-03 — Chat Block/Unblock Integration
+
+### Added
+
+#### `src/services/chat/flows/chatBlockUserFlow.js` _(new)_
+- **Chat Block User** — Created a new flow `chatBlockUserFlow` to hit `POST /chats/users/block` to filter messages and unread counts for blocked users in the chat system.
+
+#### `src/services/chat/flows/chatUnblockUserFlow.js` _(new)_
+- **Chat Unblock User** — Created a new flow `chatUnblockUserFlow` to hit `POST /chats/users/unblock` to restore chat functionality for unblocked users.
+
+### Changed
+
+#### `src/services/flow-system/flowRegistry.js`
+- **Flow Registration** — Registered `"chat.blockUser"` and `"chat.unblockUser"` to the centralized flow handler.
+
+#### `src/services/block-users/flows/blockUserFlow.js`
+- **Global Sync** — Injected a background hook using `FlowHandler.run('chat.blockUser', ...)` to silently sync global blocks to the chat API immediately upon success.
+
+#### `src/services/block-users/flows/unblockUserFlow.js`
+- **Global Sync** — Injected a background hook using `FlowHandler.run('chat.unblockUser', ...)` to silently sync global unblocks to the chat API immediately upon success.
+
+## 2026-06-02 — Group Chat Blocking Logic & Socket Security
+
+### Added
+
+#### `src/services/block-users/flows/getBlocksForUserFlow.js` _(new)_
+- **Fan Block Fetching** — Created a new flow `getBlocksForUserFlow` to hit `GET /block-users/getBlocksForUser` allowing fans to efficiently retrieve their block data across all scopes.
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Group Payload Structuring** — Overhauled the schema for creating "Message All" broadcast groups. Instead of overloading the root `type` field, all broadcast chats are now strictly created with `type: "group"`.
+- **Contextual Categorization** — Added native mapping for group specific contexts:
+  - `"top_followers"` and `"unsubscribed"` now inject `chatSubtype: 'support_group'` and `contextFlags: ['support']`.
+  - `"subscribers"` injects `chatSubtype: 'subscription'` and `contextFlags: ['subscription']`.
+- **Metadata Identity** — Automatically preserved the original target identifier (e.g. `subscribers-25`) by appending it into `metadata.nativeType` for deep routing support.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Schema Propogation** — Updated `onStartChat` and the component template to accept and bridge the new payload fields (`chatType`, `chatSubtype`, `contextFlags`, `metadata`).
+- **Visibility Settings** — Replaced the legacy `rulesJson` property with the more standard `visibilitySettings` field.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Group Creation Props** — Added explicit prop definitions for `chatType`, `chatSubtype`, `contextFlags`, and `metadata`.
+- **API Payload Delivery** — Updated the `createGroupChat` flow invocation to bundle and submit the full structural schema (along with `visibilitySettings` and `coverImageUrl`) directly to the backend.
+- **Group Chat UI Locking** — Updated `isChatBlocked` logic so that `userScoped` broadcast groups are treated like private 1-on-1 chats. If a block exists between the fan and the creator, the chat input is instantly disabled with the placeholder "You cannot send messages to this user."
+- **Socket Broadcast Security** — Filtered the `getMessageRecipients` list to strictly exclude any user IDs present in `chatStore.blockedUserIds`. This guarantees that if a creator blocks a fan (or vice versa), the backend socket event for new messages will never be emitted to the blocked user.
+- **Socket Real-Time Block Sync** — Wired up `handleBlockMember` and `handleUnblockMember` to emit `chat:block` events (via `sendBlockUpdate`) immediately after a successful database update, ensuring real-time UI lockdown on the recipient's device.
+
+#### `src/composables/useChatSocket.js`
+- **Socket Real-Time Block Emitter** — Added `sendBlockUpdate(recipientId, isBlocked)` helper to emit the `chat:block` event, strictly including the `from: userId` parameter in the payload to ensure accurate identification across the network.
+- **Socket Real-Time Block Listener** — Implemented `_handleIncomingBlockUpdate` to intercept `'chat:block'` socket events. Instantly pushes or pulls the blocker's ID into `chatStore.blockedUserIds`, automatically syncing the UI without requiring a page refresh. Hooked this listener into all three socket contexts (standalone, parent window, and iframe bridge).
+
+#### `src/stores/useChatStore.js`
+- **Soft-Delete Block Filtering** — Updated `fetchBlockedUsers` to explicitly strip out any block records containing a `deleted_at` timestamp. This prevents soft-deleted (unblocked) records from persistently locking the chat UI.
+- **Role-Based Block Fetching** — Routed `fetchBlockedUsers` dynamically: Creators continue using `listUserBlocks`, while Fans now route through the optimized `getBlocksForUser` flow, filtering strictly for the `private_chat` scope.
+
+#### `src/services/flow-system/flowRegistry.js`
+- **Flow Registration** — Registered `"blocks.getBlocksForUser"` to hook the new fan block-fetching pipeline into the centralized flow handler.
+
+## 2026-06-01 — Banned Words Fix & Chat UI/Layout Adjustments
+
+### Changed
+
+#### `src/utils/bannedWordsFilter.js`
+- **Profanity Filter Boundaries** — Wrapped the generated regular expression with `\b` word boundaries to ensure the filter only targets full words. This prevents legitimate words from being incorrectly censored when they happen to contain a banned substring (e.g. the word "message" is no longer masked for containing "sage").
+- **Fallback Logic** — Updated the literal fallback `indexOf` loop with manual boundary checks (checking surrounding characters for non-word `\W` characteristics) to maintain parity with the regex fixes.
+
+#### `src/__tests__/bannedWordsFilter.spec.js`
+- **Unit Tests** — Added test cases to explicitly verify that substrings within innocent words do not trigger the masking function.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Creator-Only Member Popup** — Restricted the ability to click the group avatar header to open the Member Popup solely to creators. Removed `cursor-pointer` and hover opacity styling for non-creator accounts.
+- **Group Name Truncation** — Added flex minimum widths (`min-w-0`, `flex-1`) and `truncate` classes to the group chat header to prevent long group names from breaking the UI layout.
+- **Participant Parsing** — Enhanced `getMessageRecipients` to strictly map all participant IDs to Strings.
+- **Background Sync** — Optimized background chat metadata sync using the updated `resolveAndSyncChat` helper.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Persistent Chat List** — Disabled the automatic closing of the Chat List when a user opens a Chat Window. The Chat List must now be closed manually via its toggle button.
+- **Z-Index Layering Fix** — Increased the z-index of the open chat windows wrapper from `z-[1]` to `z-[10000]`. Since the Chat List has a z-index of `z-[9999]`, this ensures that any launched Chat Window correctly renders completely on top of the Chat List without visual overlap glitches.
+- **Participant Background Sync** — Refactored to leverage `resolveAndSyncChat` for fetching the latest chat details when opening a chat window from external sources.
+
+---
+
+## 2026-05-27 — Message All Group Schema, Avatar Fallbacks, Banned Words Filter & rawText Metadata
+
+### Added
+
+#### `src/utils/bannedWordsFilter.js` _(new)_
+- **Banned Words Filter** — Created a standalone utility module with a 5-minute in-memory cache and concurrent request locking.
+  - `fetchBannedWords()` — fetches `/wp-json/api/chat/banned-lists` and caches the `bannedWords` array for 300,000ms. Deduplicates concurrent in-flight calls via a shared promise lock.
+  - `filterBannedWords(text)` — applies case-insensitive wildcard masking. `*` in a pattern matches exactly one alphanumeric character (e.g. `*ape` masks `tape`, `rape`, `cape`). Patterns sorted by descending length to prevent sub-pattern conflicts. Falls back to literal index-based replacement if regex compilation fails.
+  - `resetBannedWordsCache()` — test-facing helper to reset module-level cache state.
+
+#### `src/__tests__/bannedWordsFilter.spec.js` _(new)_
+- **Unit Tests** — Vitest suite covering:
+  - Cache hit: second call within 5 min does not trigger a new fetch.
+  - Concurrent lock: simultaneous calls share a single in-flight promise (1 HTTP request).
+  - Cache expiry: fetch is re-triggered after the 5-minute window elapses.
+  - Masking accuracy: `6teen` → `*****`, `tape` → `****`, `hope` → `****`.
+  - Null/empty/undefined inputs are returned unchanged.
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Message All Button Schema** — Updated click handlers to pass hyphenated group types and cover image URLs:
+  - Subscribers: type `'subscribers-{tier_id}'`, name `tier.tier_title`, cover image `tier.cover_image`.
+  - Top Followers: type `'top-followers'`, name `'Top Followers'`.
+  - Unsubscribed: type `'unsubscribed'`.
+- **API Section Resolver** — Added `apiSection` mapping inside `messageAll()` to translate hyphenated frontend types back to the underscore/singular keys expected by the REST API (`subscribers`, `top_followers`, `unsubscribed`).
+- **Button Interactivity** — Removed hardcoded `pointer-events-none opacity-30` from active buttons; replaced with vibrant rose-pink styles (`bg-rose-600`, hover states). Disabled gray state only applied when subscriber count is strictly 0.
+- **Card Layout** — Applied `md:items-stretch` and `flex-1` to cards; set `min-h-[32px]` on preview text; aligned all Message All buttons to a consistent horizontal baseline.
+- **Pagination** — Set `perPage: 4` for Top Followers and Unsubscribed "View More" section loaders.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Prop Bridge** — Extended `onStartChat` to receive and forward `groupCategory` and `coverImageUrl` when adding a new pending chat window. Bound `:group-category` and `:cover-image-url` to child `<ChatWindow>` components.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Group Chat Creation Payload** — Added `groupCategory` and `coverImageUrl` props; forwarded to `FlowHandler.run('chat.createGroupChat', ...)` so category and cover image are stored when the first message is sent.
+- **Participant Avatar Auto-Fetch** — Upgraded the `props.targetUserIds` watcher to also monitor `currentUserId`. Fetches any missing profile entries (name + avatar) for both the participant list and the current user on mount/swap via `FlowHandler.run('chat.fetchChatUsersData', ...)`.
+- **Stacked Pending Avatars** — Updated `displayAvatars` computed to fall back to `[currentUserId, ...props.targetUserIds]` when `activeChatId` is null (pending chat), enabling real participant photos in the group header before the first message is sent.
+- **Avatar Error Fallbacks** — Declared reactive `avatarErrors` map. Added `@error` listeners to all user `<img>` tags (stacked group header, 1-on-1 header, compose input, sent bubble, received bubble). Failed image loads are instantly replaced by styled initial-letter fallback circles.
+- **Banned Words — Mount Pre-Fetch** — Calls `fetchBannedWords().catch(() => {})` in `onMounted` to warm the cache in the background, eliminating HTTP latency on the first send.
+- **Banned Words — Send Intercept** — `sendMessage` now runs `const text = await filterBannedWords(rawText)` before optimistic store insertion and API submission. On `ensureActiveChat` failure, restores the original `rawText` to the compose input.
+- **`chat.sendMessage` Metadata** — Added `metadata: { rawText }` to the `FlowHandler.run('chat.sendMessage', ...)` payload so the backend receives the original unfiltered message text for audit/moderation purposes, per the API spec (`POST /chats/:chatId/messages` → `metadata: object`).
+
+#### `includes/class-api-chat-users.php`
+- **Pagination Default** — Changed the fallback `$per_page` value from a conditional `( $section ? 10 : 4 )` to a strict `4` to align with the frontend "View More" page size.
+
+---
+
+## 2026-05-27 — Group Chat: Action Filter, Persistent Layouts, Socket Kick Sync, Read-Receipt Backfill, Post-Kick Prevention & Empty Tiers Fix
+
+
+### Added
+
+#### `src/components/ui/chat/ChatMembersPopup.vue` _(new)_
+- **Group Members Management** — Created a new members list popup with strict creator-only controls.
+  - Hides the actions trigger menu (⋮) for non-creators.
+  - Disables row click actions and hover styling for non-creators.
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Empty Subscriber Tiers Refinement** — Patched empty states (`0 subscribers`) to prevent grid container distortions and layout collapses.
+  - Renders a fluid organic shape-matched user avatar placeholder (`rounded-[25%_75%_50%_51%/45%_65%_36%_55%]`) when the subscriber count is 0.
+  - Renders a light-gray italicized placeholder (`"No active subscribers"`) to preserve grid vertical spacing.
+  - Disables and style-neutralizes the `"Message All"` button with gray backgrounds (`bg-gray-100` / `border-gray-200`) and disabled cursors.
+
+#### `src/services/chat/flows/fetchMessagesFlow.js`
+- **Post-Kick Message Prevention (API)** — Updated flow to accept `userId` / `currentUserId` in the payload and forward it as the `userId` query parameter to the `GET /chats/:chatId/messages` API call. This enables native server-side message history filtering for kicked users when reloading the widget.
+
+#### `src/composables/useChatSocket.js`
+- **Post-Kick Message Prevention (Socket)** — Added a real-time message guard inside `_handleIncomingChatMessage` to immediately ignore and drop incoming socket messages if the user has already been kicked from the group chat, preventing real-time notifications or unread/preview updates.
+- **Real-Time Kick updates** — Enhanced `_handleIncomingChatMessage` to intercept kick activity logs, filter out the kicked ID locally, dispatch the background `'chat.getChat'` metadata refetch, and run `chatStore.prependChat` to authoritatively synchronize active participants.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Post-Kick Message Prevention (Sidebar)** — Implemented `getAllowedLastMessage` to check if the current user was kicked and lock the sidebar message preview text on the removal activity log (or the latest message prior to it), hiding any subsequent messages.
+- **Persistent Group Row styling** — Updated `getChatDisplayName` and `getChatAvatar` to inspect `chat.is_group === true || chat.is_group === 1` instead of participant counts, preserving group styling in the sidebar even when the member list drops.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Persistent Group Layout** — Updated group checks to examine `is_group === true || chat.is_group === 1`, preventing group chats from morphing into a 1-on-1 layout when the participant list falls to 2.
+- **Universal Input Disablement** — Implemented reactive compose locking: disables inputs and shows a centered status description ("You have been removed from this group." or "There are no other active participants in this chat.") when the participant count is <= 1 or if the user is kicked.
+- **Member Kick Timing** — Adjusted the kick flow to broadcast the socket kick activity log *before* local removal of the participant, ensuring the kicked user's ID is included in socket recipients.
+- **Read-Receipt Helper** — Updated the `allParticipantsRead` helper to recognize 1-on-1 direct chats and zero-participant fallbacks, allowing direct chats to correctly display blue checkmarks when `status === 'read'` without checking group-style individual read receipt arrays.
+
+#### `src/stores/useChatStore.js`
+- **Chronological Read-Receipt Backfill** — Updated `updateMessageStatusAction` (for 1-on-1 chats) and `updateMessageReadReceiptsAction` (for group chats) to backfill the read state. When a subsequent message is marked as `'read'`, all older messages in that chat's list inherit the `'read'` status and merge receipts.
+- **Robust Key Parsing** — Added a `getReceiptUserId` helper supporting both `userId` and `user_id` structures inside `updateMessageReadReceiptsAction` to resolve deduplication discrepancy. Forces `'read'` status updates even if no new receipts were merged (`changed || prevMsg.status !== 'read'`), preventing older messages from getting stuck as "delivered".
+
+#### `src/composables/useChatSocket.js`
+- **Real-Time Kick updates** — Enhanced `_handleIncomingChatMessage` to intercept kick activity logs, filter out the kicked ID locally, dispatch the background `'chat.getChat'` metadata refetch, and run `chatStore.prependChat` to authoritatively synchronize active participants.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Persistent Group Row styling** — Updated `getChatDisplayName` and `getChatAvatar` to inspect `chat.is_group === true || chat.is_group === 1` instead of participant counts, preserving group styling in the sidebar even when the member list drops.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- Excluded group chats from 1-on-1 direct chat resolution matches in `findExistingDirectChat`.
+
+#### `src/services/flow-system/flowRegistry.js`
+- Registered the missing `'chat.removeChatParticipant'` flow in the system's registry.
+
+#### `public/bookings-embed/chat-iframe.html`
+- Relocated the "Create Group Chat" button below the stats bar.
+- Added dropdown selectors for Group Type and multiple pre-selected Users (`6064`, `6065`), enforcing creator-only validations on submission.
+
+#### `public/bookings-embed/fs-chat-host.js` & `src/embeds/chat/ChatEmbedApp.vue` & `src/components/ui/chat/FlexChat.vue`
+- Integrated host, embed app, and flex chat updates supporting creator role verification and iframe auto-resizing.
+
+---
+
 ## 2026-05-21 — Refactor: `postToParent()` Helper for `window.parent.postMessage`
 
 ### Added
@@ -648,6 +838,31 @@
 
 ### Changes (`ChatFloatingWidget.vue`)
 - `openChats` entries have stable `uid: Date.now()` — prevents component remount when `chatId` updates from null to real ID
+
+## Large Group Chat Optimizations (Current Session)
+
+### Features & Performance
+- **Massive Group Creation Support**: Group chats with thousands of members (e.g. 4000+) are now supported without timing out the UI.
+  - Groups are initially created with **only the creator** in the `participants` array (so the backend correctly assigns them the `admin` role).
+  - All target users are subsequently added using the `chat.addParticipants` flow, ensuring they receive the `member` role and the correct `invitedBy` tracking.
+- **Participant Chunking Helper**: Introduced `addParticipantsInChunks` in `chatParticipantUtils.js` which:
+  1. Filters out any users who are *already* in the group (`chatStore.chatParticipants`) to prevent redundant API calls.
+  2. Slices the remaining users into batches of 500.
+  3. Uses `Promise.all` to execute bulk updates concurrently.
+- **Race Condition Fixed**: `ChatWindow.vue` now correctly `await`s the completion of all chunked participant additions *before* broadcasting the first socket message. This guarantees that all fans are fully registered in the database and nobody misses the first broadcast notification.
+
+### Changes (`ChatWindow.vue`)
+- Replaced monolithic `createGroupChat` payload with creator-only initialization followed by chunked additions.
+- Imported and utilized `addParticipantsInChunks` helper.
+
+### Changes (`ChatFloatingWidget.vue`)
+- Replaced the single `chat.addChatParticipant` call in `onStartChat` (when opening an existing group) with the `addParticipantsInChunks` helper to leverage the new filtering and chunking logic.
+
+### New Flows & Files
+- `src/services/chat/flows/addParticipantsFlow.js` — handles `POST /chats/:chatId/participants` for bulk updates, taking `userIds`, `role`, and `invitedBy`.
+- `src/services/chat/chatParticipantUtils.js` — houses the reusable chunking/filtering logic.
+
+---
 - `openChatWindow` deduplicates by `chatId`, `targetUserId`, and `groupType`
 - `closeChatWindow(uid)` and `onChatCreated(uid, newChatId)` use `uid` instead of `chatId`
 - `chatListRef` template ref on `<ChatListPanel>`; `chatListRef.value?.chatReady?.()` called in all `onStartChat` paths to close popup after window opens

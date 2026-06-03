@@ -9,7 +9,9 @@ import { mapFetchCreatorEventsFromResponse } from "@/services/events/mappers/fet
 import { createChatFlow } from "@/services/chat/flows/createChatFlow.js";
 import { getChatFlow } from "@/services/chat/flows/getChatFlow.js";
 import { createGroupChatFlow } from "@/services/chat/flows/createGroupChatFlow.js";
+import { addParticipantsFlow } from "@/services/chat/flows/addParticipantsFlow.js";
 import { addChatParticipantFlow } from "@/services/chat/flows/addChatParticipantFlow.js";
+import { removeChatParticipantFlow } from "@/services/chat/flows/removeChatParticipantFlow.js";
 import { fetchGroupUserIdsFlow } from "@/services/chat/flows/fetchGroupUserIdsFlow.js";
 import { sendMessageFlow } from "@/services/chat/flows/sendMessageFlow.js";
 import { sendProductRecommendationFlow } from "@/services/chat/flows/sendProductRecommendationFlow.js";
@@ -25,6 +27,8 @@ import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBoo
 import { updateMessageFlow } from "@/services/chat/flows/updateMessageFlow.js";
 import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
+import { chatBlockUserFlow } from "@/services/chat/flows/chatBlockUserFlow.js";
+import { chatUnblockUserFlow } from "@/services/chat/flows/chatUnblockUserFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
@@ -41,6 +45,11 @@ import { createTemporaryHoldFlow } from "@/services/bookings/flows/createTempora
 import { getTemporaryHoldStatusFlow } from "@/services/bookings/flows/getTemporaryHoldStatusFlow.js";
 import { releaseTemporaryHoldFlow } from "@/services/bookings/flows/releaseTemporaryHoldFlow.js";
 import { updateTemporaryHoldUserFlow } from "@/services/bookings/flows/updateTemporaryHoldUserFlow.js";
+import { blockUserFlow } from "@/services/block-users/flows/blockUserFlow.js";
+import { unblockUserFlow } from "@/services/block-users/flows/unblockUserFlow.js";
+import { isUserBlockedFlow } from "@/services/block-users/flows/isUserBlockedFlow.js";
+import { listUserBlocksFlow } from "@/services/block-users/flows/listUserBlocksFlow.js";
+import { getBlocksForUserFlow } from "@/services/block-users/flows/getBlocksForUserFlow.js";
 import { reviewPendingBookingFlow } from "@/services/bookings/flows/reviewPendingBookingFlow.js";
 import { cancelBookingFlow } from "@/services/bookings/flows/cancelBookingFlow.js";
 import { fetchBookingFlow } from "@/services/bookings/flows/fetchBookingFlow.js";
@@ -1455,6 +1464,25 @@ export const flowRegistry = {
       uiErrorMap: {},
     },
   },
+  "chat.addParticipants": {
+    flowKind: "write",
+    flow: addParticipantsFlow,
+    pipeline: {
+      timeouts: { requestMs: 15000, totalFlowMs: 20000 },
+      retry: {
+        enabled: true,
+        maxAttempts: 1,
+        baseDelayMs: 250,
+        maxDelayMs: 1000,
+        jitterRatio: 0.1,
+        shouldRetryPredicate: (ctx) => {
+          return ctx?.response?.status === 429 || ctx?.response?.status >= 500;
+        },
+      },
+      destinations: [],
+      uiErrorMap: {},
+    },
+  },
   "chat.createGroupChat": {
     flowKind: "write",
     flow: createGroupChatFlow,
@@ -1488,6 +1516,23 @@ export const flowRegistry = {
       destinations: [],
       uiErrorMap: {
         ADD_CHAT_PARTICIPANT_FAILED: "Could not add participant to chat.",
+      },
+    },
+  },
+  "chat.removeChatParticipant": {
+    flowKind: "write",
+    flow: removeChatParticipantFlow,
+    pipeline: {
+      timeouts: { requestMs: 10000, totalFlowMs: 15000 },
+      retry: { enabled: false },
+      concurrency: {
+        policy: "allowParallel",
+        dedupe: false,
+        keyByPayload: false,
+      },
+      destinations: [],
+      uiErrorMap: {
+        REMOVE_CHAT_PARTICIPANT_FAILED: "Could not remove participant from chat.",
       },
     },
   },
@@ -1728,6 +1773,43 @@ export const flowRegistry = {
       uiErrorMap: {
         SUBMIT_FAILED: "Registration failed. Please check form data.",
       },
+    },
+  },
+  "chat.blockUser": {
+    flowKind: "write",
+    flow: chatBlockUserFlow,
+  },
+  "chat.unblockUser": {
+    flowKind: "write",
+    flow: chatUnblockUserFlow,
+  },
+  "blocks.blockUser": {
+    flowKind: "write",
+    flow: blockUserFlow,
+  },
+  "blocks.unblockUser": {
+    flowKind: "write",
+    flow: unblockUserFlow,
+  },
+  "blocks.isUserBlocked": {
+    flowKind: "read",
+    flow: isUserBlockedFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
+    },
+  },
+  "blocks.listUserBlocks": {
+    flowKind: "read",
+    flow: listUserBlocksFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
+    },
+  },
+  "blocks.getBlocksForUser": {
+    flowKind: "read",
+    flow: getBlocksForUserFlow,
+    pipeline: {
+      retry: { enabled: true, maxAttempts: 2, baseDelayMs: 250 },
     },
   },
 };

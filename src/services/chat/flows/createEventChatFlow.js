@@ -5,8 +5,29 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 export async function createEventChatFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
 
-  if (!payload?.createdBy || !payload?.participants || !payload?.eventId || payload?.eventPrice == null) {
-    return fail({ code: "CREATE_EVENT_CHAT_MISSING_FIELDS", message: "createdBy, participants, eventId, and eventPrice are required." });
+  // Backwards compatibility for createdBy
+  if (!payload.visibilitySettings && payload.createdBy) {
+    payload.visibilitySettings = {
+      chatOwner: String(payload.createdBy),
+      chatVisibility: null,
+      fullAccessUsers: []
+    };
+  }
+  
+  if (payload.visibilitySettings && payload.visibilitySettings.chatOwner) {
+    if (!payload.visibilitySettings.fullAccessUsers) {
+      payload.visibilitySettings.fullAccessUsers = [];
+    }
+    if (!payload.visibilitySettings.fullAccessUsers.includes(String(payload.visibilitySettings.chatOwner))) {
+      payload.visibilitySettings.fullAccessUsers.push(String(payload.visibilitySettings.chatOwner));
+    }
+  }
+
+  if (!payload?.visibilitySettings?.chatOwner && !payload?.createdBy) {
+    return fail({ code: "CREATE_EVENT_CHAT_MISSING_FIELDS", message: "createdBy or visibilitySettings.chatOwner is required." });
+  }
+  if (!payload?.participants || !payload?.eventId || payload?.eventPrice == null) {
+    return fail({ code: "CREATE_EVENT_CHAT_MISSING_FIELDS", message: "participants, eventId, and eventPrice are required." });
   }
 
   try {

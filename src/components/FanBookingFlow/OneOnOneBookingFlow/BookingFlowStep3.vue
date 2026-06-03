@@ -1098,7 +1098,9 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
 
     // Step 1 — create chat
     const chatRes = await FlowHandler.run('chat.createChat', {
-      type:         'direct',
+      chatType:         'private',
+      chatSubtype:      'standard',
+      contextFlags:     ['booking'],
       createdBy:    String(fanUserId),
       participants: [String(fanUserId), String(creatorId)],
       name:         eventTitle || 'Booking Chat',

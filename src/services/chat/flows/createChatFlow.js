@@ -6,6 +6,24 @@ export async function createChatFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
   const headers = context.requestHeaders || {};
 
+  // Backwards compatibility for createdBy
+  if (!payload.visibilitySettings && payload.createdBy) {
+    payload.visibilitySettings = {
+      chatOwner: String(payload.createdBy),
+      chatVisibility: null,
+      fullAccessUsers: []
+    };
+  }
+  
+  if (payload.visibilitySettings && payload.visibilitySettings.chatOwner) {
+    if (!payload.visibilitySettings.fullAccessUsers) {
+      payload.visibilitySettings.fullAccessUsers = [];
+    }
+    if (!payload.visibilitySettings.fullAccessUsers.includes(String(payload.visibilitySettings.chatOwner))) {
+      payload.visibilitySettings.fullAccessUsers.push(String(payload.visibilitySettings.chatOwner));
+    }
+  }
+
   try {
     const response = await api.post(`${baseUrl}/chats`, payload);
     const status = getHttpStatus(response, 201);

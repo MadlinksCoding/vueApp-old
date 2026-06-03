@@ -251,6 +251,14 @@
       }, "*");
     }
 
+    function openGroupChat(options) {
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: 'FS_CHAT_OPEN_GROUP_CHAT',
+        payload: options || {},
+      }, '*');
+    }
+
     function openNewChatPopup() {
       if (!iframe.contentWindow) return;
       iframe.contentWindow.postMessage({
@@ -314,6 +322,7 @@
       container: chatContainer,
       updateAuth: updateAuth,
       openChat: openChat,
+      openGroupChat: openGroupChat,
       openNewChatPopup: openNewChatPopup,
       getState: getState,
       refreshStats: refreshStats,
