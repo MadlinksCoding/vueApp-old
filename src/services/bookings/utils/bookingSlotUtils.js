@@ -116,6 +116,38 @@ function toSlotDateTimeMs(localDateIso, hm) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
 }
 
+function getLocalDateBoundsMs(localDateIso) {
+  const dayStart = new Date(`${localDateIso}T00:00:00`);
+  if (Number.isNaN(dayStart.getTime())) return null;
+
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  return {
+    startMs: dayStart.getTime(),
+    endMs: dayEnd.getTime(),
+  };
+}
+
+function slotWindowOverlapsLocalDate(slotWindow, localDateIso) {
+  if (!slotWindow || !localDateIso) return false;
+  if (!Number.isFinite(slotWindow.startMs) || !Number.isFinite(slotWindow.endMs)) {
+    return slotWindow.localDateIso === localDateIso;
+  }
+
+  const bounds = getLocalDateBoundsMs(localDateIso);
+  if (!bounds) return false;
+
+  return slotWindow.startMs < bounds.endMs && slotWindow.endMs > bounds.startMs;
+}
+
+function shouldBuildWindowForLocalDate(slotWindow, localDateIso, preserveWholeWindow = false) {
+  if (!slotWindow || !localDateIso) return false;
+  if (slotWindow.localDateIso === localDateIso) return true;
+  if (preserveWholeWindow) return false;
+  return slotWindowOverlapsLocalDate(slotWindow, localDateIso);
+}
+
 function normalizePositiveMinutes(value, fallback = 15) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -272,6 +304,32 @@ function resolveBookedSlotUserId(slot = {}) {
     ?? slot?.fan?.id
     ?? slot?.fan?.userId
     ?? null;
+}
+
+function getSortedBookedRowsForEvent(eventId, bookedSlotsIndex = {}) {
+  const byDate = eventId ? bookedSlotsIndex?.[eventId] : null;
+  if (!byDate || typeof byDate !== "object") return [];
+
+  return Object.values(byDate)
+    .flatMap((rows) => (Array.isArray(rows) ? rows : []))
+    .filter((row) => Number.isFinite(row?.startMs) && Number.isFinite(row?.endMs))
+    .sort((left, right) => left.startMs - right.startMs);
+}
+
+function getBookedRowsForLocalDate(eventId, localDateIso, bookedSlotsIndex = {}) {
+  const rows = eventId && localDateIso && Array.isArray(bookedSlotsIndex?.[eventId]?.[localDateIso])
+    ? bookedSlotsIndex[eventId][localDateIso]
+    : [];
+  return [...rows].sort((left, right) => left.startMs - right.startMs);
+}
+
+function getBookedRowsForSlotWindow(allBookedRows = [], slotWindow = {}) {
+  if (!Number.isFinite(slotWindow?.startMs) || !Number.isFinite(slotWindow?.endMs)) return [];
+
+  return allBookedRows.filter((booked) => (
+    booked.startMs < slotWindow.endMs
+    && booked.endMs > slotWindow.startMs
+  ));
 }
 
 function resolveBookedContributionTokens(booked = {}) {
@@ -505,13 +563,9 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
     ? normalizePositiveMinutes(raw.bookingBufferMinutes, 0)
     : 0;
   const bookedRowsForDate = (
-    eventId
-    && localDateIso
-    && bookedSlotsIndex?.[eventId]
-    && Array.isArray(bookedSlotsIndex[eventId][localDateIso])
-  )
-    ? [...bookedSlotsIndex[eventId][localDateIso]].sort((left, right) => left.startMs - right.startMs)
-    : [];
+    getBookedRowsForLocalDate(eventId, localDateIso, bookedSlotsIndex)
+  );
+  const bookedRowsForEvent = getSortedBookedRowsForEvent(eventId, bookedSlotsIndex);
   const rawSlots = Array.isArray(raw.slots) && raw.slots.length > 0
     ? raw.slots
     : (Array.isArray(raw.dates) ? raw.dates : []);
@@ -547,7 +601,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         offHours: slot.offHours,
       });
       if (!mapped) return;
-      if (mapped.localDateIso !== localDateIso) return;
+      if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
       built.push(mapped);
     });
   } else if (repeatRule === "monthly") {
@@ -576,7 +630,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         });
 
         if (!mapped) return;
-        if (mapped.localDateIso !== localDateIso) return;
+        if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
         built.push(mapped);
       });
     });
@@ -609,7 +663,7 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         });
 
         if (!mapped) return;
-        if (mapped.localDateIso !== localDateIso) return;
+        if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
         built.push(mapped);
       });
     });
@@ -626,17 +680,19 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
       return;
     }
 
+    const bookedRowsForWindow = getBookedRowsForSlotWindow(bookedRowsForEvent, slotWindow);
     const parts = (applyBufferAfterBooked && bufferMinutes > 0)
       ? sliceWindowIntoSessionSlotsWithPostBookedBuffer(
           slotWindow,
           sessionMinutes,
-          bookedRowsForDate,
+          bookedRowsForWindow,
           bufferMinutes,
         )
       : sliceWindowIntoSessionSlots(slotWindow, sessionMinutes, 0);
-    if (parts.length > 0) {
-      segmented.push(...parts);
-    } else {
+    const partsForLocalDate = parts.filter((part) => part.localDateIso === localDateIso);
+    if (partsForLocalDate.length > 0) {
+      segmented.push(...partsForLocalDate);
+    } else if (slotWindow.localDateIso === localDateIso) {
       segmented.push(slotWindow);
     }
   });
@@ -746,9 +802,18 @@ export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {
   if (!eventId || !localDateIso || !slot) return false;
 
   const rows = bookedSlotsIndex?.[eventId]?.[localDateIso];
-  if (!Array.isArray(rows) || rows.length === 0) return false;
+  const localDateBlocked = Array.isArray(rows) && rows.some((booked) => (
+    isBlockingBookedSlot(booked)
+    && slot.startMs < booked.endMs
+    && slot.endMs > booked.startMs
+  ));
+  if (localDateBlocked) return true;
 
-  return rows.some((booked) => (
+  if (!Number.isFinite(slot?.startMs) || !Number.isFinite(slot?.endMs) || slot.endMs <= slot.startMs) {
+    return false;
+  }
+
+  return getSortedBookedRowsForEvent(eventId, bookedSlotsIndex).some((booked) => (
     isBlockingBookedSlot(booked)
     && slot.startMs < booked.endMs
     && slot.endMs > booked.startMs
