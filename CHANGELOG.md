@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-06-03 — Chat Block/Unblock Integration
+
+### Added
+
+#### `src/services/chat/flows/chatBlockUserFlow.js` _(new)_
+- **Chat Block User** — Created a new flow `chatBlockUserFlow` to hit `POST /chats/users/block` to filter messages and unread counts for blocked users in the chat system.
+
+#### `src/services/chat/flows/chatUnblockUserFlow.js` _(new)_
+- **Chat Unblock User** — Created a new flow `chatUnblockUserFlow` to hit `POST /chats/users/unblock` to restore chat functionality for unblocked users.
+
+### Changed
+
+#### `src/services/flow-system/flowRegistry.js`
+- **Flow Registration** — Registered `"chat.blockUser"` and `"chat.unblockUser"` to the centralized flow handler.
+
+#### `src/services/block-users/flows/blockUserFlow.js`
+- **Global Sync** — Injected a background hook using `FlowHandler.run('chat.blockUser', ...)` to silently sync global blocks to the chat API immediately upon success.
+
+#### `src/services/block-users/flows/unblockUserFlow.js`
+- **Global Sync** — Injected a background hook using `FlowHandler.run('chat.unblockUser', ...)` to silently sync global unblocks to the chat API immediately upon success.
+
 ## 2026-06-02 — Group Chat Blocking Logic & Socket Security
 
 ### Added

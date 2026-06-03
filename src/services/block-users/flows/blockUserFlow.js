@@ -1,6 +1,7 @@
 import { fail, ok } from "../../flow-system/flowTypes.js";
 import { getHttpStatus } from "../../flow-system/runtime/httpMetaRuntime.js";
 import { getBlockApiBaseUrl, asBlockFlowError } from "../blockApiUtils.js";
+import FlowHandler from "../../flow-system/FlowHandler.js";
 
 export async function blockUserFlow({ payload, context, api }) {
   const baseUrl = getBlockApiBaseUrl(context);
@@ -26,6 +27,12 @@ export async function blockUserFlow({ payload, context, api }) {
         message: response?.error?.message || "Failed to block user.",
         details: { status, response }
       });
+    }
+
+    try {
+      await FlowHandler.run('chat.blockUser', { userId: String(from), blockedUserId: String(to) });
+    } catch (e) {
+      console.error("[blockUserFlow] Failed to sync chat.blockUser:", e);
     }
 
     return ok(response?.data || response || { success: true, result: true });

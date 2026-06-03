@@ -164,6 +164,12 @@ export function useChatSocket(userId) {
     }
   }
 
+  function _handleIncomingSettingUpdate(body) {
+    if (!body?.chat_id) return;
+    console.log("[ChatSocket] Received chat:setting-update for chat_id:", body.chat_id);
+    resolveAndSyncChat(body.chat_id);
+  }
+
   // ── Own SocketHandler (fallback) ───────────────────────────────────────────
   function _attachOwnSocket(SH, fromParent = false) {
     SH.identifyCurrentUser(userId);
@@ -174,6 +180,7 @@ export function useChatSocket(userId) {
       if (flag === 'chat:message') _handleIncomingChatMessage(body);
       else if (flag === 'chat:status') _handleIncomingStatusUpdate(body);
       else if (flag === 'chat:block') _handleIncomingBlockUpdate(body);
+      else if (flag === 'chat:setting-update') _handleIncomingSettingUpdate(body);
     };
     if( fromParent ) {
       SH.registerSocketListener({
@@ -187,6 +194,10 @@ export function useChatSocket(userId) {
       SH.registerSocketListener({
         flag: 'chat:block',
         callback: (body) => _handleIncomingBlockUpdate(body),
+      });
+      SH.registerSocketListener({
+        flag: 'chat:setting-update',
+        callback: (body) => _handleIncomingSettingUpdate(body),
       });
     } else {
       window.addEventListener('SocketHandler:Incoming', _ownSocketHandler);
@@ -265,6 +276,8 @@ export function useChatSocket(userId) {
       _handleIncomingStatusUpdate(body ?? e.data.payload);
     } else if (flag === 'chat:block') {
       _handleIncomingBlockUpdate(body ?? e.data.payload);
+    } else if (flag === 'chat:setting-update') {
+      _handleIncomingSettingUpdate(body ?? e.data.payload);
     } else {
       _handleIncomingChatMessage(e.data.payload);
     }
@@ -336,6 +349,15 @@ export function useChatSocket(userId) {
     });
   }
 
+  function sendChatSettingUpdate(chatId, recipients = []) {
+    console.log("[ChatSocket] Sending chat setting update", { chatId, recipients });
+    const list = Array.isArray(recipients) ? recipients : [];
+    const targets = list.length > 0 ? list : [null];
+    targets.forEach((to) => {
+      sendSocket('chat:setting-update', { chat_id: chatId, ...(to !== null && { to }) });
+    });
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   onUnmounted(() => {
     if (_ownSocketHandler) {
@@ -350,5 +372,5 @@ export function useChatSocket(userId) {
     socketState.isReady.value = false;
   });
 
-  return { init, sendChatMessage, sendStatusUpdate, sendBlockUpdate, isReady: socketState.isReady };
+  return { init, sendChatMessage, sendStatusUpdate, sendBlockUpdate, sendChatSettingUpdate, isReady: socketState.isReady };
 }

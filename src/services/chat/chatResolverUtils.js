@@ -29,7 +29,7 @@ export async function ensureChatUsersData(userIds) {
     chunks.push(missingIds.slice(i, i + CHUNK_SIZE));
   }
 
-  console.error('chunks of userIds to fetch for chat:', chunks);
+  console.log('chunks of userIds to fetch for chat:', chunks);
   // Fetch all chunks in parallel and store
   await Promise.all(
     chunks.map((chunk) =>

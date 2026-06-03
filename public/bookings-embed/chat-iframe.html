@@ -117,8 +117,8 @@
           <label for="group-type" style="font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Poppins', sans-serif;">Group Type</label>
           <select id="group-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d1d5db; font-family: 'Poppins', sans-serif; font-size: 14px; background: white; outline: none; width: 220px; cursor: pointer;">
             <option value="">None (Null)</option>
-            <option value="Top Followers">Top Followers</option>
-            <option value="Unsubscribed Users">Unsubscribed Users</option>
+            <option value="top-followers">Top Followers</option>
+            <option value="unsubscribed">Unsubscribed Users</option>
             <option value="Subscribers">Subscribers</option>
           </select>
         </div>
@@ -275,10 +275,29 @@
         return;
       }
 
+      var chatSubtype = 'standard';
+      var contextFlags = [];
+      var metadata = {};
+
+      if (groupType) {
+        metadata.nativeType = groupType;
+        if (groupType.toLowerCase() === 'subscribers') {
+          chatSubtype = 'subscription';
+          contextFlags = ['subscription'];
+        } else if (groupType === 'top-followers' || groupType === 'unsubscribed') {
+          chatSubtype = 'support_group';
+          contextFlags = ['support'];
+        }
+      }
+
       chatEmbed.openGroupChat({
         userIds:     selectedUsers,
         displayName: groupType ? (groupType + ' Group') : 'Group Chat',
         groupType:   groupType,
+        chatType:    'group',
+        chatSubtype: chatSubtype,
+        contextFlags: contextFlags,
+        metadata:    metadata
       });
     }
 
@@ -301,11 +320,37 @@
         return;
       }
 
+      var chatSubtype = 'standard';
+      var contextFlags = [];
+      var metadata = {};
+
+      if (groupType) {
+        metadata.nativeType = groupType;
+      }
+
+      if (groupType === 'subscribers') {
+        chatSubtype = 'subscription';
+        contextFlags = ['subscription'];
+      } else if (groupType === 'top-followers' || groupType === 'unsubscribed') {
+        chatSubtype = 'support_group';
+        contextFlags = ['support'];
+      }
+      console.error("Creating broadcast group chat with:", { groupType, selectedUsers, chatSubtype, contextFlags, metadata });
+
+
       chatEmbed.openGroupChat({
         userIds:     selectedUsers,
         displayName: groupType ? (groupType + ' Broadcast') : 'Broadcast Group',
         groupType:   groupType,
-        rulesJson:   { broadcastMode: true, creatorView: 'group_chat', memberView: '1to1_private' },
+        chatType:    'group',
+        chatSubtype: chatSubtype,
+        contextFlags: contextFlags,
+        metadata:    metadata,
+        visibilitySettings: { 
+          chatVisibility: 'userScoped',
+          chatOwner: String(params.get('currentUserId') || ''),
+          fullAccessUsers: [String(params.get('currentUserId') || '')]
+        }
       });
     }
 

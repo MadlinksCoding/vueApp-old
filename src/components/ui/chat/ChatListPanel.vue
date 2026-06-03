@@ -154,6 +154,25 @@ function getAllowedLastMessage(chat) {
     }
     return kickMsg
   }
+  // 2. Fallback check: if the standard last_message is a kick log for SOMEONE ELSE,
+  // we must traverse backwards to find the last allowed message.
+  const lastMsg = chat.last_message
+  if (lastMsg?.content_type === 'activity_log') {
+    const kickedId = String(lastMsg.meta?.kicked_user_id || lastMsg.content?.meta?.kicked_user_id || '')
+    if (kickedId && kickedId !== String(props.currentUserId) && props.userRole !== 'creator') {
+      // Traverse allMsgs backward to find the last valid message
+      for (let i = allMsgs.length - 1; i >= 0; i--) {
+        const m = allMsgs[i]
+        const kId = String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '')
+        if (m.content_type === 'activity_log' && kId && kId !== String(props.currentUserId)) {
+            continue
+        }
+        return m
+      }
+      return null
+    }
+  }
+
   return chat.last_message
 }
 

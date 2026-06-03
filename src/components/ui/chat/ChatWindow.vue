@@ -150,7 +150,7 @@ const isChatInputDisabled = computed(() => {
     return true
   }
 
-  // Case 3: Blocked in 1on1 chat
+  // Case 3: Blocked in private chat
   if (isChatBlocked.value) {
     return true
   }
@@ -273,8 +273,8 @@ const isChatBlocked = computed(() => {
     return chatStore.blockedUserIds.includes(String(groupOwnerId.value))
   }
 
-  // Only apply blocking logic for 1on1 chats
-  if (!activeChatId.value && props.targetUserIds?.length !== 1 && props.groupType !== '1on1') {
+  // Only apply blocking logic for private chats
+  if (!activeChatId.value && props.targetUserIds?.length !== 1 || props.groupType !== 'private') {
     return false
   }
   if (activeChatId.value && isGroupChat.value) {
@@ -330,11 +330,31 @@ async function handleKickMember(member) {
   
   if (res?.ok) {
     showToast({ type: 'success', title: 'Member Kicked', message: `@${member.username} was removed.` })
-    await sendChatActivityLog(`removed @${member.username} from group`, {
-      kicked_user_id: member.id,
-      kicked_username: member.username
-    })
-    chatStore.chatParticipants[activeChatId.value] = participants.filter(id => String(id) !== String(member.id))
+    // Safely parse the chat's visibility settings
+    const chat = activeChatId.value ? chatStore.userChats.find(c => String(c.chat_id) === String(activeChatId.value)) : null
+    let settings = chat?.visibility_settings || chat?.visibilitySettings || {}
+    if (typeof settings === 'string') {
+      try { settings = JSON.parse(settings) } catch (e) { settings = {} }
+    }
+    const chatVisibility = settings.chatVisibility || props.visibilitySettings?.chatVisibility || null
+
+    if (isUserScoped.value) {
+      chatStore.chatParticipants[activeChatId.value] = participants.filter(id => String(id) !== String(member.id))
+      
+      if (props.socket?.sendChatSettingUpdate) {
+        props.socket.sendChatSettingUpdate(activeChatId.value, participants)
+      }
+    } else {
+      await sendChatActivityLog(`removed @${member.username} from group`, {
+        kicked_user_id: member.id,
+        user_id: member.id,
+        kicked_username: member.username,
+        chatVisibility: chatVisibility
+      }, {
+        participants: [member.id]
+      })
+      chatStore.chatParticipants[activeChatId.value] = participants.filter(id => String(id) !== String(member.id))
+    }
   } else {
     showToast({ type: 'error', title: 'Failed', message: 'Could not remove member.' })
   }
@@ -417,7 +437,7 @@ function openAdjustPopup(message) {
 }
 
 // ── Activity log ──────────────────────────────────────────────────────────────
-async function sendChatActivityLog(text, meta) {
+async function sendChatActivityLog(text, meta, options = {}) {
   if (!activeChatId.value || !text) return
   const res = await FlowHandler.run('chat.sendChatActivityLog', {
     chatId:   activeChatId.value,
@@ -428,10 +448,19 @@ async function sendChatActivityLog(text, meta) {
   if (res?.ok) {
     chatStore.addMessage(activeChatId.value, res.data.item)
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
-    const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
-    const recipients = allParticipants
-      .map((id) => parseInt(id, 10))
-      .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
+    
+    let recipients = []
+    if (options.participants && Array.isArray(options.participants)) {
+      recipients = options.participants
+        .map(id => parseInt(id, 10))
+        .filter(id => !isNaN(id) && id !== parseInt(currentUserId, 10))
+    } else {
+      const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
+      recipients = allParticipants
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
+    }
+    
     props.socket?.sendChatMessage(res.data.item, recipients)
   }
 }
@@ -1449,6 +1478,16 @@ const messages = computed(() => allMessages.value.filter(m => {
   if (m.content_type === 'requestJoinCallNotification') return false
   if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
 
+  // Hide kick activity logs from other members
+  if (m.content_type === 'activity_log') {
+    const kickedUserId = String(m.meta?.kicked_user_id || m.content?.meta?.kicked_user_id || '')
+    if (kickedUserId && isUserScoped.value && !isCreatorAccount.value) {
+      if (kickedUserId !== String(currentUserId)) {
+        return false
+      }
+    }
+  }
+
   // Broadcast mode — fan/member view: only show messages from the creator or themselves.
   // The creator (isCreatorAccount) always sees every message (group-style view).
   if (isUserScoped.value && !isCreatorAccount.value) {
@@ -1655,7 +1694,7 @@ async function fetchMore() {
   const pagingState = chatStore.pagingStates[activeChatId.value] || null
   const res = await FlowHandler.run('chat.fetchMessages', {
     chatId: activeChatId.value,
-    limit: 20,
+    limit: 500,
     pagingState,
     currentUserId,
   })

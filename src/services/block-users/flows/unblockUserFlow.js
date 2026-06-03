@@ -1,6 +1,7 @@
 import { fail, ok } from "../../flow-system/flowTypes.js";
 import { getHttpStatus } from "../../flow-system/runtime/httpMetaRuntime.js";
 import { getBlockApiBaseUrl, asBlockFlowError } from "../blockApiUtils.js";
+import FlowHandler from "../../flow-system/FlowHandler.js";
 
 export async function unblockUserFlow({ payload, context, api }) {
   const baseUrl = getBlockApiBaseUrl(context);
@@ -24,6 +25,12 @@ export async function unblockUserFlow({ payload, context, api }) {
         message: response?.error?.message || "Failed to unblock user.",
         details: { status, response }
       });
+    }
+
+    try {
+      await FlowHandler.run('chat.unblockUser', { userId: String(from), blockedUserId: String(to) });
+    } catch (e) {
+      console.error("[unblockUserFlow] Failed to sync chat.unblockUser:", e);
     }
 
     return ok(response?.data || response || { success: true });

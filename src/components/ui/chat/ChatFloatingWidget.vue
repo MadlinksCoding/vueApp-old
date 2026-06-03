@@ -32,7 +32,7 @@ function toggleList() {
 }
 
 function openChatWindow(chat) {
-  console.error("Attempting to open chat window with:", chat)
+  console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
     (chat.chatId && c.chatId === chat.chatId) ||
@@ -76,13 +76,22 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
     if (existing) {
       console.log("Existing group chat found - adding participants if needed and opening:", existing)
       // Add new participants to existing group using the chunking helper
-      addParticipantsInChunks({
+      await addParticipantsInChunks({
         chatId: existing.chat_id,
         userIds,
         currentUserId: currentUserId.value,
         chatStore,
-        role: 'member'
+        role: 'member',
+        updateChat: true,
       })
+
+      if (socket.value?.sendChatSettingUpdate) {
+        socket.value.sendChatSettingUpdate(
+          existing.chat_id, 
+          chatStore.chatParticipants[existing.chat_id] || []
+        )
+      }
+
       openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: null, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
     } else {
       // Open pending group window — chat created on first message
@@ -186,9 +195,27 @@ function openNewChatPopup() {
   }, 0)
 }
 
-async function openGroupChat({ userIds = [], displayName = 'Group Chat', groupType = null, visibilitySettings = null } = {}) {
+async function openGroupChat({ 
+  userIds = [], 
+  displayName = 'Group Chat', 
+  groupType = null, 
+  chatType, 
+  chatSubtype, 
+  contextFlags, 
+  metadata, 
+  visibilitySettings = null 
+} = {}) {
   if (!userIds.length) return
-  onStartChat({ userIds: userIds.map(String), displayName, groupType, visibilitySettings })
+  onStartChat({ 
+    userIds: userIds.map(String), 
+    displayName, 
+    groupType, 
+    chatType, 
+    chatSubtype, 
+    contextFlags, 
+    metadata, 
+    visibilitySettings 
+  })
 }
 
 defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })

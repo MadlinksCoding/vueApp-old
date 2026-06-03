@@ -27,6 +27,8 @@ import { updateBookingRequestMessageFlow } from "@/services/chat/flows/updateBoo
 import { updateMessageFlow } from "@/services/chat/flows/updateMessageFlow.js";
 import { sendChatActivityLogFlow } from "@/services/chat/flows/sendChatActivityLogFlow.js";
 import { pinMessageFlow } from "@/services/chat/flows/pinMessageFlow.js";
+import { chatBlockUserFlow } from "@/services/chat/flows/chatBlockUserFlow.js";
+import { chatUnblockUserFlow } from "@/services/chat/flows/chatUnblockUserFlow.js";
 import { fetchSpendingRequirementItemsFlow } from "@/services/events/flows/fetchSpendingRequirementItemsFlow.js";
 import { mapFetchSpendingRequirementItemsFromResponse } from "@/services/events/mappers/fetchSpendingRequirementItemsMapper.js";
 import {
@@ -1772,6 +1774,14 @@ export const flowRegistry = {
         SUBMIT_FAILED: "Registration failed. Please check form data.",
       },
     },
+  },
+  "chat.blockUser": {
+    flowKind: "write",
+    flow: chatBlockUserFlow,
+  },
+  "chat.unblockUser": {
+    flowKind: "write",
+    flow: chatUnblockUserFlow,
   },
   "blocks.blockUser": {
     flowKind: "write",
