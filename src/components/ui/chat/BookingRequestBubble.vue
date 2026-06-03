@@ -260,7 +260,7 @@
           <button
             type="button"
             class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
-            @click.stop="$emit('view-details')"
+            @click.stop="resolvedAction === 'accepted' ? goToCalendar() : $emit('view-details')"
           >
             <template v-if="resolvedAction === 'accepted'">
               <!-- Calendar icon -->
@@ -354,6 +354,10 @@ function toggleMenu() { menuOpen.value = !menuOpen.value }
 function handleAskMoreTime()     { menuOpen.value = false; emit('ask-more-time') }
 function handleAskToReschedule() { menuOpen.value = false; emit('ask-to-reschedule') }
 function handleCancelCall()      { menuOpen.value = false; emit('cancel-booking') }
+
+function goToCalendar() {
+  window.open('/dashboard/events', '_top')
+}
 
 const handleDocumentClick = () => { menuOpen.value = false }
 onMounted(() => document.addEventListener('click', handleDocumentClick))

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-03 — Chat Schema Modernization & Calendar Redirection
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Chat Creation Payload** — Updated the `chat.createChat` flow handler payload for 1-on-1 private chats to dynamically pass modern properties (`chatType`, `chatSubtype`, `contextFlags`, `metadata`, `visibilitySettings`) instead of the legacy hardcoded `type: 'private'`.
+
+#### `src/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue`
+- **Context Flags Fix** — Corrected a typo in the `fireAndForgetPostBookingChat` method where `contextFlags` were set to `['support']` instead of `['booking']`.
+
+#### `wordpress/wp-content/plugins/fansocial/includes/class-chats.php`
+- **Schema Modernization** — Updated the `create_chat` function to strip out the legacy `'type' => 'direct'` attribute in favor of the standardized `chatType => 'private'`, `chatSubtype => 'standard'`, and `contextFlags => ['booking']`.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Calendar Redirection** — Separated the "View in Calendar" button logic from the generic "View Details" event emission. When clicked for accepted bookings, it now explicitly redirects the top-level window to `/dashboard/events` to ensure it properly breaks out of the iframe embed context.
+
 ## 2026-06-03 — Chat Block/Unblock Integration
 
 ### Added
