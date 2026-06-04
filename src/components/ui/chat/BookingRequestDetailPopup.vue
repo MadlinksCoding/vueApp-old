@@ -561,19 +561,57 @@ const duration = computed(() => {
 })
 
 const guestLabel = computed(() => {
-  if (raw.value.userDisplayName) return raw.value.userDisplayName
-  if (raw.value.userName)        return raw.value.userName
-  if (raw.value.userUsername)    return raw.value.userUsername
-  const userId = raw.value.userId
-  if (userId) {
-    const ud = chatStore.chatUsersData[String(userId)]
-    if (ud?.username || ud?.display_name) return "@"+ud.username || ud.display_name
-    return `User #${userId}`
+  if (!props.isCreator) {
+    // Fan view: Show Creator's details
+    if (raw.value.creatorDisplayName) return raw.value.creatorDisplayName
+    if (raw.value.creatorName)        return raw.value.creatorName
+    if (raw.value.creatorUsername)    return raw.value.creatorUsername
+    const creatorId = raw.value.creatorId || props.event?.creatorId || props.event?.raw?.creatorId
+    if (creatorId) {
+      const ud = chatStore.chatUsersData[String(creatorId)]
+      if (ud?.username || ud?.display_name) return "@" + (ud.username || ud.display_name)
+      return `Creator #${creatorId}`
+    }
+    if (props.event?.creatorDisplayName) return props.event.creatorDisplayName
+    if (props.event?.creatorName) return props.event.creatorName
+  } else {
+    // Creator view: Show Fan's details
+    if (raw.value.userDisplayName) return raw.value.userDisplayName
+    if (raw.value.userName)        return raw.value.userName
+    if (raw.value.userUsername)    return raw.value.userUsername
+    const userId = raw.value.userId
+    if (userId) {
+      const ud = chatStore.chatUsersData[String(userId)]
+      if (ud?.username || ud?.display_name) return "@" + (ud.username || ud.display_name)
+      return `User #${userId}`
+    }
   }
   return null
 })
 
-const guestAvatar = computed(() => raw.value.userAvatarUrl || null)
+const guestAvatar = computed(() => {
+  if (!props.isCreator) {
+    const creatorAvatar = raw.value.creatorAvatarUrl || props.event?.creatorAvatarUrl || props.event?.raw?.creatorAvatarUrl;
+    if (creatorAvatar) return creatorAvatar;
+    
+    // Fallback to chatStore
+    const creatorId = raw.value.creatorId || props.event?.creatorId || props.event?.raw?.creatorId;
+    if (creatorId) {
+      return chatStore.chatUsersData[String(creatorId)]?.avatar || null;
+    }
+    return null;
+  }
+  
+  const userAvatar = raw.value.userAvatarUrl;
+  if (userAvatar) return userAvatar;
+  
+  // Fallback to chatStore
+  const userId = raw.value.userId;
+  if (userId) {
+    return chatStore.chatUsersData[String(userId)]?.avatar || null;
+  }
+  return null;
+})
 
 function titleCaseFromKey(key = '') {
   return String(key).replace(/[_-]+/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase())
