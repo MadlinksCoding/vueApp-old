@@ -457,10 +457,6 @@ const formattedHoldTimer = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 });
 
-const compactTokenFormatter = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 0,
-});
 const exactTokenFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 });
@@ -468,6 +464,12 @@ const usdFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const COMPACT_TOKEN_UNITS = [
+  { threshold: 1_000_000_000_000, suffix: 'T' },
+  { threshold: 1_000_000_000, suffix: 'B' },
+  { threshold: 1_000_000, suffix: 'M' },
+  { threshold: 1_000, suffix: 'K' },
+];
 
 function isInviteAcceptedForCurrentSecret() {
   const acceptedSecret = String(props.engine.getState('fanBooking.context.inviteAcceptedSecret') || '').trim();
@@ -558,7 +560,13 @@ function formatTokenCompact(value) {
     return `${sign}${Math.round(abs).toLocaleString('en-US')}`;
   }
 
-  return `${sign}${compactTokenFormatter.format(abs).toUpperCase()}`;
+  const unit = COMPACT_TOKEN_UNITS.find(({ threshold }) => abs >= threshold);
+  const tenths = Math.trunc((abs / unit.threshold) * 10);
+  const whole = Math.trunc(tenths / 10);
+  const decimal = tenths % 10;
+  const scaled = decimal > 0 ? `${whole}.${decimal}` : `${whole}`;
+
+  return `${sign}${scaled}${unit.suffix}`;
 }
 
 function formatTokenExact(value) {
@@ -1098,7 +1106,9 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
 
     // Step 1 — create chat
     const chatRes = await FlowHandler.run('chat.createChat', {
-      type:         'direct',
+      chatType:         'private',
+      chatSubtype:      'standard',
+      contextFlags:     ['booking'],
       createdBy:    String(fanUserId),
       participants: [String(fanUserId), String(creatorId)],
       name:         eventTitle || 'Booking Chat',

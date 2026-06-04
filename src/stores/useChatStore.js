@@ -14,6 +14,7 @@ export const useChatStore = defineStore("chat", {
     chatPinnedMessages: {},
     chatBookings: {},
     chatEvents: {},
+    blockedUserIds: [],
   }),
 
   getters: {
@@ -155,7 +156,9 @@ export const useChatStore = defineStore("chat", {
 
     setChatUsersDataAction({ users }) {
       if (users && typeof users === "object") {
-        this.chatUsersData = { ...this.chatUsersData, ...users };
+        for (const [key, val] of Object.entries(users)) {
+          this.chatUsersData[key] = val;
+        }
       }
     },
 
@@ -221,8 +224,16 @@ export const useChatStore = defineStore("chat", {
       const idx = msgs.findIndex(
         (m) => (m.id || m.message_id) === messageId
       );
-      if (idx !== -1) {
-        msgs[idx] = { ...msgs[idx], status };
+      if (idx === -1) return;
+      msgs[idx] = { ...msgs[idx], status };
+
+      // Chronological backfill: if marked as read, all previous messages are also read
+      if (status === 'read') {
+        for (let i = 0; i < idx; i++) {
+          if (msgs[i].status !== 'read') {
+            msgs[i] = { ...msgs[i], status: 'read' };
+          }
+        }
       }
     },
 
@@ -232,14 +243,68 @@ export const useChatStore = defineStore("chat", {
       if (!msgs) return;
       const idx = msgs.findIndex((m) => (m.id || m.message_id) === messageId);
       if (idx === -1) return;
+
+      const getReceiptUserId = (r) => String(r.user_id || r.userId || '');
+
       const existing = Array.isArray(msgs[idx].read_receipts) ? msgs[idx].read_receipts : [];
       const merged = [...existing];
       for (const receipt of readReceipts) {
-        if (!merged.some((r) => String(r.user_id) === String(receipt.user_id))) {
+        const rId = getReceiptUserId(receipt);
+        if (rId && !merged.some((r) => getReceiptUserId(r) === rId)) {
           merged.push(receipt);
         }
       }
       msgs[idx] = { ...msgs[idx], status: 'read', read_receipts: merged };
+
+      // Chronological backfill: merge read receipts into all previous messages
+      for (let i = 0; i < idx; i++) {
+        const prevMsg = msgs[i];
+        const prevExisting = Array.isArray(prevMsg.read_receipts) ? prevMsg.read_receipts : [];
+        const prevMerged = [...prevExisting];
+        let changed = false;
+
+        for (const receipt of readReceipts) {
+          const rId = getReceiptUserId(receipt);
+          if (rId && !prevMerged.some((r) => getReceiptUserId(r) === rId)) {
+            prevMerged.push(receipt);
+            changed = true;
+          }
+        }
+        if (changed || prevMsg.status !== 'read') {
+          msgs[i] = { ...prevMsg, status: 'read', read_receipts: prevMerged };
+        }
+      }
+    },
+    
+    async fetchBlockedUsers(currentUserId, isCreator) {
+      // Lazy import FlowHandler to prevent circular dependencies in stores
+      const { default: FlowHandler } = await import('@/services/flow-system/FlowHandler');
+      
+      if (isCreator) {
+        const payload = { scope: 'private_chat', limit: 500, from: currentUserId };
+        const res = await FlowHandler.run('blocks.listUserBlocks', payload);
+        
+        if (res?.ok && Array.isArray(res.data?.items)) {
+          // If creator, extract the blocked_id (fans they blocked) for active blocks only
+          const activeBlocks = res.data.items.filter(b => !b.deleted_at);
+          this.blockedUserIds = activeBlocks.map(b => String(b.blocked_id));
+        } else {
+          this.blockedUserIds = [];
+        }
+      } else {
+        const payload = { to: currentUserId };
+        const res = await FlowHandler.run('blocks.getBlocksForUser', payload);
+        
+        if (res?.ok && Array.isArray(res.data?.blocks?.user_blocks)) {
+          // If fan, extract the blocker_id (creators who blocked them) for active private_chat blocks
+          const activeBlocks = res.data.blocks.user_blocks.filter(b => 
+            !b.deleted_at && b.scope === 'private_chat'
+          );
+          this.blockedUserIds = activeBlocks.map(b => String(b.blocker_id));
+        } else {
+          this.blockedUserIds = [];
+        }
+      }
     },
 
     clearCache() {
@@ -255,6 +320,7 @@ export const useChatStore = defineStore("chat", {
       this.chatPinnedMessages = {};
       this.chatBookings = {};
       this.chatEvents = {};
+      this.blockedUserIds = [];
     },
   },
 });

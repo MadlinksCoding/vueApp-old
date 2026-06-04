@@ -61,6 +61,13 @@ const bodyEl = ref(null)
 const nearTop = ref(false)
 
 /* HELPERS */
+const formatTime = (ts) => {
+    if (!ts) return ''
+    const date = new Date(Number(ts))
+    if (isNaN(date.getTime())) return ts // fallback if already formatted or invalid
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '')
+}
+
 const isMe = (msg) => msg.senderId === props.currentUserId
 const isSystem = (msg, index) => props.variantForMessage && props.variantForMessage(msg, index) === 'system'
 
@@ -299,6 +306,10 @@ defineExpose({ bodyEl })
                             <!-- WRAPPER -->
                             <div class="flex flex-col" :class="isMe(msg) ? 'items-end' : 'items-start'">
 
+                                <!-- NAME (FOR OTHERS) -->
+                                <span v-if="!isMe(msg) && msg.senderName && isFirstInGroup(msg, rIdx)" :class="[theme.otherNameMeta, 'mb-1 ml-1']">{{
+                                    msg.senderName }}</span>
+
                                 <!-- BUBBLE -->
                                 <div :class="isMe(msg) ? theme.myBubble : theme.otherBubble"
                                     :style="!isLastInGroup(msg, rIdx) ? 'margin-bottom: 2px;' : ''">
@@ -307,9 +318,9 @@ defineExpose({ bodyEl })
                                     </slot>
                                 </div>
 
-                                <!-- FOOTER (AVATAR & TIME) — Shows only after the last message in a group -->
+                                <!-- FOOTER (AVATAR & TIME) -->
                                 <div v-if="isLastInGroup(msg, rIdx)"
-                                    class="flex items-center gap-1.5 mt-1.5 px-0.5 w-full"
+                                    class="flex items-center gap-2 mt-1.5 px-0.5 w-full"
                                     :class="isMe(msg) ? 'justify-end' : 'justify-start'">
 
                                     <!-- OTHER SIDE: Avatar then Time -->
@@ -321,14 +332,17 @@ defineExpose({ bodyEl })
                                             </slot>
                                         </div>
                                         <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
-                                            <span v-if="msg.time" :class="theme.otherTimeMeta" class="text-xs text-gray-500">{{ msg.time }}</span>
+                                            <span v-if="msg.time || msg.message_ts" :class="theme.otherTimeMeta">
+                                                {{ msg.time || formatTime(msg.message_ts) }}
+                                                <!-- ({{ msg?.sender_id }}) -->
+                                            </span>
                                         </slot>
                                     </template>
 
                                     <!-- MY SIDE: Time then Avatar -->
                                     <template v-if="isMe(msg)">
                                         <slot name="message.meta" :message="msg" :isMe="isMe(msg)">
-                                            <span v-if="msg.time" :class="theme.myTimeMeta" class="text-[10px]">{{ msg.time }}</span>
+                                            <span v-if="msg.time || msg.message_ts" :class="theme.myTimeMeta">{{ msg.time || formatTime(msg.message_ts) }}</span>
                                         </slot>
                                         <div :class="[theme.avatarWrapper, '!mr-0 !ml-1']">
                                             <slot name="message.avatar.me" :message="msg"></slot>

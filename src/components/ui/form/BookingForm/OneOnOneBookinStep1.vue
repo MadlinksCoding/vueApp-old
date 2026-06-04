@@ -1003,7 +1003,7 @@
                 </div>
                 <div class="flex flex-col">
                   <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions") }}</div>
-                  <div v-if="formData.duration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration }) }})</div>
+                  <div v-if="formData.duration && formData.maxSessionDuration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.maxSessionDuration}` }) }})</div>
                 </div>
               </div>
             </div>
@@ -1885,7 +1885,7 @@
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                     <div class="h-10 inline-flex flex-col justify-between items-start">
                       <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
-                      <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: formData.duration * formData.extendSessionMax }) }})</div>
+                      <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.extendSessionMax}` }) }})</div>
                     </div>
                   </div>
                 </div>
