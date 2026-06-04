@@ -26,6 +26,7 @@ import {
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
+import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 
 const { t } = useBookingTranslations();
 
@@ -1240,7 +1241,7 @@ const createEvent = async () => {
       <div v-show="sectionsState.additionalRequest" class="inline-flex flex-col gap-5 w-full mt-5">
         <div class="flex flex-col justify-center items-start gap-1">
           <div class="flex gap-2">
-            <CheckboxGroup v-model="formData.allowRecording" :label="t('booking_allow_recording')"
+            <CheckboxGroup v-model="formData.allowRecording" :label="t('booking_allow_recording')" :isOptional="true"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
               wrapperClass="flex items-center gap-2" />
@@ -1263,7 +1264,7 @@ const createEvent = async () => {
         <div class="flex flex-col justify-center items-start gap-3">
           <div class="flex flex-col justify-center items-start gap-1">
             <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.allowPersonalRequest" :label="t('booking_allow_personal_request')"
+              <CheckboxGroup v-model="formData.allowPersonalRequest" :label="t('booking_allow_personal_request')" :isOptional="true"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-[16px] mt-[2px] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-1" />

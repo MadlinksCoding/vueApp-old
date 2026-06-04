@@ -17,6 +17,7 @@
         <slot name="label">
           {{ label }}
         </slot>
+        <OptionalLabel v-if="isOptional" />
       </span>
 
       <span class="inline-flex items-center gap-2" v-if="tags && tags.length > 0">
@@ -40,8 +41,12 @@
 </template>
 
 <script>
+import OptionalLabel from "../BookingForm/HelperComponents/OptionalLabel.vue";
 export default {
   name: "CheckboxGroup",
+  components: {
+    OptionalLabel,
+  },
   props: {
     modelValue: { type: Boolean, default: false },
     label: { type: String, default: "" },
@@ -52,7 +57,9 @@ export default {
     wrapperClass: { type: String, default: "" },
     tags: { type: Array, default: () => [] },
     metaText: { type: String, default: "" } ,
-    midImg: { type: String, default: "" }
+    midImg: { type: String, default: "" },
+    isOptional: { type: Boolean, default: false },
+    
   },
   emits: ["update:modelValue"],
 };

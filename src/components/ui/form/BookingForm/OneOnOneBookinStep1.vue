@@ -18,6 +18,7 @@
   import alignLeftIcon from '@/assets/images/icons/align-left.svg'
   import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
   import trashIcon from '@/assets/images/icons/trash-01.svg'
+  import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 
   import { showToast } from "@/utils/toastBus.js";
   import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
@@ -988,7 +989,7 @@
             <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
-            <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')"
+            <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')" :isOptional="true"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="flex items-center gap-2" />
             <div :class="['ml-6 transition-opacity duration-200',
@@ -1032,7 +1033,7 @@
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_longer_session_discount')"
+            <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_longer_session_discount')" :isOptional="true"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
@@ -1073,7 +1074,7 @@
           
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <CheckboxGroup v-model="formData.enableFirstTimeDiscount" :label="t('booking_enable_first_time_discount_short')"
+            <CheckboxGroup v-model="formData.enableFirstTimeDiscount" :label="t('booking_enable_first_time_discount_short')" :isOptional="true"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
@@ -1100,7 +1101,7 @@
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
-              <CheckboxGroup v-model="formData.enableBookingFee" :label="t('booking_enable_booking_fee')"
+              <CheckboxGroup v-model="formData.enableBookingFee" :label="t('booking_enable_booking_fee')" :isOptional="true"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
@@ -1124,7 +1125,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.allowInstantBooking" :label="t('booking_allow_instant_booking')"
+                <CheckboxGroup v-model="formData.allowInstantBooking" :label="t('booking_allow_instant_booking')" :isOptional="true"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[0.063rem] text-base leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
@@ -1142,7 +1143,7 @@
                     </div>
                   </div>
 
-                  <CheckboxGroup v-model="formData.disableChatBeforeCall" :label="t('booking_disable_chat_before_call')"
+                  <CheckboxGroup v-model="formData.disableChatBeforeCall" :label="t('booking_disable_chat_before_call')" :isOptional="true"
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-base leading-normal"
                     wrapperClass="flex items-center gap-2 mb-2 mt-2" />
@@ -1161,7 +1162,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')"
+                <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')" :isOptional="true"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                   wrapperClass="flex items-center gap-2" />
@@ -1188,7 +1189,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_enable_cancellation_fee')"
+                <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_enable_cancellation_fee')" :isOptional="true"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                   wrapperClass="flex items-center gap-2" />
@@ -1846,6 +1847,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <div class="self-stretch flex flex-col justify-center items-start gap-1">
                 <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_call_functions") }}
+                  <OptionalLabel v-if="true" />
                 </div>
                 <CheckboxGroup v-model="formData.disableChatDuringCall" :label="t('booking_disable_chat_during_call')"
                   checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -1869,6 +1871,7 @@
                     <TooltipIcon :text="t('booking_session_extension_tooltip')" 
                     tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
                     class="relative group inline-block mt-[0.125rem] ml-1   z-[9]  top-1" />
+                     <OptionalLabel v-if="true" />
                   </div>
                 </div>
                 <div class="inline-flex justify-start items-center gap-2">
@@ -1902,6 +1905,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
+                <OptionalLabel v-if="true" />
                 <TooltipIcon :text="t('booking_reminders_tooltip')" />
               </div>
               <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
@@ -1939,11 +1943,10 @@
               >
                 <template #label>
                   <span>{{ t("booking_set_buffer_time") }}</span>
-
                   <TooltipIcon
-                    :text="t('booking_buffer_time_tooltip')"
-                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[12.5rem]" 
-                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  :text="t('booking_buffer_time_tooltip')"
+                  tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[12.5rem]" 
+                  class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
                   />
                 </template>
               </CheckboxGroup>
@@ -1964,10 +1967,10 @@
           </div>
           <div v-if="isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
-              <CheckboxGroup v-model="formData.enableMaxAttendees" :label="t('booking_group_maximum_participants')"
+              <CheckboxGroup v-model="formData.enableMaxAttendees" :label="t('booking_group_maximum_participants')" :isOptional="true"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
-                wrapperClass="flex items-center gap-2" />
+                wrapperClass="flex items-center gap-2"/>
               <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
             </div>
             <div class="inline-flex justify-start items-center gap-2">

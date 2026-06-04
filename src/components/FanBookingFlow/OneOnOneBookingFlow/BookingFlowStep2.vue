@@ -1190,7 +1190,7 @@ onMounted(() => {
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
               <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
               <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
-                <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem]">
+                <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem] overflow-auto">
                   <div
                     v-for="(opt, index) in durationOptions"
                     :key="index"
