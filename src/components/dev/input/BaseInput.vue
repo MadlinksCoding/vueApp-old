@@ -15,7 +15,8 @@
     <div class="relative w-full">
       <input v-if="type !== 'textarea'" :type="type" :placeholder="placeholder"
         :class="[inputClass, type === 'number' ? 'pr-8' : '']" :value="modelValue" :maxlength="maxLength"
-        :disabled="disabled" @input="$emit('update:modelValue', $event.target.value)" />
+        :disabled="disabled" @input="$emit('update:modelValue', $event.target.value)"
+        @wheel="type === 'number' ? $event.target.blur() : null" />
 
       <div v-if="type === 'number'" class="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 select-none">
         <button type="button" @click="stepUp" :disabled="disabled"
