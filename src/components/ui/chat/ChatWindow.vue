@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
 import LiveCallRequest      from '@/components/ui/chat/LiveCallRequest.vue'
@@ -404,11 +404,6 @@ const activeBookingData = computed(() => {
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
 
-// Pre-fetched booking for the pinned banner message
-const pinnedBookingData = computed(() => {
-  const bookingId = pinnedBookingMessage.value?.content?.booking_id
-  return bookingId ? chatStore.getBookingById(bookingId) : null
-})
 
 // Pre-fetched event for the active popup message
 const activeEventData = computed(() => {
@@ -418,7 +413,7 @@ const activeEventData = computed(() => {
 })
 
 function openBookingDetail(message) {
-  console.log("Opening booking detail for message:", message, pinnedBookingMessage.value)
+  console.log("Opening booking detail for message:", message, pinnedBookingMessages.value)
   activeBookingMessage.value = message
   showBookingPopup.value = true
   // Refresh booking data in background when popup opens
@@ -803,7 +798,10 @@ async function onConfirmCounter(message) {
   })
 }
 
-function onCancelBooking() {
+function onCancelBooking(msg) {
+  if( ! activeBookingMessage.value ) {
+    activeBookingMessage.value = msg
+  }
   showCancelCallPopup.value = true
 }
 
@@ -821,6 +819,7 @@ function onCallCancelled(updatedItem) {
 
 function variantForMessage(msg) {
   if (msg.content_type === 'booking_request') return 'system'
+  if (msg.content_type === 'requestJoinCallNotification') return 'system'
   if (msg.content_type === 'activity_log') return 'system'
   if (msg.content_type === 'product_recommendation') return 'system'
   return null
@@ -1476,10 +1475,9 @@ function getMessageReaders(msg) {
 const allMessages = computed(() => activeChatId.value ? chatStore.getMessagesByChatId(activeChatId.value) : [])
 
 // Exclude from scroll list while pinned — show in banner instead.
-// booking_request: excluded only while still pinned (is_pinned !== false); once unpinned it appears in chat.
-// requestJoinCallNotification: always in banner only.
+// booking_request and requestJoinCallNotification: excluded only while still pinned (is_pinned !== false); once unpinned they appear in chat.
 const messages = computed(() => allMessages.value.filter(m => {
-  if (m.content_type === 'requestJoinCallNotification') return false
+  if (m.content_type === 'requestJoinCallNotification' && m.is_pinned !== false) return false
   if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
 
   // Hide kick activity logs from other members
@@ -1536,26 +1534,177 @@ watch([() => props.targetUserIds, () => currentUserId], ([newIds, cId]) => {
   }
 }, { immediate: true })
 
-// The pinned banner message — requestJoinCallNotification takes priority over booking_request.
-// First checks store's chatPinnedMessages (populated from getChat API, available immediately on open).
-// Falls back to scanning loaded messages (populated as messages stream in).
-// booking_request messages with is_pinned === false (explicitly unpinned) are excluded.
-const pinnedBookingMessage = computed(() => {
-  const chatId = activeChatId.value
-  // Prefer the pre-fetched pinned message from getChat (available before messages load)
-  const stored = chatId ? chatStore.getPinnedMessageByChatId(chatId) : null
-  if (stored && stored.is_pinned !== false) return stored
-
-  // Fallback: scan messages already in store (catches real-time pin events)
-  const list = allMessages.value
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].content_type === 'requestJoinCallNotification') return list[i]
-  }
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].content_type === 'booking_request' && list[i].is_pinned !== false) return list[i]
-  }
-  return null
+// --- Swipe to Cycle Stack Logic ---
+const cycledMessageIds = ref([])
+const swipeState = reactive({
+  activeId: null,
+  startX: 0,
+  currentX: 0
 })
+
+function getCardTransform(msg, index) {
+  const id = msg.message_id || msg.id
+  let x = 0
+  let rotate = 0
+  if (swipeState.activeId === id) {
+    x = swipeState.currentX - swipeState.startX
+    rotate = x * 0.05 // slight rotation during swipe
+  }
+  
+  return `translateX(${x}px) translateY(${index * 8}px) scale(${1 - index * 0.04}) rotate(${rotate}deg)`
+}
+
+function onTouchStart(e, msg, index) {
+  if (index !== 0) return // Only swipe the top card
+  if (pinnedBookingMessages.value.length <= 1) return // No swipe for single card
+  swipeState.activeId = msg.message_id || msg.id
+  swipeState.startX = e.touches ? e.touches[0].clientX : e.clientX
+  swipeState.currentX = swipeState.startX
+}
+
+function onTouchMove(e, msg, index) {
+  if (swipeState.activeId !== (msg.message_id || msg.id)) return
+  swipeState.currentX = e.touches ? e.touches[0].clientX : e.clientX
+}
+
+function onTouchEnd(e, msg, index) {
+  if (swipeState.activeId !== (msg.message_id || msg.id)) return
+  
+  const diffX = swipeState.currentX - swipeState.startX
+  if (Math.abs(diffX) > 100) {
+    // Swipe complete, cycle the stack
+    const id = msg.message_id || msg.id
+    if (id) {
+      // Move to back by pushing a new instance to cycledMessageIds
+      cycledMessageIds.value = cycledMessageIds.value.filter(cId => cId !== id)
+      cycledMessageIds.value.push(id)
+    }
+  }
+  
+  // Reset
+  swipeState.activeId = null
+  swipeState.startX = 0
+  swipeState.currentX = 0
+}
+
+function onMouseDown(e, msg, index) {
+  if (index !== 0) return
+  onTouchStart(e, msg, index)
+  
+  const onMouseMove = (moveEvent) => onTouchMove(moveEvent, msg, index)
+  const onMouseUp = (upEvent) => {
+    onTouchEnd(upEvent, msg, index)
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+  }
+  
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+// ----------------------------------
+
+// The pinned banner messages — requestJoinCallNotification and booking_request.
+// Supports multiple pinned messages, sorted descending by message_ts.
+const pinnedBookingMessages = computed(() => {
+  const chatId = activeChatId.value
+  let stored = chatId ? chatStore.getPinnedMessageByChatId(chatId) : []
+  if (!Array.isArray(stored)) {
+    stored = stored ? [stored] : []
+  }
+
+  // Filter out explicitly unpinned
+  stored = stored.filter(m => m && m.is_pinned !== false)
+
+  const list = allMessages.value
+  const found = [...stored]
+
+  // Add from real-time messages if not already in found
+  list.forEach(m => {
+    if ((m.content_type === 'requestJoinCallNotification' || m.content_type === 'booking_request') && m.is_pinned !== false) {
+      if (!found.some(f => (f.message_id || f.id) === (m.message_id || m.id))) {
+        found.push(m)
+      }
+    }
+  })
+
+  // Find prev_notification for requestJoinCallNotification from allMessages
+  found.forEach(m => {
+    if (m.content_type === 'requestJoinCallNotification') {
+      const allNotifs = list.filter(msg => 
+        msg.content_type === 'requestJoinCallNotification' && 
+        msg.content?.booking_id === m.content?.booking_id
+      );
+      allNotifs.sort((a, b) => (b.message_ts || b.time || 0) - (a.message_ts || a.time || 0));
+      const older = allNotifs.find(msg => (msg.message_ts || msg.time || 0) < (m.message_ts || m.time || 0));
+      if (older) {
+        m.prev_notification = older;
+      }
+    }
+  })
+
+  // Sort by timestamp descending (newest on top), and push cycled items to the end
+  found.sort((a, b) => {
+    const idA = a.message_id || a.id
+    const idB = b.message_id || b.id
+    const idxA = cycledMessageIds.value.indexOf(idA)
+    const idxB = cycledMessageIds.value.indexOf(idB)
+
+    // If one is cycled and the other isn't, the cycled one goes to the end
+    if (idxA !== -1 && idxB === -1) return 1
+    if (idxA === -1 && idxB !== -1) return -1
+    // If both are cycled, the one cycled more recently (higher index) goes to the very end
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB
+
+    // Otherwise sort normally by time descending
+    const tsA = a.message_ts || a.time || 0
+    const tsB = b.message_ts || b.time || 0
+    return tsB - tsA
+  })
+
+  return found
+})
+
+watch(pinnedBookingMessages, (newVal) => {
+  if (!activeChatId.value) return;
+  const notifications = newVal.filter(m => m.content_type === 'requestJoinCallNotification');
+  
+  // Group by booking_id
+  const byBooking = {};
+  notifications.forEach(m => {
+    const bId = m.content?.booking_id;
+    if (bId) {
+      byBooking[bId] = byBooking[bId] || [];
+      byBooking[bId].push(m);
+    }
+  });
+  
+  Object.values(byBooking).forEach(group => {
+    if (group.length > 1) {
+      // Sort descending by message_ts
+      group.sort((a, b) => (b.message_ts || b.time || 0) - (a.message_ts || a.time || 0));
+      
+      // Unpin all but the newest (index 0)
+      for (let i = 1; i < group.length; i++) {
+        const msg = group[i];
+        let currentPinned = chatStore.chatPinnedMessages[activeChatId.value] || [];
+        if (!Array.isArray(currentPinned)) currentPinned = [currentPinned];
+        const updated = currentPinned.filter(m => (m.message_id || m.id) !== (msg.message_id || msg.id));
+        chatStore.chatPinnedMessages[activeChatId.value] = updated;
+
+        chatStore.addMessageAction({ 
+          chatId: activeChatId.value, 
+          item: { ...msg, is_pinned: false } 
+        });
+
+        FlowHandler.run('chat.pinMessage', {
+          chatId: activeChatId.value,
+          messageId: msg.message_id || msg.id,
+          pin: false
+        });
+      }
+    }
+  });
+}, { immediate: true, deep: true })
 
 // ── Read receipts via IntersectionObserver ────────────────────────────────────
 const flexChatRef  = ref(null)
@@ -1802,55 +1951,60 @@ watch(() => messages.value.length, () => {
   observeNewRows()
 })
 
-// Fetch and cache booking + event details as soon as a pinned booking message is available.
-// This means both are ready before the user opens the detail popup.
-watch(pinnedBookingMessage, (msg) => {
-  const bookingId = msg?.content?.booking_id
-  if (!bookingId) return
+// Fetch and cache booking + event details as soon as pinned booking messages are available.
+watch(pinnedBookingMessages, (msgs) => {
+  msgs.forEach((msg) => {
+    const bookingId = msg?.content?.booking_id
+    if (!bookingId) return
 
-  FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
-    if (!res?.ok) return
-    const bookingItem = res.data?.item || null
-    chatStore.setBooking(bookingId, bookingItem)
+    FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
+      if (!res?.ok) return
+      const bookingItem = res.data?.item || null
+      chatStore.setBooking(bookingId, bookingItem)
 
-    // Fetch event once booking is loaded (event id comes from booking)
-    const eventId = bookingItem?.eventId ?? bookingItem?.event_id
-    if (eventId && !chatStore.getEventById(eventId)) {
-      FlowHandler.run('events.fetchEvent', { eventId }).then((evRes) => {
-        if (evRes?.ok) chatStore.setEvent(eventId, evRes.data?.item || null)
-      })
-    }
+      const eventId = bookingItem?.eventId ?? bookingItem?.event_id
+      if (eventId && !chatStore.getEventById(eventId)) {
+        FlowHandler.run('events.fetchEvent', { eventId }).then((evRes) => {
+          if (evRes?.ok) chatStore.setEvent(eventId, evRes.data?.item || null)
+        })
+      }
+    })
   })
 }, { immediate: true })
 
-// Mark the pinned booking message as read as soon as it becomes visible
-// (it lives outside the IntersectionObserver's scrollable root)
-watch(pinnedBookingMessage, async (msg) => {
-  if (!msg) return
-  const messageId = msg.message_id
-  const senderId  = String(msg.sender_id || msg.senderId || '')
-  if (!messageId) return
-  if (senderId === String(currentUserId)) return   // own message
-  if (_markedReadIds.has(messageId)) return        // already handled
-  if (isMessageReadByUser(msg, currentUserId)) {
+// Mark the pinned booking messages as read as soon as they become visible
+watch(pinnedBookingMessages, (msgs) => {
+  msgs.forEach(async (msg) => {
+    if (!msg) return
+    const messageId = msg.message_id
+    const senderId  = String(msg.sender_id || msg.senderId || '')
+    if (!messageId) return
+    if (senderId === String(currentUserId)) return   // own message
+    if (_markedReadIds.has(messageId)) return        // already handled
+    if (isMessageReadByUser(msg, currentUserId)) {
+      _markedReadIds.add(messageId)
+      return
+    }
+
     _markedReadIds.add(messageId)
-    return
-  }
+    
+    // Defer store mutations to prevent synchronous scheduler loop
+    nextTick(() => {
+      chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
+      chatStore.updateChatUnread(activeChatId.value, false)
+    })
 
-  _markedReadIds.add(messageId)
-  chatStore.updateMessageStatusAction({ chatId: activeChatId.value, messageId, status: 'read' })
-  chatStore.updateChatUnread(activeChatId.value, false)
+    const res = await FlowHandler.run('chat.markMessageRead', {
+      chatId:    activeChatId.value,
+      messageId,
+      userId:    currentUserId,
+    })
 
-  const res = await FlowHandler.run('chat.markMessageRead', {
-    chatId:    activeChatId.value,
-    messageId,
-    userId:    currentUserId,
+    if (senderId) {
+      const readReceipts = res?.data?.result?.read_receipts ?? []
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+    }
   })
-
-  if (senderId) {
-    const readReceipts = res?.data?.result?.read_receipts ?? []
-    props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
-  }
 }, { immediate: true })
 
 function _onTopupMessage(e) {
@@ -1870,6 +2024,35 @@ function _onTopupMessage(e) {
   }
 }
 
+let unpinInterval = null;
+function _handleUnpinInterval() {
+  if (!activeChatId.value) return;
+  pinnedBookingMessages.value.forEach(msg => {
+    const booking = chatStore.getBookingById(msg.content?.booking_id);
+    const unpinAt = booking?.endAtIso;
+
+    const isCancelledBooking = msg.content_type === 'booking_request' && msg.content?.action === 'cancelled';
+    const isTimeExpired = unpinAt && new Date(unpinAt).getTime() < Date.now();
+
+    if (isCancelledBooking || isTimeExpired) {
+      let currentPinned = chatStore.chatPinnedMessages[activeChatId.value] || [];
+      if (!Array.isArray(currentPinned)) currentPinned = [currentPinned];
+      const updated = currentPinned.filter(m => (m.message_id || m.id) !== (msg.message_id || msg.id));
+      chatStore.chatPinnedMessages[activeChatId.value] = updated;
+
+      chatStore.addMessageAction({
+        chatId: activeChatId.value,
+        item: { ...msg, is_pinned: false }
+      });
+
+      FlowHandler.run('chat.pinMessage', {
+        chatId: activeChatId.value,
+        messageId: msg.message_id || msg.id,
+        pin: false
+      });
+    }
+  });
+}
 onMounted(async () => {
   window.addEventListener('message', _onTopupMessage)
 
@@ -1900,12 +2083,21 @@ onMounted(async () => {
   } else if (isPending) {
     hasMore.value = false
   }
+
+  // Immediately unpin any past booking messages on load
+  _handleUnpinInterval();
+
+  // Auto-unpin passed booking messages
+  unpinInterval = setInterval(() => {
+    _handleUnpinInterval();
+  }, 10000);
 })
 
 onUnmounted(() => {
   window.removeEventListener('message', _onTopupMessage)
   _observer?.disconnect()
   _observer = null
+  if (unpinInterval) clearInterval(unpinInterval);
 })
 </script>
 
@@ -1926,39 +2118,58 @@ onUnmounted(() => {
       @load-more="fetchMore"
     >
       <!-- Pinned booking banner -->
-      <template v-if="pinnedBookingMessage" #pinned-banner>
-        <!-- Call starting soon — shown when scheduler sends requestJoinCallNotification -->
-        <LiveCallRequest
-          v-if="pinnedBookingMessage.content_type === 'requestJoinCallNotification'"
-          :message="pinnedBookingMessage"
-          :booking="pinnedBookingData"
-          :is-creator="isCreatorAccount"
-          @ask-more-time="activeBookingMessage = pinnedBookingMessage; showMoreTimePopup = true"
-          @reschedule="activeBookingMessage = pinnedBookingMessage; showReschedulePopup = true"
-          @cancel="activeBookingMessage = pinnedBookingMessage; showCancelCallPopup = true"
-          @accept-counter="onAcceptCounter(pinnedBookingMessage)"
-          @reject-counter="onRejectCounter(pinnedBookingMessage)"
-          @view-details="openBookingDetail(pinnedBookingMessage)"
-        />
-        <!-- Normal booking request card -->
-        <BookingRequestBubble
-          v-else
-          :message="pinnedBookingMessage"
-          :is-creator="isCreatorAccount"
-          :disabled="bookingActionLoading"
-          :sender-name="bookingSenderName"
-          pinned
-          @view-details="openBookingDetail(pinnedBookingMessage)"
-          @accept="onDirectAccept(pinnedBookingMessage)"
-          @decline="onDirectDecline(pinnedBookingMessage)"
-          @adjust="openAdjustPopup(pinnedBookingMessage)"
-          @confirm-counter="onConfirmCounter(pinnedBookingMessage)"
-          @cancel-booking="onCancelBooking(pinnedBookingMessage)"
-          @accept-counter="onAcceptCounter(pinnedBookingMessage)"
-          @reject-counter="onRejectCounter(pinnedBookingMessage)"
-          @ask-more-time="activeBookingMessage = pinnedBookingMessage; showMoreTimePopup = true"
-          @ask-to-reschedule="activeBookingMessage = pinnedBookingMessage; showReschedulePopup = true"
-        />
+      <template v-if="pinnedBookingMessages && pinnedBookingMessages.length > 0" #pinned-banner>
+        <div class="relative w-full grid items-stretch pb-6 overflow-visible">
+          <div 
+            v-for="(msg, index) in pinnedBookingMessages" 
+            :key="msg.message_id || msg.id || ('fallback-' + index)"
+            :class="['w-full h-full transition-all', pinnedBookingMessages.length > 1 ? 'cursor-grab active:cursor-grabbing' : '', swipeState.activeId === (msg.message_id || msg.id) ? 'duration-0' : 'duration-300']"
+            style="grid-area: 1 / 1 / 2 / 2; touch-action: pan-y;"
+            :style="{ 
+              zIndex: pinnedBookingMessages.length - index, 
+              transform: getCardTransform(msg, index),
+              transformOrigin: 'bottom center',
+              opacity: index > 3 ? 0 : 1
+            }"
+            @touchstart.passive="onTouchStart($event, msg, index)"
+            @touchmove.passive="onTouchMove($event, msg, index)"
+            @touchend="onTouchEnd($event, msg, index)"
+            @mousedown="onMouseDown($event, msg, index)"
+          >
+            <!-- Call starting soon — shown when scheduler sends requestJoinCallNotification -->
+            <LiveCallRequest
+              v-if="msg.content_type === 'requestJoinCallNotification'"
+              :message="msg"
+              :booking="chatStore.getBookingById(msg?.content?.booking_id)"
+              :is-creator="isCreatorAccount"
+              @ask-more-time="activeBookingMessage = msg; showMoreTimePopup = true"
+              @reschedule="activeBookingMessage = msg; showReschedulePopup = true"
+              @cancel="activeBookingMessage = msg; showCancelCallPopup = true"
+              @accept-counter="onAcceptCounter(msg)"
+              @reject-counter="onRejectCounter(msg)"
+              @view-details="openBookingDetail(msg)"
+            />
+            <!-- Normal booking request card -->
+            <BookingRequestBubble
+              v-else
+              :message="msg"
+              :is-creator="isCreatorAccount"
+              :disabled="bookingActionLoading"
+              :sender-name="bookingSenderName"
+              pinned
+              @view-details="openBookingDetail(msg)"
+              @accept="onDirectAccept(msg)"
+              @decline="onDirectDecline(msg)"
+              @adjust="openAdjustPopup(msg)"
+              @confirm-counter="onConfirmCounter(msg)"
+              @cancel-booking="onCancelBooking(msg)"
+              @accept-counter="onAcceptCounter(msg)"
+              @reject-counter="onRejectCounter(msg)"
+              @ask-more-time="activeBookingMessage = msg; showMoreTimePopup = true"
+              @ask-to-reschedule="activeBookingMessage = msg; showReschedulePopup = true"
+            />
+          </div>
+        </div>
       </template>
 
       <!-- Header -->
@@ -2022,7 +2233,8 @@ onUnmounted(() => {
               <!-- No need right now --> 
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
-            <div class="flex items-center gap-1">
+            <!-- hide online indicator -->
+            <div v-if="1 != 1" class="flex items-center gap-1">
               <div class="flex items-center self-stretch">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
               </div>
@@ -2044,8 +2256,16 @@ onUnmounted(() => {
 
       <!-- Booking request & other system messages -->
       <template #message.system="{ message }">
+        <LiveCallRequest
+          v-if="message.content_type === 'requestJoinCallNotification'"
+          :message="message"
+          :booking="chatStore.getBookingById(message?.content?.booking_id)"
+          :is-creator="isCreatorAccount"
+          @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
+          @ask-to-reschedule="activeBookingMessage = message; showReschedulePopup = true"
+        />
         <BookingRequestBubble
-          v-if="message.content_type === 'booking_request'"
+          v-else-if="message.content_type === 'booking_request'"
           :message="message"
           :is-creator="isCreatorAccount"
           :disabled="bookingActionLoading"

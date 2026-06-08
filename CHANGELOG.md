@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-06-08 — Chat Pinned Messages & Call Notification Refinements
+
+### Changed
+
+#### `src/composables/useChatSocket.js`
+- **Socket-Driven Unpinning** — Updated `_handleIncomingChatMessage` so that when a `requestJoinCallNotification` arrives via the websocket, the app instantly and silently unpins any existing `booking_request` for the same `booking_id` from the local UI state without making redundant API calls.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Strict Expiry Threshold** — Refined the `unpinInterval` by entirely removing the `startAtIso` fallback, ensuring that a pinned booking notification strictly remains pinned for the full duration of the call until `endAtIso` is officially reached.
+- **Array Casting Safety** — Added a defensive `Array.isArray()` cast for the `currentPinned` variable inside both the `unpinInterval` and `pinnedBookingMessages` watcher to definitively prevent `TypeError: currentPinned.filter is not a function`.
+- **Disable Single-Card Swiping** — Added logic to `onTouchStart()` to return early and disable swipe interactions if there is only one pinned message in the stack. Also conditionally removed `cursor-grab` utility classes so the UI no longer suggests the card is draggable.
+- **Duplicate Notification Handling** — Added a watcher for `pinnedBookingMessages` to detect multiple `requestJoinCallNotification` messages for the same `booking_id`. It now automatically keeps the newest notification pinned while firing the unpin API to clean up older duplicates.
+- **Previous Notification Linking** — Updated the `pinnedBookingMessages` computed property to scan `allMessages` and securely attach any older notification as `prev_notification` to the latest `requestJoinCallNotification` object.
+- **Cancelled Booking Cleanup** — Extended the `unpinInterval` to immediately unpin any `booking_request` message if its `action` is marked as `'cancelled'`.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Dynamic Menu Visibility** — Introduced a `hasAcceptedPrevNotification` computed property that checks if the injected `prev_notification` was already accepted. If true, it dynamically hides the 3-dot options menu, reducing UI clutter and preventing conflicting actions.
+## 2026-06-05 — Smart Calendar Navigation & Stacked Card UI Fixes
+
+### Changed
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Global Chat Closure Mechanism** — Introduced a global custom event listener (`fs-chat-close-all`) in `onMounted` (and cleaned up in `onBeforeUnmount`). When dispatched, it instantly clears `openChats` and sets `isListOpen` to false, hiding the entire chat interface without needing a page refresh.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Smart Calendar Redirection** — Upgraded `goToCalendar()`. It now checks `window.top.location.pathname` inside a `try/catch` block. If the user is already on the `/dashboard/events` page, it dispatches `fs-chat-close-all` to reveal the events page behind the widget instead of triggering a full reload.
+- **Accepted State Layout** — Fixed excessive bottom spacing when a booking is accepted. Consolidated button styling into a flex layout to eliminate trailing margins.
+- **Card Stretching** — Conditioned the root element to apply `h-full` and `flex flex-col` when pinned. This allows the card to stretch dynamically and match the height of other taller cards in a stack.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Card Stretching** — Added `h-full` and `flex flex-col` to the root element to ensure consistent stretched heights when placed in the pinned message grid stack.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Uniform Stack Heights** — Removed the `items-end` utility class from the grid container holding pinned messages. By defaulting to `items-stretch`, all stacked cards now naturally expand to match the exact height of the tallest card in the stack, completely preventing shorter cards from awkwardly poking out from the front.
 ## 2026-06-03 — Chat Schema Modernization & Calendar Redirection
 
 ### Changed

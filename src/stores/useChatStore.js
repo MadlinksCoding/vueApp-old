@@ -133,8 +133,8 @@ export const useChatStore = defineStore("chat", {
         if (c.chat_id && Array.isArray(c.participants)) {
           this.chatParticipants[c.chat_id] = c.participants;
         }
-        if (c.chat_id && c.pinned_message) {
-          this.chatPinnedMessages[c.chat_id] = c.pinned_message;
+        if (c.chat_id && c.pinned_messages) {
+          this.chatPinnedMessages[c.chat_id] = c.pinned_messages;
         }
       });
     },
@@ -213,8 +213,8 @@ export const useChatStore = defineStore("chat", {
       if (item.chat_id && Array.isArray(item.participants)) {
         this.chatParticipants[item.chat_id] = item.participants;
       }
-      if (item.chat_id && item.pinned_message) {
-        this.chatPinnedMessages[item.chat_id] = item.pinned_message;
+      if (item.chat_id && item.pinned_messages) {
+        this.chatPinnedMessages[item.chat_id] = item.pinned_messages;
       }
     },
 

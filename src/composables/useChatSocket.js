@@ -100,6 +100,27 @@ export function useChatSocket(userId) {
     // data stays fresh regardless of which view is currently mounted.
     const BOOKING_REFETCH_TYPES = new Set(['booking_request', 'requestJoinCallNotification']);
     if (BOOKING_REFETCH_TYPES.has(body.content_type)) {
+      if (body.content_type === 'requestJoinCallNotification') {
+        const bookingId = body.content?.booking_id;
+        if (bookingId) {
+          let currentPinned = chatStore.chatPinnedMessages[body.chat_id] || [];
+          if (!Array.isArray(currentPinned)) currentPinned = [currentPinned];
+          
+          const bookingRequestMsg = currentPinned.find(m => 
+            m.content_type === 'booking_request' && 
+            m.content?.booking_id === bookingId
+          );
+          
+          if (bookingRequestMsg) {
+            chatStore.chatPinnedMessages[body.chat_id] = currentPinned.filter(m => m !== bookingRequestMsg);
+            chatStore.addMessageAction({
+              chatId: body.chat_id,
+              item: { ...bookingRequestMsg, is_pinned: false }
+            });
+          }
+        }
+      }
+
       // Keep the pinned message store in sync so pinnedBookingMessage computed
       // in ChatWindow immediately reflects the updated action/meta from the new message.
       if (body.is_pinned !== false) {
@@ -330,7 +351,7 @@ export function useChatSocket(userId) {
   }
 
   function sendStatusUpdate(chatId, messageId, status, recipientId, readReceipts = []) {
-    console.error("Sending status update", { chatId, messageId, status, recipientId, readReceipts });
+    console.log("Sending status update", { chatId, messageId, status, recipientId, readReceipts });
     sendSocket('chat:status', {
       chat_id: chatId,
       message_id: messageId,
