@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createEventMapper } from "@/services/events/mappers/createEventMapper.js";
 
+const DEFAULT_RINGTONE_URL = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+
 const baseDraft = {
   creatorId: 1407,
   eventTitle: "Test Event",
@@ -95,6 +97,18 @@ describe("createEventMapper", () => {
     expect(mapped.addOns).toEqual([{ title: "VIP setup", description: "", priceTokens: 25 }]);
     expect(mapped.priceSetting).toBeUndefined();
     expect(mapped.eventGoalTokens).toBeUndefined();
+  });
+
+  it("defaults the ringtone URL when the hidden form field is omitted", () => {
+    const draftWithoutRingtone = { ...baseDraft };
+    delete draftWithoutRingtone.eventRingtoneUrl;
+    const mapped = createEventMapper({
+      ...draftWithoutRingtone,
+      eventType: "1on1-call",
+      basePrice: "120",
+    });
+
+    expect(mapped.eventRingtoneUrl).toBe(DEFAULT_RINGTONE_URL);
   });
 
   it("maps private discounts to fixed token fields", () => {
