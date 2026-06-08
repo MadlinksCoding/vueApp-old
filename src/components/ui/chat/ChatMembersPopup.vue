@@ -47,6 +47,7 @@
             <img
               v-if="member.avatar"
               :src="member.avatar"
+              onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
               class="w-[3.625rem] h-[3.625rem] object-cover"
               alt="avatar"
             />

@@ -1,9 +1,9 @@
 <template>
   <div
-    class="relative w-full border-l-4 border-[#4F46E5] bg-white border-b border-b-[#E5E7EB] font-['Poppins']"
+    class="relative w-full h-full flex flex-col border-l-4 border-[#4F46E5] bg-white border-b border-b-[#E5E7EB] font-['Poppins']"
     @click.self="closeDropdown"
   >
-    <div class="px-4 py-3 flex flex-col gap-1.5">
+    <div class="px-4 py-3 flex flex-col gap-1.5 h-full">
 
       <!-- Header row: title + 3-dot menu -->
       <div class="flex items-start justify-between gap-2">
@@ -11,7 +11,7 @@
           {{ eventName }}
         </span>
         <button
-          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator && !isExpired"
+          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator && !isExpired && !hasAcceptedPrevNotification"
           class="shrink-0 p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           @click.stop="toggleDropdown"
         >
@@ -202,6 +202,7 @@ const isCancelled    = computed(() => {
   return status.startsWith('cancel') || status === 'rejected' || status === 'declined'
 })
 const isAccepted     = computed(() => content.value.action === 'accepted')
+const hasAcceptedPrevNotification = computed(() => props.message?.prev_notification?.content?.action === 'accepted')
 const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
 // ── Join ──────────────────────────────────────────────────────────────────────
 function handleJoin() {
@@ -230,7 +231,13 @@ function parseStartMs() {
 }
 
 function parseEndMs() {
-  return (parseDate(props.booking?.endIso || props.booking?.endAtIso) ?? parseHkt(content.value.end_at))?.getTime() ?? null
+  const explicitEnd = (parseDate(props.booking?.endIso || props.booking?.endAtIso) ?? parseHkt(content.value.end_at))?.getTime()
+  if (explicitEnd) return explicitEnd
+  
+  // Fallback: calculate using duration or default to 1 hour (60 minutes)
+  const startMs = parseStartMs()
+  const durationMins = props.booking?.duration || content.value.duration || 60
+  return startMs ? startMs + (durationMins * 60 * 1000) : null
 }
 
 const isLive = computed(() => {
