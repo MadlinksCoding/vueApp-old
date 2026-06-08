@@ -1,5 +1,5 @@
   <script setup>
-  import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+  import { computed, onMounted, ref, watch } from "vue";
   import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
@@ -10,7 +10,6 @@
   import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
   import videoIcon from '@/assets/images/icons/video-recorder.webp'
   import phoneIcon from '@/assets/images/icons/phone.webp'
-  import musicIcon from '@/assets/images/icons/music-note.webp'
   import minusIcon from '@/assets/images/icons/minus-circle.webp'
   import plusIcon from '@/assets/images/icons/plus-circle.webp'
   import cloudMoonIcon from '@/assets/images/icons/cloud-moon.webp'
@@ -297,12 +296,6 @@
     }
   };
 
-  const ringtoneOptions = [
-    { label: t("booking_ringtone_1"), value: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3", image: musicIcon },
-    { label: t("booking_ringtone_2"), value: "https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3", image: musicIcon },
-    { label: t("booking_ringtone_3"), value: "https://assets.mixkit.co/active_storage/sfx/2871/2871-preview.mp3", image: musicIcon },
-  ];
-
   const colorOptions = [
     { label: t("booking_color_blue"), value: "#5549FF", color: "#5549FF" },
     { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
@@ -333,32 +326,6 @@
     { label: t("booking_group_goal_not_met_cancel_refund"), value: "cancelEvent" },
     { label: t("booking_group_goal_not_met_proceed"), value: "proceedWithoutGoalMet" },
   ];
-
-  let previewAudio = null;
-  const previewRingtone = async () => {
-    try {
-      if (!formData.value.eventRingtoneUrl) return;
-      if (previewAudio) {
-        previewAudio.pause();
-        previewAudio.currentTime = 0;
-      }
-      previewAudio = new Audio(formData.value.eventRingtoneUrl);
-      await previewAudio.play();
-    } catch (error) {
-      showToast({
-        type: "warning",
-        title: t("common_error"),
-        message: t("booking_ringtone_preview_failed"),
-      });
-    }
-  };
-
-  onUnmounted(() => {
-    if (previewAudio) {
-      previewAudio.pause();
-      previewAudio = null;
-    }
-  });
 
   onMounted(() => {
     ensureVueCreatorIdFallback();
@@ -921,21 +888,6 @@
                 :options="callTypeOptions"
               />
             </div>
-          </div>
-          <div class="flex w-full gap-3">
-            <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
-              <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <CustomDropdown
-                  v-model="formData.eventRingtoneUrl"
-                  :options="ringtoneOptions"
-                  buttonClass="self-stretch bg-white/75 px-4 py-2 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
-                />
-              </div>
-            </div>
-            <button type="button" class="flex justify-start items-center gap-1" @click="previewRingtone">
-              <img src="https://i.ibb.co/9kQ5CDty/Icon.png" alt="" />
-              <div class="justify-start text-gray-700 text-sm font-medium leading-tight">{{ t("booking_preview") }}</div>
-            </button>
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span><span
