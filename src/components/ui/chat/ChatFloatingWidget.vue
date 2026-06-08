@@ -33,6 +33,7 @@ function toggleList() {
 }
 
 function openChatWindow(chat) {
+  isListOpen.value = false
   console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
