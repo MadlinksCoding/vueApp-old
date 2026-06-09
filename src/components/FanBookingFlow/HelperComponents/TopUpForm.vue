@@ -406,7 +406,7 @@ onBeforeUnmount(() => {
 
       <!-- Amount display + presets -->
       <div class="flex flex-col gap-1">
-        <div class="opacity-70 justify-start text-white text-xs font-normal font-['Poppins'] leading-4">
+        <div class="opacity-70 justify-start text-white text-sm font-medium font-['Poppins'] leading-5">
           {{ t("fan_booking_top_up_amount") }}
         </div>
         <div class="flex flex-col gap-3">
@@ -430,7 +430,7 @@ onBeforeUnmount(() => {
                       -{{ discountPercentage }}%
                     </div>
                   </div>
-                  <div class="text-right justify-end text-white text-sm font-semibold font-['Poppins'] leading-5">
+                  <div class="text-right justify-end text-white text-sm font-medium font-['Poppins'] leading-5">
                     ≈ USD$ {{ topUpUSD }}
                   </div>
                 </div>
@@ -539,11 +539,11 @@ onBeforeUnmount(() => {
 
       <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem]">
         <div class="flex flex-col gap-3 w-full p-3 md:p-5">
-          <h3 class="text-sm text-[#22CCEE] leading-[20px]">{{ t("fan_booking_payment_summary") }}</h3>
+          <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_payment_summary") }}</h3>
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3">
               <div class="flex flex-col gap-2">
-                <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
+                <h4 class="text-sm font-medium leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
                     <p class="text-sm font-normal text-white">{{ t("fan_booking_original_balance") }}</p>
@@ -586,31 +586,31 @@ onBeforeUnmount(() => {
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_balance_after_booking") }}</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_balance_after_booking") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                    <p class="text-sm font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
+                    <p class="text-sm font-normal text-white">{{ remainingBalance.toLocaleString() }}</p>
                   </div>
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_top_up_payment") }}</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_top_up_payment") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"></div>
-                    <p class="text-sm font-semibold text-white">USD$ {{ topUpUSD }}</p>
+                    <p class="text-sm font-normal text-white">USD$ {{ topUpUSD }}</p>
                   </div>
                 </div>
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-start text-white">
-                  <p class="text-xl font-semibold leading-[30px] text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
+                  <p class="text-xl font-bold text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
                   <div class="flex flex-col">
                     <div class="flex justify-end items-center gap-0.5">
                       <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                       <p class="text-xl font-semibold">{{ selectedAmount.toLocaleString() }}</p>
                     </div>
-                    <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">=USD$ {{ topUpUSD }}</span>
+                    <span class="text-sm font-normal text-[#98A2B3] whitespace-nowrap">=USD$ {{ topUpUSD }}</span>
                   </div>
                 </div>
               </div>

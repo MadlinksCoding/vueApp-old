@@ -57,7 +57,7 @@
                         <div class="inline-flex flex-col justify-center items-start gap-1">
                             <div class="text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">{{
                                 user.display_name }}</div>
-                            <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@{{ user.username
+                            <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4 max-w-[150px] truncate">@{{ user.username
                                 }}</div>
                         </div>
                     </div>
@@ -178,13 +178,13 @@
                                     </div>
                                     <button v-if="tier.subscriber_count === 0"
                                         disabled
-                                        class="self-stretch w-full min-h-[36px] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed rounded opacity-60 leading-tight">
+                                        class="lg:min-h-[2.25rem] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed opacity-60 leading-tight">
                                         <img :src="MessageCircleIcon" alt="" class="w-4 h-4 opacity-30" />
                                         <span class="text-center text-gray-400 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message All</span>
                                     </button>
                                     <button v-else @click="messageAll(tier.tier_title, 'subscribers-' + tier.tier_id, tier.tier_id, tier.cover_image)"
                                         :disabled="!!loadingGroupType"
-                                        class="self-stretch w-full min-h-[36px] px-2 py-1 bg-rose-600 inline-flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold text-xs transition-opacity hover:opacity-90 leading-tight">
+                                        class="lg:min-h-[2.25rem] px-2 py-1 bg-[#F06] inline-flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs transition-opacity hover:opacity-90 leading-tight">
                                         <svg v-if="loadingGroupType === 'subscribers-' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -207,7 +207,7 @@
                         </div>
                         <button @click="messageAll('Top Followers', 'top-followers')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold transition-opacity hover:opacity-90">
+                            class="min-w-14 px-2 py-1 bg-[#F06] flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-opacity hover:opacity-90">
                             <svg v-if="loadingGroupType === 'top-followers'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -217,7 +217,7 @@
                                 <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
                                     {{ loadingGroupType === 'top-followers' ? '...' : 'Message All' }}
                                 </span>
-                                <span v-if="loadingGroupType !== 'top-followers'" class="w-4 text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.top_followers.total }}</span>
+                                <span v-if="loadingGroupType !== 'top-followers'" class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.top_followers.total }}</span>
                             </div>
                         </button>
                     </div>
@@ -234,7 +234,7 @@
                                         class="text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">
                                         {{
                                         user.display_name }}</div>
-                                    <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@{{
+                                    <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4 max-w-[150px] truncate">@{{
                                         user.username
                                         }}</div>
                                 </div>
@@ -262,7 +262,7 @@
                         </div>
                         <button @click="messageAll('Unsubscribed Users', 'unsubscribed')"
                             :disabled="!!loadingGroupType"
-                            class="min-w-14 px-2 py-1 bg-rose-600 flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded text-white font-semibold transition-opacity hover:opacity-90">
+                            class="min-w-14 px-2 py-1 bg-[#F06] flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-opacity hover:opacity-90">
                             <svg v-if="loadingGroupType === 'unsubscribed'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -272,7 +272,7 @@
                                 <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
                                     {{ loadingGroupType === 'unsubscribed' ? '...' : 'Message All' }}
                                 </span>
-                                <span v-if="loadingGroupType !== 'unsubscribed'" class="w-4 text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.unsubscribed.total }}</span>
+                                <span v-if="loadingGroupType !== 'unsubscribed'" class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.unsubscribed.total }}</span>
                             </div>
                         </button>
                     </div>
@@ -289,7 +289,7 @@
                                         class="text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">
                                         {{
                                         user.display_name }}</div>
-                                    <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">@{{
+                                    <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4 max-w-[150px] truncate">@{{
                                         user.username
                                         }}</div>
                                 </div>

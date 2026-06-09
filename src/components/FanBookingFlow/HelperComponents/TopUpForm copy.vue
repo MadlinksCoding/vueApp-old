@@ -225,7 +225,7 @@ const emit = defineEmits(['back']);
 
       <div class="rounded-lg bg-white/10 flex flex-col overflow-hidden">
         <div class="flex flex-col gap-3 w-full p-5">
-          <h3 class="text-sm text-[#22CCEE] leading-[20px]">PAYMENT SUMMARY</h3>
+          <h3 class="text-xl font-semibold text-[#22CCEE]">PAYMENT SUMMARY</h3>
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3">
               <div class="flex flex-col gap-2">

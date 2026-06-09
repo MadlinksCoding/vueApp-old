@@ -1669,14 +1669,14 @@ const baseThemeStyles = {
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-[#344054] text-base font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
-  otherBubble:      'text-white  text-base font-normal max-w-[220px] min-w-16 min-h-8 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  myBubble:         'text-[#344054] text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-white  text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
-  myTimeMeta:       'text-[10px] text-zinc-400 font-semibold',
+  myTimeMeta:       'text-xs text-gray-500 font-normal',
   otherNameMeta:    'hidden',
-  otherTimeMeta:    'text-[10px] text-zinc-400 font-semibold',
+  otherTimeMeta:    'text-xs text-gray-500 font-normal',
   avatarWrapper:    'flex shrink-0 items-end',
   avatarImg:        'w-4 h-4 rounded-full object-cover',
   loaderWrapper:    'p-2 flex justify-center shrink-0 w-full',
@@ -1686,7 +1686,7 @@ const chatTheme = computed(() => {
   return {
     ...baseThemeStyles,
     header: isGroupChat.value
-      ? 'bg-gray-200 font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative' // Matching DemoChats.vue
+      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative' // Matching DemoChats.vue
       : 'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative' // Existing Dark Theme
   }
 })
@@ -2018,7 +2018,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-xl font-semibold truncate">{{ chatName }} 
+            <div class="text-white text-sm font-semibold truncate">{{ chatName }} 
               <!-- No need right now --> 
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
@@ -2229,16 +2229,16 @@ onUnmounted(() => {
             maxlength="2000"
             :placeholder="isChatBlocked ? 'You cannot send messages to this user.' : 'Write a reply...'"
             :disabled="isChatBlocked"
-            class="flex-1 text-sm bg-transparent outline-none text-[#667085] placeholder-[#667085] disabled:opacity-50"
+            class="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-[#667085] disabled:opacity-50"
             @keydown="onKeydown"
           />
-          <div class="flex items-center gap-2 text-zinc-400 shrink-0">
+          <div class="flex items-center gap-2.5 text-zinc-400 shrink-0">
             <!-- Start: Add product button -->
             <button
               v-if="isCreatorAccount"
               type="button"
               title="Add product"
-              class="inline-flex h-5 w-5 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
+              class="inline-flex h-6 w-6 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
               @click.stop="openProductPopup"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -2249,8 +2249,8 @@ onUnmounted(() => {
             <!-- Emoji toggle button -->
             <svg
               @click.stop="showEmojiPicker = !showEmojiPicker"
-              class="w-[18px] h-[18px] cursor-pointer hover:text-zinc-600"
-              :class="showEmojiPicker ? 'text-zinc-600' : ''"
+              class="w-5 h-5 cursor-pointer "
+              :class="showEmojiPicker ? 'text-[#0C111D]' : 'text-[#0C111D]'"
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <circle cx="12" cy="12" r="10" stroke-width="2"/>
