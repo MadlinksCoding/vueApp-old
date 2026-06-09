@@ -284,9 +284,9 @@ const groupPolicyItems = computed(() => {
 
         <div class="flex flex-col w-full gap-1 md:gap-3 px-2 pb-2 md:p-0 lg:p-0">
             <div class="flex gap-1 md:gap-2">
-              <h3 class="text-sm text-white/50">{{ t("fan_booking_booking_policy") }}</h3>
+              <h3 class="text-sm font-medium text-white/50 leading-5">{{ t("fan_booking_booking_policy") }}</h3>
             </div>
-            <ul class="text-sm pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
+            <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
               <li class="flex items-start gap-2">
                 <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
                 {{ t("fan_booking_policy_hold_fee") }}

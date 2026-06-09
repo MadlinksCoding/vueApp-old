@@ -87,8 +87,8 @@
       position: "fixed",
       bottom: "0",
       right: "0",
-      width: String(settings.width) + "px",
-      height: String(settings.height) + "px",
+      width: String(settings.width / 16) + "rem",
+      height: String(settings.height / 16) + "rem",
       zIndex: "9998",
       background: "transparent",
       overflow: "visible",
@@ -167,17 +167,17 @@
         return;
       }
       if (data.type === "FS_CHAT_FULLSCREEN") {
-        chatContainer.style.width = String(window.innerWidth) + "px";
-        chatContainer.style.height = String(window.innerHeight) + "px";
+        chatContainer.style.width = String(window.innerWidth / 16) + "rem";
+        chatContainer.style.height = String(window.innerHeight / 16) + "rem";
       } else if (data.type === "FS_CHAT_RESIZE" && data.payload) {
         var w = data.payload.width;
         var h = data.payload.height;
         if (data.payload.is_open && window.innerWidth < 768) {
           chatContainer.style.width = "100vw";
-          chatContainer.style.height = "100vh";
+          chatContainer.style.height = "100dvh";
         } else {
-          if (w > 0) chatContainer.style.width = String(w) + "px";
-          if (h > 0) chatContainer.style.height = String(h) + "px";
+          if (w > 0) chatContainer.style.width = String(w / 16) + "rem";
+          if (h > 0) chatContainer.style.height = String(h / 16) + "rem";
         }
         applyContainerSize(window.innerWidth, data.payload);
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {

@@ -72,7 +72,7 @@ const creatorId = computed(() => {
 
 const newChatPopupConfig = {
   actionType: 'popup',
-  position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
+  position: props.hostWidth > 768 ? 'center' : { default: 'top-center', '>768': 'center' },
   customEffect: 'scale',
   speed: '250ms',
   effect: 'ease-in-out',
@@ -81,8 +81,8 @@ const newChatPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: window.__fsChatEmbed ? '675px' : { default: '100%', '>768': '675px' },
-  height: window.__fsChatEmbed ? '90vh' : { default: '100vh', '>768': '90vh' },
+  width: props.hostWidth > 768 ? '42.188rem' : { default: '100%', '>768': '675px' },
+  height: props.hostWidth > 768 ? '37.5rem' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }

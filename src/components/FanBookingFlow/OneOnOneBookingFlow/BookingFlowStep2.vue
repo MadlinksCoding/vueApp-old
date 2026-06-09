@@ -1258,7 +1258,7 @@ onMounted(() => {
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">
+              <h3 class="text-xl font-semibold text-[#22CCEE]">
                 {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
               </h3>
               <div class="grid grid-cols-3 w-full gap-2">
@@ -1279,7 +1279,7 @@ onMounted(() => {
                   ]"
                 >
                   <p
-                    class="text-sm font-medium leading-[20px]"
+                    class="text-sm font-normal leading-"
                     :class="[
                       slot.disabled
                         ? 'text-white/70'
@@ -1302,7 +1302,7 @@ onMounted(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_select_length") }}</h3>
+              <h3 class="text-xl text-[#22CCEE] font-semibold">{{ t("fan_booking_select_length") }}</h3>
               <div
                 class="border-[3px] rounded-[3.125rem]"
                 :class="durationStepperBorderClass"
@@ -1338,7 +1338,7 @@ onMounted(() => {
               </div>
               <p
                 v-if="showDurationMaxNotice"
-                class="flex items-center gap-1 text-xs font-medium leading-[18px]"
+                class="flex items-center gap-1 text-sm font-normal leading-[18px]"
                 :class="durationMaxNoticeClass"
                 data-testid="booking-flow-duration-max-warning"
               >
@@ -1392,7 +1392,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
-              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+              <h3 class="text-xl text-[#22CCEE] font-semibold leading-5">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -1407,23 +1407,23 @@ onMounted(() => {
                     >
                       <img v-if="addon.selected" :src="bookingFlowCheckIcon" alt="check-icon" class="w-[0.46875rem] h-[0.3125rem]" />
                     </div>
-                    <p class="text-sm leading-[20px] font-medium">{{ addon.name }}</p>
+                    <p class="text-sm leading-5 font-medium">{{ addon.name }}</p>
                   </div>
                   <div class="flex flex-row justify-end items-center gap-0.5">
-                    <p class="text-sm leading-[20px] font-semibold">+</p>
+                    <p class="text-sm leading-5 font-semibold">+</p>
                     <div class="flex justify-center items-center w-[1.25rem] h-[1.25rem]">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" />
                     </div>
-                    <p class="text-sm leading-[20px] font-semibold">{{ addon.price }}</p>
+                    <p class="text-sm leading-5 font-semibold">{{ addon.price }}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#22CCEE] font-medium leading-[20px]">{{ t("fan_booking_other_request") }}</h3>
+              <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
-                <p class="text-sm leading-[20px] text-[#F2F4F7]">
+                <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
                   {{ t("fan_booking_other_request_body") }}
                 </p>
               </div>
