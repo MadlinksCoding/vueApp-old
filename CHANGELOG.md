@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-06-09 — Chat Embed Positioning & Mobile UI Polish
+
+### Changed
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Dynamic Resize Optimization** — Removed `!bottom-0` forcing logic in `notifyResize()` to prevent infinite resize loops where the iframe's calculated height constantly triggered observer callbacks.
+- **Trigger Width Payload** — `notifyResize()` now reads the width of `.chat-panel-trigger` and includes it as `trigger_width` in the `FS_CHAT_RESIZE` payload so the host script can accurately track the chat button's dimensions.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Mobile Edge Spacing** — Added dynamic offset logic to `widgetStyle`. When embedded on mobile-sized viewports (`hostWidth < 768`), the widget now intelligently applies a `0.5rem` (8px) margin depending on the active alignment states (`isLeftAligned`, `isTopAligned`). This prevents the widget from sticking flush against the absolute edge of the screen on mobile devices.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Snap Positioning Fixes** — Updated `onHostDragEnd` and initial mount states to snap the `chatContainer` exactly to `0px` on the left or right edges instead of forcing a 16px offset. The 16px offset caused the iframe to get cut off because the host page's viewport width didn't account for it.
+- **Vertical Snapping Constraint** — Updated `onHostDragEnd` logic to enforce vertical snapping to the top (`0px`) or bottom (`window.innerHeight - height`) edges depending on `isTopAligned`. The widget can no longer be dropped floating in the middle of the screen vertically.
+- **Drag Handle Alignment** — Adjusted the secondary drag handle's starting and snapping position using the dynamically passed `trigger_width` so that it stays anchored flush to the correct side of the chat button regardless of whether the widget is left-aligned or right-aligned.
+- **Drag Handle UI Polish** — Reduced the size of the drag handle to 24px x 24px, removed the yellow background in favor of a clean transparent look with a `gray-600` icon, and perfectly centered it vertically relative to the chat button (`16px` from bottom/top).
+- **Touch Device Drag Handle** — Added device capability detection (`ontouchstart`). The drag handle is now permanently visible on mobile/touch devices since `mouseenter` hover events aren't viable, guaranteeing the widget remains draggable on mobile without requiring obscure long-press actions.
+
+#### `public/bookings-embed/chat.html`
+- **Clean Embed View** — Injected a scoped `<style>` block to forcefully hide the `#\_\_vue-devtools-container\_\_` wrapper exclusively inside the embed iframe environment, ensuring the devtools UI never leaks into client-facing external pages.
 ## 2026-06-08 — Chat Pinned Messages & Call Notification Refinements
 
 ### Changed

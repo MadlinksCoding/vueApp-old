@@ -3,6 +3,11 @@
     <ChatFloatingWidget ref="widgetRef" :user-id="uid" />
   </div>
 </template>
+<style scoped>
+#__vue-devtools-container__{
+  display: none !important;
+}
+</style>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -126,30 +131,46 @@ function scheduleResize(el, delay = 30) {
   resizeTimer = setTimeout(() => notifyResize(el), delay)
 }
 
+let lastW = 0
+let lastH = 0
+let lastIsOpen = null
+
 function notifyResize(el) {
   if (popupOpen) return
-  console.log("Calculating chat embed size...") // Debug log to trace resize events
+
   const root = el.getBoundingClientRect()
 
   // Walk all descendants — captures absolute-positioned children (chat list, chat windows)
   let minLeft  = root.left
   let minTop   = root.top
   let maxRight = root.right
+  let maxBottom = root.bottom
   el.querySelectorAll('*').forEach(child => {
     const r = child.getBoundingClientRect()
     if (r.width > 0 && r.height > 0) {
       if (r.left  < minLeft)  minLeft  = r.left
       if (r.top   < minTop)   minTop   = r.top
       if (r.right > maxRight) maxRight = r.right
+      if (r.bottom > maxBottom) maxBottom = r.bottom
     }
   })
 
   const w = Math.ceil(maxRight - minLeft) + 32
-  const h = Math.ceil(root.bottom - minTop) + 32
+  const h = Math.ceil(maxBottom - minTop) + 32
 
   const isOpen = !!(widgetRef.value?.isListOpen || (widgetRef.value?.openChats?.length > 0))
+  const triggerEl = el.querySelector('.chat-panel-trigger')
+  const triggerWidth = triggerEl ? triggerEl.getBoundingClientRect().width : 56
 
-  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen })
+  if (w === lastW && h === lastH && isOpen === lastIsOpen) {
+    return
+  }
+
+  lastW = w
+  lastH = h
+  lastIsOpen = isOpen
+
+  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen, trigger_width: triggerWidth })
 }
 
 function sendFullViewport() {

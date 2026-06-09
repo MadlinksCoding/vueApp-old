@@ -150,7 +150,7 @@
                 </div>
                 <div class="inline-flex flex-col justify-center items-start gap-2">
                   <div class="inline-flex items-center gap-2">
-                    <img v-if="guestAvatar" :src="guestAvatar" class="w-5 h-5 rounded-full object-cover" alt="" />
+                    <img v-if="guestAvatar" :src="guestAvatar" class="w-5 h-5 rounded-full object-cover" alt="" onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" />
                     <div class="text-gray-950 text-sm font-medium leading-5">
                       {{ guestLabel }}
                     </div>

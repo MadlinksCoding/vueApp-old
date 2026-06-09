@@ -23,12 +23,142 @@ const chatListRef = ref(null)
 // openChats: [{ chatId, chatName, avatar }]
 const openChats = ref([])
 
+const isEmbedded = window.self !== window.top
+
+function postToParent(type, payload = {}) {
+  if (isEmbedded && window.parent) {
+    window.parent.postMessage({ type, payload }, '*')
+  }
+}
+
+const isDragging = ref(false)
+const isLeftAligned = ref(false)
+const isTopAligned = ref(false)
+const position = ref({ x: null, y: null })
+const isFloating = computed(() => position.value.x !== null && position.value.y !== null)
+
+const widgetStyle = computed(() => {
+  if (isEmbedded) {
+    const offset = hostWidth.value < 768 ? '0.5rem' : '0px';
+    return {
+      top: isTopAligned.value ? offset : 'auto',
+      bottom: !isTopAligned.value ? offset : 'auto',
+      left: isLeftAligned.value ? offset : 'auto',
+      right: !isLeftAligned.value ? offset : 'auto'
+    }
+  }
+  return position.value.x !== null ? { left: `${position.value.x}px`, top: `${position.value.y}px`, right: 'auto', bottom: 'auto' } : {}
+})
+
+let startX = 0, startY = 0
+let initialX = 0, initialY = 0
+let moved = false
+
+function onHover(isHovered) {
+  if (isEmbedded) {
+    postToParent('FS_CHAT_HOVER_STATE', { isHovered })
+  }
+}
+
+function onDragStart(e) {
+  if (e.type === 'mousedown' && e.button !== 0) return
+  moved = false
+  isDragging.value = true
+
+  const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX
+  const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY
+
+  startX = clientX
+  startY = clientY
+
+  if (widgetEl.value && !isEmbedded) {
+    const rect = widgetEl.value.getBoundingClientRect()
+    initialX = rect.left
+    initialY = rect.top
+    position.value = { x: initialX, y: initialY }
+  }
+
+  if (isEmbedded) {
+    position.value = { x: 1, y: 1 } // Trigger isFloating styles
+  }
+
+  window.addEventListener(e.type === 'touchstart' ? 'touchmove' : 'mousemove', onDragMove, { passive: false })
+  window.addEventListener(e.type === 'touchstart' ? 'touchend' : 'mouseup', onDragEnd)
+}
+
+function onDragMove(e) {
+  if (!isDragging.value || !widgetEl.value) return
+  const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX
+  const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY
+  const dx = clientX - startX
+  const dy = clientY - startY
+
+  if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    moved = true
+    if (isEmbedded) {
+      postToParent('FS_CHAT_DRAG_START', { mouseX: clientX, mouseY: clientY })
+    }
+  }
+
+  if (moved) {
+    e.preventDefault()
+    if (isEmbedded) return
+
+    const widgetWidth = widgetEl.value.offsetWidth
+    const widgetHeight = widgetEl.value.offsetHeight
+    const maxX = window.innerWidth - widgetWidth
+    const maxY = window.innerHeight - widgetHeight
+
+    let newX = Math.max(0, Math.min(initialX + dx, maxX))
+    let newY = Math.max(0, Math.min(initialY + dy, maxY))
+    position.value = { x: newX, y: newY }
+  }
+}
+
+function onDragEnd(e) {
+  if (isEmbedded && moved) return
+
+  isDragging.value = false
+  const moveEvent = e.type === 'touchend' ? 'touchmove' : 'mousemove'
+  const endEvent = e.type === 'touchend' ? 'touchend' : 'mouseup'
+  window.removeEventListener(moveEvent, onDragMove)
+  window.removeEventListener(endEvent, onDragEnd)
+
+  if (moved && widgetEl.value && !isEmbedded) {
+    const widgetWidth = widgetEl.value.offsetWidth
+    const widgetHeight = widgetEl.value.offsetHeight
+    const centerX = position.value.x + (widgetWidth / 2)
+    const centerY = position.value.y + (widgetHeight / 2)
+    const windowCenterX = window.innerWidth / 2
+    const windowCenterY = window.innerHeight / 2
+
+    if (centerX < windowCenterX) {
+      isLeftAligned.value = true
+      position.value.x = hostWidth.value >= 768 ? 16 : 8
+    } else {
+      isLeftAligned.value = false
+      position.value.x = window.innerWidth - widgetWidth - (hostWidth.value >= 768 ? 16 : 8)
+    }
+
+    // Top alignment determines whether lists open UP or DOWN
+    isTopAligned.value = centerY < windowCenterY
+  }
+}
+
 const unreadCount = computed(() => {
   // Placeholder: sum unread_count from userChats
   return chatStore.userChats.reduce((sum, c) => sum + (c.unread_count || 0), 0)
 })
 
-function toggleList() {
+function toggleList(e) {
+  if (moved) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    moved = false
+    return
+  }
   isListOpen.value = !isListOpen.value
 }
 
@@ -231,6 +361,15 @@ onMounted(async () => {
   const handleHostResize = (e) => {
     if (e.data?.type === 'FS_CHAT_HOST_RESIZE') {
       hostWidth.value = e.data.payload.width
+    } else if (e.data?.type === 'FS_CHAT_DRAG_END' && e.data.payload) {
+      isLeftAligned.value = e.data.payload.isLeftAligned
+      isTopAligned.value = e.data.payload.isTopAligned
+      isDragging.value = false
+      moved = false
+      window.removeEventListener('mousemove', onDragMove)
+      window.removeEventListener('touchmove', onDragMove)
+      window.removeEventListener('mouseup', onDragEnd)
+      window.removeEventListener('touchend', onDragEnd)
     }
   }
   window.addEventListener('message', handleHostResize)
@@ -279,17 +418,28 @@ onMounted(async () => {
   <div
     v-if="currentUserId"
     ref="widgetEl"
-    class="fixed bottom-2 right-2 z-[9999] flex flex-col items-end gap-2"
+    class="fixed z-[9999] flex flex-col gap-2"
     :class="[
-      hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
-      hostWidth > 1024 ? 'bottom-4 right-2' : '',
-      hostWidth >= 768 ? '!bottom-0' : '',
+      isLeftAligned ? 'items-start' : 'items-end',
+      !isDragging ? 'transition-all duration-300' : '',
+      (!isEmbedded && position.x === null) ? [
+        hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
+        hostWidth > 1024 ? 'bottom-4 right-2' : '',
+        hostWidth >= 768 ? '!bottom-0' : '',
+        'bottom-2 right-2'
+      ] : ''
     ]"
+    :style="widgetStyle"
   >
 
-    <!-- Open chat windows (stack left of the trigger) -->
-    <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[10000]"
-         :class="[(hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '']">
+    <!-- Open chat windows (stack left or right of the trigger depending on alignment) -->
+    <div class="flex gap-2 absolute z-[10000]"
+         :class="[
+           isTopAligned ? 'items-start top-0' : 'items-end bottom-0',
+           (hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '',
+           isLeftAligned ? 'left-0 flex-row-reverse' : 'right-0'
+         ]"
+         :style="{ pointerEvents: isDragging ? 'none' : 'auto' }">
       <ChatWindow
         v-for="chat in openChats"
         :key="chat.uid"
@@ -317,7 +467,7 @@ onMounted(async () => {
     </div>
 
     <!-- Anchor: chat list panel + trigger button -->
-    <div class="relative flex flex-col items-end">
+    <div class="relative flex items-end" :class="isTopAligned ? 'flex-col-reverse' : 'flex-col'">
 
       <!-- Chat list panel (floats above trigger) -->
       <ChatListPanel
@@ -325,14 +475,19 @@ onMounted(async () => {
         ref="chatListRef"
         :current-user-id="currentUserId"
         :host-width="hostWidth"
+        :is-left-aligned="isLeftAligned"
+        :is-top-aligned="isTopAligned"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
         @start-chat="onStartChat"
+        :style="{ pointerEvents: isDragging ? 'none' : 'auto' }"
       />
 
       <!-- Trigger button (UI-01.0) -->
       <button
-        @click="toggleList"
+        @click="toggleList($event)"
+        @mouseenter="onHover(true)"
+        @mouseleave="onHover(false)"
         class="
          right-2 bottom-0
          md:right-10 md:bottom-0
@@ -340,12 +495,16 @@ onMounted(async () => {
          md:max-[1009px]:rounded-b-none
          max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
          lg:right-auto lg:bottom-4
-         chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+         chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
         :class="[
-          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 p-3' : '',
-          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0 p-3' : '',
-          hostWidth >= 1024 ? '!right-auto !bottom-4 p-3' : '',
-          hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0 p-3' : 'rounded-full',
+          !isFloating ? [
+            hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 p-3' : '',
+            hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0 p-3' : '',
+            hostWidth >= 1024 ? '!right-auto !bottom-4 p-3' : '',
+            hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0 p-3' : 'rounded-full',
+          ] : [
+            hostWidth >= 768 ? 'rounded-[10px] p-3' : 'rounded-full'
+          ]
         ]"
       >
         <!-- Chat icon with unread badge -->
@@ -376,7 +535,7 @@ onMounted(async () => {
         <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
               class="w-5 h-5 text-zinc-400 transition-transform"
-              :class="isListOpen ? 'rotate-180' : ''"
+              :class="isTopAligned ? (isListOpen ? '' : 'rotate-180') : (isListOpen ? 'rotate-180' : '')"
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
