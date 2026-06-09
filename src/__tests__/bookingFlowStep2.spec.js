@@ -323,6 +323,135 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
   });
 
+  it("steps private booking length by the configured session duration", async () => {
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      localEndHm: "12:00",
+      maxSessionMinutes: 4,
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        maxSessionMinutes: 4,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const stepper = wrapper.get("[data-testid='booking-flow-duration-stepper']");
+    const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
+    const minus = wrapper.get("[data-testid='booking-flow-duration-minus']");
+
+    expect(stepper.text()).toContain("30 mins");
+
+    await plus.trigger("click");
+    await nextTick();
+    expect(stepper.text()).toContain("60 mins");
+
+    await plus.trigger("click");
+    await nextTick();
+    expect(stepper.text()).toContain("1 hour 30 mins");
+
+    await minus.trigger("click");
+    await nextTick();
+    expect(stepper.text()).toContain("60 mins");
+    expect(wrapper.find("[data-testid='booking-flow-duration-max-warning']").exists()).toBe(false);
+  });
+
+  it("keeps private booking length within the configured maximum and shows a warning", async () => {
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      localEndHm: "12:00",
+      maxSessionMinutes: 3,
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        maxSessionMinutes: 3,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const stepper = wrapper.get("[data-testid='booking-flow-duration-stepper']");
+    const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
+
+    await plus.trigger("click");
+    await plus.trigger("click");
+    await nextTick();
+    expect(stepper.text()).toContain("1 hour 30 mins");
+
+    await plus.trigger("click");
+    await nextTick();
+
+    expect(stepper.text()).toContain("1 hour 30 mins");
+    expect(wrapper.get("[data-testid='booking-flow-duration-max-warning']").text()).toContain(
+      "Max session length is 1 hour 30 mins",
+    );
+  });
+
+  it("locks duration controls and shows a yellow max notice when longer sessions are disabled", async () => {
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      allowLongerSessions: false,
+      maxSessionMinutes: 3,
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        allowLongerSessions: false,
+        maxSessionMinutes: 3,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    const noticeBeforeTime = wrapper.get("[data-testid='booking-flow-duration-max-warning']");
+    expect(noticeBeforeTime.text()).toContain("Max session length is 30 mins");
+    expect(noticeBeforeTime.attributes("class")).toContain("text-[#FACC15]");
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-duration-minus']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='booking-flow-duration-max-warning']").text()).toContain(
+      "Max session length is 30 mins",
+    );
+  });
+
+  it("locks duration controls and shows a yellow max notice when max sessions are zero", async () => {
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      allowLongerSessions: true,
+      maxSessionMinutes: 0,
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        allowLongerSessions: true,
+        maxSessionMinutes: 0,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const notice = wrapper.get("[data-testid='booking-flow-duration-max-warning']");
+    expect(wrapper.get("[data-testid='booking-flow-duration-minus']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeDefined();
+    expect(notice.text()).toContain("Max session length is 30 mins");
+    expect(notice.attributes("class")).toContain("text-[#FACC15]");
+  });
+
   it("defaults a private booking to today's date and shows today's slots", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2030-01-15T09:00:00"));

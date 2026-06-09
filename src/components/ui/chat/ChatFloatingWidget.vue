@@ -7,7 +7,7 @@ import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
-import MessageTextIcon from '@/assets/images/icons/message-text-square-02.webp'
+import MessageTextIcon from '@/assets/images/icons/message-text-square.svg'
 import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 
@@ -514,7 +514,7 @@ onMounted(async () => {
             alt=""
             class="cursor-pointer"
             :class="[
-              hostWidth > 768 ? 'w-8 h-8 filter brightness-0' : 'w-[1.875rem] h-[1.875rem]'
+              hostWidth > 768 ? 'w-6 h-6 filter brightness-0' : 'w-[1.875rem] h-[1.875rem]'
             ]"
           />
           <span
@@ -528,15 +528,15 @@ onMounted(async () => {
           </span>
         </div>
 
-        <span class="hidden md:flex unread-text text-xl" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span class="hidden md:flex chat-text text-xl" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
+        <span class="hidden md:flex unread-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex chat-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
 
         <!-- Chevron -->
         <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
               class="w-5 h-5 text-zinc-400 transition-transform"
               :class="isTopAligned ? (isListOpen ? '' : 'rotate-180') : (isListOpen ? 'rotate-180' : '')"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              fill="none" stroke="#667085" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
             </svg>

@@ -178,12 +178,12 @@ async function sendForgotPassword() {
   <div class="flex flex-col gap-2">
     <div class="h-6 inline-flex justify-start items-center gap-2">
       <div class="w-5 h-5 relative overflow-hidden"><img src="/images/at-sign.png" alt=""></div>
-      <div class="justify-center text-gray-50 text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_account_email") }}</div>
+      <div class="justify-center text-gray-50 text-sm font-medium font-['Poppins'] leading-5">{{ t("fan_booking_account_email") }}</div>
     </div>
 
     <!-- guest-register: email input -->
     <template v-if="guestSection === 'guest-register'">
-      <p class="text-xs text-white/60">
+      <p class="text-sm font-normal text-white/60">
         {{ t("fan_booking_already_have_account") }}
         <span class="underline cursor-pointer text-[#22CCEE]" @click="guestSection = 'login'">{{ t("fan_booking_log_in") }}</span>
       </p>
