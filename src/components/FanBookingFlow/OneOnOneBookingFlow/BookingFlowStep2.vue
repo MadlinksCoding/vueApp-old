@@ -1338,7 +1338,7 @@ onMounted(() => {
               </div>
               <p
                 v-if="showDurationMaxNotice"
-                class="flex items-center gap-1 text-xs font-medium leading-[18px]"
+                class="flex items-center gap-1 text-sm font-normal leading-[18px]"
                 :class="durationMaxNoticeClass"
                 data-testid="booking-flow-duration-max-warning"
               >
