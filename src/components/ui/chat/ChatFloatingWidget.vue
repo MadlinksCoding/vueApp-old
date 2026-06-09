@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import ChatListPanel from '@/components/ui/chat/ChatListPanel.vue'
 import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
@@ -33,6 +33,7 @@ function toggleList() {
 }
 
 function openChatWindow(chat) {
+  isListOpen.value = false
   console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
@@ -233,6 +234,17 @@ onMounted(async () => {
     }
   }
   window.addEventListener('message', handleHostResize)
+
+  const handleCloseAllChats = () => {
+    isListOpen.value = false
+    openChats.value = []
+  }
+  window.addEventListener('fs-chat-close-all', handleCloseAllChats)
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('message', handleHostResize)
+    window.removeEventListener('fs-chat-close-all', handleCloseAllChats)
+  })
 
   if (props.userId) {
     currentUserId.value = String(props.userId)

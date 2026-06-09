@@ -5,7 +5,7 @@ function getFallbackBaseUrl() {
   if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FS_BLOCK_API_URL) {
     return import.meta.env.VITE_FS_BLOCK_API_URL;
   }
-  return "http://168.144.35.180:3000";
+  return "https://168.144.35.180:3443";
 }
 
 export function getBlockApiBaseUrl(context) {

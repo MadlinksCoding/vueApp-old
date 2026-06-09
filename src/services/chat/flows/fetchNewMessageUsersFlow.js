@@ -25,6 +25,10 @@ export async function fetchNewMessageUsersFlow({ payload, context, api }) {
   if (page) params.page = page;
   if (perPage) params.per_page = perPage;
 
+  // Add a 5-minute rounded cache buster to the URL
+  const fiveMinMs = 5 * 60 * 1000;
+  params._t = Math.floor(Date.now() / fiveMinMs) * fiveMinMs;
+
   try {
     const response = await api.get(
       `${baseUrl}/wp-json/api/chat/new-message-users`,

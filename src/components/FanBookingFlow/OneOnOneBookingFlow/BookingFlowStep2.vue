@@ -2,6 +2,7 @@
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
 import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
 import TokenHandler from '@/utils/TokenHandler.js';
@@ -97,6 +98,7 @@ const otherRequest = ref('');
 const contributionTokens = ref('');
 const walletBalance = ref(0);
 const groupAutoRedirecting = ref(false);
+const showMaxDurationWarning = ref(false);
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const todayDateIso = computed(() => formatLocalDateIso(new Date()));
@@ -496,8 +498,39 @@ const getMultiplesOf = (base, max) => {
   return multiples;
 };
 
+const baseSessionDurationMinutes = computed(() => {
+  const duration = Number(selectedEvent.value?.sessionDurationMinutes || selectedEvent.value?.raw?.sessionDurationMinutes || 15);
+  return Number.isFinite(duration) && duration > 0 ? duration : 15;
+});
+
+const allowPrivateLongerSessions = computed(() => (
+  toBoolean(
+    selectedEvent.value?.allowLongerSessions
+      ?? selectedEvent.value?.raw?.allowLongerSessions,
+    false,
+  )
+));
+
+const configuredPrivateMaxSessionCount = computed(() => {
+  const rawMax = Number(selectedEvent.value?.maxSessionMinutes ?? selectedEvent.value?.raw?.maxSessionMinutes ?? 1);
+  return Number.isFinite(rawMax) ? Math.floor(rawMax) : 1;
+});
+
+const isDurationStepperLocked = computed(() => (
+  !allowPrivateLongerSessions.value || configuredPrivateMaxSessionCount.value <= 0
+));
+
+const privateMaxSessionCount = computed(() => {
+  if (isDurationStepperLocked.value) return 1;
+  return Math.max(1, configuredPrivateMaxSessionCount.value);
+});
+
+const privateMaxSessionDurationMinutes = computed(() => (
+  baseSessionDurationMinutes.value * privateMaxSessionCount.value
+));
+
 const durationOptions = computed(() => {
-  const eventDuration = Number(selectedEvent.value?.sessionDurationMinutes || 15);
+  const eventDuration = baseSessionDurationMinutes.value;
   const basePrice = Number(selectedEvent.value?.basePriceTokens || 0);
   const selectedSlot = selectedTime.value;
 
@@ -512,19 +545,11 @@ const durationOptions = computed(() => {
     }];
   }
 
-  const allowLongerSessions = toBoolean(
-    selectedEvent.value?.allowLongerSessions
-      ?? selectedEvent.value?.raw?.allowLongerSessions,
-    false,
-  );
-  const maxSessions = selectedEvent.value?.maxSessionMinutes ?? selectedEvent.value?.raw?.maxSessionMinutes ?? 1;
   const unitPrice = eventDuration > 0 ? basePrice / eventDuration : 0;
 
-  const minutes = allowLongerSessions
-    ? getMultiplesOf(eventDuration, maxSessions)
-    : [eventDuration];
+  const minutes = getMultiplesOf(eventDuration, privateMaxSessionCount.value);
 
-  const validMinutes = minutes.filter((v) => Number.isFinite(v) && v > 0 && v <= 180);
+  const validMinutes = minutes.filter((v) => Number.isFinite(v) && v > 0);
 
   const unique = Array.from(new Set(validMinutes));
   return unique.map((value) => ({
@@ -533,6 +558,61 @@ const durationOptions = computed(() => {
     disabled: !selectedSlot || selectedSlot.disabled || !canDurationFitSelectedSlot(selectedSlot, value),
   }));
 });
+
+function formatDurationLabel(minutes) {
+  const duration = Number(minutes || 0);
+  if (!Number.isFinite(duration) || duration <= 0) return `0 ${t('fan_booking_min_short').toLowerCase()}`;
+  if (duration <= 60) return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
+
+  const hours = Math.floor(duration / 60);
+  const remainingMinutes = duration % 60;
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainingMinutes} ${t('fan_booking_min_short').toLowerCase()}s`;
+}
+
+const selectedDurationDisplayMinutes = computed(() => (
+  Number(selectedDurationObj.value?.value || baseSessionDurationMinutes.value)
+));
+
+const selectedDurationDisplayLabel = computed(() => (
+  formatDurationLabel(selectedDurationDisplayMinutes.value)
+));
+
+const maxSessionDurationDisplayLabel = computed(() => (
+  formatDurationLabel(privateMaxSessionDurationMinutes.value)
+));
+
+const canAdjustDuration = computed(() => (
+  !isDurationStepperLocked.value
+  && Boolean(selectedTime.value && !selectedTime.value.disabled)
+  && durationOptions.value.some((item) => !item.disabled)
+));
+
+const isAtMinimumDuration = computed(() => (
+  selectedDurationDisplayMinutes.value <= baseSessionDurationMinutes.value
+));
+
+const showDurationMaxNotice = computed(() => (
+  isDurationStepperLocked.value || showMaxDurationWarning.value
+));
+
+const durationMaxNoticeClass = computed(() => (
+  isDurationStepperLocked.value ? 'text-[#FACC15]' : 'text-[#FF4D6D]'
+));
+
+const durationStepperBorderClass = computed(() => {
+  if (showMaxDurationWarning.value) return 'border-[#FF4D6D]';
+  return 'border-[rgba(255,255,255,0.15)]';
+});
+
+function findEnabledDurationOption(minutes) {
+  return durationOptions.value.find((item) => item.value === minutes && !item.disabled) || null;
+}
+
+function selectDefaultDuration() {
+  const baseOption = findEnabledDurationOption(baseSessionDurationMinutes.value);
+  selectedDurationObj.value = baseOption || durationOptions.value.find((item) => !item.disabled) || null;
+  showMaxDurationWarning.value = false;
+}
 
 const selectedAddons = computed(() => addons.value.filter((item) => item.selected));
 
@@ -838,6 +918,7 @@ function hydrateFromState() {
 const selectTime = (slot) => {
   if (slot.disabled) return;
   selectedTime.value = slot;
+  showMaxDurationWarning.value = false;
   if (isGroupEvent.value) {
     const duration = Number(slot.durationMinutes || Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
     selectedDurationObj.value = Number.isFinite(duration) && duration > 0
@@ -845,12 +926,45 @@ const selectTime = (slot) => {
       : null;
     return;
   }
-  selectedDurationObj.value = null;
+  selectDefaultDuration();
 };
 
 const selectDuration = (option) => {
   if (!selectedTime.value || option?.disabled) return;
   selectedDurationObj.value = option;
+  showMaxDurationWarning.value = false;
+};
+
+const decreaseDuration = () => {
+  if (!canAdjustDuration.value) return;
+
+  const nextMinutes = Math.max(
+    baseSessionDurationMinutes.value,
+    selectedDurationDisplayMinutes.value - baseSessionDurationMinutes.value,
+  );
+  if (nextMinutes === selectedDurationDisplayMinutes.value) return;
+
+  const option = findEnabledDurationOption(nextMinutes);
+  if (!option) return;
+
+  selectedDurationObj.value = option;
+  showMaxDurationWarning.value = false;
+};
+
+const increaseDuration = () => {
+  if (!canAdjustDuration.value) return;
+
+  const nextMinutes = selectedDurationDisplayMinutes.value + baseSessionDurationMinutes.value;
+  if (nextMinutes > privateMaxSessionDurationMinutes.value) {
+    showMaxDurationWarning.value = true;
+    return;
+  }
+
+  const option = findEnabledDurationOption(nextMinutes);
+  if (!option) return;
+
+  selectedDurationObj.value = option;
+  showMaxDurationWarning.value = false;
 };
 
 const toggleAddon = (index) => {
@@ -1189,32 +1303,50 @@ onMounted(() => {
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
               <h3 class="text-xl text-[#22CCEE] font-semibold">{{ t("fan_booking_select_length") }}</h3>
-              <div class="border-[3px] border-[rgba(255,255,255,0.15)] rounded-[3.125rem]">
-                <div class="w-full flex bg-[#FFFFFF26] rounded-[3.125rem] overflow-auto">
-                  <div
-                    v-for="(opt, index) in durationOptions"
-                    :key="index"
-                    @click="selectDuration(opt)"
-                    class="rounded-[3.125rem] flex justify-center items-center grow p-[0.375rem_0.675rem] transition-colors"
-                    :class="[
-                      opt.disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
-                      selectedDurationObj?.value === opt.value ? 'bg-[#07F468]' : '',
-                    ]"
+              <div
+                class="border-[3px] rounded-[3.125rem]"
+                :class="durationStepperBorderClass"
+                data-testid="booking-flow-duration-stepper"
+              >
+                <div class="w-full min-h-[2.375rem] grid grid-cols-[2rem_1fr_2rem] items-center gap-2 bg-[#FFFFFF26] rounded-[3.125rem] px-[0.375rem] py-[0.25rem]">
+                  <button
+                    type="button"
+                    data-testid="booking-flow-duration-minus"
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-[#12840F] text-base font-semibold leading-none text-[#07F468] transition-colors hover:bg-[#0f7410]"
+                    :class="(!canAdjustDuration || isAtMinimumDuration) ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                    :disabled="!canAdjustDuration || isAtMinimumDuration"
+                    :aria-label="t('fan_booking_decrease_length')"
+                    @click="decreaseDuration"
                   >
-                    <p
-                      class="text-xs leading-[18px] font-medium"
-                      :class="[
-                        opt.disabled ? 'text-white/60' : '',
-                        selectedDurationObj?.value === opt.value ? 'text-[#0C111D]' : 'text-white',
-                      ]"
-                    >
-                      {{ opt.value }} {{ t("fan_booking_min_short") }}
-                    </p>
+                    -
+                  </button>
+                  <div class="min-w-0 text-center text-base font-normal leading-6 text-white">
+                    {{ selectedDurationDisplayLabel }}
                   </div>
+                  <button
+                    type="button"
+                    data-testid="booking-flow-duration-plus"
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-[#12840F] text-base font-semibold leading-none text-[#07F468] transition-colors hover:bg-[#0f7410]"
+                    :class="!canAdjustDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                    :disabled="!canAdjustDuration"
+                    :aria-label="t('fan_booking_increase_length')"
+                    @click="increaseDuration"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
-              <p v-if="!selectedTime" class="text-sm font-normal text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
-              <p class="text-sm font-normal leading-5 text-[#07F468]">
+              <p
+                v-if="showDurationMaxNotice"
+                class="flex items-center gap-1 text-xs font-medium leading-[18px]"
+                :class="durationMaxNoticeClass"
+                data-testid="booking-flow-duration-max-warning"
+              >
+                <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
+              </p>
+              <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+              <p class="text-sm leading-[20px] text-[#07F468]">
                 {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
               </p>
 

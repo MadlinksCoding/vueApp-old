@@ -143,6 +143,7 @@
                                                     class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
                                                     :class="i > 0 ? '-ml-8' : ''" :style="{ zIndex: 30 - i * 10 }">
                                                     <img :src="sub.avatar || SmilingPeachIcon"
+                                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                                         class="w-12 h-12 md:w-[3.625rem] md:h-[3.625rem] object-cover" />
                                                 </div>
                                             </div>
@@ -227,6 +228,7 @@
                             <div class="flex justify-start items-center gap-2">
                                 <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
                                     <img :src="user.avatar || SmilingPeachIcon"
+                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
                                         class="w-[3.625rem] h-[3.625rem] object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">

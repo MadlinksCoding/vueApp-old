@@ -1102,27 +1102,67 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     const creatorId   = resolveCreatorId();
     const eventTitle  = selectedEvent.value?.title || selectedEvent.value?.raw?.title || null;
     const slotDate    = props.engine.getState('fanBooking.booking.result.item.startAtIso') || null;
+    const start_at     = props.engine.getState('fanBooking.booking.result.item.startAtIso') || null;
+    const end_at       = props.engine.getState('fanBooking.booking.result.item.endAtIso') || null;
     console.error('[fireAndForgetPostBookingChat] resolved IDs', { slotDate,fanUserId, creatorId, eventTitle }, props.engine.getState('fanBooking.booking.result.item.startAtIso'), props.engine.getState('fanBooking.booking.result'));
 
-    // Step 1 — create chat
-    const chatRes = await FlowHandler.run('chat.createChat', {
-      chatType:         'private',
-      chatSubtype:      'standard',
-      contextFlags:     ['booking'],
-      createdBy:    String(fanUserId),
-      participants: [String(fanUserId), String(creatorId)],
-      name:         eventTitle || 'Booking Chat',
-      description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
-      metadata: {
-        bookingId: String(bookingId || props.engine.getState('fanBooking.booking.bookingId') || ''),
-        eventId: String(eventId || selectedEvent.value?.eventId || selectedEvent.value?.raw?.eventId || ''),
-        is_booking_request: true,
+    // Step 1 — check if chat exists, otherwise create
+    const finalBookingId = String(bookingId || props.engine.getState('fanBooking.booking.bookingId') || '');
+    const finalEventId = String(eventId || selectedEvent.value?.eventId || selectedEvent.value?.raw?.eventId || '');
+    
+    const newBookingMeta = {
+      [finalBookingId]: {
+        eventId: finalEventId,
         description: eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
       },
+      is_booking_request: true
+    };
+
+    let chatId = null;
+    const fetchRes = await FlowHandler.run('chat.fetchUserChats', { 
+      userId: fanUserId, 
+      chatOwner: creatorId, 
+      limit: 100 
     });
-    if (!chatRes?.ok) return;
-    const chatId = chatRes.data?.chatId;
-    if (!chatId) return;
+
+    if (fetchRes?.ok && Array.isArray(fetchRes.data?.items)) {
+      const existing = fetchRes.data.items.find(chat => {
+        if (chat.type === 'group' || chat.is_group === true || chat.is_group === 1) return false;
+        const parts = (chat.participants || []).map(p => Number(p.user_id ?? p.userId ?? p.id ?? p));
+        return parts.length === 2 && parts.includes(Number(fanUserId)) && parts.includes(Number(creatorId));
+      });
+      if (existing) {
+        chatId = existing.chat_id || existing.id;
+        const mergedMetadata = {
+          ...(existing.metadata || {}),
+          ...newBookingMeta
+        };
+        await FlowHandler.run('chat.updateChatMetadata', {
+          chatId,
+          metadata: mergedMetadata
+        });
+      }
+    }
+
+    if (!chatId) {
+      const chatRes = await FlowHandler.run('chat.createChat', {
+        chatType:         'private',
+        chatSubtype:      'standard',
+        contextFlags:     ['booking'],
+        visibilitySettings: {
+          chatOwner: String(creatorId),
+          chatVisibility: null,
+          fullAccessUsers: [String(creatorId)]
+        },
+        participants: [String(fanUserId), String(creatorId)],
+        name:         eventTitle || 'Booking Chat',
+        description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+        metadata: newBookingMeta,
+      });
+      if (!chatRes?.ok) return;
+      chatId = chatRes.data?.chatId;
+      if (!chatId) return;
+    }
 
     // Step 2a — activity log: fan sent a live call request
     const fanUsername = props.engine.getState?.('fanBooking.fan.username')
@@ -1144,8 +1184,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       eventId,
       eventTitle,
       slotDate,
-      start_at: props.engine.getState('fanBooking.booking.result.item.startAtIso') || null,
-      end_at: props.engine.getState('fanBooking.booking.result.item.endAtIso') || null,
+      start_at: start_at,
+      end_at: end_at,
       text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
     });
     if (!msgRes?.ok) return;

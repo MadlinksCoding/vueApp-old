@@ -106,7 +106,7 @@ function getOtherParticipantId(chatId) {
 }
 
 function getChatDisplayName(chat) {
-  if (chat?.metadata?.is_booking_request) return chat.name || 'Chat'
+  // if (chat?.metadata?.is_booking_request) return chat.name || 'Chat'
   
   // Check if group chat
   const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
@@ -250,6 +250,7 @@ function getLastMessageText(chat) {
             <img
               v-if="getChatAvatar(chat)"
               :src="getChatAvatar(chat)"
+              onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
               class="w-9 h-9 object-cover"
               alt="avatar"
             />
@@ -261,7 +262,9 @@ function getLastMessageText(chat) {
             </div>
           </div>
           <!-- Status dot -->
+           <!-- only show if exists unread messages. -->
           <div
+            v-if="chat.unread_count > 0"
             class="w-2 h-2 rounded-full absolute"
             style="left: 1.688rem; top: 1.688rem;"
             :style="chat.unread_count > 0 ? 'background-color: #FF0464;' : 'background-color: #14E04D;'"
