@@ -353,6 +353,7 @@ function buildOneTimeSlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
       outputMap.get(dateKey).times.push({
         startTime: startHkt.hm,
         endTime: endHkt.hm,
+        endDayOffset: normalizeEndDayOffset(diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
         offHours: asBoolean(slot?.offHours, false),
       });
     });
@@ -434,7 +435,33 @@ function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration =
   return weeklySlots;
 }
 
-function deriveDateRange(payload = {}, primarySlot = {}) {
+function deriveOneTimeHktDateBounds(slots = []) {
+  const dates = [];
+
+  (Array.isArray(slots) ? slots : []).forEach((entry) => {
+    const startDate = nonEmptyString(entry?.date, "");
+    if (!startDate) return;
+    dates.push(startDate);
+
+    const times = Array.isArray(entry?.times)
+      ? entry.times
+      : (Array.isArray(entry?.slots) ? entry.slots : []);
+
+    times.forEach((time) => {
+      const endOffset = normalizeEndDayOffset(time?.endDayOffset);
+      dates.push(endOffset > 0 ? addDaysToDateIso(startDate, endOffset) : startDate);
+    });
+  });
+
+  const sortedDates = Array.from(new Set(dates)).sort();
+
+  return {
+    hktDateFrom: sortedDates[0] || null,
+    hktDateTo: sortedDates.at(-1) || sortedDates[0] || null,
+  };
+}
+
+function deriveDateRange(payload = {}, primarySlot = {}, repeatRule = "weekly", repeatSlots = []) {
   const oneTimeDates = Array.isArray(payload.oneTimeAvailability)
     ? payload.oneTimeAvailability
       .map((entry) => nonEmptyString(entry?.date, ""))
@@ -447,13 +474,26 @@ function deriveDateRange(payload = {}, primarySlot = {}) {
     || primarySlot?.local?.dateIso;
   const explicitLocalDateTo = nonEmptyString(payload.dateTo, "");
   const localDateTo = explicitLocalDateTo || null;
+  const rangeAnchorHm = primarySlot?.local?.startTime || "12:00";
+
+  if (repeatRule === "doesNotRepeat") {
+    const oneTimeBounds = deriveOneTimeHktDateBounds(repeatSlots);
+    if (oneTimeBounds.hktDateFrom) {
+      return {
+        localDateFrom,
+        localDateTo,
+        hktDateFrom: oneTimeBounds.hktDateFrom,
+        hktDateTo: oneTimeBounds.hktDateTo,
+      };
+    }
+  }
 
   return {
     localDateFrom,
     localDateTo,
-    hktDateFrom: localDateIsoToHktDateIso(localDateFrom, primarySlot?.local?.startTime || "12:00"),
+    hktDateFrom: localDateIsoToHktDateIso(localDateFrom, rangeAnchorHm),
     hktDateTo: localDateTo
-      ? localDateIsoToHktDateIso(localDateTo, primarySlot?.local?.endTime || "12:00")
+      ? localDateIsoToHktDateIso(localDateTo, rangeAnchorHm)
       : null,
   };
 }
@@ -591,7 +631,8 @@ function mapBasePayload(payload = {}, context = {}) {
     : pickNumeric(payload.basePrice ?? payload.basePriceTokens, 0);
   const primarySlot = derivePrimarySlot(payload, duration);
   const repeatRule = normalizeRepeatRule(nonEmptyString(payload.repeatRule, "weekly"));
-  const dateRange = deriveDateRange(payload, primarySlot);
+  const repeatSlots = buildRepeatSlots(repeatRule, payload, primarySlot, duration);
+  const dateRange = deriveDateRange(payload, primarySlot, repeatRule, repeatSlots);
   const creatorTimezone = resolveCreatorTimezone(payload, context);
 
   const mapped = {
@@ -608,7 +649,7 @@ function mapBasePayload(payload = {}, context = {}) {
     whoCanBook: nonEmptyString(payload.whoCanBook, "everyone"),
     spendingRequirement: nonEmptyString(payload.spendingRequirement, "none"),
     repeatRule,
-    slots: buildRepeatSlots(repeatRule, payload, primarySlot, duration),
+    slots: repeatSlots,
 
     allowLongerSessions: asBoolean(payload.allowLongerSessions, false),
     enableDiscountForLonger: type !== "group-event" && asBoolean(payload.enableLongerDiscount, false),
