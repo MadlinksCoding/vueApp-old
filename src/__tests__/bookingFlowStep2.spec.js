@@ -198,6 +198,10 @@ function createMountedStep({
   };
 }
 
+function dateIsoFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function findPaymentSummaryButton(wrapper) {
   return wrapper.findAll("button").find((button) => button.text().includes("PAYMENT SUMMARY"));
 }
@@ -554,6 +558,89 @@ describe("BookingFlowStep2", () => {
     await wrapper.find(".mini-calendar-valid").trigger("click");
     await nextTick();
 
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+  });
+
+  it("uses custom slot local dates when the raw one-time date range is inverted", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-10T12:00:00"));
+
+    const localSlotDate = dateIsoFromDate(new Date("2026-06-12T00:00:00+08:00"));
+    const localSlotEndDate = dateIsoFromDate(new Date("2026-06-12T05:00:00+08:00"));
+    const selectedEvent = {
+      ...createPrivateEvent(localSlotDate),
+      eventId: "evt_inverted_custom_range",
+      id: "evt_inverted_custom_range",
+      raw: {
+        ...createPrivateEvent(localSlotDate).raw,
+        repeatRule: "doesNotRepeat",
+        dateFrom: "2026-06-12",
+        dateTo: "2026-06-11",
+        sessionDurationMinutes: 5,
+        slots: [{
+          date: "2026-06-12",
+          times: [{ startTime: "00:00", endTime: "05:00", offHours: false }],
+        }],
+      },
+    };
+
+    const { wrapperPromise } = createMountedStep({
+      dateIso: localSlotDate,
+      selectedEvent,
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find(".mini-calendar-min").text()).toBe(localSlotDate);
+    expect(wrapper.find(".mini-calendar-max").text()).toBe(localSlotEndDate);
+    expect(wrapper.find(".mini-calendar-events").text()).toBe("2");
+    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+  });
+
+  it("shows both local dates for a custom slot crossing midnight without saved end offset", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-10T12:00:00"));
+
+    const localStartDate = dateIsoFromDate(new Date("2026-06-11T23:00:00+08:00"));
+    const localEndDate = dateIsoFromDate(new Date("2026-06-12T05:00:00+08:00"));
+    expect(localStartDate).not.toBe(localEndDate);
+
+    const selectedEvent = {
+      ...createPrivateEvent(localStartDate),
+      eventId: "evt_custom_cross_midnight_no_offset",
+      id: "evt_custom_cross_midnight_no_offset",
+      raw: {
+        ...createPrivateEvent(localStartDate).raw,
+        repeatRule: "doesNotRepeat",
+        dateFrom: "2026-06-11",
+        dateTo: "2026-06-11",
+        sessionDurationMinutes: 5,
+        slots: [{
+          date: "2026-06-11",
+          times: [{ startTime: "23:00", endTime: "05:00", offHours: false }],
+        }],
+      },
+    };
+
+    const { wrapperPromise } = createMountedStep({
+      dateIso: localStartDate,
+      selectedEvent,
+      selection: {
+        selectedDate: null,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find(".mini-calendar-min").text()).toBe(localStartDate);
+    expect(wrapper.find(".mini-calendar-max").text()).toBe(localEndDate);
+    expect(wrapper.find(".mini-calendar-events").text()).toBe("2");
+    expect(wrapper.find(".mini-calendar-selected").text()).toBe(localStartDate);
     expect(wrapper.text()).toContain("SELECT CALL START TIME");
   });
 

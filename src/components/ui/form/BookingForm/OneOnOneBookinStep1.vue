@@ -20,7 +20,10 @@
   import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 
   import { showToast } from "@/utils/toastBus.js";
-  import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+  import {
+    formatBookingValidationErrors,
+    useBookingTranslations,
+  } from "@/i18n/bookingTranslations.js";
 
   const { t } = useBookingTranslations();
 
@@ -30,10 +33,35 @@
     basePrice: "booking_field_base_price",
     eventGoalTokens: "booking_field_event_goal",
     minContributionPerUser: "booking_field_minimum_contribution_per_user",
+    maxSessionDuration: "booking_field_max_session_duration",
+    maxSessionMinutes: "booking_field_max_session_duration",
     firstTimeDiscountTokens: "booking_field_first_time_discount",
     sessionMinimum: "booking_field_session_minimum",
+    discountMinSessions: "booking_field_session_minimum",
     longerSessionDiscountTokens: "booking_field_longer_session_discount",
+    bookingFee: "booking_field_booking_fee",
+    bookingFeeTokens: "booking_field_booking_fee",
+    rescheduleFee: "booking_field_reschedule_fee",
+    rescheduleFeeTokens: "booking_field_reschedule_fee",
+    cancellationFee: "booking_field_cancellation_fee",
+    cancellationFeeTokens: "booking_field_cancellation_fee",
+    advanceVoid: "booking_field_advance_cancellation_window",
+    advanceCancelWindowQuantity: "booking_field_advance_cancellation_window",
+    advanceCancelWindowUnit: "booking_field_advance_cancellation_unit",
+    offHourSurcharge: "booking_field_off_hour_surcharge",
+    offHourSurchargePercent: "booking_field_off_hour_surcharge",
+    extendSessionMax: "booking_field_extend_session_max",
+    extendMaxSessions: "booking_field_extend_session_max",
+    remindMeTime: "booking_field_reminder_time",
+    callReminderMinutesBefore: "booking_field_reminder_time",
     bookingBufferMinutes: "booking_field_buffer_time",
+    bufferTime: "booking_field_buffer_time",
+    maxBookingsPerDay: "booking_field_max_bookings_per_day",
+    discountEventsCount: "booking_field_recurring_event_minimum",
+    minEventsForRecurringDiscount: "booking_field_recurring_event_minimum",
+    discountPercentage: "booking_field_recurring_discount_percentage",
+    recurringDiscountPercentOfBase: "booking_field_recurring_discount_percentage",
+    maxAttendees: "booking_field_max_attendees",
     dateFrom: "booking_field_start_date",
     weeklyAvailability: "booking_field_weekly_availability",
     monthlyAvailability: "booking_field_monthly_availability",
@@ -46,10 +74,35 @@
     basePrice: "Base price",
     eventGoalTokens: "Event goal",
     minContributionPerUser: "Minimum contribution per user",
+    maxSessionDuration: "Maximum session allowed",
+    maxSessionMinutes: "Maximum session allowed",
     firstTimeDiscountTokens: "First-time discount",
     sessionMinimum: "Session minimum",
+    discountMinSessions: "Session minimum",
     longerSessionDiscountTokens: "Longer session discount",
+    bookingFee: "Booking fee",
+    bookingFeeTokens: "Booking fee",
+    rescheduleFee: "Reschedule fee",
+    rescheduleFeeTokens: "Reschedule fee",
+    cancellationFee: "Cancellation fee",
+    cancellationFeeTokens: "Cancellation fee",
+    advanceVoid: "Advance cancellation window",
+    advanceCancelWindowQuantity: "Advance cancellation window",
+    advanceCancelWindowUnit: "Advance cancellation unit",
+    offHourSurcharge: "Off-hour surcharge",
+    offHourSurchargePercent: "Off-hour surcharge",
+    extendSessionMax: "Extension session maximum",
+    extendMaxSessions: "Extension session maximum",
+    remindMeTime: "Reminder time",
+    callReminderMinutesBefore: "Reminder time",
     bookingBufferMinutes: "Buffer time",
+    bufferTime: "Buffer time",
+    maxBookingsPerDay: "Maximum bookings per day",
+    discountEventsCount: "Recurring event minimum",
+    minEventsForRecurringDiscount: "Recurring event minimum",
+    discountPercentage: "Recurring discount percentage",
+    recurringDiscountPercentOfBase: "Recurring discount percentage",
+    maxAttendees: "Maximum participants",
     dateFrom: "Start date",
     weeklyAvailability: "Weekly availability",
     monthlyAvailability: "Monthly availability",
@@ -72,9 +125,13 @@
     return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
   }
 
-  function formatRequiredFieldToastMessage(errors = []) {
+  function hasConditionalValidationError(errors = []) {
+    return (Array.isArray(errors) ? errors : []).some((error) => Boolean(error?.conditional));
+  }
+
+  function getRequiredFieldToastLabels(errors = []) {
     const seen = new Set();
-    const labels = (Array.isArray(errors) ? errors : [])
+    return (Array.isArray(errors) ? errors : [])
       .map((error) => {
         const field = String(error?.field || "").trim();
         const key = STEP1_FIELD_LABEL_KEYS[field];
@@ -86,8 +143,50 @@
         seen.add(label);
         return true;
       });
+  }
 
-    return labels.map((label, index) => `${index + 1}. ${label}`).join("\n");
+  function formatConditionalValidationToastMessage(errors = []) {
+    const seenLabels = new Set();
+    const items = (Array.isArray(errors) ? errors : [])
+      .flatMap((error) => {
+        if (!error?.conditional) {
+          return formatBookingValidationErrors([error], t).filter(Boolean);
+        }
+
+        const [label] = getRequiredFieldToastLabels([error]);
+        if (!label || seenLabels.has(label)) return [];
+        seenLabels.add(label);
+        return [label];
+      })
+      .filter(Boolean);
+
+    if (items.length === 0) return "";
+
+    const prefix = translateWithFallback(
+      "booking_validation_conditional_required_fields_message",
+      "Fill these fields or disable the related settings:",
+    );
+    const list = items.map((item, index) => `${index + 1}. ${item}`).join("\n");
+    return `${prefix}\n${list}`;
+  }
+
+  function formatStepValidationToast(errors = [], fallbackMessage = "") {
+    const list = Array.isArray(errors) ? errors : [];
+    const conditionalErrors = list.filter((error) => Boolean(error?.conditional));
+    const regularErrors = list.filter((error) => !error?.conditional);
+
+    if (conditionalErrors.length === 0) {
+      const messages = formatBookingValidationErrors(regularErrors, t).filter(Boolean);
+      return {
+        title: translateWithFallback("common_validation_failed", "Validation Failed"),
+        message: messages.join("\n") || fallbackMessage,
+      };
+    }
+
+    return {
+      title: translateWithFallback("booking_validation_required_fields_title", "Please fill these fields"),
+      message: formatConditionalValidationToastMessage(list),
+    };
   }
 
   const callTypeOptions = [
@@ -131,6 +230,7 @@
       default: false,
     },
   });
+  const emit = defineEmits(["preview-schedule"]);
   const DEFAULT_VUE_CREATOR_ID = 1407;
   const isGroupBooking = computed(() => props.bookingType === "group");
   const scheduleLockTooltip = computed(() => t("booking_schedule_locked_tooltip"));
@@ -163,7 +263,7 @@
        return "flex justify-end fixed bottom-0 right-0 z-10";
     }
 
-    return "flex justify-end fixed bottom-0 right-0 z-10";
+    return "flex items-end justify-end gap-2 fixed bottom-0 right-0 z-10";
   });
 
   // Refs
@@ -285,12 +385,12 @@
     try {
       await props.engine.goToStep(2, { throwOnBlocked: true });
     } catch (error) {
-      const fieldList = formatRequiredFieldToastMessage(error?.errors || []);
       const fallback = error?.message || t("booking_validation_weekly_slot_required");
+      const toast = formatStepValidationToast(error?.errors || [], fallback);
       showToast({
         type: "error",
-        title: translateWithFallback("booking_validation_required_fields_title", "Please fill these fields"),
-        message: fieldList || fallback,
+        title: toast.title,
+        message: toast.message || fallback,
         autoClose: false,
       });
     }
@@ -380,6 +480,33 @@
       date,
       slots: [],
     };
+  }
+
+  function addDaysToIsoDate(isoDate, days = 1) {
+    const date = new Date(`${isIsoDate(isoDate) ? isoDate : getTodayIsoDate()}T12:00:00`);
+    date.setDate(date.getDate() + days);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function getOneTimeUsedDates(excludeIndex = null, sourceDates = oneTimeDates.value) {
+    return new Set((Array.isArray(sourceDates) ? sourceDates : [])
+      .map((entry, index) => (index === excludeIndex ? "" : entry?.date))
+      .filter((date) => isIsoDate(date)));
+  }
+
+  function getNextAvailableOneTimeDate(startDate = getTodayIsoDate(), excludeIndex = null, sourceDates = oneTimeDates.value) {
+    const usedDates = getOneTimeUsedDates(excludeIndex, sourceDates);
+    let candidate = isIsoDate(startDate) && startDate >= todayIsoDate ? startDate : todayIsoDate;
+
+    for (let attempt = 0; attempt < 3650; attempt += 1) {
+      if (!usedDates.has(candidate)) return candidate;
+      candidate = addDaysToIsoDate(candidate, 1);
+    }
+
+    return "";
   }
 
   function makeDefaultWeeklyAvailability() {
@@ -524,16 +651,31 @@
       return [createOneTimeDate(formData.value.dateFrom || formData.value.selectedDate || getTodayIsoDate())];
     }
 
-    return input.map((entry) => ({
-      id: entry?.id || `date_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      date: typeof entry?.date === "string" && entry.date ? entry.date : getTodayIsoDate(),
-      slots: Array.isArray(entry?.slots) && entry.slots.length > 0
-        ? entry.slots.map((slot) => ({
-          startTime: typeof slot?.startTime === "string" ? slot.startTime : "12:00",
-          endTime: typeof slot?.endTime === "string" ? slot.endTime : "15:00",
-        }))
-        : [],
-    }));
+    const normalizedEntries = [];
+    return input.map((entry) => {
+      const rawDate = typeof entry?.date === "string" && entry.date ? entry.date : getTodayIsoDate();
+      const date = getNextAvailableOneTimeDate(rawDate, null, normalizedEntries);
+      const normalizedEntry = {
+        id: entry?.id || `date_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        date,
+        slots: [],
+      };
+      const slots = Array.isArray(entry?.slots) && entry.slots.length > 0
+        ? entry.slots
+          .map((slot) => ({
+            startTime: typeof slot?.startTime === "string" ? slot.startTime : "12:00",
+            endTime: typeof slot?.endTime === "string" ? slot.endTime : "15:00",
+          }))
+          .filter((slot) => {
+            if (!getOneTimeSlotRange(slot) || doesOneTimeSlotConflict(normalizedEntry, slot)) return false;
+            normalizedEntry.slots.push(slot);
+            return true;
+          })
+        : [];
+      normalizedEntry.slots = slots;
+      normalizedEntries.push(normalizedEntry);
+      return normalizedEntry;
+    });
   }
 
   formData.value.weeklyAvailability = normalizeAvailability(formData.value.weeklyAvailability);
@@ -557,6 +699,7 @@
 
   const TIME_OPTION_STEP_MINUTES = 5;
   const MINUTES_PER_DAY = 24 * 60;
+  const MINUTES_PER_WEEK = MINUTES_PER_DAY * 7;
   const timeSearchPlaceholder = "Search...";
 
   const timeOptions = Array.from({ length: MINUTES_PER_DAY / TIME_OPTION_STEP_MINUTES }, (_, index) => {
@@ -566,6 +709,634 @@
     const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     return { value, label: to12HourLabel(value) };
   });
+  const timeOptionValues = timeOptions.map((option) => option.value);
+
+  function getOrderedTimesAfter(startTime = "") {
+    const startIndex = timeOptionValues.indexOf(startTime);
+    if (startIndex < 0) return timeOptionValues;
+    return [
+      ...timeOptionValues.slice(startIndex + 1),
+      ...timeOptionValues.slice(0, startIndex),
+    ];
+  }
+
+  function timeToMinutes(value) {
+    const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return (hours * 60) + minutes;
+  }
+
+  function minutesToTime(totalMinutes) {
+    const normalized = ((totalMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+    const hours = Math.floor(normalized / 60);
+    const minutes = normalized % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  function getOneTimeSlotKey(slot = {}) {
+    const startTime = typeof slot?.startTime === "string" ? slot.startTime : "";
+    const endTime = typeof slot?.endTime === "string" ? slot.endTime : "";
+    return startTime && endTime ? `${startTime}|${endTime}` : "";
+  }
+
+  function getOneTimeRangeFromTimes(startTime = "", endTime = "") {
+    const start = timeToMinutes(startTime);
+    const rawEnd = timeToMinutes(endTime);
+    if (start === null || rawEnd === null || rawEnd === start) return null;
+    const end = rawEnd < start ? rawEnd + MINUTES_PER_DAY : rawEnd;
+    return { start, end };
+  }
+
+  function getOneTimeSlotRange(slot = {}) {
+    return getOneTimeRangeFromTimes(slot?.startTime, slot?.endTime);
+  }
+
+  function getSlotRange(slot = {}) {
+    return getOneTimeSlotRange(slot);
+  }
+
+  function getOneTimeRangeSegments(range = null) {
+    if (!range) return [];
+    if (range.end <= MINUTES_PER_DAY) return [range];
+    return [
+      { start: range.start, end: MINUTES_PER_DAY },
+      { start: 0, end: range.end - MINUTES_PER_DAY },
+    ].filter((segment) => segment.end > segment.start);
+  }
+
+  function getOneTimeRangesSegments(ranges = []) {
+    return ranges
+      .flatMap((range) => getOneTimeRangeSegments(range))
+      .sort((first, second) => first.start - second.start);
+  }
+
+  function oneTimeRangeSegmentsOverlap(firstRange = null, secondRange = null) {
+    const firstSegments = getOneTimeRangeSegments(firstRange);
+    const secondSegments = getOneTimeRangeSegments(secondRange);
+    return firstSegments.some((first) => secondSegments.some((second) => (
+      first.start < second.end && second.start < first.end
+    )));
+  }
+
+  function oneTimeRangeOverlapsExisting(existingRanges = [], candidateRange = null) {
+    if (!candidateRange) return true;
+    return existingRanges.some((range) => oneTimeRangeSegmentsOverlap(range, candidateRange));
+  }
+
+  function getExistingSlotRanges(slots = [], excludeIndex = null) {
+    return (Array.isArray(slots) ? slots : [])
+      .map((slot, index) => ({ index, range: getSlotRange(slot) }))
+      .filter(({ index, range }) => index !== excludeIndex && range)
+      .map(({ range }) => range)
+      .sort((first, second) => first.start - second.start);
+  }
+
+  function doesOneTimeSlotConflict(dateEntry = {}, candidateSlot = {}, excludeIndex = null) {
+    return oneTimeRangeOverlapsExisting(
+      getExistingOneTimeRanges(dateEntry, excludeIndex),
+      getOneTimeSlotRange(candidateSlot),
+    );
+  }
+
+  function getExistingOneTimeRanges(dateEntry = {}, excludeIndex = null) {
+    return (Array.isArray(dateEntry?.slots) ? dateEntry.slots : [])
+      .map((slot, index) => ({ index, range: getOneTimeSlotRange(slot) }))
+      .filter(({ index, range }) => index !== excludeIndex && range)
+      .map(({ range }) => range)
+      .sort((first, second) => first.start - second.start);
+  }
+
+  function hasValidEndTimeForStartSegments(existingSegments = [], startTime = "") {
+    const startMinutes = timeToMinutes(startTime);
+    if (startMinutes === null) return false;
+    const startsInsideExistingRange = existingSegments.some((segment) => (
+      segment.start <= startMinutes && startMinutes < segment.end
+    ));
+    if (startsInsideExistingRange) return false;
+
+    const nextOccupiedSegment = existingSegments.find((segment) => segment.start > startMinutes);
+    return !nextOccupiedSegment || nextOccupiedSegment.start - startMinutes >= TIME_OPTION_STEP_MINUTES;
+  }
+
+  function hasValidStartTimeForEndRanges(existingRanges = [], endTime = "") {
+    return timeOptionValues.some((startTime) => (
+      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+    ));
+  }
+
+  function getValidEndTimesForStartRanges(existingRanges = [], startTime = "") {
+    return timeOptionValues.filter((endTime) => (
+      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+    ));
+  }
+
+  function getValidStartTimesForEndRanges(existingRanges = [], endTime = "") {
+    return timeOptionValues.filter((startTime) => (
+      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+    ));
+  }
+
+  function pickValidEndTimeFromRanges(existingRanges = [], startTime = "", preferredEnd = "") {
+    const validEndTimes = getValidEndTimesForStartRanges(existingRanges, startTime);
+    const startMinutes = timeToMinutes(startTime);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    if (
+      validEndTimes.includes(preferredEnd)
+      && startMinutes !== null
+      && preferredEndMinutes !== null
+      && preferredEndMinutes > startMinutes
+    ) {
+      return preferredEnd;
+    }
+
+    if (startMinutes !== null) {
+      const nextOccupiedStart = getOneTimeRangesSegments(existingRanges)
+        .map((range) => range.start)
+        .find((occupiedStart) => occupiedStart > startMinutes);
+      const nextOccupiedEndTime = nextOccupiedStart !== undefined
+        ? minutesToTime(nextOccupiedStart)
+        : "";
+      if (nextOccupiedEndTime && validEndTimes.includes(nextOccupiedEndTime)) {
+        return nextOccupiedEndTime;
+      }
+
+      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
+        return "00:00";
+      }
+    }
+
+    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
+  }
+
+  function pickValidStartTimeFromRanges(existingRanges = [], endTime = "", preferredStart = "") {
+    const validStartTimes = getValidStartTimesForEndRanges(existingRanges, endTime);
+    if (validStartTimes.includes(preferredStart)) return preferredStart;
+    return validStartTimes[0] || "";
+  }
+
+  function getNextAvailableSlotFromRanges(existingRanges = [], preferredStart = "00:00", preferredEnd = "03:00") {
+    const preferredRange = getOneTimeRangeFromTimes(preferredStart, preferredEnd);
+    if (!oneTimeRangeOverlapsExisting(existingRanges, preferredRange)) {
+      return makeSlot(preferredStart, preferredEnd);
+    }
+
+    const preferredStartMinutes = timeToMinutes(preferredStart);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    const duration = preferredStartMinutes !== null
+      && preferredEndMinutes !== null
+      ? (preferredEndMinutes > preferredStartMinutes
+        ? preferredEndMinutes - preferredStartMinutes
+        : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
+      : 180;
+    const searchStartTime = preferredEndMinutes !== null
+      ? minutesToTime(preferredEndMinutes)
+      : preferredStart;
+    const searchStartIndex = timeOptionValues.indexOf(searchStartTime);
+    const preferredIndex = searchStartIndex >= 0
+      ? searchStartIndex
+      : Math.max(0, timeOptionValues.indexOf(preferredStart));
+    const orderedStarts = [
+      ...timeOptionValues.slice(preferredIndex),
+      ...timeOptionValues.slice(0, preferredIndex),
+    ];
+
+    for (const startTime of orderedStarts) {
+      const startMinutes = timeToMinutes(startTime);
+      if (startMinutes === null) continue;
+      const endTime = minutesToTime(startMinutes + duration);
+      const candidateRange = getOneTimeRangeFromTimes(startTime, endTime);
+      if (!oneTimeRangeOverlapsExisting(existingRanges, candidateRange)) {
+        return makeSlot(startTime, endTime);
+      }
+    }
+
+    return null;
+  }
+
+  function getRecurringDisabledReason(slot = {}, uniqueKey, uniqueFallback) {
+    return getSlotRange(slot)
+      ? translateWithFallback(uniqueKey, uniqueFallback)
+      : translateWithFallback(
+        "booking_validation_time_slot_order",
+        "End time must be after start time.",
+      );
+  }
+
+  function getRecurringStartOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
+    const existingSegments = getOneTimeRangesSegments(existingRanges);
+    return timeOptions.map((option) => {
+      const disabled = !hasValidEndTimeForStartSegments(existingSegments, option.value);
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled
+          ? getRecurringDisabledReason({ ...slot, startTime: option.value }, uniqueKey, uniqueFallback)
+          : undefined,
+      };
+    });
+  }
+
+  function getRecurringEndOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
+    return timeOptions.map((option) => {
+      const disabled = !hasValidStartTimeForEndRanges(existingRanges, option.value);
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled
+          ? getRecurringDisabledReason({ ...slot, endTime: option.value }, uniqueKey, uniqueFallback)
+          : undefined,
+      };
+    });
+  }
+
+  function getNextAvailableOneTimeSlot(dateEntry = {}, preferredStart = "12:00", preferredEnd = "15:00", excludeIndex = null) {
+    const preferredSlot = makeSlot(preferredStart, preferredEnd);
+    if (!doesOneTimeSlotConflict(dateEntry, preferredSlot, excludeIndex)) {
+      return preferredSlot;
+    }
+
+    const preferredStartMinutes = timeToMinutes(preferredStart);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    const duration = preferredStartMinutes !== null
+      && preferredEndMinutes !== null
+      && preferredEndMinutes > preferredStartMinutes
+      ? preferredEndMinutes - preferredStartMinutes
+      : 180;
+    const searchStartTime = preferredEndMinutes !== null && preferredEndMinutes < MINUTES_PER_DAY
+      ? minutesToTime(preferredEndMinutes)
+      : preferredStart;
+    const searchStartIndex = timeOptionValues.indexOf(searchStartTime);
+    const preferredIndex = searchStartIndex >= 0
+      ? searchStartIndex
+      : Math.max(0, timeOptionValues.indexOf(preferredStart));
+    const orderedStarts = [
+      ...timeOptionValues.slice(preferredIndex),
+      ...timeOptionValues.slice(0, preferredIndex),
+    ];
+
+    for (const startTime of orderedStarts) {
+      const startMinutes = timeToMinutes(startTime);
+      if (startMinutes === null) continue;
+      const endTime = minutesToTime(startMinutes + duration);
+      const candidateSlot = makeSlot(startTime, endTime);
+      if (!doesOneTimeSlotConflict(dateEntry, candidateSlot, excludeIndex)) {
+        return candidateSlot;
+      }
+    }
+
+    return null;
+  }
+
+  function getValidEndTimesForStart(dateEntry = {}, slotIndex = null, startTime = "") {
+    const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
+    return timeOptionValues
+      .filter((endTime) => {
+        return !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime));
+      });
+  }
+
+  function getValidStartTimesForEnd(dateEntry = {}, slotIndex = null, endTime = "") {
+    const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
+    return timeOptionValues
+      .filter((startTime) => {
+        return !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime));
+      });
+  }
+
+  function pickValidEndTime(dateEntry = {}, slotIndex = null, startTime = "", preferredEnd = "") {
+    const validEndTimes = getValidEndTimesForStart(dateEntry, slotIndex, startTime);
+    const startMinutes = timeToMinutes(startTime);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    if (
+      validEndTimes.includes(preferredEnd)
+      && startMinutes !== null
+      && preferredEndMinutes !== null
+      && preferredEndMinutes > startMinutes
+    ) {
+      return preferredEnd;
+    }
+
+    if (startMinutes !== null) {
+      const nextOccupiedStart = getExistingOneTimeRanges(dateEntry, slotIndex)
+        .map((range) => range.start)
+        .find((occupiedStart) => occupiedStart > startMinutes);
+      const nextOccupiedEndTime = nextOccupiedStart !== undefined
+        ? minutesToTime(nextOccupiedStart)
+        : "";
+      if (nextOccupiedEndTime && validEndTimes.includes(nextOccupiedEndTime)) {
+        return nextOccupiedEndTime;
+      }
+
+      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
+        return "00:00";
+      }
+    }
+
+    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
+  }
+
+  function pickValidStartTime(dateEntry = {}, slotIndex = null, endTime = "", preferredStart = "") {
+    const validStartTimes = getValidStartTimesForEnd(dateEntry, slotIndex, endTime);
+    if (validStartTimes.includes(preferredStart)) return preferredStart;
+    return validStartTimes[0] || "";
+  }
+
+  function getOneTimeDisabledReason(slot = {}) {
+    return getOneTimeSlotRange(slot)
+      ? translateWithFallback(
+        "booking_validation_one_time_slot_unique",
+        "Each custom time slot must be unique and cannot overlap another slot for that date.",
+      )
+      : translateWithFallback(
+        "booking_validation_time_slot_order",
+        "End time must be after start time.",
+      );
+  }
+
+  function getOneTimeStartOptions(dateEntry = {}, slotIndex = null) {
+    const slot = dateEntry?.slots?.[slotIndex] || {};
+    const existingSegments = getOneTimeRangesSegments(getExistingOneTimeRanges(dateEntry, slotIndex));
+    return timeOptions.map((option) => {
+      const disabled = !hasValidEndTimeForStartSegments(existingSegments, option.value);
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled ? getOneTimeDisabledReason({ ...slot, startTime: option.value }) : undefined,
+      };
+    });
+  }
+
+  function getOneTimeEndOptions(dateEntry = {}, slotIndex = null) {
+    const slot = dateEntry?.slots?.[slotIndex] || {};
+    const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
+    return timeOptions.map((option) => {
+      const disabled = !hasValidStartTimeForEndRanges(existingRanges, option.value);
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled ? getOneTimeDisabledReason({ ...slot, endTime: option.value }) : undefined,
+      };
+    });
+  }
+
+  function getMonthlyExistingRanges(excludeIndex = null) {
+    return getExistingSlotRanges(monthlySlots.value, excludeIndex);
+  }
+
+  function getMonthlyStartOptions(slotIndex = null) {
+    const slot = monthlySlots.value?.[slotIndex] || {};
+    return getRecurringStartOptionsFromRanges(
+      getMonthlyExistingRanges(slotIndex),
+      slot,
+      "booking_validation_monthly_slot_unique",
+      "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+    );
+  }
+
+  function getMonthlyEndOptions(slotIndex = null) {
+    const slot = monthlySlots.value?.[slotIndex] || {};
+    return getRecurringEndOptionsFromRanges(
+      getMonthlyExistingRanges(slotIndex),
+      slot,
+      "booking_validation_monthly_slot_unique",
+      "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+    );
+  }
+
+  function getWeeklyDayIndex(day = {}, fallbackIndex = -1) {
+    const key = String(day?.key || day?.name || "").toLowerCase();
+    const index = DAY_KEY_TO_INDEX[key];
+    return Number.isFinite(index) ? index : fallbackIndex;
+  }
+
+  function resolveWeeklyDayIndex(dayIndex = -1) {
+    return getWeeklyDayIndex(weekDays.value?.[dayIndex], dayIndex);
+  }
+
+  function getWeeklyRangeFromTimes(dayIndex = -1, startTime = "", endTime = "") {
+    const range = getOneTimeRangeFromTimes(startTime, endTime);
+    if (!range || !Number.isFinite(dayIndex) || dayIndex < 0) return null;
+    const offset = dayIndex * MINUTES_PER_DAY;
+    return {
+      start: offset + range.start,
+      end: offset + range.end,
+    };
+  }
+
+  function getWeeklySlotRange(dayIndex = -1, slot = {}) {
+    return getWeeklyRangeFromTimes(resolveWeeklyDayIndex(dayIndex), slot?.startTime, slot?.endTime);
+  }
+
+  function weeklyRangesOverlap(existingRange = null, candidateRange = null) {
+    if (!existingRange || !candidateRange) return true;
+    return [-MINUTES_PER_WEEK, 0, MINUTES_PER_WEEK].some((shift) => {
+      const shiftedExisting = {
+        start: existingRange.start + shift,
+        end: existingRange.end + shift,
+      };
+      return shiftedExisting.start < candidateRange.end && candidateRange.start < shiftedExisting.end;
+    });
+  }
+
+  function weeklyRangeOverlapsExisting(existingRanges = [], candidateRange = null) {
+    if (!candidateRange) return true;
+    return existingRanges.some((range) => weeklyRangesOverlap(range, candidateRange));
+  }
+
+  function getExistingWeeklyRanges(excludeDayIndex = null, excludeSlotIndex = null) {
+    return (Array.isArray(weekDays.value) ? weekDays.value : [])
+      .flatMap((day, dayIndex) => {
+        if (day?.unavailable) return [];
+        return (Array.isArray(day?.slots) ? day.slots : [])
+          .map((slot, slotIndex) => ({
+            dayIndex,
+            slotIndex,
+            range: getWeeklySlotRange(dayIndex, slot),
+          }));
+      })
+      .filter(({ dayIndex, slotIndex, range }) => (
+        range && !(dayIndex === excludeDayIndex && slotIndex === excludeSlotIndex)
+      ))
+      .map(({ range }) => range)
+      .sort((first, second) => first.start - second.start);
+  }
+
+  function getExistingWeeklySameDayRanges(dayIndex = -1, excludeSlotIndex = null) {
+    return getExistingSlotRanges(weekDays.value?.[dayIndex]?.slots, excludeSlotIndex);
+  }
+
+  function getShiftedWeeklyRanges(ranges = []) {
+    return ranges
+      .flatMap((range) => [-MINUTES_PER_WEEK, 0, MINUTES_PER_WEEK].map((shift) => ({
+        start: range.start + shift,
+        end: range.end + shift,
+      })))
+      .sort((first, second) => first.start - second.start);
+  }
+
+  function hasValidWeeklyEndTimeForStart(dayIndex = -1, slotIndex = null, startTime = "") {
+    const startMinutes = timeToMinutes(startTime);
+    const resolvedDayIndex = resolveWeeklyDayIndex(dayIndex);
+    if (startMinutes === null || !Number.isFinite(resolvedDayIndex) || resolvedDayIndex < 0) {
+      return false;
+    }
+
+    const startAbsolute = (resolvedDayIndex * MINUTES_PER_DAY) + startMinutes;
+    const shiftedWeeklyRanges = getShiftedWeeklyRanges(getExistingWeeklyRanges(dayIndex, slotIndex));
+    const startsInsideWeeklyRange = shiftedWeeklyRanges.some((range) => (
+      range.start <= startAbsolute && startAbsolute < range.end
+    ));
+    if (startsInsideWeeklyRange) return false;
+
+    const nextWeeklyRange = shiftedWeeklyRanges.find((range) => range.start > startAbsolute);
+    const hasWeeklyGap = !nextWeeklyRange || nextWeeklyRange.start - startAbsolute >= TIME_OPTION_STEP_MINUTES;
+    if (!hasWeeklyGap) return false;
+
+    return hasValidEndTimeForStartSegments(
+      getOneTimeRangesSegments(getExistingWeeklySameDayRanges(dayIndex, slotIndex)),
+      startTime,
+    );
+  }
+
+  function doesWeeklySlotConflict(dayIndex = -1, candidateSlot = {}, excludeSlotIndex = null) {
+    return weeklyRangeOverlapsExisting(
+      getExistingWeeklyRanges(dayIndex, excludeSlotIndex),
+      getWeeklySlotRange(dayIndex, candidateSlot),
+    ) || oneTimeRangeOverlapsExisting(
+      getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex),
+      getSlotRange(candidateSlot),
+    );
+  }
+
+  function getValidWeeklyEndTimesForStart(dayIndex = -1, slotIndex = null, startTime = "") {
+    return timeOptionValues.filter((endTime) => (
+      !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
+    ));
+  }
+
+  function getValidWeeklyStartTimesForEnd(dayIndex = -1, slotIndex = null, endTime = "") {
+    return timeOptionValues.filter((startTime) => (
+      !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
+    ));
+  }
+
+  function getWeeklyStartOptions(dayIndex = -1, slotIndex = null) {
+    const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
+    return timeOptions.map((option) => {
+      const disabled = !hasValidWeeklyEndTimeForStart(dayIndex, slotIndex, option.value);
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled
+          ? getRecurringDisabledReason(
+            { ...slot, startTime: option.value },
+            "booking_validation_weekly_slot_unique",
+            "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+          )
+          : undefined,
+      };
+    });
+  }
+
+  function getWeeklyEndOptions(dayIndex = -1, slotIndex = null) {
+    const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
+    return timeOptions.map((option) => {
+      const disabled = getValidWeeklyStartTimesForEnd(dayIndex, slotIndex, option.value).length === 0;
+      return {
+        ...option,
+        disabled,
+        disabledReason: disabled
+          ? getRecurringDisabledReason(
+            { ...slot, endTime: option.value },
+            "booking_validation_weekly_slot_unique",
+            "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+          )
+          : undefined,
+      };
+    });
+  }
+
+  function getNextAvailableWeeklySlot(dayIndex = -1, preferredStart = "00:00", preferredEnd = "03:00", excludeSlotIndex = null) {
+    if (!doesWeeklySlotConflict(dayIndex, makeSlot(preferredStart, preferredEnd), excludeSlotIndex)) {
+      return makeSlot(preferredStart, preferredEnd);
+    }
+
+    const preferredStartMinutes = timeToMinutes(preferredStart);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    const duration = preferredStartMinutes !== null
+      && preferredEndMinutes !== null
+      ? (preferredEndMinutes > preferredStartMinutes
+        ? preferredEndMinutes - preferredStartMinutes
+        : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
+      : 180;
+    const searchStartTime = preferredEndMinutes !== null ? minutesToTime(preferredEndMinutes) : preferredStart;
+    const searchStartIndex = timeOptionValues.indexOf(searchStartTime);
+    const preferredIndex = searchStartIndex >= 0
+      ? searchStartIndex
+      : Math.max(0, timeOptionValues.indexOf(preferredStart));
+    const orderedStarts = [
+      ...timeOptionValues.slice(preferredIndex),
+      ...timeOptionValues.slice(0, preferredIndex),
+    ];
+
+    for (const startTime of orderedStarts) {
+      const startMinutes = timeToMinutes(startTime);
+      if (startMinutes === null) continue;
+      const endTime = minutesToTime(startMinutes + duration);
+      if (!doesWeeklySlotConflict(dayIndex, makeSlot(startTime, endTime), excludeSlotIndex)) {
+        return makeSlot(startTime, endTime);
+      }
+    }
+
+    return null;
+  }
+
+  function pickValidWeeklyEndTime(dayIndex = -1, slotIndex = null, startTime = "", preferredEnd = "") {
+    const validEndTimes = getValidWeeklyEndTimesForStart(dayIndex, slotIndex, startTime);
+    const startMinutes = timeToMinutes(startTime);
+    const preferredEndMinutes = timeToMinutes(preferredEnd);
+    if (
+      validEndTimes.includes(preferredEnd)
+      && startMinutes !== null
+      && preferredEndMinutes !== null
+      && preferredEndMinutes > startMinutes
+    ) {
+      return preferredEnd;
+    }
+
+    const resolvedDayIndex = resolveWeeklyDayIndex(dayIndex);
+    if (startMinutes !== null && Number.isFinite(resolvedDayIndex) && resolvedDayIndex >= 0) {
+      const startAbsolute = (resolvedDayIndex * MINUTES_PER_DAY) + startMinutes;
+      const nextOccupiedStart = getExistingWeeklyRanges(dayIndex, slotIndex)
+        .flatMap((range) => [-MINUTES_PER_WEEK, 0, MINUTES_PER_WEEK].map((shift) => range.start + shift))
+        .filter((occupiedStart) => occupiedStart > startAbsolute)
+        .sort((first, second) => first - second)[0];
+      const nextOccupiedEndTime = nextOccupiedStart !== undefined
+        ? minutesToTime(nextOccupiedStart)
+        : "";
+      if (nextOccupiedEndTime && validEndTimes.includes(nextOccupiedEndTime)) {
+        return nextOccupiedEndTime;
+      }
+
+      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
+        return "00:00";
+      }
+    }
+
+    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
+  }
+
+  function pickValidWeeklyStartTime(dayIndex = -1, slotIndex = null, endTime = "", preferredStart = "") {
+    const validStartTimes = getValidWeeklyStartTimesForEnd(dayIndex, slotIndex, endTime);
+    if (validStartTimes.includes(preferredStart)) return preferredStart;
+    return validStartTimes[0] || "";
+  }
 
   function syncAvailabilityToForm() {
     formData.value.weeklyAvailability = weekDays.value.map((day) => ({
@@ -615,12 +1386,6 @@
       return;
     }
 
-    if (formData.value.repeatRule === "weekly") {
-      if (!formData.value.dateFrom) {
-        formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
-      }
-    }
-
     if (formData.value.repeatRule === "monthly") {
       if (!formData.value.dateFrom) {
         formData.value.dateFrom = formData.value.selectedDate || getTodayIsoDate();
@@ -662,8 +1427,16 @@
     if (isScheduleLocked.value) return;
     const day = weekDays.value[dayIndex];
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
+    const nextSlot = getNextAvailableWeeklySlot(dayIndex);
+    if (!nextSlot) {
+      showScheduleValidationToast(
+        "booking_validation_weekly_slot_unique",
+        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+      );
+      return;
+    }
     day.unavailable = false;
-    day.slots = [makeSlot("00:00", "03:00")];
+    day.slots = [nextSlot];
     day.offHours = false;
     syncAvailabilityToForm();
   }
@@ -672,8 +1445,16 @@
     if (isScheduleLocked.value) return;
     const day = weekDays.value[dayIndex];
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
+    const nextSlot = getNextAvailableWeeklySlot(dayIndex);
+    if (!nextSlot) {
+      showScheduleValidationToast(
+        "booking_validation_weekly_slot_unique",
+        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+      );
+      return;
+    }
     day.unavailable = false;
-    day.slots.push(makeSlot("00:00", "03:00"));
+    day.slots.push(nextSlot);
     syncAvailabilityToForm();
   }
 
@@ -709,9 +1490,77 @@
     syncAvailabilityToForm();
   }
 
+  function onWeeklySlotChanged(dayIndex, slotIndex, changedField = null) {
+    if (isScheduleLocked.value) return;
+    const day = weekDays.value[dayIndex];
+    const slot = day?.slots?.[slotIndex];
+    if (!day || !slot || isWeeklyDayLocked(day.key || day.name)) return;
+
+    const startMinutes = timeToMinutes(slot.startTime);
+    const endMinutes = timeToMinutes(slot.endTime);
+    if (
+      changedField === "start"
+      && startMinutes !== null
+      && endMinutes !== null
+      && endMinutes <= startMinutes
+    ) {
+      const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
+      }
+    }
+
+    if (doesWeeklySlotConflict(dayIndex, slot, slotIndex)) {
+      if (changedField === "start") {
+        const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
+        if (nextEndTime) {
+          slot.endTime = nextEndTime;
+        }
+      } else if (changedField === "end") {
+        const nextStartTime = pickValidWeeklyStartTime(dayIndex, slotIndex, slot.endTime, slot.startTime);
+        if (nextStartTime) {
+          slot.startTime = nextStartTime;
+        }
+      }
+
+      if (doesWeeklySlotConflict(dayIndex, slot, slotIndex)) {
+        const nextSlot = getNextAvailableWeeklySlot(dayIndex, slot.startTime, slot.endTime, slotIndex);
+        if (nextSlot) {
+          slot.startTime = nextSlot.startTime;
+          slot.endTime = nextSlot.endTime;
+        }
+      }
+
+      showScheduleValidationToast(
+        "booking_validation_weekly_slot_unique",
+        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+      );
+    }
+
+    day.offHours = day.slots.some((item) => Boolean(item.offHours));
+    syncAvailabilityToForm();
+  }
+
+  function showScheduleValidationToast(messageKey, fallback) {
+    showToast({
+      type: "error",
+      title: translateWithFallback("common_validation_failed", "Validation Failed"),
+      message: translateWithFallback(messageKey, fallback),
+      autoClose: false,
+    });
+  }
+
   function addMonthlySlot() {
     if (isScheduleLocked.value) return;
-    monthlySlots.value.push(makeSlot("00:00", "03:00", false));
+    const nextSlot = getNextAvailableSlotFromRanges(getMonthlyExistingRanges());
+    if (!nextSlot) {
+      showScheduleValidationToast(
+        "booking_validation_monthly_slot_unique",
+        "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+      );
+      return;
+    }
+    monthlySlots.value.push(nextSlot);
     syncAvailabilityToForm();
   }
 
@@ -730,9 +1579,60 @@
     syncAvailabilityToForm();
   }
 
+  function onMonthlySlotChanged(slotIndex, changedField = null) {
+    if (isScheduleLocked.value) return;
+    const slot = monthlySlots.value?.[slotIndex];
+    if (!slot) return;
+
+    const startMinutes = timeToMinutes(slot.startTime);
+    const endMinutes = timeToMinutes(slot.endTime);
+    if (
+      changedField === "start"
+      && startMinutes !== null
+      && endMinutes !== null
+      && endMinutes <= startMinutes
+    ) {
+      const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
+      }
+    }
+
+    if (oneTimeRangeOverlapsExisting(getMonthlyExistingRanges(slotIndex), getSlotRange(slot))) {
+      if (changedField === "start") {
+        const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
+        if (nextEndTime) {
+          slot.endTime = nextEndTime;
+        }
+      } else if (changedField === "end") {
+        const nextStartTime = pickValidStartTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.endTime, slot.startTime);
+        if (nextStartTime) {
+          slot.startTime = nextStartTime;
+        }
+      }
+
+      if (oneTimeRangeOverlapsExisting(getMonthlyExistingRanges(slotIndex), getSlotRange(slot))) {
+        const nextSlot = getNextAvailableSlotFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
+        if (nextSlot) {
+          slot.startTime = nextSlot.startTime;
+          slot.endTime = nextSlot.endTime;
+        }
+      }
+
+      showScheduleValidationToast(
+        "booking_validation_monthly_slot_unique",
+        "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+      );
+    }
+
+    syncAvailabilityToForm();
+  }
+
   function addOneTimeDate() {
     if (isScheduleLocked.value) return;
-    oneTimeDates.value.push(createOneTimeDate(getTodayIsoDate()));
+    const nextDate = getNextAvailableOneTimeDate(getTodayIsoDate());
+    if (!nextDate) return;
+    oneTimeDates.value.push(createOneTimeDate(nextDate));
     syncAvailabilityToForm();
   }
 
@@ -747,7 +1647,83 @@
     if (isScheduleLocked.value) return;
     const dateEntry = oneTimeDates.value[dateIndex];
     if (!dateEntry) return;
-    dateEntry.slots.push(makeSlot("12:00", "15:00"));
+    const nextSlot = getNextAvailableOneTimeSlot(dateEntry);
+    if (!nextSlot) {
+      showScheduleValidationToast(
+        "booking_validation_one_time_slot_unique",
+        "Each custom time slot must be unique and cannot overlap another slot for that date.",
+      );
+      return;
+    }
+    dateEntry.slots.push(nextSlot);
+    syncAvailabilityToForm();
+  }
+
+  function onOneTimeDateChanged(entryIndex) {
+    if (isScheduleLocked.value) return;
+    const dateEntry = oneTimeDates.value[entryIndex];
+    if (!dateEntry) return;
+
+    if (!isIsoDate(dateEntry.date) || dateEntry.date < todayIsoDate) {
+      dateEntry.date = getNextAvailableOneTimeDate(todayIsoDate, entryIndex);
+    } else if (getOneTimeUsedDates(entryIndex).has(dateEntry.date)) {
+      dateEntry.date = getNextAvailableOneTimeDate(dateEntry.date, entryIndex);
+      showScheduleValidationToast(
+        "booking_validation_one_time_date_unique",
+        "Each custom date can only be added once.",
+      );
+    }
+
+    syncAvailabilityToForm();
+  }
+
+  function onOneTimeSlotChanged(entryIndex, slotIndex, changedField = null) {
+    if (isScheduleLocked.value) return;
+    const dateEntry = oneTimeDates.value[entryIndex];
+    const slot = dateEntry?.slots?.[slotIndex];
+    if (!dateEntry || !slot) return;
+
+    const startMinutes = timeToMinutes(slot.startTime);
+    const endMinutes = timeToMinutes(slot.endTime);
+    if (
+      changedField === "start"
+      && startMinutes !== null
+      && endMinutes !== null
+      && endMinutes <= startMinutes
+    ) {
+      const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
+      }
+    }
+
+    if (doesOneTimeSlotConflict(dateEntry, slot, slotIndex)) {
+      if (changedField === "start") {
+        const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
+        if (nextEndTime) {
+          slot.endTime = nextEndTime;
+        }
+      } else if (changedField === "end") {
+        const nextStartTime = pickValidStartTime(dateEntry, slotIndex, slot.endTime, slot.startTime);
+        if (nextStartTime) {
+          slot.startTime = nextStartTime;
+        }
+      }
+
+      if (doesOneTimeSlotConflict(dateEntry, slot, slotIndex)) {
+        const nextSlot = getNextAvailableOneTimeSlot(dateEntry, slot.startTime, slot.endTime, slotIndex);
+        if (nextSlot) {
+          slot.startTime = nextSlot.startTime;
+          slot.endTime = nextSlot.endTime;
+        }
+      }
+
+      showScheduleValidationToast(
+        "booking_validation_one_time_slot_unique",
+        "Each custom time slot must be unique and cannot overlap another slot for that date.",
+      );
+    }
+
     syncAvailabilityToForm();
   }
 
@@ -763,9 +1739,7 @@
 
   function onRepeatRuleChange(newRepeatRule = formData.value.repeatRule, oldRepeatRule = null) {
     if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "weekly") {
-      if (!isIsoDate(formData.value.dateFrom) || formData.value.dateFrom < todayIsoDate) {
-        formData.value.dateFrom = todayIsoDate;
-      }
+      formData.value.dateFrom = "";
       formData.value.dateTo = "";
     }
 
@@ -1491,10 +2465,11 @@
                         <CustomDropdown
                           v-model="slot.startTime"
                           :options="timeOptions"
+                          :option-factory="() => getWeeklyStartOptions(index, sIdx)"
                           :searchable="true"
                           :searchPlaceholder="timeSearchPlaceholder"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
-                          @update:modelValue="onSlotChanged"
+                          @update:modelValue="onWeeklySlotChanged(index, sIdx, 'start')"
                           buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                           dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                         />
@@ -1509,10 +2484,11 @@
                       <CustomDropdown
                         v-model="slot.endTime"
                         :options="timeOptions"
+                        :option-factory="() => getWeeklyEndOptions(index, sIdx)"
                         :searchable="true"
                         :searchPlaceholder="timeSearchPlaceholder"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        @update:modelValue="onSlotChanged"
+                        @update:modelValue="onWeeklySlotChanged(index, sIdx, 'end')"
                         buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                         dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                       />
@@ -1587,9 +2563,10 @@
                   <CustomDropdown
                     v-model="slot.startTime"
                     :options="timeOptions"
+                    :option-factory="() => getMonthlyStartOptions(slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onSlotChanged"
+                    @update:modelValue="onMonthlySlotChanged(slotIndex, 'start')"
                     buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                   />
@@ -1604,9 +2581,10 @@
                 <CustomDropdown
                   v-model="slot.endTime"
                   :options="timeOptions"
+                  :option-factory="() => getMonthlyEndOptions(slotIndex)"
                   :searchable="true"
                   :searchPlaceholder="timeSearchPlaceholder"
-                  @update:modelValue="onSlotChanged"
+                  @update:modelValue="onMonthlySlotChanged(slotIndex, 'end')"
                   buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                   dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                 />
@@ -1688,7 +2666,7 @@
                   <input
                     type="date"
                     v-model="entry.date"
-                    @change="onSlotChanged"
+                    @change="onOneTimeDateChanged(entryIndex)"
                     :min="getOneTimeDateMin()"
                     class="bg-white/75 w-full pl-10 pr-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-datetime-edit]:text-gray-900"
                   />
@@ -1716,9 +2694,10 @@
                   <CustomDropdown
                     v-model="slot.startTime"
                     :options="timeOptions"
+                    :option-factory="() => getOneTimeStartOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onSlotChanged"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'start')"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />
@@ -1726,9 +2705,10 @@
                   <CustomDropdown
                     v-model="slot.endTime"
                     :options="timeOptions"
+                    :option-factory="() => getOneTimeEndOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onSlotChanged"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'end')"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />
@@ -1976,6 +2956,13 @@
 
     </form>
     <div :class="footerClass">
+      <div class="md:hidden">
+        <ButtonComponent
+          @click="emit('preview-schedule')"
+          :text="t('common_preview')"
+          variant="polygonRight"
+        />
+      </div>
       <ButtonComponent @click="goToNext" :text="t('common_next')" variant="polygonLeft"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200
