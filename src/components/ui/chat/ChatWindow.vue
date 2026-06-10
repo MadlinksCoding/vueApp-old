@@ -1858,6 +1858,19 @@ async function fetchMore() {
 }
 
 // ── Send ─────────────────────────────────────────────────────────────────────
+function sendTelegramNotification(receiverId, senderId, messageType) {
+  const baseUrl = import.meta.env.VITE_WEB_BASE_URL || ''
+  fetch(`${baseUrl}/wp-json/api/telegram/send-telegram-noti`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverId,
+      senderId,
+      messageType
+    })
+  }).catch(err => console.error('Failed to send Telegram noti:', err))
+}
+
 async function sendMessage() {
   const rawText = composeText.value.trim().slice(0, MAX_MESSAGE_LENGTH)
   if (!rawText || isSending.value) return
@@ -1905,6 +1918,14 @@ async function sendMessage() {
   if (res?.ok) {
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
     props.socket?.sendChatMessage(res.data.item, getMessageRecipients())
+
+    if (!isCreatorAccount.value) {
+      const recipients = getMessageRecipients()
+      const creatorId = groupOwnerId.value || recipients.find(id => String(id) !== String(currentUserId))
+      if (creatorId) {
+        sendTelegramNotification(creatorId, currentUserId, 'new_message')
+      }
+    }
 
     // Notify parent window of sent message
     postToParent('FS_CHAT_EVENT', {
