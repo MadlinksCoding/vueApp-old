@@ -23,10 +23,25 @@ function readField(raw, item, keys) {
   return null;
 }
 
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return null;
+}
+
 export function formatMediaDuration(value) {
   const formatted = normalizeText(value);
   if (!formatted) return "";
-  if (formatted.includes(":")) return formatted;
+  if (formatted.includes(":")) {
+    const parts = formatted.split(":").map((part) => Number(part));
+    if (parts.some((part) => !Number.isFinite(part) || part < 0)) return formatted;
+
+    const [hours = 0, minutes = 0, seconds = 0] = parts.length === 3
+      ? parts
+      : [0, parts[0] || 0, parts[1] || 0];
+    return `${String(Math.floor(hours)).padStart(2, "0")}:${String(Math.floor(minutes)).padStart(2, "0")}:${String(Math.floor(seconds)).padStart(2, "0")}`;
+  }
 
   const seconds = Math.floor(Number(formatted));
   if (!Number.isFinite(seconds) || seconds < 0) return "";
@@ -35,17 +50,20 @@ export function formatMediaDuration(value) {
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
 
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 function resolveMediaKind(item = {}) {
   const raw = isObject(item?.raw) ? item.raw : {};
   const topLevelType = normalizeText(item?.type).toLowerCase();
-  const rawType = normalizeText(readField(raw, item, ["type", "media_type", "mediaType"])).toLowerCase();
+  const rawType = normalizeText(firstPresent(
+    raw.media_type,
+    raw.mediaType,
+    raw.type,
+    item.media_type,
+    item.mediaType,
+    topLevelType
+  )).toLowerCase();
 
   if (MEDIA_TYPES.has(rawType)) return rawType;
   if (MEDIA_TYPES.has(topLevelType)) return topLevelType;
