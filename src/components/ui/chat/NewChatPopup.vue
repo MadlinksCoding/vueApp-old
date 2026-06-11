@@ -419,6 +419,18 @@ function clearSearch() {
     searchResults.value = []
 }
 
+function getFanViewUid(user = {}) {
+    return user?.UID
+        || user?.userUid
+        || user?.userUID
+        || user?.encodedUid
+        || user?.encodedUID
+        || user?.encryptedUid
+        || user?.encryptedUID
+        || user?.encrypted_uid
+        || ''
+}
+
 async function loadMoreTopFollowers() {
     if (loadingMoreTop.value) return
     loadingMoreTop.value = true
@@ -469,11 +481,15 @@ async function loadMoreUnsubscribed() {
 
 function onMessage(user) {
     console.log('Starting chat with user:', user)
+    const fanViewUid = getFanViewUid(user)
     emit('start-chat', {
         userId: user.id,
         displayName: user.display_name || user.username,
         username: user.username || '',
         avatar: user.avatar || null,
+        targetUserData: user,
+        fanViewUid,
+        fanViewUserId: user.id,
     })
 }
 

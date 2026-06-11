@@ -70,6 +70,9 @@ const props = defineProps({
   socket:        { type: Object, default: null },
   targetUserId:  { type: [String, Number], default: null },
   targetUserIds: { type: Array, default: () => [] },
+  targetUserData: { type: Object, default: null },
+  fanViewUid:   { type: String, default: '' },
+  fanViewUserId: { type: [String, Number], default: null },
   groupType:     { type: String, default: null },
   chatType:      { type: String, default: null },
   chatSubtype:   { type: String, default: 'standard' },
@@ -1051,6 +1054,287 @@ function resolveCreatorIdForProducts() {
   return found ? String(found) : (props.targetUserId || null)
 }
 
+function toNonEmptyString(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function firstNonEmptyValue(...values) {
+  for (const value of values) {
+    const normalized = toNonEmptyString(value)
+    if (normalized) return normalized
+  }
+  return ''
+}
+
+function getWindowContextValue(key) {
+  try {
+    return window.parent?.[key] ?? window[key] ?? null
+  } catch {
+    return window[key] ?? null
+  }
+}
+
+function getCurrentUserDataUid() {
+  const ud = resolveParentUserData()
+  return firstNonEmptyValue(ud?.UID, ud?.userUid, ud?.userUID, ud?.encodedUid, ud?.encodedUID)
+}
+
+function getProductSenderContext() {
+  const senderUserUid = getCurrentUserDataUid()
+  const senderRole = firstNonEmptyValue(
+    getWindowContextValue('chimeHandler')?._currentUserRole,
+    getWindowContextValue('settings')?.callSettings?.currentUserRole,
+    getWindowContextValue('mockCallData')?.currentUserRole,
+    isCreatorAccount.value ? 'creator' : 'fan'
+  )
+
+  return {
+    ...(senderUserUid ? { senderUserUid } : {}),
+    ...(senderRole ? { senderRole } : {}),
+  }
+}
+
+function getUpsellUserUid(user = {}) {
+  return firstNonEmptyValue(
+    user?.fanViewUid,
+    user?.fanUid,
+    user?.fanUID,
+    user?.UID,
+    user?.userUid,
+    user?.userUID,
+    user?.encodedUid,
+    user?.encodedUID,
+    user?.encryptedUid,
+    user?.encryptedUID,
+    user?.encrypted_uid
+  )
+}
+
+function getUpsellUserId(user = {}) {
+  return firstNonEmptyValue(user?.fanViewUserId, user?.fanUserId, user?.userId, user?.userID, user?.id, user?.ID)
+}
+
+function isSameCurrentUser(user = {}) {
+  const userId = getUpsellUserId(user)
+  return !!userId && String(userId) === String(currentUserId)
+}
+
+function isFanLikeUser(user = {}) {
+  if (!user || typeof user !== 'object') return false
+  if (user.isFan === true || user.isCreator === false) return true
+  const role = toNonEmptyString(user.role || user.userRole || user.accountType || user.type).toLowerCase()
+  return ['attendee', 'audience', 'fan', 'guest'].includes(role)
+}
+
+function getProductPayloadFanViewUid(source = {}) {
+  const role = toNonEmptyString(source?.senderRole || source?.role).toLowerCase()
+  const senderFanUid = ['attendee', 'audience', 'fan', 'guest'].includes(role)
+    ? firstNonEmptyValue(source?.senderUserUid, source?.senderUid, source?.senderUID, getUpsellUserUid(source))
+    : ''
+
+  return firstNonEmptyValue(
+    source?.fanViewUid,
+    source?.fanUid,
+    source?.fanUID,
+    source?.fanUserUid,
+    source?.fan_user_uid,
+    source?.fan_uid,
+    senderFanUid,
+    source?.renderAsUid,
+    source?.renderUid,
+    source?.viewerUid
+  )
+}
+
+function getProductPayloadFanViewUserId(source = {}) {
+  return firstNonEmptyValue(
+    source?.fanViewUserId,
+    source?.fanUserId,
+    source?.fan_user_id,
+    source?.viewerUserId,
+    source?.viewer_user_id
+  )
+}
+
+function resolveFanContextFromSource(source = {}) {
+  if (!source || typeof source !== 'object') return {}
+  const fanViewUid = getProductPayloadFanViewUid(source)
+  const fanViewUserId = getProductPayloadFanViewUserId(source)
+  return {
+    ...(fanViewUid ? { fanViewUid } : {}),
+    ...(fanViewUserId ? { fanViewUserId } : {}),
+  }
+}
+
+function resolveFanContextFromMessage(message = {}) {
+  const rawProduct = rawProductRecommendationForMessage(message)
+  const sources = [
+    rawProduct,
+    message?.content || {},
+    message?.product_recommendation || {},
+    message,
+  ]
+
+  for (const source of sources) {
+    const context = resolveFanContextFromSource(source)
+    if (context.fanViewUid) return context
+  }
+
+  return {}
+}
+
+function resolveSingleChatFanUser() {
+  const participants = (chatStore.chatParticipants[activeChatId.value] || [])
+    .map((participant) => String(typeof participant === 'object'
+      ? (participant.user_id ?? participant.userId ?? participant.id)
+      : participant))
+    .filter(Boolean)
+
+  const candidateIds = participants.length > 0
+    ? participants.filter((id) => id !== String(currentUserId))
+    : [
+        props.targetUserId,
+        ...(Array.isArray(props.targetUserIds) ? props.targetUserIds : []),
+      ].map((id) => id == null ? '' : String(id)).filter(Boolean)
+
+  const uniqueCandidateIds = [...new Set(candidateIds)]
+  if (uniqueCandidateIds.length !== 1) return null
+
+  const userId = uniqueCandidateIds[0]
+  return {
+    ...(chatStore.chatUsersData[userId] || {}),
+    ...(String(props.targetUserId || '') === userId && props.targetUserData ? props.targetUserData : {}),
+    userId,
+  }
+}
+
+function resolveCurrentChatFanContext() {
+  const settings = getWindowContextValue('settings') || {}
+  const mockCallData = getWindowContextValue('mockCallData') || {}
+  const userSpecifiData = getWindowContextValue('userSpecifiData') || {}
+  const details = settings?.callUserDetails || {}
+  const side = settings?.callSettings?.currentUserSide || mockCallData?.currentUserSide || null
+  const role = toNonEmptyString(
+    settings?.callSettings?.currentUserRole ||
+    mockCallData?.currentUserRole ||
+    getWindowContextValue('chimeHandler')?._currentUserRole ||
+    (isCreatorAccount.value ? 'creator' : 'fan')
+  ).toLowerCase()
+
+  const sideFan = ['host', 'creator', 'collaborator'].includes(role)
+    ? (side === 'caller' ? details?.callee : side === 'callee' ? details?.caller : null)
+    : null
+
+  const singleChatFan = resolveSingleChatFanUser()
+  const propFan = (props.fanViewUid || props.fanViewUserId || props.targetUserData)
+    ? {
+        ...(props.targetUserData || {}),
+        isFan: true,
+        ...(props.fanViewUid ? { fanViewUid: props.fanViewUid, UID: props.fanViewUid, userUid: props.fanViewUid } : {}),
+        ...(props.fanViewUserId ? { fanViewUserId: props.fanViewUserId, id: props.fanViewUserId } : {}),
+      }
+    : null
+
+  const candidates = [
+    propFan,
+    sideFan,
+    props.targetUserData,
+    userSpecifiData?.targetUser,
+    mockCallData?.targetUser,
+    details?.callee,
+    details?.caller,
+    singleChatFan,
+    userSpecifiData?.currentUser,
+    mockCallData?.currentUser,
+  ]
+
+  const fan = candidates.find((user) =>
+    !isSameCurrentUser(user) && (isFanLikeUser(user) || (isCreatorAccount.value && user === singleChatFan))
+  )
+  const fanViewUid = getUpsellUserUid(fan)
+  const fanViewUserId = getUpsellUserId(fan)
+
+  return {
+    ...(fanViewUid ? { fanViewUid } : {}),
+    ...(fanViewUserId ? { fanViewUserId } : {}),
+  }
+}
+
+function resolveProductRecommendationFanViewContext(message = {}) {
+  const messageContext = resolveFanContextFromMessage(message)
+  if (messageContext.fanViewUid) return messageContext
+
+  if (isCreatorAccount.value) {
+    const creatorContext = resolveCurrentChatFanContext()
+    if (creatorContext.fanViewUid) return creatorContext
+  }
+
+  const fanViewUid = resolveChatFanUid()
+  return fanViewUid ? { fanViewUid } : {}
+}
+
+function resolveProductRecommendationFanUid(message = {}) {
+  return resolveProductRecommendationFanViewContext(message).fanViewUid || ''
+}
+
+function productFanAccessUnavailableReason(message = {}) {
+  if (isCreatorAccount.value) {
+    const sourceContext = resolveFanContextFromMessage(message)
+    if (sourceContext.fanViewUserId && !sourceContext.fanViewUid) {
+      return 'Fan access could not be checked because the product payload has a fan user ID but no fan UID.'
+    }
+
+    const singleFan = resolveSingleChatFanUser()
+    const singleFanUserId = getUpsellUserId(singleFan)
+    if (singleFanUserId && !getUpsellUserUid(singleFan)) {
+      return 'Fan access could not be checked because this creator view has the fan user ID, but not the fan UID required for access checks.'
+    }
+
+    return 'Fan access could not be checked because this creator view does not have a fan UID to mirror.'
+  }
+
+  return 'Fan access could not be checked because the chat embed did not receive a fan UID.'
+}
+
+function withProductRecommendationContext(product = {}, fanViewContext = {}) {
+  const senderContext = getProductSenderContext()
+  const context = {
+    ...senderContext,
+    ...fanViewContext,
+  }
+
+  if (Object.keys(context).length === 0) return product
+
+  return {
+    ...product,
+    ...context,
+  }
+}
+
+function withMessageProductRecommendationContext(message = {}, fanViewContext = {}) {
+  const context = {
+    ...getProductSenderContext(),
+    ...fanViewContext,
+  }
+  if (!message || Object.keys(context).length === 0) return message
+
+  const content = message.content && typeof message.content === 'object' ? message.content : {}
+  const rawProduct = content.product_recommendation || content.productRecommendation || message.product_recommendation
+  if (!rawProduct || typeof rawProduct !== 'object') return message
+
+  return {
+    ...message,
+    content: {
+      ...content,
+      product_recommendation: {
+        ...rawProduct,
+        ...context,
+      },
+    },
+  }
+}
+
 function setProductCatalogTab(type, nextState = {}) {
   const safeType = String(type || '').toLowerCase()
   if (!PRODUCT_TYPES.includes(safeType)) return
@@ -1241,10 +1525,10 @@ async function ensureActiveChat() {
 
 async function onConfirmChatProducts(selectedItems = []) {
   if (!isCreatorAccount.value || isSending.value) return
-  const products = Array.isArray(selectedItems)
+  const selectedProducts = Array.isArray(selectedItems)
     ? selectedItems.map((item) => normalizeProductForChat(item, { senderId: currentUserId })).filter(Boolean)
     : []
-  if (products.length === 0) return
+  if (selectedProducts.length === 0) return
 
   isSending.value = true
   const hasChat = await ensureActiveChat()
@@ -1253,6 +1537,11 @@ async function onConfirmChatProducts(selectedItems = []) {
     isSending.value = false
     return
   }
+
+  const fanViewContext = resolveCurrentChatFanContext()
+  const products = selectedProducts.map((product) =>
+    withProductRecommendationContext(product, fanViewContext)
+  )
 
   for (const product of products) {
     const res = await FlowHandler.run('chat.sendProductRecommendation', {
@@ -1265,8 +1554,9 @@ async function onConfirmChatProducts(selectedItems = []) {
       continue
     }
 
-    const item = res.data?.item
-    if (!item) continue
+    const rawItem = res.data?.item
+    if (!rawItem) continue
+    const item = withMessageProductRecommendationContext(rawItem, fanViewContext)
     chatStore.updateChatLastMessage(activeChatId.value, item)
     props.socket?.sendChatMessage(item, getMessageRecipients())
   }
@@ -1280,8 +1570,10 @@ function isOwnMessage(message) {
 
 function shouldFetchProductRecommendationStatus(message) {
   if (!message || message.content_type !== 'product_recommendation') return false
-  if (isCreatorAccount.value || isOwnMessage(message)) return false
-  return Boolean(productForMessage(message))
+  if (!productForMessage(message)) return false
+  if (isCreatorAccount.value) return Boolean(resolveProductRecommendationFanUid(message))
+  if (isOwnMessage(message)) return false
+  return Boolean(resolveProductRecommendationFanUid(message))
 }
 
 function getProductStatusKey(message) {
@@ -1313,12 +1605,12 @@ async function fetchProductRecommendationStatus(message, { force = false } = {})
   if (!product || current?.loading) return
   if (!force && current?.loaded) return
 
-  const fanUid = resolveChatFanUid()
+  const fanUid = resolveProductRecommendationFanUid(message)
   if (!fanUid) {
     setProductStatusState(message, {
       loading: false,
       loaded: true,
-      error: 'Fan access could not be checked.',
+      error: productFanAccessUnavailableReason(message),
       cta: 'retry',
       detail: null,
     })
@@ -1363,6 +1655,15 @@ function productCardStatus(message) {
   const state = getProductStatusState(message)
   if (state) return state
   if (shouldFetchProductRecommendationStatus(message)) return { loading: true, cta: 'loading' }
+  if (isCreatorAccount.value && message?.content_type === 'product_recommendation' && productForMessage(message)) {
+    return {
+      loading: false,
+      loaded: true,
+      error: productFanAccessUnavailableReason(message),
+      cta: 'unavailable',
+      detail: null,
+    }
+  }
   return null
 }
 
@@ -1378,8 +1679,12 @@ function productCardCtaDisabled(message) {
   return isProductCtaDisabled(productCardCta(message))
 }
 
+function isProductCardReadOnly(message) {
+  return isCreatorAccount.value && message?.content_type === 'product_recommendation'
+}
+
 function productCardButtonDisabled(message) {
-  return productCardCtaDisabled(message) || isChatBlocked.value
+  return productCardCtaDisabled(message) || isProductCardReadOnly(message) || isChatBlocked.value
 }
 
 function productCardDisabledReason(message) {
@@ -1387,6 +1692,9 @@ function productCardDisabledReason(message) {
 
   const cta = productCardCta(message)
   if (cta === 'loading') return 'Checking your access. Please wait.'
+  const statusError = toNonEmptyString(productCardStatus(message)?.error)
+  if (statusError) return statusError
+  if (isProductCardReadOnly(message)) return 'Previewing the fan view. Actions are disabled for creators.'
   if (cta === 'subscribed') return 'You are already subscribed to this plan.'
   if (cta === 'unavailable') return 'This product is not available right now.'
 
@@ -1466,6 +1774,7 @@ function shouldShowProductCardCta(message) {
 }
 
 function onProductShellClick(message) {
+  if (isProductCardReadOnly(message)) return
   if (!shouldFetchProductRecommendationStatus(message)) return
   if (shouldShowProductCardCta(message)) return
   onProductCardClick(message)
@@ -1477,19 +1786,21 @@ async function onProductCtaClick(message, requestedAction = '') {
     await fetchProductRecommendationStatus(message, { force: true })
     return
   }
-  if (productCardCtaDisabled(message)) return
+  if (productCardButtonDisabled(message)) return
   const action = productActionFromCta(requestedAction) || productActionFromCta(cta)
   if (!action) return
   onProductCardClick(message, { action })
 }
 
 function onProductCardClick(message, { action = '' } = {}) {
+  if (isProductCardReadOnly(message)) return
   if (!shouldFetchProductRecommendationStatus(message)) return
   const product = extractProductRecommendation(message)
   if (!product) return
   if (window.self === window.top && !window.parent) return
 
   const status = productCardStatus(message) || {}
+  const fanViewContext = resolveProductRecommendationFanViewContext(message)
   const payload = buildProductSelectedPayload({
     message,
     chatId: activeChatId.value,
@@ -1498,6 +1809,7 @@ function onProductCardClick(message, { action = '' } = {}) {
     action,
   })
   if (!payload) return
+  Object.assign(payload, fanViewContext)
 
   try {
     if (typeof structuredClone === 'function') structuredClone({ type: 'FS_CHAT_PRODUCT_SELECTED', payload })
@@ -1609,7 +1921,7 @@ const productRecommendationStatusWatchKey = computed(() =>
     .filter((message) => message.content_type === 'product_recommendation' && shouldFetchProductRecommendationStatus(message))
     .map((message) => {
       const product = productForMessage(message)
-      return `${getProductStatusKey(message)}:${product?.productId || ''}`
+      return `${getProductStatusKey(message)}:${product?.productId || ''}:${resolveProductRecommendationFanUid(message)}`
     })
     .join('|')
 )
@@ -1620,10 +1932,13 @@ watch(productRecommendationStatusWatchKey, () => {
     .forEach((message) => fetchProductRecommendationStatus(message))
 }, { immediate: true })
 
-watch([() => props.targetUserIds, () => currentUserId], ([newIds, cId]) => {
+watch([() => props.targetUserIds, () => props.targetUserId, () => currentUserId], ([newIds, targetUserId, cId]) => {
   const idsToCheck = []
   if (newIds && newIds.length > 0) {
     idsToCheck.push(...newIds.map(String))
+  }
+  if (targetUserId) {
+    idsToCheck.push(String(targetUserId))
   }
   if (cId) {
     idsToCheck.push(String(cId))
@@ -2493,8 +2808,11 @@ onUnmounted(() => {
             >
               <button
                 type="button"
-                class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
+                :class="productCardButtonDisabled(message) ? 'pointer-events-none' : ''"
                 :disabled="productCardButtonDisabled(message)"
+                :aria-disabled="productCardButtonDisabled(message) ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message) ? -1 : 0"
                 @click.stop="onProductCtaClick(message, 'subscribe')"
               >
                 <span>{{ productSubscribeActionLabel(message) }}</span>
@@ -2516,9 +2834,14 @@ onUnmounted(() => {
             >
               <button
                 type="button"
-                class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-                :class="productBuyButtonThemeClass(message)"
+                class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition"
+                :class="[
+                  productBuyButtonThemeClass(message),
+                  productCardButtonDisabled(message) ? 'pointer-events-none' : '',
+                ]"
                 :disabled="productCardButtonDisabled(message)"
+                :aria-disabled="productCardButtonDisabled(message) ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message) ? -1 : 0"
                 @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
               >
                 <span>{{ productBuyButtonLabel(message) }}</span>

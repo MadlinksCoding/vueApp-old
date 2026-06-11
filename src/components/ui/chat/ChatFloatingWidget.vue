@@ -23,6 +23,67 @@ const chatListRef = ref(null)
 // openChats: [{ chatId, chatName, avatar }]
 const openChats = ref([])
 
+function toNonEmptyString(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function getFanViewUid(user = {}) {
+  return toNonEmptyString(
+    user?.fanViewUid
+    || user?.UID
+    || user?.userUid
+    || user?.userUID
+    || user?.encodedUid
+    || user?.encodedUID
+    || user?.encryptedUid
+    || user?.encryptedUID
+    || user?.encrypted_uid
+  )
+}
+
+function getFanViewUserId({ userId, fanViewUserId, targetUserData } = {}) {
+  return toNonEmptyString(
+    fanViewUserId
+    || targetUserData?.fanViewUserId
+    || targetUserData?.fanUserId
+    || targetUserData?.userId
+    || targetUserData?.userID
+    || targetUserData?.id
+    || targetUserData?.ID
+    || userId
+  )
+}
+
+function buildTargetUserData({ userId, displayName, username, avatar, targetUserData, fanViewUid } = {}) {
+  const existing = targetUserData && typeof targetUserData === 'object' ? { ...targetUserData } : {}
+  const resolvedFanViewUid = toNonEmptyString(fanViewUid) || getFanViewUid(existing)
+  const normalized = {
+    ...existing,
+    ...(userId ? { id: existing.id ?? userId } : {}),
+    display_name: displayName || existing.display_name || existing.displayName || '',
+    username: username || existing.username || '',
+    avatar: avatar || existing.avatar || '',
+  }
+
+  if (resolvedFanViewUid) {
+    normalized.UID = resolvedFanViewUid
+    normalized.userUid = resolvedFanViewUid
+    normalized.fanViewUid = resolvedFanViewUid
+  }
+
+  return normalized
+}
+
+function rememberChatUserData(userId, userData) {
+  const key = toNonEmptyString(userId)
+  if (!key || !userData) return
+  chatStore.chatUsersData[key] = {
+    ...(chatStore.chatUsersData[key] || {}),
+    ...userData,
+  }
+}
+
 const unreadCount = computed(() => {
   // Placeholder: sum unread_count from userChats
   return chatStore.userChats.reduce((sum, c) => sum + (c.unread_count || 0), 0)
@@ -66,8 +127,8 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   })
 }
 
-async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings }) {
-  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings })
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId }) {
+  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId })
   // --- Group chat (Message All) ---
   if (userIds && userIds.length > 0) {
     // Check for existing group with same type
@@ -104,31 +165,41 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
   }
 
   // --- 1-on-1: reuse existing ---
+  const directUserData = buildTargetUserData({ userId, displayName, username, avatar, targetUserData, fanViewUid })
+  const directFanViewUid = getFanViewUid(directUserData)
+  const directFanViewUserId = getFanViewUserId({ userId, fanViewUserId, targetUserData: directUserData })
+
   const existing = findExistingDirectChat(userId)
   if (existing) {
-    if (userId && !chatStore.chatUsersData[String(userId)]) {
-      chatStore.chatUsersData[String(userId)] = {
-        display_name: displayName,
-        username: username || '',
-        avatar: avatar || '',
-      }
-    }
-    openChatWindow({ chatId: existing.chat_id, chatName: displayName, avatar: avatar || null })
+    rememberChatUserData(userId, directUserData)
+    openChatWindow({
+      chatId: existing.chat_id,
+      chatName: directUserData.display_name || displayName,
+      avatar: directUserData.avatar || avatar || null,
+      targetUserId: String(userId),
+      targetUserData: directUserData,
+      fanViewUid: directFanViewUid,
+      fanViewUserId: directFanViewUserId,
+    })
     chatListRef.value?.chatReady?.()
     return
   }
 
   // Store user data immediately so ChatListPanel can display name/avatar without an extra API call
   if (userId) {
-    chatStore.chatUsersData[String(userId)] = {
-      display_name: displayName,
-      username: username || '',
-      avatar: avatar || '',
-    }
+    rememberChatUserData(userId, directUserData)
   }
 
   // --- 1-on-1: open pending window, chat created on first message ---
-  openChatWindow({ chatId: null, chatName: displayName, avatar: avatar || null, targetUserId: String(userId) })
+  openChatWindow({
+    chatId: null,
+    chatName: directUserData.display_name || displayName,
+    avatar: directUserData.avatar || avatar || null,
+    targetUserId: String(userId),
+    targetUserData: directUserData,
+    fanViewUid: directFanViewUid,
+    fanViewUserId: directFanViewUserId,
+  })
   chatListRef.value?.chatReady?.()
 }
 
@@ -138,7 +209,7 @@ const widgetEl  = ref(null)
 // Track host width for iframe embeds, while still allowing normal tailwind md classes
 const hostWidth = ref(window.innerWidth)
 
-async function openChat({ chatId, userId } = {}) {
+async function openChat({ chatId, userId, targetUserData, fanViewUid, fanViewUserId } = {}) {
   if (chatId) {
     // Resolve the chat item — from store or API
     let item = chatStore.userChats.find(c => String(c.chat_id) === String(chatId))
@@ -166,13 +237,31 @@ async function openChat({ chatId, userId } = {}) {
     const otherId = participantIds.find(id => id !== myId)
     const otherUser = otherId ? chatStore.chatUsersData[otherId] : null
     const avatar = otherUser?.avatar || null
+    const targetData = buildTargetUserData({
+      userId: otherId,
+      displayName: otherUser?.display_name || otherUser?.displayName || '',
+      username: otherUser?.username || '',
+      avatar,
+      targetUserData: targetUserData || otherUser,
+      fanViewUid,
+    })
+    const resolvedFanViewUid = getFanViewUid(targetData)
+    const resolvedFanViewUserId = getFanViewUserId({ userId: otherId, fanViewUserId, targetUserData: targetData })
     var chatName = otherUser?.display_name || otherUser?.username || ''
     if( item?.is_group ) {
       console.error("Group chat - using group name:", item)
       chatName = item.chat_name || item.name || otherUser?.display_name || otherUser?.username || ''
     }
 
-    openChatWindow({ chatId, chatName, avatar })
+    openChatWindow({
+      chatId,
+      chatName,
+      avatar,
+      targetUserId: otherId || null,
+      targetUserData: targetData,
+      fanViewUid: resolvedFanViewUid,
+      fanViewUserId: resolvedFanViewUserId,
+    })
   } else if (userId) {
     const uid = String(userId)
     let userData = chatStore.chatUsersData[uid]
@@ -183,7 +272,7 @@ async function openChat({ chatId, userId } = {}) {
     const displayName = userData?.display_name || userData?.username || ''
     const username    = userData?.username || ''
     const avatar      = userData?.avatar || null
-    onStartChat({ userId: uid, displayName, username, avatar })
+    onStartChat({ userId: uid, displayName, username, avatar, targetUserData: userData })
   }
 }
 
@@ -298,6 +387,9 @@ onMounted(async () => {
         :avatar="chat.avatar"
         :target-user-id="chat.targetUserId"
         :target-user-ids="chat.targetUserIds"
+        :target-user-data="chat.targetUserData"
+        :fan-view-uid="chat.fanViewUid"
+        :fan-view-user-id="chat.fanViewUserId"
         :group-type="chat.groupType"
         :chat-type="chat.chatType"
         :chat-subtype="chat.chatSubtype"
