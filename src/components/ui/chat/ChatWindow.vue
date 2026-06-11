@@ -1821,8 +1821,8 @@ const baseThemeStyles = {
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-[#344054] text-base font-normal max-w-[270px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
-  otherBubble:      'text-white  text-base font-normal max-w-[0px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  myBubble:         'text-[#344054] text-base font-normal max-w-[70%] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-white  text-base font-normal max-w-[70%] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
@@ -2476,8 +2476,8 @@ onUnmounted(() => {
         <div v-else class="relative flex items-center gap-2 my-1 w-full">
           <!-- Current user avatar -->
           <div class="shrink-0 overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-            <img v-if="currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-7 h-7 object-cover" alt="" />
-            <div v-else class="w-7 h-7 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
+            <img v-if="currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-6 h-6 object-cover" alt="" />
+            <div v-else class="w-6 h-6 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
               {{ currentUserInitial }}
             </div>
           </div>
