@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full md:w-[25rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] font-sans relative overflow-hidden md:rounded-[0.625rem]">
+  <div ref="containerRef" class="w-full md:w-[25rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] font-sans relative overflow-hidden md:rounded-[0.625rem]">
     
     <!-- Header -->
     <div class="self-stretch min-h-14 p-2 inline-flex justify-between items-center bg-transparent border-b border-gray-300">
@@ -78,7 +78,7 @@
         <button
           v-if="!member.isCurrentUser"
           class="p-2 text-gray-400 hover:text-gray-700 transition-colors shrink-0"
-          @click.stop="openMenu(member)"
+          @click.stop="openMenu(member, $event)"
           title="Actions"
         >
           <img :src="DotsVerticalIcon" alt="actions" class="w-4 h-4" />
@@ -94,16 +94,23 @@
     <Transition name="fade">
       <div
         v-if="selectedMember"
-        class="absolute inset-0 bg-black/35 z-20 backdrop-blur-[0.156rem]"
+        class="absolute inset-0 z-20"
+        :class="hostWidth < 768 ? 'bg-black/35 backdrop-blur-[0.156rem]' : 'bg-transparent'"
         @click="closeMenu"
       />
     </Transition>
 
     <!-- Bottom Sheet Action Drawer -->
-    <Transition name="slide-up">
+    <Transition :name="hostWidth < 768 ? 'slide-up' : 'fade'">
       <div
         v-if="selectedMember"
-        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl z-30 shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-200 flex flex-col select-none overflow-hidden py-1"
+        class="absolute z-30 flex flex-col select-none overflow-hidden py-1 border border-gray-200"
+        :class="[
+          hostWidth < 768 
+            ? 'bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.12)]' 
+            : 'bg-white rounded-lg shadow-xl w-56'
+        ]"
+        :style="hostWidth >= 768 ? menuStyle : {}"
       >
         <!-- Message Privately -->
         <button
@@ -165,7 +172,8 @@ const props = defineProps({
   chatId: { type: String, required: true },
   currentUserId: { type: [String, Number], required: true },
   isCreator: { type: Boolean, default: false },
-  isGroupChat: { type: Boolean, default: false }
+  isGroupChat: { type: Boolean, default: false },
+  hostWidth: { type: Number, default: window.innerWidth }
 })
 
 const emit = defineEmits(['close', 'message-privately', 'kick', 'block', 'unblock', 'report'])
@@ -177,6 +185,8 @@ const selectedMember = ref(null)
 const visibleCount = ref(50)
 const isBlocked = ref(false)
 const isCheckingBlock = ref(false)
+const containerRef = ref(null)
+const menuStyle = ref({})
 
 watch(searchQuery, () => {
   visibleCount.value = 50
@@ -242,11 +252,30 @@ const filteredMembers = computed(() => {
   )
 })
 
-async function openMenu(member) {
+async function openMenu(member, event) {
   selectedMember.value = member
   isCheckingBlock.value = true
   isBlocked.value = false
-  
+
+  if (props.hostWidth >= 768 && event && containerRef.value) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const containerRect = containerRef.value.getBoundingClientRect()
+
+    // Calculate position relative to container
+    let top = rect.bottom - containerRect.top + 5
+    const left = rect.right - containerRect.left - 224 // 224px is w-56
+
+    // Flip up if near bottom
+    if (top + 200 > containerRect.height) {
+      top = rect.top - containerRect.top - 205 // Rough estimate for menu height
+    }
+
+    menuStyle.value = {
+      top: `${top}px`,
+      left: `${left}px`
+    }
+  }
+
   const res = await FlowHandler.run('blocks.isUserBlocked', {
     from: props.currentUserId,
     to: member.id,

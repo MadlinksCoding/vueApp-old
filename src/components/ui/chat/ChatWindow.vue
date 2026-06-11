@@ -42,6 +42,7 @@ import shareIcon from '@/assets/images/icons/share-04.svg'
 import closeIcon from '@/assets/images/icons/x-close-grey-1.svg'
 import packageIcon from '@/assets/images/icons/package-plus.svg'
 import faceSmileIcon from '@/assets/images/icons/face-smile.svg'
+import userIcon from '@/assets/images/icons/users-03.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
@@ -1820,8 +1821,8 @@ const baseThemeStyles = {
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-[#344054] text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
-  otherBubble:      'text-white  text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  myBubble:         'text-[#344054] text-base font-normal max-w-[270px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-white  text-base font-normal max-w-[0px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
@@ -2227,7 +2228,7 @@ onUnmounted(() => {
     <div
       v-else
       :style="{ zIndex: displayAvatars.length - index }"
-      class="relative w-8 h-8 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold"
+      class="relative w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold"
     >
       {{ participant.initial }}
     </div>
@@ -2239,7 +2240,7 @@ onUnmounted(() => {
                   {{ chatName }}
                 </div>
                 <div v-if="!(isUserScoped && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
-                  <img src="/images/users.png" alt="" class="size-3 brightness-0">
+                  <img :src="userIcon" alt="" class="size-3 brightness-0">
                   <span class="text-xs font-[400] text-[#0C111D] ml-0.5">{{ participantCount }}</span>
                 </div>
                 <!-- No need right now -->
@@ -2261,8 +2262,8 @@ onUnmounted(() => {
 
         <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
         <div v-else class="flex items-center gap-2.5 w-full">
-          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-12 h-12 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
-          <div v-else :class="['w-8 h-8 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
+          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
+          <div v-else :class="['w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
@@ -2455,7 +2456,7 @@ onUnmounted(() => {
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
         <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover" />
-        <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
+        <div v-else-if="message.message_ts" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ getSenderInitial(message) }}
         </div>
       </template>
@@ -2487,7 +2488,7 @@ onUnmounted(() => {
             maxlength="2000"
             :placeholder="isChatBlocked ? 'You cannot send messages to this user.' : 'Write a reply...'"
             :disabled="isChatBlocked"
-            class="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-[#667085] disabled:opacity-50"
+            class="w-full text-sm bg-transparent outline-none text-gray-700 placeholder-[#667085] disabled:opacity-50"
             @keydown="onKeydown"
           />
           <div class="flex items-center gap-2.5 text-zinc-400 shrink-0">
@@ -2637,6 +2638,7 @@ onUnmounted(() => {
       :current-user-id="currentUserId"
       :is-creator="isCreatorAccount"
       :is-group-chat="isGroupChat"
+      :host-width="hostWidth"
       @close="showMembersPopup = false"
       @message-privately="handleMessagePrivately"
       @kick="handleKickMember"
