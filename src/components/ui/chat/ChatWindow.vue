@@ -40,6 +40,8 @@ import pinkStarIcon from '@/assets/images/icons/star-07.svg'
 import minusIcon from '@/assets/images/icons/minus.svg'
 import shareIcon from '@/assets/images/icons/share-04.svg'
 import closeIcon from '@/assets/images/icons/x-close-grey-1.svg'
+import packageIcon from '@/assets/images/icons/package-plus.svg'
+import faceSmileIcon from '@/assets/images/icons/face-smile.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
@@ -290,7 +292,7 @@ const isChatBlocked = computed(() => {
 })
 const membersPopupConfig = {
   actionType: 'popup',
-  position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
+  position: props.hostWidth >= 768 ? 'center' : { default: 'top-center', '>768': 'center' },
   customEffect: 'scale',
   speed: '250ms',
   effect: 'ease-in-out',
@@ -299,8 +301,8 @@ const membersPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: window.__fsChatEmbed ? '675px' : { default: '100%', '>768': '675px' },
-  height: window.__fsChatEmbed ? '90vh' : { default: '100vh', '>768': '90vh' },
+  width: props.hostWidth >= 768 ? '25rem' : { default: '100%', '>768': '675px' },
+  height: props.hostWidth >= 768 ? '33.25rem' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }
@@ -1835,8 +1837,8 @@ const chatTheme = computed(() => {
   return {
     ...baseThemeStyles,
     header: isGroupChat.value
-      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative' // Matching DemoChats.vue
-      : 'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative' // Existing Dark Theme
+      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Matching DemoChats.vue
+      : 'bg-[#EDEDED] px-3 py-2.5 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Existing Dark Theme
   }
 })
 
@@ -1993,6 +1995,17 @@ watch(pinnedBookingMessages, (msgs) => {
   })
 }, { immediate: true })
 
+// Notify parent when popups open/close for responsive fullscreen on mobile
+watch([showMembersPopup, showProductPopup, showBookingPopup], ([membersOpen, productOpen, bookingOpen]) => {
+  const anyPopupOpen = membersOpen || productOpen || bookingOpen
+  postToParent('FS_CHAT_RESIZE', {
+    width: membersPopupConfig.width || (props.hostWidth > 768 ? 675 : window.innerWidth),
+    height: membersPopupConfig.height || (props.hostWidth > 768 ? 600 : window.innerHeight),
+    is_open: true,
+    show_popup: anyPopupOpen,
+  })
+})
+
 // Mark the pinned booking messages as read as soon as they become visible
 watch(pinnedBookingMessages, (msgs) => {
   msgs.forEach(async (msg) => {
@@ -2123,7 +2136,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[450px] h-[640px] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
+  <div class="flex flex-col w-[28.125rem] h-[37.5rem] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
        :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
     <FlexChat
       ref="flexChatRef"
@@ -2197,28 +2210,32 @@ onUnmounted(() => {
       <template #header>
         <!-- Group Chat Header Design (Light Theme) -->
         <div v-if="isGroupChat" class="flex items-center justify-between w-full h-full min-w-0 gap-2">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <div :class="['flex -space-x-6 transition-opacity shrink-0', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" @click="isCreatorAccount && (showMembersPopup = true)">
-              <template v-if="displayAvatars && displayAvatars.length > 0">
-                <template v-for="participant in displayAvatars" :key="participant.id">
-                  <img v-if="participant.avatar && !avatarErrors[participant.id]" :src="participant.avatar"
-                    @error="avatarErrors[participant.id] = true"
-                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white" />
-                  <div v-else
-                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold">
-                    {{ participant.initial }}
-                  </div>
-                </template>
-              </template>
-              <template v-else>
-                <div class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-500 flex items-center justify-center text-white text-xs font-semibold">
-                  {{ chatName.charAt(0).toUpperCase() }}
-                </div>
-              </template>
-            </div>
+          <div class="flex items-center gap-1 min-w-0 flex-1">
+            <div
+  :class="['flex -space-x-4 transition-opacity shrink-0', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']"
+  @click="isCreatorAccount && (showMembersPopup = true)"
+>
+  <template v-for="(participant, index) in displayAvatars" :key="participant.id">
+    <img
+      v-if="participant.avatar && !avatarErrors[participant.id]"
+      :src="participant.avatar"
+      @error="avatarErrors[participant.id] = true"
+      :style="{ zIndex: displayAvatars.length - index }"
+      class="relative w-8 h-8 object-cover shadow-sm  border-white rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
+    />
+
+    <div
+      v-else
+      :style="{ zIndex: displayAvatars.length - index }"
+      class="relative w-8 h-8 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold"
+    >
+      {{ participant.initial }}
+    </div>
+  </template>
+</div>
             <div class="flex flex-col ml-1 min-w-0 flex-1">
               <div class="flex items-center gap-2 min-w-0">
-                <div class="text-[#0C111D] font-semibold text-[14px] truncate">
+                <div class="text-[#0C111D] font-semibold text-sm truncate">
                   {{ chatName }}
                 </div>
                 <div v-if="!(isUserScoped && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
@@ -2244,13 +2261,13 @@ onUnmounted(() => {
 
         <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
         <div v-else class="flex items-center gap-2.5 w-full">
-          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-12 h-12 rounded-full object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
-          <div v-else :class="['w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
+          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-12 h-12 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
+          <div v-else :class="['w-8 h-8 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-semibold truncate">{{ chatName }} 
+            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }} 
               <!-- No need right now --> 
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
@@ -2268,7 +2285,7 @@ onUnmounted(() => {
             <!-- <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4" />
             </svg> -->
-            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
@@ -2362,7 +2379,7 @@ onUnmounted(() => {
             <button
               v-if="productForMessage(message).subscribePrice > 0"
               type="button"
-              class="flex-1 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="productCardCtaDisabled(message) || isChatBlocked"
               @click.stop="onProductCtaClick(message)"
             >
@@ -2372,7 +2389,7 @@ onUnmounted(() => {
             <button
               v-if="productForMessage(message).buyPrice > 0 || productForMessage(message).subscribePrice <= 0"
               type="button"
-              class="flex-1 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 h-9 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="productCardCtaDisabled(message) || isChatBlocked"
               @click.stop="onProductCtaClick(message)"
             >
@@ -2391,7 +2408,7 @@ onUnmounted(() => {
         </div>
         <!-- Activity log: centered italic text + divider -->
         <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
-          <span class="text-xs text-zinc-400 italic text-center">{{ resolveActivityLogText(message) }}</span>
+          <span class="text-sm font-normal text-gray-700 italic text-center">{{ resolveActivityLogText(message) }}</span>
         </div>
         <div v-else class="text-xs text-zinc-400 text-center px-2 py-1 w-full">{{ message.text }}</div>
       </template>
@@ -2428,7 +2445,7 @@ onUnmounted(() => {
 
       <!-- My avatar -->
       <template #message.avatar.me="{ message }">
-        <img v-if="message.message_ts && currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <img v-if="message.message_ts && currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover" />
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-slate-500 flex items-center justify-center text-white text-[8px] font-semibold">
           {{ currentUserInitial }}
         </div>
@@ -2437,7 +2454,7 @@ onUnmounted(() => {
 
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
-        <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover" />
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ getSenderInitial(message) }}
         </div>
@@ -2482,21 +2499,22 @@ onUnmounted(() => {
               class="inline-flex h-6 w-6 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
               @click.stop="openProductPopup"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M17.3294 5.4379L9.27678 9.74997M9.27678 9.74997L1.22414 5.4379M9.27678 9.74997L9.2768 18.4249M11.1715 17.8668L10.0129 18.4873C9.74426 18.6311 9.60992 18.7031 9.46765 18.7313C9.34174 18.7562 9.21187 18.7562 9.08596 18.7313C8.94369 18.7031 8.80935 18.6311 8.54067 18.4873L1.53015 14.7332C1.2464 14.5813 1.1045 14.5053 1.00119 14.3972C0.909796 14.3016 0.840628 14.1883 0.798316 14.0649C0.750488 13.9254 0.750488 13.7689 0.750488 13.4561V6.04395C0.750488 5.73107 0.750488 5.57463 0.798316 5.4351C0.840628 5.31166 0.909795 5.19836 1.00119 5.10276C1.10451 4.9947 1.24639 4.91873 1.53015 4.76678L8.54067 1.01273C8.80935 0.868863 8.94369 0.796923 9.08596 0.768721C9.21187 0.74376 9.34174 0.74376 9.46765 0.768721C9.60992 0.796924 9.74426 0.86886 10.0129 1.01273L17.0235 4.76678C17.3072 4.91873 17.4491 4.9947 17.5524 5.10276C17.6438 5.19836 17.713 5.31166 17.7553 5.4351C17.8031 5.57462 17.8031 5.73107 17.8031 6.04395L17.8031 10.2066M5.01365 2.90141L13.54 7.46714M15.9084 17.9683V12.4894M13.0663 15.2289H18.7505" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <img :src="packageIcon" :class="hostWidth >= 768 ? 'w-6 h-6' : 'w-5 h-5'" />
             </button>
             <!-- End: Add product button -->
             <!-- Emoji toggle button -->
-            <svg
+
+            <button
+              v-if="!isChatBlocked"
+              type="button"
+              title="Add emoji"
+              class="inline-flex h-6 w-6 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
               @click.stop="showEmojiPicker = !showEmojiPicker"
-              class="w-5 h-5 cursor-pointer "
-              :class="showEmojiPicker ? 'text-[#0C111D]' : 'text-[#0C111D]'"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
-              <circle cx="12" cy="12" r="10" stroke-width="2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
-            </svg>
+              <img :src="faceSmileIcon" :class="hostWidth >= 768 ? 'w-6 h-6' : 'w-5 h-5'" />
+            </button>
+            <!-- End: Add emoji button -->
+            <!-- Emoji picker -->
           </div>
 
           <!-- Emoji picker -->

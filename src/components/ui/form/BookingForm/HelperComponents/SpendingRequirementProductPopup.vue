@@ -201,13 +201,13 @@ function handleConfirm() {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search by name and tags..."
+              placeholder="Search media by name and tags..."
               class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder:text-gray-900 rounded-t-[2px] border-b border-[#D0D5DD] bg-white/50 shadow-sm focus:bg-white/90 transition-colors"
             />
           </div>
         </div>
 
-        <div class="md:max-h-[24rem] overflow-y-auto px-4 pb-16 md:pb-3" @scroll="handleListScroll">
+        <div class="md:max-h-[24rem] overflow-y-auto px-2 md:px-4 pb-16 md:pb-3" @scroll="handleListScroll">
           <div v-if="activeTabError" class="py-4 text-center text-sm text-rose-600">
             {{ activeTabError }}
           </div>
