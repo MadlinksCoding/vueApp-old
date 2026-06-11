@@ -24,6 +24,11 @@ function toNumericId(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isPublishedSubscription(row = {}) {
+  const sourceRow = row?.raw || row;
+  return String(sourceRow?.status || "").trim().toLowerCase() === "publish";
+}
+
 function toTags(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -90,7 +95,10 @@ function normalizeItem(type, row = {}) {
 export function mapFetchSpendingRequirementItemsFromResponse(responseData = {}) {
   const type = normalizeType(responseData?.type);
   const rows = Array.isArray(responseData?.results) ? responseData.results : [];
-  const items = rows
+  const visibleRows = type === "subscription"
+    ? rows.filter((row) => isPublishedSubscription(row))
+    : rows;
+  const items = visibleRows
     .map((row) => normalizeItem(type, row))
     .filter((item) => item && Number.isFinite(Number(item.id)));
 
@@ -107,8 +115,8 @@ export function mapFetchSpendingRequirementItemsFromResponse(responseData = {}) 
   const offset = Math.max(0, toNumberOr(responseData?.offset, 0));
   const totalCountRaw = toNumberOr(responseData?.totalCount, null);
   const totalCount = totalCountRaw == null ? null : Math.max(0, totalCountRaw);
-  const nextOffset = offset + dedupedItems.length;
-  const hasMore = totalCount == null ? dedupedItems.length >= count : nextOffset < totalCount;
+  const nextOffset = offset + rows.length;
+  const hasMore = totalCount == null ? rows.length >= count : nextOffset < totalCount;
 
   return {
     type,

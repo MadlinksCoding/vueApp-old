@@ -100,6 +100,25 @@ const rowBg = (index) =>
     ? 'background-color: rgba(255,255,255,0.9); backdrop-filter: blur(12px);'
     : ''
 
+function toNonEmptyString(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function getFanViewUid(user = {}) {
+  return toNonEmptyString(
+    user?.fanViewUid
+    || user?.UID
+    || user?.userUid
+    || user?.userUID
+    || user?.encodedUid
+    || user?.encodedUID
+    || user?.encryptedUid
+    || user?.encryptedUID
+    || user?.encrypted_uid
+  )
+}
+
 function getOtherParticipantId(chatId) {
   const participants = chatStore.chatParticipants[chatId] || []
   const currentId = Number(props.currentUserId)
@@ -139,6 +158,20 @@ function getChatAvatar(chat) {
     if (userData?.avatar) return userData.avatar
   }
   return chat.avatar || null
+}
+
+function getChatTargetPayload(chat) {
+  const otherId = getOtherParticipantId(chat.chat_id)
+  const targetUserData = otherId ? chatStore.chatUsersData[String(otherId)] : null
+  return {
+    chatId: chat.chat_id,
+    chatName: getChatDisplayName(chat),
+    avatar: getChatAvatar(chat),
+    targetUserId: otherId ? String(otherId) : null,
+    targetUserData,
+    fanViewUid: getFanViewUid(targetUserData),
+    fanViewUserId: otherId ? String(otherId) : null,
+  }
 }
 
 function getAllowedLastMessage(chat) {
@@ -244,7 +277,7 @@ function getLastMessageText(chat) {
         :key="chat.chat_id"
         class="pl-3 pr-2 py-3 flex justify-start items-center gap-2 text-left w-full border-b border-gray-200/60 last:border-0 transition-colors"
         :style="rowBg(index)"
-        @click="emit('open-chat', { chatId: chat.chat_id, chatName: getChatDisplayName(chat), avatar: getChatAvatar(chat) })"
+        @click="emit('open-chat', getChatTargetPayload(chat))"
       >
         <!-- Avatar -->
         <div class="w-9 h-9 relative shrink-0">

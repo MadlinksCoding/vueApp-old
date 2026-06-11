@@ -70,29 +70,6 @@ async function fetchPrimaryCollection({ type, payload, context, api }) {
   return ok(mapPrimaryResponse(type, response, payload), { status, type });
 }
 
-async function fetchSubscriptionFallback({ payload, context, api }) {
-  const response = await api.get(buildWpApiUrl("/users/active-tiers"), {
-    params: {
-      user_id: payload.creatorId,
-    },
-    headers: context.requestHeaders || {},
-    signal: context.signal,
-    timeoutMs: context.requestTimeoutMs,
-  });
-
-  const status = getHttpStatus(response, 200);
-  const rows = Array.isArray(response?.results) ? response.results : [];
-
-  return ok({
-    type: "subscription",
-    source: "users/active-tiers",
-    results: rows,
-    totalCount: rows.length,
-    count: rows.length,
-    offset: 0,
-  }, { status, type: "subscription", fallback: true });
-}
-
 export async function fetchSpendingRequirementItemsFlow({ payload, context, api }) {
   const type = normalizeType(payload?.type);
   if (!type) {
@@ -111,30 +88,8 @@ export async function fetchSpendingRequirementItemsFlow({ payload, context, api 
 
   try {
     const primaryResult = await fetchPrimaryCollection({ type, payload, context, api });
-    if (primaryResult.ok) {
-      return primaryResult;
-    }
-
-    // Subscriptions endpoint currently may not exist on some environments.
-    // Fall back to active-tiers to keep the UI functional.
-    if (type === "subscription" && String(primaryResult?.error?.code || "") === "HTTP_404") {
-      return await fetchSubscriptionFallback({ payload, context, api });
-    }
-
     return primaryResult;
   } catch (error) {
-    if (type === "subscription" && String(error?.error?.code || error?.code || "") === "HTTP_404") {
-      try {
-        return await fetchSubscriptionFallback({ payload, context, api });
-      } catch (fallbackError) {
-        return asFlowError(
-          fallbackError,
-          "FETCH_SPENDING_REQUIREMENT_ITEMS_UNEXPECTED",
-          "Unexpected error while fetching spending requirement items."
-        );
-      }
-    }
-
     return asFlowError(
       error,
       "FETCH_SPENDING_REQUIREMENT_ITEMS_UNEXPECTED",

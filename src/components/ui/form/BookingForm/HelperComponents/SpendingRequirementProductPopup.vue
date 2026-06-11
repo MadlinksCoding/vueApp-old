@@ -115,6 +115,11 @@ const filteredItems = computed(() => {
 const activeTabLoading = computed(() => Boolean(props.loadingByType?.[activeTab.value]));
 const activeTabHasMore = computed(() => Boolean(props.hasMoreByType?.[activeTab.value]));
 const activeTabError = computed(() => String(props.errorByType?.[activeTab.value] || ""));
+const searchPlaceholder = computed(() => {
+  if (activeTab.value === "subscription") return "Search subscriptions by name...";
+  if (activeTab.value === "product") return "Search products by name and tags...";
+  return "Search media by name and tags...";
+});
 
 function handleListScroll(event) {
   if (activeTabLoading.value || !activeTabHasMore.value || String(searchQuery.value || "").trim()) return;
@@ -201,7 +206,7 @@ function handleConfirm() {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search media by name and tags..."
+              :placeholder="searchPlaceholder"
               class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder:text-gray-900 rounded-t-[2px] border-b border-[#D0D5DD] bg-white/50 shadow-sm focus:bg-white/90 transition-colors"
             />
           </div>
