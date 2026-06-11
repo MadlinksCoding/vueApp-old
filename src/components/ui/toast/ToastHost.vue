@@ -1,5 +1,7 @@
 <template>
-  <div class="fixed top-4 right-4 z-[1200] flex flex-col gap-2 pointer-events-none">
+  <div
+    v-if="isActiveHost"
+    class="fixed top-4 right-4 z-[1200] flex flex-col gap-2 pointer-events-none">
     <transition-group name="toast-fade" tag="div" class="flex flex-col gap-2">
       <div
         v-for="toast in toasts"
@@ -23,12 +25,16 @@
   </div>
 </template>
 
-<script setup>
-import { onBeforeUnmount, onMounted, ref } from "vue";
+<script>
+import { ref } from "vue";
 import { toastEventName } from "@/utils/toastBus.js";
 
 const toasts = ref([]);
+const mountedHostIds = ref([]);
 let nextToastId = 1;
+let nextHostId = 1;
+let listenerCount = 0;
+let listenerAttached = false;
 
 function toastClass(type) {
   if (type === "success") {
@@ -70,12 +76,50 @@ function onToastEvent(event) {
   }
 }
 
-onMounted(() => {
+function attachToastListener() {
+  if (listenerAttached || typeof document === "undefined") {
+    return;
+  }
   document.addEventListener(toastEventName, onToastEvent);
+  listenerAttached = true;
+}
+
+function detachToastListener() {
+  if (!listenerAttached || typeof document === "undefined") {
+    return;
+  }
+  document.removeEventListener(toastEventName, onToastEvent);
+  listenerAttached = false;
+}
+
+export default {
+  name: "ToastHost",
+};
+</script>
+
+<script setup>
+import { computed, onBeforeUnmount, onMounted } from "vue";
+
+const hostId = nextHostId;
+nextHostId += 1;
+
+const isActiveHost = computed(() => mountedHostIds.value[0] === hostId);
+
+onMounted(() => {
+  mountedHostIds.value = [...mountedHostIds.value, hostId];
+  listenerCount += 1;
+  attachToastListener();
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener(toastEventName, onToastEvent);
+  mountedHostIds.value = mountedHostIds.value.filter((id) => id !== hostId);
+  listenerCount = Math.max(0, listenerCount - 1);
+
+  if (listenerCount === 0) {
+    detachToastListener();
+    toasts.value = [];
+    nextToastId = 1;
+  }
 });
 </script>
 

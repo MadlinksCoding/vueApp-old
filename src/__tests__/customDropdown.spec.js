@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
 
 describe("CustomDropdown", () => {
@@ -40,5 +40,50 @@ describe("CustomDropdown", () => {
 
     await search.setValue("missing");
     expect(wrapper.text()).toContain("No options found");
+  });
+
+  it("does not select disabled options", async () => {
+    const wrapper = mount(CustomDropdown, {
+      props: {
+        modelValue: "09:00",
+        options: [
+          options[0],
+          { ...options[1], disabled: true, disabledReason: "Unavailable" },
+          options[2],
+        ],
+      },
+    });
+
+    await wrapper.find(".cursor-pointer").trigger("click");
+
+    const disabledOption = wrapper.find('[aria-disabled="true"]');
+    expect(disabledOption.exists()).toBe(true);
+    expect(disabledOption.classes()).toContain("cursor-not-allowed");
+
+    await disabledOption.trigger("click");
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  it("defers generated options until the dropdown opens", async () => {
+    const optionFactory = vi.fn(() => [
+      options[0],
+      { ...options[1], disabled: true, disabledReason: "Unavailable" },
+      options[2],
+    ]);
+
+    const wrapper = mount(CustomDropdown, {
+      props: {
+        modelValue: "09:00",
+        options,
+        optionFactory,
+      },
+    });
+
+    expect(optionFactory).not.toHaveBeenCalled();
+
+    await wrapper.find(".cursor-pointer").trigger("click");
+
+    expect(optionFactory).toHaveBeenCalled();
+    expect(wrapper.find('[aria-disabled="true"]').exists()).toBe(true);
   });
 });

@@ -30,6 +30,100 @@ import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 
 const { t } = useBookingTranslations();
 
+const STEP2_FIELD_LABEL_KEYS = Object.freeze({
+  eventTitle: "booking_field_event_title",
+  duration: "booking_field_session_duration",
+  basePrice: "booking_field_base_price",
+  eventGoalTokens: "booking_field_event_goal",
+  minContributionPerUser: "booking_field_minimum_contribution_per_user",
+  maxSessionDuration: "booking_field_max_session_duration",
+  maxSessionMinutes: "booking_field_max_session_duration",
+  firstTimeDiscountTokens: "booking_field_first_time_discount",
+  sessionMinimum: "booking_field_session_minimum",
+  discountMinSessions: "booking_field_session_minimum",
+  longerSessionDiscountTokens: "booking_field_longer_session_discount",
+  bookingFee: "booking_field_booking_fee",
+  bookingFeeTokens: "booking_field_booking_fee",
+  rescheduleFee: "booking_field_reschedule_fee",
+  rescheduleFeeTokens: "booking_field_reschedule_fee",
+  cancellationFee: "booking_field_cancellation_fee",
+  cancellationFeeTokens: "booking_field_cancellation_fee",
+  advanceVoid: "booking_field_advance_cancellation_window",
+  advanceCancelWindowQuantity: "booking_field_advance_cancellation_window",
+  advanceCancelWindowUnit: "booking_field_advance_cancellation_unit",
+  offHourSurcharge: "booking_field_off_hour_surcharge",
+  offHourSurchargePercent: "booking_field_off_hour_surcharge",
+  extendSessionMax: "booking_field_extend_session_max",
+  extendMaxSessions: "booking_field_extend_session_max",
+  remindMeTime: "booking_field_reminder_time",
+  callReminderMinutesBefore: "booking_field_reminder_time",
+  bookingBufferMinutes: "booking_field_buffer_time",
+  bufferTime: "booking_field_buffer_time",
+  maxBookingsPerDay: "booking_field_max_bookings_per_day",
+  discountEventsCount: "booking_field_recurring_event_minimum",
+  minEventsForRecurringDiscount: "booking_field_recurring_event_minimum",
+  discountPercentage: "booking_field_recurring_discount_percentage",
+  recurringDiscountPercentOfBase: "booking_field_recurring_discount_percentage",
+  maxAttendees: "booking_field_max_attendees",
+  dateFrom: "booking_field_start_date",
+  weeklyAvailability: "booking_field_weekly_availability",
+  monthlyAvailability: "booking_field_monthly_availability",
+  oneTimeAvailability: "booking_field_available_time_slot",
+  recordingPrice: "booking_field_recording_price",
+  allowFanRecordingTokens: "booking_field_recording_price",
+  subscriptionTiers: "booking_field_subscription_tiers",
+  inviteSecret: "booking_field_invite_link",
+  minSpendTokens: "booking_field_minimum_spend_tokens",
+  requiredProducts: "booking_field_required_products",
+});
+
+const STEP2_FIELD_LABEL_FALLBACKS = Object.freeze({
+  eventTitle: "Event title",
+  duration: "Session duration",
+  basePrice: "Base price",
+  eventGoalTokens: "Event goal",
+  minContributionPerUser: "Minimum contribution per user",
+  maxSessionDuration: "Maximum session allowed",
+  maxSessionMinutes: "Maximum session allowed",
+  firstTimeDiscountTokens: "First-time discount",
+  sessionMinimum: "Session minimum",
+  discountMinSessions: "Session minimum",
+  longerSessionDiscountTokens: "Longer session discount",
+  bookingFee: "Booking fee",
+  bookingFeeTokens: "Booking fee",
+  rescheduleFee: "Reschedule fee",
+  rescheduleFeeTokens: "Reschedule fee",
+  cancellationFee: "Cancellation fee",
+  cancellationFeeTokens: "Cancellation fee",
+  advanceVoid: "Advance cancellation window",
+  advanceCancelWindowQuantity: "Advance cancellation window",
+  advanceCancelWindowUnit: "Advance cancellation unit",
+  offHourSurcharge: "Off-hour surcharge",
+  offHourSurchargePercent: "Off-hour surcharge",
+  extendSessionMax: "Extension session maximum",
+  extendMaxSessions: "Extension session maximum",
+  remindMeTime: "Reminder time",
+  callReminderMinutesBefore: "Reminder time",
+  bookingBufferMinutes: "Buffer time",
+  bufferTime: "Buffer time",
+  maxBookingsPerDay: "Maximum bookings per day",
+  discountEventsCount: "Recurring event minimum",
+  minEventsForRecurringDiscount: "Recurring event minimum",
+  discountPercentage: "Recurring discount percentage",
+  recurringDiscountPercentOfBase: "Recurring discount percentage",
+  maxAttendees: "Maximum participants",
+  dateFrom: "Start date",
+  weeklyAvailability: "Weekly availability",
+  monthlyAvailability: "Monthly availability",
+  oneTimeAvailability: "Available time slot",
+  recordingPrice: "Recording price",
+  allowFanRecordingTokens: "Recording price",
+  subscriptionTiers: "Subscription tiers",
+  inviteSecret: "Invite link",
+  minSpendTokens: "Minimum spend in tokens",
+  requiredProducts: "Required products",
+});
+
 const whoCanBookOptions = [
   { label: t('booking_everyone'), value: 'everyone' },
   { label: t('booking_subscribers_only'), value: 'subscribersOnly' },
@@ -65,7 +159,7 @@ const props = defineProps({
     default: "",
   },
 });
-const emit = defineEmits(["created"]);
+const emit = defineEmits(["created", "preview-schedule"]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
@@ -1034,6 +1128,108 @@ function formatValidationErrors(errors = []) {
   return formatBookingValidationErrors(errors, t);
 }
 
+function applyTranslationParams(text, params = {}) {
+  return String(text || "").replace(/\{(\w+)\}/g, (match, key) => (
+    params[key] === undefined || params[key] === null ? match : String(params[key])
+  ));
+}
+
+function translateWithFallback(key, fallback, params = {}) {
+  const translated = t(key, params);
+  return translated && translated !== key
+    ? translated
+    : applyTranslationParams(fallback, params);
+}
+
+function humanizeFieldName(field) {
+  const normalized = String(field || "").trim();
+  if (!normalized) return "";
+  const words = normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\./g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim()
+    .toLowerCase();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
+}
+
+function getValidationFieldLabel(field) {
+  const normalized = String(field || "").trim();
+  const addOnMatch = normalized.match(/^addOns\.(\d+)\.(title|priceTokens)$/);
+  if (addOnMatch) {
+    const index = Number(addOnMatch[1]) + 1;
+    const serviceLabel = translateWithFallback(
+      "booking_add_on_service_index",
+      "Add-on service {index}",
+      { index },
+    );
+    const childLabel = addOnMatch[2] === "title"
+      ? translateWithFallback("booking_field_addon_title", "title")
+      : translateWithFallback("booking_field_addon_price", "price");
+    return `${serviceLabel} ${childLabel}`;
+  }
+
+  const key = STEP2_FIELD_LABEL_KEYS[normalized];
+  const fallback = STEP2_FIELD_LABEL_FALLBACKS[normalized] || humanizeFieldName(normalized);
+  return key ? translateWithFallback(key, fallback) : fallback;
+}
+
+function hasConditionalValidationError(errors = []) {
+  return (Array.isArray(errors) ? errors : []).some((error) => Boolean(error?.conditional));
+}
+
+function getRequiredFieldToastLabels(errors = []) {
+  const seen = new Set();
+  return (Array.isArray(errors) ? errors : [])
+    .map((error) => getValidationFieldLabel(error?.field))
+    .filter((label) => {
+      if (!label || seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    });
+}
+
+function formatConditionalValidationToastMessage(errors = []) {
+  const seenLabels = new Set();
+  const items = (Array.isArray(errors) ? errors : [])
+    .flatMap((error) => {
+      if (!error?.conditional) {
+        return formatValidationErrors([error]).filter(Boolean);
+      }
+
+      const [label] = getRequiredFieldToastLabels([error]);
+      if (!label || seenLabels.has(label)) return [];
+      seenLabels.add(label);
+      return [label];
+    })
+    .filter(Boolean);
+
+  if (items.length === 0) return "";
+
+  const prefix = translateWithFallback(
+    "booking_validation_conditional_required_fields_message",
+    "Fill these fields or disable the related settings:",
+  );
+  const list = items.map((item, index) => `${index + 1}. ${item}`).join("\n");
+  return `${prefix}\n${list}`;
+}
+
+async function validateCreateEventForm() {
+  const [step1Result, step2Result] = await Promise.all([
+    props.engine.validate(1),
+    props.engine.validate(2),
+  ]);
+  const errors = [
+    ...(Array.isArray(step1Result?.errors) ? step1Result.errors : []),
+    ...(Array.isArray(step2Result?.errors) ? step2Result.errors : []),
+  ];
+
+  return {
+    valid: Boolean(step1Result?.valid) && Boolean(step2Result?.valid),
+    errors,
+  };
+}
+
 function pickTrimmedString(...values) {
   for (const value of values) {
     const normalized = String(value || "").trim();
@@ -1143,7 +1339,7 @@ async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) 
 const createEvent = async () => {
   if (isCreating.value) return;
 
-  const result = await props.engine.validate(2);
+  const result = await validateCreateEventForm();
 
   if (result.valid) {
     isCreating.value = true;
@@ -1216,10 +1412,15 @@ const createEvent = async () => {
       isCreating.value = false;
     }
   } else {
-    const messages = formatValidationErrors(result.errors);
+    const hasConditionalErrors = hasConditionalValidationError(result.errors);
+    const messages = hasConditionalErrors
+      ? [formatConditionalValidationToastMessage(result.errors)]
+      : formatValidationErrors(result.errors);
     showToast({
       type: "error",
-      title: t("common_validation_failed"),
+      title: hasConditionalErrors
+        ? translateWithFallback("booking_validation_required_fields_title", "Please fill these fields")
+        : t("common_validation_failed"),
       message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
       autoClose: false,
     });
@@ -1859,7 +2060,14 @@ const createEvent = async () => {
     @load-more="handleSpendingProductPopupLoadMore"
     @confirm="onConfirmSpendingProducts"
   />
-  <div class="absolute right-0 bottom-0">
+  <div class="absolute right-0 bottom-0 flex items-end justify-end gap-2">
+    <div class="md:hidden">
+      <ButtonComponent
+        @click="emit('preview-schedule')"
+        :text="t('common_preview')"
+        variant="polygonRight"
+      />
+    </div>
     <ButtonComponent @click="createEvent" :disabled="isCreating" :text="submitButtonText" variant="polygonLeft"
       :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`
         w-6 h-6 transition duration-200
