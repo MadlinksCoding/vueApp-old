@@ -198,6 +198,54 @@ describe("createEventMapper", () => {
     expect(mapped).not.toHaveProperty("bookingBufferMinutes");
   });
 
+  it("derives custom event date bounds from generated HKT slot dates", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      repeatRule: "doesNotRepeat",
+      dateFrom: "2026-06-11",
+      dateTo: "2026-06-11",
+      selectedDate: "2026-06-11",
+      selectedStartTime: "22:00",
+      selectedEndTime: "03:00",
+      oneTimeAvailability: [
+        {
+          date: "2026-06-11",
+          slots: [{ startTime: "22:00", endTime: "03:00" }],
+        },
+      ],
+    });
+
+    expect(mapped.slots).toHaveLength(1);
+    expect(mapped.dateFrom).toBe(mapped.slots[0].date);
+    expect(mapped.dateTo).toBe(mapped.slots[0].date);
+    expect(mapped.dateTo >= mapped.dateFrom).toBe(true);
+  });
+
+  it("adds end day offset to custom HKT slots that cross midnight", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      repeatRule: "doesNotRepeat",
+      dateFrom: "2026-06-11",
+      dateTo: "2026-06-11",
+      selectedDate: "2026-06-11",
+      selectedStartTime: "21:00",
+      selectedEndTime: "03:00",
+      oneTimeAvailability: [
+        {
+          date: "2026-06-11",
+          slots: [{ startTime: "21:00", endTime: "03:00" }],
+        },
+      ],
+    });
+
+    expect(mapped.slots[0].times[0].endDayOffset).toBe(1);
+    expect(mapped.dateTo > mapped.dateFrom).toBe(true);
+  });
+
   it("omits private-only call settings for group events", () => {
     const mapped = createEventMapper({
       ...baseDraft,

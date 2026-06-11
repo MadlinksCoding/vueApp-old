@@ -167,8 +167,14 @@
         return;
       }
       if (data.type === "FS_CHAT_FULLSCREEN") {
-        chatContainer.style.width = String(window.innerWidth / 16) + "rem";
-        chatContainer.style.height = String(window.innerHeight / 16) + "rem";
+
+        if(window.innerWidth < 768){
+          chatContainer.style.width = "100vw";
+          chatContainer.style.height = "100dvh";
+        } else {
+          chatContainer.style.width = String(window.innerWidth / 16) + "rem";
+          chatContainer.style.height = String(window.innerHeight / 16) + "rem";
+        }
       } else if (data.type === "FS_CHAT_RESIZE" && data.payload) {
         var w = data.payload.width;
         var h = data.payload.height;

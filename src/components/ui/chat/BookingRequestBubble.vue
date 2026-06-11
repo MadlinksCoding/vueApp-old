@@ -3,7 +3,7 @@
     class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm font-['Poppins'] w-full"
     :class="pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded'"
   >
-    <div class="p-3 flex flex-col gap-2 h-full">
+    <div class="p-2 flex flex-col gap-2 h-full">
 
       <!-- Title + expand icon -->
       <div class="flex justify-between items-start gap-1">
@@ -17,10 +17,10 @@
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
             @click.stop="toggleMenu"
           >
-            <svg width="4" height="14" viewBox="0 0 4 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.00004 7.99984C2.36823 7.99984 2.66671 7.70136 2.66671 7.33317C2.66671 6.96498 2.36823 6.6665 2.00004 6.6665C1.63185 6.6665 1.33337 6.96498 1.33337 7.33317C1.33337 7.70136 1.63185 7.99984 2.00004 7.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2.00004 11.3332C2.36823 11.3332 2.66671 11.0347 2.66671 10.6665C2.66671 10.2983 2.36823 9.99984 2.00004 9.99984C1.63185 9.99984 1.33337 10.2983 1.33337 10.6665C1.33337 11.0347 1.63185 11.3332 2.00004 11.3332Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8.00016 8.66602C8.36835 8.66602 8.66683 8.36754 8.66683 7.99935C8.66683 7.63116 8.36835 7.33268 8.00016 7.33268C7.63197 7.33268 7.3335 7.63116 7.3335 7.99935C7.3335 8.36754 7.63197 8.66602 8.00016 8.66602Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8.00016 3.99935C8.36835 3.99935 8.66683 3.70087 8.66683 3.33268C8.66683 2.96449 8.36835 2.66602 8.00016 2.66602C7.63197 2.66602 7.3335 2.96449 7.3335 3.33268C7.3335 3.70087 7.63197 3.99935 8.00016 3.99935Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8.00016 13.3327C8.36835 13.3327 8.66683 13.0342 8.66683 12.666C8.66683 12.2978 8.36835 11.9993 8.00016 11.9993C7.63197 11.9993 7.3335 12.2978 7.3335 12.666C7.3335 13.0342 7.63197 13.3327 8.00016 13.3327Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
 
@@ -95,7 +95,7 @@
           <span class="text-[#5549FF] font-semibold text-xs">{{ counterSlotDate }}</span>
         </div>
         <!-- Normal date row -->
-        <div v-else class="text-slate-600 text-sm font-medium">
+        <div v-else class="text-slate-700 text-sm font-medium">
           {{ resolvedDateTime }}
         </div>
       </template>
@@ -249,9 +249,15 @@
             class="flex items-center gap-1 text-sm font-semibold"
             :style="{ color: resolvedAction === 'accepted' ? '#15B79E' : '#DC2626' }"
           >
-            <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="8" cy="8" r="6.5" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l2 2 4-4" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"  viewBox="0 0 16 16" fill="none">
+              <g clip-path="url(#clip0_1117_172996)">
+                <path d="M14.6668 7.39113V8.00447C14.666 9.44208 14.2005 10.8409 13.3397 11.9924C12.4789 13.1438 11.269 13.9861 9.8904 14.3937C8.51178 14.8013 7.03834 14.7524 5.68981 14.2542C4.34128 13.756 3.18993 12.8352 2.40747 11.6292C1.62501 10.4232 1.25336 8.99651 1.34795 7.56201C1.44254 6.12751 1.9983 4.76202 2.93235 3.66918C3.8664 2.57635 5.12869 1.81472 6.53096 1.4979C7.93323 1.18107 9.40034 1.32602 10.7135 1.91113M14.6668 2.66732L8.00016 9.34065L6.00016 7.34065" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+              <defs>
+                <clipPath id="clip0_1117_172996">
+                  <rect width="16" height="16" fill="white"/>
+                </clipPath>
+              </defs>
             </svg>
             {{ resolvedAction === 'accepted' ? 'Accepted' : '' }}
             {{ resolvedAction === 'declined' ? 'Declined' : '' }}

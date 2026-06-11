@@ -1394,6 +1394,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :schedule-locked="false"
                             :pricing-locked="false"
+                            @preview-schedule="previewSchedule = true"
                         />
 
                         <OneOnOneBookinStep2
@@ -1403,6 +1404,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
+                            @preview-schedule="previewSchedule = true"
                         />
                     </template>
 
@@ -1415,6 +1417,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
+                            @preview-schedule="previewSchedule = true"
                         />
 
                         <OneOnOneBookinStep2
@@ -1425,6 +1428,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :is-edit-mode="isEditMode"
                             :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
+                            @preview-schedule="previewSchedule = true"
                         />
                     </template>
                 </div>

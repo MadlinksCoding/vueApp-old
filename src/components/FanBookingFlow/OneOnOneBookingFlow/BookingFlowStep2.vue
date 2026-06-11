@@ -17,7 +17,7 @@ import {
   isRangeBooked,
   isSlotBookedByUser,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
-import { addMinutesToHm, extractDateIso } from '@/services/events/eventsApiUtils.js';
+import { addMinutesToHm, extractDateIso, hktDateTimeToLocalDate, toHm } from '@/services/events/eventsApiUtils.js';
 import {
   bookingFlowArrowRightIcon,
   bookingFlowBackgroundImage,
@@ -102,14 +102,113 @@ const showMaxDurationWarning = ref(false);
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const todayDateIso = computed(() => formatLocalDateIso(new Date()));
+
+function normalizeRepeatRuleName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getEventRepeatRule(event = {}) {
+  const raw = event?.raw || {};
+  return normalizeRepeatRuleName(raw.repeatRule ?? event?.repeatRule);
+}
+
+function getEventRawSlots(event = {}) {
+  const raw = event?.raw || {};
+  if (Array.isArray(raw.slots) && raw.slots.length > 0) return raw.slots;
+  if (Array.isArray(raw.dates) && raw.dates.length > 0) return raw.dates;
+  if (Array.isArray(event?.slots) && event.slots.length > 0) return event.slots;
+  if (Array.isArray(event?.dates) && event.dates.length > 0) return event.dates;
+  return [];
+}
+
+function addDaysToDateIso(dateIso, days) {
+  const base = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return dateIso;
+  base.setDate(base.getDate() + days);
+  return formatLocalDateIso(base) || dateIso;
+}
+
+function hmToMinutes(value) {
+  const [hours = '0', minutes = '0'] = String(value || '00:00').split(':');
+  const parsedHours = Number(hours);
+  const parsedMinutes = Number(minutes);
+  if (!Number.isFinite(parsedHours) || !Number.isFinite(parsedMinutes)) return null;
+  return (parsedHours * 60) + parsedMinutes;
+}
+
+function resolveSlotEndDayOffset(timeEntry = {}, startHm = '', endHm = '') {
+  const explicit = Number(timeEntry?.endDayOffset);
+  if (Number.isFinite(explicit)) return explicit > 0 ? 1 : 0;
+
+  const startMinutes = hmToMinutes(startHm);
+  const endMinutes = hmToMinutes(endHm);
+  if (startMinutes == null || endMinutes == null) return 0;
+  return endMinutes < startMinutes ? 1 : 0;
+}
+
+function resolveOneTimeLocalDateBounds(event = {}) {
+  const dates = [];
+
+  getEventRawSlots(event).forEach((dateEntry) => {
+    const hktDateIso = extractDateIso(dateEntry?.date, null);
+    if (!hktDateIso) return;
+
+    const times = Array.isArray(dateEntry?.times)
+      ? dateEntry.times
+      : (Array.isArray(dateEntry?.slots) ? dateEntry.slots : []);
+
+    if (times.length === 0) {
+      const localDate = hktDateTimeToLocalDate(hktDateIso, '12:00');
+      const localDateIso = formatLocalDateIso(localDate);
+      if (localDateIso) dates.push(localDateIso);
+      return;
+    }
+
+    times.forEach((timeEntry) => {
+      const startHm = toHm(timeEntry?.startTime, '');
+      const endHm = toHm(timeEntry?.endTime, '');
+      if (!startHm) return;
+
+      const localDate = hktDateTimeToLocalDate(hktDateIso, startHm);
+      const localDateIso = formatLocalDateIso(localDate);
+      if (localDateIso) dates.push(localDateIso);
+
+      if (!endHm) return;
+      const endDayOffset = resolveSlotEndDayOffset(timeEntry, startHm, endHm);
+      const endHktDateIso = endDayOffset > 0 ? addDaysToDateIso(hktDateIso, endDayOffset) : hktDateIso;
+      const localEndDate = hktDateTimeToLocalDate(endHktDateIso, endHm);
+      const localEndDateIso = formatLocalDateIso(localEndDate);
+      if (localEndDateIso) dates.push(localEndDateIso);
+    });
+  });
+
+  const sorted = Array.from(new Set(dates)).sort();
+  return {
+    from: sorted[0] || null,
+    to: sorted.at(-1) || null,
+  };
+}
+
+const oneTimeLocalDateBounds = computed(() => (
+  getEventRepeatRule(selectedEvent.value || {}) === 'doesnotrepeat'
+    ? resolveOneTimeLocalDateBounds(selectedEvent.value || {})
+    : { from: null, to: null }
+));
+
 const eventDateFromIso = computed(() => {
   const event = selectedEvent.value || {};
   const raw = event.raw || {};
+  if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.from) {
+    return oneTimeLocalDateBounds.value.from;
+  }
   return extractDateIso(raw.dateFrom ?? event.dateFrom, null);
 });
 const eventDateToIso = computed(() => {
   const event = selectedEvent.value || {};
   const raw = event.raw || {};
+  if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.to) {
+    return oneTimeLocalDateBounds.value.to;
+  }
   return extractDateIso(raw.dateTo ?? event.dateTo, null);
 });
 const minSelectableDateIso = computed(() => {
@@ -799,6 +898,11 @@ function dateFromIso(dateIso) {
 }
 
 function resolveDefaultSelectedDate() {
+  const firstAvailableEventDate = events1.value
+    .map((event) => formatLocalDateIso(event?.start))
+    .find((dateIso) => isDateIsoSelectable(dateIso));
+  if (firstAvailableEventDate) return dateFromIso(firstAvailableEventDate);
+
   const todayIso = todayDateIso.value;
   const defaultIso = isDateIsoSelectable(todayIso) ? todayIso : minSelectableDateIso.value;
   if (!isDateIsoSelectable(defaultIso)) return null;
@@ -868,6 +972,7 @@ function hydrateFromState() {
   } else if (!isGroupEvent.value) {
     const defaultSelectedDate = resolveDefaultSelectedDate();
     if (defaultSelectedDate) {
+      state.selected = new Date(defaultSelectedDate);
       state.focus = new Date(defaultSelectedDate);
     }
   }

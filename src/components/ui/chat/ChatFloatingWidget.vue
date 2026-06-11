@@ -355,7 +355,7 @@ onMounted(async () => {
             alt=""
             class="cursor-pointer"
             :class="[
-              hostWidth > 768 ? 'w-6 h-6 filter brightness-0' : 'w-[1.875rem] h-[1.875rem]'
+              hostWidth > 768 ? 'w-[2.25rem] h-[2.25rem] filter brightness-0' : 'w-[1.875rem] h-[1.875rem]'
             ]"
           />
           <span
@@ -369,14 +369,17 @@ onMounted(async () => {
           </span>
         </div>
 
-        <span class="hidden md:flex unread-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
-        <span class="hidden md:flex chat-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex' : ''" v-else>Chat</span>
+        <span class="hidden md:flex unread-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex !text-lg' : ''" v-if="unreadCount > 0">{{ unreadCount }} NEW MESSAGE{{ unreadCount !== 1 ? 'S' : '' }}</span>
+        <span class="hidden md:flex chat-text text-gray-500 text-sm font-medium" :class="hostWidth >= 768 ? '!flex !text-lg' : ''" v-else>Chat</span>
 
         <!-- Chevron -->
         <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
               class="w-5 h-5 transition-transform"
-              :class="isListOpen ? 'rotate-180' : ''"
+              :class="[
+                hostWidth >= 768 ? '!w-6 !h-6' : '',
+                isListOpen ? 'rotate-180' : ''
+              ]"
               fill="none" stroke="#667085" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
