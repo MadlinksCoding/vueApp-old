@@ -106,8 +106,8 @@
         v-if="selectedMember"
         class="absolute z-30 flex flex-col select-none overflow-hidden py-1 border border-gray-200"
         :class="[
-          hostWidth < 768 
-            ? 'bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.12)]' 
+          hostWidth < 768
+            ? 'bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.12)]'
             : 'bg-white rounded-lg shadow-xl w-56'
         ]"
         :style="hostWidth >= 768 ? menuStyle : {}"

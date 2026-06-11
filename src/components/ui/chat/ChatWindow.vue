@@ -1,5 +1,10 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick, h } from 'vue'
+import {
+  MusicalNoteIcon,
+  RectangleStackIcon,
+  VideoCameraIcon,
+} from '@heroicons/vue/24/outline'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
 import LiveCallRequest      from '@/components/ui/chat/LiveCallRequest.vue'
@@ -34,8 +39,10 @@ import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.j
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
+import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
+import galleryIcon from '@/assets/images/icons/image-03.svg'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
 import minusIcon from '@/assets/images/icons/minus.svg'
 import shareIcon from '@/assets/images/icons/share-04.svg'
@@ -47,6 +54,14 @@ import userIcon from '@/assets/images/icons/users-03.svg'
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
 const PRODUCT_TYPES = ['media', 'subscription', 'product']
+
+const ChatGalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: '' })
+const productMediaBadgeIconComponents = {
+  audio: MusicalNoteIcon,
+  gallery: RectangleStackIcon,
+  image: ChatGalleryIconComponent,
+  video: VideoCameraIcon,
+}
 
 const props = defineProps({
   chatId:        { type: String, default: null },
@@ -1363,28 +1378,113 @@ function productCardCtaDisabled(message) {
   return isProductCtaDisabled(productCardCta(message))
 }
 
+function productCardButtonDisabled(message) {
+  return productCardCtaDisabled(message) || isChatBlocked.value
+}
+
+function productCardDisabledReason(message) {
+  if (isChatBlocked.value) return disabledInputMessage.value || 'This chat is unavailable.'
+
+  const cta = productCardCta(message)
+  if (cta === 'loading') return 'Checking your access. Please wait.'
+  if (cta === 'subscribed') return 'You are already subscribed to this plan.'
+  if (cta === 'unavailable') return 'This product is not available right now.'
+
+  return ''
+}
+
+function shouldShowProductSubscribeButton(message) {
+  const product = productForMessage(message)
+  if (!product) return false
+  return product.type === 'subscription' || Number(product.subscribePrice) > 0
+}
+
+function productSubscribePriceLabel(message) {
+  const price = Number(productForMessage(message)?.subscribePrice || 0)
+  return price > 0 ? `$${price}` : 'Free'
+}
+
+function productSubscribeActionLabel(message) {
+  const product = productForMessage(message)
+  if (product?.type !== 'subscription') return 'Subscribe'
+  return productCardCtaLabel(message) || 'Subscribe'
+}
+
+function shouldShowProductBuyButton(message) {
+  const product = productForMessage(message)
+  if (!product) return false
+  if (product.type === 'subscription' && Number(product.buyPrice || 0) <= 0) return false
+  return Number(product.buyPrice || 0) > 0 || Number(product.subscribePrice || 0) <= 0
+}
+
+function productBuyButtonAction(message) {
+  return productCardCta(message) === 'watch' ? 'watch' : 'buy'
+}
+
+function productBuyButtonLabel(message) {
+  return productBuyButtonAction(message) === 'watch' ? 'Watch' : 'Buy'
+}
+
+function shouldShowProductBuyButtonPrice(message) {
+  return productBuyButtonAction(message) === 'buy'
+}
+
+function productBuyButtonThemeClass(message) {
+  return productBuyButtonAction(message) === 'watch'
+    ? 'bg-[#FFED29] text-[#0C111D]'
+    : 'bg-[#0133FB] text-white'
+}
+
+function rawProductRecommendationForMessage(message = {}) {
+  const content = message?.content || {}
+  const raw = content.product_recommendation || content.productRecommendation || message.product_recommendation || {}
+  return raw && typeof raw === 'object' ? raw : {}
+}
+
+function productMediaBadgeForMessage(message) {
+  const product = productForMessage(message)
+  if (!product || product.type !== 'media') return null
+
+  const rawProduct = rawProductRecommendationForMessage(message)
+  const detail = productCardStatus(message)?.detail || {}
+  const raw = {
+    ...(rawProduct.raw && typeof rawProduct.raw === 'object' ? rawProduct.raw : {}),
+    ...rawProduct,
+    ...(detail && typeof detail === 'object' ? detail : {}),
+  }
+
+  return getSpendingRequirementMediaBadge({
+    ...product,
+    ...rawProduct,
+    type: 'media',
+    raw,
+  })
+}
+
 function shouldShowProductCardCta(message) {
   return shouldFetchProductRecommendationStatus(message) || Boolean(getProductStatusState(message))
 }
 
 function onProductShellClick(message) {
+  if (!shouldFetchProductRecommendationStatus(message)) return
   if (shouldShowProductCardCta(message)) return
   onProductCardClick(message)
 }
 
-async function onProductCtaClick(message) {
+async function onProductCtaClick(message, requestedAction = '') {
   const cta = productCardCta(message)
   if (cta === 'retry') {
     await fetchProductRecommendationStatus(message, { force: true })
     return
   }
   if (productCardCtaDisabled(message)) return
-  const action = productActionFromCta(cta)
+  const action = productActionFromCta(requestedAction) || productActionFromCta(cta)
   if (!action) return
   onProductCardClick(message, { action })
 }
 
 function onProductCardClick(message, { action = '' } = {}) {
+  if (!shouldFetchProductRecommendationStatus(message)) return
   const product = extractProductRecommendation(message)
   if (!product) return
   if (window.self === window.top && !window.parent) return
@@ -2268,8 +2368,8 @@ onUnmounted(() => {
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }} 
-              <!-- No need right now --> 
+            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }}
+              <!-- No need right now -->
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
             <!-- hide online indicator -->
@@ -2362,11 +2462,18 @@ onUnmounted(() => {
               class="w-full aspect-video object-cover"
             />
 
-            <div class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]">
-                <div class="">
-                    
-                </div>
-                <span class="text-white text-xs">Count</span>
+            <div
+              v-if="productMediaBadgeForMessage(message)"
+              class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]"
+            >
+              <component
+                :is="productMediaBadgeIconComponents[productMediaBadgeForMessage(message).icon] || ChatGalleryIconComponent"
+                class="w-3 h-3 text-white"
+                aria-hidden="true"
+              />
+              <span v-if="productMediaBadgeForMessage(message).label" class="text-white text-xs">
+                {{ productMediaBadgeForMessage(message).label }}
+              </span>
             </div>
           </div>
 
@@ -2377,26 +2484,53 @@ onUnmounted(() => {
 
           <!-- Buttons -->
           <div class="flex items-center w-full gap-1">
-            <button
-              v-if="productForMessage(message).subscribePrice > 0"
-              type="button"
-              class="flex-1 h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message) || isChatBlocked"
-              @click.stop="onProductCtaClick(message)"
+            <span
+              v-if="shouldShowProductSubscribeButton(message)"
+              class="relative flex-1 group/product-cta"
+              :class="productCardButtonDisabled(message) ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message) ? 0 : -1"
+              :aria-label="productCardDisabledReason(message) || undefined"
             >
-              <span>Subscribe</span>
-              <span>${{ productForMessage(message).subscribePrice }}</span>
-            </button>
-            <button
-              v-if="productForMessage(message).buyPrice > 0 || productForMessage(message).subscribePrice <= 0"
-              type="button"
-              class="flex-1 h-9 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message) || isChatBlocked"
-              @click.stop="onProductCtaClick(message)"
+              <button
+                type="button"
+                class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="productCardButtonDisabled(message)"
+                @click.stop="onProductCtaClick(message, 'subscribe')"
+              >
+                <span>{{ productSubscribeActionLabel(message) }}</span>
+                <span>{{ productSubscribePriceLabel(message) }}</span>
+              </button>
+              <span
+                v-if="productCardButtonDisabled(message) && productCardDisabledReason(message)"
+                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+              >
+                {{ productCardDisabledReason(message) }}
+              </span>
+            </span>
+            <span
+              v-if="shouldShowProductBuyButton(message)"
+              class="relative flex-1 group/product-cta"
+              :class="productCardButtonDisabled(message) ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message) ? 0 : -1"
+              :aria-label="productCardDisabledReason(message) || undefined"
             >
-              <span>Buy</span>
-              <span>${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
-            </button>
+              <button
+                type="button"
+                class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
+                :class="productBuyButtonThemeClass(message)"
+                :disabled="productCardButtonDisabled(message)"
+                @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
+              >
+                <span>{{ productBuyButtonLabel(message) }}</span>
+                <span v-if="shouldShowProductBuyButtonPrice(message)">${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
+              </button>
+              <span
+                v-if="productCardButtonDisabled(message) && productCardDisabledReason(message)"
+                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+              >
+                {{ productCardDisabledReason(message) }}
+              </span>
+            </span>
           </div>
 
           <!-- Error Status -->

@@ -167,7 +167,7 @@
         return;
       }
       if (data.type === "FS_CHAT_FULLSCREEN") {
-      
+
         if(window.innerWidth < 768){
           chatContainer.style.width = "100vw";
           chatContainer.style.height = "100dvh";
