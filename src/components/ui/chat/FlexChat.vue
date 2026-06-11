@@ -304,7 +304,7 @@ defineExpose({ bodyEl })
                             @contextmenu.prevent="$emit('message-context', msg)">
 
                             <!-- WRAPPER -->
-                            <div class="flex flex-col" :class="isMe(msg) ? 'items-end' : 'items-start'">
+                            <div class="flex flex-col flex-1 " :class="isMe(msg) ? 'items-end' : 'items-start'">
 
                                 <!-- NAME (FOR OTHERS) -->
                                 <span v-if="!isMe(msg) && msg.senderName && isFirstInGroup(msg, rIdx)" :class="[theme.otherNameMeta, 'mb-1 ml-1']">{{
