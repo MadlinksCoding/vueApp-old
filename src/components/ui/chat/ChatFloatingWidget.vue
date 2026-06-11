@@ -60,16 +60,16 @@ function onHover(isHovered) {
   }
 }
 
-function onDragStart(e) {
-  if (e.type === 'mousedown' && e.button !== 0) return
+let isPointerDragging = false
+let lastPointerScreenX = 0
+let lastPointerScreenY = 0
+
+function onPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  isPointerDragging = true
   moved = false
-  isDragging.value = true
-
-  const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX
-  const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY
-
-  startX = clientX
-  startY = clientY
+  lastPointerScreenX = e.screenX
+  lastPointerScreenY = e.screenY
 
   if (widgetEl.value && !isEmbedded) {
     const rect = widgetEl.value.getBoundingClientRect()
@@ -82,66 +82,86 @@ function onDragStart(e) {
     position.value = { x: 1, y: 1 } // Trigger isFloating styles
   }
 
-  window.addEventListener(e.type === 'touchstart' ? 'touchmove' : 'mousemove', onDragMove, { passive: false })
-  window.addEventListener(e.type === 'touchstart' ? 'touchend' : 'mouseup', onDragEnd)
+  e.currentTarget.setPointerCapture(e.pointerId)
 }
 
-function onDragMove(e) {
-  if (!isDragging.value || !widgetEl.value) return
-  const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX
-  const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY
-  const dx = clientX - startX
-  const dy = clientY - startY
+function onPointerMove(e) {
+  if (!isPointerDragging || !widgetEl.value) return
+
+  const dx = e.screenX - lastPointerScreenX
+  const dy = e.screenY - lastPointerScreenY
 
   if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
     moved = true
-    if (isEmbedded) {
-      postToParent('FS_CHAT_DRAG_START', { mouseX: clientX, mouseY: clientY })
-    }
+    isDragging.value = true
   }
 
   if (moved) {
     e.preventDefault()
-    if (isEmbedded) return
 
-    const widgetWidth = widgetEl.value.offsetWidth
-    const widgetHeight = widgetEl.value.offsetHeight
-    const maxX = window.innerWidth - widgetWidth
-    const maxY = window.innerHeight - widgetHeight
+    if (isEmbedded) {
+      postToParent('FS_CHAT_DRAG_DELTA', { dx, dy })
+    } else {
+      const widgetWidth = widgetEl.value.offsetWidth
+      const widgetHeight = widgetEl.value.offsetHeight
+      const maxX = window.innerWidth - widgetWidth
+      const maxY = window.innerHeight - widgetHeight
 
-    let newX = Math.max(0, Math.min(initialX + dx, maxX))
-    let newY = Math.max(0, Math.min(initialY + dy, maxY))
-    position.value = { x: newX, y: newY }
+      let newX = Math.max(0, Math.min(position.value.x + dx, maxX))
+      let newY = Math.max(0, Math.min(position.value.y + dy, maxY))
+      position.value = { x: newX, y: newY }
+    }
+
+    lastPointerScreenX = e.screenX
+    lastPointerScreenY = e.screenY
   }
 }
 
-function onDragEnd(e) {
-  if (isEmbedded && moved) return
-
+function onPointerUp(e) {
+  if (!isPointerDragging) return
+  isPointerDragging = false
   isDragging.value = false
-  const moveEvent = e.type === 'touchend' ? 'touchmove' : 'mousemove'
-  const endEvent = e.type === 'touchend' ? 'touchend' : 'mouseup'
-  window.removeEventListener(moveEvent, onDragMove)
-  window.removeEventListener(endEvent, onDragEnd)
+  e.currentTarget.releasePointerCapture(e.pointerId)
 
-  if (moved && widgetEl.value && !isEmbedded) {
-    const widgetWidth = widgetEl.value.offsetWidth
-    const widgetHeight = widgetEl.value.offsetHeight
-    const centerX = position.value.x + (widgetWidth / 2)
-    const centerY = position.value.y + (widgetHeight / 2)
-    const windowCenterX = window.innerWidth / 2
-    const windowCenterY = window.innerHeight / 2
-
-    if (centerX < windowCenterX) {
-      isLeftAligned.value = true
-      position.value.x = hostWidth.value >= 768 ? 16 : 8
+  if (moved) {
+    if (isEmbedded) {
+      postToParent('FS_CHAT_DRAG_END_TOUCH')
     } else {
-      isLeftAligned.value = false
-      position.value.x = window.innerWidth - widgetWidth - (hostWidth.value >= 768 ? 16 : 8)
-    }
+      if (widgetEl.value) {
+        const widgetWidth = widgetEl.value.offsetWidth
+        const widgetHeight = widgetEl.value.offsetHeight
+        const centerX = position.value.x + (widgetWidth / 2)
+        const centerY = position.value.y + (widgetHeight / 2)
+        const windowCenterX = window.innerWidth / 2
+        const windowCenterY = window.innerHeight / 2
 
-    // Top alignment determines whether lists open UP or DOWN
-    isTopAligned.value = centerY < windowCenterY
+        isLeftAligned.value = centerX < windowCenterX
+        isTopAligned.value = centerY < windowCenterY
+
+        const distLeft = centerX
+        const distRight = window.innerWidth - centerX
+        const distTop = centerY
+        const distBottom = window.innerHeight - centerY
+        const minDist = Math.min(distLeft, distRight, distTop, distBottom)
+
+        const horizontalOffset = hostWidth.value >= 768 ? 16 : 8
+        const verticalOffset = hostWidth.value >= 768 ? 16 : 8
+
+        if (minDist === distLeft || minDist === distRight) {
+          if (isLeftAligned.value) {
+            position.value.x = horizontalOffset
+          } else {
+            position.value.x = window.innerWidth - widgetWidth - horizontalOffset
+          }
+        } else {
+          if (isTopAligned.value) {
+            position.value.y = verticalOffset
+          } else {
+            position.value.y = window.innerHeight - widgetHeight - verticalOffset
+          }
+        }
+      }
+    }
   }
 }
 
@@ -366,10 +386,7 @@ onMounted(async () => {
       isTopAligned.value = e.data.payload.isTopAligned
       isDragging.value = false
       moved = false
-      window.removeEventListener('mousemove', onDragMove)
-      window.removeEventListener('touchmove', onDragMove)
-      window.removeEventListener('mouseup', onDragEnd)
-      window.removeEventListener('touchend', onDragEnd)
+
     }
   }
   window.addEventListener('message', handleHostResize)
@@ -486,6 +503,9 @@ onMounted(async () => {
       <!-- Trigger button (UI-01.0) -->
       <button
         @click="toggleList($event)"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
         @mouseenter="onHover(true)"
         @mouseleave="onHover(false)"
         class="
@@ -495,7 +515,7 @@ onMounted(async () => {
          md:max-[1009px]:rounded-b-none
          max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
          lg:right-auto lg:bottom-4
-         chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+         touch-none select-none chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
         :class="[
           !isFloating ? [
             hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 p-3' : '',
@@ -510,6 +530,7 @@ onMounted(async () => {
         <!-- Chat icon with unread badge -->
         <div class="relative">
           <img
+            draggable="false"
             :src="hostWidth < 768 ? MessageTextIconPink : MessageTextIcon"
             alt=""
             class="cursor-pointer"

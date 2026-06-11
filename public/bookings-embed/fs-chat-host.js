@@ -96,65 +96,7 @@
     });
 
     var isChatListOpen = false;
-    var isChatHovered = false;
     var isLeftAligned = false;
-    var hoverTimeout = null;
-
-    var dragHandle = document.createElement("div");
-    dragHandle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="19 9 22 12 19 15"></polyline><polyline points="9 19 12 22 15 19"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>';
-    Object.assign(dragHandle.style, {
-      position: "absolute",
-      bottom: "16px",
-      width: "24px",
-      height: "24px",
-      background: "transparent",
-      color: "#4B5563",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "move",
-      opacity: "0",
-      transition: "opacity 0.2s",
-      zIndex: "9999",
-      pointerEvents: "auto",
-      left: "-10px" // Initial position assuming right aligned
-    });
-
-    function updateDragHandleVisibility() {
-      dragHandle.style.display = "flex";
-
-      clearTimeout(hoverTimeout);
-      var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-      if (!isChatListOpen && (isChatHovered || isTouchDevice)) {
-        dragHandle.style.opacity = "1";
-      } else {
-        hoverTimeout = setTimeout(function() {
-          dragHandle.style.opacity = "0";
-        }, 300);
-      }
-    }
-
-    dragHandle.addEventListener("mouseenter", function() {
-      isChatHovered = true;
-      updateDragHandleVisibility();
-    });
-    dragHandle.addEventListener("mouseleave", function() {
-      isChatHovered = false;
-      updateDragHandleVisibility();
-    });
-
-    dragHandle.addEventListener("mousedown", function(e) {
-      if (e.button !== 0) return;
-      var rect = chatContainer.getBoundingClientRect();
-      initHostDrag(e.clientX - rect.left, e.clientY - rect.top);
-    });
-    dragHandle.addEventListener("touchstart", function(e) {
-      var rect = chatContainer.getBoundingClientRect();
-      var touch = e.touches[0];
-      initHostDrag(touch.clientX - rect.left, touch.clientY - rect.top);
-    });
-
-    chatContainer.appendChild(dragHandle);
 
     function initHostDrag(mouseOffsetX, mouseOffsetY) {
       var overlay = document.createElement("div");
@@ -202,32 +144,21 @@
         var isTopAligned = centerY < (window.innerHeight / 2);
 
         var snapX = 0;
-        
-        var defaultTw = dragHandle.dataset.triggerWidth ? parseFloat(dragHandle.dataset.triggerWidth) : 56;
-        var offset = defaultTw + 8;
         if (isLeftAligned) {
           chatContainer.style.left = snapX + "px";
           chatContainer.style.right = "auto";
-          dragHandle.style.left = offset + "px";
-          dragHandle.style.right = "auto";
         } else {
           chatContainer.style.right = snapX + "px";
           chatContainer.style.left = "auto";
-          dragHandle.style.right = offset + "px";
-          dragHandle.style.left = "auto";
         }
 
         var snapY = 0;
         if (isTopAligned) {
           chatContainer.style.top = snapY + "px";
           chatContainer.style.bottom = "auto";
-          dragHandle.style.top = "16px";
-          dragHandle.style.bottom = "auto";
         } else {
           chatContainer.style.bottom = snapY + "px";
           chatContainer.style.top = "auto";
-          dragHandle.style.bottom = "16px";
-          dragHandle.style.top = "auto";
         }
 
         iframe.contentWindow.postMessage({
@@ -328,24 +259,75 @@
         }
         if (data.payload.is_open !== undefined) {
           isChatListOpen = data.payload.is_open;
-          updateDragHandleVisibility();
-        }
-        var tW = data.payload.trigger_width || 56;
-        dragHandle.dataset.triggerWidth = tW;
-        if (isLeftAligned) {
-          dragHandle.style.left = (tW + 8) + "px";
-          dragHandle.style.right = "auto";
-        } else {
-          dragHandle.style.right = (tW + 8) + "px";
-          dragHandle.style.left = "auto";
         }
         applyContainerSize(window.innerWidth, data.payload);
-      } else if (data.type === "FS_CHAT_HOVER_STATE") {
-        isChatHovered = data.payload && data.payload.isHovered;
-        updateDragHandleVisibility();
       } else if (data.type === "FS_CHAT_DRAG_START") {
         var p = data.payload || {};
         initHostDrag(p.mouseX || 0, p.mouseY || 0);
+      } else if (data.type === "FS_CHAT_DRAG_DELTA") {
+        var p = data.payload || {};
+        var rect = chatContainer.getBoundingClientRect();
+        var newX = rect.left + (p.dx || 0);
+        var newY = rect.top + (p.dy || 0);
+        var maxX = window.innerWidth - chatContainer.offsetWidth;
+        var maxY = window.innerHeight - chatContainer.offsetHeight;
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, Math.max(0, maxY)));
+        chatContainer.style.left = newX + "px";
+        chatContainer.style.top = newY + "px";
+        chatContainer.style.right = "auto";
+        chatContainer.style.bottom = "auto";
+      } else if (data.type === "FS_CHAT_DRAG_END_TOUCH") {
+        var rect = chatContainer.getBoundingClientRect();
+        var centerX = rect.left + (rect.width / 2);
+        var centerY = rect.top + (rect.height / 2);
+        isLeftAligned = centerX < (window.innerWidth / 2);
+        var isTopAligned = centerY < (window.innerHeight / 2);
+
+        var distLeft = centerX;
+        var distRight = window.innerWidth - centerX;
+        var distTop = centerY;
+        var distBottom = window.innerHeight - centerY;
+        var minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+        if (minDist === distLeft || minDist === distRight) {
+          var snapX = 0;
+          if (isLeftAligned) {
+            chatContainer.style.left = snapX + "px";
+            chatContainer.style.right = "auto";
+          } else {
+            chatContainer.style.right = snapX + "px";
+            chatContainer.style.left = "auto";
+          }
+          if (isTopAligned) {
+            chatContainer.style.top = rect.top + "px";
+            chatContainer.style.bottom = "auto";
+          } else {
+            chatContainer.style.bottom = (window.innerHeight - rect.bottom) + "px";
+            chatContainer.style.top = "auto";
+          }
+        } else {
+          var snapY = 0;
+          if (isTopAligned) {
+            chatContainer.style.top = snapY + "px";
+            chatContainer.style.bottom = "auto";
+          } else {
+            chatContainer.style.bottom = snapY + "px";
+            chatContainer.style.top = "auto";
+          }
+          if (isLeftAligned) {
+            chatContainer.style.left = rect.left + "px";
+            chatContainer.style.right = "auto";
+          } else {
+            chatContainer.style.right = (window.innerWidth - rect.right) + "px";
+            chatContainer.style.left = "auto";
+          }
+        }
+
+        iframe.contentWindow.postMessage({
+          type: "FS_CHAT_DRAG_END",
+          payload: { isLeftAligned: isLeftAligned, isTopAligned: isTopAligned }
+        }, "*");
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
         if (typeof window.openTipPopup === "function") {
