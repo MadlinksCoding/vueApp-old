@@ -79,6 +79,31 @@ function findPreview(source = {}) {
   return { type: null, url: "" };
 }
 
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
+}
+
+function mediaBadgeMetadata(source = {}) {
+  if (!source || typeof source !== "object") return {};
+  const raw = source.raw && typeof source.raw === "object" ? source.raw : {};
+  const fields = {
+    media_type: firstPresent(raw.media_type, raw.mediaType, raw.type, source.media_type, source.mediaType),
+    file_extension: firstPresent(raw.file_extension, raw.extension, source.file_extension, source.extension),
+    gallery_count: firstPresent(raw.gallery_count, raw.galleryCount, source.gallery_count, source.galleryCount),
+    gallery_count_formatted: firstPresent(raw.gallery_count_formatted, raw.galleryCountFormatted, source.gallery_count_formatted, source.galleryCountFormatted),
+    video_duration: firstPresent(raw.video_duration, raw.videoDuration, source.video_duration, source.videoDuration),
+    video_duration_formatted: firstPresent(raw.video_duration_formatted, raw.videoDurationFormatted, source.video_duration_formatted, source.videoDurationFormatted),
+    audio_duration: firstPresent(raw.audio_duration, raw.audioDuration, source.audio_duration, source.audioDuration),
+    audio_duration_formatted: firstPresent(raw.audio_duration_formatted, raw.audioDurationFormatted, source.audio_duration_formatted, source.audioDurationFormatted),
+    trailer_url: firstPresent(raw.trailer_url, raw.trailerUrl, source.trailer_url, source.trailerUrl),
+  };
+
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined && value !== null && value !== ""));
+}
+
 export function normalizeProductForChat(item = {}, { senderId = null } = {}) {
   if (!item || typeof item !== "object") return null;
 
@@ -93,6 +118,7 @@ export function normalizeProductForChat(item = {}, { senderId = null } = {}) {
   const subscribePrice = toNumber(item.subscribePrice, 0);
   const price = toNumber(item.price, buyPrice || subscribePrice || 0);
   const preview = findPreview(item);
+  const badgeMetadata = type === "media" ? mediaBadgeMetadata(item) : {};
 
   return {
     id: Number(id),
@@ -112,6 +138,7 @@ export function normalizeProductForChat(item = {}, { senderId = null } = {}) {
       url: preview.url,
       posterUrl: toString(item.preview?.posterUrl || item.preview?.poster_url || thumbnailUrl),
     },
+    ...badgeMetadata,
     ...(senderId !== null && senderId !== undefined ? { senderId: String(senderId) } : {}),
   };
 }
@@ -197,11 +224,35 @@ function toNullableValue(value) {
   return value === undefined ? null : value;
 }
 
-function subscriptionPayloadFields(detail = {}) {
+function subscriptionProductDetail(detail = {}, product = {}) {
+  if (!detail || typeof detail !== "object") return detail || null;
+
+  const existingSubscription = detail.subscription && typeof detail.subscription === "object"
+    ? detail.subscription
+    : {};
+  const subscriptionId = existingSubscription.subscription_id ?? existingSubscription.id ?? detail.subscription_id;
+  const tierId = existingSubscription.variation_id ?? detail.variation_id ?? detail.id ?? product.id;
+
   return {
-    subscription_id: toNullableValue(detail?.subscription_id),
-    item_line_number: toNullableValue(detail?.item_line_number),
-    subscribed_tier_id: toNullableValue(detail?.subscribed_tier_id),
+    ...detail,
+    subscription: {
+      ...existingSubscription,
+      id: toNullableValue(subscriptionId),
+      subscription_id: toNullableValue(subscriptionId),
+      item_line_number: toNullableValue(existingSubscription.item_line_number ?? detail.item_line_number),
+      subscribed_tier_id: toNullableValue(existingSubscription.subscribed_tier_id ?? detail.subscribed_tier_id),
+      product_id: toNullableValue(existingSubscription.product_id ?? detail.product_id),
+      variation_id: toNullableValue(tierId),
+    },
+  };
+}
+
+function subscriptionPayloadFields(detail = {}) {
+  const subscription = detail?.subscription || {};
+  return {
+    subscription_id: toNullableValue(detail?.subscription_id ?? subscription?.subscription_id ?? subscription?.id),
+    item_line_number: toNullableValue(detail?.item_line_number ?? subscription?.item_line_number),
+    subscribed_tier_id: toNullableValue(detail?.subscribed_tier_id ?? subscription?.subscribed_tier_id),
   };
 }
 
@@ -352,7 +403,10 @@ export function buildProductSelectedPayload({ message = {}, chatId = "", product
   const normalizedProduct = normalizeProductForChat(product) || extractProductRecommendation(message);
   if (!normalizedProduct) return null;
 
-  const productDetail = toCloneSafeProductPayload(status?.detail || null);
+  let productDetail = toCloneSafeProductPayload(status?.detail || null);
+  if (normalizedProduct.type === "subscription" && productDetail) {
+    productDetail = subscriptionProductDetail(productDetail, normalizedProduct);
+  }
   const resolvedAction = productActionFromCta(action) || productActionFromCta(status?.cta) || "";
   const payload = {
     chatId: message.chat_id || message.chatId || chatId,
