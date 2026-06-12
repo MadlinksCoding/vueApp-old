@@ -13,6 +13,7 @@ import ToastHost from "@/components/ui/toast/ToastHost.vue";
 
 const props = defineProps({
   userId: { type: [String, Number], default: null },
+  hideFloatingButton: { type: Boolean, default: false },
 })
 
 const chatStore = useChatStore()
@@ -424,6 +425,7 @@ onMounted(async () => {
 
       <!-- Trigger button (UI-01.0) -->
       <button
+        v-show="!hideFloatingButton"
         @click="toggleList"
         class="
          right-2 bottom-0

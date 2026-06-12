@@ -185,6 +185,9 @@
           if (w > 0) chatContainer.style.width = String(w / 16) + "rem";
           if (h > 0) chatContainer.style.height = String(h / 16) + "rem";
         }
+  
+        toggleHiddenClass(data.payload.is_open);
+
         applyContainerSize(window.innerWidth, data.payload);
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
@@ -249,12 +252,26 @@
     // Pending getState() requests keyed by requestId
     var pendingStateRequests = {};
 
+    function toggleHiddenClass( isChatOpen = true) {
+      if (window?._fs_hide_chat_widget) {
+        if (isChatOpen) {
+          document.body.classList.remove('hide-chat-widget');
+        } else {
+          document.body.classList.add('hide-chat-widget');
+        }
+      } else {
+        document.body.classList.remove('hide-chat-widget');
+      }
+    }
+
     function openChat(options) {
       if (!iframe.contentWindow) return;
+      toggleHiddenClass();
       iframe.contentWindow.postMessage({
         type: "FS_CHAT_OPEN_CHAT",
         payload: options || {},
       }, "*");
+      setFloatingButtonVisibility(!window?._fs_hide_chat_widget);
     }
 
     function openGroupChat(options) {
@@ -269,6 +286,14 @@
       if (!iframe.contentWindow) return;
       iframe.contentWindow.postMessage({
         type: "FS_CHAT_OPEN_NEW_CHAT_POPUP",
+      }, "*");
+    }
+
+    function setFloatingButtonVisibility(visible) {
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_SET_FLOATING_BUTTON",
+        payload: { hidden: !visible },
       }, "*");
     }
 
@@ -330,6 +355,7 @@
       openChat: openChat,
       openGroupChat: openGroupChat,
       openNewChatPopup: openNewChatPopup,
+      setFloatingButtonVisibility: setFloatingButtonVisibility,
       getState: getState,
       refreshStats: refreshStats,
       refreshProductRecommendation: function (payload) {

@@ -77,6 +77,11 @@
   <div class="hero">
     <h1>Chat Embed Demo</h1>
     <p>Testing the chat widget embedded on an external page.</p>
+    <div style="display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;">
+      <input type="text" id="override-chat-id" placeholder="chatId" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; width: 140px;" />
+      <input type="text" id="override-user-id" placeholder="userId" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; width: 140px;" />
+    </div>
+
     <button class="open-chat-btn" onclick="handleOpenChat()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -217,9 +222,22 @@
     </div>
   </div>
 
+<style>
+  .hide-chat-widget .fs-chat-embed-container {
+    /* display: none; */
+    visibility: hidden;
+    z-index: -1 !important;
+    opacity: 0;
+  }
+</style>
   <!-- Chat widget injected here (fixed overlay) -->
   <script src="./fs-chat-host.js"></script>
   <script>
+    // Comment out after testing.
+    // window._fs_hide_chat_widget = true; // Set this flag to hide the chat widget until it's fully loaded
+    // document.body.classList.add('hide-chat-widget');
+    // end of testing code
+
     var params = new URLSearchParams(location.search);
 
     // Derive the base URL of this page at runtime so relative asset paths
@@ -237,18 +255,29 @@
       userRole:      currentUserRole,
       apiBaseUrl:    params.get('apiBaseUrl')    || '',
       fanUid:        params.get('fanUid')        || '',
+      startHidden:   params.get('startHidden') === '1',
+      autoHideWhenClosed: params.get('autoHideWhenClosed') === '1',
     });
 
     // Default values — override via URL params or edit here directly
-    var defaultChatId  = params.get('chatId')  || '';
-    var defaultUserId  = params.get('userId')  || '';
+    var defaultChatId  = params.get('chatId')  || localStorage.getItem('test_chatId') || '';
+    var defaultUserId  = params.get('userId')  || localStorage.getItem('test_userId') || '';
     var defaultName    = params.get('name')    || '';
 
+    document.getElementById('override-chat-id').value = defaultChatId;
+    document.getElementById('override-user-id').value = defaultUserId;
+
     function handleOpenChat() {
+      var cId = document.getElementById('override-chat-id').value.trim();
+      var uId = document.getElementById('override-user-id').value.trim();
+      
+      localStorage.setItem('test_chatId', cId);
+      localStorage.setItem('test_userId', uId);
+
       chatEmbed.openChat({
-        chatId:      defaultChatId  || undefined,
-        userId:      defaultUserId  || undefined,
-        displayName: defaultName    || undefined,
+        chatId:      cId || undefined,
+        userId:      uId || undefined,
+        displayName: defaultName || undefined,
       });
     }
 
