@@ -365,16 +365,86 @@ describe("one-on-one booking step translations", () => {
 
     expect(timeDropdowns.length).toBeGreaterThan(0);
 
-    const options = timeDropdowns[0].props("options");
-    expect(options).toHaveLength(288);
-    expect(options[0]).toEqual({ value: "00:00", label: "12:00 AM" });
-    expect(options).toContainEqual({ value: "09:05", label: "9:05 AM" });
-    expect(options.at(-1)).toEqual({ value: "23:55", label: "11:55 PM" });
+    const startOptions = timeDropdowns[0].props("options");
+    const endOptions = timeDropdowns[1].props("options");
+    expect(startOptions).toHaveLength(288);
+    expect(startOptions[0]).toEqual({ value: "00:00", label: "12:00 AM" });
+    expect(startOptions).toContainEqual({ value: "09:05", label: "9:05 AM" });
+    expect(startOptions.at(-1)).toEqual({ value: "23:55", label: "11:55 PM" });
+    expect(startOptions).not.toContainEqual({ value: "23:59", label: "11:59 PM" });
+    expect(endOptions).toContainEqual({ value: "23:59", label: "11:59 PM" });
 
     timeDropdowns.forEach((dropdown) => {
       expect(dropdown.props("searchable")).toBe(true);
       expect(dropdown.props("searchPlaceholder")).toBe("Search...");
     });
+  });
+
+  it("treats 11:59 PM as an inclusive end-of-day end time for private slots", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const today = getTodayIsoDate();
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "doesNotRepeat",
+          oneTimeAvailability: [{
+            id: "date-1",
+            date: today,
+            slots: [{ startTime: "23:55", endTime: "00:00" }],
+          }],
+          monthlyAvailability: [{ startTime: "23:55", endTime: "00:00" }],
+          weeklyAvailability: [{
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            offHours: false,
+            slots: [{ startTime: "23:55", endTime: "00:00", offHours: false }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.vm.getOneTimeStartOptions(unrefPublic(wrapper.vm.oneTimeDates)[0], 0))
+      .not.toContainEqual(expect.objectContaining({ value: "23:59" }));
+
+    const customEndOptions = wrapper.vm.getOneTimeEndOptions(unrefPublic(wrapper.vm.oneTimeDates)[0], 0);
+    const monthlyEndOptions = wrapper.vm.getMonthlyEndOptions(0);
+    const weeklyEndOptions = wrapper.vm.getWeeklyEndOptions(0, 0);
+
+    expect(customEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
+    expect(monthlyEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
+    expect(weeklyEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
+    expect(customEndOptions.find((option) => option.value === "00:00")?.disabled).toBe(false);
+  });
+
+  it("keeps 11:59 PM literal for group slots shorter than five minutes", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const today = getTodayIsoDate();
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "group-event",
+          repeatRule: "doesNotRepeat",
+          oneTimeAvailability: [{
+            id: "date-1",
+            date: today,
+            slots: [{ startTime: "23:55", endTime: "00:00" }],
+          }],
+        }),
+        bookingType: "group",
+      },
+      global: mountOptions(),
+    });
+
+    const customEndOptions = wrapper.vm.getOneTimeEndOptions(unrefPublic(wrapper.vm.oneTimeDates)[0], 0);
+    expect(customEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(true);
   });
 
   it("adds unique custom dates and time slots", async () => {
@@ -455,6 +525,42 @@ describe("one-on-one booking step translations", () => {
 
     expect(thirdSlot.startTime).toBe("23:55");
     expect(thirdSlot.endTime).toBe("00:00");
+  });
+
+  it("marks custom one-time slots as off hours", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const today = getTodayIsoDate();
+    const engine = createEngine({
+      eventType: "1on1-call",
+      repeatRule: "doesNotRepeat",
+      oneTimeAvailability: [{
+        id: "date-1",
+        date: today,
+        slots: [{ startTime: "12:00", endTime: "15:00", offHours: false }],
+      }],
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    await nextTick();
+
+    expect(unrefPublic(wrapper.vm.oneTimeDates)[0].slots[0].offHours).toBe(true);
+    expect(wrapper.vm.formData.oneTimeAvailability[0].slots[0].offHours).toBe(true);
+    expect(engine.state.oneTimeAvailability[0].slots[0].offHours).toBe(true);
+
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    await nextTick();
+
+    expect(unrefPublic(wrapper.vm.oneTimeDates)[0].slots[0].offHours).toBe(false);
+    expect(wrapper.vm.formData.oneTimeAvailability[0].slots[0].offHours).toBe(false);
   });
 
   it("disables early-morning custom times covered by an overnight slot", async () => {

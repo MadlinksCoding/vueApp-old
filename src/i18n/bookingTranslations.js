@@ -454,6 +454,7 @@ export const bookingMessages = {
   booking_validation_one_time_date_unique: "Each custom date can only be added once.",
   booking_validation_one_time_slot_unique: "Each custom time slot must be unique and cannot overlap another slot for that date.",
   booking_validation_time_slot_order: "End time must be after start time.",
+  booking_validation_time_slot_duration_min: "Time slots must be at least 5 minutes.",
   booking_validation_monthly_start_required: "Start date is required for monthly repeat.",
   booking_validation_monthly_slot_required: "Add at least one monthly slot before continuing.",
   booking_validation_monthly_slot_unique: "Each monthly time slot must be unique and cannot overlap another monthly slot.",

@@ -13,6 +13,16 @@ function asNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function asBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return ["1", "true", "yes", "y", "on"].includes(normalized);
+  }
+  return false;
+}
+
 function toStringValue(value, fallback = "") {
   if (value === undefined || value === null) return fallback;
   const text = String(value).trim();
@@ -39,6 +49,8 @@ function toTags(value) {
 function mediaToProduct(row = {}) {
   const buyPrice = asNumber(row?.p2v?.price, 0);
   const subscribePrice = asNumber(row?.subscription?.price, 0);
+  const canBuy = asBoolean(row?.is_p2v) || buyPrice > 0;
+  const canSubscribe = asBoolean(row?.is_subscription) || subscribePrice > 0;
 
   return {
     id: toNumericId(row?.id),
@@ -46,6 +58,8 @@ function mediaToProduct(row = {}) {
     title: toStringValue(row?.title, "Untitled Media"),
     buyPrice: buyPrice > 0 ? buyPrice : null,
     subscribePrice: subscribePrice > 0 ? subscribePrice : null,
+    canBuy,
+    canSubscribe,
     thumbnailUrl: toStringValue(row?.thumbnail_url, ""),
     tags: toTags(row?.tags),
     raw: row,
@@ -55,6 +69,8 @@ function mediaToProduct(row = {}) {
 function productToProduct(row = {}) {
   const buyPrice = asNumber(row?.price, 0);
   const subscribePrice = asNumber(row?.subscribe_data?.price, 0);
+  const canBuy = asBoolean(row?.canBuy) || asBoolean(row?.can_buy) || buyPrice > 0;
+  const canSubscribe = asBoolean(row?.canSubscribe) || asBoolean(row?.can_subscribe) || subscribePrice > 0;
 
   return {
     id: toNumericId(row?.id),
@@ -62,6 +78,8 @@ function productToProduct(row = {}) {
     title: toStringValue(row?.title, "Untitled Product"),
     buyPrice: buyPrice > 0 ? buyPrice : null,
     subscribePrice: subscribePrice > 0 ? subscribePrice : null,
+    canBuy,
+    canSubscribe,
     thumbnailUrl: toStringValue(Array.isArray(row?.gallery) ? row.gallery[0] : "", ""),
     tags: toTags(row?.tags),
     raw: row,
@@ -79,6 +97,8 @@ function subscriptionToProduct(row = {}) {
     title: toStringValue(sourceRow?.title || sourceRow?.name, fallbackTitle),
     buyPrice: null,
     subscribePrice: price > 0 ? price : null,
+    canBuy: false,
+    canSubscribe: true,
     thumbnailUrl: toStringValue(sourceRow?.background_image || sourceRow?.thumbnail_url || "", ""),
     tags: toTags(sourceRow?.tags),
     raw: sourceRow,

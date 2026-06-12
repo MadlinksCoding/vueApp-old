@@ -26,7 +26,12 @@ describe('Auth Store', () => {
   it('clears state on logout', () => {
     auth.simulateRole('creator')
     auth.logout()
-    expect(auth.simulate).toBe(null)
+    expect(auth.simulate).toEqual({
+      role: 'creator',
+      email: 'dev@test.com',
+      kycPassed: true,
+      onboardingPassed: true,
+    })
     expect(auth.currentUser).toBe(null)
   })
 })

@@ -701,6 +701,14 @@ function rgba(hexColor, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const APPROVED_BOOKING_STATUSES = new Set(["approved", "completed", "confirmed"]);
+
+function isApprovedBookingStatus(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  const status = String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
+  return APPROVED_BOOKING_STATUSES.has(status);
+}
+
 function getCalendarEventStyle(event) {
   if (event?.isAvailabilityBlock) {
     return {
@@ -717,6 +725,16 @@ function getCalendarEventStyle(event) {
     event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
     DEFAULT_EVENT_COLOR,
   );
+
+  if (!isApprovedBookingStatus(event)) {
+    return {
+      backgroundColor: "transparent",
+      border: `1px solid ${color}`,
+      borderBottom: `1px solid ${color}`,
+      color,
+      zIndex: 2,
+    };
+  }
 
   return {
     backgroundColor: color,

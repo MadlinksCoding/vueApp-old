@@ -34,6 +34,7 @@ vi.mock('@/i18n/enterprise/i18n', async () => {
       addObserver: vi.fn(),
       removeObserver: vi.fn(),
       initialize: vi.fn(),
+      destroy: vi.fn(),
       currentLocale: 'en',
       isLoading: false,
       loadedLocales: ['en'],
@@ -152,7 +153,7 @@ describe('Enterprise I18n System', () => {
       const result = enterpriseI18n.getTranslation('common.hello')
       
       expect(result).toBe('Hello')
-      expect(mockGetTranslation).toHaveBeenCalledWith('common.hello', undefined)
+      expect(mockGetTranslation).toHaveBeenCalledWith('common.hello')
     })
 
     it('should get translation with specific locale', () => {

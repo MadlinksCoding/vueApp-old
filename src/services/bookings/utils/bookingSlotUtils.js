@@ -24,6 +24,7 @@ const DAY_NAME_TO_INDEX = {
 };
 
 const ACTIVE_BOOKING_EXTENSION_STATUSES = new Set(["held", "captured"]);
+const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -76,6 +77,32 @@ function formatLocalDateIso(date) {
 function formatLocalHm(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+function formatHmInTimeZone(date, timeZone = DEFAULT_CREATOR_TIMEZONE) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timeZone || DEFAULT_CREATOR_TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const partMap = {};
+    parts.forEach((part) => {
+      if (part?.type) partMap[part.type] = part.value;
+    });
+    const hour = partMap.hour === "24" ? "00" : partMap.hour;
+    return hour && partMap.minute ? `${hour}:${partMap.minute}` : null;
+  } catch (error) {
+    return formatHmInTimeZone(date, DEFAULT_CREATOR_TIMEZONE);
+  }
+}
+
+function isCreatorEndOfDayBoundary(date, creatorTimezone) {
+  return formatHmInTimeZone(date, creatorTimezone) === "23:59";
 }
 
 function toValidDate(value) {
@@ -516,13 +543,18 @@ function buildLocalSlotFromHkt({
   endHm,
   endDayOffset = null,
   offHours = false,
+  creatorTimezone = DEFAULT_CREATOR_TIMEZONE,
+  inclusiveEndOfDay = false,
 }) {
   const startDate = hktDateTimeToLocalDate(hktDateIso, startHm);
 
   const safeEndDayOffset = normalizeEndDayOffset(endDayOffset, startHm, endHm);
   const endHktDateIso = safeEndDayOffset > 0 ? addDays(hktDateIso, safeEndDayOffset) : hktDateIso;
 
-  const endDate = hktDateTimeToLocalDate(endHktDateIso, endHm);
+  const rawEndDate = hktDateTimeToLocalDate(endHktDateIso, endHm);
+  const endDate = inclusiveEndOfDay && isCreatorEndOfDayBoundary(rawEndDate, creatorTimezone)
+    ? new Date(rawEndDate.getTime() + 60 * 1000)
+    : rawEndDate;
 
   if (!startDate || !endDate) return null;
 
@@ -553,6 +585,13 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
   const applyBufferAfterBooked = options.applyBufferAfterBooked !== false;
   const preserveScheduleWindow = options.preserveScheduleWindow === true;
   const groupEvent = isGroupEvent(event);
+  const creatorTimezone = raw.creatorTimezone
+    || raw.creatorTimeZone
+    || raw.creator_timezone
+    || event?.creatorTimezone
+    || event?.creatorTimeZone
+    || event?.creator_timezone
+    || DEFAULT_CREATOR_TIMEZONE;
   const sessionMinutes = normalizePositiveMinutes(
     raw.sessionDurationMinutes ?? event?.sessionDurationMinutes,
     15,
@@ -599,6 +638,8 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
         endHm: slot.endTime,
         endDayOffset: slot.endDayOffset,
         offHours: slot.offHours,
+        creatorTimezone,
+        inclusiveEndOfDay: !groupEvent,
       });
       if (!mapped) return;
       if (!shouldBuildWindowForLocalDate(mapped, localDateIso, groupEvent || preserveScheduleWindow)) return;
@@ -627,6 +668,8 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
           endHm: slot.endTime,
           endDayOffset: slot.endDayOffset,
           offHours: slot.offHours,
+          creatorTimezone,
+          inclusiveEndOfDay: !groupEvent,
         });
 
         if (!mapped) return;
@@ -660,6 +703,8 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
           endHm: slot.endTime,
           endDayOffset: slot.endDayOffset,
           offHours: slot.offHours,
+          creatorTimezone,
+          inclusiveEndOfDay: !groupEvent,
         });
 
         if (!mapped) return;
@@ -692,7 +737,10 @@ export function buildCandidateSlotsForEventDate(event = {}, localDateIso, option
     const partsForLocalDate = parts.filter((part) => part.localDateIso === localDateIso);
     if (partsForLocalDate.length > 0) {
       segmented.push(...partsForLocalDate);
-    } else if (slotWindow.localDateIso === localDateIso) {
+    } else if (
+      slotWindow.localDateIso === localDateIso
+      && inferSlotDurationMinutes(slotWindow) >= sessionMinutes
+    ) {
       segmented.push(slotWindow);
     }
   });

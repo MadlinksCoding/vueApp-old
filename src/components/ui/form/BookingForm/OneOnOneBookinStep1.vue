@@ -665,6 +665,7 @@
           .map((slot) => ({
             startTime: typeof slot?.startTime === "string" ? slot.startTime : "12:00",
             endTime: typeof slot?.endTime === "string" ? slot.endTime : "15:00",
+            offHours: Boolean(slot?.offHours),
           }))
           .filter((slot) => {
             if (!getOneTimeSlotRange(slot) || doesOneTimeSlotConflict(normalizedEntry, slot)) return false;
@@ -698,8 +699,10 @@
   }
 
   const TIME_OPTION_STEP_MINUTES = 5;
+  const MIN_SLOT_DURATION_MINUTES = 5;
   const MINUTES_PER_DAY = 24 * 60;
   const MINUTES_PER_WEEK = MINUTES_PER_DAY * 7;
+  const END_OF_DAY_TIME_VALUE = "23:59";
   const timeSearchPlaceholder = "Search...";
 
   const timeOptions = Array.from({ length: MINUTES_PER_DAY / TIME_OPTION_STEP_MINUTES }, (_, index) => {
@@ -709,7 +712,12 @@
     const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     return { value, label: to12HourLabel(value) };
   });
+  const endTimeOptions = [
+    ...timeOptions,
+    { value: END_OF_DAY_TIME_VALUE, label: to12HourLabel(END_OF_DAY_TIME_VALUE) },
+  ];
   const timeOptionValues = timeOptions.map((option) => option.value);
+  const endTimeOptionValues = endTimeOptions.map((option) => option.value);
 
   function getOrderedTimesAfter(startTime = "") {
     const startIndex = timeOptionValues.indexOf(startTime);
@@ -742,12 +750,29 @@
     return startTime && endTime ? `${startTime}|${endTime}` : "";
   }
 
-  function getOneTimeRangeFromTimes(startTime = "", endTime = "") {
+  function getOneTimeRangeFromTimes(startTime = "", endTime = "", { inclusiveEndOfDay = !isGroupBooking.value } = {}) {
     const start = timeToMinutes(startTime);
     const rawEnd = timeToMinutes(endTime);
     if (start === null || rawEnd === null || rawEnd === start) return null;
-    const end = rawEnd < start ? rawEnd + MINUTES_PER_DAY : rawEnd;
+    const end = inclusiveEndOfDay && endTime === END_OF_DAY_TIME_VALUE && rawEnd >= start
+      ? MINUTES_PER_DAY
+      : (rawEnd < start ? rawEnd + MINUTES_PER_DAY : rawEnd);
     return { start, end };
+  }
+
+  function getSlotDurationMinutesFromTimes(startTime = "", endTime = "") {
+    const range = getOneTimeRangeFromTimes(startTime, endTime);
+    return range ? range.end - range.start : null;
+  }
+
+  function hasMinimumSlotDuration(startTime = "", endTime = "") {
+    const duration = getSlotDurationMinutesFromTimes(startTime, endTime);
+    return duration !== null && duration >= MIN_SLOT_DURATION_MINUTES;
+  }
+
+  function isValidSlotCandidate(existingRanges = [], startTime = "", endTime = "") {
+    return hasMinimumSlotDuration(startTime, endTime)
+      && !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime));
   }
 
   function getOneTimeSlotRange(slot = {}) {
@@ -795,6 +820,7 @@
   }
 
   function doesOneTimeSlotConflict(dateEntry = {}, candidateSlot = {}, excludeIndex = null) {
+    if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
     return oneTimeRangeOverlapsExisting(
       getExistingOneTimeRanges(dateEntry, excludeIndex),
       getOneTimeSlotRange(candidateSlot),
@@ -823,19 +849,19 @@
 
   function hasValidStartTimeForEndRanges(existingRanges = [], endTime = "") {
     return timeOptionValues.some((startTime) => (
-      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+      isValidSlotCandidate(existingRanges, startTime, endTime)
     ));
   }
 
   function getValidEndTimesForStartRanges(existingRanges = [], startTime = "") {
-    return timeOptionValues.filter((endTime) => (
-      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+    return endTimeOptionValues.filter((endTime) => (
+      isValidSlotCandidate(existingRanges, startTime, endTime)
     ));
   }
 
   function getValidStartTimesForEndRanges(existingRanges = [], endTime = "") {
     return timeOptionValues.filter((startTime) => (
-      !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime))
+      isValidSlotCandidate(existingRanges, startTime, endTime)
     ));
   }
 
@@ -879,19 +905,18 @@
   }
 
   function getNextAvailableSlotFromRanges(existingRanges = [], preferredStart = "00:00", preferredEnd = "03:00") {
-    const preferredRange = getOneTimeRangeFromTimes(preferredStart, preferredEnd);
-    if (!oneTimeRangeOverlapsExisting(existingRanges, preferredRange)) {
+    if (isValidSlotCandidate(existingRanges, preferredStart, preferredEnd)) {
       return makeSlot(preferredStart, preferredEnd);
     }
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = preferredStartMinutes !== null
+    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       ? (preferredEndMinutes > preferredStartMinutes
         ? preferredEndMinutes - preferredStartMinutes
         : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
-      : 180;
+      : 180);
     const searchStartTime = preferredEndMinutes !== null
       ? minutesToTime(preferredEndMinutes)
       : preferredStart;
@@ -918,11 +943,18 @@
   }
 
   function getRecurringDisabledReason(slot = {}, uniqueKey, uniqueFallback) {
-    return getSlotRange(slot)
-      ? translateWithFallback(uniqueKey, uniqueFallback)
-      : translateWithFallback(
+    if (!getSlotRange(slot)) {
+      return translateWithFallback(
         "booking_validation_time_slot_order",
         "End time must be after start time.",
+      );
+    }
+
+    return hasMinimumSlotDuration(slot?.startTime, slot?.endTime)
+      ? translateWithFallback(uniqueKey, uniqueFallback)
+      : translateWithFallback(
+        "booking_validation_time_slot_duration_min",
+        "Time slots must be at least 5 minutes.",
       );
   }
 
@@ -941,8 +973,11 @@
   }
 
   function getRecurringEndOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
-    return timeOptions.map((option) => {
-      const disabled = !hasValidStartTimeForEndRanges(existingRanges, option.value);
+    return endTimeOptions.map((option) => {
+      const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
+      const disabled = hasStartTime
+        ? !isValidSlotCandidate(existingRanges, slot.startTime, option.value)
+        : !hasValidStartTimeForEndRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -961,11 +996,11 @@
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = preferredStartMinutes !== null
+    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       && preferredEndMinutes > preferredStartMinutes
       ? preferredEndMinutes - preferredStartMinutes
-      : 180;
+      : 180);
     const searchStartTime = preferredEndMinutes !== null && preferredEndMinutes < MINUTES_PER_DAY
       ? minutesToTime(preferredEndMinutes)
       : preferredStart;
@@ -993,9 +1028,9 @@
 
   function getValidEndTimesForStart(dateEntry = {}, slotIndex = null, startTime = "") {
     const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
-    return timeOptionValues
+    return endTimeOptionValues
       .filter((endTime) => {
-        return !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime));
+        return isValidSlotCandidate(existingRanges, startTime, endTime);
       });
   }
 
@@ -1003,7 +1038,7 @@
     const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
     return timeOptionValues
       .filter((startTime) => {
-        return !oneTimeRangeOverlapsExisting(existingRanges, getOneTimeRangeFromTimes(startTime, endTime));
+        return isValidSlotCandidate(existingRanges, startTime, endTime);
       });
   }
 
@@ -1047,14 +1082,21 @@
   }
 
   function getOneTimeDisabledReason(slot = {}) {
-    return getOneTimeSlotRange(slot)
+    if (!getOneTimeSlotRange(slot)) {
+      return translateWithFallback(
+        "booking_validation_time_slot_order",
+        "End time must be after start time.",
+      );
+    }
+
+    return hasMinimumSlotDuration(slot?.startTime, slot?.endTime)
       ? translateWithFallback(
         "booking_validation_one_time_slot_unique",
         "Each custom time slot must be unique and cannot overlap another slot for that date.",
       )
       : translateWithFallback(
-        "booking_validation_time_slot_order",
-        "End time must be after start time.",
+        "booking_validation_time_slot_duration_min",
+        "Time slots must be at least 5 minutes.",
       );
   }
 
@@ -1074,8 +1116,11 @@
   function getOneTimeEndOptions(dateEntry = {}, slotIndex = null) {
     const slot = dateEntry?.slots?.[slotIndex] || {};
     const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
-    return timeOptions.map((option) => {
-      const disabled = !hasValidStartTimeForEndRanges(existingRanges, option.value);
+    return endTimeOptions.map((option) => {
+      const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
+      const disabled = hasStartTime
+        ? !isValidSlotCandidate(existingRanges, slot.startTime, option.value)
+        : !hasValidStartTimeForEndRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -1204,6 +1249,7 @@
   }
 
   function doesWeeklySlotConflict(dayIndex = -1, candidateSlot = {}, excludeSlotIndex = null) {
+    if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
     return weeklyRangeOverlapsExisting(
       getExistingWeeklyRanges(dayIndex, excludeSlotIndex),
       getWeeklySlotRange(dayIndex, candidateSlot),
@@ -1214,14 +1260,16 @@
   }
 
   function getValidWeeklyEndTimesForStart(dayIndex = -1, slotIndex = null, startTime = "") {
-    return timeOptionValues.filter((endTime) => (
-      !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
+    return endTimeOptionValues.filter((endTime) => (
+      hasMinimumSlotDuration(startTime, endTime)
+      && !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
     ));
   }
 
   function getValidWeeklyStartTimesForEnd(dayIndex = -1, slotIndex = null, endTime = "") {
     return timeOptionValues.filter((startTime) => (
-      !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
+      hasMinimumSlotDuration(startTime, endTime)
+      && !doesWeeklySlotConflict(dayIndex, { startTime, endTime }, slotIndex)
     ));
   }
 
@@ -1245,8 +1293,12 @@
 
   function getWeeklyEndOptions(dayIndex = -1, slotIndex = null) {
     const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
-    return timeOptions.map((option) => {
-      const disabled = getValidWeeklyStartTimesForEnd(dayIndex, slotIndex, option.value).length === 0;
+    return endTimeOptions.map((option) => {
+      const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
+      const disabled = hasStartTime
+        ? !hasMinimumSlotDuration(slot.startTime, option.value)
+          || doesWeeklySlotConflict(dayIndex, { startTime: slot.startTime, endTime: option.value }, slotIndex)
+        : getValidWeeklyStartTimesForEnd(dayIndex, slotIndex, option.value).length === 0;
       return {
         ...option,
         disabled,
@@ -1268,12 +1320,12 @@
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = preferredStartMinutes !== null
+    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       ? (preferredEndMinutes > preferredStartMinutes
         ? preferredEndMinutes - preferredStartMinutes
         : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
-      : 180;
+      : 180);
     const searchStartTime = preferredEndMinutes !== null ? minutesToTime(preferredEndMinutes) : preferredStart;
     const searchStartIndex = timeOptionValues.indexOf(searchStartTime);
     const preferredIndex = searchStartIndex >= 0
@@ -1357,6 +1409,7 @@
       slots: entry.slots.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,
+        offHours: Boolean(slot.offHours),
       })),
     }));
 
@@ -1724,6 +1777,14 @@
       );
     }
 
+    syncAvailabilityToForm();
+  }
+
+  function toggleOneTimeSlotOffHours(entryIndex, slotIndex) {
+    if (isScheduleLocked.value) return;
+    const slot = oneTimeDates.value?.[entryIndex]?.slots?.[slotIndex];
+    if (!slot) return;
+    slot.offHours = !slot.offHours;
     syncAvailabilityToForm();
   }
 
@@ -2483,7 +2544,7 @@
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <CustomDropdown
                         v-model="slot.endTime"
-                        :options="timeOptions"
+                        :options="endTimeOptions"
                         :option-factory="() => getWeeklyEndOptions(index, sIdx)"
                         :searchable="true"
                         :searchPlaceholder="timeSearchPlaceholder"
@@ -2580,7 +2641,7 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <CustomDropdown
                   v-model="slot.endTime"
-                  :options="timeOptions"
+                  :options="endTimeOptions"
                   :option-factory="() => getMonthlyEndOptions(slotIndex)"
                   :searchable="true"
                   :searchPlaceholder="timeSearchPlaceholder"
@@ -2704,7 +2765,7 @@
                   <div class="text-gray-500">-</div>
                   <CustomDropdown
                     v-model="slot.endTime"
-                    :options="timeOptions"
+                    :options="endTimeOptions"
                     :option-factory="() => getOneTimeEndOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
@@ -2723,6 +2784,25 @@
                     class="w-6 h-6 rounded-full text-gray-600 hover:bg-gray-100">
                     <img :src="plusIcon" alt="" />
                   </button>
+                  <span v-if="isScheduleLocked" class="flex items-center justify-center">
+                    <button
+                      type="button"
+                      class="w-6 h-6 rounded-full flex items-center justify-center opacity-40 cursor-not-allowed hover:bg-transparent"
+                      disabled
+                    >
+                      <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
+                    </button>
+                  </span>
+                  <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                    <button
+                      type="button"
+                      @click="toggleOneTimeSlotOffHours(entryIndex, slotIndex)"
+                      class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
+                      :title="t('booking_mark_off_hours')"
+                    >
+                      <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
+                    </button>
+                  </TooltipIcon>
                   </div>
                 </div>
               </div>

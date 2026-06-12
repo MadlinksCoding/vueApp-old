@@ -188,6 +188,29 @@ describe("chat product recommendations", () => {
     }));
 
     expect(normalizeProductRecommendationStatus({
+      product: { id: 32799, type: "product", title: "Subscriber merch" },
+      response: {
+        result: {
+          can_subscribe: true,
+          can_buy: true,
+          subscribe_data: {
+            price: 9,
+            action_text: "Upgrade",
+            subscription_id: 501,
+            item_line_number: 2,
+            subscribed_tier_id: 14322,
+          },
+        },
+      },
+    })).toEqual(expect.objectContaining({
+      type: "product",
+      canSubscribe: true,
+      canBuy: false,
+      cta: "subscribe",
+      ctaLabel: "Upgrade",
+    }));
+
+    expect(normalizeProductRecommendationStatus({
       product: { id: 32799, type: "product", title: "Merch" },
       response: { result: { can_buy: false, can_preorder: true, publish_date: "2999-01-01T00:00:00Z" } },
       now: Date.parse("2026-01-01T00:00:00Z"),
@@ -373,6 +396,42 @@ describe("chat product recommendations", () => {
     expect(chatWindowSource).toContain("refreshProductRecommendationMessages");
   });
 
+  it("keeps watch as the only visible chat product CTA once media access is available", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("if (cta === 'watch') return false");
+    expect(chatWindowSource).toContain("if (cta === 'watch') return true");
+    expect(chatWindowSource).toContain("return productCardCta(message) === 'watch' ? 'watch' : 'buy'");
+  });
+
+  it("uses merch status to render either subscribe or buy, not both", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("if (product.type === 'product') {");
+    expect(chatWindowSource).toContain("if (cta === 'subscribe') return true");
+    expect(chatWindowSource).toContain("if (cta === 'subscribe') return false");
+    expect(chatWindowSource).toContain("if (cta === 'buy') return true");
+  });
+
+  it("renders skeleton placeholders instead of chat product buttons while status is loading", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("function productCardButtonsLoading(message)");
+    expect(chatWindowSource).toContain("return productCardCta(message) === 'loading'");
+    expect(chatWindowSource).toContain('v-if="productCardButtonsLoading(message)"');
+    expect(chatWindowSource).toContain("animate-pulse");
+    expect(chatWindowSource).not.toContain("productCardButtonOpacityClass");
+  });
+
   it("adds explicit subscription fields to selected payloads", () => {
     const message = {
       chat_id: "chat#1",
@@ -449,6 +508,55 @@ describe("chat product recommendations", () => {
       item_line_number: null,
       subscribed_tier_id: null,
       product_id: null,
+      variation_id: 14322,
+    }));
+  });
+
+  it("adds merch subscription fields when a product card asks the fan to subscribe first", () => {
+    const message = {
+      chat_id: "chat#1",
+      message_id: "msg#merch-sub",
+      sender_id: "1407",
+      content_type: "product_recommendation",
+      content: {
+        product_recommendation: {
+          id: 32799,
+          type: "product",
+          title: "Subscriber merch",
+        },
+      },
+    };
+    const status = {
+      cta: "subscribe",
+      detail: {
+        id: 32799,
+        tier_id: 14322,
+        tier_product_id: 14320,
+        can_subscribe: true,
+        subscribe_data: {
+          price: 9,
+          action_text: "Upgrade",
+          subscription_id: 501,
+          item_line_number: 2,
+          subscribed_tier_id: 14322,
+        },
+      },
+    };
+
+    const payload = buildProductSelectedPayload({ message, status });
+
+    expect(payload).toEqual(expect.objectContaining({
+      action: "subscribe",
+      subscription_id: 501,
+      item_line_number: 2,
+      subscribed_tier_id: 14322,
+    }));
+    expect(payload.productDetail.subscription).toEqual(expect.objectContaining({
+      id: 501,
+      subscription_id: 501,
+      item_line_number: 2,
+      subscribed_tier_id: 14322,
+      product_id: 14320,
       variation_id: 14322,
     }));
   });

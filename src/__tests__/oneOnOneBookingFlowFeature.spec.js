@@ -151,18 +151,17 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue", 
   },
 }));
 
-vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return {
-    ...actual,
-    default: {
-      name: "BookingFlowStep4",
-      emits: ["close-popup"],
-      template: "<button data-test='step-4-close' @click=\"$emit('close-popup')\">Step 4</button>",
-    },
-  };
-});
+vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue", () => ({
+  __esModule: true,
+  __isTeleport: false,
+  __isKeepAlive: false,
+  name: "BookingFlowStep4",
+  default: {
+    name: "BookingFlowStep4",
+    emits: ["close-popup"],
+    template: "<button data-test='step-4-close' @click=\"$emit('close-popup')\">Step 4</button>",
+  },
+}));
 
 describe("OneOnOneBookingFlowFeature", () => {
   beforeEach(() => {

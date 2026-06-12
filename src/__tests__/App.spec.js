@@ -1,8 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import App from '@/App.vue'
 import { useAuthStore } from '@/stores/useAuthStore'
+
+vi.mock('@/components/ui/chat/ChatFloatingWidget.vue', () => ({
+  default: {
+    name: 'ChatFloatingWidget',
+    template: '<div data-test="chat-floating-widget" />',
+  },
+}))
 
 describe('App.vue', () => {
   let auth

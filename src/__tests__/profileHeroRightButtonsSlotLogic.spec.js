@@ -76,7 +76,7 @@ describe("profile hero booking card slot logic", () => {
     const logic = loadSlotLogic("2026-06-01T00:00:00+08:00");
 
     expect(logic.getNextCardSlot(reportedMonthlyEvent(), [], "1")).toBeNull();
-    expect(logic.formatNextSlot(null)).toBe("No upcoming free slot");
+    expect(logic.formatNextSlot(null)).toBe("");
   });
 
   it("shows the monthly anchor slot while the event is inside dateFrom/dateTo", () => {

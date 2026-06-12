@@ -1,9 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import App from '@/App.vue'
-import LogIn from '@/components/auth/log-in.vue'
+import LoginForm from '@/components/auth/forms/LoginForm.vue'
 import DashboardOverviewCreator from '@/components/dashboard/dashboardOverviewCreator.vue'
+
+vi.mock('@/components/ui/chat/ChatFloatingWidget.vue', () => ({
+  default: {
+    name: 'ChatFloatingWidget',
+    template: '<div data-test="chat-floating-widget" />'
+  }
+}))
 
 describe('Components', () => {
   let pinia
@@ -23,8 +30,8 @@ describe('Components', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('LogIn page renders', () => {
-    const wrapper = mount(LogIn, {
+  it('LoginForm renders', () => {
+    const wrapper = mount(LoginForm, {
       global: {
         plugins: [pinia]
       }
