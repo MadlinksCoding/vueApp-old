@@ -83,6 +83,7 @@ const props = defineProps({
   visibilitySettings: { type: Object, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
+  index:         { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])

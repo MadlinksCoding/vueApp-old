@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ChatListPanel from '@/components/ui/chat/ChatListPanel.vue'
 import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
@@ -100,11 +100,23 @@ function openChatWindow(chat) {
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
     (chat.chatId && c.chatId === chat.chatId) ||
-    (chat.targetUserId && c.targetUserId === chat.targetUserId) ||
+    (chat.chatId && chat.targetUserId && c.targetUserId === chat.targetUserId) ||
     (chat.groupType && c.groupType === chat.groupType)
   )
-  if (isDupe) return
-  openChats.value.push({ ...chat, uid: Date.now() })
+  if (isDupe) {
+    console.log("Chat window already open for this chat/user/group - skipping:", isDupe)
+    return
+  }
+
+  const newChat = { ...chat, uid: Date.now() + Math.random() }
+
+  const limit = hostWidth.value >= 768 ? 3 : 1
+  if (openChats.value.length >= limit) {
+    const toKeep = limit - 1
+    openChats.value = toKeep > 0 ? [...openChats.value.slice(-toKeep), newChat] : [newChat]
+  } else {
+    openChats.value = [...openChats.value, newChat]
+  }
 }
 
 function closeChatWindow(uid) {
@@ -209,6 +221,14 @@ const widgetEl  = ref(null)
 
 // Track host width for iframe embeds, while still allowing normal tailwind md classes
 const hostWidth = ref(window.innerWidth)
+
+watch(hostWidth, (newWidth) => {
+  const limit = newWidth >= 768 ? 3 : 1
+  if (openChats.value.length > limit) {
+    const toRemove = openChats.value.length - limit
+    openChats.value.splice(0, toRemove)
+  }
+})
 
 async function openChat({ chatId, userId, targetUserData, fanViewUid, fanViewUserId } = {}) {
   if (chatId) {
@@ -381,8 +401,9 @@ onMounted(async () => {
     <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[10000]"
          :class="[(hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '']">
       <ChatWindow
-        v-for="chat in openChats"
+        v-for="(chat, index) in openChats"
         :key="chat.uid"
+        :index="index"
         :chat-id="chat.chatId"
         :chat-name="chat.chatName"
         :avatar="chat.avatar"
