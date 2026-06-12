@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
 
@@ -8,6 +8,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowArrowUpRightIcon: "/arrow-up-right.webp",
   bookingFlowBackgroundImage: "/booking-background.webp",
   bookingFlowTokenIcon: "/token.webp",
+  bookingFlowUnionBlackIcon: "/union-black-gray.svg",
   bookingFlowUnionIcon: "/union.webp",
 }));
 
@@ -72,6 +73,7 @@ function groupEvent(dateIso, overrides = {}) {
       type: "group-event",
       eventType: "group-event",
       repeatRule: "doesNotRepeat",
+      dateFrom: dateIso,
       priceSetting: "fixedPricePerUser",
       basePriceTokens: 500,
       sessionDurationMinutes: 60,
@@ -128,6 +130,15 @@ async function mountStep1({
 }
 
 describe("BookingFlowStep1 group cards", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-11T23:00:00+06:00"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders fixed-price group card with limited spots and selects the upcoming slot", async () => {
     const dateIso = localDateOffset(1);
     const event = groupEvent(dateIso);

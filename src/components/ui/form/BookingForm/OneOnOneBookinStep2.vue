@@ -221,6 +221,8 @@ function normalizeRequiredProducts(value) {
       title: String(item.title || "").trim(),
       buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : null,
       subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : null,
+      canBuy: Boolean(item.canBuy),
+      canSubscribe: Boolean(item.canSubscribe),
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
     });

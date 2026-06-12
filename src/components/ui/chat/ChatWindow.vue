@@ -1683,18 +1683,28 @@ function isProductCardReadOnly(message) {
   return isCreatorAccount.value && message?.content_type === 'product_recommendation'
 }
 
-function productCardButtonDisabled(message) {
-  return productCardCtaDisabled(message) || isProductCardReadOnly(message) || isChatBlocked.value
+function isProductWatchAction(action = '') {
+  return productActionFromCta(action) === 'watch'
 }
 
-function productCardDisabledReason(message) {
+function productCardButtonDisabled(message, action = '') {
+  return productCardCtaDisabled(message)
+    || (isProductCardReadOnly(message) && !isProductWatchAction(action))
+    || isChatBlocked.value
+}
+
+function productCardButtonsLoading(message) {
+  return productCardCta(message) === 'loading'
+}
+
+function productCardDisabledReason(message, action = '') {
   if (isChatBlocked.value) return disabledInputMessage.value || 'This chat is unavailable.'
 
   const cta = productCardCta(message)
   if (cta === 'loading') return 'Checking your access. Please wait.'
   const statusError = toNonEmptyString(productCardStatus(message)?.error)
   if (statusError) return statusError
-  if (isProductCardReadOnly(message)) return 'Previewing the fan view. Actions are disabled for creators.'
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return 'Previewing the fan view. Actions are disabled for creators.'
   if (cta === 'subscribed') return 'You are already subscribed to this plan.'
   if (cta === 'unavailable') return 'This product is not available right now.'
 
@@ -1704,16 +1714,30 @@ function productCardDisabledReason(message) {
 function shouldShowProductSubscribeButton(message) {
   const product = productForMessage(message)
   if (!product) return false
+  const cta = productCardCta(message)
+  if (cta === 'loading') return false
+  if (cta === 'watch') return false
+  if (product.type === 'product') {
+    if (cta === 'subscribe') return true
+    if (cta === 'buy' || cta === 'unavailable' || cta === 'subscribed') return false
+  }
   return product.type === 'subscription' || Number(product.subscribePrice) > 0
 }
 
 function productSubscribePriceLabel(message) {
-  const price = Number(productForMessage(message)?.subscribePrice || 0)
+  const product = productForMessage(message)
+  const detail = productCardStatus(message)?.detail || {}
+  const price = product?.type === 'product' && productCardCta(message) === 'subscribe'
+    ? Number(detail?.subscribe_data?.price || 0)
+    : Number(product?.subscribePrice || 0)
   return price > 0 ? `$${price}` : 'Free'
 }
 
 function productSubscribeActionLabel(message) {
   const product = productForMessage(message)
+  if (product?.type === 'product' && productCardCta(message) === 'subscribe') {
+    return productCardCtaLabel(message) || 'Subscribe'
+  }
   if (product?.type !== 'subscription') return 'Subscribe'
   return productCardCtaLabel(message) || 'Subscribe'
 }
@@ -1721,6 +1745,14 @@ function productSubscribeActionLabel(message) {
 function shouldShowProductBuyButton(message) {
   const product = productForMessage(message)
   if (!product) return false
+  const cta = productCardCta(message)
+  if (cta === 'loading') return false
+  if (cta === 'watch') return true
+  if (product.type === 'product') {
+    if (cta === 'subscribe') return false
+    if (cta === 'buy') return true
+    if (cta === 'unavailable' || cta === 'subscribed') return false
+  }
   if (product.type === 'subscription' && Number(product.buyPrice || 0) <= 0) return false
   return Number(product.buyPrice || 0) > 0 || Number(product.subscribePrice || 0) <= 0
 }
@@ -1786,14 +1818,14 @@ async function onProductCtaClick(message, requestedAction = '') {
     await fetchProductRecommendationStatus(message, { force: true })
     return
   }
-  if (productCardButtonDisabled(message)) return
   const action = productActionFromCta(requestedAction) || productActionFromCta(cta)
+  if (productCardButtonDisabled(message, action)) return
   if (!action) return
   onProductCardClick(message, { action })
 }
 
 function onProductCardClick(message, { action = '' } = {}) {
-  if (isProductCardReadOnly(message)) return
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return
   if (!shouldFetchProductRecommendationStatus(message)) return
   const product = extractProductRecommendation(message)
   if (!product) return
@@ -2799,59 +2831,63 @@ onUnmounted(() => {
 
           <!-- Buttons -->
           <div class="flex items-center w-full gap-1">
+            <template v-if="productCardButtonsLoading(message)">
+              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+            </template>
             <span
-              v-if="shouldShowProductSubscribeButton(message)"
+              v-else-if="shouldShowProductSubscribeButton(message)"
               class="relative flex-1 group/product-cta"
-              :class="productCardButtonDisabled(message) ? 'cursor-not-allowed' : ''"
-              :tabindex="productCardButtonDisabled(message) ? 0 : -1"
-              :aria-label="productCardDisabledReason(message) || undefined"
+              :class="productCardButtonDisabled(message, 'subscribe') ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message, 'subscribe') ? 0 : -1"
+              :aria-label="productCardDisabledReason(message, 'subscribe') || undefined"
             >
               <button
                 type="button"
                 class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
-                :class="productCardButtonDisabled(message) ? 'pointer-events-none' : ''"
-                :disabled="productCardButtonDisabled(message)"
-                :aria-disabled="productCardButtonDisabled(message) ? 'true' : undefined"
-                :tabindex="productCardButtonDisabled(message) ? -1 : 0"
+                :class="productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : ''"
+                :disabled="productCardButtonDisabled(message, 'subscribe')"
+                :aria-disabled="productCardButtonDisabled(message, 'subscribe') ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message, 'subscribe') ? -1 : 0"
                 @click.stop="onProductCtaClick(message, 'subscribe')"
               >
                 <span>{{ productSubscribeActionLabel(message) }}</span>
                 <span>{{ productSubscribePriceLabel(message) }}</span>
               </button>
               <span
-                v-if="productCardButtonDisabled(message) && productCardDisabledReason(message)"
+                v-if="productCardButtonDisabled(message, 'subscribe') && productCardDisabledReason(message, 'subscribe')"
                 class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
               >
-                {{ productCardDisabledReason(message) }}
+                {{ productCardDisabledReason(message, 'subscribe') }}
               </span>
             </span>
             <span
               v-if="shouldShowProductBuyButton(message)"
               class="relative flex-1 group/product-cta"
-              :class="productCardButtonDisabled(message) ? 'cursor-not-allowed' : ''"
-              :tabindex="productCardButtonDisabled(message) ? 0 : -1"
-              :aria-label="productCardDisabledReason(message) || undefined"
+              :class="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 0 : -1"
+              :aria-label="productCardDisabledReason(message, productBuyButtonAction(message)) || undefined"
             >
               <button
                 type="button"
                 class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition"
                 :class="[
                   productBuyButtonThemeClass(message),
-                  productCardButtonDisabled(message) ? 'pointer-events-none' : '',
+                  productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'pointer-events-none' : '',
                 ]"
-                :disabled="productCardButtonDisabled(message)"
-                :aria-disabled="productCardButtonDisabled(message) ? 'true' : undefined"
-                :tabindex="productCardButtonDisabled(message) ? -1 : 0"
+                :disabled="productCardButtonDisabled(message, productBuyButtonAction(message))"
+                :aria-disabled="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? -1 : 0"
                 @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
               >
                 <span>{{ productBuyButtonLabel(message) }}</span>
                 <span v-if="shouldShowProductBuyButtonPrice(message)">${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
               </button>
               <span
-                v-if="productCardButtonDisabled(message) && productCardDisabledReason(message)"
+                v-if="productCardButtonDisabled(message, productBuyButtonAction(message)) && productCardDisabledReason(message, productBuyButtonAction(message))"
                 class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
               >
-                {{ productCardDisabledReason(message) }}
+                {{ productCardDisabledReason(message, productBuyButtonAction(message)) }}
               </span>
             </span>
           </div>

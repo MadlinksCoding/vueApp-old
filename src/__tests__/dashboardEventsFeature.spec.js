@@ -99,6 +99,18 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           eventCallType: "video",
           isAvailabilityBlock: false,
         },
+        monthPendingEvent: {
+          id: "month-pending",
+          eventId: "evt_month_pending",
+          title: "Month Pending Slot",
+          start: "2026-03-23T13:00:00",
+          end: "2026-03-23T13:30:00",
+          status: "pending",
+          type: "1on1-call",
+          eventCallType: "video",
+          color: "#E11D48",
+          isAvailabilityBlock: false,
+        },
         monthAvailabilityEvent: {
           id: "month-availability",
           eventId: "evt_month_availability",
@@ -124,6 +136,13 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <slot
           name="event"
           :event="monthBookedEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          name="event"
+          :event="monthPendingEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
           view="month"
@@ -654,12 +673,24 @@ describe("DashboardEventsFeature", () => {
 
     await flushPromises();
 
-    const bookingMarker = wrapper.get("[data-test='dashboard-month-booking-marker']");
+    const bookingMarkers = wrapper.findAll("[data-test='dashboard-month-booking-marker']");
+    const bookingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Booked Slot"));
+    const pendingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Pending Slot"));
+
+    expect(bookingMarker).toBeTruthy();
+    expect(pendingMarker).toBeTruthy();
+
     expect(bookingMarker.text()).toContain("Month Booked Slot");
     expect(bookingMarker.text()).toContain("12:00pm - 12:30pm");
     expect(bookingMarker.classes()).toContain("static");
     expect(bookingMarker.classes()).toContain("hidden");
     expect(bookingMarker.classes()).toContain("lg:block");
+    expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
+    expect(bookingMarker.element.style.color).toBe("rgb(255, 255, 255)");
+
+    expect(pendingMarker.element.style.backgroundColor).toBe("transparent");
+    expect(pendingMarker.element.style.borderTopColor).toBe("rgb(225, 29, 72)");
+    expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
 
     const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
     expect(availabilityMarker.classes()).toContain("static");

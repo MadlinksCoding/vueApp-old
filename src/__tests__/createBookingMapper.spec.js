@@ -3,6 +3,7 @@ import {
   buildBookingPaymentPreview,
   mapCreateBookingToRequest,
 } from "@/services/bookings/mappers/createBookingMapper.js";
+import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 
 describe("create booking mapper", () => {
   afterEach(() => {
@@ -117,6 +118,25 @@ describe("create booking mapper", () => {
 
     expect(mapped.durationMinutes).toBe(180);
     expect((new Date(mapped.endIso).getTime() - new Date(mapped.startIso).getTime()) / 60000).toBe(180);
+  });
+
+  it("maps the final private 11:55 PM start to a next-day midnight booking end", () => {
+    const state = baseBookingState();
+    state.bookingDetails.selectedTime = {
+      localDateIso: "2030-01-15",
+      startHm: "23:55",
+      endHm: "00:00",
+      value: "23:55",
+    };
+    state.bookingDetails.selectedDuration = { value: 5, price: 100 };
+
+    const mapped = mapCreateBookingToRequest(state);
+    const expectedStart = localDateTimeToHkt("2030-01-15", "23:55");
+    const expectedEnd = localDateTimeToHkt("2030-01-16", "00:00");
+
+    expect(mapped.startIso).toBe(expectedStart.iso);
+    expect(mapped.endIso).toBe(expectedEnd.iso);
+    expect(mapped.durationMinutes).toBe(5);
   });
 
   it("drops stale temporary hold ids for group booking payloads", () => {

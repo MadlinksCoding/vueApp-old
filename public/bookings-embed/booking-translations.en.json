@@ -269,6 +269,7 @@
   "booking_validation_required_products_required": "Please add at least one product for spending requirement.",
   "booking_validation_reschedule_fee_min": "Reschedule fee must be 0 or higher.",
   "booking_validation_subscription_tiers_required": "Please select at least one subscription tier.",
+  "booking_validation_time_slot_duration_min": "Time slots must be at least 5 minutes.",
   "booking_validation_time_slot_order": "End time must be after start time.",
   "booking_validation_weekly_slot_required": "Add at least one available slot before continuing.",
   "booking_validation_weekly_slot_unique": "Each weekly time slot must be unique and cannot overlap another weekly slot.",

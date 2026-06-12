@@ -71,6 +71,37 @@ describe("fetchSpendingRequirementItemsFlow", () => {
     expect(mapped.hasMore).toBe(false);
   });
 
+  it("preserves media and product access capabilities for spending requirement labels", async () => {
+    const { mapFetchSpendingRequirementItemsFromResponse } = await import("@/services/events/mappers/fetchSpendingRequirementItemsMapper.js");
+
+    const mappedMedia = mapFetchSpendingRequirementItemsFromResponse({
+      type: "media",
+      results: [
+        { id: 10, title: "Free tier video", is_subscription: true, subscription: { price: 0 } },
+        { id: 11, title: "P2V video", is_p2v: true, p2v: { price: 0 } },
+      ],
+    });
+
+    expect(mappedMedia.items).toEqual([
+      expect.objectContaining({ id: 10, type: "media", canSubscribe: true, canBuy: false }),
+      expect.objectContaining({ id: 11, type: "media", canSubscribe: false, canBuy: true }),
+    ]);
+
+    const mappedProducts = mapFetchSpendingRequirementItemsFromResponse({
+      type: "product",
+      results: [
+        { id: 20, title: "Subscriber merch", can_subscribe: "1", subscribe_data: { price: 0 } },
+      ],
+    });
+
+    expect(mappedProducts.items[0]).toEqual(expect.objectContaining({
+      id: 20,
+      type: "product",
+      canSubscribe: true,
+      canBuy: false,
+    }));
+  });
+
   it("does not call a second endpoint when subscription loading fails", async () => {
     const apiGet = vi.fn().mockRejectedValue({ code: "HTTP_404", message: "Not found" });
     const { fetchSpendingRequirementItemsFlow } = await import("@/services/events/flows/fetchSpendingRequirementItemsFlow.js");

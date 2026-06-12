@@ -256,6 +256,29 @@ function subscriptionPayloadFields(detail = {}) {
   };
 }
 
+function merchSubscriptionDetail(detail = {}, product = {}) {
+  if (!detail || typeof detail !== "object") return detail || null;
+
+  const subscribeData = detail.subscribe_data && typeof detail.subscribe_data === "object"
+    ? detail.subscribe_data
+    : {};
+  const tierId = subscribeData.variation_id ?? detail.tier_id ?? detail.variation_id ?? product.id;
+  const subscriptionId = subscribeData.subscription_id ?? subscribeData.id ?? detail.subscription_id;
+
+  return {
+    ...detail,
+    subscription: {
+      ...subscribeData,
+      id: toNullableValue(subscriptionId),
+      subscription_id: toNullableValue(subscriptionId),
+      item_line_number: toNullableValue(subscribeData.item_line_number ?? detail.item_line_number),
+      subscribed_tier_id: toNullableValue(subscribeData.subscribed_tier_id ?? detail.subscribed_tier_id),
+      product_id: toNullableValue(subscribeData.product_id ?? detail.tier_product_id ?? detail.product_id),
+      variation_id: toNullableValue(tierId),
+    },
+  };
+}
+
 function toPlainCloneable(value, seen = new WeakSet()) {
   if (value === null || value === undefined) return value ?? null;
   const type = typeof value;
@@ -321,13 +344,19 @@ export function normalizeProductRecommendationStatus({ product, response, now = 
 
   if (type === "product") {
     const canPreorder = isFutureDate(detail?.publish_date, now) && toBoolean(detail?.can_preorder);
-    const canBuy = toBoolean(detail?.can_buy) || canPreorder;
+    const subscribeData = detail?.subscribe_data && typeof detail.subscribe_data === "object"
+      ? detail.subscribe_data
+      : null;
+    const canSubscribe = toBoolean(detail?.can_subscribe) && Boolean(subscribeData);
+    const canBuy = !canSubscribe && (toBoolean(detail?.can_buy) || canPreorder);
     return {
       type,
       detail,
-      hasAccess: false,
+      hasAccess: toBoolean(detail?.is_subscribed),
       canBuy,
-      cta: canBuy ? "buy" : "unavailable",
+      canSubscribe,
+      cta: canSubscribe ? "subscribe" : canBuy ? "buy" : "unavailable",
+      ctaLabel: canSubscribe ? toString(subscribeData?.action_text) : "",
     };
   }
 
@@ -406,6 +435,8 @@ export function buildProductSelectedPayload({ message = {}, chatId = "", product
   let productDetail = toCloneSafeProductPayload(status?.detail || null);
   if (normalizedProduct.type === "subscription" && productDetail) {
     productDetail = subscriptionProductDetail(productDetail, normalizedProduct);
+  } else if (normalizedProduct.type === "product" && productDetail && productActionFromCta(action || status?.cta) === "subscribe") {
+    productDetail = merchSubscriptionDetail(productDetail, normalizedProduct);
   }
   const resolvedAction = productActionFromCta(action) || productActionFromCta(status?.cta) || "";
   const payload = {
@@ -418,7 +449,7 @@ export function buildProductSelectedPayload({ message = {}, chatId = "", product
     source: "chat_product_recommendation",
   };
 
-  if (normalizedProduct.type === "subscription") {
+  if (normalizedProduct.type === "subscription" || (normalizedProduct.type === "product" && resolvedAction === "subscribe")) {
     Object.assign(payload, subscriptionPayloadFields(productDetail || {}));
   }
 

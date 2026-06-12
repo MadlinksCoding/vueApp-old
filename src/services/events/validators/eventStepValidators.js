@@ -77,10 +77,13 @@ function hmToMinutes(value) {
   return (hours * 60) + minutes;
 }
 
-function slotDurationMinutes(slot = {}) {
+function slotDurationMinutes(slot = {}, { inclusiveEndOfDay = false } = {}) {
   const start = hmToMinutes(slot?.startTime);
-  const end = hmToMinutes(slot?.endTime);
-  if (start == null || end == null) return null;
+  const rawEnd = hmToMinutes(slot?.endTime);
+  if (start == null || rawEnd == null) return null;
+  const end = inclusiveEndOfDay && rawEnd === (24 * 60) - 1 && rawEnd >= start
+    ? 24 * 60
+    : rawEnd;
   if (end > start) return end - start;
   if (end < start) return (24 * 60) - start + end;
   return 0;
@@ -191,11 +194,13 @@ function hasOverlappingWeeklyAvailability(state = {}) {
   return false;
 }
 
-function hasAnyValidGroupSlots(slots) {
-  if (!Array.isArray(slots)) return false;
-  return slots.some((slot) => {
-    const duration = slotDurationMinutes(slot);
-    return duration != null && duration >= 5;
+function hasSlotUnderMinimumDuration(slots = [], options = {}) {
+  return (Array.isArray(slots) ? slots : []).some((slot) => {
+    const start = typeof slot?.startTime === "string" ? slot.startTime.trim() : "";
+    const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
+    if (!start || !end) return false;
+    const duration = slotDurationMinutes(slot, options);
+    return duration == null || duration < 5;
   });
 }
 
@@ -211,8 +216,13 @@ function hasAtLeastOneWeeklyGroupSlot(state = {}) {
   const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
   return weekly.some((day) => {
     if (day?.unavailable) return false;
-    return hasAnyValidGroupSlots(day?.slots);
+    return hasAnyValidSlots(day?.slots);
   });
+}
+
+function hasWeeklySlotUnderMinimumDuration(state = {}, options = {}) {
+  const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
+  return weekly.some((day) => !day?.unavailable && hasSlotUnderMinimumDuration(day?.slots, options));
 }
 
 function hasAtLeastOneOneTimeSlot(state = {}) {
@@ -222,17 +232,20 @@ function hasAtLeastOneOneTimeSlot(state = {}) {
 
 function hasAtLeastOneOneTimeGroupSlot(state = {}) {
   const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
-  return oneTime.some((entry) => hasAnyValidGroupSlots(entry?.slots));
+  return oneTime.some((entry) => hasAnyValidSlots(entry?.slots));
 }
 
-function hasOneTimeDateWithoutSlot(state = {}, isGroupEvent = false) {
+function hasOneTimeSlotUnderMinimumDuration(state = {}, options = {}) {
+  const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
+  return oneTime.some((entry) => hasSlotUnderMinimumDuration(entry?.slots, options));
+}
+
+function hasOneTimeDateWithoutSlot(state = {}) {
   const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
   return oneTime.some((entry) => {
     const hasDate = typeof entry?.date === "string" && entry.date.trim().length > 0;
     if (!hasDate) return false;
-    return isGroupEvent
-      ? !hasAnyValidGroupSlots(entry?.slots)
-      : !hasAnyValidSlots(entry?.slots);
+    return !hasAnyValidSlots(entry?.slots);
   });
 }
 
@@ -267,7 +280,12 @@ function hasAtLeastOneMonthlySlot(state = {}) {
 
 function hasAtLeastOneMonthlyGroupSlot(state = {}) {
   const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
-  return hasAnyValidGroupSlots(monthly);
+  return hasAnyValidSlots(monthly);
+}
+
+function hasMonthlySlotUnderMinimumDuration(state = {}, options = {}) {
+  const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
+  return hasSlotUnderMinimumDuration(monthly, options);
 }
 
 function asArray(value) {
@@ -483,12 +501,17 @@ export function step1Validator(state = {}) {
   }
 
   const repeatRule = state?.repeatRule || "weekly";
+  const durationOptions = { inclusiveEndOfDay: !isGroupEvent };
   if (repeatRule === "doesNotRepeat") {
     const hasSlot = isGroupEvent ? hasAtLeastOneOneTimeGroupSlot(state) : hasAtLeastOneOneTimeSlot(state);
     if (!hasSlot) {
       errors.push(asError("oneTimeAvailability", "booking_validation_one_time_slot_required", "Add at least one available slot before continuing."));
-    } else if (hasOneTimeDateWithoutSlot(state, isGroupEvent)) {
+    } else if (hasOneTimeDateWithoutSlot(state)) {
       errors.push(asError("oneTimeAvailability", "booking_validation_one_time_date_slot_required", "Each custom date must have at least one available time slot."));
+    }
+
+    if (hasOneTimeSlotUnderMinimumDuration(state, durationOptions)) {
+      errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
     }
 
     const { hasDuplicateDate, hasDuplicateSlot } = findOneTimeAvailabilityDuplicates(state);
@@ -506,13 +529,21 @@ export function step1Validator(state = {}) {
     if (!hasSlot) {
       errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_required", "Add at least one monthly slot before continuing."));
     }
+    if (hasMonthlySlotUnderMinimumDuration(state, durationOptions)) {
+      errors.push(asError("monthlyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
+    }
     if (hasOverlappingSlots(state?.monthlyAvailability)) {
       errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_unique", "Each monthly time slot must be unique and cannot overlap another monthly slot."));
     }
   } else if (!(isGroupEvent ? hasAtLeastOneWeeklyGroupSlot(state) : hasAtLeastOneWeeklySlot(state))) {
     errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_required", "Add at least one available slot before continuing."));
-  } else if (hasOverlappingWeeklyAvailability(state)) {
-    errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_unique", "Each weekly time slot must be unique and cannot overlap another weekly slot."));
+  } else {
+    if (hasWeeklySlotUnderMinimumDuration(state, durationOptions)) {
+      errors.push(asError("weeklyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
+    }
+    if (hasOverlappingWeeklyAvailability(state)) {
+      errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_unique", "Each weekly time slot must be unique and cannot overlap another weekly slot."));
+    }
   }
 
   return { errors };

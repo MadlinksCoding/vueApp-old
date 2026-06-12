@@ -355,6 +355,90 @@ describe("event step validators", () => {
     ]));
   });
 
+  it.each([
+    {
+      name: "custom one-time",
+      state: {
+        repeatRule: "doesNotRepeat",
+        oneTimeAvailability: [{
+          date: "2026-06-10",
+          slots: [{ startTime: "23:55", endTime: "23:59" }],
+        }],
+      },
+    },
+    {
+      name: "monthly",
+      state: {
+        repeatRule: "monthly",
+        dateFrom: "2026-06-10",
+        monthlyAvailability: [{ startTime: "23:55", endTime: "23:59" }],
+      },
+    },
+    {
+      name: "weekly",
+      state: {
+        repeatRule: "weekly",
+        weeklyAvailability: [{
+          key: "sun",
+          name: "Sun",
+          unavailable: false,
+          slots: [{ startTime: "23:55", endTime: "23:59" }],
+        }],
+      },
+    },
+  ])("accepts private $name slots ending at 11:59 PM as inclusive end-of-day windows", ({ state }) => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      ...state,
+    });
+
+    expect(result.errors.some((error) => error.translationKey === "booking_validation_time_slot_duration_min")).toBe(false);
+  });
+
+  it("accepts 11:50 PM to 11:59 PM as a valid end-of-day slot", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      repeatRule: "doesNotRepeat",
+      oneTimeAvailability: [{
+        date: "2026-06-10",
+        slots: [{ startTime: "23:50", endTime: "23:59" }],
+      }],
+    });
+
+    expect(result.errors.some((error) => error.translationKey === "booking_validation_time_slot_duration_min")).toBe(false);
+    expect(result.errors.some((error) => error.field === "oneTimeAvailability")).toBe(false);
+  });
+
+  it("reports group schedule slots shorter than five minutes as duration errors, not missing slots", () => {
+    const result = step1Validator({
+      eventType: "group-event",
+      eventTitle: "Group call",
+      priceSetting: "fixedPricePerUser",
+      basePrice: 100,
+      repeatRule: "weekly",
+      weeklyAvailability: [{
+        key: "sun",
+        name: "Sun",
+        unavailable: false,
+        slots: [{ startTime: "23:55", endTime: "23:59" }],
+      }],
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field: "weeklyAvailability",
+        translationKey: "booking_validation_time_slot_duration_min",
+      }),
+    ]));
+    expect(result.errors.some((error) => error.translationKey === "booking_validation_weekly_slot_required")).toBe(false);
+  });
+
   it("requires private step 1 conditional fields when their toggles are enabled", () => {
     const result = step1Validator({
       eventType: "1on1-call",

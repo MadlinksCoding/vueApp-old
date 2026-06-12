@@ -28,6 +28,12 @@ function diffDateIsoDays(fromDateIso, toDateIso) {
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function addDaysToDateIso(dateIso, days) {
+  const date = new Date(`${dateIso}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return dateIsoFromDate(date);
+}
+
 function makeCrossMidnightWeeklyEvent({
   localStartDateIso = "2030-01-15",
   localEndDateIso = "2030-01-16",
@@ -259,6 +265,69 @@ describe("booking slot utilities", () => {
       startHm: "01:55",
     }));
     expect(nextDaySlots.some((slot) => slot.startHm === "23:30")).toBe(false);
+  });
+
+  it("treats creator-local 11:59 PM as an inclusive private availability end-of-day boundary", () => {
+    const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Hong_Kong";
+    const localStartDateIso = "2030-01-15";
+    const localNextDateIso = addDaysToDateIso(localStartDateIso, 1);
+    const startHkt = localDateTimeToHkt(localStartDateIso, "00:00");
+    const endHkt = localDateTimeToHkt(localStartDateIso, "23:59");
+    const event = {
+      eventId,
+      creatorTimezone,
+      raw: {
+        creatorTimezone,
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 5,
+        slots: [{
+          date: startHkt.dateIso,
+          times: [{
+            startTime: startHkt.hm,
+            endTime: endHkt.hm,
+            endDayOffset: Math.max(0, diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
+          }],
+        }],
+      },
+    };
+
+    const startDaySlots = buildCandidateSlotsForEventDate(event, localStartDateIso, { eventId });
+    const nextDaySlots = buildCandidateSlotsForEventDate(event, localNextDateIso, { eventId });
+
+    expect(startDaySlots.at(-1)).toEqual(expect.objectContaining({
+      localDateIso: localStartDateIso,
+      startHm: "23:55",
+      endHm: "00:00",
+    }));
+    expect(nextDaySlots).toEqual([]);
+  });
+
+  it("does not expose a malformed end-of-day private window shorter than the session duration", () => {
+    const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Hong_Kong";
+    const localStartDateIso = "2030-01-15";
+    const startHkt = localDateTimeToHkt(localStartDateIso, "23:56");
+    const endHkt = localDateTimeToHkt(localStartDateIso, "23:59");
+    const event = {
+      eventId,
+      creatorTimezone,
+      raw: {
+        creatorTimezone,
+        repeatRule: "doesNotRepeat",
+        sessionDurationMinutes: 5,
+        slots: [{
+          date: startHkt.dateIso,
+          times: [{
+            startTime: startHkt.hm,
+            endTime: endHkt.hm,
+            endDayOffset: Math.max(0, diffDateIsoDays(startHkt.dateIso, endHkt.dateIso)),
+          }],
+        }],
+      },
+    };
+
+    const slots = buildCandidateSlotsForEventDate(event, localStartDateIso, { eventId });
+
+    expect(slots).toEqual([]);
   });
 
   it("applies bookings and post-booked buffers across the local midnight boundary", () => {
