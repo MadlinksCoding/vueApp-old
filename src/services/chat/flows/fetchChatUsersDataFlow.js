@@ -23,8 +23,7 @@ export async function fetchChatUsersDataFlow({ payload, context, api }) {
   try {
     const response = await api.get(
       `${baseUrl}/wp-json/api/chat/get-users-data?user_ids=${encodeURIComponent(userIdsParam)}`,
-      {},
-      { headers, signal: context.signal }
+      { headers, signal: context.signal, cache: "no-store" }
     );
     const status = getHttpStatus(response, 200);
 
