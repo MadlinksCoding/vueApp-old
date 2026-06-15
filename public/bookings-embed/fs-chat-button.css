@@ -1,5 +1,11 @@
 /* fs-chat-button.css */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+.popup-open #fs-chat-external-btn,
+.event-form-open #fs-chat-external-btn,
+.hide-chat-widget #fs-chat-external-btn {
+  display: none;
+}
+
 #fs-chat-external-btn {
   position: fixed;
   z-index: 9998;
