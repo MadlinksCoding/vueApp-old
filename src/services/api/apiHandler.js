@@ -187,7 +187,8 @@ class APIHandler {
         headers = {},
         backendJwtToken = "",
         signal,
-        timeoutMs
+        timeoutMs,
+        cache
     }) {
         const finalUrl = this.constructUrl(url, params);
         const upperMethod = method.toUpperCase();
@@ -227,7 +228,8 @@ class APIHandler {
                 method: upperMethod,
                 headers: this.buildHeaders(headers, body, { backendJwtToken }),
                 body,
-                signal: combinedSignal
+                signal: combinedSignal,
+                ...(cache ? { cache } : {})
             });
 
             const parsedBody = await this.parseResponseBody(response);
@@ -321,7 +323,8 @@ class APIHandler {
             targetContainer,
             headers,
             backendJwtToken,
-            signal
+            signal,
+            cache
         } = params;
 
         if (popupIdToOpen && this.options.uiAdapter?.preparePopup) {
@@ -335,7 +338,8 @@ class APIHandler {
             data: requestData,
             headers,
             backendJwtToken,
-            signal
+            signal,
+            cache
         });
 
         if (targetContainer && this.options.uiAdapter?.populateContainer) {
