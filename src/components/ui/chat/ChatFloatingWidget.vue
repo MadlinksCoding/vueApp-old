@@ -232,6 +232,10 @@ const unreadCount = computed(() => {
   return chatStore.userChats.reduce((sum, c) => sum + (c.unread_count || 0), 0)
 })
 
+watch(unreadCount, (newVal) => {
+  postToParent('FS_CHAT_UNREAD_COUNT', newVal)
+}, { immediate: true })
+
 function toggleList(e) {
   if (moved) {
     if (e) {
@@ -271,6 +275,11 @@ function openChatWindow(chat) {
 
 function closeChatWindow(uid) {
   openChats.value = openChats.value.filter((c) => c.uid !== uid)
+}
+
+function closeAll() {
+  isListOpen.value = false
+  openChats.value = []
 }
 
 function onChatCreated(uid, newChatId) {
@@ -444,6 +453,8 @@ async function openChat({ chatId, userId, targetUserData, fanViewUid, fanViewUse
     const username    = userData?.username || ''
     const avatar      = userData?.avatar || null
     onStartChat({ userId: uid, displayName, username, avatar, targetUserData: userData })
+  } else {
+    isListOpen.value = true
   }
 }
 
@@ -480,7 +491,7 @@ async function openGroupChat({
   })
 }
 
-defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -506,6 +517,9 @@ onMounted(async () => {
     openChats.value = []
   }
   window.addEventListener('fs-chat-close-all', handleCloseAllChats)
+
+  // Notify host that iframe is fully loaded and ready
+  postToParent('FS_CHAT_READY')
 
   onBeforeUnmount(() => {
     window.removeEventListener('message', handleHostResize)

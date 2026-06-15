@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-06-15 — Chat Embed Mobile & Rendering Fixes
+
+### Changed
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Resize Snapping Fix** — Extracted `snapToEdges` out of the drag initializer scope, allowing the widget to correctly recalculate and apply mobile vs desktop styling classes immediately upon `window.resize` events.
+- **Mobile Tap-to-Click Fixes** — Removed `e.preventDefault()` from the `touchstart` listener and added a 3px movement threshold inside `onMove`. This completely resolves a critical bug where simple taps on touch screens were being swallowed or falsely flagged as drags, preventing the chat from opening.
+- **Deferred Rendering** — Initialized the external chat button with `display: none` and added a message listener for `FS_CHAT_READY`. This guarantees the widget remains completely hidden until the underlying Vue application has finished mounting and loading its data.
+
+#### `public/bookings-embed/fs-chat-button.css`
+- **Stretch Prevention** — Enforced rigid sizing (`width` and `height`) rules to prevent a bizarre bug where the flex container would vertically stretch into a giant pill shape on some mobile layout environments.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Lifecycle Sync** — Dispatched `FS_CHAT_READY` via `postToParent` directly inside `onMounted` to orchestrate the deferred display of the host's external button.
+
 ## 2026-06-09 — Chat Embed Positioning & Mobile UI Polish
 
 ### Changed

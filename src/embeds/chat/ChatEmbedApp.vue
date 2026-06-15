@@ -73,7 +73,8 @@ const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
 const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
 const FS_CHAT_SET_FLOATING_BUTTON = 'FS_CHAT_SET_FLOATING_BUTTON'
 
-const hideFloatingButton = ref(params.get('hideFloatingButton') === '1')
+const alwaysHideFloatingButton = params.get('alwaysHideFloatingButton') === '1'
+const hideFloatingButton = ref(alwaysHideFloatingButton || params.get('hideFloatingButton') === '1')
 
 function onParentMessage(event) {
   if (event.source !== window.parent) return
@@ -90,16 +91,20 @@ function onParentMessage(event) {
   if( data.type.startsWith('FS_CHAT_') && data.type !== FS_CHAT_SET_FLOATING_BUTTON && data.type !== FS_CHAT_OPEN_CHAT) {
     let parentWindow = window.parent
     if ( parentWindow ) {
-      // check body classs 'hide-chat-widget' exists or not
-      if (parentWindow.document.body.classList.contains('hide-chat-widget')) {
-        hideFloatingButton.value = true
-      } else {
-        hideFloatingButton.value = false  
+      try {
+        if (parentWindow.document.body.classList.contains('hide-chat-widget')) {
+          if (!alwaysHideFloatingButton) hideFloatingButton.value = true
+        } else {
+          if (!alwaysHideFloatingButton) hideFloatingButton.value = false  
+        }
+      } catch (e) {
+        // Handle cross-origin errors if any
       }
     }
   }
 
   if (data.type === FS_CHAT_SET_FLOATING_BUTTON) {
+    if (alwaysHideFloatingButton) return // Ignore dynamic toggles if locked
     const payload = data.payload || {}
     hideFloatingButton.value = !!payload.hidden
     return
@@ -108,6 +113,10 @@ function onParentMessage(event) {
   if (data.type === FS_CHAT_OPEN_CHAT) {
     const payload = data.payload || {}
     widgetRef.value?.openChat(payload)
+  }
+
+  if (data.type === 'FS_CHAT_CLOSE') {
+    widgetRef.value?.closeAll?.()
   }
 
   if (data.type === FS_CHAT_OPEN_NEW_CHAT_POPUP) {
