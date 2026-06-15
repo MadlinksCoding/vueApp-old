@@ -674,7 +674,7 @@ onMounted(async () => {
               :class="[
                 hostWidth >= 768 ? '!w-6 !h-6' : '',
                 isTopAligned ? (isListOpen ? '' : 'rotate-180') : (isListOpen ? 'rotate-180' : ''
-              ])"
+              )]"
               fill="none" stroke="#667085" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
