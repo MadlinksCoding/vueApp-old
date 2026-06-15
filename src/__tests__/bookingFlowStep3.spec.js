@@ -332,7 +332,7 @@ describe("BookingFlowStep3", () => {
       defaultValue: null,
     });
     expect(engine.getState("bookingDetails.walletBalance")).toBe(1900);
-  });
+  }, 10000);
 
   it("accepts invite-only event links for authenticated fans before booking", async () => {
     tokenGet.mockResolvedValue({

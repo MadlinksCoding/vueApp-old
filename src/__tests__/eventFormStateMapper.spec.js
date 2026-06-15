@@ -90,4 +90,25 @@ describe("eventFormStateMapper", () => {
     expect(state.requiredProducts).toEqual([{ id: 9, title: "Product" }]);
     expect(state.weeklyAvailability.some((day) => !day.unavailable && day.slots.length > 0)).toBe(true);
   });
+
+  it("preserves off-hour flags for one-time edit slots", () => {
+    const state = mapEventToBookingFormState({
+      eventId: "evt_custom_off_hours",
+      type: "1on1-call",
+      title: "Custom Slot",
+      repeatRule: "doesNotRepeat",
+      dateFrom: "2026-06-11",
+      dateTo: "2026-06-11",
+      slots: [{
+        date: "2026-06-11",
+        times: [
+          { startTime: "12:00", endTime: "15:00", offHours: true },
+          { startTime: "15:00", endTime: "18:00", offHours: false },
+        ],
+      }],
+    });
+
+    expect(state.repeatRule).toBe("doesNotRepeat");
+    expect(state.oneTimeAvailability[0].slots.map((slot) => slot.offHours)).toEqual([true, false]);
+  });
 });

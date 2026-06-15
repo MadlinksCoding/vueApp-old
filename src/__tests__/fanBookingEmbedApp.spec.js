@@ -22,7 +22,9 @@ const announceReady = vi.fn();
 const notifyCreated = vi.fn();
 const notifyFailed = vi.fn();
 const removeBootstrapListener = vi.fn();
+const removeAuthUpdateListener = vi.fn();
 const installBootstrapListener = vi.fn(() => removeBootstrapListener);
+const installAuthUpdateListener = vi.fn(() => removeAuthUpdateListener);
 const isEmbeddedIframe = vi.fn(() => true);
 
 vi.mock("@/embeds/fanBooking/bootstrap.js", () => ({
@@ -33,6 +35,7 @@ vi.mock("@/embeds/fanBooking/bootstrap.js", () => ({
 
 vi.mock("@/embeds/fanBooking/bridge.js", () => ({
   announceOneOnOneBookingReady: announceReady,
+  installOneOnOneBookingAuthUpdateListener: installAuthUpdateListener,
   installOneOnOneBookingBootstrapListener: installBootstrapListener,
   isEmbeddedIframe,
   notifyOneOnOneBookingCreated: notifyCreated,

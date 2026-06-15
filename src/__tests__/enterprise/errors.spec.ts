@@ -386,6 +386,7 @@ describe('ErrorHandler', () => {
 
   beforeEach(() => {
     errorHandler = ErrorHandler.getInstance()
+    errorHandler.clearStatistics()
     mockRecoveryFunction = vi.fn()
   })
 
@@ -464,6 +465,7 @@ describe('Error Handling Integration Tests', () => {
 
   beforeEach(() => {
     errorHandler = ErrorHandler.getInstance()
+    errorHandler.clearStatistics()
   })
 
   it('should handle complex error scenarios', async () => {
@@ -495,7 +497,7 @@ describe('Error Handling Integration Tests', () => {
     const log = errorHandler.getStatistics().recentErrors
     expect(log).toHaveLength(1)
     expect(log[0].locale).toBe('en')
-    expect(log[0].operation).toBe('load')
+    expect(log[0].operation).toBe('load_translation')
   })
 
   it('should handle multiple concurrent errors', async () => {

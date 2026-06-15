@@ -7,7 +7,7 @@ function mountCalendar(props = {}) {
   return mount(MiniCalendar, {
     props: {
       monthDate: new Date("2026-05-01T00:00:00"),
-      selectedDate: new Date("2026-05-06T00:00:00"),
+      selectedDate: new Date("2030-05-06T00:00:00"),
       events: [],
       theme: {
         mini: {
@@ -39,7 +39,9 @@ describe("MiniCalendar", () => {
   it("disables dates outside minDate and maxDate and does not emit selection", async () => {
     const wrapper = mountCalendar({
       minDate: new Date("2026-05-06T00:00:00"),
-      maxDate: new Date("2026-05-21T00:00:00"),
+      monthDate: new Date("2030-05-01T00:00:00"),
+      minDate: new Date("2030-05-06T00:00:00"),
+      maxDate: new Date("2030-05-21T00:00:00"),
     });
 
     const before = findDayButton(wrapper, 5);

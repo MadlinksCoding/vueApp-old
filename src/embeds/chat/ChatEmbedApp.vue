@@ -1,6 +1,6 @@
 <template>
   <div class="w-screen h-screen overflow-hidden" style="background: transparent;">
-    <ChatFloatingWidget ref="widgetRef" :user-id="uid" />
+    <ChatFloatingWidget ref="widgetRef" :user-id="uid" :hide-floating-button="hideFloatingButton" />
   </div>
 </template>
 <style scoped>
@@ -71,6 +71,9 @@ const FS_CHAT_OPEN_GROUP_CHAT     = 'FS_CHAT_OPEN_GROUP_CHAT'
 const FS_CHAT_OPEN_NEW_CHAT_POPUP = 'FS_CHAT_OPEN_NEW_CHAT_POPUP'
 const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
 const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
+const FS_CHAT_SET_FLOATING_BUTTON = 'FS_CHAT_SET_FLOATING_BUTTON'
+
+const hideFloatingButton = ref(params.get('hideFloatingButton') === '1')
 
 function onParentMessage(event) {
   if (event.source !== window.parent) return
@@ -81,6 +84,24 @@ function onParentMessage(event) {
     if (typeof payload.jwtToken === 'string') {
       setBackendJwtToken(payload.jwtToken)
     }
+    return
+  }
+
+  if( data.type.startsWith('FS_CHAT_') && data.type !== FS_CHAT_SET_FLOATING_BUTTON && data.type !== FS_CHAT_OPEN_CHAT) {
+    let parentWindow = window.parent
+    if ( parentWindow ) {
+      // check body classs 'hide-chat-widget' exists or not
+      if (parentWindow.document.body.classList.contains('hide-chat-widget')) {
+        hideFloatingButton.value = true
+      } else {
+        hideFloatingButton.value = false  
+      }
+    }
+  }
+
+  if (data.type === FS_CHAT_SET_FLOATING_BUTTON) {
+    const payload = data.payload || {}
+    hideFloatingButton.value = !!payload.hidden
     return
   }
 

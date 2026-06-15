@@ -217,6 +217,7 @@ function normalizeOneTimeAvailability(event = {}) {
       slots: [{
         startTime: extractHm(event.eventTime?.start, "15:00"),
         endTime: extractHm(event.eventTime?.end, "16:00"),
+        offHours: false,
       }],
     }];
   }
@@ -230,6 +231,7 @@ function normalizeOneTimeAvailability(event = {}) {
       slots: times.map((time) => ({
         startTime: localTimeFromHktParts(entry?.date, time?.startTime, toHm(time?.startTime, "12:00")),
         endTime: localTimeFromHktParts(entry?.date, time?.endTime, toHm(time?.endTime, "15:00")),
+        offHours: bool(time?.offHours, false),
       })),
     };
   }).filter((entry) => entry.date);

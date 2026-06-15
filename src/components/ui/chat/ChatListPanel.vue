@@ -4,6 +4,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import EditIcon from '@/assets/images/icons/edit-05-pink.svg'
 import DropdownIcon from '@/assets/images/icons/chevron-down-gray.webp'
+import XcloseIcon from '@/assets/images/icons/x-close-grey-1.svg'
 import NewChatPopup from '@/components/ui/chat/NewChatPopup.vue'
 import PopupHandler from '@/components/ui/popup/PopupHandler.vue'
 import { resolveParentUserData } from '@/utils/resolveParentUserData.js'
@@ -74,7 +75,7 @@ const creatorId = computed(() => {
 
 const newChatPopupConfig = {
   actionType: 'popup',
-  position: props.hostWidth > 768 ? 'center' : { default: 'top-center', '>768': 'center' },
+  position: props.hostWidth >= 768 ? 'center' : { default: 'top-center', '>768': 'center' },
   customEffect: 'scale',
   speed: '250ms',
   effect: 'ease-in-out',
@@ -83,8 +84,8 @@ const newChatPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: props.hostWidth > 768 ? '42.188rem' : { default: '100%', '>768': '675px' },
-  height: props.hostWidth > 768 ? '37.5rem' : { default: '100vh', '>768': '90vh' },
+  width: props.hostWidth >= 768 ? '42.188rem' : { default: '100%', '>768': '675px' },
+  height: props.hostWidth >= 768 ? '37.5rem' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }
@@ -94,12 +95,31 @@ const chatStore = useChatStore()
 const blobShape = (index) =>
   index % 2 === 0
     ? 'rounded-[25%_75%_50%_51%/45%_65%_36%_55%]'
-    : 'rounded-[40%_60%_55%_45%/55%_45%_60%_40%]'
+    : 'rounded-[25%_62%_38%_60%/21%_39%_61%_75%]'
 
 const rowBg = (index) =>
   index % 2 !== 0
     ? 'background-color: rgba(255,255,255,0.9); backdrop-filter: blur(12px);'
     : ''
+
+function toNonEmptyString(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function getFanViewUid(user = {}) {
+  return toNonEmptyString(
+    user?.fanViewUid
+    || user?.UID
+    || user?.userUid
+    || user?.userUID
+    || user?.encodedUid
+    || user?.encodedUID
+    || user?.encryptedUid
+    || user?.encryptedUID
+    || user?.encrypted_uid
+  )
+}
 
 function getOtherParticipantId(chatId) {
   const participants = chatStore.chatParticipants[chatId] || []
@@ -140,6 +160,20 @@ function getChatAvatar(chat) {
     if (userData?.avatar) return userData.avatar
   }
   return chat.avatar || null
+}
+
+function getChatTargetPayload(chat) {
+  const otherId = getOtherParticipantId(chat.chat_id)
+  const targetUserData = otherId ? chatStore.chatUsersData[String(otherId)] : null
+  return {
+    chatId: chat.chat_id,
+    chatName: getChatDisplayName(chat),
+    avatar: getChatAvatar(chat),
+    targetUserId: otherId ? String(otherId) : null,
+    targetUserData,
+    fanViewUid: getFanViewUid(targetUserData),
+    fanViewUserId: otherId ? String(otherId) : null,
+  }
 }
 
 function getAllowedLastMessage(chat) {
@@ -214,9 +248,9 @@ function getLastMessageText(chat) {
 <template>
   <div
     v-bind="$attrs"
-    class="absolute w-[28.125rem] h-[40rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden shadow-[0_0_8px_0_rgba(0,0,0,0.25)]"
+    class="absolute w-[28.125rem] h-[35.5rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
     :class="[
-      hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full !h-[50vh] !mb-0 !mt-0 !rounded-t-[1.25rem] !rounded-b-none' : '',
+      hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full !h-[50vh] !mb-0 !mt-0 !rounded-t-[0.625rem] !rounded-b-none' : '',
       hostWidth >= 768 && isLeftAligned ? 'left-0' : '',
       hostWidth >= 768 && !isLeftAligned ? 'right-0' : '',
       hostWidth >= 768 && isTopAligned ? 'top-full mt-2' : '',
@@ -226,14 +260,15 @@ function getLastMessageText(chat) {
   >
 
     <!-- Header -->
-    <div class="px-2 py-1 flex justify-center items-center gap-2.5"
+    <div class="px-2 py-1 flex justify-center items-center gap-2.5 pb-2"
      :class="[hostWidth > 768 ? 'px-3 py-2' : '']">
       <div class="flex-1 text-gray-500 text-sm font-medium font-['Poppins'] leading-5" :class="[hostWidth > 768 ? '!text-base' : '']">Chat</div>
       <button v-if="isCreator" title="New chat" @click="showNewChatPopup = true">
         <img :src="EditIcon" alt="edit" class="w-5 h-5" :class="[hostWidth > 768 ? 'w-6 h-6' : '']" />
       </button>
       <button @click="emit('close')" title="Close">
-        <img :src="DropdownIcon" alt="close" class="w-5 h-5" :class="[hostWidth > 768 ? 'w-6 h-6' : '']" />
+        <img :src="DropdownIcon" alt="close" class="w-6 h-6" :class="[hostWidth > 768 ? 'inline-flex' : 'hidden']" />
+        <img :src="XcloseIcon" alt="close" class="w-5 h-5" :class="[hostWidth > 768 ? 'hidden' : 'inline-flex']" />
       </button>
     </div>
 
@@ -251,7 +286,7 @@ function getLastMessageText(chat) {
         :key="chat.chat_id"
         class="pl-3 pr-2 py-3 flex justify-start items-center gap-2 text-left w-full border-b border-gray-200/60 last:border-0 transition-colors"
         :style="rowBg(index)"
-        @click="emit('open-chat', { chatId: chat.chat_id, chatName: getChatDisplayName(chat), avatar: getChatAvatar(chat) })"
+        @click="emit('open-chat', getChatTargetPayload(chat))"
       >
         <!-- Avatar -->
         <div class="w-9 h-9 relative shrink-0">
@@ -284,7 +319,7 @@ function getLastMessageText(chat) {
         <div class="flex-1 flex flex-col justify-start items-start min-w-0">
           <div
             class="text-sm font-['Poppins'] leading-5 truncate w-full"
-            :class="chat.unread_count > 0 ? 'text-gray-900 font-medium' : 'text-gray-900 font-normal'"
+            :class="chat.unread_count > 0 ? 'text-[#0C111D] font-medium' : 'text-[#0C111D] font-normal'"
           >
             {{ getChatDisplayName(chat) }}
           </div>

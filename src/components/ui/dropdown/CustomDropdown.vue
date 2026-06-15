@@ -14,6 +14,7 @@ const props = defineProps({
   searchPlaceholder: { type: String, default: 'Search...' },
   disabled: { type: Boolean, default: false },
   layout: { type: String, default: 'list' }, // 'list' or 'grid'
+  optionFactory: { type: Function, default: null },
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
@@ -27,13 +28,26 @@ const updateWidth = () => {
   windowWidth.value = window.innerWidth;
 };
 
+const baseOptions = computed(() => (Array.isArray(props.options) ? props.options : []));
+
+const dropdownOptions = computed(() => {
+  if (isOpen.value && typeof props.optionFactory === 'function') {
+    const options = props.optionFactory();
+    return Array.isArray(options) ? options : [];
+  }
+
+  return baseOptions.value;
+});
+
+const selectedOption = computed(() => baseOptions.value.find((option) => option.value === props.modelValue));
+
 const filteredOptions = computed(() => {
-  if (!props.searchable) return props.options;
+  if (!props.searchable) return dropdownOptions.value;
 
   const query = searchQuery.value.trim().toLowerCase();
-  if (!query) return props.options;
+  if (!query) return dropdownOptions.value;
 
-  return props.options.filter((option) => {
+  return dropdownOptions.value.filter((option) => {
     const label = String(option?.label ?? '').toLowerCase();
     const value = String(option?.value ?? '').toLowerCase();
     return label.includes(query) || value.includes(query);
@@ -57,6 +71,7 @@ const toggleDropdown = () => {
 
 const selectOption = (option) => {
   if (props.disabled) return;
+  if (option?.disabled) return;
   if (props.multiple) {
     const currentValues = Array.isArray(props.modelValue) ? [...props.modelValue] : [];
     const index = currentValues.indexOf(option.value);
@@ -115,10 +130,10 @@ watch(isOpen, (val) => {
     >
       <slot name="trigger" :selected="modelValue" :isOpen="isOpen">
         <div class="flex items-center gap-2">
-          <img v-if="options.find(o => o.value === modelValue)?.image" :src="options.find(o => o.value === modelValue)?.image" class="w-5 h-5 object-contain" />
-          <component v-else-if="options.find(o => o.value === modelValue)?.icon" :is="options.find(o => o.value === modelValue)?.icon" class="w-5 h-5 text-slate-700" />
-          <div v-if="options.find(o => o.value === modelValue)?.color || options.find(o => o.value === modelValue)?.value?.toString().startsWith('#')" class="w-5 h-5 rounded-full" :style="{ backgroundColor: options.find(o => o.value === modelValue)?.color || options.find(o => o.value === modelValue)?.value }"></div>
-          <span class="text-slate-900 whitespace-nowrap">{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (options.find(o => o.value === modelValue)?.label || placeholder) }}</span>
+          <img v-if="selectedOption?.image" :src="selectedOption.image" class="w-5 h-5 object-contain" />
+          <component v-else-if="selectedOption?.icon" :is="selectedOption.icon" class="w-5 h-5 text-slate-700" />
+          <div v-if="selectedOption?.color || selectedOption?.value?.toString().startsWith('#')" class="w-5 h-5 rounded-full" :style="{ backgroundColor: selectedOption.color || selectedOption.value }"></div>
+          <span class="text-slate-900 whitespace-nowrap">{{ multiple && modelValue.length > 0 ? `${modelValue.length} items selected` : (selectedOption?.label || placeholder) }}</span>
         </div>
       </slot>
       
@@ -198,9 +213,14 @@ watch(isOpen, (val) => {
               v-for="option in filteredOptions" 
               :key="option.value"
               @click="selectOption(option)"
+              :aria-disabled="option.disabled ? 'true' : 'false'"
+              :title="option.disabled ? option.disabledReason || option.label : undefined"
               :class="[
-                'cursor-pointer transition-colors',
-                layout === 'grid' ? 'hover:scale-110 active:scale-95' : 'hover:bg-[#EAECF0]'
+                'transition-colors',
+                option.disabled
+                  ? 'cursor-not-allowed opacity-45'
+                  : 'cursor-pointer',
+                !option.disabled && (layout === 'grid' ? 'hover:scale-110 active:scale-95' : 'hover:bg-[#EAECF0]')
               ]"
             >
               <slot name="option" :option="option" :isSelected="multiple ? (Array.isArray(modelValue) ? modelValue.includes(option.value) : false) : modelValue === option.value">

@@ -1,13 +1,13 @@
 <template>
     <div
-        class="w-full md:w-[42.188rem] h-full overflow-y-auto flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
+        class="w-full md:w-[42.188rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
 
         <!-- Header -->
         <div class="self-stretch min-h-14 px-2 inline-flex justify-between items-center">
             <div class="justify-start text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">New Message</div>
             <button @click="emit('close')" class="relative">
-                <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="x-close"
-                    class="w-3 h-3 filter brightness-0 cursor-pointer" />
+                <img :src="XcloseIcon" alt="x-close"
+                    class="w-5 h-5 filter brightness-0 cursor-pointer" />
             </button>
         </div>
 
@@ -38,9 +38,9 @@
 
         <!-- Search results view -->
         <div v-else-if="searchQuery.length > 0"
-            class="flex flex-col bg-[rgba(242,244,247,0.7)] flex-1 p-2 md:p-4 gap-2">
+            class="flex flex-col overflow-y-auto bg-[rgba(242,244,247,0.7)] flex-1 p-2 md:p-4 gap-2">
 
-            <div v-if="searchLoading" class="flex items-center justify-center py-8">
+            <div v-if="searchLoading" class="flex items-center justify-center py-8 flex-1">
                 <div class="text-gray-400 text-sm font-['Poppins']">Searching...</div>
             </div>
 
@@ -70,9 +70,9 @@
                 </div>
             </template>
 
-            <div v-else class="flex flex-col items-center justify-center py-12 gap-4">
-                <img src="https://i.ibb.co/G4Y3BB6c/Icon.png" alt="no result" class="w-20 h-20 opacity-30" />
-                <div class="text-gray-500 text-sm font-['Poppins'] text-center">No result under the keyword '{{
+            <div v-else class="flex flex-col items-center justify-center py-12 gap-4 flex-1">
+                <img :src="SearchResultIcon" alt="no result" class="w-[9.375rem] h-[9.375rem]" />
+                <div class="text-gray-500 text-base font-normal font-['Poppins'] text-center break-all">No result under the keyword '{{
                     searchQuery }}'.
                 </div>
             </div>
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Default sections view -->
-        <div v-else class="flex flex-col bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
+        <div v-else class="flex flex-col overflow-y-auto bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
             <div class="flex p-2 md:p-4 flex-col gap-6">
 
                 <!-- Missed Call Users -->
@@ -98,15 +98,15 @@
                                 class="flex-1 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-center gap-2">
                                 <div class="self-stretch flex md:flex-col justify-center items-center gap-2 md:gap-1">
                                     <div class="inline-flex justify-start items-center">
-                                        <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
+                                        <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
                                             <img :src="user.avatar || SmilingPeachIcon" alt=""
-                                                class="w-[3.625rem] h-[3.625rem] object-cover" />
+                                                class="w-12 h-12 object-cover" />
                                         </div>
                                     </div>
                                     <div class="md:self-stretch flex flex-col justify-start items-center gap-1">
                                         <div class="self-stretch flex flex-col justify-center items-center gap-1">
                                             <div
-                                                class="justify-center text-slate-700 text-base md:text-lg font-medium md:font-semibold font-['Poppins'] md:leading-5 line-clamp-2">
+                                                class="justify-center text-[#0C111D] text-base md:text-lg font-medium md:font-semibold font-['Poppins'] md:leading-5 line-clamp-2">
                                                 {{ user.display_name }}</div>
                                         </div>
                                         <div
@@ -115,9 +115,9 @@
                                     </div>
                                 </div>
                                 <button @click="onMessage(user)"
-                                    class="w-36 min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 inline-flex justify-center items-center gap-2 cursor-pointer">
+                                    class=" min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-[#F06] inline-flex justify-center items-center gap-2 cursor-pointer md:self-stretch">
                                     <img :src="MessageCircleIconPink" alt="" class="w-4 h-4" />
-                                    <span class="text-center text-rose-600 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</span>
+                                    <span class="text-center text-[#F06] text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</span>
                                 </button>
                             </div>
                         </div>
@@ -155,21 +155,21 @@
                                         </div>
                                         <div class="self-stretch flex flex-col justify-start items-center gap-1">
                                             <div
-                                                class="self-stretch flex flex-col justify-center items-center gap-1">
+                                                class="self-stretch flex flex-col justify-center items-start gap-1">
                                                 <div
-                                                    class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center justify-center gap-1 md:gap-0">
-                                                    <span class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px]">{{ tier.tier_title }}</span>
+                                                    class="text-slate-700 text-lg font-semibold font-['Poppins'] leading-7 line-clamp-2 flex items-center justify-center gap-1 md:flex md:self-stretch md:gap-0">
+                                                    <span class="text-gray-700 text-lg font-semibold font-['Poppins'] leading-7 truncate max-w-[100px]">{{ tier.tier_title }}</span>
                                                     <span class="text-xs font-medium text-[#344054] md:hidden">({{
                                                         tier.subscriber_count }})</span>
                                                 </div>
                                                 <div
-                                                    class="text-slate-700 text-xs font-medium font-['Poppins'] leading-4 hidden md:flex">
+                                                    class="text-slate-700 text-xs font-medium font-['Poppins'] leading-4 hidden justify-center self-stretch md:flex md:self-stretch">
                                                     {{ tier.subscriber_count }} subscriber</div>
                                             </div>
                                             <div
-                                                class="self-stretch text-center text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4 min-h-[32px] flex items-center justify-center">
+                                                class="self-stretch text-gray-500 text-[10px] font-medium font-['Poppins'] leading-4 justify-center self-stretch md:flex">
                                                 <template v-if="tier.subscriber_count > 0">
-                                                    <span class="line-clamp-2">{{ tier.subscriber_preview.join(', ') }}</span>
+                                                    <span class="line-clamp-2 md:text-center">{{ tier.subscriber_preview.join(', ') }}</span>
                                                 </template>
                                                 <template v-else>
                                                     <span class="text-gray-400 italic font-normal">No active subscribers</span>
@@ -179,13 +179,13 @@
                                     </div>
                                     <button v-if="tier.subscriber_count === 0"
                                         disabled
-                                        class="lg:min-h-[2.25rem] px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed opacity-60 leading-tight">
-                                        <img :src="MessageCircleIcon" alt="" class="w-4 h-4 opacity-30" />
+                                        class="px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed leading-tight">
+                                        <img :src="MessageCircleIcon" alt="" class="w-4 h-4 filter invert opacity-50" />
                                         <span class="text-center text-gray-400 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message All</span>
                                     </button>
                                     <button v-else @click="messageAll(tier.tier_title, 'subscribers-' + tier.tier_id, tier.tier_id, tier.cover_image)"
                                         :disabled="!!loadingGroupType"
-                                        class="lg:min-h-[2.25rem] px-2 py-1 bg-[#F06] inline-flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs transition-opacity hover:opacity-90 leading-tight">
+                                        class="px-2 py-1 bg-[#F06] inline-flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs transition-opacity hover:opacity-90 leading-tight">
                                         <svg v-if="loadingGroupType === 'subscribers-' + tier.tier_id" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -226,10 +226,10 @@
                         <div v-for="user in topFollowersList" :key="user.id"
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
-                                <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
+                                <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
                                     <img :src="user.avatar || SmilingPeachIcon"
                                         onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
-                                        class="w-[3.625rem] h-[3.625rem] object-cover" />
+                                        class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
                                     <div
@@ -282,9 +282,9 @@
                         <div v-for="user in unsubscribedList" :key="user.id"
                             class="self-stretch px-1 inline-flex justify-between items-center">
                             <div class="flex justify-start items-center gap-2">
-                                <div class="relative overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
+                                <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
                                     <img :src="user.avatar || SmilingPeachIcon"
-                                        class="w-[3.625rem] h-[3.625rem] object-cover" />
+                                        class="w-12 h-12 object-cover" />
                                 </div>
                                 <div class="inline-flex flex-col justify-center items-start gap-1">
                                     <div
@@ -322,6 +322,8 @@ import { ref, computed, watch } from 'vue'
 import SmilingPeachIcon from '@/assets/images/icons/smiling-peach.png'
 import MessageCircleIcon from '@/assets/images/icons/message-circle.svg'
 import MessageCircleIconPink from '@/assets/images/icons/message-dots-circle-pink.svg'
+import XcloseIcon from '@/assets/images/icons/x-close-grey-1.svg'
+import SearchResultIcon from '@/assets/images/icons/search-result.svg'
 import { fetchNewMessageUsersFlow } from '@/services/chat/flows/fetchNewMessageUsersFlow.js'
 import { fetchGroupUserIdsFlow } from '@/services/chat/flows/fetchGroupUserIdsFlow.js'
 
@@ -417,6 +419,18 @@ function clearSearch() {
     searchResults.value = []
 }
 
+function getFanViewUid(user = {}) {
+    return user?.UID
+        || user?.userUid
+        || user?.userUID
+        || user?.encodedUid
+        || user?.encodedUID
+        || user?.encryptedUid
+        || user?.encryptedUID
+        || user?.encrypted_uid
+        || ''
+}
+
 async function loadMoreTopFollowers() {
     if (loadingMoreTop.value) return
     loadingMoreTop.value = true
@@ -467,11 +481,15 @@ async function loadMoreUnsubscribed() {
 
 function onMessage(user) {
     console.log('Starting chat with user:', user)
+    const fanViewUid = getFanViewUid(user)
     emit('start-chat', {
         userId: user.id,
         displayName: user.display_name || user.username,
         username: user.username || '',
         avatar: user.avatar || null,
+        targetUserData: user,
+        fanViewUid,
+        fanViewUserId: user.id,
     })
 }
 

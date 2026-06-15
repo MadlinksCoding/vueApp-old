@@ -14,6 +14,7 @@ import {
   resolveChatFanUid,
   toCloneSafeProductPayload,
 } from "@/utils/chatProductRecommendation.js";
+import { formatMediaDuration, getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -50,6 +51,34 @@ describe("chat product recommendations", () => {
       posterUrl: "https://cdn.example.com/thumb.jpg",
     });
     expect(productPriceLabel(product)).toBe("Subscribe $1 or Buy $25");
+  });
+
+  it("keeps media badge metadata for chat product cards", () => {
+    const product = normalizeProductForChat({
+      id: 2940,
+      type: "media",
+      title: "Gallery",
+      raw: {
+        type: "image-gallery",
+        gallery_count: 6,
+      },
+    });
+
+    expect(product).toEqual(expect.objectContaining({
+      media_type: "image-gallery",
+      gallery_count: 6,
+    }));
+    expect(getSpendingRequirementMediaBadge(product)).toEqual({
+      kind: "image-gallery",
+      icon: "gallery",
+      label: "6",
+    });
+  });
+
+  it("formats media durations as HH:MM:SS", () => {
+    expect(formatMediaDuration(75)).toBe("00:01:15");
+    expect(formatMediaDuration("1:02")).toBe("00:01:02");
+    expect(formatMediaDuration("1:02:03")).toBe("01:02:03");
   });
 
   it("extracts stored product_recommendation messages with title fallback", () => {
@@ -156,6 +185,29 @@ describe("chat product recommendations", () => {
       type: "product",
       canBuy: true,
       cta: "buy",
+    }));
+
+    expect(normalizeProductRecommendationStatus({
+      product: { id: 32799, type: "product", title: "Subscriber merch" },
+      response: {
+        result: {
+          can_subscribe: true,
+          can_buy: true,
+          subscribe_data: {
+            price: 9,
+            action_text: "Upgrade",
+            subscription_id: 501,
+            item_line_number: 2,
+            subscribed_tier_id: 14322,
+          },
+        },
+      },
+    })).toEqual(expect.objectContaining({
+      type: "product",
+      canSubscribe: true,
+      canBuy: false,
+      cta: "subscribe",
+      ctaLabel: "Upgrade",
     }));
 
     expect(normalizeProductRecommendationStatus({
@@ -344,6 +396,42 @@ describe("chat product recommendations", () => {
     expect(chatWindowSource).toContain("refreshProductRecommendationMessages");
   });
 
+  it("keeps watch as the only visible chat product CTA once media access is available", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("if (cta === 'watch') return false");
+    expect(chatWindowSource).toContain("if (cta === 'watch') return true");
+    expect(chatWindowSource).toContain("return productCardCta(message) === 'watch' ? 'watch' : 'buy'");
+  });
+
+  it("uses merch status to render either subscribe or buy, not both", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("if (product.type === 'product') {");
+    expect(chatWindowSource).toContain("if (cta === 'subscribe') return true");
+    expect(chatWindowSource).toContain("if (cta === 'subscribe') return false");
+    expect(chatWindowSource).toContain("if (cta === 'buy') return true");
+  });
+
+  it("renders skeleton placeholders instead of chat product buttons while status is loading", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("function productCardButtonsLoading(message)");
+    expect(chatWindowSource).toContain("return productCardCta(message) === 'loading'");
+    expect(chatWindowSource).toContain('v-if="productCardButtonsLoading(message)"');
+    expect(chatWindowSource).toContain("animate-pulse");
+    expect(chatWindowSource).not.toContain("productCardButtonOpacityClass");
+  });
+
   it("adds explicit subscription fields to selected payloads", () => {
     const message = {
       chat_id: "chat#1",
@@ -361,6 +449,8 @@ describe("chat product recommendations", () => {
     const status = {
       cta: "subscribe",
       detail: {
+        id: 14322,
+        product_id: 14320,
         stats: { is_subscribed: false },
         subscription_id: 501,
         item_line_number: 2,
@@ -373,7 +463,17 @@ describe("chat product recommendations", () => {
       subscription_id: 501,
       item_line_number: 2,
       subscribed_tier_id: 14322,
-      productDetail: status.detail,
+    }));
+    expect(buildProductSelectedPayload({ message, status }).productDetail).toEqual(expect.objectContaining({
+      ...status.detail,
+      subscription: {
+        id: 501,
+        subscription_id: 501,
+        item_line_number: 2,
+        subscribed_tier_id: 14322,
+        product_id: 14320,
+        variation_id: 14322,
+      },
     }));
   });
 
@@ -392,13 +492,72 @@ describe("chat product recommendations", () => {
       },
     };
 
-    expect(buildProductSelectedPayload({
+    const payload = buildProductSelectedPayload({
       message,
       status: { cta: "subscribe", detail: { stats: { is_subscribed: false } } },
-    })).toEqual(expect.objectContaining({
+    });
+
+    expect(payload).toEqual(expect.objectContaining({
       subscription_id: null,
       item_line_number: null,
       subscribed_tier_id: null,
+    }));
+    expect(payload.productDetail.subscription).toEqual(expect.objectContaining({
+      id: null,
+      subscription_id: null,
+      item_line_number: null,
+      subscribed_tier_id: null,
+      product_id: null,
+      variation_id: 14322,
+    }));
+  });
+
+  it("adds merch subscription fields when a product card asks the fan to subscribe first", () => {
+    const message = {
+      chat_id: "chat#1",
+      message_id: "msg#merch-sub",
+      sender_id: "1407",
+      content_type: "product_recommendation",
+      content: {
+        product_recommendation: {
+          id: 32799,
+          type: "product",
+          title: "Subscriber merch",
+        },
+      },
+    };
+    const status = {
+      cta: "subscribe",
+      detail: {
+        id: 32799,
+        tier_id: 14322,
+        tier_product_id: 14320,
+        can_subscribe: true,
+        subscribe_data: {
+          price: 9,
+          action_text: "Upgrade",
+          subscription_id: 501,
+          item_line_number: 2,
+          subscribed_tier_id: 14322,
+        },
+      },
+    };
+
+    const payload = buildProductSelectedPayload({ message, status });
+
+    expect(payload).toEqual(expect.objectContaining({
+      action: "subscribe",
+      subscription_id: 501,
+      item_line_number: 2,
+      subscribed_tier_id: 14322,
+    }));
+    expect(payload.productDetail.subscription).toEqual(expect.objectContaining({
+      id: 501,
+      subscription_id: 501,
+      item_line_number: 2,
+      subscribed_tier_id: 14322,
+      product_id: 14320,
+      variation_id: 14322,
     }));
   });
 

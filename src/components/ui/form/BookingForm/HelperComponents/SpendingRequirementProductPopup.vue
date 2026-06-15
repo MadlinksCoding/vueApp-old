@@ -68,6 +68,8 @@ function normalizeSelectedItems(items = []) {
       title: String(item.title || "").trim(),
       buyPrice: Number.isFinite(Number(item.buyPrice)) ? Number(item.buyPrice) : 0,
       subscribePrice: Number.isFinite(Number(item.subscribePrice)) ? Number(item.subscribePrice) : 0,
+      canBuy: toBooleanFlag(item.canBuy),
+      canSubscribe: toBooleanFlag(item.canSubscribe),
       thumbnailUrl: String(item.thumbnailUrl || "").trim(),
       tags: Array.isArray(item.tags) ? item.tags.filter(Boolean).map(String) : [],
     };
@@ -115,6 +117,11 @@ const filteredItems = computed(() => {
 const activeTabLoading = computed(() => Boolean(props.loadingByType?.[activeTab.value]));
 const activeTabHasMore = computed(() => Boolean(props.hasMoreByType?.[activeTab.value]));
 const activeTabError = computed(() => String(props.errorByType?.[activeTab.value] || ""));
+const searchPlaceholder = computed(() => {
+  if (activeTab.value === "subscription") return "Search subscriptions by name...";
+  if (activeTab.value === "product") return "Search products by name and tags...";
+  return "Search media by name and tags...";
+});
 
 function handleListScroll(event) {
   if (activeTabLoading.value || !activeTabHasMore.value || String(searchQuery.value || "").trim()) return;
@@ -136,6 +143,70 @@ function isSelected(item) {
 
 function mediaBadgeForItem(item) {
   return getSpendingRequirementMediaBadge(item);
+}
+
+function toBooleanFlag(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return ["1", "true", "yes", "y", "on"].includes(normalized);
+  }
+  return false;
+}
+
+function hasPositiveNumber(...values) {
+  return values.some((value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  });
+}
+
+function canBuyItem(item = {}) {
+  const raw = item?.raw && typeof item.raw === "object" ? item.raw : {};
+  return hasPositiveNumber(item.buyPrice, raw.price, raw.p2v?.price)
+    || toBooleanFlag(item.canBuy)
+    || toBooleanFlag(item.can_buy)
+    || toBooleanFlag(raw.canBuy)
+    || toBooleanFlag(raw.can_buy)
+    || toBooleanFlag(item.is_p2v)
+    || toBooleanFlag(raw.is_p2v);
+}
+
+function canSubscribeItem(item = {}) {
+  const raw = item?.raw && typeof item.raw === "object" ? item.raw : {};
+  return hasPositiveNumber(item.subscribePrice, raw.subscription?.price, raw.subscribe_data?.price)
+    || toBooleanFlag(item.canSubscribe)
+    || toBooleanFlag(item.can_subscribe)
+    || toBooleanFlag(raw.canSubscribe)
+    || toBooleanFlag(raw.can_subscribe)
+    || toBooleanFlag(item.is_subscription)
+    || toBooleanFlag(raw.is_subscription);
+}
+
+function actionLabelForItem(item = {}) {
+  const type = String(item?.type || "").trim().toLowerCase();
+  if (type === "subscription") return "Subscribe";
+  if (type === "product") return "";
+
+  const canBuy = canBuyItem(item);
+  const canSubscribe = canSubscribeItem(item);
+
+  if (type === "media") {
+    if (canBuy && canSubscribe) return "Subscribe or Buy";
+    if (canSubscribe) return "Subscribe Only";
+    if (canBuy) return "Buy Now";
+    return "View";
+  }
+
+  if (canBuy && canSubscribe) return "Subscribe or Buy";
+  if (canBuy) return "Buy";
+  if (canSubscribe) return "Subscribe";
+  return "View";
+}
+
+function shouldShowActionLabelForItem(item = {}) {
+  return Boolean(actionLabelForItem(item));
 }
 
 function toggleSelect(item) {
@@ -201,13 +272,13 @@ function handleConfirm() {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search by name and tags..."
+              :placeholder="searchPlaceholder"
               class="bg-transparent w-full pl-10 pr-3 py-2 outline-none border-b border-gray-200 text-gray-900 placeholder:text-gray-900 rounded-t-[2px] border-b border-[#D0D5DD] bg-white/50 shadow-sm focus:bg-white/90 transition-colors"
             />
           </div>
         </div>
 
-        <div class="md:max-h-[24rem] overflow-y-auto px-4 pb-16 md:pb-3" @scroll="handleListScroll">
+        <div class="md:max-h-[24rem] overflow-y-auto px-2 md:px-4 pb-16 md:pb-3" @scroll="handleListScroll">
           <div v-if="activeTabError" class="py-4 text-center text-sm text-rose-600">
             {{ activeTabError }}
           </div>
@@ -244,8 +315,13 @@ function handleConfirm() {
                   :alt="item.title"
                   class="w-full aspect-[179/103] object-cover"
                 />
-                <div class="absolute bottom-0 left-0 py-1 px-[0.375rem] bg-[#F06] h-[22px] flex items-center justify-center">
-                  <span class="text-xs text-white"> Subscribe or Buy </span>
+                <div
+                  v-if="shouldShowActionLabelForItem(item)"
+                  class="absolute bottom-0 left-0 py-1 px-[0.375rem] bg-[#F06] h-[22px] flex items-center justify-center"
+                >
+                  <span class="text-xs text-white" data-spending-requirement-action-label>
+                    {{ actionLabelForItem(item) }}
+                  </span>
                 </div>
                 <!--<div class="absolute bottom-0 left-0 bg-black/50 backdrop-blur-md py-1 px-[0.375rem] bg-black/70 h-[22px] flex items-center justify-center">
                   <span class="text-xs text-white">Buy Now </span>

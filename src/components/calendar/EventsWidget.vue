@@ -111,7 +111,7 @@
 
             <span v-else-if="event.showReply" class="flex flex-col justify-end h-[2.875rem]">
               <button 
-                @click.stop="$emit('reply-click', event)"
+                @click.stop="$emit('event-click', event)"
                 class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold px-[0.5rem] py-[0.1875rem] border border-gray-500 rounded-[0.25rem] hover:bg-gray-50"
               >
                 {{ t("common_reply") }}

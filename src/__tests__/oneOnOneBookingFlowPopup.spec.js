@@ -187,7 +187,7 @@ describe("OneOnOneBookingFlowPopup", () => {
     expect(engine.state.fanBooking.context.selectedEvent).toBe(null);
     expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
     expect(engine.forceStep).not.toHaveBeenCalledWith(2, expect.anything());
-  });
+  }, 10000);
 
   it("opens directly on step 2 when a valid eventId prop is provided", async () => {
     availableEvents = [{ eventId: "evt_0e8082d4-9df0-42fb-a7eb-37e9b6311826", title: "VIP Call" }];

@@ -1,5 +1,10 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick, h } from 'vue'
+import {
+  MusicalNoteIcon,
+  RectangleStackIcon,
+  VideoCameraIcon,
+} from '@heroicons/vue/24/outline'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
 import LiveCallRequest      from '@/components/ui/chat/LiveCallRequest.vue'
@@ -34,16 +39,29 @@ import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.j
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
+import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
+import galleryIcon from '@/assets/images/icons/image-03.svg'
 import pinkStarIcon from '@/assets/images/icons/star-07.svg'
 import minusIcon from '@/assets/images/icons/minus.svg'
 import shareIcon from '@/assets/images/icons/share-04.svg'
 import closeIcon from '@/assets/images/icons/x-close-grey-1.svg'
+import packageIcon from '@/assets/images/icons/package-plus.svg'
+import faceSmileIcon from '@/assets/images/icons/face-smile.svg'
+import userIcon from '@/assets/images/icons/users-03.svg'
 
 const MAX_MESSAGE_LENGTH = 2000
 const PRODUCT_PAGE_SIZE = 20
 const PRODUCT_TYPES = ['media', 'subscription', 'product']
+
+const ChatGalleryIconComponent = (props) => h('img', { src: galleryIcon, ...props, alt: '' })
+const productMediaBadgeIconComponents = {
+  audio: MusicalNoteIcon,
+  gallery: RectangleStackIcon,
+  image: ChatGalleryIconComponent,
+  video: VideoCameraIcon,
+}
 
 const props = defineProps({
   chatId:        { type: String, default: null },
@@ -52,6 +70,9 @@ const props = defineProps({
   socket:        { type: Object, default: null },
   targetUserId:  { type: [String, Number], default: null },
   targetUserIds: { type: Array, default: () => [] },
+  targetUserData: { type: Object, default: null },
+  fanViewUid:   { type: String, default: '' },
+  fanViewUserId: { type: [String, Number], default: null },
   groupType:     { type: String, default: null },
   chatType:      { type: String, default: null },
   chatSubtype:   { type: String, default: 'standard' },
@@ -62,6 +83,7 @@ const props = defineProps({
   visibilitySettings: { type: Object, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
+  index:         { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
@@ -290,7 +312,7 @@ const isChatBlocked = computed(() => {
 })
 const membersPopupConfig = {
   actionType: 'popup',
-  position: window.__fsChatEmbed ? 'center' : { default: 'top-center', '>768': 'center' },
+  position: props.hostWidth >= 768 ? 'center' : { default: 'top-center', '>768': 'center' },
   customEffect: 'scale',
   speed: '250ms',
   effect: 'ease-in-out',
@@ -299,8 +321,8 @@ const membersPopupConfig = {
   closeOnOutside: true,
   lockScroll: false,
   escToClose: true,
-  width: window.__fsChatEmbed ? '675px' : { default: '100%', '>768': '675px' },
-  height: window.__fsChatEmbed ? '90vh' : { default: '100vh', '>768': '90vh' },
+  width: props.hostWidth >= 768 ? '25rem' : { default: '100%', '>768': '675px' },
+  height: props.hostWidth >= 768 ? '33.25rem' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }
@@ -1033,6 +1055,287 @@ function resolveCreatorIdForProducts() {
   return found ? String(found) : (props.targetUserId || null)
 }
 
+function toNonEmptyString(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function firstNonEmptyValue(...values) {
+  for (const value of values) {
+    const normalized = toNonEmptyString(value)
+    if (normalized) return normalized
+  }
+  return ''
+}
+
+function getWindowContextValue(key) {
+  try {
+    return window.parent?.[key] ?? window[key] ?? null
+  } catch {
+    return window[key] ?? null
+  }
+}
+
+function getCurrentUserDataUid() {
+  const ud = resolveParentUserData()
+  return firstNonEmptyValue(ud?.UID, ud?.userUid, ud?.userUID, ud?.encodedUid, ud?.encodedUID)
+}
+
+function getProductSenderContext() {
+  const senderUserUid = getCurrentUserDataUid()
+  const senderRole = firstNonEmptyValue(
+    getWindowContextValue('chimeHandler')?._currentUserRole,
+    getWindowContextValue('settings')?.callSettings?.currentUserRole,
+    getWindowContextValue('mockCallData')?.currentUserRole,
+    isCreatorAccount.value ? 'creator' : 'fan'
+  )
+
+  return {
+    ...(senderUserUid ? { senderUserUid } : {}),
+    ...(senderRole ? { senderRole } : {}),
+  }
+}
+
+function getUpsellUserUid(user = {}) {
+  return firstNonEmptyValue(
+    user?.fanViewUid,
+    user?.fanUid,
+    user?.fanUID,
+    user?.UID,
+    user?.userUid,
+    user?.userUID,
+    user?.encodedUid,
+    user?.encodedUID,
+    user?.encryptedUid,
+    user?.encryptedUID,
+    user?.encrypted_uid
+  )
+}
+
+function getUpsellUserId(user = {}) {
+  return firstNonEmptyValue(user?.fanViewUserId, user?.fanUserId, user?.userId, user?.userID, user?.id, user?.ID)
+}
+
+function isSameCurrentUser(user = {}) {
+  const userId = getUpsellUserId(user)
+  return !!userId && String(userId) === String(currentUserId)
+}
+
+function isFanLikeUser(user = {}) {
+  if (!user || typeof user !== 'object') return false
+  if (user.isFan === true || user.isCreator === false) return true
+  const role = toNonEmptyString(user.role || user.userRole || user.accountType || user.type).toLowerCase()
+  return ['attendee', 'audience', 'fan', 'guest'].includes(role)
+}
+
+function getProductPayloadFanViewUid(source = {}) {
+  const role = toNonEmptyString(source?.senderRole || source?.role).toLowerCase()
+  const senderFanUid = ['attendee', 'audience', 'fan', 'guest'].includes(role)
+    ? firstNonEmptyValue(source?.senderUserUid, source?.senderUid, source?.senderUID, getUpsellUserUid(source))
+    : ''
+
+  return firstNonEmptyValue(
+    source?.fanViewUid,
+    source?.fanUid,
+    source?.fanUID,
+    source?.fanUserUid,
+    source?.fan_user_uid,
+    source?.fan_uid,
+    senderFanUid,
+    source?.renderAsUid,
+    source?.renderUid,
+    source?.viewerUid
+  )
+}
+
+function getProductPayloadFanViewUserId(source = {}) {
+  return firstNonEmptyValue(
+    source?.fanViewUserId,
+    source?.fanUserId,
+    source?.fan_user_id,
+    source?.viewerUserId,
+    source?.viewer_user_id
+  )
+}
+
+function resolveFanContextFromSource(source = {}) {
+  if (!source || typeof source !== 'object') return {}
+  const fanViewUid = getProductPayloadFanViewUid(source)
+  const fanViewUserId = getProductPayloadFanViewUserId(source)
+  return {
+    ...(fanViewUid ? { fanViewUid } : {}),
+    ...(fanViewUserId ? { fanViewUserId } : {}),
+  }
+}
+
+function resolveFanContextFromMessage(message = {}) {
+  const rawProduct = rawProductRecommendationForMessage(message)
+  const sources = [
+    rawProduct,
+    message?.content || {},
+    message?.product_recommendation || {},
+    message,
+  ]
+
+  for (const source of sources) {
+    const context = resolveFanContextFromSource(source)
+    if (context.fanViewUid) return context
+  }
+
+  return {}
+}
+
+function resolveSingleChatFanUser() {
+  const participants = (chatStore.chatParticipants[activeChatId.value] || [])
+    .map((participant) => String(typeof participant === 'object'
+      ? (participant.user_id ?? participant.userId ?? participant.id)
+      : participant))
+    .filter(Boolean)
+
+  const candidateIds = participants.length > 0
+    ? participants.filter((id) => id !== String(currentUserId))
+    : [
+        props.targetUserId,
+        ...(Array.isArray(props.targetUserIds) ? props.targetUserIds : []),
+      ].map((id) => id == null ? '' : String(id)).filter(Boolean)
+
+  const uniqueCandidateIds = [...new Set(candidateIds)]
+  if (uniqueCandidateIds.length !== 1) return null
+
+  const userId = uniqueCandidateIds[0]
+  return {
+    ...(chatStore.chatUsersData[userId] || {}),
+    ...(String(props.targetUserId || '') === userId && props.targetUserData ? props.targetUserData : {}),
+    userId,
+  }
+}
+
+function resolveCurrentChatFanContext() {
+  const settings = getWindowContextValue('settings') || {}
+  const mockCallData = getWindowContextValue('mockCallData') || {}
+  const userSpecifiData = getWindowContextValue('userSpecifiData') || {}
+  const details = settings?.callUserDetails || {}
+  const side = settings?.callSettings?.currentUserSide || mockCallData?.currentUserSide || null
+  const role = toNonEmptyString(
+    settings?.callSettings?.currentUserRole ||
+    mockCallData?.currentUserRole ||
+    getWindowContextValue('chimeHandler')?._currentUserRole ||
+    (isCreatorAccount.value ? 'creator' : 'fan')
+  ).toLowerCase()
+
+  const sideFan = ['host', 'creator', 'collaborator'].includes(role)
+    ? (side === 'caller' ? details?.callee : side === 'callee' ? details?.caller : null)
+    : null
+
+  const singleChatFan = resolveSingleChatFanUser()
+  const propFan = (props.fanViewUid || props.fanViewUserId || props.targetUserData)
+    ? {
+        ...(props.targetUserData || {}),
+        isFan: true,
+        ...(props.fanViewUid ? { fanViewUid: props.fanViewUid, UID: props.fanViewUid, userUid: props.fanViewUid } : {}),
+        ...(props.fanViewUserId ? { fanViewUserId: props.fanViewUserId, id: props.fanViewUserId } : {}),
+      }
+    : null
+
+  const candidates = [
+    propFan,
+    sideFan,
+    props.targetUserData,
+    userSpecifiData?.targetUser,
+    mockCallData?.targetUser,
+    details?.callee,
+    details?.caller,
+    singleChatFan,
+    userSpecifiData?.currentUser,
+    mockCallData?.currentUser,
+  ]
+
+  const fan = candidates.find((user) =>
+    !isSameCurrentUser(user) && (isFanLikeUser(user) || (isCreatorAccount.value && user === singleChatFan))
+  )
+  const fanViewUid = getUpsellUserUid(fan)
+  const fanViewUserId = getUpsellUserId(fan)
+
+  return {
+    ...(fanViewUid ? { fanViewUid } : {}),
+    ...(fanViewUserId ? { fanViewUserId } : {}),
+  }
+}
+
+function resolveProductRecommendationFanViewContext(message = {}) {
+  const messageContext = resolveFanContextFromMessage(message)
+  if (messageContext.fanViewUid) return messageContext
+
+  if (isCreatorAccount.value) {
+    const creatorContext = resolveCurrentChatFanContext()
+    if (creatorContext.fanViewUid) return creatorContext
+  }
+
+  const fanViewUid = resolveChatFanUid()
+  return fanViewUid ? { fanViewUid } : {}
+}
+
+function resolveProductRecommendationFanUid(message = {}) {
+  return resolveProductRecommendationFanViewContext(message).fanViewUid || ''
+}
+
+function productFanAccessUnavailableReason(message = {}) {
+  if (isCreatorAccount.value) {
+    const sourceContext = resolveFanContextFromMessage(message)
+    if (sourceContext.fanViewUserId && !sourceContext.fanViewUid) {
+      return 'Fan access could not be checked because the product payload has a fan user ID but no fan UID.'
+    }
+
+    const singleFan = resolveSingleChatFanUser()
+    const singleFanUserId = getUpsellUserId(singleFan)
+    if (singleFanUserId && !getUpsellUserUid(singleFan)) {
+      return 'Fan access could not be checked because this creator view has the fan user ID, but not the fan UID required for access checks.'
+    }
+
+    return 'Fan access could not be checked because this creator view does not have a fan UID to mirror.'
+  }
+
+  return 'Fan access could not be checked because the chat embed did not receive a fan UID.'
+}
+
+function withProductRecommendationContext(product = {}, fanViewContext = {}) {
+  const senderContext = getProductSenderContext()
+  const context = {
+    ...senderContext,
+    ...fanViewContext,
+  }
+
+  if (Object.keys(context).length === 0) return product
+
+  return {
+    ...product,
+    ...context,
+  }
+}
+
+function withMessageProductRecommendationContext(message = {}, fanViewContext = {}) {
+  const context = {
+    ...getProductSenderContext(),
+    ...fanViewContext,
+  }
+  if (!message || Object.keys(context).length === 0) return message
+
+  const content = message.content && typeof message.content === 'object' ? message.content : {}
+  const rawProduct = content.product_recommendation || content.productRecommendation || message.product_recommendation
+  if (!rawProduct || typeof rawProduct !== 'object') return message
+
+  return {
+    ...message,
+    content: {
+      ...content,
+      product_recommendation: {
+        ...rawProduct,
+        ...context,
+      },
+    },
+  }
+}
+
 function setProductCatalogTab(type, nextState = {}) {
   const safeType = String(type || '').toLowerCase()
   if (!PRODUCT_TYPES.includes(safeType)) return
@@ -1223,10 +1526,10 @@ async function ensureActiveChat() {
 
 async function onConfirmChatProducts(selectedItems = []) {
   if (!isCreatorAccount.value || isSending.value) return
-  const products = Array.isArray(selectedItems)
+  const selectedProducts = Array.isArray(selectedItems)
     ? selectedItems.map((item) => normalizeProductForChat(item, { senderId: currentUserId })).filter(Boolean)
     : []
-  if (products.length === 0) return
+  if (selectedProducts.length === 0) return
 
   isSending.value = true
   const hasChat = await ensureActiveChat()
@@ -1235,6 +1538,11 @@ async function onConfirmChatProducts(selectedItems = []) {
     isSending.value = false
     return
   }
+
+  const fanViewContext = resolveCurrentChatFanContext()
+  const products = selectedProducts.map((product) =>
+    withProductRecommendationContext(product, fanViewContext)
+  )
 
   for (const product of products) {
     const res = await FlowHandler.run('chat.sendProductRecommendation', {
@@ -1247,8 +1555,9 @@ async function onConfirmChatProducts(selectedItems = []) {
       continue
     }
 
-    const item = res.data?.item
-    if (!item) continue
+    const rawItem = res.data?.item
+    if (!rawItem) continue
+    const item = withMessageProductRecommendationContext(rawItem, fanViewContext)
     chatStore.updateChatLastMessage(activeChatId.value, item)
     props.socket?.sendChatMessage(item, getMessageRecipients())
   }
@@ -1262,8 +1571,10 @@ function isOwnMessage(message) {
 
 function shouldFetchProductRecommendationStatus(message) {
   if (!message || message.content_type !== 'product_recommendation') return false
-  if (isCreatorAccount.value || isOwnMessage(message)) return false
-  return Boolean(productForMessage(message))
+  if (!productForMessage(message)) return false
+  if (isCreatorAccount.value) return Boolean(resolveProductRecommendationFanUid(message))
+  if (isOwnMessage(message)) return false
+  return Boolean(resolveProductRecommendationFanUid(message))
 }
 
 function getProductStatusKey(message) {
@@ -1295,12 +1606,12 @@ async function fetchProductRecommendationStatus(message, { force = false } = {})
   if (!product || current?.loading) return
   if (!force && current?.loaded) return
 
-  const fanUid = resolveChatFanUid()
+  const fanUid = resolveProductRecommendationFanUid(message)
   if (!fanUid) {
     setProductStatusState(message, {
       loading: false,
       loaded: true,
-      error: 'Fan access could not be checked.',
+      error: productFanAccessUnavailableReason(message),
       cta: 'retry',
       detail: null,
     })
@@ -1345,6 +1656,15 @@ function productCardStatus(message) {
   const state = getProductStatusState(message)
   if (state) return state
   if (shouldFetchProductRecommendationStatus(message)) return { loading: true, cta: 'loading' }
+  if (isCreatorAccount.value && message?.content_type === 'product_recommendation' && productForMessage(message)) {
+    return {
+      loading: false,
+      loaded: true,
+      error: productFanAccessUnavailableReason(message),
+      cta: 'unavailable',
+      detail: null,
+    }
+  }
   return null
 }
 
@@ -1360,33 +1680,160 @@ function productCardCtaDisabled(message) {
   return isProductCtaDisabled(productCardCta(message))
 }
 
+function isProductCardReadOnly(message) {
+  return isCreatorAccount.value && message?.content_type === 'product_recommendation'
+}
+
+function isProductWatchAction(action = '') {
+  return productActionFromCta(action) === 'watch'
+}
+
+function productCardButtonDisabled(message, action = '') {
+  return productCardCtaDisabled(message)
+    || (isProductCardReadOnly(message) && !isProductWatchAction(action))
+    || isChatBlocked.value
+}
+
+function productCardButtonsLoading(message) {
+  return productCardCta(message) === 'loading'
+}
+
+function productCardDisabledReason(message, action = '') {
+  if (isChatBlocked.value) return disabledInputMessage.value || 'This chat is unavailable.'
+
+  const cta = productCardCta(message)
+  if (cta === 'loading') return 'Checking your access. Please wait.'
+  const statusError = toNonEmptyString(productCardStatus(message)?.error)
+  if (statusError) return statusError
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return 'Previewing the fan view. Actions are disabled for creators.'
+  if (cta === 'subscribed') return 'You are already subscribed to this plan.'
+  if (cta === 'unavailable') return 'This product is not available right now.'
+
+  return ''
+}
+
+function shouldShowProductSubscribeButton(message) {
+  const product = productForMessage(message)
+  if (!product) return false
+  const cta = productCardCta(message)
+  if (cta === 'loading') return false
+  if (cta === 'watch') return false
+  if (product.type === 'product') {
+    if (cta === 'subscribe') return true
+    if (cta === 'buy' || cta === 'unavailable' || cta === 'subscribed') return false
+  }
+  return product.type === 'subscription' || Number(product.subscribePrice) > 0
+}
+
+function productSubscribePriceLabel(message) {
+  const product = productForMessage(message)
+  const detail = productCardStatus(message)?.detail || {}
+  const price = product?.type === 'product' && productCardCta(message) === 'subscribe'
+    ? Number(detail?.subscribe_data?.price || 0)
+    : Number(product?.subscribePrice || 0)
+  return price > 0 ? `$${price}` : 'Free'
+}
+
+function productSubscribeActionLabel(message) {
+  const product = productForMessage(message)
+  if (product?.type === 'product' && productCardCta(message) === 'subscribe') {
+    return productCardCtaLabel(message) || 'Subscribe'
+  }
+  if (product?.type !== 'subscription') return 'Subscribe'
+  return productCardCtaLabel(message) || 'Subscribe'
+}
+
+function shouldShowProductBuyButton(message) {
+  const product = productForMessage(message)
+  if (!product) return false
+  const cta = productCardCta(message)
+  if (cta === 'loading') return false
+  if (cta === 'watch') return true
+  if (product.type === 'product') {
+    if (cta === 'subscribe') return false
+    if (cta === 'buy') return true
+    if (cta === 'unavailable' || cta === 'subscribed') return false
+  }
+  if (product.type === 'subscription' && Number(product.buyPrice || 0) <= 0) return false
+  return Number(product.buyPrice || 0) > 0 || Number(product.subscribePrice || 0) <= 0
+}
+
+function productBuyButtonAction(message) {
+  return productCardCta(message) === 'watch' ? 'watch' : 'buy'
+}
+
+function productBuyButtonLabel(message) {
+  return productBuyButtonAction(message) === 'watch' ? 'Watch' : 'Buy'
+}
+
+function shouldShowProductBuyButtonPrice(message) {
+  return productBuyButtonAction(message) === 'buy'
+}
+
+function productBuyButtonThemeClass(message) {
+  return productBuyButtonAction(message) === 'watch'
+    ? 'bg-[#FFED29] text-[#0C111D]'
+    : 'bg-[#0133FB] text-white'
+}
+
+function rawProductRecommendationForMessage(message = {}) {
+  const content = message?.content || {}
+  const raw = content.product_recommendation || content.productRecommendation || message.product_recommendation || {}
+  return raw && typeof raw === 'object' ? raw : {}
+}
+
+function productMediaBadgeForMessage(message) {
+  const product = productForMessage(message)
+  if (!product || product.type !== 'media') return null
+
+  const rawProduct = rawProductRecommendationForMessage(message)
+  const detail = productCardStatus(message)?.detail || {}
+  const raw = {
+    ...(rawProduct.raw && typeof rawProduct.raw === 'object' ? rawProduct.raw : {}),
+    ...rawProduct,
+    ...(detail && typeof detail === 'object' ? detail : {}),
+  }
+
+  return getSpendingRequirementMediaBadge({
+    ...product,
+    ...rawProduct,
+    type: 'media',
+    raw,
+  })
+}
+
 function shouldShowProductCardCta(message) {
   return shouldFetchProductRecommendationStatus(message) || Boolean(getProductStatusState(message))
 }
 
 function onProductShellClick(message) {
+  if (isProductCardReadOnly(message)) return
+  if (!shouldFetchProductRecommendationStatus(message)) return
   if (shouldShowProductCardCta(message)) return
   onProductCardClick(message)
 }
 
-async function onProductCtaClick(message) {
+async function onProductCtaClick(message, requestedAction = '') {
   const cta = productCardCta(message)
   if (cta === 'retry') {
     await fetchProductRecommendationStatus(message, { force: true })
     return
   }
-  if (productCardCtaDisabled(message)) return
-  const action = productActionFromCta(cta)
+  const action = productActionFromCta(requestedAction) || productActionFromCta(cta)
+  if (productCardButtonDisabled(message, action)) return
   if (!action) return
   onProductCardClick(message, { action })
 }
 
 function onProductCardClick(message, { action = '' } = {}) {
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return
+  if (!shouldFetchProductRecommendationStatus(message)) return
   const product = extractProductRecommendation(message)
   if (!product) return
   if (window.self === window.top && !window.parent) return
 
   const status = productCardStatus(message) || {}
+  const fanViewContext = resolveProductRecommendationFanViewContext(message)
   const payload = buildProductSelectedPayload({
     message,
     chatId: activeChatId.value,
@@ -1395,6 +1842,7 @@ function onProductCardClick(message, { action = '' } = {}) {
     action,
   })
   if (!payload) return
+  Object.assign(payload, fanViewContext)
 
   try {
     if (typeof structuredClone === 'function') structuredClone({ type: 'FS_CHAT_PRODUCT_SELECTED', payload })
@@ -1506,7 +1954,7 @@ const productRecommendationStatusWatchKey = computed(() =>
     .filter((message) => message.content_type === 'product_recommendation' && shouldFetchProductRecommendationStatus(message))
     .map((message) => {
       const product = productForMessage(message)
-      return `${getProductStatusKey(message)}:${product?.productId || ''}`
+      return `${getProductStatusKey(message)}:${product?.productId || ''}:${resolveProductRecommendationFanUid(message)}`
     })
     .join('|')
 )
@@ -1517,10 +1965,13 @@ watch(productRecommendationStatusWatchKey, () => {
     .forEach((message) => fetchProductRecommendationStatus(message))
 }, { immediate: true })
 
-watch([() => props.targetUserIds, () => currentUserId], ([newIds, cId]) => {
+watch([() => props.targetUserIds, () => props.targetUserId, () => currentUserId], ([newIds, targetUserId, cId]) => {
   const idsToCheck = []
   if (newIds && newIds.length > 0) {
     idsToCheck.push(...newIds.map(String))
+  }
+  if (targetUserId) {
+    idsToCheck.push(String(targetUserId))
   }
   if (cId) {
     idsToCheck.push(String(cId))
@@ -1818,8 +2269,8 @@ const baseThemeStyles = {
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
   systemMessageRow: 'flex w-full justify-center my-1',
-  myBubble:         'text-[#344054] text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
-  otherBubble:      'text-white  text-base font-normal max-w-[220px] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  myBubble:         'text-[#344054] text-base font-normal max-w-[70%] min-w-16 min-h-10 px-3 py-1.5 bg-gray-50 rounded-tl-2xl rounded-tr-2xl  rounded-bl-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
+  otherBubble:      'text-white  text-base font-normal max-w-[70%] min-w-16 min-h-10 px-3 py-1.5 bg-gray-600 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm inline-flex justify-center items-center gap-2.5 break-all',
   systemBubble:     'w-full',
   metaWrapper:      'opacity-90',
   myNameMeta:       'hidden',
@@ -1835,8 +2286,8 @@ const chatTheme = computed(() => {
   return {
     ...baseThemeStyles,
     header: isGroupChat.value
-      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative' // Matching DemoChats.vue
-      : 'bg-[#2d3142] px-3 py-2.5 shrink-0 z-10 shadow-sm relative' // Existing Dark Theme
+      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Matching DemoChats.vue
+      : 'bg-[#EDEDED] px-3 py-2.5 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Existing Dark Theme
   }
 })
 
@@ -1858,6 +2309,19 @@ async function fetchMore() {
 }
 
 // ── Send ─────────────────────────────────────────────────────────────────────
+function sendTelegramNotification(receiverId, senderId, messageType) {
+  const baseUrl = import.meta.env.VITE_WEB_BASE_URL || ''
+  fetch(`${baseUrl}/wp-json/api/telegram/send-telegram-noti`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      receiverId,
+      senderId,
+      messageType
+    })
+  }).catch(err => console.error('Failed to send Telegram noti:', err))
+}
+
 async function sendMessage() {
   const rawText = composeText.value.trim().slice(0, MAX_MESSAGE_LENGTH)
   if (!rawText || isSending.value) return
@@ -1905,6 +2369,14 @@ async function sendMessage() {
   if (res?.ok) {
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
     props.socket?.sendChatMessage(res.data.item, getMessageRecipients())
+
+    if (!isCreatorAccount.value) {
+      const recipients = getMessageRecipients()
+      const creatorId = groupOwnerId.value || recipients.find(id => String(id) !== String(currentUserId))
+      if (creatorId) {
+        sendTelegramNotification(creatorId, currentUserId, 'new_message')
+      }
+    }
 
     // Notify parent window of sent message
     postToParent('FS_CHAT_EVENT', {
@@ -1971,6 +2443,17 @@ watch(pinnedBookingMessages, (msgs) => {
     })
   })
 }, { immediate: true })
+
+// Notify parent when popups open/close for responsive fullscreen on mobile
+watch([showMembersPopup, showProductPopup, showBookingPopup], ([membersOpen, productOpen, bookingOpen]) => {
+  const anyPopupOpen = membersOpen || productOpen || bookingOpen
+  postToParent('FS_CHAT_RESIZE', {
+    width: membersPopupConfig.width || (props.hostWidth > 768 ? 675 : window.innerWidth),
+    height: membersPopupConfig.height || (props.hostWidth > 768 ? 600 : window.innerHeight),
+    is_open: true,
+    show_popup: anyPopupOpen,
+  })
+})
 
 // Mark the pinned booking messages as read as soon as they become visible
 watch(pinnedBookingMessages, (msgs) => {
@@ -2102,7 +2585,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[450px] h-[640px] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
+  <div class="flex flex-col w-[28.125rem] h-[37.5rem] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
        :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
     <FlexChat
       ref="flexChatRef"
@@ -2176,32 +2659,36 @@ onUnmounted(() => {
       <template #header>
         <!-- Group Chat Header Design (Light Theme) -->
         <div v-if="isGroupChat" class="flex items-center justify-between w-full h-full min-w-0 gap-2">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <div :class="['flex -space-x-6 transition-opacity shrink-0', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" @click="isCreatorAccount && (showMembersPopup = true)">
-              <template v-if="displayAvatars && displayAvatars.length > 0">
-                <template v-for="participant in displayAvatars" :key="participant.id">
-                  <img v-if="participant.avatar && !avatarErrors[participant.id]" :src="participant.avatar"
-                    @error="avatarErrors[participant.id] = true"
-                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white" />
-                  <div v-else
-                    class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold">
-                    {{ participant.initial }}
-                  </div>
-                </template>
-              </template>
-              <template v-else>
-                <div class="w-10 h-10 rounded-full object-cover shadow-sm border-2 border-white bg-zinc-500 flex items-center justify-center text-white text-xs font-semibold">
-                  {{ chatName.charAt(0).toUpperCase() }}
-                </div>
-              </template>
-            </div>
+          <div class="flex items-center gap-1 min-w-0 flex-1">
+            <div
+  :class="['flex -space-x-4 transition-opacity shrink-0', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']"
+  @click="isCreatorAccount && (showMembersPopup = true)"
+>
+  <template v-for="(participant, index) in displayAvatars" :key="participant.id">
+    <img
+      v-if="participant.avatar && !avatarErrors[participant.id]"
+      :src="participant.avatar"
+      @error="avatarErrors[participant.id] = true"
+      :style="{ zIndex: displayAvatars.length - index }"
+      class="relative w-8 h-8 object-cover shadow-sm  border-white rounded-[25%_75%_50%_51%/45%_65%_36%_55%]"
+    />
+
+    <div
+      v-else
+      :style="{ zIndex: displayAvatars.length - index }"
+      class="relative w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shadow-sm border-2 border-white bg-zinc-400 flex items-center justify-center text-white text-[10px] font-bold"
+    >
+      {{ participant.initial }}
+    </div>
+  </template>
+</div>
             <div class="flex flex-col ml-1 min-w-0 flex-1">
               <div class="flex items-center gap-2 min-w-0">
-                <div class="text-[#0C111D] font-semibold text-[14px] truncate">
+                <div class="text-[#0C111D] font-semibold text-sm truncate">
                   {{ chatName }}
                 </div>
                 <div v-if="!(isUserScoped && !isCreatorAccount)" class="flex items-center text-slate-700 shrink-0">
-                  <img src="/images/users.png" alt="" class="size-3 brightness-0">
+                  <img :src="userIcon" alt="" class="size-3 brightness-0">
                   <span class="text-xs font-[400] text-[#0C111D] ml-0.5">{{ participantCount }}</span>
                 </div>
                 <!-- No need right now -->
@@ -2223,14 +2710,14 @@ onUnmounted(() => {
 
         <!-- 1-on-1 Chat Header Design (Preserved Dark Theme) -->
         <div v-else class="flex items-center gap-2.5 w-full">
-          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-12 h-12 rounded-full object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
-          <div v-else :class="['w-8 h-8 rounded-full bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
+          <img v-if="avatar && !avatarErrors['header']" :src="avatar" @error="avatarErrors['header'] = true" :class="['w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover shrink-0 transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)" />
+          <div v-else :class="['w-9 h-9 rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-500 shrink-0 flex items-center justify-center text-white text-xs font-semibold transition-opacity', isCreatorAccount ? 'cursor-pointer hover:opacity-85' : '']" alt="avatar" @click="isCreatorAccount && (showMembersPopup = true)">
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-semibold truncate">{{ chatName }} 
-              <!-- No need right now --> 
+            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }}
+              <!-- No need right now -->
                <!-- <span class="text-zinc-400">•••</span> -->
             </div>
             <!-- hide online indicator -->
@@ -2247,7 +2734,7 @@ onUnmounted(() => {
             <!-- <svg class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M20 12H4" />
             </svg> -->
-            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg @click="emit('close')" class="w-6 h-6 cursor-pointer transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
@@ -2323,11 +2810,18 @@ onUnmounted(() => {
               class="w-full aspect-video object-cover"
             />
 
-            <div class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]">
-                <div class="">
-                    
-                </div>
-                <span class="text-white text-xs">Count</span>
+            <div
+              v-if="productMediaBadgeForMessage(message)"
+              class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]"
+            >
+              <component
+                :is="productMediaBadgeIconComponents[productMediaBadgeForMessage(message).icon] || ChatGalleryIconComponent"
+                class="w-3 h-3 text-white"
+                aria-hidden="true"
+              />
+              <span v-if="productMediaBadgeForMessage(message).label" class="text-white text-xs">
+                {{ productMediaBadgeForMessage(message).label }}
+              </span>
             </div>
           </div>
 
@@ -2338,26 +2832,65 @@ onUnmounted(() => {
 
           <!-- Buttons -->
           <div class="flex items-center w-full gap-1">
-            <button
-              v-if="productForMessage(message).subscribePrice > 0"
-              type="button"
-              class="flex-1 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message) || isChatBlocked"
-              @click.stop="onProductCtaClick(message)"
+            <template v-if="productCardButtonsLoading(message)">
+              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+            </template>
+            <span
+              v-else-if="shouldShowProductSubscribeButton(message)"
+              class="relative flex-1 group/product-cta"
+              :class="productCardButtonDisabled(message, 'subscribe') ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message, 'subscribe') ? 0 : -1"
+              :aria-label="productCardDisabledReason(message, 'subscribe') || undefined"
             >
-              <span>Subscribe</span>
-              <span>${{ productForMessage(message).subscribePrice }}</span>
-            </button>
-            <button
-              v-if="productForMessage(message).buyPrice > 0 || productForMessage(message).subscribePrice <= 0"
-              type="button"
-              class="flex-1 flex items-center justify-between bg-[#0133FB] px-2 py-1 text-white font-semibold text-xs transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="productCardCtaDisabled(message) || isChatBlocked"
-              @click.stop="onProductCtaClick(message)"
+              <button
+                type="button"
+                class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
+                :class="productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : ''"
+                :disabled="productCardButtonDisabled(message, 'subscribe')"
+                :aria-disabled="productCardButtonDisabled(message, 'subscribe') ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message, 'subscribe') ? -1 : 0"
+                @click.stop="onProductCtaClick(message, 'subscribe')"
+              >
+                <span>{{ productSubscribeActionLabel(message) }}</span>
+                <span>{{ productSubscribePriceLabel(message) }}</span>
+              </button>
+              <span
+                v-if="productCardButtonDisabled(message, 'subscribe') && productCardDisabledReason(message, 'subscribe')"
+                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+              >
+                {{ productCardDisabledReason(message, 'subscribe') }}
+              </span>
+            </span>
+            <span
+              v-if="shouldShowProductBuyButton(message)"
+              class="relative flex-1 group/product-cta"
+              :class="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'cursor-not-allowed' : ''"
+              :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 0 : -1"
+              :aria-label="productCardDisabledReason(message, productBuyButtonAction(message)) || undefined"
             >
-              <span>Buy</span>
-              <span>${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
-            </button>
+              <button
+                type="button"
+                class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition"
+                :class="[
+                  productBuyButtonThemeClass(message),
+                  productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'pointer-events-none' : '',
+                ]"
+                :disabled="productCardButtonDisabled(message, productBuyButtonAction(message))"
+                :aria-disabled="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'true' : undefined"
+                :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? -1 : 0"
+                @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
+              >
+                <span>{{ productBuyButtonLabel(message) }}</span>
+                <span v-if="shouldShowProductBuyButtonPrice(message)">${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
+              </button>
+              <span
+                v-if="productCardButtonDisabled(message, productBuyButtonAction(message)) && productCardDisabledReason(message, productBuyButtonAction(message))"
+                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+              >
+                {{ productCardDisabledReason(message, productBuyButtonAction(message)) }}
+              </span>
+            </span>
           </div>
 
           <!-- Error Status -->
@@ -2370,7 +2903,7 @@ onUnmounted(() => {
         </div>
         <!-- Activity log: centered italic text + divider -->
         <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
-          <span class="text-xs text-zinc-400 italic text-center">{{ resolveActivityLogText(message) }}</span>
+          <span class="text-sm font-normal text-gray-700 italic text-center">{{ resolveActivityLogText(message) }}</span>
         </div>
         <div v-else class="text-xs text-zinc-400 text-center px-2 py-1 w-full">{{ message.text }}</div>
       </template>
@@ -2407,7 +2940,7 @@ onUnmounted(() => {
 
       <!-- My avatar -->
       <template #message.avatar.me="{ message }">
-        <img v-if="message.message_ts && currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
+        <img v-if="message.message_ts && currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover" />
         <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-slate-500 flex items-center justify-center text-white text-[8px] font-semibold">
           {{ currentUserInitial }}
         </div>
@@ -2416,8 +2949,8 @@ onUnmounted(() => {
 
       <!-- Other avatar -->
       <template #message.avatar="{ message }">
-        <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[16px] h-[16px] rounded-full object-cover" />
-        <div v-else-if="message.message_ts" class="w-[16px] h-[16px] rounded-full bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
+        <img v-if="message.message_ts && getSenderAvatar(message) && !avatarErrors[message.id || message.message_ts]" :src="getSenderAvatar(message)" @error="avatarErrors[message.id || message.message_ts] = true" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] object-cover" />
+        <div v-else-if="message.message_ts" class="w-[1.375rem] h-[1.375rem] rounded-[25%_75%_50%_51%/45%_65%_36%_55%] bg-zinc-300 flex items-center justify-center text-zinc-600 text-[8px] font-semibold">
           {{ getSenderInitial(message) }}
         </div>
       </template>
@@ -2437,8 +2970,8 @@ onUnmounted(() => {
         <div v-else class="relative flex items-center gap-2 my-1 w-full">
           <!-- Current user avatar -->
           <div class="shrink-0 overflow-hidden rounded-[25%_75%_50%_51%/45%_65%_36%_55%]">
-            <img v-if="currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-7 h-7 object-cover" alt="" />
-            <div v-else class="w-7 h-7 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
+            <img v-if="currentUserAvatar && !avatarErrors['current']" :src="currentUserAvatar" @error="avatarErrors['current'] = true" class="w-6 h-6 object-cover" alt="" />
+            <div v-else class="w-6 h-6 bg-slate-500 flex items-center justify-center text-white text-[10px] font-semibold">
               {{ currentUserInitial }}
             </div>
           </div>
@@ -2449,7 +2982,7 @@ onUnmounted(() => {
             maxlength="2000"
             :placeholder="isChatBlocked ? 'You cannot send messages to this user.' : 'Write a reply...'"
             :disabled="isChatBlocked"
-            class="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-[#667085] disabled:opacity-50"
+            class="w-full text-sm bg-transparent outline-none text-gray-700 placeholder-[#667085] disabled:opacity-50"
             @keydown="onKeydown"
           />
           <div class="flex items-center gap-2.5 text-zinc-400 shrink-0">
@@ -2461,21 +2994,22 @@ onUnmounted(() => {
               class="inline-flex h-6 w-6 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
               @click.stop="openProductPopup"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M17.3294 5.4379L9.27678 9.74997M9.27678 9.74997L1.22414 5.4379M9.27678 9.74997L9.2768 18.4249M11.1715 17.8668L10.0129 18.4873C9.74426 18.6311 9.60992 18.7031 9.46765 18.7313C9.34174 18.7562 9.21187 18.7562 9.08596 18.7313C8.94369 18.7031 8.80935 18.6311 8.54067 18.4873L1.53015 14.7332C1.2464 14.5813 1.1045 14.5053 1.00119 14.3972C0.909796 14.3016 0.840628 14.1883 0.798316 14.0649C0.750488 13.9254 0.750488 13.7689 0.750488 13.4561V6.04395C0.750488 5.73107 0.750488 5.57463 0.798316 5.4351C0.840628 5.31166 0.909795 5.19836 1.00119 5.10276C1.10451 4.9947 1.24639 4.91873 1.53015 4.76678L8.54067 1.01273C8.80935 0.868863 8.94369 0.796923 9.08596 0.768721C9.21187 0.74376 9.34174 0.74376 9.46765 0.768721C9.60992 0.796924 9.74426 0.86886 10.0129 1.01273L17.0235 4.76678C17.3072 4.91873 17.4491 4.9947 17.5524 5.10276C17.6438 5.19836 17.713 5.31166 17.7553 5.4351C17.8031 5.57462 17.8031 5.73107 17.8031 6.04395L17.8031 10.2066M5.01365 2.90141L13.54 7.46714M15.9084 17.9683V12.4894M13.0663 15.2289H18.7505" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <img :src="packageIcon" :class="hostWidth >= 768 ? 'w-6 h-6' : 'w-5 h-5'" />
             </button>
             <!-- End: Add product button -->
             <!-- Emoji toggle button -->
-            <svg
+
+            <button
+              v-if="!isChatBlocked"
+              type="button"
+              title="Add emoji"
+              class="inline-flex h-6 w-6 items-center justify-center text-[#0C111D] hover:text-[#FF0080]"
               @click.stop="showEmojiPicker = !showEmojiPicker"
-              class="w-5 h-5 cursor-pointer "
-              :class="showEmojiPicker ? 'text-[#0C111D]' : 'text-[#0C111D]'"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
-              <circle cx="12" cy="12" r="10" stroke-width="2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" />
-            </svg>
+              <img :src="faceSmileIcon" :class="hostWidth >= 768 ? 'w-6 h-6' : 'w-5 h-5'" />
+            </button>
+            <!-- End: Add emoji button -->
+            <!-- Emoji picker -->
           </div>
 
           <!-- Emoji picker -->
@@ -2598,6 +3132,7 @@ onUnmounted(() => {
       :current-user-id="currentUserId"
       :is-creator="isCreatorAccount"
       :is-group-chat="isGroupChat"
+      :host-width="hostWidth"
       @close="showMembersPopup = false"
       @message-privately="handleMessagePrivately"
       @kick="handleKickMember"

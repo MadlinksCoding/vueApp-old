@@ -61,7 +61,7 @@ describe("spending requirement media badges", () => {
     })).toEqual({
       kind: "video",
       icon: "video",
-      label: "0:11",
+      label: "00:00:11",
     });
   });
 
@@ -76,10 +76,10 @@ describe("spending requirement media badges", () => {
     })).toEqual({
       kind: "audio",
       icon: "audio",
-      label: "2:05",
+      label: "00:02:05",
     });
 
-    expect(formatMediaDuration("3671.2")).toBe("1:01:11");
+    expect(formatMediaDuration("3671.2")).toBe("01:01:11");
   });
 
   it("prefers raw media API fields over mapped item fallback fields", () => {

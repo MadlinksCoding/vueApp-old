@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const expectedWpBaseUrl = String(import.meta.env.VITE_WEB_BASE_URL || window.location.origin).replace(/\/+$/, "");
+
 describe("eventsAudienceApi", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -29,7 +31,7 @@ describe("eventsAudienceApi", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://fansocial.app/wp-json/api/subscriptions/plans/list?creator_id=1407&count=20");
+    expect(url).toBe(`${expectedWpBaseUrl}/wp-json/api/subscriptions/plans/list?creator_id=1407&count=20`);
     expect(url).not.toContain("/undefined/");
     expect(url).not.toContain("/null/");
     expect(options).toEqual(expect.objectContaining({
@@ -60,7 +62,7 @@ describe("eventsAudienceApi", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://fansocial.app/wp-json/api/users/search?query=fan");
+    expect(url).toBe(`${expectedWpBaseUrl}/wp-json/api/users/search?query=fan&type=fan`);
     expect(url).not.toContain("/undefined/");
     expect(url).not.toContain("/null/");
     expect(options).toEqual(expect.objectContaining({
