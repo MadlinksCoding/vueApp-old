@@ -318,8 +318,11 @@ function handleConfirm() {
                 <div
                   v-if="shouldShowActionLabelForItem(item)"
                   class="absolute bottom-0 left-0 py-1 px-[0.375rem] bg-[#F06] h-[22px] flex items-center justify-center"
+                  :class="actionLabelForItem(item) === 'Subscribe Only' || actionLabelForItem(item) === 'Subscribe' ? '!bg-[#07f468]' : actionLabelForItem(item) === 'Buy Now' ? '!bg-black/70' : ''"
                 >
-                  <span class="text-xs text-white" data-spending-requirement-action-label>
+                  <span class="text-xs text-white" data-spending-requirement-action-label
+                        :class="actionLabelForItem(item) === 'Subscribe Only' || actionLabelForItem(item) === 'Subscribe' ? '!text-black' : ''"
+                  >
                     {{ actionLabelForItem(item) }}
                   </span>
                 </div>
