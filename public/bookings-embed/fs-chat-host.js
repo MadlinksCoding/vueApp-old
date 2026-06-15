@@ -355,7 +355,7 @@
       }
 
       if (w < 768) {
-        chatContainer.style.bottom = "3rem";
+        chatContainer.style.bottom = "4rem";
       }
       else if (w > 768 && w < 1024) {
         chatContainer.style.right = "4rem";
