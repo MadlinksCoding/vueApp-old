@@ -173,6 +173,7 @@
     justify-content: center;
   }
 
+  [data-dashboard-page="dashboard/events"] #fs-chat-external-btn.edge-bottom.anchor-none.mobile,
   [data-dashboard-page="dashboard/events"] #fs-chat-external-btn.mobile.edge-right.anchor-bottom{
     bottom: 4rem !important; /* Shift up by 16px to avoid overlapping with "Create Event" button */
   }
@@ -180,7 +181,7 @@
 
 @media screen and (min-width: 768px) and (max-width: 1023px) {
   [data-dashboard-page="dashboard/events"] #fs-chat-external-btn.desktop.edge-bottom.anchor-right {
-    right: 4rem !important; /* Shift left by 16px to avoid overlapping with "Create Event" button */
+    right: 4.5rem !important; /* Shift left by 16px to avoid overlapping with "Create Event" button */
   }
 }
 @media (min-width: 768px) {

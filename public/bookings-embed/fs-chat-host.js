@@ -103,8 +103,13 @@
       link.rel = "stylesheet";
       link.href = "/wp-content/plugins/fansocial/bookings-embed/fs-chat-button.css?v=" + Date.now();
       // Fallback for local dev
-      if (settings.src.indexOf('localhost') !== -1 || settings.src.indexOf('192.168.1.101') ){
-        link.href = new URL("./fs-chat-button.css?v=" + Date.now(), settings.src).href;
+      if (settings.src && (settings.src.indexOf('localhost') !== -1 || settings.src.indexOf('192.168.1.101') !== -1)) {
+        try {
+          var baseUrl = settings.src.startsWith('http') ? settings.src : window.location.origin + (settings.src.startsWith('/') ? '' : '/') + settings.src;
+          link.href = new URL("./fs-chat-button.css?v=" + Date.now(), baseUrl).href;
+        } catch (e) {
+          console.warn("fs-chat-host: Failed to construct CSS fallback URL", e);
+        }
       }
       document.head.appendChild(link);
     }
