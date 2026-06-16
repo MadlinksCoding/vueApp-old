@@ -108,8 +108,8 @@
   #fs-chat-external-btn {
     padding: 8px; /* Match p-2 from original mobile UI */
     border-radius: 9999px !important; /* Force rounded-full on mobile */
-    height: 46px !important;
-    width: 46px !important;
+    height: 48px !important;
+    width: 48px !important;
   }
   #fs-chat-external-btn-text {
     display: none;
