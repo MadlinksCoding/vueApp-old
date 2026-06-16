@@ -576,7 +576,7 @@ onMounted(async () => {
     <!-- Open chat windows (stack left or right of the trigger depending on alignment) -->
     <div class="flex gap-2 absolute z-[10000]"
          :class="[
-           isTopAligned ? 'items-start top-0' : 'items-end bottom-0',
+           isTopAligned ? 'items-start top-0' : 'items-end bottom-0 right-2',
            (hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '',
            isLeftAligned ? 'left-0 flex-row-reverse' : 'right-0'
          ]"

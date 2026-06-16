@@ -254,7 +254,7 @@ function getLastMessageText(chat) {
       hostWidth >= 768 && isLeftAligned ? 'left-0' : '',
       hostWidth >= 768 && !isLeftAligned ? 'right-0' : '',
       hostWidth >= 768 && isTopAligned ? 'top-full mt-2' : '',
-      hostWidth >= 768 && !isTopAligned ? 'bottom-full mb-2' : ''
+      hostWidth >= 768 && !isTopAligned ? 'bottom-12 mb-2 right-2' : ''
     ]"
     style="background-color: #F2F4F7;"
   >

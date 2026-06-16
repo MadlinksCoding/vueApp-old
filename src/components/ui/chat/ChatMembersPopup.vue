@@ -108,7 +108,7 @@
         :class="[
           hostWidth < 768
             ? 'bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgb(0,0,0,0.12)]'
-            : 'bg-white rounded-lg shadow-xl w-56'
+            : 'bg-white rounded-lg shadow-xl w-60'
         ]"
         :style="hostWidth >= 768 ? menuStyle : {}"
       >
@@ -129,7 +129,7 @@
           @click="handleKick"
         >
           <img :src="KickIcon" alt="kick member" class="w-4 h-4 md:w-6 md:h-6 text-gray-500 shrink-0" />
-          <span>Kick @{{ selectedMember.username }} out</span>
+          <span class="min-w-0 break-all">Kick @{{ selectedMember.username }} out</span>
         </button>
 
         <!-- Block/Unblock Member -->
@@ -140,8 +140,8 @@
         >
           <img :src="BlockIcon" alt="block member" class="w-4 h-4 md:w-6 md:h-6 text-rose-500 shrink-0" />
           <span v-if="isCheckingBlock">Checking...</span>
-          <span v-else-if="isBlocked">Unblock @{{ selectedMember.username }}</span>
-          <span v-else>Block @{{ selectedMember.username }}</span>
+          <span v-else-if="isBlocked" class="min-w-0 break-all">Unblock @{{ selectedMember.username }}</span>
+          <span v-else class="min-w-0 break-all">Block @{{ selectedMember.username }}</span>
         </button>
 
         <!-- Report Member -->
@@ -263,7 +263,7 @@ async function openMenu(member, event) {
 
     // Calculate position relative to container
     let top = rect.bottom - containerRect.top + 5
-    const left = rect.right - containerRect.left - 224 // 224px is w-56
+    const left = rect.right - containerRect.left - 250 // 224px is w-56
 
     // Flip up if near bottom
     if (top + 200 > containerRect.height) {
