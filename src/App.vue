@@ -82,4 +82,7 @@ provide("toggleTheme", toggleTheme);
 footer {
   font-family: 'Inter', sans-serif;
 }
+#__vue-devtools-container__{
+  display: none !important;
+}
 </style>

@@ -85,12 +85,166 @@ function rememberChatUserData(userId, userData) {
   }
 }
 
+const isEmbedded = window.self !== window.top
+
+function postToParent(type, payload = {}) {
+  if (isEmbedded && window.parent) {
+    window.parent.postMessage({ type, payload }, '*')
+  }
+}
+
+const isDragging = ref(false)
+const isLeftAligned = ref(false)
+const isTopAligned = ref(false)
+const position = ref({ x: null, y: null })
+const isFloating = computed(() => position.value.x !== null && position.value.y !== null)
+
+const widgetStyle = computed(() => {
+  if (isEmbedded) {
+    const offset = hostWidth.value < 768 ? '0.5rem' : '0px';
+    return {
+      top: isTopAligned.value ? offset : 'auto',
+      bottom: !isTopAligned.value ? offset : 'auto',
+      left: isLeftAligned.value ? offset : 'auto',
+      right: !isLeftAligned.value ? offset : 'auto'
+    }
+  }
+  return position.value.x !== null ? { left: `${position.value.x}px`, top: `${position.value.y}px`, right: 'auto', bottom: 'auto' } : {}
+})
+
+let startX = 0, startY = 0
+let initialX = 0, initialY = 0
+let moved = false
+
+function onHover(isHovered) {
+  if (isEmbedded) {
+    postToParent('FS_CHAT_HOVER_STATE', { isHovered })
+  }
+}
+
+let isPointerDragging = false
+let lastPointerScreenX = 0
+let lastPointerScreenY = 0
+
+function onPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  isPointerDragging = true
+  moved = false
+  lastPointerScreenX = e.screenX
+  lastPointerScreenY = e.screenY
+
+  if (widgetEl.value && !isEmbedded) {
+    const rect = widgetEl.value.getBoundingClientRect()
+    initialX = rect.left
+    initialY = rect.top
+    position.value = { x: initialX, y: initialY }
+  }
+
+  if (isEmbedded) {
+    position.value = { x: 1, y: 1 } // Trigger isFloating styles
+  }
+
+  e.currentTarget.setPointerCapture(e.pointerId)
+}
+
+function onPointerMove(e) {
+  if (!isPointerDragging || !widgetEl.value) return
+
+  const dx = e.screenX - lastPointerScreenX
+  const dy = e.screenY - lastPointerScreenY
+
+  if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    moved = true
+    isDragging.value = true
+  }
+
+  if (moved) {
+    e.preventDefault()
+
+    if (isEmbedded) {
+      postToParent('FS_CHAT_DRAG_DELTA', { dx, dy })
+    } else {
+      const widgetWidth = widgetEl.value.offsetWidth
+      const widgetHeight = widgetEl.value.offsetHeight
+      const maxX = window.innerWidth - widgetWidth
+      const maxY = window.innerHeight - widgetHeight
+
+      let newX = Math.max(0, Math.min(position.value.x + dx, maxX))
+      let newY = Math.max(0, Math.min(position.value.y + dy, maxY))
+      position.value = { x: newX, y: newY }
+    }
+
+    lastPointerScreenX = e.screenX
+    lastPointerScreenY = e.screenY
+  }
+}
+
+function onPointerUp(e) {
+  if (!isPointerDragging) return
+  isPointerDragging = false
+  isDragging.value = false
+  e.currentTarget.releasePointerCapture(e.pointerId)
+
+  if (moved) {
+    if (isEmbedded) {
+      postToParent('FS_CHAT_DRAG_END_TOUCH')
+    } else {
+      if (widgetEl.value) {
+        const widgetWidth = widgetEl.value.offsetWidth
+        const widgetHeight = widgetEl.value.offsetHeight
+        const centerX = position.value.x + (widgetWidth / 2)
+        const centerY = position.value.y + (widgetHeight / 2)
+        const windowCenterX = window.innerWidth / 2
+        const windowCenterY = window.innerHeight / 2
+
+        isLeftAligned.value = centerX < windowCenterX
+        isTopAligned.value = centerY < windowCenterY
+
+        const distLeft = centerX
+        const distRight = window.innerWidth - centerX
+        const distTop = centerY
+        const distBottom = window.innerHeight - centerY
+        const minDist = Math.min(distLeft, distRight, distTop, distBottom)
+
+        const horizontalOffset = hostWidth.value >= 768 ? 16 : 8
+        const verticalOffset = hostWidth.value >= 768 ? 16 : 8
+
+        if (minDist === distLeft || minDist === distRight) {
+          if (isLeftAligned.value) {
+            position.value.x = horizontalOffset
+          } else {
+            position.value.x = window.innerWidth - widgetWidth - horizontalOffset
+          }
+        } else {
+          if (isTopAligned.value) {
+            position.value.y = verticalOffset
+          } else {
+            position.value.y = window.innerHeight - widgetHeight - verticalOffset
+          }
+        }
+      }
+    }
+  }
+}
+
 const unreadCount = computed(() => {
   // Placeholder: sum unread_count from userChats
   return chatStore.userChats.reduce((sum, c) => sum + (c.unread_count || 0), 0)
 })
 
-function toggleList() {
+watch(unreadCount, (newVal) => {
+  postToParent('FS_CHAT_UNREAD_COUNT', newVal)
+}, { immediate: true })
+
+function toggleList(e) {
+  if (moved) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    moved = false
+    return
+  }
   isListOpen.value = !isListOpen.value
 }
 
@@ -121,6 +275,11 @@ function openChatWindow(chat) {
 
 function closeChatWindow(uid) {
   openChats.value = openChats.value.filter((c) => c.uid !== uid)
+}
+
+function closeAll() {
+  isListOpen.value = false
+  openChats.value = []
 }
 
 function onChatCreated(uid, newChatId) {
@@ -294,6 +453,8 @@ async function openChat({ chatId, userId, targetUserData, fanViewUid, fanViewUse
     const username    = userData?.username || ''
     const avatar      = userData?.avatar || null
     onStartChat({ userId: uid, displayName, username, avatar, targetUserData: userData })
+  } else {
+    isListOpen.value = true
   }
 }
 
@@ -330,7 +491,7 @@ async function openGroupChat({
   })
 }
 
-defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats })
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -341,6 +502,12 @@ onMounted(async () => {
   const handleHostResize = (e) => {
     if (e.data?.type === 'FS_CHAT_HOST_RESIZE') {
       hostWidth.value = e.data.payload.width
+    } else if (e.data?.type === 'FS_CHAT_DRAG_END' && e.data.payload) {
+      isLeftAligned.value = e.data.payload.isLeftAligned
+      isTopAligned.value = e.data.payload.isTopAligned
+      isDragging.value = false
+      moved = false
+
     }
   }
   window.addEventListener('message', handleHostResize)
@@ -350,6 +517,9 @@ onMounted(async () => {
     openChats.value = []
   }
   window.addEventListener('fs-chat-close-all', handleCloseAllChats)
+
+  // Notify host that iframe is fully loaded and ready
+  postToParent('FS_CHAT_READY')
 
   onBeforeUnmount(() => {
     window.removeEventListener('message', handleHostResize)
@@ -389,17 +559,28 @@ onMounted(async () => {
   <div
     v-if="currentUserId"
     ref="widgetEl"
-    class="fixed bottom-2 right-2 z-[9999] flex flex-col items-end gap-2"
+    class="fixed z-[9999] flex flex-col gap-2"
     :class="[
-      hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
-      hostWidth > 1024 ? 'bottom-4 right-2' : '',
-      hostWidth >= 768 ? '!bottom-0' : '',
+      isLeftAligned ? 'items-start' : 'items-end',
+      !isDragging ? 'transition-all duration-300' : '',
+      (!isEmbedded && position.x === null) ? [
+        hostWidth >= 768 && hostWidth <= 1024 ? 'bottom-0 right-4' : '',
+        hostWidth > 1024 ? 'bottom-4 right-2' : '',
+        hostWidth >= 768 ? '!bottom-0' : '',
+        'bottom-2 right-2'
+      ] : ''
     ]"
+    :style="widgetStyle"
   >
 
-    <!-- Open chat windows (stack left of the trigger) -->
-    <div class="flex items-end gap-2 absolute bottom-0 right-0 z-[10000]"
-         :class="[(hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '']">
+    <!-- Open chat windows (stack left or right of the trigger depending on alignment) -->
+    <div class="flex gap-2 absolute z-[10000]"
+         :class="[
+           isTopAligned ? 'items-start top-0' : 'items-end bottom-0 right-2',
+           (hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '',
+           isLeftAligned ? 'left-0 flex-row-reverse' : 'right-0'
+         ]"
+         :style="{ pointerEvents: isDragging ? 'none' : 'auto' }">
       <ChatWindow
         v-for="(chat, index) in openChats"
         :key="chat.uid"
@@ -431,7 +612,7 @@ onMounted(async () => {
     </div>
 
     <!-- Anchor: chat list panel + trigger button -->
-    <div class="relative flex flex-col items-end">
+    <div class="relative flex items-end" :class="isTopAligned ? 'flex-col-reverse' : 'flex-col'">
 
       <!-- Chat list panel (floats above trigger) -->
       <ChatListPanel
@@ -439,15 +620,23 @@ onMounted(async () => {
         ref="chatListRef"
         :current-user-id="currentUserId"
         :host-width="hostWidth"
+        :is-left-aligned="isLeftAligned"
+        :is-top-aligned="isTopAligned"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
         @start-chat="onStartChat"
+        :style="{ pointerEvents: isDragging ? 'none' : 'auto' }"
       />
 
       <!-- Trigger button (UI-01.0) -->
       <button
         v-show="!hideFloatingButton"
-        @click="toggleList"
+        @click="toggleList($event)"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @mouseenter="onHover(true)"
+        @mouseleave="onHover(false)"
         class="
          right-2 bottom-0
          md:right-10 md:bottom-0
@@ -455,17 +644,22 @@ onMounted(async () => {
          md:max-[1009px]:rounded-b-none
          max-[1009px]:md:right-16 max-[1009px]:md:bottom-0
          lg:right-auto lg:bottom-4
-         chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
+         touch-none select-none chat-panel-trigger flex items-center gap-2 bg-white border border-zinc-200 p-2 shadow-lg hover:shadow-xl transition-shadow text-sm font-medium text-zinc-700"
         :class="[
-          hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0' : '',
-          hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0' : '',
-          hostWidth >= 1024 ? '!right-auto !bottom-4' : '',
-          hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0' : 'rounded-full',
+          !isFloating ? [
+            hostWidth >= 768 && hostWidth <= 1009 ? '!right-16 !bottom-0 p-3' : '',
+            hostWidth > 1009 && hostWidth < 1024 ? '!right-10 !bottom-0 p-3' : '',
+            hostWidth >= 1024 ? '!right-auto !bottom-4 p-3' : '',
+            hostWidth >= 768 ? 'rounded-t-[10px] rounded-b-none !bottom-0 p-3' : 'rounded-full',
+          ] : [
+            hostWidth >= 768 ? 'rounded-[10px] p-3' : 'rounded-full'
+          ]
         ]"
       >
         <!-- Chat icon with unread badge -->
         <div class="relative">
           <img
+            draggable="false"
             :src="hostWidth < 768 ? MessageTextIconPink : MessageTextIcon"
             alt=""
             class="cursor-pointer"
@@ -490,11 +684,11 @@ onMounted(async () => {
         <!-- Chevron -->
         <div class="hidden md:flex chat-chevron" :class="hostWidth >= 768 ? '!flex' : ''">
             <svg
-              class="w-5 h-5 transition-transform"
+              class="w-5 h-5 text-zinc-400 transition-transform"
               :class="[
                 hostWidth >= 768 ? '!w-6 !h-6' : '',
-                isListOpen ? 'rotate-180' : ''
-              ]"
+                isTopAligned ? (isListOpen ? '' : 'rotate-180') : (isListOpen ? 'rotate-180' : ''
+              )]"
               fill="none" stroke="#667085" viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />

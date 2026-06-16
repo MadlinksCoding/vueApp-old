@@ -95,7 +95,261 @@
       pointerEvents: "none",
     });
 
+    var isChatListOpen = false;
+    var isLeftAligned = false;
+
+    function injectCSS() {
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "/wp-content/plugins/fansocial/bookings-embed/fs-chat-button.css?v=" + Date.now();
+      // Fallback for local dev
+      if (settings.src && (settings.src.indexOf('localhost') !== -1 || settings.src.indexOf('192.168.1.101') !== -1)) {
+        try {
+          var baseUrl = settings.src.startsWith('http') ? settings.src : window.location.origin + (settings.src.startsWith('/') ? '' : '/') + settings.src;
+          link.href = new URL("./fs-chat-button.css?v=" + Date.now(), baseUrl).href;
+        } catch (e) {
+          console.warn("fs-chat-host: Failed to construct CSS fallback URL", e);
+        }
+      }
+      document.head.appendChild(link);
+    }
+    injectCSS();
+
+    var extBtn = document.createElement("div");
+    extBtn.id = "fs-chat-external-btn";
+    extBtn.setAttribute("data-animation-blink-widget", "false");
+    extBtn.style.display = "none"; // Hide initially until iframe is ready
+    extBtn.classList.add("edge-bottom", window.innerWidth >= 768 ? "anchor-right" : "anchor-none"); // Default
+    
+    function snapToEdges() {
+      var rect = extBtn.getBoundingClientRect();
+      var centerX = rect.left + (rect.width / 2);
+      var centerY = rect.top + (rect.height / 2);
+      
+      var finalLeft = "auto", finalRight = "auto", finalTop = "auto", finalBottom = "auto";
+      var saveObj = {};
+      
+      if (window.innerWidth >= 768) {
+        // Desktop: Horizontal along the bottom
+        finalBottom = "0px";
+        // Anchor to left or right to prevent width changes from pushing it offscreen
+        extBtn.classList.remove("edge-left", "edge-right", "edge-top", "edge-bottom", "anchor-left", "anchor-right", "anchor-top", "anchor-bottom");
+        extBtn.classList.add("edge-bottom");
+        if (centerX < window.innerWidth / 2) {
+          finalLeft = Math.max(8, rect.left) + "px";
+          saveObj = { edge: "bottom", pos1: finalLeft, pos2: "auto", anchor: "left" };
+          extBtn.classList.add("anchor-left");
+        } else {
+          finalRight = Math.max(8, window.innerWidth - rect.right) + "px";
+          saveObj = { edge: "bottom", pos1: "auto", pos2: finalRight, anchor: "right" };
+          extBtn.classList.add("anchor-right");
+        }
+      } else {
+        // Mobile: Snap to closest side edge (Left or Right)
+        var anchorTop = centerY < window.innerHeight / 2 ? Math.max(8, rect.top) + "px" : "auto";
+        var anchorBottom = centerY >= window.innerHeight / 2 ? Math.max(8, window.innerHeight - rect.bottom) + "px" : "auto";
+        var verticalAnchor = centerY < window.innerHeight / 2 ? "top" : "bottom";
+        
+        extBtn.classList.remove("edge-left", "edge-right", "edge-top", "edge-bottom", "anchor-left", "anchor-right", "anchor-top", "anchor-bottom");
+
+        if (centerX < window.innerWidth / 2) {
+          finalLeft = "8px";
+          finalTop = anchorTop;
+          finalBottom = anchorBottom;
+          saveObj = { edge: "left", pos1: finalTop, pos2: finalBottom, anchor: verticalAnchor };
+          extBtn.classList.add("edge-left", "anchor-" + verticalAnchor);
+        } else {
+          finalRight = "8px";
+          finalTop = anchorTop;
+          finalBottom = anchorBottom;
+          saveObj = { edge: "right", pos1: finalTop, pos2: finalBottom, anchor: verticalAnchor };
+          extBtn.classList.add("edge-right", "anchor-" + verticalAnchor);
+        }
+      }
+      
+      extBtn.style.left = finalLeft;
+      extBtn.style.right = finalRight;
+      extBtn.style.top = finalTop;
+      extBtn.style.bottom = finalBottom;
+
+      if (typeof isChatListOpen !== 'undefined' && isChatListOpen) {
+        extBtn.classList.add("is-open");
+      }
+
+      localStorage.setItem("fs_chat_btn_pos", JSON.stringify(saveObj));
+    }
+
+    function updateDeviceClass(isResizeEvent) {
+      if (window.innerWidth >= 768) {
+        extBtn.classList.add("desktop");
+        extBtn.classList.remove("mobile");
+      } else {
+        extBtn.classList.add("mobile");
+        extBtn.classList.remove("desktop");
+      }
+      if (isResizeEvent === true && typeof snapToEdges === 'function') {
+        snapToEdges();
+      }
+    }
+    window.addEventListener("resize", function() { updateDeviceClass(true); });
+    updateDeviceClass();
+    extBtn.innerHTML = `
+      <div id="fs-chat-external-btn-icon-wrapper">
+        <svg id="fs-chat-external-btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 8.5H12M7 12H15M7 18V20.3355C7 20.8684 7 21.1348 7.10923 21.2716C7.20422 21.3906 7.34827 21.4599 7.50054 21.4597C7.67563 21.4595 7.88367 21.2931 8.29976 20.9602L10.6852 19.0518C11.1725 18.662 11.4162 18.4671 11.6875 18.3285C11.9282 18.2055 12.1844 18.1156 12.4492 18.0613C12.7477 18 13.0597 18 13.6837 18H16.2C17.8802 18 18.7202 18 19.362 17.673C19.9265 17.3854 20.3854 16.9265 20.673 16.362C21 15.7202 21 14.8802 21 13.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V14C3 14.93 3 15.395 3.10222 15.7765C3.37962 16.8117 4.18827 17.6204 5.22354 17.8978C5.60504 18 6.07003 18 7 18Z" stroke="#0C111D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="fs-chat-external-btn-badge" style="display: none;">0</span>
+      </div>
+      <span id="fs-chat-external-btn-text">Chat</span>
+      <div id="fs-chat-external-btn-chevron">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#667085"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+      </div>
+    `;
+    document.body.appendChild(extBtn);
+
+    var savedPos = localStorage.getItem("fs_chat_btn_pos");
+    if (savedPos) {
+      try {
+        var pos = JSON.parse(savedPos);
+        extBtn.classList.remove("edge-left", "edge-right", "edge-top", "edge-bottom", "anchor-left", "anchor-right", "anchor-top", "anchor-bottom");
+        extBtn.classList.add("edge-" + (pos.edge || "bottom"));
+        if (pos.anchor) {
+          extBtn.classList.add("anchor-" + pos.anchor);
+        }
+        var isMobile = window.innerWidth < 768;
+        var edgeGap = isMobile ? "8px" : "0px";
+        if (pos.edge === "left") {
+          extBtn.style.left = edgeGap;
+          extBtn.style.top = pos.pos1;
+          extBtn.style.bottom = pos.pos2;
+        } else if (pos.edge === "right") {
+          extBtn.style.right = edgeGap;
+          extBtn.style.top = pos.pos1;
+          extBtn.style.bottom = pos.pos2;
+        } else if (pos.edge === "top") {
+          extBtn.style.top = edgeGap;
+          extBtn.style.left = pos.pos1;
+          extBtn.style.right = pos.pos2;
+        } else if (pos.edge === "bottom") {
+          extBtn.style.bottom = edgeGap;
+          extBtn.style.left = pos.pos1;
+          extBtn.style.right = pos.pos2;
+        } else {
+          // Fallback for old format
+          extBtn.style.left = pos.left + "px";
+          extBtn.style.top = pos.top + "px";
+        }
+      } catch (e) {}
+    } else {
+      if (window.innerWidth >= 768) {
+        extBtn.style.right = "8px";
+        extBtn.style.bottom = "0px";
+      } else {
+        extBtn.style.right = "8px";
+        extBtn.style.bottom = "8px";
+      }
+    }
+
+    var isDraggingBtn = false;
+    var btnHasMoved = false;
+
+    function initBtnDrag(e) {
+      var startX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+      var startY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+      var rect = extBtn.getBoundingClientRect();
+      var offsetX = startX - rect.left;
+      var offsetY = startY - rect.top;
+
+      btnHasMoved = false;
+      isDraggingBtn = true;
+
+      function onMove(ev) {
+        if (!isDraggingBtn) return;
+        ev.preventDefault(); // Crucial for clean touch drag
+        var clientX = ev.type === "touchmove" ? ev.touches[0].clientX : ev.clientX;
+        var clientY = ev.type === "touchmove" ? ev.touches[0].clientY : ev.clientY;
+
+        if (!btnHasMoved) {
+          if (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3) {
+            btnHasMoved = true;
+            extBtn.classList.add("dragging");
+          } else {
+            return; // Ignore small movements (like a click)
+          }
+        }
+        
+        ev.preventDefault(); // Crucial for clean touch drag
+
+        var newX = clientX - offsetX;
+        var newY = clientY - offsetY;
+
+        var isMobile = window.innerWidth < 768;
+        var minX = 8, minY = isMobile ? 8 : 0;
+        var maxX = window.innerWidth - extBtn.offsetWidth - 8;
+        var maxY = window.innerHeight - extBtn.offsetHeight - (isMobile ? 8 : 0);
+
+        newX = Math.max(minX, Math.min(newX, maxX));
+        newY = Math.max(minY, Math.min(newY, maxY));
+
+        if (window.innerWidth >= 768) {
+          // Desktop: Strictly Horizontal
+          extBtn.style.left = newX + "px";
+          extBtn.style.right = "auto";
+          extBtn.style.bottom = "0px";
+          extBtn.style.top = "auto";
+        } else {
+          // Mobile: Free move (will snap on end)
+          extBtn.style.left = newX + "px";
+          extBtn.style.top = newY + "px";
+          extBtn.style.right = "auto";
+          extBtn.style.bottom = "auto";
+        }
+      }
+
+
+      function onEnd() {
+        if (!isDraggingBtn) return;
+        isDraggingBtn = false;
+        extBtn.classList.remove("dragging");
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onEnd);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onEnd);
+
+        if (btnHasMoved) {
+          snapToEdges();
+        }
+      }
+
+      document.addEventListener("mousemove", onMove, { passive: false });
+      document.addEventListener("mouseup", onEnd);
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend", onEnd);
+    }
+
+    extBtn.addEventListener("mousedown", initBtnDrag);
+    extBtn.addEventListener("touchstart", initBtnDrag, { passive: false });
+
+    extBtn.addEventListener("click", function(e) {
+      if (btnHasMoved) return; // Prevent click if it was just dragged
+      
+      if (isChatListOpen) {
+        // Send a message to Vue to cleanly close the UI
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "FS_CHAT_CLOSE", payload: {} }, "*");
+        }
+      } else {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "FS_CHAT_OPEN_CHAT", payload: {} }, "*");
+        }
+        chatContainer.style.visibility = '';
+        chatContainer.style.opacity = '1';
+        chatContainer.style.zIndex = '9998';
+      }
+    });
+
     function applyContainerSize(w, payload = {}) {
+      return; // Disable dynamic resizing for now
       let isEventPage = /\/events\//.test(window?.parent?.location.href);
       if (!isEventPage) return;
       // console.error("Applying c÷ntainer size for width", w,payload, isEventPage);
@@ -127,6 +381,7 @@
       fanUid: settings.fanUid || null,
       jwtToken: settings.jwtToken || null,
       hostWidth: window.innerWidth,
+      alwaysHideFloatingButton: "1",
     });
     iframe.title = settings.iframeTitle;
     iframe.style.width = "100%";
@@ -175,6 +430,8 @@
           chatContainer.style.width = String(window.innerWidth / 16) + "rem";
           chatContainer.style.height = String(window.innerHeight / 16) + "rem";
         }
+      } else if (data.type === "FS_CHAT_READY") {
+        extBtn.style.display = "flex";
       } else if (data.type === "FS_CHAT_RESIZE" && data.payload) {
         var w = data.payload.width;
         var h = data.payload.height;
@@ -188,7 +445,37 @@
   
         toggleHiddenClass(data.payload.is_open);
 
+        if (data.payload.is_open !== undefined) {
+          isChatListOpen = data.payload.is_open;
+          if (!data.payload.is_open) {
+            chatContainer.style.visibility = 'hidden';
+            chatContainer.style.opacity = '0';
+            chatContainer.style.zIndex = '-1';
+            extBtn.classList.remove("is-open");
+          } else {
+            chatContainer.style.visibility = '';
+            chatContainer.style.opacity = '1';
+            chatContainer.style.zIndex = '9998';
+            extBtn.classList.add("is-open");
+          }
+        }
         applyContainerSize(window.innerWidth, data.payload);
+      } else if (data.type === "FS_CHAT_UNREAD_COUNT") {
+        var count = data.payload || 0;
+        var badge = document.getElementById("fs-chat-external-btn-badge");
+        var text = document.getElementById("fs-chat-external-btn-text");
+        if (badge && text) {
+          if (count > 0) {
+            badge.style.display = "flex";
+            badge.innerText = count;
+            text.innerText = count + " NEW MESSAGE" + (count !== 1 ? "S" : "");
+            extBtn.setAttribute("data-animation-blink-widget", "true");
+          } else {
+            badge.style.display = "none";
+            text.innerText = "Chat";
+            extBtn.setAttribute("data-animation-blink-widget", "false");
+          }
+        }
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
         if (typeof window.openTipPopup === "function") {
@@ -253,6 +540,7 @@
     var pendingStateRequests = {};
 
     function toggleHiddenClass( isChatOpen = true) {
+      return; // Disable hiding the widget for now, as it causes issues with the new floating button behavior
       if (window?._fs_hide_chat_widget) {
         if (isChatOpen) {
           document.body.classList.remove('hide-chat-widget');
