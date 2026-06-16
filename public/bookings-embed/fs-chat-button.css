@@ -6,6 +6,11 @@
   display: none !important;
 }
 
+.lg-show.lg-show-in .lg-outer,
+.lg-show.lg-show-in  .lg-backdrop{
+ z-index: 9999 !important; /* Ensure the lightbox is above the chat and chat window */
+}
+
 #fs-chat-external-btn {
   position: fixed;
   z-index: 9998;
