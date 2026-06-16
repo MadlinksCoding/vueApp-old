@@ -108,11 +108,11 @@
   transition: transform 0.2s;
 }
 
-#fs-chat-external-btn[data-animation-blink-widget="true"]::before {
+#fs-chat-external-btn[data-animation-blink-widget="true"]  #fs-chat-external-btn-icon-wrapper::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 17%;
   background: rgba(250, 121, 179, 0.7);
   pointer-events: none;
   z-index: -1;
@@ -127,7 +127,7 @@
   }
 
   100% {
-       transform: scale3d(1);
+       transform: scale3d(2,2,2);
     opacity: 0.6;
   }
 }
@@ -135,7 +135,7 @@
 /* Mobile adjustments */
 @media (max-width: 767px) {
   /* blink effect */
-  #fs-chat-external-btn[data-animation-blink-widget="true"]::before{
+  #fs-chat-external-btn[data-animation-blink-widget="true"]  #fs-chat-external-btn-icon-wrapper::before{
     border-radius: 50%;
   }
   /* blink effect */
