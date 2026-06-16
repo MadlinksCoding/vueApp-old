@@ -10,8 +10,10 @@ import PopupHandler from '@/components/ui/popup/PopupHandler.vue'
 import { resolveParentUserData } from '@/utils/resolveParentUserData.js'
 
 const props = defineProps({
-  currentUserId: { type: [String, Number], default: null },
-  hostWidth: { type: Number, default: window.innerWidth },
+  currentUserId: { type: [String, Number], required: true },
+  hostWidth: { type: Number, default: 1024 },
+  isLeftAligned: { type: Boolean, default: false },
+  isTopAligned: { type: Boolean, default: false }
 })
 const emit = defineEmits(['open-chat', 'close', 'start-chat', 'chat-ready'])
 
@@ -245,8 +247,15 @@ function getLastMessageText(chat) {
 
 <template>
   <div
-    class="absolute bottom-full right-0 mb-2 w-[28.125rem] h-[35.5rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
-    :class="[hostWidth < 768 ? '!fixed !bottom-0 !left-0 !right-0 !w-full !h-[50vh] !mb-0 !rounded-t-[0.625rem] !rounded-b-none' : '']"
+    v-bind="$attrs"
+    class="absolute w-[28.125rem] h-[35.5rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
+    :class="[
+      hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full !h-[50vh] !mb-0 !mt-0 !rounded-t-[0.625rem] !rounded-b-none' : '',
+      hostWidth >= 768 && isLeftAligned ? 'left-0' : '',
+      hostWidth >= 768 && !isLeftAligned ? 'right-0' : '',
+      hostWidth >= 768 && isTopAligned ? 'top-full mt-2' : '',
+      hostWidth >= 768 && !isTopAligned ? 'bottom-12 mb-2 right-2' : ''
+    ]"
     style="background-color: #F2F4F7;"
   >
 

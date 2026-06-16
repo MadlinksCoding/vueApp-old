@@ -3,6 +3,11 @@
     <ChatFloatingWidget ref="widgetRef" :user-id="uid" :hide-floating-button="hideFloatingButton" />
   </div>
 </template>
+<style scoped>
+#__vue-devtools-container__{
+  display: none !important;
+}
+</style>
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -68,7 +73,8 @@ const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
 const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
 const FS_CHAT_SET_FLOATING_BUTTON = 'FS_CHAT_SET_FLOATING_BUTTON'
 
-const hideFloatingButton = ref(params.get('hideFloatingButton') === '1')
+const alwaysHideFloatingButton = params.get('alwaysHideFloatingButton') === '1'
+const hideFloatingButton = ref(alwaysHideFloatingButton || params.get('hideFloatingButton') === '1')
 
 function onParentMessage(event) {
   if (event.source !== window.parent) return
@@ -85,16 +91,20 @@ function onParentMessage(event) {
   if( data.type.startsWith('FS_CHAT_') && data.type !== FS_CHAT_SET_FLOATING_BUTTON && data.type !== FS_CHAT_OPEN_CHAT) {
     let parentWindow = window.parent
     if ( parentWindow ) {
-      // check body classs 'hide-chat-widget' exists or not
-      if (parentWindow.document.body.classList.contains('hide-chat-widget')) {
-        hideFloatingButton.value = true
-      } else {
-        hideFloatingButton.value = false  
+      try {
+        if (parentWindow.document.body.classList.contains('hide-chat-widget')) {
+          if (!alwaysHideFloatingButton) hideFloatingButton.value = true
+        } else {
+          if (!alwaysHideFloatingButton) hideFloatingButton.value = false  
+        }
+      } catch (e) {
+        // Handle cross-origin errors if any
       }
     }
   }
 
   if (data.type === FS_CHAT_SET_FLOATING_BUTTON) {
+    if (alwaysHideFloatingButton) return // Ignore dynamic toggles if locked
     const payload = data.payload || {}
     hideFloatingButton.value = !!payload.hidden
     return
@@ -103,6 +113,10 @@ function onParentMessage(event) {
   if (data.type === FS_CHAT_OPEN_CHAT) {
     const payload = data.payload || {}
     widgetRef.value?.openChat(payload)
+  }
+
+  if (data.type === 'FS_CHAT_CLOSE') {
+    widgetRef.value?.closeAll?.()
   }
 
   if (data.type === FS_CHAT_OPEN_NEW_CHAT_POPUP) {
@@ -147,30 +161,46 @@ function scheduleResize(el, delay = 30) {
   resizeTimer = setTimeout(() => notifyResize(el), delay)
 }
 
+let lastW = 0
+let lastH = 0
+let lastIsOpen = null
+
 function notifyResize(el) {
   if (popupOpen) return
-  console.log("Calculating chat embed size...") // Debug log to trace resize events
+
   const root = el.getBoundingClientRect()
 
   // Walk all descendants — captures absolute-positioned children (chat list, chat windows)
   let minLeft  = root.left
   let minTop   = root.top
   let maxRight = root.right
+  let maxBottom = root.bottom
   el.querySelectorAll('*').forEach(child => {
     const r = child.getBoundingClientRect()
     if (r.width > 0 && r.height > 0) {
       if (r.left  < minLeft)  minLeft  = r.left
       if (r.top   < minTop)   minTop   = r.top
       if (r.right > maxRight) maxRight = r.right
+      if (r.bottom > maxBottom) maxBottom = r.bottom
     }
   })
 
   const w = Math.ceil(maxRight - minLeft) + 32
-  const h = Math.ceil(root.bottom - minTop) + 32
+  const h = Math.ceil(maxBottom - minTop) + 32
 
   const isOpen = !!(widgetRef.value?.isListOpen || (widgetRef.value?.openChats?.length > 0))
+  const triggerEl = el.querySelector('.chat-panel-trigger')
+  const triggerWidth = triggerEl ? triggerEl.getBoundingClientRect().width : 56
 
-  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen })
+  if (w === lastW && h === lastH && isOpen === lastIsOpen) {
+    return
+  }
+
+  lastW = w
+  lastH = h
+  lastIsOpen = isOpen
+
+  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen, trigger_width: triggerWidth })
 }
 
 function sendFullViewport() {

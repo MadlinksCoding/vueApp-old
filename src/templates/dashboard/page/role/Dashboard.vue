@@ -1,7 +1,23 @@
 <template>
   <DashboardWrapperTwoColContainer>
   
-    
+    <div class="p-4 border border-gray-300 rounded-lg bg-white w-full max-w-sm mb-6 shadow-sm">
+      <h3 class="font-bold mb-4 text-lg text-gray-800">Local Storage Config</h3>
+      <div class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1 font-medium text-sm text-gray-700">
+          User ID <span class="text-red-500">*</span>
+          <input type="text" v-model="demoUserId" placeholder="Enter User ID" class="border border-gray-300 p-2 rounded focus:outline-none focus:border-blue-500" required />
+        </label>
+        <label class="flex items-center gap-2 font-medium text-sm text-gray-700 cursor-pointer w-fit">
+          <input type="checkbox" v-model="demoIsCreator" class="w-4 h-4 cursor-pointer" />
+          Is Creator
+        </label>
+        <button @click="saveToLocalStorage" class="bg-blue-600 text-white font-medium px-4 py-2 rounded hover:bg-blue-700 transition duration-200 mt-2">
+          Save Config
+        </button>
+      </div>
+    </div>
+
     <TwitterRepostSettings />
     <br />
     <br />
@@ -306,6 +322,19 @@ import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";
 import PremiumOrdersPage from "../agent/PremiumOrdersPage.vue";
+
+const demoUserId = ref(localStorage.getItem("userId") || "");
+const demoIsCreator = ref(localStorage.getItem("isCreator") === "true");
+
+function saveToLocalStorage() {
+  if (!demoUserId.value) {
+    showToast({ type: "error", title: "Missing ID", message: "User ID is required." });
+    return;
+  }
+  localStorage.setItem("userId", demoUserId.value);
+  localStorage.setItem("isCreator", demoIsCreator.value);
+  showToast({ type: "success", title: "Saved", message: "Saved to localStorage." });
+}
 
 const isViewAllPopupOpen = ref(false);
 const profileMediaDetailsPopupOpen = ref(false);
