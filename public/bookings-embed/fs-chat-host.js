@@ -532,6 +532,7 @@
     var pendingStateRequests = {};
 
     function toggleHiddenClass( isChatOpen = true) {
+      return; // Disable hiding the widget for now, as it causes issues with the new floating button behavior
       if (window?._fs_hide_chat_widget) {
         if (isChatOpen) {
           document.body.classList.remove('hide-chat-widget');
