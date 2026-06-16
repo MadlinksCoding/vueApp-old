@@ -464,9 +464,11 @@
             badge.style.display = "flex";
             badge.innerText = count;
             text.innerText = count + " NEW MESSAGE" + (count !== 1 ? "S" : "");
+            extBtn.setAttribute("data-animation-blink-widget", "true");
           } else {
             badge.style.display = "none";
             text.innerText = "Chat";
+            extBtn.setAttribute("data-animation-blink-widget", "false");
           }
         }
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
