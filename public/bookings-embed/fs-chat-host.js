@@ -112,6 +112,7 @@
 
     var extBtn = document.createElement("div");
     extBtn.id = "fs-chat-external-btn";
+    extBtn.setAttribute("data-animation-blink-widget", "false");
     extBtn.style.display = "none"; // Hide initially until iframe is ready
     extBtn.classList.add("edge-bottom", window.innerWidth >= 768 ? "anchor-right" : "anchor-none"); // Default
     

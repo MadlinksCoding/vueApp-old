@@ -103,8 +103,38 @@
   transition: transform 0.2s;
 }
 
+#fs-chat-external-btn[data-animation-blink-widget="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 10px 10px 0 0;
+  background: rgba(250, 121, 179, 0.7);
+  pointer-events: none;
+  z-index: -1;
+
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale3d(0.5, 0.5, 0.5);
+    opacity: 0.9;
+  }
+
+  100% {
+       transform: scale3d(1);
+    opacity: 0.6;
+  }
+}
+
 /* Mobile adjustments */
 @media (max-width: 767px) {
+  /* blink effect */
+  #fs-chat-external-btn[data-animation-blink-widget="true"]::before{
+    border-radius: 50%;
+  }
+  /* blink effect */
+
   #fs-chat-external-btn {
     padding: 8px; /* Match p-2 from original mobile UI */
     border-radius: 9999px !important; /* Force rounded-full on mobile */
