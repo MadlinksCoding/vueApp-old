@@ -1369,7 +1369,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             {{ formTitle }}
                         </div>
                         <ButtonComponent
-                            @click="emit('preview-schedule')"
+                            @click="previewSchedule = true"
                             :text="t('common_preview')"
                             :customClass="'inline-flex lg:hidden text-[#FF0464] py-1 px-4 !rounded-[48px] !border !border-[#FB5BA2] gap-1 items-center'"
                             :btnBg="'bg-white/20'"
