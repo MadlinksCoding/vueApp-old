@@ -2,10 +2,10 @@ import { fail } from "../flow-system/flowTypes.js";
 import { normalizeUnknownError } from "../flow-system/flowErrors.js";
 
 function getFallbackBaseUrl() {
-  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_FS_BLOCK_API_URL) {
-    return import.meta.env.VITE_FS_BLOCK_API_URL;
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
-  return "https://168.144.35.180:3443";
+  return "http://localhost:3001";
 }
 
 export function getBlockApiBaseUrl(context) {
