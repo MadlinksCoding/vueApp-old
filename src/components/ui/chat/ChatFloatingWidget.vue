@@ -254,11 +254,20 @@ function openChatWindow(chat) {
   }
   console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
-  const isDupe = openChats.value.find((c) =>
-    (chat.chatId && c.chatId === chat.chatId) ||
-    (chat.chatId && chat.targetUserId && c.targetUserId === chat.targetUserId) ||
-    (chat.groupType && c.groupType === chat.groupType)
-  )
+  const isDupe = openChats.value.find((c) => {
+    if (chat.chatId && c.chatId === chat.chatId) return true;
+    
+    const isPrivate = (ch) => !ch.chatType || ch.chatType === 'private' || ch.chatType === 'direct';
+    if (isPrivate(chat) && isPrivate(c) && chat.targetUserId && c.targetUserId === chat.targetUserId) {
+      return true;
+    }
+    
+    if (!chat.chatId && chat.groupType && c.groupType === chat.groupType) {
+      return true;
+    }
+    
+    return false;
+  })
   if (isDupe) {
     console.log("Chat window already open for this chat/user/group - skipping:", isDupe)
     return

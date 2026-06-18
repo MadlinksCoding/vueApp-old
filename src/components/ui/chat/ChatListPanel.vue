@@ -165,6 +165,9 @@ function getChatAvatar(chat) {
 function getChatTargetPayload(chat) {
   const otherId = getOtherParticipantId(chat.chat_id)
   const targetUserData = otherId ? chatStore.chatUsersData[String(otherId)] : null
+  const participants = chatStore.chatParticipants[chat.chat_id] || chat.participants || []
+  const isGroup = chat.is_group === true || chat.is_group === 1 || chat.group_type === 'group' || chat.type === 'group' || participants.length > 2
+
   return {
     chatId: chat.chat_id,
     chatName: getChatDisplayName(chat),
@@ -173,6 +176,8 @@ function getChatTargetPayload(chat) {
     targetUserData,
     fanViewUid: getFanViewUid(targetUserData),
     fanViewUserId: otherId ? String(otherId) : null,
+    chatType: chat.type || (isGroup ? 'group' : 'private'),
+    groupType: chat.group_type || null,
   }
 }
 
