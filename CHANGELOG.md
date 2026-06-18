@@ -13,6 +13,12 @@
 #### `public/bookings-embed/fs-chat-host.js`
 - **Mobile Outside Click** — Added a `document.addEventListener("click")` handler to automatically close the chat list on mobile devices (`window.innerWidth < 768`) if the user taps on the transparent background outside the active chat widget.
 
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Payload Enrichment** — Updated `getChatTargetPayload` to correctly evaluate and include `chatType` and `groupType` in the payload when a chat is opened. This ensures the receiver has explicit context on whether the chat is a 1-on-1 private chat or a group chat.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Duplicate Chat Window Fix** — Refined the `isDupe` logic in `openChatWindow` to only match by `targetUserId` if both the incoming chat and the existing open chat are strictly evaluated as `private` chats. This resolves a false-positive duplication bug where opening a creator's Free Subscription group chat and their private CosMania 1-on-1 chat simultaneously would incorrectly block one from opening because both shared the same `targetUserId` (the creator's ID).
+
 ## 2026-06-15 — Chat Embed Mobile & Rendering Fixes
 
 ### Changed
