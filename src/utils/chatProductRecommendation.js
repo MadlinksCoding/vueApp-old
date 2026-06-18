@@ -301,8 +301,19 @@ function toPlainCloneable(value, seen = new WeakSet()) {
       .filter((item) => item !== undefined);
   }
 
+  if (Object.prototype.toString.call(value) !== "[object Object]") {
+    return undefined;
+  }
+
   const output = {};
-  for (const key of Object.keys(value)) {
+  let keys = [];
+  try {
+    keys = Object.keys(value);
+  } catch {
+    return undefined;
+  }
+
+  for (const key of keys) {
     if (key.startsWith("__v_")) continue;
     const cloned = toPlainCloneable(value[key], seen);
     if (cloned !== undefined) output[key] = cloned;
@@ -327,6 +338,7 @@ export function normalizeProductRecommendationStatus({ product, response, now = 
       hasAccess,
       canBuy: !hasAccess,
       cta: hasAccess ? "watch" : "buy",
+      ctaLabel: toString(detail?.subscription?.action_text || detail?.action_text),
     };
   }
 

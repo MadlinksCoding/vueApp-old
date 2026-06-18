@@ -40,6 +40,7 @@ import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
 import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
+import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import galleryIcon from '@/assets/images/icons/image-03.svg'
@@ -89,6 +90,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
 
 const chatStore = useChatStore()
+const { t } = useBookingTranslations()
 const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
 const isCreatorAccount = computed(() => {
   const ud = resolveParentUserData()
@@ -958,6 +960,7 @@ const inputRef        = ref(null)
 const showProductPopup = ref(false)
 const productCatalog = ref(emptyProductCatalogState())
 const productStatusByKey = ref({})
+const productActionPendingByKey = ref({})
 const avatarErrors = ref({})
 const currentUserAvatar = computed(() => chatStore.chatUsersData[String(currentUserId)]?.avatar || null)
 const currentUserInitial = computed(() => {
@@ -1598,6 +1601,58 @@ function setProductStatusState(message, nextState = {}) {
   }
 }
 
+function getProductActionPendingKey(message, action = '') {
+  const key = getProductStatusKey(message)
+  const normalizedAction = productActionFromCta(action) || action
+  return key && normalizedAction ? `${key}:${normalizedAction}` : ''
+}
+
+function isProductActionPending(message, action = '') {
+  const key = getProductActionPendingKey(message, action)
+  return key ? Boolean(productActionPendingByKey.value[key]) : false
+}
+
+function isAnyProductActionPending(message) {
+  const key = getProductStatusKey(message)
+  if (!key) return false
+  return Object.keys(productActionPendingByKey.value).some((pendingKey) => pendingKey.startsWith(`${key}:`))
+}
+
+function setProductActionPending(message, action = '') {
+  const key = getProductActionPendingKey(message, action)
+  if (!key) return
+  productActionPendingByKey.value = {
+    ...productActionPendingByKey.value,
+    [key]: true,
+  }
+}
+
+function clearProductActionPending(message, action = '') {
+  const key = getProductActionPendingKey(message, action)
+  if (!key || !productActionPendingByKey.value[key]) return
+  const { [key]: _removed, ...nextPending } = productActionPendingByKey.value
+  productActionPendingByKey.value = nextPending
+}
+
+function clearProductActionPendingForMessages(targetMessages = [], action = '') {
+  targetMessages.forEach((message) => clearProductActionPending(message, action))
+}
+
+function isFreeSubscriptionDetail(detail = {}) {
+  const subscriptionData = detail?.subscription || {}
+  return Boolean(
+    detail?.stats?.is_free_tier ||
+    detail?.stats?.is_free_plan ||
+    subscriptionData?.is_free_plan ||
+    subscriptionData?.stats?.is_free_tier
+  )
+}
+
+function shouldShowFreeSubscribePending(message, action = '') {
+  return productActionFromCta(action) === 'subscribe'
+    && isFreeSubscriptionDetail(productCardStatus(message)?.detail || {})
+}
+
 async function fetchProductRecommendationStatus(message, { force = false } = {}) {
   if (!shouldFetchProductRecommendationStatus(message)) return
 
@@ -1689,17 +1744,19 @@ function isProductWatchAction(action = '') {
 }
 
 function productCardButtonDisabled(message, action = '') {
-  return productCardCtaDisabled(message)
+  return isProductActionPending(message, action)
+    || productCardCtaDisabled(message)
     || (isProductCardReadOnly(message) && !isProductWatchAction(action))
     || isChatBlocked.value
 }
 
 function productCardButtonsLoading(message) {
-  return productCardCta(message) === 'loading'
+  return productCardCta(message) === 'loading' && !isAnyProductActionPending(message)
 }
 
 function productCardDisabledReason(message, action = '') {
   if (isChatBlocked.value) return disabledInputMessage.value || 'This chat is unavailable.'
+  if (isProductActionPending(message, action)) return 'Processing your subscription.'
 
   const cta = productCardCta(message)
   if (cta === 'loading') return 'Checking your access. Please wait.'
@@ -1715,6 +1772,7 @@ function productCardDisabledReason(message, action = '') {
 function shouldShowProductSubscribeButton(message) {
   const product = productForMessage(message)
   if (!product) return false
+  if (isProductActionPending(message, 'subscribe')) return true
   const cta = productCardCta(message)
   if (cta === 'loading') return false
   if (cta === 'watch') return false
@@ -1737,9 +1795,9 @@ function productSubscribePriceLabel(message) {
 function productSubscribeActionLabel(message) {
   const product = productForMessage(message)
   if (product?.type === 'product' && productCardCta(message) === 'subscribe') {
-    return productCardCtaLabel(message) || 'Subscribe'
+    return t('chat_action_to_buy', { action: productCardCtaLabel(message) || 'Subscribe' })
   }
-  if (product?.type !== 'subscription') return 'Subscribe'
+  if (product?.type !== 'subscription') return productCardCtaLabel(message) || 'Subscribe'
   return productCardCtaLabel(message) || 'Subscribe'
 }
 
@@ -1822,15 +1880,18 @@ async function onProductCtaClick(message, requestedAction = '') {
   const action = productActionFromCta(requestedAction) || productActionFromCta(cta)
   if (productCardButtonDisabled(message, action)) return
   if (!action) return
-  onProductCardClick(message, { action })
+  const shouldTrackPending = shouldShowFreeSubscribePending(message, action)
+  if (shouldTrackPending) setProductActionPending(message, action)
+  const didPost = onProductCardClick(message, { action })
+  if (shouldTrackPending && !didPost) clearProductActionPending(message, action)
 }
 
 function onProductCardClick(message, { action = '' } = {}) {
-  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return
-  if (!shouldFetchProductRecommendationStatus(message)) return
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return false
+  if (!shouldFetchProductRecommendationStatus(message)) return false
   const product = extractProductRecommendation(message)
-  if (!product) return
-  if (window.self === window.top && !window.parent) return
+  if (!product) return false
+  if (window.self === window.top && !window.parent) return false
 
   const status = productCardStatus(message) || {}
   const fanViewContext = resolveProductRecommendationFanViewContext(message)
@@ -1841,15 +1902,17 @@ function onProductCardClick(message, { action = '' } = {}) {
     status,
     action,
   })
-  if (!payload) return
+  if (!payload) return false
   Object.assign(payload, fanViewContext)
 
   try {
     if (typeof structuredClone === 'function') structuredClone({ type: 'FS_CHAT_PRODUCT_SELECTED', payload })
     postToParent('FS_CHAT_PRODUCT_SELECTED', payload)
+    return true
   } catch (error) {
     console.error('[ChatWindow] Product recommendation payload could not be posted', error)
     showToast({ type: 'error', title: 'Product', message: 'Product details could not be sent.' })
+    return false
   }
 }
 
@@ -1861,9 +1924,13 @@ async function refreshProductRecommendationMessages(payload = {}) {
   const targetMessages = messages.value.filter((message) =>
     message.content_type === 'product_recommendation' && productRefreshMatchesMessage(message, payload)
   )
-  await Promise.all(targetMessages.map((message) =>
-    fetchProductRecommendationStatus(message, { force: true })
-  ))
+  try {
+    await Promise.all(targetMessages.map((message) =>
+      fetchProductRecommendationStatus(message, { force: true })
+    ))
+  } finally {
+    clearProductActionPendingForMessages(targetMessages, 'subscribe')
+  }
 }
 
 // Returns true only when every non-sender participant has a read receipt
@@ -2504,6 +2571,12 @@ function _onTopupMessage(e) {
     showToast({ type: 'error', title: 'Top-up failed', message: 'Booking was not confirmed.' })
   } else if (e.data.type === 'FS_CHAT_PRODUCT_REFRESH') {
     refreshProductRecommendationMessages(e.data.payload || {})
+  } else if (e.data.type === 'FS_CHAT_PRODUCT_ACTION_FAILED') {
+    const payload = e.data.payload || {}
+    const targetMessages = messages.value.filter((message) =>
+      message.content_type === 'product_recommendation' && productRefreshMatchesMessage(message, payload)
+    )
+    clearProductActionPendingForMessages(targetMessages, payload.action || 'subscribe')
   }
 }
 
@@ -2845,15 +2918,25 @@ onUnmounted(() => {
             >
               <button
                 type="button"
-                class="w-full h-9 flex items-center justify-between bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
-                :class="productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : ''"
+                class="w-full h-9 flex items-center bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
+                :class="[
+                  isProductActionPending(message, 'subscribe') ? 'justify-center cursor-not-allowed' : 'justify-between',
+                  productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : '',
+                ]"
                 :disabled="productCardButtonDisabled(message, 'subscribe')"
                 :aria-disabled="productCardButtonDisabled(message, 'subscribe') ? 'true' : undefined"
                 :tabindex="productCardButtonDisabled(message, 'subscribe') ? -1 : 0"
                 @click.stop="onProductCtaClick(message, 'subscribe')"
               >
-                <span>{{ productSubscribeActionLabel(message) }}</span>
-                <span>{{ productSubscribePriceLabel(message) }}</span>
+                <span
+                  v-if="isProductActionPending(message, 'subscribe')"
+                  class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  aria-label="Processing subscription"
+                ></span>
+                <template v-else>
+                  <span>{{ productSubscribeActionLabel(message) }}</span>
+                  <span>{{ productSubscribePriceLabel(message) }}</span>
+                </template>
               </button>
               <span
                 v-if="productCardButtonDisabled(message, 'subscribe') && productCardDisabledReason(message, 'subscribe')"

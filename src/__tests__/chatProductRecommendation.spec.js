@@ -160,12 +160,19 @@ describe("chat product recommendations", () => {
   it("normalizes fan eligibility status for media, subscription, and merch", () => {
     expect(normalizeProductRecommendationStatus({
       product: { id: 2940, type: "media", title: "Media" },
-      response: { result: { stats: { has_access: true }, media_url: "https://cdn.example.com/video.mp4" } },
+      response: {
+        result: {
+          stats: { has_access: true },
+          media_url: "https://cdn.example.com/video.mp4",
+          subscription: { action_text: "Upgrade" },
+        },
+      },
     })).toEqual(expect.objectContaining({
       type: "media",
       hasAccess: true,
       canBuy: false,
       cta: "watch",
+      ctaLabel: "Upgrade",
     }));
 
     expect(normalizeProductRecommendationStatus({
@@ -417,6 +424,8 @@ describe("chat product recommendations", () => {
     expect(chatWindowSource).toContain("if (cta === 'subscribe') return true");
     expect(chatWindowSource).toContain("if (cta === 'subscribe') return false");
     expect(chatWindowSource).toContain("if (cta === 'buy') return true");
+    expect(chatWindowSource).toContain("t('chat_action_to_buy'");
+    expect(chatWindowSource).toContain("if (product?.type !== 'subscription') return productCardCtaLabel(message) || 'Subscribe'");
   });
 
   it("renders skeleton placeholders instead of chat product buttons while status is loading", () => {
@@ -426,10 +435,23 @@ describe("chat product recommendations", () => {
     );
 
     expect(chatWindowSource).toContain("function productCardButtonsLoading(message)");
-    expect(chatWindowSource).toContain("return productCardCta(message) === 'loading'");
+    expect(chatWindowSource).toContain("return productCardCta(message) === 'loading' && !isAnyProductActionPending(message)");
     expect(chatWindowSource).toContain('v-if="productCardButtonsLoading(message)"');
     expect(chatWindowSource).toContain("animate-pulse");
     expect(chatWindowSource).not.toContain("productCardButtonOpacityClass");
+  });
+
+  it("renders a pending spinner for free subscription actions", () => {
+    const chatWindowSource = readFileSync(
+      resolve(process.cwd(), "src/components/ui/chat/ChatWindow.vue"),
+      "utf8"
+    );
+
+    expect(chatWindowSource).toContain("function shouldShowFreeSubscribePending(message, action = '')");
+    expect(chatWindowSource).toContain("setProductActionPending(message, action)");
+    expect(chatWindowSource).toContain("FS_CHAT_PRODUCT_ACTION_FAILED");
+    expect(chatWindowSource).toContain("border-white/40 border-t-white");
+    expect(chatWindowSource).toContain("Processing subscription");
   });
 
   it("adds explicit subscription fields to selected payloads", () => {
@@ -563,10 +585,12 @@ describe("chat product recommendations", () => {
 
   it("builds selected payloads that are safe for postMessage structured clone", () => {
     const circular = { stats: { has_access: true } };
+    const windowLike = { [Symbol.toStringTag]: "Window", frameElement: null };
     circular.self = circular;
     circular.fn = () => "nope";
     circular.symbol = Symbol("nope");
-    circular.items = [{ ok: true, skip: () => false }];
+    circular.window = windowLike;
+    circular.items = [{ ok: true, skip: () => false }, windowLike];
 
     const message = {
       chat_id: "chat#1",
@@ -601,7 +625,8 @@ describe("chat product recommendations", () => {
       keepNull: null,
       fn: () => {},
       sym: Symbol("drop"),
-      array: [1, () => {}, Symbol("drop"), { nested: true }],
+      window: { [Symbol.toStringTag]: "Window", name: "parent" },
+      array: [1, () => {}, Symbol("drop"), { nested: true }, { [Symbol.toStringTag]: "Window", name: "child" }],
     };
     source.self = source;
 
