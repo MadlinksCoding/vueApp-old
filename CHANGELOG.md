@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-18 — Chat Popup UI & Iframe Resize Fixes
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Loading UI Polish** — Replaced the static "Loading..." text with a dynamic SVG spinner matching the app's standard spinner design.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Iframe Resize Fix** — Updated `attachObserver` to correctly attach the `overlayObserver` even if the popup overlay (`data-popup-overlay`) is already present in the DOM. Also updated `checkPopupState` to check `opacity !== '0'` instead of waiting for `visibility === 'visible'`, ensuring the iframe resizes immediately when a teleported popup (like Members or New Message) closes. This resolves a bug where the chat iframe remained permanently stuck at full height.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Mobile Outside Click** — Added a `document.addEventListener("click")` handler to automatically close the chat list on mobile devices (`window.innerWidth < 768`) if the user taps on the transparent background outside the active chat widget.
+
 ## 2026-06-15 — Chat Embed Mobile & Rendering Fixes
 
 ### Changed

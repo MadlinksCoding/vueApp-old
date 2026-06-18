@@ -333,20 +333,24 @@
     extBtn.addEventListener("click", function(e) {
       if (btnHasMoved) return; // Prevent click if it was just dragged
       
-      if (isChatListOpen) {
-        // Send a message to Vue to cleanly close the UI
-        if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: "FS_CHAT_CLOSE", payload: {} }, "*");
-        }
-      } else {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: "FS_CHAT_OPEN_CHAT", payload: {} }, "*");
-        }
-        chatContainer.style.visibility = '';
-        chatContainer.style.opacity = '1';
-        chatContainer.style.zIndex = '9998';
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "FS_CHAT_TOGGLE_LIST", payload: {} }, "*");
       }
+      chatContainer.style.visibility = '';
+      chatContainer.style.opacity = '1';
+      chatContainer.style.zIndex = '9998';
     });
+
+    // Close chat list on mobile when clicking outside
+    document.addEventListener("click", function(e) {
+      if (window.innerWidth < 768 && isChatListOpen) {
+        if (!chatContainer.contains(e.target) && !extBtn.contains(e.target)) {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: "FS_CHAT_TOGGLE_LIST", payload: {} }, "*");
+          }
+        }
+      }
+    }, true);
 
     function applyContainerSize(w, payload = {}) {
       return; // Disable dynamic resizing for now
@@ -425,7 +429,8 @@
 
         if(window.innerWidth < 768){
           chatContainer.style.width = "100vw";
-          chatContainer.style.height = "100dvh";
+          // chatContainer.style.height = "100dvh";
+          chatContainer.style.height = String(window.innerHeight / 16) + "rem";
         } else {
           chatContainer.style.width = String(window.innerWidth / 16) + "rem";
           chatContainer.style.height = String(window.innerHeight / 16) + "rem";
@@ -437,7 +442,11 @@
         var h = data.payload.height;
         if (data.payload.is_open && window.innerWidth < 768) {
           chatContainer.style.width = "100vw";
-          chatContainer.style.height = "100dvh";
+          if( data.payload?.is_open_chat_window ) {
+            chatContainer.style.height = "100dvh";
+          } else {
+            if (h > 0) chatContainer.style.height = String(h / 16) + "rem";
+          }
         } else {
           if (w > 0) chatContainer.style.width = String(w / 16) + "rem";
           if (h > 0) chatContainer.style.height = String(h / 16) + "rem";

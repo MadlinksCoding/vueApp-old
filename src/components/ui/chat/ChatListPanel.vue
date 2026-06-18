@@ -250,7 +250,7 @@ function getLastMessageText(chat) {
     v-bind="$attrs"
     class="absolute w-[28.125rem] h-[35.5rem] z-[9999] rounded-[0.625rem] flex flex-col overflow-hidden py-1.5"
     :class="[
-      hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full !h-[50vh] !mb-0 !mt-0 !rounded-t-[0.625rem] !rounded-b-none' : '',
+      hostWidth < 768 ? '!fixed !bottom-0 !top-auto !left-0 !right-0 !w-full  !mb-0 !mt-0 !rounded-t-[0.625rem] !rounded-b-none' : '',
       hostWidth >= 768 && isLeftAligned ? 'left-0' : '',
       hostWidth >= 768 && !isLeftAligned ? 'right-0' : '',
       hostWidth >= 768 && isTopAligned ? 'top-full mt-2' : '',
