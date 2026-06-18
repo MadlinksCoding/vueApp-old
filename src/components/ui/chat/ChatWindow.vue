@@ -2331,7 +2331,7 @@ function messageAttrs(msg) {
 const baseThemeStyles = {
   container:        'relative bg-[#f4f4f5] flex flex-col h-full overflow-hidden',
   header:           'bg-[#EDEDED] p-2 shrink-0 z-10 shadow-sm relative',
-  body:             'flex-1 overflow-y-auto px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
+  body:             'flex-1 overflow-y-auto overscroll-contain px-4 py-2 space-y-1.5 scroll-smooth flex flex-col',
   compose:          'bg-white py-2.5 px-2 shrink-0',
   myMessageRow:     'flex w-full justify-end mt-1',
   otherMessageRow:  'flex w-full justify-start mt-1',
@@ -3212,6 +3212,7 @@ onUnmounted(() => {
     <ChatMembersPopup
       v-if="showMembersPopup"
       :chat-id="activeChatId"
+      :target-user-ids="targetUserIds"
       :current-user-id="currentUserId"
       :is-creator="isCreatorAccount"
       :is-group-chat="isGroupChat"

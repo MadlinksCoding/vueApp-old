@@ -19,6 +19,9 @@
 #### `src/components/ui/chat/ChatFloatingWidget.vue`
 - **Duplicate Chat Window Fix** — Refined the `isDupe` logic in `openChatWindow` to only match by `targetUserId` if both the incoming chat and the existing open chat are strictly evaluated as `private` chats. This resolves a false-positive duplication bug where opening a creator's Free Subscription group chat and their private CosMania 1-on-1 chat simultaneously would incorrectly block one from opening because both shared the same `targetUserId` (the creator's ID).
 
+#### `src/components/ui/chat/ChatWindow.vue` & `src/components/ui/chat/ChatMembersPopup.vue`
+- **Pre-created Group Chat Members Fix** — Passed `targetUserIds` directly from `ChatWindow` into `ChatMembersPopup`. Updated the `participants` computed property in `ChatMembersPopup` to fallback to `targetUserIds` if the chat hasn't been created in the database yet. This ensures all selected users are properly displayed in the Members list during the preview state, rather than just showing the creator.
+
 ## 2026-06-15 — Chat Embed Mobile & Rendering Fixes
 
 ### Changed

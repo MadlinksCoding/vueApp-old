@@ -13,7 +13,7 @@ const props = defineProps({
         type: Object, default: () => ({
             container: 'relative bg-white border border-zinc-200 rounded-lg shadow-sm flex flex-col h-full overflow-hidden',
             header: 'bg-white border-b border-zinc-200 p-4 shrink-0',
-            body: 'flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth flex flex-col',
+            body: 'flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 scroll-smooth flex flex-col',
             compose: 'bg-white border-t border-zinc-200 p-4 shrink-0',
 
             // Message Row Wrappers

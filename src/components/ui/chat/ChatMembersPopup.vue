@@ -37,7 +37,7 @@
     </div>
 
     <!-- Members Scrollable Body -->
-    <div class="flex-1 flex flex-col bg-[rgba(242,244,247,0.7)] overflow-y-auto p-2 gap-2" @scroll="onScroll">
+    <div class="flex-1 flex flex-col bg-[rgba(242,244,247,0.7)] overflow-y-auto overscroll-contain p-2 gap-2" @scroll="onScroll">
       <div
         v-for="member in filteredMembers.slice(0, visibleCount)"
         :key="member.id"
@@ -170,6 +170,7 @@ import ReportIcon from '@/assets/images/icons/annotation-alert.svg'
 
 const props = defineProps({
   chatId: { type: String, required: true },
+  targetUserIds: { type: Array, default: () => [] },
   currentUserId: { type: [String, Number], required: true },
   isCreator: { type: Boolean, default: false },
   isGroupChat: { type: Boolean, default: false },
@@ -212,7 +213,11 @@ const isChatCreator = computed(() => {
 })
 
 const participants = computed(() => {
-  return chatStore.chatParticipants[props.chatId] || []
+  const storeParticipants = chatStore.chatParticipants[props.chatId] || []
+  if (storeParticipants.length === 0 && props.targetUserIds && props.targetUserIds.length > 0) {
+    return [props.currentUserId, ...props.targetUserIds]
+  }
+  return storeParticipants
 })
 
 const membersList = computed(() => {

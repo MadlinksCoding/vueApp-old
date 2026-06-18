@@ -41,7 +41,7 @@
 
         <!-- Search results view -->
         <div v-else-if="searchQuery.length > 0"
-            class="flex flex-col overflow-y-auto bg-[rgba(242,244,247,0.7)] flex-1 p-2 md:p-4 gap-2">
+            class="flex flex-col overflow-y-auto overscroll-contain bg-[rgba(242,244,247,0.7)] flex-1 p-2 md:p-4 gap-2">
 
             <!-- Global loading for search -->
             <div v-if="searchLoading" class="flex items-center justify-center py-8 flex-1">
@@ -87,7 +87,7 @@
         </div>
 
         <!-- Default sections view -->
-        <div v-else class="flex flex-col overflow-y-auto bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
+        <div v-else class="flex flex-col overflow-y-auto overscroll-contain bg-[rgba(242,244,247,0.7)] shadow-[0_0_8px_0_rgba(0,0,0,0.10)]">
             <div class="flex p-2 md:p-4 flex-col gap-6">
 
                 <!-- Missed Call Users -->

@@ -12,7 +12,7 @@
       <div
         class="relative z-10 w-full sm:w-[500px] border-l-[4px] border-[#5549FF] bg-[#F9FAFB] rounded shadow-lg inline-flex items-start overflow-hidden font-['Poppins'] max-h-[90vh]"
       >
-        <div class="w-full p-4 flex items-start overflow-y-auto max-h-[90vh]">
+        <div class="w-full p-4 flex items-start overflow-y-auto overscroll-contain max-h-[90vh]">
           <div class="flex-1 inline-flex flex-col items-start gap-6">
 
             <!-- Header -->

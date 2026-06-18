@@ -28,7 +28,7 @@
         </div>
 
         <!-- Content -->
-        <div v-else class="pb-6 overflow-y-auto max-h-[85vh] flex flex-col gap-6">
+        <div v-else class="pb-6 overflow-y-auto overscroll-contain max-h-[85vh] flex flex-col gap-6">
 
           <!-- Personal Request (read-only) -->
           <div v-if="personalRequestText" class="flex flex-col gap-2">

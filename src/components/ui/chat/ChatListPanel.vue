@@ -278,7 +278,7 @@ function getLastMessageText(chat) {
     </div>
 
     <!-- Chat list -->
-    <div ref="listEl" class="flex flex-col flex-1 overflow-y-auto">
+    <div ref="listEl" class="flex flex-col flex-1 overflow-y-auto overscroll-contain">
 
       <!-- Empty state -->
       <div v-if="chatStore.userChats.length === 0" class="flex items-center justify-center w-full h-24 text-gray-500 text-sm font-['Poppins']">
