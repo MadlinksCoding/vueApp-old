@@ -33,15 +33,22 @@
 
         <!-- Loading state -->
         <div v-if="loading" class="flex-1 flex items-center justify-center py-12">
-            <div class="text-gray-400 text-sm font-['Poppins']">Loading...</div>
+            <div 
+                class="w-10 h-10 rounded-full animate-spin" 
+                style="background: conic-gradient(from 90deg, transparent 0%, #111827 100%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), black 0);">
+            </div>
         </div>
 
         <!-- Search results view -->
         <div v-else-if="searchQuery.length > 0"
             class="flex flex-col overflow-y-auto bg-[rgba(242,244,247,0.7)] flex-1 p-2 md:p-4 gap-2">
 
+            <!-- Global loading for search -->
             <div v-if="searchLoading" class="flex items-center justify-center py-8 flex-1">
-                <div class="text-gray-400 text-sm font-['Poppins']">Searching...</div>
+                <div 
+                    class="w-6 h-6 rounded-full animate-spin" 
+                    style="background: conic-gradient(from 90deg, transparent 0%, #111827 100%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black 0); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black 0);">
+                </div>
             </div>
 
             <template v-else-if="searchResults.length > 0">

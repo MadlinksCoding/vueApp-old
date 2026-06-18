@@ -249,7 +249,9 @@ function toggleList(e) {
 }
 
 function openChatWindow(chat) {
-  isListOpen.value = false
+  if (hostWidth.value < 768) {
+    isListOpen.value = false
+  }
   console.log("Attempting to open chat window with:", chat)
   // Avoid duplicates: match by chatId (existing) or targetUserId (pending)
   const isDupe = openChats.value.find((c) =>
@@ -264,7 +266,7 @@ function openChatWindow(chat) {
 
   const newChat = { ...chat, uid: Date.now() + Math.random() }
 
-  const limit = hostWidth.value >= 768 ? 3 : 1
+  const limit = hostWidth.value >= 768 ? 2 : 1
   if (openChats.value.length >= limit) {
     const toKeep = limit - 1
     openChats.value = toKeep > 0 ? [...openChats.value.slice(-toKeep), newChat] : [newChat]
@@ -382,7 +384,7 @@ const widgetEl  = ref(null)
 const hostWidth = ref(window.innerWidth)
 
 watch(hostWidth, (newWidth) => {
-  const limit = newWidth >= 768 ? 3 : 1
+  const limit = newWidth >= 768 ? 2 : 1
   if (openChats.value.length > limit) {
     const toRemove = openChats.value.length - limit
     openChats.value.splice(0, toRemove)
@@ -491,7 +493,7 @@ async function openGroupChat({
   })
 }
 
-defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll })
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll, toggleList })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -580,7 +582,11 @@ onMounted(async () => {
            (hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '',
            isLeftAligned ? 'left-0 flex-row-reverse' : 'right-0'
          ]"
-         :style="{ pointerEvents: isDragging ? 'none' : 'auto' }">
+         :style="{ 
+           pointerEvents: isDragging ? 'none' : 'auto',
+           marginRight: (isListOpen && !isLeftAligned && hostWidth >= 768) ? '29rem' : '0',
+           marginLeft: (isListOpen && isLeftAligned && hostWidth >= 768) ? '29rem' : '0'
+         }">
       <ChatWindow
         v-for="(chat, index) in openChats"
         :key="chat.uid"

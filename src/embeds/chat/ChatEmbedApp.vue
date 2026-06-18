@@ -135,6 +135,10 @@ function onParentMessage(event) {
     widgetRef.value?.closeAll?.()
   }
 
+  if (data.type === 'FS_CHAT_TOGGLE_LIST') {
+    widgetRef.value?.toggleList?.()
+  }
+
   if (data.type === FS_CHAT_OPEN_NEW_CHAT_POPUP) {
     widgetRef.value?.openNewChatPopup()
   }
@@ -180,6 +184,7 @@ function scheduleResize(el, delay = 30) {
 let lastW = 0
 let lastH = 0
 let lastIsOpen = null
+let lastIsOpenChatWindow = null
 
 function notifyResize(el) {
   if (popupOpen) return
@@ -204,19 +209,21 @@ function notifyResize(el) {
   const w = Math.ceil(maxRight - minLeft) + 32
   const h = Math.ceil(maxBottom - minTop) + 32
 
-  const isOpen = !!(widgetRef.value?.isListOpen || (widgetRef.value?.openChats?.length > 0))
+  const isOpenChatWindow = !!(widgetRef.value?.openChats?.length > 0)
+  const isOpen = !!(widgetRef.value?.isListOpen || isOpenChatWindow)
   const triggerEl = el.querySelector('.chat-panel-trigger')
   const triggerWidth = triggerEl ? triggerEl.getBoundingClientRect().width : 56
 
-  if (w === lastW && h === lastH && isOpen === lastIsOpen) {
+  if (w === lastW && h === lastH && isOpen === lastIsOpen && isOpenChatWindow === lastIsOpenChatWindow) {
     return
   }
 
   lastW = w
   lastH = h
   lastIsOpen = isOpen
+  lastIsOpenChatWindow = isOpenChatWindow
 
-  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen, trigger_width: triggerWidth })
+  postToParent('FS_CHAT_RESIZE', { width: w, height: h, is_open: isOpen, is_open_chat_window: isOpenChatWindow, trigger_width: triggerWidth })
 }
 
 function sendFullViewport() {
@@ -224,9 +231,10 @@ function sendFullViewport() {
 }
 
 function checkPopupState(el) {
-  // NewChatPopup: signalled by the usePopupStack singleton overlay becoming visible
+  // NewChatPopup / ChatMembersPopup: signalled by the usePopupStack singleton overlay becoming visible
   const overlayEl = document.querySelector('[data-popup-overlay]')
-  const overlayActive = overlayEl?.style.visibility === 'visible'
+  // Check opacity instead of visibility because visibility takes 150ms to become hidden
+  const overlayActive = overlayEl && overlayEl.style.opacity !== '0' && overlayEl.style.visibility !== 'hidden'
 
   // BookingDetailPopup / AdjustPopup: identified by explicit data-fs-chat-popup attribute
   const hasTeleportedPopup = Array.from(document.body.children).some(child =>
@@ -235,6 +243,8 @@ function checkPopupState(el) {
 
   if (overlayActive || hasTeleportedPopup) {
     popupOpen = true
+    lastW = 0
+    lastH = 0
     sendFullViewport()
   } else {
     popupOpen = false
@@ -251,6 +261,12 @@ function attachObserver(el) {
   mutationObserver = new MutationObserver(() => scheduleResize(el))
   mutationObserver.observe(el, { childList: true, subtree: true })
 
+  const existingOverlay = document.querySelector('[data-popup-overlay]')
+  if (existingOverlay && !overlayObserver) {
+    overlayObserver = new MutationObserver(() => checkPopupState(el))
+    overlayObserver.observe(existingOverlay, { attributes: true, attributeFilter: ['style'] })
+  }
+
   // MutationObserver on body: watches for direct Teleport popups and the overlay element
   bodyObserver = new MutationObserver((mutations) => {
     // If the usePopupStack overlay was just added, start watching its style for visibility changes
@@ -260,11 +276,18 @@ function attachObserver(el) {
           overlayObserver = new MutationObserver(() => checkPopupState(el))
           overlayObserver.observe(node, { attributes: true, attributeFilter: ['style'] })
         }
+        if (node.nodeType === 1 && node.hasAttribute('data-fs-chat-popup')) {
+          checkPopupState(el)
+        }
+      })
+      mutation.removedNodes.forEach(node => {
+        if (node.nodeType === 1 && node.hasAttribute('data-fs-chat-popup')) {
+          checkPopupState(el)
+        }
       })
     }
-    checkPopupState(el)
   })
-  bodyObserver.observe(document.body, { childList: true })
+  bodyObserver.observe(document.body, { childList: true, subtree: true })
 
   notifyResize(el)
 }
