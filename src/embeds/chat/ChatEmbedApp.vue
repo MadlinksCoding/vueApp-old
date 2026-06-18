@@ -16,6 +16,7 @@ import { setBackendJwtToken } from '@/utils/backendJwt.js'
 import { setRuntimeTokenHandlerApiUrl } from '@/utils/TokenHandler.js'
 import { useChatStore } from '@/stores/useChatStore'
 import { postToParent } from '@/utils/postToParent'
+import { provideBookingTranslations } from '@/i18n/bookingTranslations.js'
 
 const widgetRef = ref(null)
 let resizeObserver   = null
@@ -27,6 +28,21 @@ let resizeTimer      = null
 
 // Run synchronously during setup — before any child onMounted hooks fire
 const params = new URLSearchParams(window.location.search)
+
+function parseTranslationsParam(value) {
+  if (!value) return {}
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+provideBookingTranslations({
+  locale: params.get('locale') || params.get('lang') || 'en',
+  translations: parseTranslationsParam(params.get('translations') || params.get('bookingTranslations')),
+})
 
 const uid = params.get('currentUserId') || params.get('userId')
 if (uid) {

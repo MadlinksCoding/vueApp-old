@@ -56,6 +56,8 @@ export const bookingMessages = {
   common_week: "Week",
   common_yes: "Yes",
 
+  chat_action_to_buy: "{action} to Buy",
+
   date_sun_short: "Sun",
   date_mon_short: "Mon",
   date_tue_short: "Tue",

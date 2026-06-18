@@ -19,7 +19,7 @@ export async function createEventFlow({ payload, context, api }) {
     if (response?.ok === false) {
       return fail({
         code: "CREATE_EVENT_FAILED",
-        message: response?.error || "Failed to create event.",
+        message: response?.message || response?.error || "Failed to create event.",
         details: response,
       });
     }
