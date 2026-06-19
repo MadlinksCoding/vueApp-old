@@ -85,7 +85,7 @@ const newChatPopupConfig = {
   lockScroll: false,
   escToClose: true,
   width: props.hostWidth >= 768 ? '42.188rem' : { default: '100%', '>768': '675px' },
-  height: props.hostWidth >= 768 ? '37.5rem' : { default: '100vh', '>768': '90vh' },
+  height: props.hostWidth >= 768 ? '80vh' : { default: '100vh', '>768': '90vh' },
   scrollable: false,
   zIndex: 10000,
 }
