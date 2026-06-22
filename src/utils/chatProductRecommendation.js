@@ -1,3 +1,5 @@
+import { toCloneSafePayload } from "./cloneSafePayload.js";
+
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -279,50 +281,8 @@ function merchSubscriptionDetail(detail = {}, product = {}) {
   };
 }
 
-function toPlainCloneable(value, seen = new WeakSet()) {
-  if (value === null || value === undefined) return value ?? null;
-  const type = typeof value;
-
-  if (type === "string" || type === "number" || type === "boolean") {
-    return Number.isNaN(value) ? null : value;
-  }
-
-  if (type === "bigint") return value.toString();
-  if (type === "function" || type === "symbol") return undefined;
-  if (value instanceof Date) return value.toISOString();
-
-  if (type !== "object") return undefined;
-  if (seen.has(value)) return undefined;
-  seen.add(value);
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => toPlainCloneable(item, seen))
-      .filter((item) => item !== undefined);
-  }
-
-  if (Object.prototype.toString.call(value) !== "[object Object]") {
-    return undefined;
-  }
-
-  const output = {};
-  let keys = [];
-  try {
-    keys = Object.keys(value);
-  } catch {
-    return undefined;
-  }
-
-  for (const key of keys) {
-    if (key.startsWith("__v_")) continue;
-    const cloned = toPlainCloneable(value[key], seen);
-    if (cloned !== undefined) output[key] = cloned;
-  }
-  return output;
-}
-
 export function toCloneSafeProductPayload(value) {
-  return toPlainCloneable(value);
+  return toCloneSafePayload(value);
 }
 
 export function normalizeProductRecommendationStatus({ product, response, now = Date.now() } = {}) {

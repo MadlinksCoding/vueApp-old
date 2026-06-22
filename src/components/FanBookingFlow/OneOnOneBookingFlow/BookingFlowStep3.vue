@@ -26,6 +26,7 @@ import { resolveGuestSessionId } from '@/utils/resolveGuestSessionId';
 import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
 import { getBookingsApiBaseUrl } from '@/services/bookings/bookingsApiUtils.js';
 import { formatBookingValidationErrors, useBookingTranslations } from '@/i18n/bookingTranslations.js';
+import { extractBackendErrorMessage } from '@/utils/backendErrorMessage.js';
 
 const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
 let topUpFormPrefetchPromise = null;
@@ -772,14 +773,33 @@ function extractBackendMessage(flowResult) {
   if (Array.isArray(validationMessages) && validationMessages.length > 0) {
     return validationMessages.join(' ');
   }
+  const ignoredGenericMessages = [
+    t('fan_booking_booking_failed_message'),
+    t('fan_booking_complete_failed_message'),
+    flowResult?.meta?.uiErrors?.[0],
+    'Failed to create booking.',
+    'Unexpected error while creating booking.',
+    'Could not create booking. Please try again.',
+  ];
+  const backendMessage = extractBackendErrorMessage(flowResult, {
+    includeErrorValues: false,
+    ignoredMessages: ignoredGenericMessages,
+  });
+  if (backendMessage) return backendMessage;
   const backendTranslationKey = resolveBackendErrorTranslationKey(flowResult, code);
   if (backendTranslationKey) return t(backendTranslationKey);
+  const backendCodeOrError = extractBackendErrorMessage(flowResult, {
+    includeErrorValues: true,
+    includeCodeValues: false,
+    ignoredMessages: ignoredGenericMessages,
+  });
+  if (backendCodeOrError) return backendCodeOrError;
   const translatedByCode = {
-    CREATE_BOOKING_FAILED: 'fan_booking_booking_failed_message',
     HTTP_422: 'fan_booking_validation_failed_review',
     HTTP_402: 'fan_booking_insufficient_token_balance',
   }[code];
   if (translatedByCode) return t(translatedByCode);
+  if (code) return `Booking request failed: ${code}`;
   return flowResult?.error?.message
     || flowResult?.meta?.uiErrors?.[0]
     || t('fan_booking_complete_failed_message');

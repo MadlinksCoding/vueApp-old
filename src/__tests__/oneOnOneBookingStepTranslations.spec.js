@@ -1,10 +1,12 @@
-import { shallowMount } from "@vue/test-utils";
+import { mount, shallowMount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 import { showToast } from "@/utils/toastBus.js";
 
 let sendBeaconDescriptor;
+let scrollIntoViewDescriptor;
+let focusDescriptor;
 
 vi.mock("quill", () => {
   const Quill = vi.fn();
@@ -67,8 +69,9 @@ function mountOptions(translations = {}) {
         template: "<input :placeholder='placeholder' :disabled='disabled' />",
       },
       ButtonComponent: {
-        props: ["text"],
-        template: "<button>{{ text }}</button>",
+        props: ["text", "disabled", "customClass"],
+        emits: ["click"],
+        template: "<button :disabled='disabled' :class='customClass' @click='$emit(\"click\", $event)'>{{ text }}</button>",
       },
       CheckboxGroup: {
         props: ["label", "disabled"],
@@ -102,6 +105,8 @@ function mountOptions(translations = {}) {
         template: "<span>{{ text }}<slot /></span>",
       },
       TwitterRepostSettings: true,
+      SoftDisabledBookingButton: false,
+      ValidationInlineWarning: false,
     },
   };
 }
@@ -130,9 +135,18 @@ function unrefPublic(value) {
   return value?.value ?? value;
 }
 
+async function settleValidation() {
+  await Promise.resolve();
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+}
+
 describe("one-on-one booking step translations", () => {
   beforeEach(() => {
     sendBeaconDescriptor = Object.getOwnPropertyDescriptor(navigator, "sendBeacon");
+    scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+    focusDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "focus");
     vi.clearAllMocks();
     document.body.innerHTML = "";
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
@@ -144,6 +158,14 @@ describe("one-on-one booking step translations", () => {
       configurable: true,
       value: undefined,
     });
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(HTMLElement.prototype, "focus", {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -152,6 +174,16 @@ describe("one-on-one booking step translations", () => {
       Object.defineProperty(navigator, "sendBeacon", sendBeaconDescriptor);
     } else {
       delete navigator.sendBeacon;
+    }
+    if (scrollIntoViewDescriptor) {
+      Object.defineProperty(Element.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+    } else {
+      delete Element.prototype.scrollIntoView;
+    }
+    if (focusDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, "focus", focusDescriptor);
+    } else {
+      delete HTMLElement.prototype.focus;
     }
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
@@ -179,16 +211,15 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.goToNext();
+    await settleValidation();
 
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Validation Failed",
-      message: "Event title is required.\nSession duration must be at least 5 minutes.\nBase price is required.",
-      autoClose: false,
-    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-field='eventTitle']").text()).toContain("Event title is required.");
+    expect(wrapper.get("[data-booking-validation-field='duration']").text()).toContain("Session duration must be at least 5 minutes.");
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
   });
 
-  it("uses translations for step 1 validation toast title and messages", async () => {
+  it("uses translations for step 1 inline validation messages", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -212,13 +243,11 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.goToNext();
+    await settleValidation();
 
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Validacion fallida",
-      message: "El titulo del evento es obligatorio.\nBase price is required.",
-      autoClose: false,
-    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-field='eventTitle']").text()).toContain("El titulo del evento es obligatorio.");
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
   });
 
   it("shows conditional step 1 validation as fields to fill or disable", async () => {
@@ -241,13 +270,10 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.goToNext();
+    await settleValidation();
 
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Please fill these fields",
-      message: "Fill these fields or disable the related settings:\n1. Extension session maximum",
-      autoClose: false,
-    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='extendSessionMax']").text()).toContain("Extension session maximum");
   });
 
   it("numbers every mixed conditional step 1 validation item", async () => {
@@ -271,13 +297,11 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.goToNext();
+    await settleValidation();
 
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Please fill these fields",
-      message: "Fill these fields or disable the related settings:\n1. Off-hour surcharge\n2. Buffer time must be at least 5 minutes.",
-      autoClose: false,
-    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='offHourSurcharge']").text()).toContain("Off-hour surcharge");
+    expect(wrapper.get("[data-booking-validation-tooltip-field='bufferTime']").text()).toContain("Buffer time must be at least 5 minutes.");
   });
 
   it("shows filled conditional numeric errors as translated validation messages", async () => {
@@ -300,13 +324,263 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.goToNext();
+    await settleValidation();
 
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Validation Failed",
-      message: "Buffer time must be at least 5 minutes.",
-      autoClose: false,
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='bufferTime']").text()).toContain("Buffer time must be at least 5 minutes.");
+  });
+
+  it("soft-disables step 1 Next and exposes the validation tooltip", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn(() => Promise.resolve({
+      valid: false,
+      errors: [
+        { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+      ],
+    }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
     });
+
+    await settleValidation();
+
+    const action = wrapper.get("[data-booking-soft-disabled='true']");
+    expect(action.text()).toContain("Next");
+    expect(action.get("[data-booking-validation-tooltip='true']").text()).toContain("Event title is required.");
+  });
+
+  it("removes soft-disabled button styling after validation becomes valid", async () => {
+    const { default: SoftDisabledBookingButton } = await import(
+      "@/components/ui/form/BookingForm/HelperComponents/SoftDisabledBookingButton.vue"
+    );
+
+    const wrapper = mount(SoftDisabledBookingButton, {
+      props: {
+        text: "Next",
+        softDisabled: true,
+      },
+    });
+
+    expect(wrapper.get("[data-booking-soft-disabled]").attributes("data-booking-soft-disabled")).toBe("true");
+    expect(wrapper.get("button").classes()).toContain("booking-validation-soft-disabled");
+
+    await wrapper.setProps({ softDisabled: false });
+    await nextTick();
+
+    expect(wrapper.get("[data-booking-soft-disabled]").attributes("data-booking-soft-disabled")).toBe("false");
+    expect(wrapper.get("button").classes()).not.toContain("booking-validation-soft-disabled");
+  });
+
+  it("closes the soft-disabled tooltip after selecting an item", async () => {
+    const { default: SoftDisabledBookingButton } = await import(
+      "@/components/ui/form/BookingForm/HelperComponents/SoftDisabledBookingButton.vue"
+    );
+
+    const wrapper = mount(SoftDisabledBookingButton, {
+      props: {
+        text: "Next",
+        softDisabled: true,
+        tooltipItems: [
+          { field: "duration", label: "Session duration must be at least 5 minutes." },
+        ],
+      },
+    });
+
+    expect(wrapper.find("[data-booking-validation-tooltip='true']").exists()).toBe(true);
+
+    await wrapper.get("[data-booking-validation-tooltip-field='duration']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.find("[data-booking-validation-tooltip='true']").exists()).toBe(false);
+
+    await wrapper.get("button").trigger("click");
+    await nextTick();
+
+    expect(wrapper.find("[data-booking-validation-tooltip='true']").exists()).toBe(true);
+  });
+
+  it("clicking a step 1 tooltip row reveals, scrolls, and focuses that field", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn(() => Promise.resolve({
+      valid: false,
+      errors: [
+        { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+      ],
+    }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    expect(wrapper.find("[data-booking-validation-warning='true']").exists()).toBe(false);
+
+    await wrapper.get("[data-booking-validation-tooltip-field='basePrice']").trigger("click");
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    expect(HTMLElement.prototype.focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  it("shows inline step 1 warnings without scrolling on button click", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn(() => Promise.resolve({
+      valid: false,
+      errors: [
+        { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+      ],
+    }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.goToNext();
+    await settleValidation();
+
+    expect(engine.goToStep).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("reveals and scrolls step 1 errors received from a remount request", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    const errors = [
+      { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+    ];
+    engine.validate = vi.fn(() => Promise.resolve({
+      valid: false,
+      errors,
+    }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+        validationRevealRequest: {
+          nonce: 1,
+          errors,
+        },
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+  });
+
+  it("enables step 1 Next after validation passes and advances", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    let stepIsValid = false;
+    engine.validate = vi.fn(() => Promise.resolve(stepIsValid
+      ? {
+        valid: true,
+        errors: [],
+      }
+      : {
+        valid: false,
+        errors: [
+          { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+        ],
+      }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(true);
+
+    stepIsValid = true;
+    await wrapper.vm.goToNext();
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(false);
+    expect(engine.goToStep).toHaveBeenCalledWith(2, { throwOnBlocked: true });
+  });
+
+  it("keeps step 1 Next enabled when an older failed validation resolves after a newer passing validation", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn(() => Promise.resolve({ valid: true, errors: [] }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(false);
+
+    const pending = [];
+    engine.validate = vi.fn(() => new Promise((resolve) => pending.push(resolve)));
+
+    const olderValidation = wrapper.vm.validateStep1();
+    const newerValidation = wrapper.vm.validateStep1();
+
+    pending[1]({ valid: true, errors: [] });
+    await newerValidation;
+    await settleValidation();
+
+    pending[0]({
+      valid: false,
+      errors: [
+        { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+      ],
+    });
+    await olderValidation;
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(false);
   });
 
   it("emits preview from the mobile step 1 footer button", async () => {
@@ -1593,14 +1867,210 @@ describe("one-on-one booking step translations", () => {
     });
 
     await wrapper.vm.createEvent();
+    await settleValidation();
 
     expect(engine.callFlow).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith({
-      type: "error",
-      title: "Please fill these fields",
-      message: "Fill these fields or disable the related settings:\n1. Extension session maximum\n2. Buffer time must be at least 5 minutes.\n3. Recording price",
-      autoClose: false,
+    expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='extendSessionMax']").text()).toContain("Extension session maximum");
+    expect(wrapper.get("[data-booking-validation-tooltip-field='bufferTime']").text()).toContain("Buffer time must be at least 5 minutes.");
+    expect(wrapper.get("[data-booking-validation-tooltip-field='recordingPrice']").text()).toContain("Recording price");
+  });
+
+  it("shows inline step 2 warnings and tooltip without scrolling for invalid create", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      eventType: "1on1-call",
+      allowRecording: true,
     });
+    engine.validate = vi.fn((step) => Promise.resolve(step === 1
+      ? {
+        valid: true,
+        errors: [],
+      }
+      : {
+        valid: false,
+        errors: [
+          { field: "recordingPrice", translationKey: "booking_validation_recording_price_min", conditional: true },
+        ],
+      }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    expect(wrapper.get("[data-booking-soft-disabled='true']").text()).toContain("Recording price");
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-field='recordingPrice']").text()).toContain("Recording price must be 0 or higher.");
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("keeps step 2 submit enabled when an older failed validation resolves after a newer passing validation", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn(() => Promise.resolve({ valid: true, errors: [] }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(false);
+
+    const pending = [];
+    engine.validate = vi.fn(() => new Promise((resolve) => pending.push(resolve)));
+
+    const olderValidation = wrapper.vm.validateCreateEventForm();
+    const newerValidation = wrapper.vm.validateCreateEventForm();
+
+    pending[2]({ valid: true, errors: [] });
+    pending[3]({ valid: true, errors: [] });
+    await newerValidation;
+    await settleValidation();
+
+    pending[0]({
+      valid: false,
+      errors: [
+        { field: "eventTitle", translationKey: "booking_validation_event_title_required" },
+      ],
+    });
+    pending[1]({ valid: true, errors: [] });
+    await olderValidation;
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-soft-disabled='true']").exists()).toBe(false);
+  });
+
+  it("clicking a step 2 tooltip row reveals, scrolls, and focuses that field", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      eventType: "1on1-call",
+      allowRecording: true,
+    });
+    engine.validate = vi.fn((step) => Promise.resolve(step === 1
+      ? {
+        valid: true,
+        errors: [],
+      }
+      : {
+        valid: false,
+        errors: [
+          { field: "recordingPrice", translationKey: "booking_validation_recording_price_min", conditional: true },
+        ],
+      }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    await wrapper.get("[data-booking-validation-tooltip-field='recordingPrice']").trigger("click");
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='recordingPrice']").text()).toContain("Recording price must be 0 or higher.");
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    expect(HTMLElement.prototype.focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  it("clicking a step 1 tooltip row from step 2 requests the matching step 1 field", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const step1Errors = [
+      { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+    ];
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn((step) => Promise.resolve(step === 1
+      ? {
+        valid: false,
+        errors: step1Errors,
+      }
+      : {
+        valid: true,
+        errors: [],
+      }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+    await wrapper.get("[data-booking-validation-tooltip-field='basePrice']").trigger("click");
+
+    expect(wrapper.emitted("reveal-step1-validation")?.[0]?.[0]).toEqual({
+      errors: step1Errors,
+      field: "basePrice",
+      scroll: true,
+    });
+  });
+
+  it("emits step 1 validation reveal when create is blocked only by step 1", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const step1Errors = [
+      { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+    ];
+    const engine = createEngine({ eventType: "1on1-call" });
+    engine.validate = vi.fn((step) => Promise.resolve(step === 1
+      ? {
+        valid: false,
+        errors: step1Errors,
+      }
+      : {
+        valid: true,
+        errors: [],
+      }));
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(wrapper.emitted("reveal-step1-validation")?.[0]?.[0]).toEqual({
+      errors: step1Errors,
+      field: "",
+      scroll: false,
+    });
+    expect(wrapper.find("[data-booking-validation-warning='true']").exists()).toBe(false);
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("submits update flow in edit mode and skips create notification", async () => {

@@ -4,6 +4,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler';
 import { resolveAndSyncChat, ensureChatUsersData } from '@/services/chat/chatResolverUtils';
 import { postToParent } from '@/utils/postToParent';
 import { resolveUserId } from '@/utils/resolveUserId';
+import { toCloneSafePayload } from '@/utils/cloneSafePayload.js';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -32,7 +33,13 @@ export function useChatSocket(userId) {
   const chatStore = useChatStore();
   const socketState = getSocketState();
 
+  function normalizeSocketBody(body) {
+    const normalized = toCloneSafePayload(body);
+    return normalized && typeof normalized === 'object' ? normalized : null;
+  }
+
   async function _handleIncomingChatMessage(body) {
+    body = normalizeSocketBody(body);
     if (!body?.chat_id) return;
 
     // Discard any incoming messages if the current user is already kicked from this chat
@@ -146,6 +153,7 @@ export function useChatSocket(userId) {
   }
 
   function _handleIncomingStatusUpdate(body) {
+    body = normalizeSocketBody(body);
     if (!body?.chat_id || !body?.message_id || !body?.status) return;
     if (body.status === 'read' && Array.isArray(body.read_receipts) && body.read_receipts.length > 0) {
       chatStore.updateMessageReadReceiptsAction({
@@ -173,6 +181,7 @@ export function useChatSocket(userId) {
   }
 
   function _handleIncomingBlockUpdate(body) {
+    body = normalizeSocketBody(body);
     if (!body || !body.from) return;
     const blockerId = String(body.from);
     
@@ -186,6 +195,7 @@ export function useChatSocket(userId) {
   }
 
   function _handleIncomingSettingUpdate(body) {
+    body = normalizeSocketBody(body);
     if (!body?.chat_id) return;
     console.log("[ChatSocket] Received chat:setting-update for chat_id:", body.chat_id);
     resolveAndSyncChat(body.chat_id);
@@ -300,7 +310,7 @@ export function useChatSocket(userId) {
     } else if (flag === 'chat:setting-update') {
       _handleIncomingSettingUpdate(body ?? e.data.payload);
     } else {
-      _handleIncomingChatMessage(e.data.payload);
+      _handleIncomingChatMessage(body ?? e.data.payload);
     }
   }
 
@@ -326,16 +336,17 @@ export function useChatSocket(userId) {
 
   // ── Send ───────────────────────────────────────────────────────────────────
   function sendSocket(flag, payload) {
+    const safePayload = toCloneSafePayload(payload);
     if (_mode === 'parent') {
       try {
-        window.parent.postMessage({ type: PARENT_SEND_MSG, flag, payload }, '*');
+        window.parent.postMessage({ type: PARENT_SEND_MSG, flag, payload: safePayload }, '*');
       } catch {
         console.warn('[ChatSocket] postMessage to parent failed.');
       }
     } else if (_mode === 'own') {
       const SH = window.parent?.SocketHandler || window.SocketHandler;
       if (SH && typeof SH.sendSocketMessage === 'function') {
-        SH.sendSocketMessage({ flag, payload }).catch(() => {
+        SH.sendSocketMessage({ flag, payload: safePayload }).catch(() => {
           console.warn('[ChatSocket] sendSocketMessage failed.');
         });
       }
