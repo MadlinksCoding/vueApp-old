@@ -1,4 +1,5 @@
 import { computed, inject, provide, reactive, watch } from "vue";
+import { extractBackendErrorMessage } from "../utils/backendErrorMessage.js";
 
 export const bookingTranslationSymbol = Symbol("bookingTranslations");
 
@@ -1006,6 +1007,20 @@ export function formatCreateEventFailureMessage(errorLike = {}, t = bookingT) {
   const eventLimitInfo = getCreateEventEventLimitInfo(errorLike);
   if (eventLimitInfo) {
     return t("booking_event_limit_reached_message", eventLimitInfo);
+  }
+
+  const backendMessage = extractBackendErrorMessage(errorLike, {
+    ignoredMessages: [
+      t("booking_create_failed_message"),
+      "Failed to create event.",
+      "Unexpected error while creating event.",
+    ],
+  });
+  if (backendMessage) return backendMessage;
+
+  const fallbackCode = errorLike?.error?.code || errorLike?.code || "";
+  if (fallbackCode) {
+    return `Backend rejected the event request (${fallbackCode}).`;
   }
 
   return t("booking_create_failed_message");

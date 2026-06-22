@@ -1,5 +1,5 @@
   <script setup>
-  import { computed, onMounted, ref, watch } from "vue";
+  import { computed, nextTick, onMounted, ref, watch } from "vue";
   import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
   import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
   import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
@@ -8,6 +8,8 @@
   import ThumbnailUploaderNay from "../../global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue";
   import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
   import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
+  import SoftDisabledBookingButton from "./HelperComponents/SoftDisabledBookingButton.vue";
+  import ValidationInlineWarning from "./HelperComponents/ValidationInlineWarning.vue";
   import videoIcon from '@/assets/images/icons/video-recorder.webp'
   import phoneIcon from '@/assets/images/icons/phone.webp'
   import minusIcon from '@/assets/images/icons/minus-circle.webp'
@@ -18,6 +20,14 @@
   import calendarIcon from '@/assets/images/icons/calendar-empty.svg'
   import trashIcon from '@/assets/images/icons/trash-01.svg'
   import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
+  import {
+    createValidationErrorMap,
+    createValidationTooltipItems,
+    getFirstValidationField,
+    getValidationMessages,
+    scrollToFirstValidationWarning,
+    scrollToValidationField,
+  } from "./validationUi.js";
 
   import { showToast } from "@/utils/toastBus.js";
   import {
@@ -107,6 +117,30 @@
     weeklyAvailability: "Weekly availability",
     monthlyAvailability: "Monthly availability",
     oneTimeAvailability: "Available time slot",
+  });
+
+  const STEP1_FIELD_SECTION_MAP = Object.freeze({
+    basePrice: "privatePricing",
+    bookingFee: "privatePricing",
+    bufferTime: "bookingSettings",
+    cancellationFee: "privatePricing",
+    dateFrom: "calendarAvailability",
+    discountEventsCount: "groupPricing",
+    discountPercentage: "groupPricing",
+    eventGoalTokens: "groupPricing",
+    firstTimeDiscountTokens: "privatePricing",
+    longerSessionDiscountTokens: "privatePricing",
+    maxAttendees: "bookingSettings",
+    maxBookingsPerDay: "bookingSettings",
+    maxSessionDuration: "sessionDuration",
+    minContributionPerUser: "groupPricing",
+    monthlyAvailability: "calendarAvailability",
+    offHourSurcharge: "offHourSurcharge",
+    oneTimeAvailability: "calendarAvailability",
+    remindMeTime: "bookingSettings",
+    rescheduleFee: "privatePricing",
+    sessionMinimum: "privatePricing",
+    weeklyAvailability: "calendarAvailability",
   });
 
   function translateWithFallback(key, fallback) {
@@ -229,6 +263,10 @@
       type: Boolean,
       default: false,
     },
+    validationRevealRequest: {
+      type: Object,
+      default: null,
+    },
   });
   const emit = defineEmits(["preview-schedule"]);
   const DEFAULT_VUE_CREATOR_ID = 1407;
@@ -348,6 +386,145 @@
     maxAttendees: props.engine.state.maxAttendees || "",
   });
 
+  const formRootRef = ref(null);
+  const showInlineValidation = ref(false);
+  const validationErrors = ref([]);
+  const validationPending = ref(true);
+  const step1ValidationValid = ref(false);
+  const SHOW_BOOKING_VALIDATION_TOASTS = false;
+  let step1ValidationRunId = 0;
+
+  function formatInlineValidationError(error) {
+    return formatBookingValidationErrors([error], t)?.[0] || String(error?.message || "").trim();
+  }
+
+  function formatTooltipValidationError(error) {
+    if (!error?.conditional) return formatInlineValidationError(error);
+    const [label] = getRequiredFieldToastLabels([error]);
+    return label || formatInlineValidationError(error);
+  }
+
+  const validationErrorMap = computed(() => (
+    showInlineValidation.value
+      ? createValidationErrorMap(validationErrors.value, formatInlineValidationError)
+      : {}
+  ));
+
+  const nextButtonSoftDisabled = computed(() => (
+    validationPending.value || !step1ValidationValid.value
+  ));
+
+  const nextButtonTooltip = computed(() => {
+    if (!validationErrors.value.length) return "";
+    const fallback = t("booking_validation_weekly_slot_required");
+    const toast = formatStepValidationToast(validationErrors.value, fallback);
+    return toast.message || fallback;
+  });
+
+  const nextButtonTooltipItems = computed(() => (
+    createValidationTooltipItems(validationErrors.value, formatTooltipValidationError)
+  ));
+
+  function fieldValidationMessages(fields) {
+    return getValidationMessages(validationErrorMap.value, fields);
+  }
+
+  function resolveStep1SectionForField(field) {
+    if (["advanceVoid", "advanceCancelWindowUnit"].includes(field)) {
+      return isGroupBooking.value ? "groupPricing" : "privatePricing";
+    }
+    if (field === "cancellationFee") {
+      return isGroupBooking.value ? "groupPricing" : "privatePricing";
+    }
+    if (field === "offHourSurcharge") {
+      return isGroupBooking.value ? "groupPricing" : "privatePricing";
+    }
+    return STEP1_FIELD_SECTION_MAP[field] || "";
+  }
+
+  function openSectionForValidationErrors(errors = validationErrors.value, preferredField = "") {
+    const field = preferredField || getFirstValidationField(errors);
+    const section = resolveStep1SectionForField(field);
+    if (!section || !Object.prototype.hasOwnProperty.call(sectionsState.value, section)) return;
+    sectionsState.value[section] = true;
+  }
+
+  async function revealStep1ValidationErrors(errors = validationErrors.value, options = {}) {
+    validationErrors.value = Array.isArray(errors) ? errors : [];
+    if (validationErrors.value.length) {
+      step1ValidationValid.value = false;
+    }
+    showInlineValidation.value = true;
+    openSectionForValidationErrors(validationErrors.value, options.field);
+    await nextTick();
+    await nextTick();
+    if (options.field) {
+      scrollToValidationField(formRootRef.value, options.field);
+      return;
+    }
+    if (options.scroll === false) return;
+    scrollToFirstValidationWarning(formRootRef.value);
+  }
+
+  async function goToStep1ValidationField(item = {}) {
+    await revealStep1ValidationErrors(validationErrors.value, { field: item?.field || "" });
+  }
+
+  async function validateStep1({ reveal = false, scroll = true } = {}) {
+    const runId = step1ValidationRunId + 1;
+    step1ValidationRunId = runId;
+    validationPending.value = true;
+    try {
+      const result = await props.engine.validate?.(1);
+      const nextErrors = Array.isArray(result?.errors) ? result.errors : [];
+      const nextValid = Boolean(result?.valid) && nextErrors.length === 0;
+
+      if (runId === step1ValidationRunId) {
+        validationErrors.value = nextErrors;
+        step1ValidationValid.value = nextValid;
+        if (reveal) {
+          await revealStep1ValidationErrors(nextErrors, { scroll });
+        }
+      }
+
+      return {
+        valid: nextValid,
+        errors: nextErrors,
+      };
+    } catch (error) {
+      const nextErrors = Array.isArray(error?.errors) ? error.errors : [];
+
+      if (runId === step1ValidationRunId) {
+        validationErrors.value = nextErrors;
+        step1ValidationValid.value = false;
+        if (reveal) {
+          await revealStep1ValidationErrors(nextErrors, { scroll });
+        }
+      }
+
+      return {
+        valid: false,
+        errors: nextErrors,
+        error,
+      };
+    } finally {
+      if (runId === step1ValidationRunId) {
+        validationPending.value = false;
+      }
+    }
+  }
+
+  function showStep1ValidationToast(errors = validationErrors.value, fallback = t("booking_validation_weekly_slot_required")) {
+    if (!SHOW_BOOKING_VALIDATION_TOASTS) return;
+    const toast = formatStepValidationToast(errors, fallback);
+    showToast({
+      type: "error",
+      title: toast.title,
+      message: toast.message || fallback,
+      autoClose: false,
+    });
+  }
+
   const offHourSurchargePreviewTokens = computed(() => {
     if (!formData.value.addOffHourSurcharge) return 0;
     const basePrice = Number(formData.value.basePrice);
@@ -362,6 +539,7 @@
     Object.keys(newVal).forEach(key => {
       props.engine.setState(key, newVal[key], { silent: true });
     });
+    void validateStep1();
   }, { deep: true });
 
   const onEventImageUploaded = ({ media_urls }) => {
@@ -382,17 +560,19 @@
   };
 
   const goToNext = async () => {
+    const result = await validateStep1({ reveal: true, scroll: false });
+    if (!result.valid) {
+      showStep1ValidationToast(result.errors);
+      return;
+    }
+
     try {
       await props.engine.goToStep(2, { throwOnBlocked: true });
     } catch (error) {
       const fallback = error?.message || t("booking_validation_weekly_slot_required");
-      const toast = formatStepValidationToast(error?.errors || [], fallback);
-      showToast({
-        type: "error",
-        title: toast.title,
-        message: toast.message || fallback,
-        autoClose: false,
-      });
+      const errors = Array.isArray(error?.errors) ? error.errors : [];
+      await revealStep1ValidationErrors(errors, { scroll: false });
+      showStep1ValidationToast(errors, fallback);
     }
   };
 
@@ -429,7 +609,30 @@
 
   onMounted(() => {
     ensureVueCreatorIdFallback();
+    void validateStep1();
   });
+
+  watch(
+    () => props.validationRevealRequest?.nonce,
+    async (nonce) => {
+      if (!nonce) return;
+      const errors = Array.isArray(props.validationRevealRequest?.errors)
+        ? props.validationRevealRequest.errors
+        : [];
+      if (errors.length) {
+        await revealStep1ValidationErrors(errors, {
+          field: props.validationRevealRequest?.field || "",
+          scroll: props.validationRevealRequest?.scroll !== false,
+        });
+        return;
+      }
+      await validateStep1({
+        reveal: true,
+        scroll: props.validationRevealRequest?.scroll !== false,
+      });
+    },
+    { immediate: true },
+  );
 
   function makeSlot(startTime = "00:00", endTime = "03:00", offHours = false) {
     return { startTime, endTime, offHours: Boolean(offHours) };
@@ -1875,7 +2078,7 @@
 </script>
 
   <template>
-    <form class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
+    <form ref="formRootRef" class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
 
       <div class=" self-stretch inline-flex flex-col md:flex-row justify-start items-start gap-4">
         <div class="w-6 h-6 relative overflow-hidden hidden md:block">
@@ -1891,6 +2094,7 @@
           <div class="flex w-full">
             <div class="flex-1">
               <BaseInput type="text" :placeholder="t('booking_event_title_placeholder')" v-model="formData.eventTitle" wrapperClass="w-full"
+                data-booking-validation-input-field="eventTitle"
                 inputClass="px-3.5 text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             </div>
             <div class="">
@@ -1911,6 +2115,11 @@
               </CustomDropdown>
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldValidationMessages('eventTitle')"
+            field="eventTitle"
+            spacing-class="-mt-2"
+          />
           <QuillEditor
             v-model="formData.eventDescription"
             :placeholder="t('booking_event_description_placeholder')"
@@ -1972,9 +2181,15 @@
         <div class='flex flex-col gap-5'>
           <div class="flex items-center gap-2 mt-3 ">
             <BaseInput type="number" placeholder="" v-model="formData.duration"
+              data-booking-validation-input-field="duration"
               inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
             <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldValidationMessages('duration')"
+            field="duration"
+            spacing-class="-mt-3"
+          />
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
             <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')" :isOptional="true"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -1985,6 +2200,7 @@
               <div class="flex items-center gap-1.5 ">
                 <div class="">
                   <BaseInput type="number" placeholder="" v-model="formData.maxSessionDuration"
+                    data-booking-validation-input-field="maxSessionDuration"
                     :disabled="!formData.allowLongerSessions"
                     inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
@@ -1993,9 +2209,19 @@
                   <div v-if="formData.duration && formData.maxSessionDuration" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.maxSessionDuration}` }) }})</div>
                 </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('maxSessionDuration')"
+                field="maxSessionDuration"
+                spacing-class="mt-2"
+              />
             </div>
           </div>
         </div>
+        <ValidationInlineWarning
+          :messages="fieldValidationMessages('offHourSurcharge')"
+          field="offHourSurcharge"
+          spacing-class="-mt-3"
+        />
       </BookingSectionsWrapper>
       
 
@@ -2011,12 +2237,18 @@
             </div>
             <div class="flex items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.basePrice"
+                data-booking-validation-input-field="basePrice"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
               <div class="flex gap-2 items-center">
                 <span class="text-black text-base font-medium font-['Poppins'] leading-normal">{{ t("common_tokens") }} </span><span
                   class="text-black text-sm font-normal font-['Poppins'] leading-tight">{{ t("booking_per_session") }}</span>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('basePrice')"
+              field="basePrice"
+              spacing-class="mt-0.5"
+            />
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2030,6 +2262,7 @@
               <div class="inline-flex flex-col justify-start items-start gap-2">
                 <div :class="['inline-flex justify-end items-center gap-2',!formData.enableLongerDiscount? 'opacity-50':'opacity-100']">
                   <BaseInput type="number" placeholder="" v-model="formData.sessionMinimum"
+                    data-booking-validation-input-field="sessionMinimum"
                     :disabled="!formData.enableLongerDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
@@ -2043,6 +2276,7 @@
                 </div>
                 <div :class="['inline-flex justify-end items-center gap-2',!formData.enableLongerDiscount? 'opacity-50':'opacity-100']">
                   <BaseInput type="number" placeholder="" v-model="formData.longerSessionDiscountTokens"
+                    data-booking-validation-input-field="longerSessionDiscountTokens"
                     :disabled="!formData.enableLongerDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
@@ -2056,6 +2290,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages(['sessionMinimum', 'longerSessionDiscountTokens'])"
+              field="sessionMinimum"
+              spacing-class="-mt-1"
+            />
           </div>
 
           
@@ -2071,6 +2310,7 @@
               <div class="inline-flex flex-col justify-start items-start gap-2">
                 <div :class="['inline-flex justify-end items-center gap-2',!formData.enableFirstTimeDiscount? 'opacity-50':'opacity-100']">
                   <BaseInput type="number" placeholder="" v-model="formData.firstTimeDiscountTokens"
+                    data-booking-validation-input-field="firstTimeDiscountTokens"
                     :disabled="!formData.enableFirstTimeDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="h-10 inline-flex flex-col justify-between items-start">
@@ -2084,6 +2324,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('firstTimeDiscountTokens')"
+              field="firstTimeDiscountTokens"
+              spacing-class="-mt-1"
+            />
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2100,6 +2345,7 @@
               <div class="inline-flex flex-col justify-center items-start gap-2">
                 <div :class="['inline-flex justify-start items-center gap-2',!formData.enableBookingFee? 'opacity-50':'opacity-100']">
                   <BaseInput type="number" placeholder="" v-model="formData.bookingFee"
+                    data-booking-validation-input-field="bookingFee"
                     :disabled="!formData.enableBookingFee"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="w-14 justify-start text-black text-base font-medium font-['Poppins'] leading-normal">
@@ -2108,6 +2354,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('bookingFee')"
+              field="bookingFee"
+              spacing-class="-mt-1"
+            />
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
@@ -2162,6 +2413,7 @@
                 <div :class="['inline-flex flex-col justify-start items-start',!formData.enableRescheduleFee ? 'opacity-50':'opacity-100']">
                   <div class="inline-flex justify-end items-center gap-2">
                     <BaseInput type="number" placeholder="" v-model="formData.rescheduleFee"
+                      data-booking-validation-input-field="rescheduleFee"
                       :disabled="!formData.enableRescheduleFee"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
 
@@ -2172,6 +2424,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('rescheduleFee')"
+              field="rescheduleFee"
+              spacing-class="-mt-1"
+            />
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
@@ -2188,6 +2445,7 @@
                 <div class="inline-flex flex-col justify-start items-start">
                   <div class="inline-flex justify-end items-center gap-2">
                     <BaseInput type="number" placeholder="15" v-model="formData.cancellationFee"
+                      data-booking-validation-input-field="cancellationFee"
                       :disabled="!formData.enableCancellationFee"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                     <div class="justify-center text-slate-700 text-base font-normal font-['Poppins'] leading-normal">
@@ -2197,6 +2455,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages(['cancellationFee', 'advanceVoid', 'advanceCancelWindowUnit'])"
+              field="cancellationFee"
+              spacing-class="-mt-1"
+            />
 
             <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
@@ -2207,12 +2470,15 @@
               <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
                 <div class="flex items-center">
                   <BaseInput type="number" placeholder="15" v-model="formData.advanceVoid"
+                    data-booking-validation-input-field="advanceVoid"
                     :disabled="!formData.allowAdvanceCancellation"
                     inputClass="bg-white/50 w-24 px-3 py-2 rounded-tl-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed border-r" />
                 </div>
                   <CustomDropdown
                     v-model="formData.advanceCancelWindowUnit"
                     :options="timeUnitOptions"
+                    data-booking-validation-input-field="advanceCancelWindowUnit"
+                    tabindex="0"
                     :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${!formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
                   />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
@@ -2258,10 +2524,16 @@
               </div>
               <div class="flex items-center gap-2">
                 <BaseInput type="number" placeholder="" v-model="formData.basePrice"
+                  data-booking-validation-input-field="basePrice"
                   :disabled="isPricingLocked"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
                 <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('basePrice')"
+                field="basePrice"
+                spacing-class="mt-0.5"
+              />
             </div>
 
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2276,6 +2548,7 @@
                 <div class="inline-flex flex-col justify-start items-start gap-2">
                   <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
                     <BaseInput type="number" placeholder="" v-model="formData.discountEventsCount"
+                      data-booking-validation-input-field="discountEventsCount"
                       :disabled="isPricingLocked || !formData.enableLongerDiscount"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                     <div class="justify-center text-black text-base font-medium leading-normal">
@@ -2284,6 +2557,7 @@
                   </div>
                   <div :class="['inline-flex justify-end items-center gap-2', !formData.enableLongerDiscount ? 'opacity-50' : 'opacity-100']">
                     <BaseInput type="number" placeholder="" v-model="formData.discountPercentage"
+                      data-booking-validation-input-field="discountPercentage"
                       :disabled="isPricingLocked || !formData.enableLongerDiscount"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                     <div class="justify-center text-black text-base font-medium leading-normal">
@@ -2292,6 +2566,11 @@
                   </div>
                 </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages(['discountEventsCount', 'discountPercentage'])"
+                field="discountEventsCount"
+                spacing-class="-mt-1"
+              />
             </div>
           </template>
 
@@ -2302,10 +2581,16 @@
               </div>
               <div class="flex items-center gap-2">
                 <BaseInput type="number" placeholder="" v-model="formData.eventGoalTokens"
+                  data-booking-validation-input-field="eventGoalTokens"
                   :disabled="isPricingLocked"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
                 <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('eventGoalTokens')"
+                field="eventGoalTokens"
+                spacing-class="mt-0.5"
+              />
             </div>
 
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2317,10 +2602,16 @@
               <div class="inline-flex justify-start items-center gap-2">
                 <div class="w-6 h-6" />
                 <BaseInput type="number" placeholder="" v-model="formData.minContributionPerUser"
+                  data-booking-validation-input-field="minContributionPerUser"
                   :disabled="isPricingLocked || !formData.enableMinContributionPerUser"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
                 <div class="text-black text-base font-medium leading-normal">{{ t("common_tokens") }}</div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('minContributionPerUser')"
+                field="minContributionPerUser"
+                spacing-class="-mt-1"
+              />
             </div>
 
             <div class="flex flex-col justify-start items-start gap-2 w-full">
@@ -2350,12 +2641,18 @@
             <div :class="['inline-flex justify-start items-center gap-2', !formData.enableCancellationFee ? 'opacity-50' : 'opacity-100']">
               <div class="w-6 h-6" />
               <BaseInput type="number" placeholder="" v-model="formData.cancellationFee"
+                data-booking-validation-input-field="cancellationFee"
                 :disabled="isPricingLocked || !formData.enableCancellationFee"
                 inputClass="bg-white/50 w-28 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
               <div class="justify-center text-slate-700 text-base font-normal leading-normal">
                 {{ t("booking_group_minimum_charge") }}
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('cancellationFee')"
+              field="cancellationFee"
+              spacing-class="-mt-1"
+            />
           </div>
 
           <div class="self-stretch flex flex-col justify-start items-start gap-3">
@@ -2367,18 +2664,26 @@
             <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50 pointer-events-none' : 'opacity-100']">
               <div class="w-6 h-6" />
               <BaseInput type="number" placeholder="" v-model="formData.advanceVoid"
+                data-booking-validation-input-field="advanceVoid"
                 :disabled="isPricingLocked || !formData.allowAdvanceCancellation"
                 inputClass="bg-white/50 w-24 px-3 py-2 rounded-tl-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed border-r" />
               <CustomDropdown
                 v-model="formData.advanceCancelWindowUnit"
                 :options="timeUnitOptions"
                 :disabled="isPricingLocked || !formData.allowAdvanceCancellation"
+                data-booking-validation-input-field="advanceCancelWindowUnit"
+                tabindex="0"
                 :buttonClass="`bg-white/50 w-28 px-3 py-2 rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none ${isPricingLocked || !formData.allowAdvanceCancellation ? 'pointer-events-none disabled:cursor-not-allowed' : ''}`"
               />
               <div class="justify-center text-slate-700 text-base font-normal leading-normal whitespace-nowrap">
                 {{ t("booking_group_before_event_start") }}
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages(['advanceVoid', 'advanceCancelWindowUnit'])"
+              field="advanceVoid"
+              spacing-class="-mt-1"
+            />
           </div>
         </div>
           <div
@@ -2400,6 +2705,7 @@
           <div class="flex-1 inline-flex flex-col justify-start items-start">
             <div class="inline-flex justify-end items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
+                data-booking-validation-input-field="offHourSurcharge"
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 inline-flex flex-col justify-between items-start">
@@ -2450,6 +2756,7 @@
                     <input
                       type="date"
                       v-model="formData.dateFrom"
+                      data-booking-validation-input-field="dateFrom"
                       :min="todayIsoDate"
                       :max="getDateFromMax()"
                       class="bg-transparent h-10 w-full pl-10 pr-3 py-2 outline-none relative [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
@@ -2485,10 +2792,20 @@
             <div v-if="dateRangeMessage" class="text-xs text-amber-600 mt-1">
               {{ dateRangeMessage }}
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('dateFrom')"
+              field="dateFrom"
+              spacing-class="-mt-1"
+            />
           </div>
 
 
-          <div v-if="formData.repeatRule === 'weekly'" class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule === 'weekly'" class="flex flex-col gap-4 w-full" data-booking-validation-input-field="weeklyAvailability" tabindex="0">
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('weeklyAvailability')"
+              field="weeklyAvailability"
+              spacing-class="-mt-2"
+            />
 
             <div v-for="(day, index) in weekDays" :key="index"
               class="self-stretch inline-flex justify-start items-start gap-3"
@@ -2613,7 +2930,12 @@
             </div>
           </div>
 
-          <div v-if="formData.repeatRule === 'monthly'" class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule === 'monthly'" class="flex flex-col gap-4 w-full" data-booking-validation-input-field="monthlyAvailability" tabindex="0">
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('monthlyAvailability')"
+              field="monthlyAvailability"
+              spacing-class="-mt-2"
+            />
             <div
               v-for="(slot, slotIndex) in monthlySlots"
               :key="`monthly-slot-${slotIndex}`"
@@ -2716,7 +3038,12 @@
             </div>
           </div>
 
-          <div v-if="formData.repeatRule === 'doesNotRepeat'" class="flex flex-col gap-4 w-full">
+          <div v-if="formData.repeatRule === 'doesNotRepeat'" class="flex flex-col gap-4 w-full" data-booking-validation-input-field="oneTimeAvailability" tabindex="0">
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('oneTimeAvailability')"
+              field="oneTimeAvailability"
+              spacing-class="-mt-2"
+            />
             <div v-for="(entry, entryIndex) in oneTimeDates" :key="entry.id"
               class="p-3">
               <div class="flex items-center gap-2 mb-3">
@@ -2892,8 +3219,9 @@
                     labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                     wrapperClass="flex items-center gap-2" />
                   <div :class="['flex justify-start items-end gap-2',!formData.requestExtendSession ? 'opacity-50':'opacity-100']">
-                    <BaseInput type="number" placeholder="" v-model="formData.extendSessionMax"
-                      :disabled="!formData.requestExtendSession"
+                  <BaseInput type="number" placeholder="" v-model="formData.extendSessionMax"
+                    data-booking-validation-input-field="extendSessionMax"
+                    :disabled="!formData.requestExtendSession"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                     <div class="h-10 inline-flex flex-col justify-between items-start">
                       <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
@@ -2902,6 +3230,11 @@
                   </div>
                 </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('extendSessionMax')"
+                field="extendSessionMax"
+                spacing-class="-mt-1"
+              />
             </div>
           </div>
         </BookingSectionsWrapper>
@@ -2928,6 +3261,7 @@
                 <div class=" inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
                   <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
+                    data-booking-validation-input-field="remindMeTime"
                     :disabled="!formData.setReminders"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">{{ t("booking_minutes_before_a") }}</div>
@@ -2936,6 +3270,11 @@
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_scheduled_call") }}</div>
                 </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('remindMeTime')"
+                field="remindMeTime"
+                spacing-class="-mt-1"
+              />
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2967,6 +3306,7 @@
               <div class="w-6 h-6" />
               <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50 pointer-events-none':'opacity-100']">
                 <BaseInput type="number" placeholder="" v-model="formData.bufferTime"
+                  data-booking-validation-input-field="bufferTime"
                   :disabled="!formData.setBufferTime"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="w-44 inline-flex flex-col justify-start items-start gap-1.5">
@@ -2976,6 +3316,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('bufferTime')"
+              field="bufferTime"
+              spacing-class="-mt-1"
+            />
           </div>
           <div v-if="isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
@@ -2988,9 +3333,15 @@
             <div class="inline-flex justify-start items-center gap-2">
               <div class="w-6 h-6" />
               <BaseInput type="number" placeholder="" v-model="formData.maxAttendees"
+                data-booking-validation-input-field="maxAttendees"
                 :disabled="!formData.enableMaxAttendees"
                 inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('maxAttendees')"
+              field="maxAttendees"
+              spacing-class="-mt-1"
+            />
           </div>
           <div v-if="!isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <!-- <div class="flex gap-2 items-center">
@@ -3023,10 +3374,16 @@
               <div class="w-6 h-6" />
               <div class="flex justify-start items-end gap-2">
                 <BaseInput type="number" placeholder="15" v-model="formData.maxBookingsPerDay"
+                  data-booking-validation-input-field="maxBookingsPerDay"
                   :disabled="!formData.setMaxBookings"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('maxBookingsPerDay')"
+              field="maxBookingsPerDay"
+              spacing-class="-mt-1"
+            />
           </div>
         </div>
       </BookingSectionsWrapper>
@@ -3043,7 +3400,14 @@
           variant="polygonRight"
         />
       </div>
-      <ButtonComponent @click="goToNext" :text="t('common_next')" variant="polygonLeft"
+      <SoftDisabledBookingButton
+        @click="goToNext"
+        @tooltip-select="goToStep1ValidationField"
+        :text="t('common_next')"
+        variant="polygonLeft"
+        :soft-disabled="nextButtonSoftDisabled"
+        :tooltip-text="nextButtonTooltip"
+        :tooltip-items="nextButtonTooltipItems"
         :rightIcon="'https://i.ibb.co/hx8ztZFf/svgviewer-png-output-8.webp'" :rightIconClass="`
           w-6 h-6 transition duration-200
           filter brightness-0 invert-0   /* Default: black */

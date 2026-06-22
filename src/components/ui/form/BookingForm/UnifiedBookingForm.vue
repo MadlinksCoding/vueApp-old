@@ -238,6 +238,12 @@ attachEngineLogging(bookingFlow);
 
 // Sync engine with component to make it reactive for the template
 const currentStep = ref(1);
+const step1ValidationRevealRequest = ref({
+    nonce: 0,
+    errors: [],
+    field: "",
+    scroll: true,
+});
 const previewSchedule = ref(false);
 const formScrollContainer = ref(null);
 const calendarBookedSlots = ref([]);
@@ -247,6 +253,24 @@ const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
+
+async function revealStep1Validation(payload = []) {
+    const errors = Array.isArray(payload) ? payload : payload?.errors;
+    const field = Array.isArray(payload) ? "" : payload?.field || "";
+    const scroll = Array.isArray(payload) ? true : payload?.scroll !== false;
+    step1ValidationRevealRequest.value = {
+        nonce: step1ValidationRevealRequest.value.nonce + 1,
+        errors: Array.isArray(errors) ? errors : [],
+        field,
+        scroll,
+    };
+    if (currentStep.value === 1) return;
+    if (typeof bookingFlow.forceStep === "function") {
+        await bookingFlow.forceStep(1, { intent: "validation-error" });
+        return;
+    }
+    await bookingFlow.goToStep(1, { intent: "validation-error", force: true });
+}
 
 function getUnsavedChangesMessage() {
     const translated = t("booking_unsaved_changes_body");
@@ -1394,6 +1418,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :schedule-locked="false"
                             :pricing-locked="false"
+                            :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                         />
 
@@ -1405,6 +1430,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
+                            @reveal-step1-validation="revealStep1Validation"
                         />
                     </template>
 
@@ -1417,6 +1443,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
+                            :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                         />
 
@@ -1429,6 +1456,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :edit-event-id="resolvedEditEventId"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
+                            @reveal-step1-validation="revealStep1Validation"
                         />
                     </template>
                 </div>

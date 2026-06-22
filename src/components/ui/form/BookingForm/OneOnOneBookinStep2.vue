@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import CheckboxGroup from "../checkbox/CheckboxGroup.vue";
 import CheckboxSwitch from "@/components/dev/checkbox/CheckboxSwitch.vue";
@@ -13,6 +13,8 @@ import BaseInput from "@/components/dev/input/BaseInput.vue";
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import SpendingRequirementProductPopup from "./HelperComponents/SpendingRequirementProductPopup.vue";
 import CustomDropdown from "@/components/ui/dropdown/CustomDropdown.vue";
+import SoftDisabledBookingButton from "./HelperComponents/SoftDisabledBookingButton.vue";
+import ValidationInlineWarning from "./HelperComponents/ValidationInlineWarning.vue";
 import CopyIcon from "@/assets/images/icons/copy-to-clipboard.webp";
 import OrangeMinusIcon from "@/assets/images/icons/minus-square.webp";
 import { showToast } from "@/utils/toastBus.js";
@@ -27,6 +29,15 @@ import {
 } from "@/services/events/eventsAudienceApi.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
+import {
+  createValidationErrorMap,
+  createValidationTooltipItems,
+  getFirstValidationField,
+  getValidationMessages,
+  normalizeValidationField,
+  scrollToFirstValidationWarning,
+  scrollToValidationField,
+} from "./validationUi.js";
 
 const { t } = useBookingTranslations();
 
@@ -159,7 +170,7 @@ const props = defineProps({
     default: "",
   },
 });
-const emit = defineEmits(["created", "preview-schedule"]);
+const emit = defineEmits(["created", "preview-schedule", "reveal-step1-validation"]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
@@ -319,10 +330,15 @@ function resetXRepostFields() {
   });
 }
 
+let validationUiReady = false;
+
 watch(formData, (newVal) => {
   Object.keys(newVal).forEach(key => {
     props.engine.setState(key, newVal[key], { silent: true });
   });
+  if (validationUiReady) {
+    void validateCreateEventForm();
+  }
 }, { deep: true });
 
 const subscriptionTierOptions = ref([]);
@@ -432,6 +448,7 @@ onMounted(() => {
     silent: true,
   });
   document.addEventListener("click", handleBlockedUserClickOutside);
+  void validateCreateEventForm();
 });
 
 onUnmounted(() => {
@@ -647,6 +664,114 @@ const sectionsState = ref({
 const toggleSection = (key) => {
   sectionsState.value[key] = !sectionsState.value[key];
 };
+
+const formRootRef = ref(null);
+const showInlineValidation = ref(false);
+const step1ValidationErrors = ref([]);
+const step2ValidationErrors = ref([]);
+const validationPending = ref(true);
+const submitValidationValid = ref(false);
+const SHOW_BOOKING_VALIDATION_TOASTS = false;
+let createValidationRunId = 0;
+const combinedValidationErrors = computed(() => [
+  ...step1ValidationErrors.value,
+  ...step2ValidationErrors.value,
+]);
+
+function formatInlineValidationError(error) {
+  return formatValidationErrors([error])?.[0] || String(error?.message || "").trim();
+}
+
+function formatTooltipValidationError(error) {
+  if (!error?.conditional) return formatInlineValidationError(error);
+  return getValidationFieldLabel(error?.field) || formatInlineValidationError(error);
+}
+
+const validationErrorMap = computed(() => (
+  showInlineValidation.value
+    ? createValidationErrorMap(step2ValidationErrors.value, formatInlineValidationError)
+    : {}
+));
+
+const submitButtonSoftDisabled = computed(() => (
+  !isCreating.value && (validationPending.value || !submitValidationValid.value)
+));
+
+const submitButtonTooltip = computed(() => {
+  if (!combinedValidationErrors.value.length) return "";
+  const hasConditionalErrors = hasConditionalValidationError(combinedValidationErrors.value);
+  const messages = hasConditionalErrors
+    ? [formatConditionalValidationToastMessage(combinedValidationErrors.value)]
+    : formatValidationErrors(combinedValidationErrors.value);
+  return messages.filter(Boolean).join(hasConditionalErrors ? "\n" : " ");
+});
+
+const submitButtonTooltipItems = computed(() => (
+  createValidationTooltipItems(combinedValidationErrors.value, formatTooltipValidationError)
+));
+
+function fieldValidationMessages(fields) {
+  return getValidationMessages(validationErrorMap.value, fields);
+}
+
+function resolveStep2SectionForField(field) {
+  if (!field) return "";
+  if (field === "recordingPrice" || field.startsWith("addOns.")) {
+    return "additionalRequest";
+  }
+  if (["subscriptionTiers", "inviteSecret", "minSpendTokens", "requiredProducts"].includes(field)) {
+    return "audienceSettings";
+  }
+  return "";
+}
+
+function openSectionForStep2Errors(errors = step2ValidationErrors.value, preferredField = "") {
+  const field = preferredField || getFirstValidationField(errors);
+  const section = resolveStep2SectionForField(field);
+  if (!section || !Object.prototype.hasOwnProperty.call(sectionsState.value, section)) return;
+  sectionsState.value[section] = true;
+}
+
+async function revealStep2ValidationErrors(errors = step2ValidationErrors.value, options = {}) {
+  step2ValidationErrors.value = Array.isArray(errors) ? errors : [];
+  if (step2ValidationErrors.value.length) {
+    submitValidationValid.value = false;
+  }
+  showInlineValidation.value = true;
+  openSectionForStep2Errors(step2ValidationErrors.value, options.field);
+  await nextTick();
+  await nextTick();
+  if (options.field) {
+    scrollToValidationField(formRootRef.value, options.field);
+    return;
+  }
+  if (options.scroll === false) return;
+  scrollToFirstValidationWarning(formRootRef.value);
+}
+
+function isStep1ValidationField(field = "") {
+  const normalizedField = normalizeValidationField(field);
+  if (!normalizedField) return false;
+  return step1ValidationErrors.value.some((error) => (
+    normalizeValidationField(error?.field) === normalizedField
+  ));
+}
+
+async function goToStep2ValidationField(item = {}) {
+  const field = item?.field || "";
+  if (isStep1ValidationField(field)) {
+    emit("reveal-step1-validation", {
+      errors: step1ValidationErrors.value,
+      field,
+      scroll: true,
+    });
+    return;
+  }
+
+  await revealStep2ValidationErrors(step2ValidationErrors.value, { field });
+}
+
+validationUiReady = true;
 
 const goToBack = async () => {
   // Back navigation should not be blocked by current-step validation.
@@ -1216,20 +1341,46 @@ function formatConditionalValidationToastMessage(errors = []) {
   return `${prefix}\n${list}`;
 }
 
-async function validateCreateEventForm() {
-  const [step1Result, step2Result] = await Promise.all([
-    props.engine.validate(1),
-    props.engine.validate(2),
-  ]);
-  const errors = [
-    ...(Array.isArray(step1Result?.errors) ? step1Result.errors : []),
-    ...(Array.isArray(step2Result?.errors) ? step2Result.errors : []),
-  ];
+async function validateCreateEventForm({ reveal = false, scroll = true } = {}) {
+  const runId = createValidationRunId + 1;
+  createValidationRunId = runId;
+  validationPending.value = true;
+  try {
+    const [step1Result, step2Result] = await Promise.all([
+      props.engine.validate(1),
+      props.engine.validate(2),
+    ]);
+    const nextStep1Errors = Array.isArray(step1Result?.errors) ? step1Result.errors : [];
+    const nextStep2Errors = Array.isArray(step2Result?.errors) ? step2Result.errors : [];
+    const errors = [
+      ...nextStep1Errors,
+      ...nextStep2Errors,
+    ];
+    const nextValid = Boolean(step1Result?.valid) && Boolean(step2Result?.valid) && errors.length === 0;
 
-  return {
-    valid: Boolean(step1Result?.valid) && Boolean(step2Result?.valid),
-    errors,
-  };
+    if (runId === createValidationRunId) {
+      step1ValidationErrors.value = nextStep1Errors;
+      step2ValidationErrors.value = nextStep2Errors;
+      submitValidationValid.value = nextValid;
+
+      if (reveal && nextStep2Errors.length) {
+        await revealStep2ValidationErrors(nextStep2Errors, { scroll });
+      } else if (reveal) {
+        showInlineValidation.value = true;
+      }
+    }
+
+    return {
+      valid: nextValid,
+      errors,
+      step1Errors: nextStep1Errors,
+      step2Errors: nextStep2Errors,
+    };
+  } finally {
+    if (runId === createValidationRunId) {
+      validationPending.value = false;
+    }
+  }
 }
 
 function pickTrimmedString(...values) {
@@ -1341,7 +1492,7 @@ async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) 
 const createEvent = async () => {
   if (isCreating.value) return;
 
-  const result = await validateCreateEventForm();
+  const result = await validateCreateEventForm({ reveal: true, scroll: false });
 
   if (result.valid) {
     isCreating.value = true;
@@ -1414,24 +1565,38 @@ const createEvent = async () => {
       isCreating.value = false;
     }
   } else {
-    const hasConditionalErrors = hasConditionalValidationError(result.errors);
-    const messages = hasConditionalErrors
-      ? [formatConditionalValidationToastMessage(result.errors)]
-      : formatValidationErrors(result.errors);
-    showToast({
-      type: "error",
-      title: hasConditionalErrors
-        ? translateWithFallback("booking_validation_required_fields_title", "Please fill these fields")
-        : t("common_validation_failed"),
-      message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
-      autoClose: false,
-    });
+    if (
+      Array.isArray(result.step1Errors)
+      && result.step1Errors.length > 0
+      && (!Array.isArray(result.step2Errors) || result.step2Errors.length === 0)
+    ) {
+      emit("reveal-step1-validation", {
+        errors: result.step1Errors,
+        field: "",
+        scroll: false,
+      });
+    }
+
+    if (SHOW_BOOKING_VALIDATION_TOASTS) {
+      const hasConditionalErrors = hasConditionalValidationError(result.errors);
+      const messages = hasConditionalErrors
+        ? [formatConditionalValidationToastMessage(result.errors)]
+        : formatValidationErrors(result.errors);
+      showToast({
+        type: "error",
+        title: hasConditionalErrors
+          ? translateWithFallback("booking_validation_required_fields_title", "Please fill these fields")
+          : t("common_validation_failed"),
+        message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
+        autoClose: false,
+      });
+    }
   }
 };
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
+  <div ref="formRootRef" class="flex flex-col gap-6 relative px-2 md:px-4 lg:px-6">
     <div class="flex items-center gap-2 cursor-pointer" @click="goToBack">
       <img src="https://i.ibb.co/CsWd11xX/Icon-2.png" alt="" />
       <div class="text-[12px] font-medium">{{ t("common_back") }}</div>
@@ -1455,12 +1620,18 @@ const createEvent = async () => {
             <div :class="['inline-flex flex-col',!formData.allowRecording ? 'opacity-50':'opacity-100']">
               <div class="inline-flex justify-end items-center gap-2">
                 <BaseInput type="number" placeholder="" v-model="formData.recordingPrice"
+                  data-booking-validation-input-field="recordingPrice"
                   :disabled="!formData.allowRecording"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="justify-center text-slate-700 text-base font-normal leading-normal">
                   {{ t("common_tokens") }}
                 </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('recordingPrice')"
+                field="recordingPrice"
+                spacing-class="mt-2"
+              />
             </div>
           </div>
         </div>
@@ -1525,7 +1696,13 @@ const createEvent = async () => {
                     type="text"
                     :placeholder="t('booking_record_session')"
                     v-model="addOn.title"
+                    :data-booking-validation-input-field="`addOns.${index}.title`"
                     inputClass="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-gray-900 text-base"
+                  />
+                  <ValidationInlineWarning
+                    :messages="fieldValidationMessages(`addOns.${index}.title`)"
+                    :field="`addOns.${index}.title`"
+                    spacing-class="mt-2"
                   />
 
                   <textarea
@@ -1551,12 +1728,18 @@ const createEvent = async () => {
                   step="1"
                   placeholder=""
                   v-model="addOn.priceTokens"
+                  :data-booking-validation-input-field="`addOns.${index}.priceTokens`"
                   inputClass="bg-white/75 w-full px-3 py-2 flex-1 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base"
                 />
-                <div class="text-black text-[16px] font-medium whitespace-nowrap">
-                  {{ t("common_tokens") }}
-                </div>
+                  <div class="text-black text-[16px] font-medium whitespace-nowrap">
+                    {{ t("common_tokens") }}
+                  </div>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages(`addOns.${index}.priceTokens`)"
+                :field="`addOns.${index}.priceTokens`"
+                spacing-class="mt-0"
+              />
             </div>
 
             <div class="inline-flex">
@@ -1610,6 +1793,8 @@ const createEvent = async () => {
                   :options="subscriptionTierDropdownOptions"
                   :multiple="true"
                   :hasCheckboxes="true"
+                  data-booking-validation-input-field="subscriptionTiers"
+                  tabindex="0"
                 >
                   <template #trigger>
                     <span class="text-slate-900 font-medium">
@@ -1618,6 +1803,11 @@ const createEvent = async () => {
                   </template>
                 </CustomDropdown>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('subscriptionTiers')"
+                field="subscriptionTiers"
+                spacing-class="mt-0"
+              />
             </div>
 
             <div v-if="formData.whoCanBook === 'inviteOnly'" class="mt-3 flex flex-col gap-2">
@@ -1641,6 +1831,7 @@ const createEvent = async () => {
                   :value="inviteLink"
                   type="text"
                   readonly
+                  data-booking-validation-input-field="inviteSecret"
                   class="flex-1 bg-white/75 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-sm"
                 />
                 <button
@@ -1652,6 +1843,11 @@ const createEvent = async () => {
                   {{ t("booking_copy_invite_link_title") }}
                 </button>
               </div>
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('inviteSecret')"
+                field="inviteSecret"
+                spacing-class="mt-0"
+              />
 
               <!-- Temporarily disabled: manual invite-user dropdown and selected chips.
               <div v-if="inviteUsersLoading" class="text-slate-500 text-sm">
@@ -1763,7 +1959,13 @@ const createEvent = async () => {
             />
             <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
               <BaseInput type="number" :placeholder="t('booking_minimum_spend_tokens')" v-model="formData.minSpendTokens"
+                data-booking-validation-input-field="minSpendTokens"
                 inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('minSpendTokens')"
+                field="minSpendTokens"
+                spacing-class="mt-2"
+              />
             </div>
             <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
               <div
@@ -1815,10 +2017,16 @@ const createEvent = async () => {
               <ButtonComponent
                 :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? t('common_switch_product') : t('common_add_product')"
                 variant="none"
+                data-booking-validation-input-field="requiredProducts"
                 customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
                 :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
                 :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
                 @click="openSpendingProductPopup"
+              />
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('requiredProducts')"
+                field="requiredProducts"
+                spacing-class="mt-0"
               />
             </div>
           </div>
@@ -2070,7 +2278,15 @@ const createEvent = async () => {
         variant="polygonRight"
       />
     </div>
-    <ButtonComponent @click="createEvent" :disabled="isCreating" :text="submitButtonText" variant="polygonLeft"
+    <SoftDisabledBookingButton
+      @click="createEvent"
+      @tooltip-select="goToStep2ValidationField"
+      :disabled="isCreating"
+      :soft-disabled="submitButtonSoftDisabled"
+      :tooltip-text="submitButtonTooltip"
+      :tooltip-items="submitButtonTooltipItems"
+      :text="submitButtonText"
+      variant="polygonLeft"
       :leftIcon="'https://i.ibb.co/S74jfvBw/Icon-1.png'" :leftIconClass="`
         w-6 h-6 transition duration-200
         filter brightness-0

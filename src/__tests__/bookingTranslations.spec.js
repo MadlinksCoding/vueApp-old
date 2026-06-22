@@ -125,7 +125,7 @@ describe("bookingTranslations", () => {
       .toBe("Buffer time must be at least 5 minutes.");
   });
 
-  it("uses translated generic create-event copy for unknown backend validation details", () => {
+  it("surfaces unknown create-event backend validation details", () => {
     const { t } = createBookingTranslator();
 
     expect(formatCreateEventFailureMessage({
@@ -137,7 +137,35 @@ describe("bookingTranslations", () => {
           details: [{ field: "unknownBackendField", errors: ["Raw backend detail"] }],
         },
       },
-    }, t)).toBe("Could not create event. Please try again.");
+    }, t)).toBe("Raw backend detail");
+  });
+
+  it("surfaces create-event backend messages when no structured translation applies", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatCreateEventFailureMessage({
+      ok: false,
+      error: {
+        code: "HTTP_409",
+        message: "Request failed with status 409",
+        details: {
+          message: "Event title already exists for this time.",
+        },
+      },
+    }, t)).toBe("Event title already exists for this time.");
+  });
+
+  it("uses create-event backend codes instead of generic copy when no message is available", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatCreateEventFailureMessage({
+      ok: false,
+      error: {
+        code: "HTTP_500",
+        message: "Failed to create event.",
+        details: {},
+      },
+    }, t)).toBe("Backend rejected the event request (HTTP_500).");
   });
 
   it("formats create-event event-limit failures with backend counts", () => {

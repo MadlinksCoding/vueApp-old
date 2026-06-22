@@ -640,4 +640,29 @@ describe("chat product recommendations", () => {
       array: [1, { nested: true }],
     });
   });
+
+  it("sanitizes proxied arrays from real-time payloads", () => {
+    const proxiedArray = new Proxy([
+      { id: 1, title: "Live item" },
+      () => "skip",
+      new Proxy([{ nested: true }], {}),
+    ], {});
+
+    const safe = toCloneSafeProductPayload({
+      product_recommendation: {
+        id: 2940,
+        type: "media",
+        tags: proxiedArray,
+      },
+    });
+
+    expect(() => structuredClone(safe)).not.toThrow();
+    expect(safe).toEqual({
+      product_recommendation: {
+        id: 2940,
+        type: "media",
+        tags: [{ id: 1, title: "Live item" }, [{ nested: true }]],
+      },
+    });
+  });
 });

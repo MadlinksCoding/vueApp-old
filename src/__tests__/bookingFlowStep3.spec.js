@@ -796,7 +796,7 @@ describe("BookingFlowStep3", () => {
     }));
   });
 
-  it("falls back to generic booking failure copy for unknown backend booking codes", async () => {
+  it("surfaces unknown backend booking codes instead of generic booking copy", async () => {
     tokenGet.mockResolvedValue({
       data: {
         balance: 3000,
@@ -822,7 +822,73 @@ describe("BookingFlowStep3", () => {
 
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
       type: "error",
-      message: "Could not complete booking. Please try again.",
+      message: "some_new_backend_code",
+    }));
+  });
+
+  it("prefers backend booking messages over mapped generic flow copy", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            message: "Failed to create booking.",
+            details: {
+              message: "This booking window closed 3 minutes ago.",
+            },
+          },
+          meta: {
+            uiErrors: ["Could not create booking. Please try again."],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "This booking window closed 3 minutes ago.",
+    }));
+  });
+
+  it("uses booking backend codes instead of generic copy when no message is available", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            message: "Failed to create booking.",
+            details: {},
+          },
+          meta: {
+            uiErrors: ["Could not create booking. Please try again."],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine);
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "Booking request failed: CREATE_BOOKING_FAILED",
     }));
   });
 
