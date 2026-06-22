@@ -5,7 +5,7 @@ import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js"
 export async function fetchUserChatsFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
   const headers = context.requestHeaders || {};
-  const { userId, limit = 500, cursor } = payload;
+  const { userId, limit = 500, cursor, chatOwner } = payload;
 
   if (!userId) {
     return fail({
@@ -16,6 +16,7 @@ export async function fetchUserChatsFlow({ payload, context, api }) {
 
   const params = { limit, includes: 'total,total_unread' };
   if (cursor) params.cursor = cursor;
+  if (chatOwner) params.chatOwner = chatOwner;
 
   try {
     const response = await api.get(
