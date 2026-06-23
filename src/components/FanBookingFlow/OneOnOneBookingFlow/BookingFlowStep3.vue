@@ -87,6 +87,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  refreshBookingContext: {
+    type: Function,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['booking-created', 'booking-failed']);
@@ -690,7 +694,7 @@ const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
   event_not_found: 'fan_booking_error_event_not_found',
   event_not_active: 'fan_booking_error_event_not_active',
   event_full: 'fan_booking_error_event_full',
-  slot_already_taken: 'fan_booking_error_slot_already_taken',
+  slot_already_taken: 'fan_booking_slot_already_booked_try_different_slot',
   already_booked_for_slot: 'fan_booking_error_already_booked_for_slot',
   booking_already_in_progress: 'fan_booking_error_booking_already_in_progress',
   invalid_user_event_slot_guard: 'fan_booking_error_invalid_user_event_slot_guard',
@@ -699,7 +703,7 @@ const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
   temporary_hold_mismatch: 'fan_booking_error_temporary_hold_mismatch',
   invalid_temporary_hold_time: 'fan_booking_error_invalid_temporary_hold_time',
   event_not_available: 'fan_booking_error_event_not_available',
-  slot_already_booked: 'fan_booking_error_slot_already_taken',
+  slot_already_booked: 'fan_booking_slot_already_booked_try_different_slot',
   slot_already_held: 'fan_booking_error_slot_already_held',
   temporary_hold_already_exists: 'fan_booking_error_temporary_hold_already_exists',
   validation_failed: 'fan_booking_validation_failed_review',
@@ -711,6 +715,98 @@ const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
 
 function normalizeBackendErrorCode(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+const STALE_SLOT_ERROR_CODES = new Set([
+  'booking_overlaps_existing',
+  'booking_buffer_after_booked_required',
+  'slot_already_taken',
+  'slot_already_booked',
+]);
+
+function addNormalizedCode(codes, value) {
+  const normalized = normalizeBackendErrorCode(value);
+  if (normalized) codes.add(normalized);
+}
+
+function addValidationCodes(codes, value) {
+  if (!Array.isArray(value)) return;
+  value.forEach((item) => {
+    if (typeof item === 'string') {
+      addNormalizedCode(codes, item);
+      return;
+    }
+
+    addNormalizedCode(codes, item?.code);
+    addNormalizedCode(codes, item?.error);
+  });
+}
+
+function collectBookingFailureCodes(flowResult) {
+  const codes = new Set();
+  const errorPayload = flowResult?.error;
+  const errorObject = errorPayload && typeof errorPayload === 'object' ? errorPayload : {};
+  const details = errorObject?.details && typeof errorObject.details === 'object' ? errorObject.details : {};
+  const response = details?.response && typeof details.response === 'object' ? details.response : {};
+  const responseData = response?.data && typeof response.data === 'object' ? response.data : {};
+  const detailsData = details?.data && typeof details.data === 'object' ? details.data : {};
+  const resultData = flowResult?.data && typeof flowResult.data === 'object' ? flowResult.data : {};
+
+  [
+    flowResult,
+    errorObject,
+    details,
+    response,
+    responseData,
+    detailsData,
+    resultData,
+  ].forEach((source) => {
+    if (!source || typeof source !== 'object') return;
+    addNormalizedCode(codes, source.error);
+    addNormalizedCode(codes, source.code);
+    addValidationCodes(codes, source.failures);
+    addValidationCodes(codes, source.errors);
+    addValidationCodes(codes, source.validation?.failures);
+    addValidationCodes(codes, source.validation?.errors);
+  });
+
+  if (typeof errorPayload === 'string') addNormalizedCode(codes, errorPayload);
+  return codes;
+}
+
+function isStaleSlotConflict(flowResult) {
+  const codes = collectBookingFailureCodes(flowResult);
+  return Array.from(codes).some((code) => STALE_SLOT_ERROR_CODES.has(code));
+}
+
+function clearStaleSlotSelection() {
+  const reason = 'step3-stale-slot-conflict';
+  props.engine.setState('bookingDetails.selectedTime', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.selectedDuration', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.formattedTimeRange', '-', { reason, silent: true });
+  props.engine.setState('bookingDetails.totalPrice', 0, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedSlot', null, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedDurationMinutes', null, { reason, silent: true });
+  props.engine.setState('fanBooking.temporaryHold', {
+    temporaryHoldId: null,
+    status: 'none',
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+  }, { reason, silent: true });
+}
+
+async function sendBackToScheduleAfterStaleSlot() {
+  clearStaleSlotSelection();
+  if (typeof props.refreshBookingContext === 'function') {
+    await props.refreshBookingContext({
+      silent: true,
+      preserveSelectedEvent: true,
+    }).catch(() => null);
+  }
+  await props.engine.forceSubstep?.(null, { intent: 'stale-slot-conflict' });
+  props.engine.goToStep(2);
 }
 
 function resolveBackendErrorTranslationKey(flowResult, wrapperCode) {
@@ -764,6 +860,9 @@ function extractBackendMessage(flowResult) {
   const missingFields = Array.isArray(details?.missingFields) ? details.missingFields : [];
   if (code === "CREATE_BOOKING_MISSING_REQUIRED_FIELDS" && missingFields.length > 0) {
     return t('fan_booking_missing_required_fields', { fields: missingFields.join(', ') });
+  }
+  if (isStaleSlotConflict(flowResult)) {
+    return t('fan_booking_slot_already_booked_try_different_slot');
   }
   const validationErrors = details?.validation?.errors;
   if (Array.isArray(validationErrors) && validationErrors.length > 0) {
@@ -1584,16 +1683,24 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
     });
 
     if (!result?.ok) {
+      const staleSlotConflict = isStaleSlotConflict(result);
+      const failureMessage = staleSlotConflict
+        ? t('fan_booking_slot_already_booked_try_different_slot')
+        : extractBackendMessage(result);
       emit('booking-failed', {
         type: 'create-booking',
         result,
-        message: extractBackendMessage(result),
+        message: failureMessage,
       });
       showToast({
         type: 'error',
         title: t('fan_booking_booking_failed_title'),
-        message: extractBackendMessage(result),
+        message: failureMessage,
       });
+      if (staleSlotConflict) {
+        await sendBackToScheduleAfterStaleSlot();
+        return;
+      }
       if (isTopUpDone) props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-retry' });
       return;
     }
