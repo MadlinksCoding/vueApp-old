@@ -1,7 +1,7 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -37,6 +37,10 @@ const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
+  },
+  refreshBookingContext: {
+    type: Function,
+    default: null,
   },
 });
 
@@ -99,6 +103,10 @@ const contributionTokens = ref('');
 const walletBalance = ref(0);
 const groupAutoRedirecting = ref(false);
 const showMaxDurationWarning = ref(false);
+const isRefreshingAvailability = ref(false);
+let availabilityRefreshTimerId = null;
+
+const AVAILABILITY_REFRESH_INTERVAL_MS = 15000;
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const todayDateIso = computed(() => formatLocalDateIso(new Date()));
@@ -261,7 +269,7 @@ const candidateSlots = computed(() => {
   });
 });
 
-function canDurationFitSelectedSlot(slot, durationMinutes) {
+function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverride = bookedSlotsIndex.value) {
   if (!slot || !Number.isFinite(slot.startMs)) return false;
 
   const normalizedDuration = Number(durationMinutes || 0);
@@ -277,8 +285,167 @@ function canDurationFitSelectedSlot(slot, durationMinutes) {
     eventId: selectedEvent.value?.eventId,
     startMs: slot.startMs,
     endMs: targetEndMs,
-    bookedSlotsIndex: bookedSlotsIndex.value,
+    bookedSlotsIndex: bookedSlotsIndexOverride,
   });
+}
+
+function buildTimeSlotsForBookedIndex(latestBookedSlotsIndex = bookedSlotsIndex.value) {
+  if (!selectedEvent.value || !selectedDateIso.value) return [];
+
+  return buildCandidateSlotsForEventDate(selectedEvent.value, selectedDateIso.value, {
+    eventId: selectedEvent.value?.eventId,
+    bookedSlotsIndex: latestBookedSlotsIndex,
+    applyBufferAfterBooked: true,
+  }).map((slot) => {
+    const uiSlot = createSlotUiModel({
+      event: selectedEvent.value,
+      eventId: selectedEvent.value.eventId,
+      localDateIso: selectedDateIso.value,
+      slot,
+      bookedSlotsIndex: latestBookedSlotsIndex,
+    });
+
+    return {
+      ...uiSlot,
+      label: isGroupEvent.value
+        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
+        : hmToLabel(uiSlot.startHm),
+      value: uiSlot.startHm,
+      isOffHours: Boolean(uiSlot.offHours),
+    };
+  });
+}
+
+function getSelectedAvailabilitySnapshot() {
+  return {
+    dateIso: selectedDateIso.value,
+    slotValue: selectedTime.value?.value || selectedTime.value?.startHm || null,
+    durationMinutes: Number(selectedDurationObj.value?.value || 0),
+    duration: selectedDurationObj.value ? { ...selectedDurationObj.value } : null,
+  };
+}
+
+function resolveSelectedSnapshotAvailability(snapshot = {}) {
+  if (!snapshot.slotValue) return { available: true, slot: null, duration: null };
+  if (snapshot.dateIso && snapshot.dateIso !== selectedDateIso.value) {
+    return { available: true, slot: null, duration: null };
+  }
+
+  const latestBookedSlotsIndex = props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {};
+  const latestTimeSlots = buildTimeSlotsForBookedIndex(latestBookedSlotsIndex);
+  const matchedSlot = latestTimeSlots.find((slot) => (
+    String(slot.value) === String(snapshot.slotValue)
+    && !slot.disabled
+  ));
+  if (!matchedSlot) return { available: false, slot: null, duration: null };
+
+  const durationMinutes = Number(snapshot.durationMinutes || 0);
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return { available: false, slot: null, duration: null };
+  }
+
+  const available = canDurationFitSelectedSlot(matchedSlot, durationMinutes, latestBookedSlotsIndex);
+  return {
+    available,
+    slot: available ? matchedSlot : null,
+    duration: available ? snapshot.duration : null,
+  };
+}
+
+function restoreSelectedSnapshotIfAvailable(snapshot = {}) {
+  const resolved = resolveSelectedSnapshotAvailability(snapshot);
+  if (!resolved.available) return false;
+  if (!resolved.slot || !resolved.duration) return true;
+
+  selectedTime.value = resolved.slot;
+  selectedDurationObj.value = resolved.duration;
+  return true;
+}
+
+function clearSelectedSlotAfterAvailabilityRefresh(reason = 'step2-availability-refresh-conflict') {
+  selectedTime.value = null;
+  selectedDurationObj.value = null;
+  showMaxDurationWarning.value = false;
+
+  props.engine.setState('bookingDetails.selectedTime', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.selectedDuration', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.formattedTimeRange', '-', { reason, silent: true });
+  props.engine.setState('bookingDetails.totalPrice', 0, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedSlot', null, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedDurationMinutes', null, { reason, silent: true });
+  props.engine.setState('fanBooking.temporaryHold', {
+    temporaryHoldId: null,
+    status: 'none',
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+  }, { reason, silent: true });
+}
+
+function showSelectedSlotBookedToast() {
+  showToast({
+    type: 'error',
+    title: t('fan_booking_slot_unavailable_title'),
+    message: t('fan_booking_slot_already_booked_try_different_slot'),
+  });
+}
+
+async function refreshAvailabilityAndValidateSelection({ notifyOnConflict = false, reason = 'availability-refresh' } = {}) {
+  if (!shouldAutoRefreshAvailability.value) return true;
+  if (isRefreshingAvailability.value) return true;
+
+  const snapshot = getSelectedAvailabilitySnapshot();
+  isRefreshingAvailability.value = true;
+
+  try {
+    const result = await props.refreshBookingContext({
+      silent: true,
+      preserveSelectedEvent: true,
+    });
+
+    if (!result?.ok) return true;
+    if (snapshot.slotValue && !restoreSelectedSnapshotIfAvailable(snapshot)) {
+      clearSelectedSlotAfterAvailabilityRefresh(reason);
+      if (notifyOnConflict) showSelectedSlotBookedToast();
+      return false;
+    }
+
+    return true;
+  } catch (_error) {
+    return true;
+  } finally {
+    isRefreshingAvailability.value = false;
+  }
+}
+
+function stopAvailabilityRefreshTimer() {
+  if (!availabilityRefreshTimerId) return;
+  clearInterval(availabilityRefreshTimerId);
+  availabilityRefreshTimerId = null;
+}
+
+function startAvailabilityRefreshTimer() {
+  if (!shouldAutoRefreshAvailability.value || availabilityRefreshTimerId) return;
+  availabilityRefreshTimerId = setInterval(() => {
+    refreshAvailabilityAndValidateSelection({
+      notifyOnConflict: true,
+      reason: 'step2-availability-refresh-interval',
+    });
+  }, AVAILABILITY_REFRESH_INTERVAL_MS);
+}
+
+function handleVisibilityRefresh() {
+  if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+  refreshAvailabilityAndValidateSelection({
+    notifyOnConflict: true,
+    reason: 'step2-availability-refresh-visible',
+  });
+}
+
+function getEventIdentity(event = null) {
+  if (!event) return '';
+  return String(event.eventId || event.id || event.raw?.eventId || '');
 }
 
 function toBoolean(value, fallback = false) {
@@ -304,8 +471,18 @@ const showApprovalNeeded = computed(() => {
 const isPreviewReadOnly = computed(() => (
   Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
 ));
+const isPreviewMode = computed(() => (
+  Boolean(props.engine.getState('fanBooking.ui.previewMode'))
+));
 const isFirstBookingForCreator = computed(() => (
   toBoolean(props.engine.getState('fanBooking.context.isFirstBookingForCreator'), false)
+));
+const shouldAutoRefreshAvailability = computed(() => (
+  !isPreviewMode.value
+  && !isPreviewReadOnly.value
+  && !isGroupEvent.value
+  && Boolean(selectedEvent.value)
+  && typeof props.refreshBookingContext === 'function'
 ));
 
 function toWholeTokens(value) {
@@ -787,7 +964,7 @@ const canProceedToPayment = computed(() => {
 });
 
 const bottomActionDisabled = computed(() => (
-  isPreviewReadOnly.value || !canProceedToPayment.value
+  isPreviewReadOnly.value || isRefreshingAvailability.value || !canProceedToPayment.value
 ));
 
 const formattedTimeRange = computed(() => {
@@ -1078,7 +1255,7 @@ const toggleAddon = (index) => {
   row.selected = !row.selected;
 };
 
-const goToNextStep = () => {
+const goToNextStep = async () => {
   if (isPreviewReadOnly.value) {
     return;
   }
@@ -1119,6 +1296,17 @@ const goToNextStep = () => {
         max: eventGoalMaximumTokens.value,
       }),
     });
+    return;
+  }
+
+  const selectionStillAvailable = await refreshAvailabilityAndValidateSelection({
+    notifyOnConflict: true,
+    reason: 'step2-continue-availability-refresh',
+  });
+  if (!selectionStillAvailable) return;
+
+  if (!selectedTime.value || selectedTime.value.disabled || !selectedDurationObj.value) {
+    showSelectedSlotBookedToast();
     return;
   }
 
@@ -1181,7 +1369,17 @@ watch(
 
 watch(
   () => selectedEvent.value,
-  async () => {
+  async (nextEvent, previousEvent) => {
+    const sameEventRefresh = (
+      isRefreshingAvailability.value
+      && getEventIdentity(nextEvent)
+      && getEventIdentity(nextEvent) === getEventIdentity(previousEvent)
+    );
+    if (sameEventRefresh && !isGroupEvent.value) {
+      ensureContributionDefault();
+      return;
+    }
+
     if (isGroupEvent.value) {
       hydrateAddons();
       hydrateFromState();
@@ -1258,7 +1456,24 @@ watch(
   },
 );
 
+watch(
+  () => shouldAutoRefreshAvailability.value,
+  (shouldRefresh) => {
+    if (shouldRefresh) {
+      startAvailabilityRefreshTimer();
+      return;
+    }
+
+    stopAvailabilityRefreshTimer();
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+  }
+
   if (!selectedEvent.value) {
     showToast({
       type: 'error',
@@ -1277,6 +1492,14 @@ onMounted(() => {
   hydrateAddons();
   hydrateFromState();
   refreshWalletBalance();
+  startAvailabilityRefreshTimer();
+});
+
+onBeforeUnmount(() => {
+  stopAvailabilityRefreshTimer();
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+  }
 });
 </script>
 

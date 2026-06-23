@@ -532,6 +532,7 @@ export const bookingMessages = {
   fan_booking_error_event_not_active: "This event is no longer active.",
   fan_booking_error_event_full: "This event is full.",
   fan_booking_error_slot_already_taken: "This time slot is no longer available.",
+  fan_booking_slot_already_booked_try_different_slot: "This slot has already been booked. Try booking a different slot",
   fan_booking_error_already_booked_for_slot: "You have already booked this time slot.",
   fan_booking_error_booking_already_in_progress: "A booking is already being created for this event time. Please wait a moment and try again.",
   fan_booking_error_invalid_user_event_slot_guard: "Could not reserve this group slot. Please try again.",
@@ -564,8 +565,8 @@ export const bookingMessages = {
   fan_booking_validation_booking_end_in_past: "Bookings must end in the future.",
   fan_booking_validation_group_booking_before_event_created: "This group event slot started before the event was created.",
   fan_booking_validation_booking_not_in_slot: "This time does not match the event's available slots.",
-  fan_booking_validation_booking_overlaps_existing: "Selected booking time overlaps with an existing booking.",
-  fan_booking_validation_booking_buffer_after_booked_required: "A {buffer_minutes}-minute buffer is required before this booking can start.",
+  fan_booking_validation_booking_overlaps_existing: "This slot has already been booked. Try booking a different slot",
+  fan_booking_validation_booking_buffer_after_booked_required: "This slot has already been booked. Try booking a different slot",
   fan_booking_validation_booking_duration_invalid: "Booking duration is invalid.",
   fan_booking_validation_booking_duration_must_match_base: "Booking duration must match the event duration of {base_duration} minutes.",
   fan_booking_validation_booking_duration_below_minimum: "Booking duration must be at least {base_duration} minutes.",
@@ -899,6 +900,11 @@ export const bookingValidationCodeTranslationKeys = Object.freeze({
   booking_validation_unhandled: "fan_booking_validation_booking_validation_unhandled",
 });
 
+const staleSlotValidationCodes = new Set([
+  "booking_overlaps_existing",
+  "booking_buffer_after_booked_required",
+]);
+
 function normalizeBookingValidationCode(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -909,6 +915,10 @@ export function resolveBookingValidationTranslationKey(value) {
 }
 
 export function translateBookingValidationError(error, t = bookingT) {
+  const code = typeof error === "string" ? error : error?.code;
+  if (staleSlotValidationCodes.has(normalizeBookingValidationCode(code))) {
+    return t("fan_booking_slot_already_booked_try_different_slot");
+  }
   if (typeof error === "string") return t(resolveBookingValidationTranslationKey(error) || error);
   const key = error?.translationKey || resolveBookingValidationTranslationKey(error) || error?.code;
   if (key) return t(key, error?.params || {});
