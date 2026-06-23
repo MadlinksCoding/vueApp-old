@@ -3258,16 +3258,17 @@
                 labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2 mb-2 mt-2" />
               <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
-                <div class=" inline-flex justify-end items-center gap-2">
+                <div class="w-full inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
-                  <BaseInput type="number" placeholder="" v-model="formData.remindMeTime"
+                  <BaseInput class="flex-1" type="number" placeholder="" v-model="formData.remindMeTime"
                     data-booking-validation-input-field="remindMeTime"
                     :disabled="!formData.setReminders"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate">{{ t("booking_minutes_before_a") }}</div>
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate hidden md:flex">{{ t("booking_minutes_before_a") }}</div>
                 </div>
                 <div class="inline-flex justify-end items-center gap-2">
-                  <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_scheduled_call") }}</div>
+                  <div class="justify-center text-slate-700 text-base font-normal leading-normal hidden md:flex">{{ t("booking_scheduled_call") }}</div>
+                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate flex md:hidden">{{ t("booking_minutes_before_a") }} {{ t("booking_scheduled_call") }}</div>
                 </div>
               </div>
               <ValidationInlineWarning

@@ -186,7 +186,7 @@
       class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem]">
 
       <div class="flex items-center gap-3 order-1">
-        <div class="font-bold" :class="theme.main.title">{{ title }}</div>
+        <div class="font-bold w-[9rem]" :class="theme.main.title">{{ title }}</div>
         <span class="flex items-center justify-between">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
             <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
