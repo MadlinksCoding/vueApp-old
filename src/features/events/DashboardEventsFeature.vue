@@ -405,14 +405,6 @@ const props = defineProps({
 const emit = defineEmits(["create-event", "edit-event", "open-url"]);
 const { t, locale } = useBookingTranslations();
 
-const EVENT_TYPE_COLOR_STORAGE_KEY = "calendar:eventTypeColors";
-const NONE_COLOR_VALUE = "none";
-const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
-  video: "#5549FF",
-  audio: "#06B6D4",
-  groupCall: "#E11D48",
-});
-
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
@@ -424,16 +416,13 @@ const cancelBookingCandidate = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
-const eventTypeColors = ref({
-  video: null,
-  audio: null,
-  groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-});
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
 const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
+const currentTime = ref(new Date());
+const currentTimeTimer = ref(null);
 
 const isEmbeddedMobileViewport = () => (
   props.embedded
@@ -609,80 +598,18 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
   return fallback;
 }
 
-function isHexColor(color) {
-  return typeof color === "string" && /^#([0-9a-fA-F]{3}){1,2}$/.test(color.trim());
+function resolveOptionalEventColor(...candidates) {
+  for (const candidate of candidates) {
+    const color = normalizeHexColor(candidate, null);
+    if (color) return color;
+  }
+  return null;
 }
 
-function normalizeColorChoice(color, fallback = null) {
-  const normalized = typeof color === "string" ? color.trim() : "";
-  if (!normalized) return fallback;
-  if (normalized.toLowerCase() === NONE_COLOR_VALUE) return NONE_COLOR_VALUE;
-  return isHexColor(normalized) ? normalized : fallback;
-}
-
-function resolveCalendarColorChoice(typeColor, eventColorSkin, defaultColor) {
-  if (isHexColor(typeColor)) return typeColor.trim();
-
-  const fallbackEventColor = normalizeHexColor(eventColorSkin, null);
-  if (typeColor === NONE_COLOR_VALUE || typeColor == null || typeColor === "") {
-    return fallbackEventColor || defaultColor;
-  }
-
-  return fallbackEventColor || defaultColor;
-}
-
-function loadEventTypeColorsFromStorage() {
-  if (typeof window === "undefined") {
-    return {
-      video: null,
-      audio: null,
-      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-    };
-  }
-  try {
-    const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
-    if (!raw) {
-      return {
-        video: null,
-        audio: null,
-        groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-      };
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      video: normalizeColorChoice(parsed?.video, null),
-      audio: normalizeColorChoice(parsed?.audio, null),
-      groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall),
-    };
-  } catch (_error) {
-    return {
-      video: null,
-      audio: null,
-      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-    };
-  }
-}
-
-function resolveTypeColor({ callType = "", eventType = "", eventColorSkin = "" } = {}) {
-  const normalizedEventType = String(eventType || "").toLowerCase();
-  if (normalizedEventType.includes("group")) {
-    return normalizeHexColor(eventTypeColors.value?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall);
-  }
-
-  const normalizedCallType = String(callType || "").toLowerCase();
-  if (normalizedCallType.includes("audio")) {
-    return resolveCalendarColorChoice(
-      eventTypeColors.value?.audio,
-      eventColorSkin,
-      DEFAULT_EVENT_TYPE_COLORS.audio,
-    );
-  }
-
-  return resolveCalendarColorChoice(
-    eventTypeColors.value?.video,
-    eventColorSkin,
-    DEFAULT_EVENT_TYPE_COLORS.video,
-  );
+function resolveEventColor(...candidates) {
+  const color = resolveOptionalEventColor(...candidates);
+  if (color) return color;
+  return DEFAULT_EVENT_COLOR;
 }
 
 function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
@@ -702,11 +629,27 @@ function rgba(hexColor, alpha = 1) {
 }
 
 const APPROVED_BOOKING_STATUSES = new Set(["approved", "completed", "confirmed"]);
+const PENDING_BOOKING_STATUSES = new Set(["pending", "pending_hold"]);
+
+function resolveBookingStatus(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  return String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
+}
 
 function isApprovedBookingStatus(event = {}) {
-  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-  const status = String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
-  return APPROVED_BOOKING_STATUSES.has(status);
+  return APPROVED_BOOKING_STATUSES.has(resolveBookingStatus(event));
+}
+
+function isPastBookedCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  if (!event || event.isAvailabilityBlock === true) return false;
+  const endDate = resolveEventEndDate(event);
+  if (!endDate) return false;
+  return endDate.getTime() < comparisonDate.getTime();
+}
+
+function isPastPendingBookedCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  return PENDING_BOOKING_STATUSES.has(resolveBookingStatus(event))
+    && isPastBookedCalendarEvent(event, comparisonDate);
 }
 
 function getCalendarEventStyle(event) {
@@ -718,6 +661,17 @@ function getCalendarEventStyle(event) {
       borderRadius: "0px",
       border: "none",
       zIndex: 1,
+    };
+  }
+
+  if (isPastBookedCalendarEvent(event)) {
+    return {
+      backgroundColor: "#D9DCE6",
+      border: "1px solid #C8CDD8",
+      borderBottom: "1px solid #C8CDD8",
+      boxShadow: "none",
+      color: "#98A2B3",
+      zIndex: 2,
     };
   }
 
@@ -757,6 +711,24 @@ function getMonthAvailabilityStyle() {
 function asDate(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function resolveEventEndDate(event = {}) {
+  return asDate(
+    event?.end
+      || event?.endIso
+      || event?.endAtIso
+      || event?.endAt
+      || event?.raw?.endIso
+      || event?.raw?.endAtIso
+      || event?.raw?.endAt,
+  );
+}
+
+function hasNotEnded(event = {}, comparisonDate = currentTime.value) {
+  const endDate = resolveEventEndDate(event);
+  if (!endDate) return false;
+  return endDate.getTime() >= comparisonDate.getTime();
 }
 
 function sameDay(leftDate, rightDate) {
@@ -889,21 +861,64 @@ function resolveJoinStateForEvent(event = {}) {
   };
 }
 
+function shouldShowJoinButtonForEvent(event = {}, joinState = {}, options = {}) {
+  if (options.showReply === true) return false;
+
+  const status = String(event?.status || event?.raw?.status || "").toLowerCase();
+  if (status === "pending" || status === "pending_hold" || status.startsWith("cancelled")) return false;
+
+  return Boolean(joinState.joinUrl || event?.bookingId || event?.raw?.bookingId);
+}
+
+function getWidgetStatusInfo(event = {}, startDate = null, endDate = null, accentColor = null) {
+  const status = String(event?.status || event?.raw?.status || "").toLowerCase();
+  const defaultText = event.status === "active" ? t("dashboard_status_active") : event.status;
+  const now = currentTime.value;
+
+  if (status === "confirmed" && startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    if (endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
+      const nowMs = now.getTime();
+      if (nowMs >= startDate.getTime() && nowMs < endDate.getTime()) {
+        return {
+          text: t("calendar_event_live_now"),
+          color: null,
+        };
+      }
+    }
+
+    const msToStart = startDate.getTime() - now.getTime();
+    if (msToStart > 0 && msToStart <= (5 * 60 * 1000)) {
+      const minutesToStart = Math.max(1, Math.ceil(msToStart / 60000));
+      return {
+        text: `in ${minutesToStart} mins`,
+        color: accentColor,
+      };
+    }
+  }
+
+  return {
+    text: defaultText,
+    color: null,
+  };
+}
+
 function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
   const isGroup = isGroupCalendarEvent(event);
   const joinState = resolveJoinStateForEvent(event);
-  const accentColor = resolveTypeColor({
-    callType: event?.eventCallType || event?.raw?.eventCallType || "",
-    eventType: event?.type || event?.raw?.eventType || event?.raw?.type || "",
-    eventColorSkin: event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || "",
-  });
+  const accentColor = resolveEventColor(
+    event?.color,
+    event?.eventColorSkin,
+    event?.raw?.eventColorSkin,
+  );
 
   const styles = isGroup
     ? { titleColorClass: "text-activePink", borderClass: "bg-brightPink" }
     : { titleColorClass: "text-lightViolet", borderClass: "bg-lightViolet" };
   const participantCount = isGroup && isCreator.value ? getGroupParticipantCount(event) : undefined;
+  const showJoinButton = shouldShowJoinButtonForEvent(event, joinState, options);
+  const statusInfo = getWidgetStatusInfo(event, startDate, endDate, accentColor);
 
   if (options.layout === "today") {
     return {
@@ -912,9 +927,12 @@ function toWidgetItem(event, options = {}) {
       titleColorClass: styles.titleColorClass,
       borderClass: styles.borderClass,
       bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
-      showJoin: joinState.canJoin,
+      showJoin: showJoinButton,
+      canJoin: joinState.canJoin,
       joinUrl: joinState.joinUrl,
-      statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
+      joinAvailableAtIso: joinState.joinAvailableAtIso,
+      statusText: statusInfo.text,
+      statusColor: statusInfo.color,
       showReply: options.showReply === true,
       avatars: makeAvatar(event),
       sourceEvent: event,
@@ -935,9 +953,12 @@ function toWidgetItem(event, options = {}) {
     isGroup,
     groupText: isGroup ? getWidgetGroupText(event) : undefined,
     participantCount,
-    showJoin: joinState.canJoin,
+    showJoin: showJoinButton,
+    canJoin: joinState.canJoin,
     joinUrl: joinState.joinUrl,
-    statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
+    joinAvailableAtIso: joinState.joinAvailableAtIso,
+    statusText: statusInfo.text,
+    statusColor: statusInfo.color,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
@@ -967,13 +988,18 @@ function buildCalendarSlotsFromContext({
     titleFallback: t("dashboard_booked_slot"),
   });
 
-  const colorByEventId = new Map(
+  const eventColorByEventId = new Map(
     catalogEvents
       .map((event) => [
         String(event?.eventId || event?.id || ""),
-        event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+        resolveOptionalEventColor(
+          event?.color,
+          event?.eventColorSkin,
+          event?.raw?.color,
+          event?.raw?.eventColorSkin,
+        ),
       ])
-      .filter(([eventId]) => Boolean(eventId)),
+      .filter(([eventId, color]) => Boolean(eventId && color)),
   );
   const callTypeByEventId = new Map(
     catalogEvents
@@ -983,28 +1009,24 @@ function buildCalendarSlotsFromContext({
       ])
       .filter(([eventId]) => Boolean(eventId)),
   );
-  const eventTypeByEventId = new Map(
-    catalogEvents
-      .map((event) => [
-        String(event?.eventId || event?.id || ""),
-        String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
-      ])
-      .filter(([eventId]) => Boolean(eventId)),
-  );
+  const bookedCalendarSlots = calendarSlots.map((slot) => {
+    const eventId = String(slot?.eventId || "");
+    const eventCallType = callTypeByEventId.get(eventId) || String(slot?.raw?.eventCallType || "").toLowerCase();
+    const eventColorSkin = eventColorByEventId.get(eventId)
+      || normalizeHexColor(slot?.eventColorSkin || slot?.raw?.eventColorSkin, null)
+      || null;
 
-  const bookedCalendarSlots = calendarSlots.map((slot) => ({
-    ...slot,
-    eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || "").toLowerCase(),
-    color: resolveTypeColor({
-      callType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || ""),
-      eventType: eventTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventType || slot?.type || ""),
-      eventColorSkin: colorByEventId.get(String(slot?.eventId || "")) || slot?.raw?.eventColorSkin || "",
-    }),
-    raw: {
-      ...(slot?.raw || {}),
-      eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || "").toLowerCase(),
-    },
-  }));
+    return {
+      ...slot,
+      eventCallType,
+      eventColorSkin,
+      raw: {
+        ...(slot?.raw || {}),
+        eventCallType,
+        eventColorSkin,
+      },
+    };
+  });
 
   const availabilitySlots = mapAvailabilityToCalendarEvents(catalogEvents, {
     bookedSlotsIndex,
@@ -1432,20 +1454,11 @@ const closeCancelBookingPopup = () => {
   cancelBookingCandidate.value = null;
 };
 
-const handleEventTypeColorsChanged = () => {
-  eventTypeColors.value = loadEventTypeColorsFromStorage();
-  rebuildAvailabilityForFocusDate();
-};
-
-const handleEventTypeColorsStorageChanged = (event) => {
-  if (event?.key !== EVENT_TYPE_COLOR_STORAGE_KEY) return;
-  handleEventTypeColorsChanged();
-};
-
 const allEvents = computed(() => {
   const list = dashboardEventsEngine.state?.events?.bookedList;
   if (!Array.isArray(list)) return [];
-  return [...list].sort((left, right) => {
+  const now = currentTime.value;
+  return list.filter((event) => hasNotEnded(event, now)).sort((left, right) => {
     const leftStart = asDate(left.start)?.getTime() || 0;
     const rightStart = asDate(right.start)?.getTime() || 0;
     return leftStart - rightStart;
@@ -1462,7 +1475,13 @@ const calendarEvents = computed(() => {
   });
 });
 
-const events1 = computed(() => calendarEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
+const events1 = computed(() => {
+  const now = currentTime.value;
+  return calendarEvents.value.filter((event) => {
+    const status = resolveBookingStatus(event);
+    return !status.startsWith("cancelled") && !isPastPendingBookedCalendarEvent(event, now);
+  });
+});
 const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
 
 const eventsData = computed(() => {
@@ -1493,7 +1512,7 @@ const eventsData = computed(() => {
     ];
   }
 
-  const now = new Date();
+  const now = currentTime.value;
 
   const todayItems = [];
   const weekItems = [];
@@ -1527,7 +1546,8 @@ const eventsData = computed(() => {
 });
 
 const buildExpandedMonthSections = (events = [], day = null) => {
-  const items = events.map((event) => {
+  const now = currentTime.value;
+  const items = events.filter((event) => hasNotEnded(event, now)).map((event) => {
     const status = String(event?.status || "").toLowerCase();
     return toWidgetItem(event, {
       layout: "today",
@@ -1695,13 +1715,14 @@ const confirmCancelBooking = async () => {
 
 onMounted(() => {
   isMounted.value = true;
-  eventTypeColors.value = loadEventTypeColorsFromStorage();
+  currentTime.value = new Date();
+  currentTimeTimer.value = window.setInterval(() => {
+    currentTime.value = new Date();
+  }, 60 * 1000);
   dashboardEventsEngine.initialize({ fromUrl: false });
 
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
-  window.addEventListener("event-type-colors:changed", handleEventTypeColorsChanged);
-  window.addEventListener("storage", handleEventTypeColorsStorageChanged);
   document.addEventListener("click", handleClickOutside);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
@@ -1757,10 +1778,12 @@ watch(dashboardRole, (nextRole) => {
 });
 
 onUnmounted(() => {
+  if (currentTimeTimer.value) {
+    window.clearInterval(currentTimeTimer.value);
+    currentTimeTimer.value = null;
+  }
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
-  window.removeEventListener("event-type-colors:changed", handleEventTypeColorsChanged);
-  window.removeEventListener("storage", handleEventTypeColorsStorageChanged);
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);
 });

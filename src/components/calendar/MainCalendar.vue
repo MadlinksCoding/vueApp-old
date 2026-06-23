@@ -491,11 +491,6 @@ const dropdownFilters = ref({
   audio: true,
   groupCall: true,
   showSchedule: true,
-  colorByType: {
-    video: '#4F46E5',
-    audio: '#06B6D4',
-    groupCall: '#E11D48',
-  },
 });
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
