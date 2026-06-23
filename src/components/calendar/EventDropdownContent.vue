@@ -6,6 +6,7 @@ import slashCircleIcon from '@/assets/images/icons/slash-circle.webp';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
+const EVENT_TYPE_COLOR_PICKER_ENABLED = false;
 const NONE_COLOR_VALUE = 'none';
 const DEFAULT_TYPE_COLORS = Object.freeze({
   video: '#4F46E5',
@@ -64,6 +65,7 @@ function getDisplayDotColor(type) {
 }
 
 function getCheckboxStyle(type) {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) return {};
   const accentColor = getDisplayDotColor(type);
   return {
     accentColor,
@@ -83,6 +85,13 @@ function isTypeColorSelected(type, color) {
 }
 
 function loadPersistedTypeColors() {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) {
+    return {
+      video: null,
+      audio: null,
+      groupCall: DEFAULT_TYPE_COLORS.groupCall,
+    };
+  }
   if (typeof window === 'undefined') {
     return {
       video: null,
@@ -115,6 +124,7 @@ function loadPersistedTypeColors() {
 }
 
 function persistTypeColors(colors = {}) {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) return;
   if (typeof window === 'undefined') return;
   const safeColors = {
     video: normalizeColorChoice(colors.video, null),
@@ -137,15 +147,42 @@ const filters = computed(() => ({
   },
 }));
 
+function getFilterPayload(overrides = {}) {
+  const baseFilters = {
+    video: filters.value.video,
+    audio: filters.value.audio,
+    groupCall: filters.value.groupCall,
+    showSchedule: filters.value.showSchedule,
+    ...overrides,
+  };
+
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) return baseFilters;
+
+  return {
+    ...baseFilters,
+    colorByType: filters.value.colorByType,
+  };
+}
+
 function updateFilter(key, value) {
+  const nextFilters = getFilterPayload({ [key]: value });
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) {
+    emit('update:modelValue', nextFilters);
+    return;
+  }
+
   emit('update:modelValue', {
     ...(props.modelValue || {}),
-    ...filters.value,
-    [key]: value,
+    ...nextFilters,
   });
 }
 
 function updateTypeColor(type, color) {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) {
+    openColorPickerFor.value = '';
+    return;
+  }
+
   const nextColorByType = {
     ...filters.value.colorByType,
     [type]: normalizeColorChoice(color, null),
@@ -161,6 +198,7 @@ function updateTypeColor(type, color) {
 }
 
 function toggleColorPicker(type) {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) return;
   openColorPickerFor.value = openColorPickerFor.value === type ? '' : type;
 }
 
@@ -176,6 +214,8 @@ function handleDocumentClick(event) {
 }
 
 onMounted(() => {
+  if (!EVENT_TYPE_COLOR_PICKER_ENABLED) return;
+
   const colorByType = {
     video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
     audio: normalizeColorChoice(props.modelValue?.colorByType?.audio, null),
@@ -207,7 +247,7 @@ onBeforeUnmount(() => {
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
-      <div class="flex-1 flex justify-between items-center">
+      <div v-if="EVENT_TYPE_COLOR_PICKER_ENABLED" class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
           <div
             v-if="isNoneChoice(filters.colorByType.video)"
@@ -253,7 +293,7 @@ onBeforeUnmount(() => {
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
-      <div class="flex-1 flex justify-between items-center">
+      <div v-if="EVENT_TYPE_COLOR_PICKER_ENABLED" class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
           <div
             v-if="isNoneChoice(filters.colorByType.audio)"
@@ -299,7 +339,7 @@ onBeforeUnmount(() => {
         labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
         wrapperClass="flex items-center gap-2"
       />
-      <div class="flex-1 flex justify-between items-center">
+      <div v-if="EVENT_TYPE_COLOR_PICKER_ENABLED" class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
           <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: getDisplayDotColor('groupCall') }" />
         </div>
