@@ -5,6 +5,7 @@ import TokenHandler from '@/utils/TokenHandler.js';
 import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
 import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
+import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from '@/utils/contextIds.js';
 import { logFanBookingDebug } from '@/embeds/fanBooking/debug.js';
 import {
@@ -2036,7 +2037,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
             <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[9rem]">
+                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[8rem]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between gap-4">
                       <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
@@ -2175,9 +2176,10 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                             </div>
                           </div>
                           
-
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_discount_heading") }}
+                              <!-- <TooltipIcon :text="t('Dummy text for discounts bookings.')" side="right" /> -->
+                            </h4>
                             <div
                               v-for="row in discountLines"
                               :key="row.code"
@@ -2205,7 +2207,9 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                           </div>
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_Non_Refundable") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}
+                              <!-- <TooltipIcon :text="t('Dummy text for non refundable bookings.')" side="right" /> -->
+                            </h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
@@ -2263,15 +2267,17 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                           <div class="flex items-center gap-2"><p class="text-base font-semibold text-[#FCE40D]">{{ t("fan_booking_your_token_balance") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
 
-                            <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-[2px] px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
+                            <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-2 px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
                                 <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
                                 <p class="text-[11px] font-semibold text-[#0C111D] leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
                                 <div class="w-3 h-3 hidden justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                                 <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
                             </div>
 
-                            <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                            <div class="flex items-center justify-center gap-[2px]">
+                              <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                             <p class="text-xl font-semibold text-[#FCE40D]">{{ formatTokenCompact(walletBalance) }}</p>
+                            </div>
                           </div>
                         </div>
                         <hr class="hidden border-white/20" />
