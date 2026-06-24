@@ -318,9 +318,9 @@
       </div>
     </div>
 
-    <div v-if="effectiveView === 'month'" class="flex flex-col h-full">
+    <div v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
-      <div class="grid grid-cols-7 shrink-0 top-[4rem] sticky w-full backdrop-blur-md z-10">
+      <div class="grid grid-cols-7 shrink-0 top-0 sticky w-full backdrop-blur-md z-10">
         <div v-for="(w, index) in shortWeekdays" :key="w"
           class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[0.625rem]"
           :class="index === 0 ? 'text-red-400' : 'text-gray-500'">

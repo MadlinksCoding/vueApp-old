@@ -267,8 +267,8 @@
           @click="toggleFloatingPopup"
         >
           <img
-            src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
-            class="w-8 h-8 filter brightness-0 invert"
+            :src="plusIcon"
+            class="w-8 h-8 filter"
             :alt="t('common_add')"
           />
         </button>
@@ -374,6 +374,7 @@ import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/book
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import plusIcon from "@/assets/images/icons/plus-icon.svg"
 
 const props = defineProps({
   creatorId: {
