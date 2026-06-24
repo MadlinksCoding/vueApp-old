@@ -99,6 +99,17 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           eventCallType: "video",
           isAvailabilityBlock: false,
         },
+        monthPastBookedEvent: {
+          id: "month-past-booked",
+          eventId: "evt_month_past_booked",
+          title: "Month Past Booked Slot",
+          start: "2026-03-23T07:30:00",
+          end: "2026-03-23T08:30:00",
+          status: "confirmed",
+          type: "1on1-call",
+          eventCallType: "video",
+          isAvailabilityBlock: false,
+        },
         monthPendingEvent: {
           id: "month-pending",
           eventId: "evt_month_pending",
@@ -136,6 +147,13 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <slot
           name="event"
           :event="monthBookedEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          name="event"
+          :event="monthPastBookedEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
           view="month"
@@ -366,6 +384,9 @@ function isoDaysFromToday(days, hour, minute = 0) {
 
 describe("DashboardEventsFeature", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-23T09:00:00"));
+
     callFlow.mockReset();
     showToast.mockReset();
     getBookingJoinState.mockReset();
@@ -387,10 +408,13 @@ describe("DashboardEventsFeature", () => {
 
     engine = createMockEngine();
     setWindowWidth(1024);
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     setWindowWidth(1024);
+    window.localStorage.clear();
+    vi.useRealTimers();
   });
 
   it("loads booking context from the creatorId prop", async () => {
@@ -675,9 +699,11 @@ describe("DashboardEventsFeature", () => {
 
     const bookingMarkers = wrapper.findAll("[data-test='dashboard-month-booking-marker']");
     const bookingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Booked Slot"));
+    const pastBookingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Past Booked Slot"));
     const pendingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Pending Slot"));
 
     expect(bookingMarker).toBeTruthy();
+    expect(pastBookingMarker).toBeTruthy();
     expect(pendingMarker).toBeTruthy();
 
     expect(bookingMarker.text()).toContain("Month Booked Slot");
@@ -688,6 +714,21 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
     expect(bookingMarker.element.style.color).toBe("rgb(255, 255, 255)");
 
+    expect(pastBookingMarker.text()).toContain("Month Past Booked Slot");
+    expect(pastBookingMarker.text()).toContain("7:30am - 8:30am");
+    expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
+    expect(pastBookingMarker.element.style.borderTopColor).toBe("rgb(200, 205, 216)");
+    expect(pastBookingMarker.element.style.boxShadow).toBe("none");
+    expect(pastBookingMarker.element.style.color).toBe("rgb(152, 162, 179)");
+
+    await pastBookingMarker.trigger("click");
+    expect(wrapper.getComponent({ name: "MainCalendar" }).emitted("month-event-click")).toEqual([
+      [expect.objectContaining({
+        id: "month-past-booked",
+        title: "Month Past Booked Slot",
+      })],
+    ]);
+
     expect(pendingMarker.element.style.backgroundColor).toBe("transparent");
     expect(pendingMarker.element.style.borderTopColor).toBe("rgb(225, 29, 72)");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
@@ -697,6 +738,217 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.classes()).toContain("hidden");
     expect(availabilityMarker.classes()).toContain("lg:block");
     expect(availabilityMarker.attributes("style")).toContain("rgba(102, 112, 133, 0.55)");
+  });
+
+  it("ignores stored event type colors and uses current event color skins for booked slots", async () => {
+    window.localStorage.setItem("calendar:eventTypeColors", JSON.stringify({
+      video: "#FF3B30",
+      audio: "#06B6D4",
+      groupCall: "#E11D48",
+    }));
+
+    const startIso = isoTodayAt(10);
+    const endIso = isoTodayAt(10, 30);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_private_color",
+          type: "1on1-call",
+          eventCallType: "video",
+          eventColorSkin: "#28C76F",
+        }],
+        bookedSlots: [{
+          bookingId: "booking_private_color",
+          eventId: "evt_private_color",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Private Color Skin",
+          eventType: "1on1-call",
+          eventCallType: "video",
+          eventSnapshot: {
+            eventColorSkin: "#FF3B30",
+          },
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    const booking = calendarEvents.find((event) => event.bookingId === "booking_private_color");
+    expect(booking).toEqual(expect.objectContaining({
+      eventColorSkin: "#28C76F",
+    }));
+    expect(booking.color).toBeUndefined();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const todayItem = widgetSections
+      .find((section) => section.title === "TODAY")
+      .items.find((item) => item.title === "Private Color Skin");
+    expect(todayItem.accentColor).toBe("#28C76F");
+  });
+
+  it("shows confirmed widget status as minutes remaining in the event color skin inside five minutes", async () => {
+    const startIso = isoTodayAt(9, 5);
+    const endIso = isoTodayAt(9, 30);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_private_starting_soon",
+          type: "1on1-call",
+          eventCallType: "video",
+          eventColorSkin: "#28C76F",
+        }],
+        bookedSlots: [{
+          bookingId: "booking_private_starting_soon",
+          eventId: "evt_private_starting_soon",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Private Starting Soon",
+          eventType: "1on1-call",
+          eventCallType: "video",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const todayItem = widgetSections
+      .find((section) => section.title === "TODAY")
+      .items.find((item) => item.title === "Private Starting Soon");
+
+    expect(todayItem).toEqual(expect.objectContaining({
+      statusText: "in 5 mins",
+      statusColor: "#28C76F",
+      accentColor: "#28C76F",
+    }));
+  });
+
+  it("shows confirmed widget status as live now while the call is ongoing", async () => {
+    const startIso = isoTodayAt(8, 55);
+    const endIso = isoTodayAt(9, 30);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_private_live_now",
+          type: "1on1-call",
+          eventCallType: "video",
+          eventColorSkin: "#28C76F",
+        }],
+        bookedSlots: [{
+          bookingId: "booking_private_live_now",
+          eventId: "evt_private_live_now",
+          userId: 2615,
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Private Live Now",
+          eventType: "1on1-call",
+          eventCallType: "video",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const todayItem = widgetSections
+      .find((section) => section.title === "TODAY")
+      .items.find((item) => item.title === "Private Live Now");
+
+    expect(todayItem).toEqual(expect.objectContaining({
+      statusText: "live now",
+      statusColor: null,
+      accentColor: "#28C76F",
+    }));
+  });
+
+  it("preserves group event color skins instead of forcing the old group color", async () => {
+    window.localStorage.setItem("calendar:eventTypeColors", JSON.stringify({
+      video: "#5549FF",
+      audio: "#06B6D4",
+      groupCall: "#E11D48",
+    }));
+
+    const startIso = isoTodayAt(11);
+    const endIso = isoTodayAt(12);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_group_color",
+          type: "group-event",
+          eventCallType: "video",
+          eventColorSkin: "#28C76F",
+        }],
+        bookedSlots: [{
+          bookingId: "booking_group_color",
+          eventId: "evt_group_color",
+          userId: 2615,
+          userDisplayName: "Ava",
+          creatorId: 77,
+          startIso,
+          endIso,
+          status: "confirmed",
+          eventTitle: "Group Color Skin",
+          eventType: "group-event",
+          eventCallType: "video",
+          eventSnapshot: {
+            eventColorSkin: "#E11D48",
+          },
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    const booking = calendarEvents.find((event) => event.eventId === "evt_group_color" && !event.isAvailabilityBlock);
+    expect(booking).toEqual(expect.objectContaining({
+      eventColorSkin: "#28C76F",
+      type: "group-event",
+    }));
+    expect(booking.color).toBeUndefined();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const todayItem = widgetSections
+      .find((section) => section.title === "TODAY")
+      .items.find((item) => item.title === "Group Color Skin");
+    expect(todayItem).toEqual(expect.objectContaining({
+      accentColor: "#28C76F",
+      isGroup: true,
+    }));
   });
 
   it("emits open-url for join actions in embedded mode", async () => {
@@ -1436,5 +1688,110 @@ describe("DashboardEventsFeature", () => {
 
     const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
     expect(widgetSections.flatMap((section) => section.items)).toHaveLength(0);
+  });
+
+  it("keeps past confirmed bookings in the calendar but removes past pending bookings", async () => {
+    const pastStartIso = isoTodayAt(7, 30);
+    const pastEndIso = isoTodayAt(8, 30);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [
+          {
+            bookingId: "booking_confirmed_past_calendar",
+            eventId: "evt_confirmed_past_calendar",
+            userId: 2615,
+            creatorId: 77,
+            startIso: pastStartIso,
+            endIso: pastEndIso,
+            status: "confirmed",
+            eventTitle: "Confirmed Past Calendar",
+            eventType: "group-event",
+          },
+          {
+            bookingId: "booking_pending_past_calendar",
+            eventId: "evt_pending_past_calendar",
+            userId: 2615,
+            creatorId: 77,
+            startIso: pastStartIso,
+            endIso: pastEndIso,
+            status: "pending",
+            eventTitle: "Pending Past Calendar",
+            eventType: "group-event",
+          },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const calendarEventTitles = wrapper
+      .getComponent({ name: "MainCalendar" })
+      .props("events")
+      .map((event) => event.title);
+
+    expect(calendarEventTitles).toContain("Confirmed Past Calendar");
+    expect(calendarEventTitles).not.toContain("Pending Past Calendar");
+  });
+
+  it("keeps widget bookings only when their end time is current or future", async () => {
+    const endedStartIso = isoTodayAt(8);
+    const endedEndIso = isoTodayAt(8, 30);
+    const boundaryStartIso = isoTodayAt(8, 30);
+    const boundaryEndIso = isoTodayAt(9);
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [
+          {
+            bookingId: "booking_ended_today",
+            eventId: "evt_ended_today",
+            userId: 2615,
+            creatorId: 77,
+            startIso: endedStartIso,
+            endIso: endedEndIso,
+            status: "confirmed",
+            eventTitle: "Ended Today Hang",
+            eventType: "group-event",
+          },
+          {
+            bookingId: "booking_boundary_today",
+            eventId: "evt_boundary_today",
+            userId: 2615,
+            creatorId: 77,
+            startIso: boundaryStartIso,
+            endIso: boundaryEndIso,
+            status: "confirmed",
+            eventTitle: "Boundary Today Hang",
+            eventType: "group-event",
+          },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    expect(widgetSections.flatMap((section) => section.items).map((item) => item.title)).toEqual([
+      "Boundary Today Hang",
+    ]);
   });
 });

@@ -20,16 +20,21 @@ function joinState(overrides = {}) {
 }
 
 describe("getBookingJoinState", () => {
-  it("does not allow confirmed bookings before a custom reminder window", () => {
-    expect(joinState({ now: "2026-05-01T09:44:59Z" }).canJoin).toBe(false);
+  it("does not allow confirmed bookings before the fixed five minute join window", () => {
+    expect(joinState({ now: "2026-05-01T09:54:59Z" }).canJoin).toBe(false);
   });
 
-  it("allows confirmed bookings inside a custom 15 minute reminder window", () => {
-    const state = joinState({ now: "2026-05-01T09:45:00Z" });
+  it("allows confirmed bookings inside the fixed five minute join window", () => {
+    const state = joinState({ now: "2026-05-01T09:55:00Z" });
 
     expect(state.canJoin).toBe(true);
     expect(state.reminderMinutes).toBe(15);
+    expect(state.joinAvailableAtIso).toBe("2026-05-01T09:55:00.000Z");
     expect(state.joinUrl).toBe(`${BASE_URL}/scheduled-meeting/?booking_id=booking_123`);
+  });
+
+  it("does not open the join window early when reminders are configured earlier", () => {
+    expect(joinState({ now: "2026-05-01T09:45:00Z" }).canJoin).toBe(false);
   });
 
   it("allows confirmed bookings during the meeting", () => {
