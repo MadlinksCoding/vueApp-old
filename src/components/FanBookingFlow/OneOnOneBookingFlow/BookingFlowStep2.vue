@@ -1514,7 +1514,12 @@ onBeforeUnmount(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm overflow-y-auto md:overflow-hidden">
+        <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row before:content-['']
+before:absolute
+before:inset-0
+before:bg-[rgba(0,0,0,0.75)]
+before:backdrop-blur-sm
+md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
@@ -1573,7 +1578,7 @@ onBeforeUnmount(() => {
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-[6.25rem] md:pb-[9rem] bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -1586,7 +1591,7 @@ onBeforeUnmount(() => {
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl font-semibold text-[#22CCEE]">
+              <h3 class="text-sm text-[#98A2B3]">
                 {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
               </h3>
               <div class="grid grid-cols-3 w-full gap-2">
@@ -1630,7 +1635,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl text-[#22CCEE] font-semibold">{{ t("fan_booking_select_length") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
               <div
                 class="border-[3px] rounded-[3.125rem]"
                 :class="durationStepperBorderClass"
@@ -1720,7 +1725,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
-              <h3 class="text-xl text-[#22CCEE] font-semibold leading-5">{{ t("fan_booking_add_on_service_heading") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -1749,7 +1754,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
                   {{ t("fan_booking_other_request_body") }}

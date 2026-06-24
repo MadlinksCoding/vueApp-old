@@ -2005,7 +2005,12 @@ onBeforeUnmount(() => {
       :style="popupBackgroundStyle"
     >
       <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
-      <div class="md:rounded-b-[20px] h-dvh md:h-full overflow-hidden lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row backdrop-blur-[5px] bg-black/75">
+      <div class="md:rounded-b-[20px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-black/75 before:content-['']
+before:absolute
+before:inset-0
+before:bg-[rgba(0,0,0,0.75)]
+before:backdrop-blur-sm
+md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
             <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
@@ -2027,32 +2032,32 @@ onBeforeUnmount(() => {
               :event-goal-percent="eventGoalPercent"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
             <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3 overflow-y-auto h-full flex-1 pb-14">
+                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[9rem]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
-                    <div class="flex items-center justify-between">
-                      <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_booking_schedule") }}</h3>
+                    <div class="flex items-center justify-between gap-4">
+                      <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
                       <button
                         v-if="!isGroupEvent"
                         type="button"
                         class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15"
                         @click="handleChangeSchedule"
                       >
-                        <span class="text-white text-sm font-normal leading-4">{{ t("fan_booking_change_schedule") }}</span>
+                        <span class="text-white text-xs font-medium">{{ t("fan_booking_change_schedule") }}</span>
                       </button>
                     </div>
                     <p v-if="!isGroupEvent && showApprovalNeeded" class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
                     <div class="flex gap-2 justify-between">
                       <div class="flex flex-col flex-1">
-                        <span class="text-sm font-medium text-[#98A2B3]">{{ t("fan_booking_date") }}</span>
-                        <span class="text-sm font-normal text-white">{{ bookingScheduleDateDisplay }}</span>
+                        <span class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_date") }}</span>
+                        <span class="text-base font-normal text-white">{{ bookingScheduleDateDisplay }}</span>
                       </div>
                       <div class="flex flex-col flex-1">
-                        <span class="text-sm font-medium text-[#98A2B3]">{{ t("common_time") }}</span>
-                        <span class="text-sm font-normal text-white">{{ bookingScheduleTimeDisplay }}</span>
+                        <span class="text-xs font-normal text-[#98A2B3]">{{ t("common_time") }}</span>
+                        <span class="text-base font-normal text-white">{{ bookingScheduleTimeDisplay }}</span>
                       </div>
                     </div>
                   </div>
@@ -2126,96 +2131,96 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
 
-                  <div class="rounded-lg bg-white/10 flex flex-col  mb-14 lg:mb-0">
+                  <div class="rounded-lg bg-white/10 flex flex-col  md:mb-14 lg:mb-0">
                     <div class="flex flex-col gap-3 w-full p-3 md:p-5">
-                      <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_payment_summary") }}</h3>
+                      <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_payment_summary") }}</h3>
                       <div class="flex flex-col gap-4">
                         <div class="flex flex-col gap-3">
                           <div class="flex flex-col gap-2">
-                            <h4 class="text-sm leading-5 font-medium text-[#98A2B3]">{{ t("fan_booking_session_cost") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_session_cost") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
-                                <p class="text-sm font-normal leading-5 text-[#EAECF0]">{{ sessionBreakdownLabel }}</p>
+                                <p class="text-base font-normal text-[#EAECF0]">{{ sessionBreakdownLabel }}</p>
                               </div>
                               <div class="flex justify-center items-center gap-0.5">
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm font-semibold leading-5">{{ formatTokenCompact(sessionCost) }}</p>
+                                <p class="text-base font-normal text-white">{{ formatTokenCompact(sessionCost) }}</p>
                               </div>
                             </div>
                           </div>
                           
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
                             <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ addon.name }}</p>
+                              <p class="text-base font-normal text-[#EAECF0]">{{ addon.name }}</p>
                               <div class="flex justify-center items-center gap-0.5">
-                                <p class="text-sm leading-[20px]">+</p>
+                                <p class="text-base text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(addon.price) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenCompact(addon.price) }}</p>
                               </div>
                             </div>
                           </div>
 
                           <div v-if="false && bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_booking_fee_heading") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_booking_fee_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ t("fan_booking_booking_fee") }}</p>
+                              <p class="text-base font-normal text-[#EAECF0]">{{ t("fan_booking_booking_fee") }}</p>
                               <div class="flex justify-center items-center gap-0.5">
-                                <p class="text-sm leading-[20px]">+</p>
+                                <p class="text-base text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(bookingFeeAmount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenCompact(bookingFeeAmount) }}</p>
                               </div>
                             </div>
                           </div>
                           
 
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
                             <div
                               v-for="row in discountLines"
                               :key="row.code"
                               class="flex flex-row justify-between items-center text-white"
                             >
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ row.label }}</p>
+                              <p class="text-base font-normal text-[#EAECF0]">{{ row.label }}</p>
                               <div class="flex justify-center items-center gap-0.5">
-                                <p class="text-sm leading-[20px]">-</p>
+                                <p class="text-base text-white font-normal">-</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(row.amount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenCompact(row.amount) }}</p>
                               </div>
                             </div>
                           </div>
 
                           <div v-if="offHourSurchargeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_off_hour_surcharge_heading") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
-                              <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ offHourSurchargeLabel }}</p>
+                              <p class="text-base font-normal text-[#EAECF0]">{{ offHourSurchargeLabel }}</p>
                               <div class="flex justify-center items-center gap-0.5">
-                                <p class="text-sm leading-[20px]">+</p>
+                                <p class="text-base text-white font-normal">+</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenCompact(offHourSurchargeAmount) }}</p>
                               </div>
                             </div>
                           </div>
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs leading-[18px] text-[#98A2B3]">{{ t("fan_booking_Non_Refundable") }}</h4>
+                            <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_Non_Refundable") }}</h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
-                                <p class="text-base font-normal leading-[24px] text-[#EAECF0]">{{ formatTokenCompact(bookingFeeAmount) }} {{ t("fan_booking_booking_fee_included") }}</p>
+                                <p class="text-base font-normal text-[#EAECF0]">{{ formatTokenCompact(bookingFeeAmount) }} {{ t("fan_booking_booking_fee_included") }}</p>
                               </div>
                               <div class="flex justify-center items-center gap-0.5">
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm leading-[20px]">{{ sessionTotalUsdDisplay }}</p>
+                                <p class="text-base text-white font-normal">{{ sessionTotalUsdDisplay }}</p>
                               </div>
                             </div>
                           </div>
 
                           <div class="flex gap-3 justify-between">
                             <div class="flex flex-col gap-1">
-                              <h4 class="text-sm font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
+                              <h4 class="text-base font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
                               <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] dn">
                                 <span class="whitespace-nowrap">{{ t("fan_booking_non_refundable") }}</span>
                                 <span class="flex items-center gap-[2px] mx-1">
@@ -2227,8 +2232,9 @@ onBeforeUnmount(() => {
                             </div>
                             <div class="flex flex-col">
                               <div class="flex justify-end items-center gap-0.5">
+                                <p class="text-base text-white font-normal">≈</p>
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-sm font-semibold text-white">{{ formatTokenExact(sessionTotalTokens) }}</p>
+                                <p class="text-base font-semibold text-white">{{ formatTokenExact(sessionTotalTokens) }}</p>
                               </div>
                               <span class="dn text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ sessionTotalUsdDisplay }}</span>
                             </div>
@@ -2238,13 +2244,13 @@ onBeforeUnmount(() => {
                         <hr class="border-[#F2F4F7] opacity-50" />
 
                         <div class="flex flex-row justify-between items-start text-white">
-                          <p class="text-lg font-bold text-white">{{ t("fan_booking_amount_due_today") }}</p>
+                          <p class="text-xl font-semibold text-white">{{ t("fan_booking_amount_due_today") }}</p>
                           <div class="flex flex-col">
                             <div class="flex justify-end items-center gap-0.5">
                               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                              <p class="text-lg font-semibold">{{ formatTokenExact(totalPrice) }}</p>
+                              <p class="text-xl font-semibold">{{ formatTokenExact(totalPrice) }}</p>
                             </div>
-                            <span class="text-sm font-normal text-[#98A2B3] whitespace-nowrap">={{ amountDueUsdDisplay }}</span>
+                            <span class="text-xs font-medium text-[#98A2B3] whitespace-nowrap">={{ amountDueUsdDisplay }}</span>
                           </div>
                         </div>
                       </div>
@@ -2254,22 +2260,22 @@ onBeforeUnmount(() => {
                       <div class="flex flex-col gap-2 p-5" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
-                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-white">{{ t("fan_booking_your_token_balance") }}</p></div>
+                          <div class="flex items-center gap-2"><p class="text-base font-semibold text-[#FCE40D]">{{ t("fan_booking_your_token_balance") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
 
-                            <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#0C111D] border border-[#1D2939]">
-                                <span class="text-yellow-300 text-[10px] leading-[10px] relative top-[-2px]">...</span>
-                                <p class="text-[10px] font-semibold text-yellow-300 leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
-                                <div class="w-3 h-3 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-[10px] font-bold text-[#FFED29] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
+                            <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-[2px] px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
+                                <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
+                                <p class="text-[11px] font-semibold text-[#0C111D] leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
+                                <div class="w-3 h-3 hidden justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
                             </div>
 
-                            <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-xl font-semibold">{{ formatTokenCompact(walletBalance) }}</p>
+                            <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                            <p class="text-xl font-semibold text-[#FCE40D]">{{ formatTokenCompact(walletBalance) }}</p>
                           </div>
                         </div>
-                        <hr class="border-white/20" />
-                        <div class="flex justify-between items-center">
+                        <hr class="hidden border-white/20" />
+                        <div class="hidden justify-between items-center">
                           <div class="flex items-center gap-2"><p class="text-xl font-semibold">{{ t("fan_booking_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
                             <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>

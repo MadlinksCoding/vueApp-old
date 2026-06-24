@@ -698,7 +698,7 @@ export const bookingMessages = {
   fan_booking_account_verification_needed_message: "Payment succeeded, but we could not verify your account for booking. Please log in and try again.",
   fan_booking_checking_balance: "CHECKING BALANCE",
   fan_booking_check_balance: "CHECK BALANCE",
-  fan_booking_top_up_and_pay: "TOP-UP AND PAY",
+  fan_booking_top_up_and_pay: "TOP-UP & PAY",
   fan_booking_processing: "PROCESSING...",
   fan_booking_booking_schedule: "BOOKING SCHEDULE",
   fan_booking_change_schedule: "Change Schedule",
