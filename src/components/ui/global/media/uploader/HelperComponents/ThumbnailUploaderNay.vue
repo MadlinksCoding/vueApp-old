@@ -4,7 +4,7 @@
     v-if="!hideUploader"
     ref="componentRef"
     :data-media-upload="mediaType"
-    :class="'flex-col ' + effectiveCustomClass"
+    :class="'relative flex-col ' + effectiveCustomClass"
     :data-max-size="maxSize"
     :data-allowed-types="allowedTypes"
     :data-upload-immediately="uploadImmediately ? '1' : '0'"
@@ -136,7 +136,7 @@
           data-media-step-processing-wrap=""
           class="flex flex-col justify-center gap-6 w-full max-w-md"
         >
-          <div class="bg-gray-200 h-2 relative w-full rounded-full">
+          <div class="bg-[#dee5ec] h-2 relative w-full rounded-full">
             <span
               data-media-step-processing-bar=""
               data-show-loader="true"
@@ -155,7 +155,7 @@
         </div>
       </div>
 
-      <div v-show="showCancelButton" class="flex w-full w-100 justify-end">
+      <div v-show="showCancelButton" class="flex w-full w-100 justify-end absolute right-2 bottom-2">
         <button
           type="button"
           class="bg-transparent pointer hover--parent--child--col--dodger-blue"
@@ -169,9 +169,9 @@
             <img
               :src="'https://fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/close-btn.svg'"
               alt="close-btn"
-              class="w--16 h--16 filter--col--oxford-blue hov--filter--col--dodger-blue"
+              class="w-4 h-4 [filter:brightness(0)_saturate(100%)_invert(24%)_sepia(11%)_saturate(1128%)_hue-rotate(179deg)_brightness(95%)_contrast(89%)]"
             />
-            <span class="fs--12 fw5 lh--18 text-white col--oxford-blue hover--col--dodger-blue">
+            <span class="text-[0.75rem] font-medium leading-[1.125rem] text-[#344054]">
               Cancel
             </span>
           </div>
@@ -187,7 +187,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 // ─── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps({
   // Main configuration
-  mainColor: { type: String, default: "#3300ff" },
+  mainColor: { type: String, default: "#0c111d" },
   mediaType: {
     type: String,
     default: "image",
@@ -454,7 +454,7 @@ defineExpose({ media_urls, compressorData });
   [data-media-step-processing-bar][data-show-loader=true]:before {
     content: '';
     height: inherit;
-    background: var(--color-blue, #30f);
+    background: var(--color-ebony-2, #0c111d);
     position: absolute;
     animation: borealisBar 2s linear infinite;
   }

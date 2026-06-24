@@ -59,6 +59,15 @@
             </div>
         </div>
 
+        <BookingScheduleList
+            v-if="showBookingScheduleList"
+            class="px-2 pb-2"
+            :events="bookingScheduleEvents"
+            :booked-slots-index="bookingScheduleBookedSlotsIndex"
+            @edit="$emit('edit-schedule-event', $event)"
+            @delete="$emit('delete-schedule-event', $event)"
+        />
+
         <div class="w-full p-2 border-t border-black/20 mb-[100px]">
             <EventsWidget :sections="eventsData" @join-click="$emit('join-click', $event)"
                 @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
@@ -76,6 +85,7 @@
 
 <script setup>
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
+import BookingScheduleList from './BookingScheduleList.vue';
 import EventsWidget from './EventsWidget.vue';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
@@ -93,8 +103,20 @@ defineProps({
     canCreateEvents: {
         type: Boolean,
         default: false
+    },
+    bookingScheduleEvents: {
+        type: Array,
+        default: () => []
+    },
+    bookingScheduleBookedSlotsIndex: {
+        type: Object,
+        default: () => ({})
+    },
+    showBookingScheduleList: {
+        type: Boolean,
+        default: false
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event']);
 </script>
