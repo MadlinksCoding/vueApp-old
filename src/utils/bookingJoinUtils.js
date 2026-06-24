@@ -30,6 +30,8 @@ function resolveReminderMinutes({ enableCallReminderMinutesBefore, callReminderM
   return 5;
 }
 
+const JOIN_WINDOW_MINUTES_BEFORE_START = 5;
+
 function getEffectiveEndDate(endDate, extensions = []) {
   const allowedStatuses = new Set(['held', 'captured']);
   const dates = [endDate];
@@ -92,6 +94,10 @@ export function getBookingJoinState({
   const currentDate = parseDateLike(now) || new Date();
   const normalizedStatus = String(status || '').trim().toLowerCase();
   const scheduledMeetingUrl = buildScheduledMeetingUrl(bookingId, baseUrl);
+  const joinAvailableAtDate = startDate
+    ? new Date(startDate.getTime() - (JOIN_WINDOW_MINUTES_BEFORE_START * 60 * 1000))
+    : null;
+  const joinAvailableAtIso = joinAvailableAtDate ? joinAvailableAtDate.toISOString() : null;
 
   if (!scheduledMeetingUrl || !startDate || !endDate) {
     return {
@@ -100,6 +106,8 @@ export function getBookingJoinState({
       startDate,
       endDate,
       effectiveEndDate: endDate,
+      joinAvailableAtDate,
+      joinAvailableAtIso,
       reminderMinutes: resolveReminderMinutes({ enableCallReminderMinutesBefore, callReminderMinutesBefore, reminderMinutes }),
     };
   }
@@ -111,6 +119,8 @@ export function getBookingJoinState({
       startDate,
       endDate,
       effectiveEndDate: endDate,
+      joinAvailableAtDate,
+      joinAvailableAtIso,
       reminderMinutes: resolveReminderMinutes({ enableCallReminderMinutesBefore, callReminderMinutesBefore, reminderMinutes }),
     };
   }
@@ -122,7 +132,7 @@ export function getBookingJoinState({
   });
   const effectiveEndDate = getEffectiveEndDate(endDate, extensions);
   const nowMs = currentDate.getTime();
-  const joinWindowStartMs = startDate.getTime() - (effectiveReminderMinutes * 60 * 1000);
+  const joinWindowStartMs = startDate.getTime() - (JOIN_WINDOW_MINUTES_BEFORE_START * 60 * 1000);
   const canJoin = nowMs >= joinWindowStartMs && nowMs < effectiveEndDate.getTime();
 
   return {
@@ -131,6 +141,8 @@ export function getBookingJoinState({
     startDate,
     endDate,
     effectiveEndDate,
+    joinAvailableAtDate,
+    joinAvailableAtIso,
     reminderMinutes: effectiveReminderMinutes,
   };
 }

@@ -434,16 +434,16 @@ function resolveRequestedEventId() {
   return null;
 }
 
-function selectEventById(eventId) {
+function selectEventById(eventId, { clearWhenMissing = true } = {}) {
   if (!eventId) {
-    clearSelectedEvent("event-select-empty");
+    if (clearWhenMissing) clearSelectedEvent("event-select-empty");
     return null;
   }
 
   const events = engine.getState("fanBooking.catalog.events") || [];
   const selected = events.find((event) => String(event.eventId) === String(eventId) || String(event.id) === String(eventId));
   if (!selected) {
-    clearSelectedEvent("event-select-missing");
+    if (clearWhenMissing) clearSelectedEvent("event-select-missing");
     return null;
   }
 
@@ -452,33 +452,48 @@ function selectEventById(eventId) {
   return selected;
 }
 
-async function loadBookingContext({ forceRefresh = false } = {}) {
+async function loadBookingContext({ forceRefresh = false, silent = false, preserveSelectedEvent = false } = {}) {
   const { creatorId, fanId } = syncBookingContext();
   const requestedEventId = resolveRequestedEventId();
-  const shouldRequireFreshCatalog = Boolean(requestedEventId);
-  clearSelectedEvent("catalog-load");
+  const previousSelectedEvent = engine.getState("fanBooking.context.selectedEvent") || null;
+  const previousSelectedEventId = engine.getState("fanBooking.context.selectedEventId")
+    || previousSelectedEvent?.eventId
+    || previousSelectedEvent?.id
+    || null;
+  const selectedEventIdToRestore = preserveSelectedEvent ? previousSelectedEventId : requestedEventId;
+  const shouldRequireFreshCatalog = Boolean(requestedEventId || preserveSelectedEvent);
+  if (!preserveSelectedEvent) {
+    clearSelectedEvent("catalog-load");
+  }
 
   logFanBookingDebug("feature", "loadBookingContext:start", {
     creatorId,
     fanId,
     forceRefresh,
+    silent,
+    preserveSelectedEvent,
     requestedEventId,
+    selectedEventIdToRestore,
     shouldRequireFreshCatalog,
   });
 
   if (creatorId == null) {
     const message = t("fan_booking_missing_creator_id");
-    engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
-    showToast({
-      type: "error",
-      title: t("fan_booking_load_failed_title"),
-      message,
-    });
+    if (!silent) {
+      engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
+      showToast({
+        type: "error",
+        title: t("fan_booking_load_failed_title"),
+        message,
+      });
+    }
     return { ok: false, error: { message } };
   }
 
-  engine.setState("fanBooking.ui.catalogLoading", true, { reason: "catalog-load", silent: true });
-  engine.setState("fanBooking.ui.catalogError", "", { reason: "catalog-load", silent: true });
+  if (!silent) {
+    engine.setState("fanBooking.ui.catalogLoading", true, { reason: "catalog-load", silent: true });
+    engine.setState("fanBooking.ui.catalogError", "", { reason: "catalog-load", silent: true });
+  }
   engine.setState("fanBooking.ui.previewMode", false, { reason: "catalog-load", silent: true });
   engine.setState("fanBooking.ui.previewReadOnly", false, { reason: "catalog-load", silent: true });
 
@@ -498,16 +513,20 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     },
   );
 
-  engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
+  if (!silent) {
+    engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
+  }
 
   if (!result?.ok) {
     const message = result?.meta?.uiErrors?.[0] || result?.error?.message || t("fan_booking_load_failed_message");
-    engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
-    showToast({
-      type: "error",
-      title: t("fan_booking_load_failed_title"),
-      message,
-    });
+    if (!silent) {
+      engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
+      showToast({
+        type: "error",
+        title: t("fan_booking_load_failed_title"),
+        message,
+      });
+    }
     return result;
   }
 
@@ -518,28 +537,44 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     requestedEventId: resolveRequestedEventId(),
   });
 
-  if (requestedEventId) {
-    const selectedEvent = selectEventById(requestedEventId);
+  if (selectedEventIdToRestore) {
+    const selectedEvent = selectEventById(selectedEventIdToRestore, { clearWhenMissing: !preserveSelectedEvent });
     if (!selectedEvent) {
-      logFanBookingDebug("feature", "loadBookingContext:event-missing", { requestedEventId });
-      showToast({
-        type: "error",
-        title: t("fan_booking_event_unavailable_title"),
-        message: t("fan_booking_event_unavailable_message"),
-      });
-      return result;
+      logFanBookingDebug("feature", "loadBookingContext:event-missing", { selectedEventIdToRestore });
+      if (!silent) {
+        showToast({
+          type: "error",
+          title: t("fan_booking_event_unavailable_title"),
+          message: t("fan_booking_event_unavailable_message"),
+        });
+      }
+      return { ...result, ok: false, error: { code: "event_missing_after_refresh" } };
     }
 
     logFanBookingDebug("feature", "loadBookingContext:event-selected", {
-      requestedEventId,
+      requestedEventId: selectedEventIdToRestore,
       selectedEventId: selectedEvent.eventId || selectedEvent.id,
     });
 
-    await engine.forceStep(2, { intent: "feature-open-with-event-id" });
-    await engine.forceSubstep(null, { intent: "feature-open-with-event-id" });
+    if (requestedEventId && !preserveSelectedEvent) {
+      await engine.forceStep(2, { intent: "feature-open-with-event-id" });
+      await engine.forceSubstep(null, { intent: "feature-open-with-event-id" });
+    }
   }
 
   return result;
+}
+
+async function refreshBookingContext({ silent = true, preserveSelectedEvent = true } = {}) {
+  if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) {
+    return { ok: true, skipped: true };
+  }
+
+  return loadBookingContext({
+    forceRefresh: true,
+    silent,
+    preserveSelectedEvent,
+  });
 }
 
 async function loadPreviewContext() {
@@ -857,6 +892,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       :engine="engine"
       :embedded="embedded"
       :api-base-url="apiBaseUrl"
+      :refresh-booking-context="refreshBookingContext"
       @close-popup="emit('close-request')"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
       @booking-created="emit('booking-created', $event)"
