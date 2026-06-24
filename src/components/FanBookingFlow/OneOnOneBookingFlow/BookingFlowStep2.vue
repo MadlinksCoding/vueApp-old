@@ -256,7 +256,7 @@ const popupBackgroundStyle = computed(() => ({
 }));
 const actionFooterClass = computed(() => (
   props.embedded
-    ? 'flex-none flex justify-end z-[99] absolute bottom-0 left-0 w-full'
+    ? 'flex-none flex justify-end z-[99] fixed md:absolute bottom-0 left-0 w-full'
     : 'flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full'
 ));
 
@@ -1531,7 +1531,7 @@ onBeforeUnmount(() => {
           :price-setting="groupPriceSetting"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 md:overflow-y-auto h-auto md:max-h-[29.4rem] md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
 
           <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">

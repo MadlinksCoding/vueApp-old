@@ -276,7 +276,7 @@ function getUnsavedChangesMessage() {
     const translated = t("booking_unsaved_changes_body");
     return translated && translated !== "booking_unsaved_changes_body"
         ? translated
-        : "You will lose all your changes if you leave.";
+        : "Are you sure you want to leave? Your changes will not be saved";
 }
 
 function normalizeDirtyValue(value) {
@@ -1603,24 +1603,24 @@ useBodyOverflowHidden({ minWidth: 1010 });
     <div
         v-if="unsavedLeaveDialogOpen"
         data-test="unsaved-leave-dialog"
-        class="fixed inset-0 z-[10050] flex items-center justify-center bg-black/10 px-4"
+        class="fixed inset-0 z-[10050] flex items-end md:items-center justify-center bg-black/10 md:px-4"
         role="dialog"
         aria-modal="true"
         :aria-label="t('booking_unsaved_changes_title')"
         @click.self="resolvePendingUnsavedLeave(false)"
     >
-        <div class="w-full max-w-[26rem] rounded-lg bg-white p-5 shadow-xl">
-            <div class="text-base font-semibold leading-6 text-slate-900">
+        <div class="w-full max-w-[30.75rem] max-h-[8.5rem] rounded-[0.313rem] bg-white p-4 shadow-[0px_4px_8px_0px_rgba(0,0,0,0.2),0px_6px_20px_0px_rgba(0,0,0,0.19)] backdrop-blur-[50px] flex flex-col gap-6">
+            <div class="hidden text-base font-semibold leading-6 text-slate-900">
                 {{ t("booking_unsaved_changes_title") }}
             </div>
-            <div class="mt-2 text-sm leading-5 text-slate-600">
+            <div class="text-sm leading-5 text-black">
                 {{ t("booking_unsaved_changes_body") }}
             </div>
-            <div class="mt-5 flex justify-end gap-3">
+            <div class="flex justify-start gap-2">
                 <button
                     type="button"
                     data-test="unsaved-leave-stay"
-                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    class="rounded-md border-none bg-transparent px-0 min-w-[6.25rem] py-2 text-sm font-medium text-[#ff4405] transition hover:bg-transparent flex-1 md:flex-none"
                     @click="resolvePendingUnsavedLeave(false)"
                 >
                     {{ t("booking_unsaved_changes_stay") }}
@@ -1628,7 +1628,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <button
                     type="button"
                     data-test="unsaved-leave-confirm"
-                    class="rounded-md bg-[#5549FF] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#473CE6]"
+                    class="rounded-0 bg-[#ff4405] min-w-[6.25rem] px-2 py-2 text-base font-medium text-white transition hover:bg-[#ff692e] flex-1 md:flex-none"
                     @click="resolvePendingUnsavedLeave(true)"
                 >
                     {{ t("booking_unsaved_changes_leave") }}
