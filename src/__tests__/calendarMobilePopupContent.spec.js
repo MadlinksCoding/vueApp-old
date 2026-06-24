@@ -18,6 +18,20 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   },
 }));
 
+vi.mock("@/components/calendar/BookingScheduleList.vue", () => ({
+  default: {
+    name: "BookingScheduleList",
+    props: ["events", "bookedSlotsIndex"],
+    emits: ["edit", "delete"],
+    template: `
+      <div data-test="mobile-booking-schedule">
+        <button data-test="schedule-edit" @click="$emit('edit', events[0])">edit</button>
+        <button data-test="schedule-delete" @click="$emit('delete', events[0])">delete</button>
+      </div>
+    `,
+  },
+}));
+
 vi.mock("@/components/dev/button/ButtonComponent.vue", () => ({
   default: {
     name: "ButtonComponent",
@@ -98,5 +112,48 @@ describe("CalendarMobilePopupContent", () => {
     });
 
     expect(wrapper.find("[data-test='new-events']").exists()).toBe(false);
+  });
+
+  it("renders the booking schedule list on mobile and forwards schedule actions", async () => {
+    const { default: CalendarMobilePopupContent } = await import("@/components/calendar/CalendarMobilePopupContent.vue");
+    const scheduleEvents = [{ eventId: "evt_mobile_schedule", title: "Mobile schedule" }];
+    const bookedSlotsIndex = {
+      evt_mobile_schedule: {
+        "2026-05-01": [{ startAtIso: "2026-05-01T10:00:00Z" }],
+      },
+    };
+    const wrapper = mount(CalendarMobilePopupContent, {
+      props: {
+        view: "week",
+        eventsData: [{ title: "Today", items: [{ title: "Slot" }] }],
+        bookingScheduleEvents: scheduleEvents,
+        bookingScheduleBookedSlotsIndex: bookedSlotsIndex,
+        showBookingScheduleList: true,
+      },
+    });
+
+    const scheduleList = wrapper.getComponent({ name: "BookingScheduleList" });
+    expect(scheduleList.props("events")).toEqual(scheduleEvents);
+    expect(scheduleList.props("bookedSlotsIndex")).toEqual(bookedSlotsIndex);
+
+    await wrapper.get("[data-test='schedule-edit']").trigger("click");
+    await wrapper.get("[data-test='schedule-delete']").trigger("click");
+
+    expect(wrapper.emitted("edit-schedule-event")).toEqual([[scheduleEvents[0]]]);
+    expect(wrapper.emitted("delete-schedule-event")).toEqual([[scheduleEvents[0]]]);
+  });
+
+  it("hides the booking schedule list when the mobile schedule flag is off", async () => {
+    const { default: CalendarMobilePopupContent } = await import("@/components/calendar/CalendarMobilePopupContent.vue");
+    const wrapper = mount(CalendarMobilePopupContent, {
+      props: {
+        view: "week",
+        eventsData: [{ title: "Today", items: [{ title: "Slot" }] }],
+        bookingScheduleEvents: [{ eventId: "evt_hidden", title: "Hidden schedule" }],
+        showBookingScheduleList: false,
+      },
+    });
+
+    expect(wrapper.find("[data-test='mobile-booking-schedule']").exists()).toBe(false);
   });
 });

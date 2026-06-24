@@ -66,8 +66,8 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "eventsData"],
-    emits: ["create-event", "month-event-click"],
+    props: ["events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
+    emits: ["create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event"],
     data() {
       return {
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
@@ -138,11 +138,27 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       handleMonthEventClick(event) {
         this.$emit("month-event-click", event);
       },
+      emitScheduleEdit() {
+        const event = this.bookingScheduleEvents?.[0];
+        this.$emit("edit-schedule-event", event
+          ? {
+              ...event,
+              type: String(event?.type || event?.eventType || event?.raw?.type || "").toLowerCase() === "group-event"
+                ? "group"
+                : event?.type,
+            }
+          : event);
+      },
+      emitScheduleDelete() {
+        this.$emit("delete-schedule-event", this.bookingScheduleEvents?.[0]);
+      },
       resetScrollToTop: mainCalendarResetScrollToTop,
     },
     template: `
       <div class='main-calendar-stub'>
         <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
+        <button data-test="main-calendar-schedule-edit" @click="emitScheduleEdit">edit schedule</button>
+        <button data-test="main-calendar-schedule-delete" @click="emitScheduleDelete">delete schedule</button>
         <slot />
         <slot
           name="event"
@@ -362,6 +378,21 @@ function setWindowWidth(width) {
   });
 }
 
+function setWindowHeight(height) {
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    writable: true,
+    value: height,
+  });
+}
+
+function setNavigatorTouchPoints(value) {
+  Object.defineProperty(window.navigator, "maxTouchPoints", {
+    configurable: true,
+    value,
+  });
+}
+
 function isoTodayAt(hour, minute = 0) {
   const value = new Date();
   value.setHours(hour, minute, 0, 0);
@@ -408,11 +439,15 @@ describe("DashboardEventsFeature", () => {
 
     engine = createMockEngine();
     setWindowWidth(1024);
+    setWindowHeight(768);
+    setNavigatorTouchPoints(0);
     window.localStorage.clear();
   });
 
   afterEach(() => {
     setWindowWidth(1024);
+    setWindowHeight(768);
+    setNavigatorTouchPoints(0);
     window.localStorage.clear();
     vi.useRealTimers();
   });
@@ -714,6 +749,43 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
     expect(bookingMarker.element.style.color).toBe("rgb(255, 255, 255)");
 
+    bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+    await bookingMarker.trigger("mouseenter");
+    const bottomTooltip = wrapper.get("[data-test='dashboard-booking-tooltip']");
+    expect(bottomTooltip.text()).toContain("Month Booked Slot");
+    expect(bottomTooltip.text()).toContain("12:00pm - 12:30pm");
+    expect(bottomTooltip.attributes("data-placement")).toBe("bottom");
+
+    await bookingMarker.trigger("mouseleave");
+    expect(wrapper.find("[data-test='dashboard-booking-tooltip']").exists()).toBe(false);
+
+    setWindowHeight(220);
+    bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 150,
+      bottom: 210,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 150,
+      toJSON: () => ({}),
+    }));
+    await bookingMarker.trigger("mouseenter");
+    const topTooltip = wrapper.get("[data-test='dashboard-booking-tooltip']");
+    expect(topTooltip.attributes("data-placement")).toBe("top");
+    await bookingMarker.trigger("mouseleave");
+
     expect(pastBookingMarker.text()).toContain("Month Past Booked Slot");
     expect(pastBookingMarker.text()).toContain("7:30am - 8:30am");
     expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
@@ -738,6 +810,42 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.classes()).toContain("hidden");
     expect(availabilityMarker.classes()).toContain("lg:block");
     expect(availabilityMarker.attributes("style")).toContain("rgba(102, 112, 133, 0.55)");
+  });
+
+  it("does not show the main calendar booking tooltip on touch-capable devices", async () => {
+    setNavigatorTouchPoints(1);
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+
+    await flushPromises();
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(bookingMarker).toBeTruthy();
+    bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+
+    await bookingMarker.trigger("mouseenter");
+    expect(wrapper.find("[data-test='dashboard-booking-tooltip']").exists()).toBe(false);
+
+    await bookingMarker.trigger("focusin");
+    expect(wrapper.find("[data-test='dashboard-booking-tooltip']").exists()).toBe(false);
   });
 
   it("ignores stored event type colors and uses current event color skins for booked slots", async () => {
@@ -1182,6 +1290,148 @@ describe("DashboardEventsFeature", () => {
       eventId: "evt_schedule_edit",
       type: "private",
     }));
+  });
+
+  it("passes creator booking schedule data to the main calendar mobile popup path", async () => {
+    const bookedSlotsIndex = {
+      evt_mobile_schedule: {
+        "2026-03-23": [{ startAtIso: "2026-03-23T10:00:00Z" }],
+      },
+    };
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_mobile_schedule",
+          title: "Mobile schedule event",
+          status: "active",
+          type: "1on1-call",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [],
+        bookedSlotsIndex,
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    expect(mainCalendar.props("bookingScheduleEvents")).toEqual([
+      expect.objectContaining({
+        eventId: "evt_mobile_schedule",
+        title: "Mobile schedule event",
+      }),
+    ]);
+    expect(mainCalendar.props("bookingScheduleBookedSlotsIndex")).toEqual(bookedSlotsIndex);
+    expect(mainCalendar.props("showBookingScheduleList")).toBe(true);
+  });
+
+  it("does not expose the mobile booking schedule list for fans", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_fan_hidden_schedule",
+          title: "Fan hidden schedule",
+          status: "active",
+          type: "1on1-call",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      fanId: 101,
+      userRole: "fan",
+    });
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("showBookingScheduleList")).toBe(false);
+  });
+
+  it("does not expose the mobile booking schedule list while dashboard events are loading", async () => {
+    let resolveFlow;
+    callFlow.mockReturnValueOnce(new Promise((resolve) => {
+      resolveFlow = resolve;
+    }));
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("showBookingScheduleList")).toBe(false);
+
+    resolveFlow({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+    await flushPromises();
+  });
+
+  it("reuses the edit event flow for mobile booking schedule edits", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_mobile_schedule_edit",
+          title: "Mobile schedule edit",
+          status: "active",
+          type: "group-event",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    await wrapper.get("[data-test='main-calendar-schedule-edit']").trigger("click");
+
+    expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_mobile_schedule_edit",
+      type: "group",
+    }));
+  });
+
+  it("opens the existing delete confirmation for mobile booking schedule deletes", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_mobile_schedule_delete",
+          title: "Mobile schedule delete",
+          status: "active",
+          type: "1on1-call",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    }, {
+      dashboard_delete_booking_schedule_title: "Delete schedule '{title}'?",
+    });
+
+    await wrapper.get("[data-test='main-calendar-schedule-delete']").trigger("click");
+
+    expect(wrapper.text()).toContain("Delete schedule 'Mobile schedule delete'?");
   });
 
   it("confirms schedule deletion through events.deleteEvent and refreshes context", async () => {
@@ -1690,11 +1940,11 @@ describe("DashboardEventsFeature", () => {
     expect(widgetSections.flatMap((section) => section.items)).toHaveLength(0);
   });
 
-  it("keeps past confirmed bookings in the calendar but removes past pending bookings", async () => {
+  it("keeps past pending bookings in the calendar unless the code toggle is enabled", async () => {
     const pastStartIso = isoTodayAt(7, 30);
     const pastEndIso = isoTodayAt(8, 30);
 
-    callFlow.mockResolvedValueOnce({
+    const response = {
       ok: true,
       data: {
         events: [],
@@ -1724,7 +1974,9 @@ describe("DashboardEventsFeature", () => {
         ],
         bookedSlotsIndex: {},
       },
-    });
+    };
+
+    callFlow.mockResolvedValueOnce(response);
 
     const wrapper = await mountDashboardEventsFeature({
       creatorId: 77,
@@ -1737,7 +1989,25 @@ describe("DashboardEventsFeature", () => {
       .map((event) => event.title);
 
     expect(calendarEventTitles).toContain("Confirmed Past Calendar");
-    expect(calendarEventTitles).not.toContain("Pending Past Calendar");
+    expect(calendarEventTitles).toContain("Pending Past Calendar");
+
+    wrapper.unmount();
+    callFlow.mockResolvedValueOnce(response);
+
+    const filteredWrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+      filterPastPendingBookings: true,
+    });
+    const filteredCalendarEventTitles = filteredWrapper
+      .getComponent({ name: "MainCalendar" })
+      .props("events")
+      .map((event) => event.title);
+
+    expect(filteredCalendarEventTitles).toContain("Confirmed Past Calendar");
+    expect(filteredCalendarEventTitles).not.toContain("Pending Past Calendar");
+
+    filteredWrapper.unmount();
   });
 
   it("keeps widget bookings only when their end time is current or future", async () => {

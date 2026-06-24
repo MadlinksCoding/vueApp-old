@@ -246,7 +246,7 @@
                     </button>
                     </div>
 
-                    <div v-if="showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
+                    <div v-if="canReviewPending && showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
                         <div class="text-xs font-medium text-red-700 mb-2">
                             {{ t("calendar_event_reject_confirm") }}
                         </div>
@@ -429,7 +429,7 @@ const statusHint = computed(() => {
     const endMs = statusEndDate.getTime();
 
     if (now >= startMs && now < endMs) return t('calendar_event_live_now');
-    if (statusLabel.value === 'confirmed' && now > endMs) return t('calendar_event_status_ended');
+    if (now > endMs) return t('calendar_event_status_ended');
 
     const msToStart = startMs - now;
     if (msToStart > 0) {
@@ -593,7 +593,11 @@ function handleJoin() {
     });
 }
 
-const canReviewPending = computed(() => props.canReviewPending && statusLabel.value === 'pending');
+const canReviewPending = computed(() => (
+    props.canReviewPending
+    && statusLabel.value === 'pending'
+    && !callHasPassed.value
+));
 const showRejectConfirm = ref(false);
 
 watch(
@@ -627,15 +631,22 @@ function emitReviewAction(decision) {
 }
 
 function handleApprove() {
+    if (!canReviewPending.value) return;
     showRejectConfirm.value = false;
     emitReviewAction('approve');
 }
 
 function handleReject() {
+    if (!canReviewPending.value) return;
     showRejectConfirm.value = true;
 }
 
 function confirmReject() {
+    if (!canReviewPending.value) {
+        showRejectConfirm.value = false;
+        return;
+    }
+
     showRejectConfirm.value = false;
     emitReviewAction('reject');
 }

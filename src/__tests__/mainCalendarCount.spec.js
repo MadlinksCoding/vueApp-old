@@ -83,8 +83,8 @@ vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
 vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
-    props: ["view", "eventsData", "canCreateEvents"],
-    emits: ["join-click", "event-click", "menu-action", "open-new-events"],
+    props: ["view", "eventsData", "canCreateEvents", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
+    emits: ["join-click", "event-click", "menu-action", "open-new-events", "edit-schedule-event", "delete-schedule-event"],
     template: `
       <div data-test="mobile-popup">
         <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
@@ -99,6 +99,18 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
           @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { id: 'mobile-source' } } })"
         >
           menu
+        </button>
+        <button
+          data-test="mobile-schedule-edit"
+          @click="$emit('edit-schedule-event', bookingScheduleEvents[0])"
+        >
+          edit schedule
+        </button>
+        <button
+          data-test="mobile-schedule-delete"
+          @click="$emit('delete-schedule-event', bookingScheduleEvents[0])"
+        >
+          delete schedule
         </button>
       </div>
     `,
@@ -182,6 +194,12 @@ function makeEvent(overrides = {}) {
       ...(overrides.raw || {}),
     },
   };
+}
+
+function calendarDateAttr(date, offsetDays = 0) {
+  const value = new Date(date);
+  value.setDate(value.getDate() + offsetDays);
+  return value.toISOString().slice(0, 10);
 }
 
 async function mountCalendar(events, extraProps = {}, mountOptions = {}) {
@@ -375,6 +393,99 @@ describe("MainCalendar all events count", () => {
     expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
   });
 
+  it("aligns day view body columns with the previous, current, and next day headers", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "focused_day_availability",
+          title: "Focused availability",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 13, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "day" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day, style }">
+              <div
+                data-test="availability-block"
+                :data-event-id="event.eventId"
+                :data-day="day.toISOString().slice(0, 10)"
+                :style="style"
+              >
+                {{ event.title }}
+              </div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
+    const expectedDates = [
+      calendarDateAttr(baseDate, -1),
+      calendarDateAttr(baseDate),
+      calendarDateAttr(baseDate, 1),
+    ];
+
+    expect(bodyColumns).toHaveLength(3);
+    expect(bodyColumns.map((column) => column.attributes("data-date"))).toEqual(expectedDates);
+    expect(wrapper.findAll("[data-test='availability-block']")).toHaveLength(1);
+    expect(bodyColumns[0].find("[data-test='availability-block']").exists()).toBe(false);
+    expect(bodyColumns[1].get("[data-test='availability-block']").attributes("data-event-id")).toBe("focused_day_availability");
+    expect(bodyColumns[1].get("[data-test='availability-block']").attributes("data-day")).toBe(expectedDates[1]);
+    expect(bodyColumns[2].find("[data-test='availability-block']").exists()).toBe(false);
+  });
+
+  it("renders adjacent-day availability in its own day view body column", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "previous_day_availability",
+          title: "Previous day availability",
+          start: new Date(2026, 3, 22, 12, 0, 0),
+          end: new Date(2026, 3, 22, 13, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "day" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day }">
+              <div
+                data-test="availability-block"
+                :data-event-id="event.eventId"
+                :data-day="day.toISOString().slice(0, 10)"
+              >
+                {{ event.title }}
+              </div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
+    const expectedDates = [
+      calendarDateAttr(baseDate, -1),
+      calendarDateAttr(baseDate),
+      calendarDateAttr(baseDate, 1),
+    ];
+
+    expect(bodyColumns).toHaveLength(3);
+    expect(bodyColumns.map((column) => column.attributes("data-date"))).toEqual(expectedDates);
+    expect(wrapper.findAll("[data-test='availability-block']")).toHaveLength(1);
+    expect(bodyColumns[0].get("[data-test='availability-block']").attributes("data-event-id")).toBe("previous_day_availability");
+    expect(bodyColumns[0].get("[data-test='availability-block']").attributes("data-day")).toBe(expectedDates[0]);
+    expect(bodyColumns[1].find("[data-test='availability-block']").exists()).toBe(false);
+    expect(bodyColumns[2].find("[data-test='availability-block']").exists()).toBe(false);
+  });
+
   it("keeps late-night availability aligned when earlier evening rows expand", async () => {
     const wrapper = await mountCalendar(
       [
@@ -537,6 +648,73 @@ describe("MainCalendar all events count", () => {
     await openMobilePopup(wrapper);
 
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("passes booking schedule data to the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_schedule",
+        title: "Mobile Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const bookingScheduleBookedSlotsIndex = {
+      evt_mobile_schedule: {
+        "2026-04-23": [{ startAtIso: "2026-04-23T10:00:00Z" }],
+      },
+    };
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      bookingScheduleBookedSlotsIndex,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+
+    const mobilePopup = wrapper.getComponent({ name: "CalendarMobilePopupContent" });
+    expect(mobilePopup.props("bookingScheduleEvents")).toEqual(bookingScheduleEvents);
+    expect(mobilePopup.props("bookingScheduleBookedSlotsIndex")).toEqual(bookingScheduleBookedSlotsIndex);
+    expect(mobilePopup.props("showBookingScheduleList")).toBe(true);
+  });
+
+  it("forwards mobile schedule edit actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_edit",
+        title: "Mobile Edit Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-edit']").trigger("click");
+
+    expect(wrapper.emitted("edit-schedule-event")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile schedule delete actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_delete",
+        title: "Mobile Delete Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-delete']").trigger("click");
+
+    expect(wrapper.emitted("delete-schedule-event")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
   });
 
   it("expands mobile month rows with real booked events instead of dummy content", async () => {

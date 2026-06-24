@@ -192,7 +192,7 @@ export const bookingMessages = {
   calendar_event_yes_reject: "Yes, Reject",
   calendar_event_status_confirmed: "Confirmed",
   calendar_event_status_completed: "Completed",
-  calendar_event_status_ended: "Ended",
+  calendar_event_status_ended: "Past booking",
   calendar_event_status_pending: "Pending",
   calendar_event_status_pending_hold: "Pending Hold",
   calendar_event_status_cancelled: "Cancelled",
