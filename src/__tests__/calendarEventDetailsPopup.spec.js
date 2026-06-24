@@ -165,9 +165,35 @@ describe("CalendarEventDetailsPopup", () => {
     const joinButton = wrapper.findAll("button").find((button) => button.text().includes("Join call"));
     expect(joinButton).toBeUndefined();
     expect(wrapper.find("[data-test='join-tooltip-trigger']").exists()).toBe(false);
-    expect(wrapper.get("[data-test='status-hint']").text()).toBe("Ended");
+    expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
     expect(wrapper.get("[data-test='status-dot']").element.style.backgroundColor)
       .toBe("rgb(107, 114, 128)");
+  });
+
+  it("shows past booking for past pending bookings", async () => {
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        event: {
+          bookingId: "booking_pending_past",
+          start: "2026-05-01T08:00:00Z",
+          end: "2026-05-01T09:00:00Z",
+          status: "pending",
+          raw: {
+            bookingId: "booking_pending_past",
+            status: "pending",
+          },
+        },
+        canReviewPending: true,
+      },
+    });
+
+    expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
+    expect(wrapper.get("[data-test='status-dot']").element.style.backgroundColor)
+      .toBe("rgb(107, 114, 128)");
+    expect(wrapper.findAll("button").some((button) => button.text().includes("ACCEPT"))).toBe(false);
+    expect(wrapper.findAll("button").some((button) => button.text().includes("DECLINE"))).toBe(false);
   });
 
   it("keeps the join button visible while an extension effective end time is still current", async () => {

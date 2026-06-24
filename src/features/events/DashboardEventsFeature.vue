@@ -27,6 +27,9 @@
         :focus-date="state.focus"
         :events="events1"
         :events-data="eventsData"
+        :booking-schedule-events="bookingScheduleEvents"
+        :booking-schedule-booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+        :show-booking-schedule-list="isCreator && !dashboardEventsEngine.state.events.loading"
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
@@ -46,6 +49,8 @@
         @cancel-booking="onCancelBookingFromCalendar"
         @menu-action="handleWidgetMenuAction"
         @create-event="goToCreateEvent($event.type)"
+        @edit-schedule-event="handleEditScheduleEvent"
+        @delete-schedule-event="openDeleteEventPopup"
       >
         <template #event="{ event, style, onClick, view }">
           <div
@@ -58,6 +63,11 @@
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
@@ -77,6 +87,11 @@
               'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
@@ -94,6 +109,11 @@
               'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[1.25rem]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
@@ -111,6 +131,11 @@
               'py-[0.125rem] px-[0.25rem] rounded-lg shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
@@ -137,6 +162,7 @@
           <div class="w-full p-2 bg-black/10 flex flex-col min-h-[8rem]" data-test="dashboard-month-expanded">
             <EventsWidget
               :sections="buildExpandedMonthSections(events, day)"
+              :user-role="dashboardRole"
               @join-click="handleJoin"
               @reply-click="handleReply"
               @event-click="handleMonthExpandedEventClick($event, onClick)"
@@ -253,6 +279,7 @@
         <div v-if="!dashboardEventsEngine.state.events.loading">
           <EventsWidget
             :sections="eventsData"
+            :user-role="dashboardRole"
             @join-click="handleJoin"
             @reply-click="handleReply"
             @event-click="handleWidgetEventClick"
@@ -351,6 +378,33 @@
       </div>
     </PopupHandler>
 
+    <div
+      v-if="calendarTooltip.visible"
+      class="pointer-events-none fixed z-[1600] w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
+      :style="calendarTooltipStyle"
+      :data-placement="calendarTooltip.placement"
+      data-test="dashboard-booking-tooltip"
+    >
+      <span
+        class="absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 bg-[#454158]"
+        :class="calendarTooltip.placement === 'top'
+          ? 'bottom-0 translate-y-1/2'
+          : 'top-0 -translate-y-1/2'"
+      />
+      <div class="relative flex flex-col gap-2">
+        <div class="truncate text-sm font-semibold leading-5">
+          {{ calendarTooltip.title }}
+        </div>
+        <div class="flex items-center gap-1.5 text-sm font-semibold leading-5">
+          <span
+            class="h-3 w-3 shrink-0 rounded-full"
+            :style="{ backgroundColor: calendarTooltip.dotColor }"
+          />
+          <span class="truncate">{{ calendarTooltip.time }}</span>
+        </div>
+      </div>
+    </div>
+
     <ToastHost />
   </div>
 </template>
@@ -400,6 +454,10 @@ const props = defineProps({
     type: [String, Number, Boolean],
     default: "",
   },
+  filterPastPendingBookings: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["create-event", "edit-event", "open-url"]);
@@ -423,6 +481,23 @@ const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
 const currentTime = ref(new Date());
 const currentTimeTimer = ref(null);
+const calendarTooltip = reactive({
+  visible: false,
+  title: "",
+  time: "",
+  dotColor: "#07F468",
+  x: 0,
+  y: 0,
+  placement: "bottom",
+});
+
+const calendarTooltipStyle = computed(() => ({
+  left: `${calendarTooltip.x}px`,
+  top: `${calendarTooltip.y}px`,
+  transform: calendarTooltip.placement === "top"
+    ? "translate(-50%, -100%)"
+    : "translate(-50%, 0)",
+}));
 
 const isEmbeddedMobileViewport = () => (
   props.embedded
@@ -741,6 +816,72 @@ function sameDay(leftDate, rightDate) {
 
 function formatWidgetTime(startDate, endDate) {
   return `${hhmm(startDate)}-${hhmm(endDate)}`;
+}
+
+function formatCalendarTooltipTime(event = {}) {
+  const start = event?.start ? hhmm(event.start) : "";
+  const end = event?.end ? hhmm(event.end) : "";
+  if (start && end) return `${start} - ${end}`;
+  return start || end;
+}
+
+function getCalendarTooltipDotColor() {
+  return "#07F468";
+}
+
+function isTouchCapableDevice() {
+  if (typeof window === "undefined") return false;
+  const nav = window.navigator || {};
+  const touchPoints = Number(nav.maxTouchPoints || nav.msMaxTouchPoints || 0);
+  return touchPoints > 0;
+}
+
+function canShowCalendarEventTooltip() {
+  if (typeof window === "undefined") return false;
+  if (isTouchCapableDevice()) return false;
+  if (typeof window.matchMedia !== "function") return true;
+  if (window.matchMedia("(hover: none), (pointer: coarse)").matches) return false;
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function showCalendarEventTooltip(event = {}, domEvent = null) {
+  if (!canShowCalendarEventTooltip()) {
+    hideCalendarEventTooltip();
+    return;
+  }
+
+  if (!event || event.isAvailabilityBlock === true) {
+    hideCalendarEventTooltip();
+    return;
+  }
+
+  const target = domEvent?.currentTarget;
+  if (!target || typeof target.getBoundingClientRect !== "function" || typeof window === "undefined") return;
+
+  const rect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || 1024;
+  const viewportHeight = window.innerHeight || 768;
+  const margin = 12;
+  const tooltipWidth = Math.min(272, Math.max(160, viewportWidth - (margin * 2)));
+  const tooltipHeightEstimate = 84;
+  const gap = 14;
+  const hasBottomSpace = (viewportHeight - rect.bottom) >= (tooltipHeightEstimate + gap + margin);
+  const placement = hasBottomSpace ? "bottom" : "top";
+  const unclampedX = rect.left + (rect.width / 2);
+  const minX = margin + (tooltipWidth / 2);
+  const maxX = viewportWidth - margin - (tooltipWidth / 2);
+
+  calendarTooltip.title = event?.title || t("dashboard_booked_slot");
+  calendarTooltip.time = formatCalendarTooltipTime(event);
+  calendarTooltip.dotColor = getCalendarTooltipDotColor(event);
+  calendarTooltip.x = Math.min(Math.max(unclampedX, minX), maxX);
+  calendarTooltip.y = placement === "top" ? rect.top - gap : rect.bottom + gap;
+  calendarTooltip.placement = placement;
+  calendarTooltip.visible = true;
+}
+
+function hideCalendarEventTooltip() {
+  calendarTooltip.visible = false;
 }
 
 const DEFAULT_AVATAR_URL = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
@@ -1479,7 +1620,8 @@ const events1 = computed(() => {
   const now = currentTime.value;
   return calendarEvents.value.filter((event) => {
     const status = resolveBookingStatus(event);
-    return !status.startsWith("cancelled") && !isPastPendingBookedCalendarEvent(event, now);
+    return !status.startsWith("cancelled")
+      && (!props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now));
   });
 });
 const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
