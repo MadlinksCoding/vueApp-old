@@ -1,12 +1,19 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
 
 let wrapper;
 
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  vi.unstubAllGlobals();
 });
 
 describe("EventsWidget", () => {
@@ -195,5 +202,108 @@ describe("EventsWidget", () => {
       .map((dot) => dot.element.style.backgroundColor);
 
     expect(dotColors).toEqual(["rgb(34, 197, 94)", "rgb(34, 197, 94)"]);
+  });
+
+  it("fetches and displays fan profile data for creator viewers with a loading skeleton", async () => {
+    let resolveFetch;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi.fn(() => fetchPromise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const item = {
+      title: "Creator view booking",
+      time: "10:00 AM",
+      statusText: "confirmed",
+      avatars: [{ src: "/creator-avatar.png", name: "Creator Name" }],
+      titleColorClass: "text-gray-900",
+      borderClass: "bg-gray-300",
+      bgClass: "bg-white",
+      sourceEvent: {
+        raw: {
+          userId: 1407,
+          userDisplayName: "Fallback Fan",
+          userAvatarUrl: "/fallback-fan.png",
+          creatorId: 2615,
+          creatorDisplayName: "Creator Name",
+        },
+      },
+    };
+
+    wrapper = mount(EventsWidget, {
+      props: {
+        userRole: "creator",
+        sections: [{ title: "TODAY", items: [item] }],
+      },
+    });
+
+    expect(wrapper.find("[data-test='event-profile-skeleton']").exists()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(requestedUrl.pathname).toBe("/wp-json/api/users/get-profile-data");
+    expect(requestedUrl.searchParams.get("id")).toBe("1407");
+
+    resolveFetch({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        user: {
+          display_name: "Fetched Fan",
+          username: "fan_user",
+          avatar: "https://example.com/fan.png",
+        },
+      }),
+    });
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='event-profile-skeleton']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='event-profile-name']").text()).toBe("Fetched Fan");
+    expect(wrapper.get("[data-test='event-profile-avatar']").attributes("src")).toBe("https://example.com/fan.png");
+  });
+
+  it("fetches and displays creator profile data for fan viewers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        user: {
+          display_name: "Fetched Creator",
+          username: "creator_user",
+          avatar: "https://example.com/creator.png",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const item = {
+      title: "Fan view booking",
+      time: "10:00 AM",
+      statusText: "confirmed",
+      avatars: [{ src: "/creator-avatar.png", name: "Creator Name" }],
+      titleColorClass: "text-gray-900",
+      borderClass: "bg-gray-300",
+      bgClass: "bg-white",
+      sourceEvent: {
+        raw: {
+          userId: 1407,
+          userDisplayName: "Fan Name",
+          creatorId: 2615,
+          creatorDisplayName: "Fallback Creator",
+          creatorAvatarUrl: "/fallback-creator.png",
+        },
+      },
+    };
+
+    wrapper = mount(EventsWidget, {
+      props: {
+        userRole: "fan",
+        sections: [{ title: "TODAY", items: [item] }],
+      },
+    });
+    await flushPromises();
+
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(requestedUrl.searchParams.get("id")).toBe("2615");
+    expect(wrapper.get("[data-test='event-profile-name']").text()).toBe("Fetched Creator");
+    expect(wrapper.get("[data-test='event-profile-avatar']").attributes("src")).toBe("https://example.com/creator.png");
   });
 });

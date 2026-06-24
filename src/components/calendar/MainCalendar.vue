@@ -289,8 +289,8 @@
         </div>
 
         <span class="grid w-full relative rounded-md overflow-hidden"
-          :class="[effectiveView === 'day' ? 'grid-cols-1' : 'grid-cols-7']">
-          <div v-for="(d, idx) in days" :key="'col-' + idx" :data-date="d.toISOString().slice(0, 10)"
+          :class="[effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7']">
+          <div v-for="(d, idx) in bodyDays" :key="'col-' + idx" :data-date="d.toISOString().slice(0, 10)"
             :data-expired="sd(d) < today ? 'true' : 'false'" :class="theme.main.colBase" @click.self="emitDate(d)">
 
             <div class="absolute z-[0] inset-0 pointer-events-none">
@@ -299,7 +299,7 @@
 
             <div class="relative z-[0]" data-cal-scroll
               :style="{ height: gridMetrics.totalHeight + 'px', overflowY: 'auto' }">
-              <template v-for="ev in eventsForDay(d)" :key="ev.id||ev.title+ev.start">
+              <template v-for="ev in eventsForBodyDay(d)" :key="ev.id||ev.title+ev.start">
                 <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
                   :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
                 <slot v-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
@@ -399,12 +399,17 @@
         :view="view"
         :events-data="props.eventsData"
         :can-create-events="canCreateEvents"
+        :booking-schedule-events="props.bookingScheduleEvents"
+        :booking-schedule-booked-slots-index="props.bookingScheduleBookedSlotsIndex"
+        :show-booking-schedule-list="props.showBookingScheduleList"
         @set-view="setView"
         @join-click="handleJoin"
         @reply-click="handleReply"
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
         @open-new-events="handleOpenNewEvents"
+        @edit-schedule-event="handleMobileScheduleEdit"
+        @delete-schedule-event="handleMobileScheduleDelete"
       />
     </PopupHandler>
 
@@ -459,6 +464,9 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   eventsData: { type: Array, default: () => [] },
+  bookingScheduleEvents: { type: Array, default: () => [] },
+  bookingScheduleBookedSlotsIndex: { type: Object, default: () => ({}) },
+  showBookingScheduleList: { type: Boolean, default: false },
   theme: { type: Object, default: () => ({}) },
   userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
@@ -472,7 +480,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -699,6 +707,13 @@ const days = computed(() => {
   return effectiveView.value === 'day' ? [cursor.value] : weekDays.value;
 });
 
+const bodyDays = computed(() => {
+  if (effectiveView.value === 'day') {
+    return [addDays(cursor.value, -1), cursor.value, addDays(cursor.value, 1)];
+  }
+  return days.value;
+});
+
 // CHANGE 4: Refined Normalized Logic for JSON Handling
 // The .map function with `new Date(ev.start)` automatically handles ISO strings.
 // Added a filter check to ensure ev.start/ev.end exist before processing to prevent crashes on bad JSON.
@@ -922,6 +937,16 @@ const handleMobileWidgetMenuAction = (payload) => {
   emit('menu-action', payload);
 };
 
+const handleMobileScheduleEdit = (event) => {
+  calendarPopupOpen.value = false;
+  emit('edit-schedule-event', event);
+};
+
+const handleMobileScheduleDelete = (event) => {
+  calendarPopupOpen.value = false;
+  emit('delete-schedule-event', event);
+};
+
 const handleOpenNewEvents = () => {
   if (!canCreateEvents.value) return;
   newEventsPopupOpen.value = true;
@@ -969,13 +994,13 @@ const getVisualBounds = (ev, sMin, eMin, step, minHeightPx, day = null) => {
 
 const processedEventsByDay = computed(() => {
   const eventsByDay = {};
-  days.value.forEach(d => {
+  bodyDays.value.forEach(d => {
     eventsByDay[SOD(d).getTime()] = [];
   });
   
   normalized.value.forEach(ev => {
     if (!ev || !ev.start || !ev.end) return;
-    days.value.forEach(d => {
+    bodyDays.value.forEach(d => {
       const s = SOD(d);
       const e = addDays(s, 1);
       if (ev.start < e && ev.end > s) {
@@ -1080,6 +1105,10 @@ const gridMetrics = computed(() => {
 const eventsForDay = (day) => {
   const key = SOD(day).getTime();
   return processedEventsByDay.value[key] || [];
+};
+
+const eventsForBodyDay = (day) => {
+  return eventsForDay(day);
 };
 
 const minuteToGridOffset = (minute) => {

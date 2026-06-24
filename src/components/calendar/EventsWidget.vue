@@ -50,15 +50,29 @@
 
             <span class="flex" >
               
-              <template v-if="!event.isGroup">
+              <template v-if="shouldShowSingleProfile(event)">
+                <span
+                  v-if="isProfileLoading(event)"
+                  class="inline-flex items-center gap-1"
+                  data-test="event-profile-skeleton"
+                >
+                  <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
+                  <span class="h-3 w-20 rounded bg-[#E6E6E6] animate-skeleton-loading"></span>
+                </span>
+                <template v-else>
                 <img 
-                  class="z-[30] w-5 h-5 object-cover object-center mask-mango shrink-0"
-                  :src="event.avatars[0].src"
-                  :alt="t('common_creator')"
+                  class="z-[30] w-5 h-5 rounded-full object-cover object-center shrink-0"
+                    :src="displayProfile(event).avatar"
+                    :alt="displayProfile(event).name"
+                    data-test="event-profile-avatar"
                 />
-                <p class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate">
-                  {{ event.avatars[0].name }}
+                  <p
+                    class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate"
+                    data-test="event-profile-name"
+                  >
+                    {{ displayProfile(event).name }}
                 </p>
+                </template>
               </template>
 
               <template v-else>
@@ -217,13 +231,28 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
+
+const props = defineProps({
+  sections: {
+    type: Array,
+    default: () => [],
+  },
+  userRole: {
+    type: String,
+    default: "creator",
+  },
+});
 
 const openMenuId = ref(null);
 const joinTooltipId = ref(null);
 const joinTooltipTimer = ref(null);
 const { t } = useBookingTranslations();
+const profileStateById = reactive({});
+const profileAbortControllers = new Map();
+const DEFAULT_PROFILE_AVATAR = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
 
 const closeMenu = () => {
   openMenuId.value = null;
@@ -235,6 +264,8 @@ const toggleMenu = (menuId) => {
 
 const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
 const CONFIRMED_STATUS_DOT_COLOR = "#22C55E";
+const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
+const isFanViewer = computed(() => viewerRole.value === "fan");
 
 const onMenuAction = (action, event) => {
   emit('menu-action', { action, event });
@@ -267,6 +298,170 @@ const joinStatusColor = (event = {}) => {
 
   return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
 };
+
+const pickFirstString = (...values) => {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
+
+const normalizeGuestProfile = (user) => {
+  if (!user || typeof user !== "object") return null;
+
+  return {
+    displayName: pickFirstString(user.display_name, user.displayName, user.name),
+    username: pickFirstString(user.username, user.user_login),
+    avatar: pickFirstString(user.avatar, user.avatarUrl, user.avatar_url),
+  };
+};
+
+const getSourceEvent = (event = {}) => event?.sourceEvent || event?.event || event || {};
+
+const getRawEvent = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  return sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+};
+
+const getCreatorUserId = (event = {}) => {
+  const raw = getRawEvent(event);
+  const sourceEvent = getSourceEvent(event);
+  return firstDefined(raw.creatorId, sourceEvent?.creatorId, event?.creatorId, null);
+};
+
+const getFanUserId = (event = {}) => {
+  const raw = getRawEvent(event);
+  const sourceEvent = getSourceEvent(event);
+  return firstDefined(raw.userId, sourceEvent?.userId, event?.userId, null);
+};
+
+const getGuestUserId = (event = {}) => (
+  isFanViewer.value ? getCreatorUserId(event) : getFanUserId(event)
+);
+
+const shouldShowSingleProfile = (event = {}) => !event.isGroup || isFanViewer.value;
+
+const profileKeyForEvent = (event = {}) => {
+  if (!shouldShowSingleProfile(event)) return "";
+  const userId = getGuestUserId(event);
+  return userId === undefined || userId === null || userId === "" ? "" : String(userId);
+};
+
+const fallbackProfileForEvent = (event = {}) => {
+  const raw = getRawEvent(event);
+  const fallbackId = getGuestUserId(event);
+  const existingAvatar = Array.isArray(event?.avatars) ? event.avatars[0] : null;
+
+  if (isFanViewer.value) {
+    return {
+      name: pickFirstString(
+        raw.creatorDisplayName,
+        raw.creatorName,
+        raw.creatorUsername,
+        existingAvatar?.name,
+      ) || (fallbackId ? t("calendar_event_user_id_fallback", { id: fallbackId }) : t("calendar_event_guest_fallback")),
+      avatar: pickFirstString(raw.creatorAvatarUrl, raw.creatorAvatar, existingAvatar?.src) || DEFAULT_PROFILE_AVATAR,
+    };
+  }
+
+  return {
+    name: pickFirstString(
+      raw.userDisplayName,
+      raw.userName,
+      raw.userUsername,
+      fallbackId ? "" : existingAvatar?.name,
+    ) || (fallbackId ? t("calendar_event_user_id_fallback", { id: fallbackId }) : t("calendar_event_guest_fallback")),
+    avatar: pickFirstString(
+      raw.userAvatarUrl,
+      raw.userAvatar,
+      raw.fanAvatarUrl,
+      fallbackId ? "" : existingAvatar?.src,
+    ) || DEFAULT_PROFILE_AVATAR,
+  };
+};
+
+const displayProfile = (event = {}) => {
+  const key = profileKeyForEvent(event);
+  const state = key ? profileStateById[key] : null;
+  const fallback = fallbackProfileForEvent(event);
+  const profile = state?.profile || null;
+
+  return {
+    name: pickFirstString(profile?.displayName, profile?.username, fallback.name),
+    avatar: pickFirstString(profile?.avatar, fallback.avatar) || DEFAULT_PROFILE_AVATAR,
+  };
+};
+
+const isProfileLoading = (event = {}) => {
+  const key = profileKeyForEvent(event);
+  if (!key) return false;
+  const state = profileStateById[key];
+  return Boolean(state?.loading && !state?.profile);
+};
+
+const fetchProfile = async (userId) => {
+  const key = String(userId || "");
+  if (!key) return;
+  const existing = profileStateById[key];
+  if (existing?.loading || existing?.profile) return;
+
+  if (!profileStateById[key]) {
+    profileStateById[key] = { loading: false, profile: null, error: null };
+  }
+
+  const controller = new AbortController();
+  profileAbortControllers.set(key, controller);
+  profileStateById[key].loading = true;
+  profileStateById[key].error = null;
+
+  try {
+    const response = await fetch(
+      `${buildWpApiUrl("/users/get-profile-data")}?id=${encodeURIComponent(key)}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch event profile (HTTP ${response.status}).`);
+    }
+
+    const payload = await response.json();
+    profileStateById[key].profile = normalizeGuestProfile(payload?.user);
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      profileStateById[key].error = error;
+    }
+  } finally {
+    if (profileAbortControllers.get(key) === controller) {
+      profileAbortControllers.delete(key);
+      profileStateById[key].loading = false;
+    }
+  }
+};
+
+const collectProfileIds = () => {
+  const ids = new Set();
+  (Array.isArray(props.sections) ? props.sections : []).forEach((section) => {
+    (Array.isArray(section?.items) ? section.items : []).forEach((event) => {
+      const key = profileKeyForEvent(event);
+      if (key) ids.add(key);
+    });
+  });
+  return [...ids];
+};
+
+watch(
+  () => [props.sections, props.userRole],
+  () => {
+    collectProfileIds().forEach(fetchProfile);
+  },
+  { immediate: true, deep: true },
+);
 
 const resolveJoinAvailableAtIso = (event = {}) => {
   if (event.joinAvailableAtIso) return event.joinAvailableAtIso;
@@ -338,12 +533,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
   clearJoinTooltipTimer();
-});
-
-defineProps({
-  sections: {
-    type: Array,
-    default: () => []
-  }
+  profileAbortControllers.forEach((controller) => controller.abort());
+  profileAbortControllers.clear();
 });
 </script>
