@@ -196,6 +196,48 @@ describe("CalendarEventDetailsPopup", () => {
     expect(wrapper.findAll("button").some((button) => button.text().includes("DECLINE"))).toBe(false);
   });
 
+  it("shows confirmed instead of a full date for future confirmed bookings more than 24 hours away", async () => {
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        event: {
+          bookingId: "booking_future_confirmed",
+          start: "2026-05-03T10:00:00Z",
+          end: "2026-05-03T10:30:00Z",
+          status: "confirmed",
+          raw: {
+            bookingId: "booking_future_confirmed",
+            status: "confirmed",
+          },
+        },
+      },
+    });
+
+    expect(wrapper.get("[data-test='status-hint']").text()).toBe("Confirmed");
+  });
+
+  it("shows pending instead of a full date for future pending bookings more than 24 hours away", async () => {
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        event: {
+          bookingId: "booking_future_pending",
+          start: "2026-05-03T10:00:00Z",
+          end: "2026-05-03T10:30:00Z",
+          status: "pending",
+          raw: {
+            bookingId: "booking_future_pending",
+            status: "pending",
+          },
+        },
+      },
+    });
+
+    expect(wrapper.get("[data-test='status-hint']").text()).toBe("Pending");
+  });
+
   it("keeps the join button visible while an extension effective end time is still current", async () => {
     getBookingJoinState.mockReturnValue({
       canJoin: false,

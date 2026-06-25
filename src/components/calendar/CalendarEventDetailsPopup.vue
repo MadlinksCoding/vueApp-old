@@ -449,16 +449,7 @@ const statusHint = computed(() => {
             });
         }
 
-        const weekday = startDate.value.toLocaleDateString(locale.value, { weekday: 'short' });
-        const day = startDate.value.toLocaleDateString(locale.value, { day: '2-digit' });
-        const month = startDate.value.toLocaleDateString(locale.value, { month: 'short' });
-        const year = startDate.value.toLocaleDateString(locale.value, { year: 'numeric' });
-        const time = startDate.value.toLocaleTimeString(locale.value, {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-        });
-        return `${weekday} ${day} ${month} ${year} ${time}`;
+        if (statusLabel.value) return translateStatusLabel(statusLabel.value);
     }
 
     if (statusLabel.value) return translateStatusLabel(statusLabel.value);
