@@ -2033,9 +2033,9 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               :event-goal-percent="eventGoalPercent"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
 
-            <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
+            <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 md:backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
                 <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
@@ -2178,7 +2178,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                           
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_discount_heading") }}
-                              <TooltipIcon :text="t('Dummy text for discounts bookings.')" side="right" />
+                              <TooltipIcon :text="t('Creators can offer different discounts to their fans. This is optional and varies by creator.')" side="right" />
                             </h4>
                             <div
                               v-for="row in discountLines"
@@ -2208,7 +2208,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}
-                              <TooltipIcon :text="t('Dummy text for non refundable bookings.')" side="right" />
+                              <TooltipIcon :text="t('Creators may charge extra fees in certain cases (optional & varies by creator). These fees are non-refundable, even if the booking is rejected.')" side="right" />
                             </h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">

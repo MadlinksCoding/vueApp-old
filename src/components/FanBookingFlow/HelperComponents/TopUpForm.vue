@@ -402,7 +402,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 py-2 lg:py-3 pb-14 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+    <div class="flex flex-col gap-4 py-2 lg:py-3 md:pb-14 md:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
       <!-- Amount display + presets -->
       <div class="flex flex-col gap-1">

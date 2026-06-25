@@ -1778,7 +1778,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
             @click="goToNextStep"
           >
             <div
-              class="relative w-[14.625rem] p-[12px] md:rounded-bl-[20px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
+              class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
               :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
