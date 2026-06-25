@@ -177,7 +177,7 @@ async function sendForgotPassword() {
 <template>
   <div class="flex flex-col gap-2">
     <div class="h-6 inline-flex justify-start items-center gap-2">
-      <div class="w-5 h-5 relative overflow-hidden"><img src="assets/dashboard-v2/images/at-sign.png" alt=""></div>
+      <div class="w-5 h-5 relative overflow-hidden"><img src="https://fansocial.app/wp-content/plugins/fansocial/assets/dashboard-v2/images/at-sign.png" alt=""></div>
       <div class="justify-center text-[#F9FAFB] text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_account_email") }}</div>
     </div>
 
