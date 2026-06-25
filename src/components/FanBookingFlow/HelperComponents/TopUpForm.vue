@@ -388,7 +388,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full lg:h-auto gap-3 lg:max-h-[36.5rem]">
+  <div class="flex flex-col w-full h-full lg:h-auto gap-3 lg:max-h-[36.5rem] relative z-[1]">
 
     <div 
       class="inline-flex justify-start items-center gap-1 cursor-pointer"
@@ -456,16 +456,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Account email -->
-      <GuestCheckoutForm
-        ref="guestFormRef"
-        :initial-email="billingEmail"
-        :order-id="currentOrderId"
-        @update:email="billingEmail = $event"
-        @login="handleGuestLogin"
-        @logout="handleGuestLogout"
-      />
-
       <!-- Payment method -->
       <CardForm
         ref="cardFormRef"
@@ -474,6 +464,16 @@ onBeforeUnmount(() => {
         :current-order-id="currentOrderId"
         :tip-checkout-popup="tipCheckoutPopup"
         @order-id-updated="currentOrderId = $event"
+      />
+
+      <!-- Account email -->
+      <GuestCheckoutForm
+        ref="guestFormRef"
+        :initial-email="billingEmail"
+        :order-id="currentOrderId"
+        @update:email="billingEmail = $event"
+        @login="handleGuestLogin"
+        @logout="handleGuestLogout"
       />
 
       <!-- Error message -->
@@ -539,11 +539,11 @@ onBeforeUnmount(() => {
 
       <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem]">
         <div class="flex flex-col gap-3 w-full p-3 md:p-5">
-          <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_payment_summary") }}</h3>
+          <h3 class="text-sm font-normal text-[#2CE]">{{ t("fan_booking_payment_summary") }}</h3>
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3">
               <div class="flex flex-col gap-2">
-                <h4 class="text-sm font-medium leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
+                <h4 class="text-xs font-normal leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
                     <p class="text-sm font-normal text-white">{{ t("fan_booking_original_balance") }}</p>

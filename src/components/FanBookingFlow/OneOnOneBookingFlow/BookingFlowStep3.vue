@@ -2033,7 +2033,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               :event-goal-percent="eventGoalPercent"
             />
 
-          <div class="flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
+          <div class="relative flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
 
             <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 md:backdrop-blur-[5px] before:content-['']
 before:absolute
@@ -2041,7 +2041,7 @@ before:inset-0
 before:backdrop-blur-sm
 md:before:backdrop-blur-none lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem]">
+                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between gap-4">
                       <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
@@ -2301,7 +2301,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
               <template v-else>
                 <div
                   v-if="requiresTemporaryHold"
-                  class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3"
+                  class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3 relative z-[1]"
                   data-testid="temporary-hold-banner"
                 >
                   <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">{{ t("fan_booking_reserving_slot") }}</p>
