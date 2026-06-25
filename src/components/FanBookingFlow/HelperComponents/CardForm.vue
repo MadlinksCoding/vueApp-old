@@ -217,9 +217,9 @@ defineExpose({
     <div class="h-6 inline-flex justify-between items-center gap-2">
       <div class="inline-flex items-center gap-2">
         <div class="w-5 h-5 relative flex justify-center items-center">
-          <img src="/images/creditIcon.png" alt="">
+          <img src="https://fansocial.app/wp-content/plugins/fansocial/assets/dashboard-v2/images/creditIcon.png" alt="">
         </div>
-        <span class="text-gray-50 text-sm font-medium font-['Poppins'] leading-5">{{ t("fan_booking_payment_method") }}</span>
+        <span class="text-[#F9FAFB] text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_payment_method") }}</span>
       </div>
       <button
         v-if="savedCards.length > 0"
