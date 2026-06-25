@@ -121,7 +121,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div hidden class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
