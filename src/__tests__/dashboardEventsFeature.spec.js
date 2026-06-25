@@ -125,12 +125,17 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         monthAvailabilityEvent: {
           id: "month-availability",
           eventId: "evt_month_availability",
-          title: "",
+          title: "Month Availability Window",
           start: "2026-03-23T09:00:00",
           end: "2026-03-23T10:00:00",
           status: "available",
           slot: "availability",
+          color: "#0EA5E9",
+          eventColorSkin: "#0EA5E9",
           isAvailabilityBlock: true,
+          raw: {
+            eventColorSkin: "#0EA5E9",
+          },
         },
       };
     },
@@ -746,7 +751,9 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.classes()).toContain("static");
     expect(bookingMarker.classes()).toContain("hidden");
     expect(bookingMarker.classes()).toContain("lg:block");
+    expect(bookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
+    expect(bookingMarker.element.style.borderTopWidth).toBe("1px");
     expect(bookingMarker.element.style.color).toBe("rgb(255, 255, 255)");
 
     bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
@@ -790,6 +797,8 @@ describe("DashboardEventsFeature", () => {
     expect(pastBookingMarker.text()).toContain("7:30am - 8:30am");
     expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
     expect(pastBookingMarker.element.style.borderTopColor).toBe("rgb(200, 205, 216)");
+    expect(pastBookingMarker.element.style.borderTopWidth).toBe("1px");
+    expect(pastBookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pastBookingMarker.element.style.boxShadow).toBe("none");
     expect(pastBookingMarker.element.style.color).toBe("rgb(152, 162, 179)");
 
@@ -803,13 +812,24 @@ describe("DashboardEventsFeature", () => {
 
     expect(pendingMarker.element.style.backgroundColor).toBe("transparent");
     expect(pendingMarker.element.style.borderTopColor).toBe("rgb(225, 29, 72)");
+    expect(pendingMarker.element.style.borderTopWidth).toBe("1px");
+    expect(pendingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
 
     const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
     expect(availabilityMarker.classes()).toContain("static");
     expect(availabilityMarker.classes()).toContain("hidden");
     expect(availabilityMarker.classes()).toContain("lg:block");
-    expect(availabilityMarker.attributes("style")).toContain("rgba(102, 112, 133, 0.55)");
+    expect(availabilityMarker.classes().some((className) => className.startsWith("rounded"))).toBe(false);
+    expect(availabilityMarker.text()).toContain("Month Availability Window");
+    expect(availabilityMarker.element.style.backgroundColor).toBe("rgba(14, 165, 233, 0.08)");
+    expect(availabilityMarker.element.style.borderTopColor).toBe("rgb(14, 165, 233)");
+    expect(availabilityMarker.element.style.borderTopWidth).toBe("1px");
+    expect(availabilityMarker.element.style.borderRadius).toBe("0px");
+    expect(availabilityMarker.element.style.color).toBe("rgb(14, 165, 233)");
+    expect(availabilityMarker.element.style.backgroundImage).toBe("");
+    expect(availabilityMarker.attributes("style")).not.toContain("repeating-linear-gradient");
+    expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
   });
 
   it("does not show the main calendar booking tooltip on touch-capable devices", async () => {

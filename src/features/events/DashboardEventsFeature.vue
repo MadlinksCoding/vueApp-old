@@ -57,9 +57,10 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock && (view === 'month' ? 'rounded-[0.25rem]' : 'rounded-[0.375rem]'),
               view === 'month'
-                ? 'hidden lg:block rounded-[0.25rem] text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
-                : 'rounded-[0.375rem] text-xs min-h-[1.25rem] w-full overflow-hidden'
+                ? 'hidden lg:block text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
+                : 'text-xs min-h-[1.25rem] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
@@ -84,7 +85,8 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-custom'
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             tabindex="0"
@@ -106,7 +108,8 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[1.25rem]'
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             tabindex="0"
@@ -128,7 +131,8 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg shadow-md'
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             tabindex="0"
@@ -150,12 +154,16 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
-                ? 'hidden lg:block pointer-events-none rounded-sm h-1.5 min-h-1.5 w-full'
-                : 'pointer-events-none rounded-md min-h-[0.375rem] w-full'
+                ? 'hidden lg:block pointer-events-none min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
+                : 'pointer-events-none min-h-[0.375rem] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4'
             ]"
-            :style="[style, view === 'month' ? getMonthAvailabilityStyle() : getCalendarEventStyle(event)]"
+            :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-availability-marker"
-          />
+          >
+            <span v-if="event.title" data-test="dashboard-calendar-availability-title" class="block truncate">
+              {{ event.title }}
+            </span>
+          </div>
         </template>
 
         <template #month-expanded="{ events, day, onClick }">
@@ -335,7 +343,7 @@
             :disabled="cancelBookingLoading"
             @click="closeCancelBookingPopup"
           >
-            {{ t("common_cancel") }}
+            {{ t("dashboard_cancel_confirm_back") }}
           </button>
           <button
             type="button"
@@ -703,6 +711,47 @@ function rgba(hexColor, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const GENERIC_EVENT_TITLE_FALLBACKS = new Set(["event title", "untitled event"]);
+
+function normalizeEventTitleCandidate(value) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function isGenericEventTitle(value) {
+  return GENERIC_EVENT_TITLE_FALLBACKS.has(String(value || "").trim().toLowerCase());
+}
+
+function resolveCalendarEventTitle(event = {}) {
+  const candidates = [
+    event?.title,
+    event?.eventTitle,
+    event?.eventName,
+    event?.event_name,
+    event?.name,
+    event?.raw?.title,
+    event?.raw?.eventTitle,
+    event?.raw?.eventName,
+    event?.raw?.event_name,
+    event?.raw?.name,
+  ];
+  let genericFallback = "";
+
+  for (const candidate of candidates) {
+    const normalized = normalizeEventTitleCandidate(candidate);
+    if (!normalized) continue;
+
+    if (isGenericEventTitle(normalized)) {
+      genericFallback = genericFallback || normalized;
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return genericFallback || t("dashboard_booking_schedule_untitled_event");
+}
+
 const APPROVED_BOOKING_STATUSES = new Set(["approved", "completed", "confirmed"]);
 const PENDING_BOOKING_STATUSES = new Set(["pending", "pending_hold"]);
 
@@ -727,14 +776,29 @@ function isPastPendingBookedCalendarEvent(event = {}, comparisonDate = currentTi
     && isPastBookedCalendarEvent(event, comparisonDate);
 }
 
+function isMidnightDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date.getHours() === 0 && date.getMinutes() === 0;
+}
+
 function getCalendarEventStyle(event) {
+  const color = normalizeHexColor(
+    event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+    DEFAULT_EVENT_COLOR,
+  );
+
   if (event?.isAvailabilityBlock) {
+    const startsAtMidnight = isMidnightDateTime(event?.start);
+    const endsAtMidnight = isMidnightDateTime(event?.end);
+
     return {
-      backgroundColor: "rgba(152, 162, 179, 0.1)",
-      border: "1px solid rgba(152, 162, 179, 0.16)",
-      color: "transparent",
+      backgroundColor: rgba(color, 0.08),
+      borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
+      borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
       borderRadius: "0px",
-      border: "none",
+      color,
       zIndex: 1,
     };
   }
@@ -749,11 +813,6 @@ function getCalendarEventStyle(event) {
       zIndex: 2,
     };
   }
-
-  const color = normalizeHexColor(
-    event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-    DEFAULT_EVENT_COLOR,
-  );
 
   if (!isApprovedBookingStatus(event)) {
     return {
@@ -771,15 +830,6 @@ function getCalendarEventStyle(event) {
     borderBottom: `1px solid ${color}`,
     color: "#ffffff",
     zIndex: 2,
-  };
-}
-
-function getMonthAvailabilityStyle() {
-  return {
-    backgroundColor: "rgba(102, 112, 133, 0.55)",
-    border: "1px solid rgba(102, 112, 133, 0.18)",
-    color: "transparent",
-    zIndex: 1,
   };
 }
 
@@ -1150,6 +1200,14 @@ function buildCalendarSlotsFromContext({
       ])
       .filter(([eventId]) => Boolean(eventId)),
   );
+  const eventTitleByEventId = new Map(
+    catalogEvents
+      .map((event) => [
+        String(event?.eventId || event?.id || ""),
+        resolveCalendarEventTitle(event),
+      ])
+      .filter(([eventId, title]) => Boolean(eventId && title)),
+  );
   const bookedCalendarSlots = calendarSlots.map((slot) => {
     const eventId = String(slot?.eventId || "");
     const eventCallType = callTypeByEventId.get(eventId) || String(slot?.raw?.eventCallType || "").toLowerCase();
@@ -1175,15 +1233,26 @@ function buildCalendarSlotsFromContext({
     rangeDaysBefore: 14,
     rangeDaysAfter: 56,
     mode: "scheduleWindow",
-  }).map((slot) => ({
-    ...slot,
-    color: "#98A2B3",
-    eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.eventCallType || "").toLowerCase(),
-    raw: {
-      ...(slot?.raw || {}),
-      eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.eventCallType || "").toLowerCase(),
-    },
-  }));
+  }).map((slot) => {
+    const eventId = String(slot?.eventId || "");
+    const eventCallType = callTypeByEventId.get(eventId) || String(slot?.eventCallType || "").toLowerCase();
+    const eventColorSkin = eventColorByEventId.get(eventId)
+      || resolveOptionalEventColor(slot?.color, slot?.eventColorSkin, slot?.raw?.eventColorSkin)
+      || DEFAULT_EVENT_COLOR;
+
+    return {
+      ...slot,
+      title: eventTitleByEventId.get(eventId) || resolveCalendarEventTitle(slot),
+      color: eventColorSkin,
+      eventColorSkin,
+      eventCallType,
+      raw: {
+        ...(slot?.raw || {}),
+        eventCallType,
+        eventColorSkin,
+      },
+    };
+  });
 
   return {
     bookedCalendarSlots,

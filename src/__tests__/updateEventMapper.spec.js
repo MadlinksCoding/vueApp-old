@@ -81,4 +81,15 @@ describe("updateEventMapper", () => {
     expect(mapped.advanceCancelWindowQuantity).toBe(2);
     expect(mapped.advanceCancelWindowUnit).toBe("day");
   });
+
+  it("maps cleared Quill description markup to null for edit patches", () => {
+    const mapped = updateEventMapper(makeGroupEditPayload({
+      eventDescription: "<p><br></p>",
+    }), {
+      creatorId: 1407,
+    });
+
+    expect(mapped.eventId).toBe("evt_group_locked");
+    expect(mapped.description).toBeNull();
+  });
 });

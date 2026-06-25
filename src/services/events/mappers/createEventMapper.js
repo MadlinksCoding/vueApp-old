@@ -47,6 +47,39 @@ function nonEmptyString(value, fallback = "") {
   return trimmed || fallback;
 }
 
+function richTextToPlainText(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function resolveDescriptionInput(payload = {}) {
+  if (hasOwn(payload, "eventDescription")) return payload.eventDescription;
+  if (hasOwn(payload, "description")) return payload.description;
+  return null;
+}
+
+function normalizeOptionalDescription(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  return richTextToPlainText(trimmed) ? trimmed : null;
+}
+
 function readBrowserTimezone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -640,7 +673,7 @@ function mapBasePayload(payload = {}, context = {}) {
     creatorTimezone,
     type,
     title: nonEmptyString(payload.eventTitle || payload.title, "Untitled Event"),
-    description: nonEmptyString(payload.eventDescription || payload.description, "No description provided"),
+    description: normalizeOptionalDescription(resolveDescriptionInput(payload)),
     eventColorSkin: nonEmptyString(payload.eventColorSkin, "#5549FF"),
     eventCallType: nonEmptyString(payload.eventCallType, "video"),
     eventRingtoneUrl: nonEmptyString(payload.eventRingtoneUrl, "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"),
