@@ -815,6 +815,7 @@ describe("DashboardEventsFeature", () => {
     expect(pendingMarker.element.style.borderTopWidth).toBe("1px");
     expect(pendingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
+    expect(pendingMarker.text()).toContain("1:00pm - 1:30pm");
 
     const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
     expect(availabilityMarker.classes()).toContain("static");
