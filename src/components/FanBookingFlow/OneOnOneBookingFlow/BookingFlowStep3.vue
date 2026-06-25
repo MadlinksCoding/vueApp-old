@@ -2178,7 +2178,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                           
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_discount_heading") }}
-                              <!-- <TooltipIcon :text="t('Dummy text for discounts bookings.')" side="right" /> -->
+                              <TooltipIcon :text="t('Dummy text for discounts bookings.')" side="right" />
                             </h4>
                             <div
                               v-for="row in discountLines"
@@ -2208,7 +2208,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}
-                              <!-- <TooltipIcon :text="t('Dummy text for non refundable bookings.')" side="right" /> -->
+                              <TooltipIcon :text="t('Dummy text for non refundable bookings.')" side="right" />
                             </h4>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
