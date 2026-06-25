@@ -197,9 +197,76 @@ function resolveOneTimeLocalDateBounds(event = {}) {
   };
 }
 
+function resolveRecurringScheduleTimeEntries(event = {}) {
+  const entries = [];
+
+  getEventRawSlots(event).forEach((slot) => {
+    if (!slot || typeof slot !== 'object') return;
+    if (Array.isArray(slot?.times)) return;
+
+    const startHm = toHm(slot.startTime ?? slot.start, '');
+    if (!startHm) return;
+
+    const endHm = toHm(slot.endTime ?? slot.end, startHm);
+    entries.push({
+      startHm,
+      endHm,
+      endDayOffset: resolveSlotEndDayOffset(slot, startHm, endHm),
+    });
+  });
+
+  return entries;
+}
+
+function resolveRecurringBoundaryLocalDateBounds(event = {}) {
+  const raw = event.raw || {};
+  const dateFrom = extractDateIso(raw.dateFrom ?? event.dateFrom, null);
+  const dateTo = extractDateIso(raw.dateTo ?? event.dateTo, null);
+  const entries = resolveRecurringScheduleTimeEntries(event);
+  const fromDates = [];
+  const toDates = [];
+
+  if (dateFrom) {
+    if (entries.length > 0) {
+      entries.forEach((entry) => {
+        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, entry.startHm));
+        if (localDateIso) fromDates.push(localDateIso);
+      });
+    } else {
+      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, '12:00'));
+      if (localDateIso) fromDates.push(localDateIso);
+    }
+  }
+
+  if (dateTo) {
+    if (entries.length > 0) {
+      entries.forEach((entry) => {
+        const endHktDateIso = entry.endDayOffset > 0 ? addDaysToDateIso(dateTo, entry.endDayOffset) : dateTo;
+        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(endHktDateIso, entry.endHm));
+        if (localDateIso) toDates.push(localDateIso);
+      });
+    } else {
+      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateTo, '12:00'));
+      if (localDateIso) toDates.push(localDateIso);
+    }
+  }
+
+  const sortedFrom = Array.from(new Set(fromDates)).sort();
+  const sortedTo = Array.from(new Set(toDates)).sort();
+  return {
+    from: sortedFrom[0] || dateFrom,
+    to: sortedTo.at(-1) || dateTo,
+  };
+}
+
 const oneTimeLocalDateBounds = computed(() => (
   getEventRepeatRule(selectedEvent.value || {}) === 'doesnotrepeat'
     ? resolveOneTimeLocalDateBounds(selectedEvent.value || {})
+    : { from: null, to: null }
+));
+const recurringLocalDateBounds = computed(() => (
+  getEventRepeatRule(selectedEvent.value || {}) !== 'doesnotrepeat'
+    ? resolveRecurringBoundaryLocalDateBounds(selectedEvent.value || {})
     : { from: null, to: null }
 ));
 
@@ -209,6 +276,9 @@ const eventDateFromIso = computed(() => {
   if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.from) {
     return oneTimeLocalDateBounds.value.from;
   }
+  if (getEventRepeatRule(event) !== 'doesnotrepeat' && recurringLocalDateBounds.value.from) {
+    return recurringLocalDateBounds.value.from;
+  }
   return extractDateIso(raw.dateFrom ?? event.dateFrom, null);
 });
 const eventDateToIso = computed(() => {
@@ -216,6 +286,9 @@ const eventDateToIso = computed(() => {
   const raw = event.raw || {};
   if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.to) {
     return oneTimeLocalDateBounds.value.to;
+  }
+  if (getEventRepeatRule(event) !== 'doesnotrepeat' && recurringLocalDateBounds.value.to) {
+    return recurringLocalDateBounds.value.to;
   }
   return extractDateIso(raw.dateTo ?? event.dateTo, null);
 });

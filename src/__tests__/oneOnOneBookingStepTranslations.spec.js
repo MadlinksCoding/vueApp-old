@@ -1256,6 +1256,27 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.find("quill-editor-stub").exists()).toBe(true);
   });
 
+  it("hides the late-start compensation setting in private step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({}),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.text()).toContain("Call Settings");
+    expect(wrapper.text()).not.toContain("Offer discount if call starts late");
+    expect(wrapper.text()).not.toContain("Allow reschedule");
+    expect(wrapper.text()).not.toContain("Issue refund");
+    expect(wrapper.text()).not.toContain("Give next-session discount");
+  });
+
   it("hides session duration in group step 1 and keeps it for private step 1", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"

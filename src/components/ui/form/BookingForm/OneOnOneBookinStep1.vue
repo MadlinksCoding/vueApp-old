@@ -234,12 +234,6 @@
     { label: t('booking_custom_repeat'), value: 'doesNotRepeat' },
   ];
 
-  const lateStartActionOptions = [
-    { label: t('booking_allow_reschedule'), value: 'reschedule' },
-    { label: t('booking_issue_refund'), value: 'refund' },
-    { label: t('booking_late_start_next_discount'), value: 'nextDiscount' }
-  ];
-
   // Accept Engine
   const props = defineProps({
     engine: {
@@ -3161,28 +3155,6 @@
           accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png" :isOptional="true" :is-open="sectionsState.callSettings"
           @toggle="toggleSection('callSettings')">
           <div v-show="sectionsState.callSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
-            <div class="self-stretch flex flex-col justify-center items-start gap-3">
-              <div class="self-stretch flex flex-col justify-center items-start gap-1">
-                <div class="self-stretch inline-flex justify-start items-center gap-1">
-                  <div class="justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_offer_discount_if_call_starts_late") }}</div>
-                    <TooltipIcon :text="t('booking_join_buffer_tooltip')" />
-                </div>
-              </div>
-              <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <CustomDropdown
-                    v-model="formData.lateStartAction"
-                    :options="lateStartActionOptions"
-                    buttonClass="self-stretch px-4 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full text-left"
-                  />
-                  <div v-if="formData.lateStartAction === 'nextDiscount'" class="pt-1">
-                    <BaseInput type="number" :placeholder="t('booking_late_start_discount_placeholder')"
-                      v-model="formData.lateStartDiscountPercent"
-                      inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
-                  </div>
-                </div>
-              </div>
-            </div>
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <div class="self-stretch flex flex-col justify-center items-start gap-1">
                 <div class="self-stretch justify-start text-slate-700 text-base font-normal leading-normal">{{ t("booking_call_functions") }}

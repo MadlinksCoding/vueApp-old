@@ -333,6 +333,29 @@ describe("createEventMapper", () => {
     expect(mapped.description).toBe("<p>Join us for a spectacular live stream event.</p>");
   });
 
+  it("does not generate placeholder copy for a blank event description", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      eventDescription: "",
+    });
+
+    expect(mapped.description).toBeNull();
+    expect(mapped.description).not.toBe("No description provided");
+  });
+
+  it("treats empty Quill description markup as no description", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      eventDescription: "<p><br></p>",
+    });
+
+    expect(mapped.description).toBeNull();
+  });
+
   it("maps group fixed price settings", () => {
     const mapped = createEventMapper({
       ...baseDraft,
