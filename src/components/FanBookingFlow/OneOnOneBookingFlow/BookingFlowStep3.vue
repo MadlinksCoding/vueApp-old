@@ -2006,7 +2006,7 @@ onBeforeUnmount(() => {
       :style="popupBackgroundStyle"
     >
       <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
-      <div class="md:rounded-b-[20px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-black/75 before:content-['']
+      <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-black/75 before:content-['']
 before:absolute
 before:inset-0
 before:bg-[rgba(0,0,0,0.75)]
@@ -2037,7 +2037,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
             <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 backdrop-blur-[5px] lg:overflow-hidden">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[8rem]">
+                <div class="flex flex-col gap-3 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 flex flex-col gap-3">
                     <div class="flex items-center justify-between gap-4">
                       <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
@@ -2342,7 +2342,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               class="w-auto flex justify-start items-center"
               :class="(isCheckingBalance || isSubmitting || contributionInvalid) ? 'pointer-events-none' : 'cursor-pointer'"
             >
-              <div class="relative w-full p-[12px] md:rounded-br-[20px] flex justify-between items-center
+              <div class="relative w-full p-[12px] md:rounded-br-[0px] flex justify-between items-center
                 gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0
                 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-r-[1rem]
                   after:border-b-0"

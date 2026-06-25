@@ -1514,7 +1514,7 @@ onBeforeUnmount(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row before:content-['']
+        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row before:content-['']
 before:absolute
 before:inset-0
 before:bg-[rgba(0,0,0,0.75)]
@@ -1578,7 +1578,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-[6.25rem] md:pb-[9rem] bg-gray-950/10"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -1778,7 +1778,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
             @click="goToNextStep"
           >
             <div
-              class="relative w-[14.625rem] p-[12px] md:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
+              class="relative w-[14.625rem] p-[12px] md:rounded-bl-[20px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
               :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"

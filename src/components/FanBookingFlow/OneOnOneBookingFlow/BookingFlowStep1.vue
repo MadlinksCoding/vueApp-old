@@ -52,7 +52,7 @@ const currentEvent = computed(() => {
 
 const outerClass = computed(() => (
   props.embedded
-    ? "h-full w-full max-h-full overflow-auto scrollbar-hide md:p-6 flex items-center justify-center"
+    ? "h-full w-full max-h-full overflow-auto scrollbar-hide lg:p-6 flex items-center justify-center"
     : "h-screen w-full max-h-full overflow-auto scrollbar-hide md:py-8 flex justify-center items-center"
 ));
 
