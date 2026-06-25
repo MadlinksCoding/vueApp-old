@@ -3,182 +3,239 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-1 md:px-0 md:pl-0">
-      <div class="flex items-center gap-3">
-        <div class="font-bold " :class="theme.main.title">{{ title }}</div>
-        <!-- mobile-view-start-->
-        <div class="cursor-pointer flex lg:hidden" @click="toggleMobileCalendar">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
+    <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
+      <div class="w-full flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="font-bold w-[9rem] uppercase" :class="theme.main.title">{{ title }}</div>
+          <!-- mobile-view-start-->
+          <div class="cursor-pointer flex lg:hidden" @click="toggleMobileCalendar">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
 
-        </div>
-
-        <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
-          class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[0.75rem] rounded-br-[0.75rem] overflow-hidden">
-          <div
-            class="p-2 bg-white/80 backdrop-blur-[0.625rem] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
-                <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
-                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-                <div class="text-gray-900 text-base font-medium uppercase">{{ currentYear }}</div>
-                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </div>
-
-              <span class="flex items-center justify-between gap-4">
-                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
-                  <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round" />
-                  </svg>
-                </button>
-                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(1)" data-main-next>
-                  <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </span>
-            </div>
-            <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
-              ...theme,
-              mini: {
-                wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]',
-                header: 'font-semibold',
-                // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
-                // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                dayBase: 'w-[2.339rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
-                outside: 'opacity-0',
-                expired: 'opacity-100',
-                today: 'bg-[#FF0066] font-semibold text-white',
-                selected: 'rounded-full',
-                dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
-              }
-            }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
-            </MiniCalendar>
           </div>
-        </div>
-        <!-- mobile-view-end-->
+
+          <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
+            class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[0.75rem] rounded-br-[0.75rem] overflow-hidden">
+            <div
+              class="p-2 bg-white/80 backdrop-blur-[0.625rem] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
+                  <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
+                  <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                  <div class="text-gray-900 text-base font-medium uppercase">{{ currentYear }}</div>
+                  <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                </div>
+
+                <span class="flex items-center justify-between gap-4">
+                  <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(1)" data-main-next>
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </span>
+              </div>
+              <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
+                ...theme,
+                mini: {
+                  wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]',
+                  header: 'font-semibold',
+                  // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
+                  // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
+                  dayBase: 'w-[2.339rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                  outside: 'opacity-0',
+                  expired: 'opacity-100',
+                  today: 'bg-[#FF0066] font-semibold text-white',
+                  selected: 'rounded-full',
+                  dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
+                }
+              }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
+              </MiniCalendar>
+            </div>
+          </div>
+          <!-- mobile-view-end-->
 
 
-        <button
-          class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
-          @click="goToday" data-main-today>
-          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
-        </button>
-        <span class="lg:flex items-center justify-between hidden ">
-          <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
-            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
+          <button
+            class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+            @click="goToday" data-main-today>
+            <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
           </button>
-          <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
-            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-          </button>
-        </span>
-      </div>
-
-      <div class="flex items-center gap-2" ref="dropdownContainer">
-        <div class="relative inline-block text-left hidden xl:flex">
-
-          <div @click="toggleDropdown"
-            :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
-            class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
-            <span class="flex items-center justify-center h-full py-2">
-              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
-              </h2>
-              <p data-test="all-events-count" class="text-pink-500 text-[0.625rem] font-bold h-full ml-1">
-                {{ filteredBookedSlotsCount }}
-              </p>
-            </span>
-
-            <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200"
-              :class="{ 'rotate-180': isDropdownOpen }">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
-                  :fill="isDropdownOpen ? 'white' : 'black'" :stroke="isDropdownOpen ? 'white' : 'black'"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <span class="lg:flex items-center justify-between hidden ">
+            <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+              <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
               </svg>
             </button>
-          </div>
-
-          <div v-if="isDropdownOpen" class="absolute top-full right-0 mt-2 z-50 origin-top-left">
-            <EventDropdownContent v-model="dropdownFilters" />
-          </div>
-
+            <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
+              <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+          </span>
         </div>
 
-        <span
-          class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+        <div class="flex items-center gap-2" ref="dropdownContainer">
+          <div class="px-2 hidden ipad-portrait:hidden lg:flex items-center gap-2">
+            <CheckboxGroup label="SHOW LEGEND" v-model="showLegend"
+              checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
+              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem]"
+              wrapperClass="flex items-center" />
+          </div>
+          <div class="relative inline-block text-left hidden xl:flex">
 
-          <button @click="setView('day')"
-            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_day") }}
+            <div @click="toggleDropdown"
+              :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
+              class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
+              <span class="flex items-center justify-center h-full py-2">
+                <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
+                </h2>
+                <p data-test="all-events-count" class="text-pink-500 text-[0.625rem] font-bold h-full ml-1">
+                  {{ filteredBookedSlotsCount }}
+                </p>
+              </span>
+
+              <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200"
+                :class="{ 'rotate-180': isDropdownOpen }">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
+                    :fill="isDropdownOpen ? 'white' : 'black'" :stroke="isDropdownOpen ? 'white' : 'black'"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div v-if="isDropdownOpen" class="absolute top-full right-0 mt-2 z-50 origin-top-left">
+              <EventDropdownContent v-model="dropdownFilters" />
+            </div>
+
+          </div>
+
+          <span
+            class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+
+            <button @click="setView('day')"
+              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_day") }}
+            </button>
+
+            <button @click="setView('week')"
+              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
+              :class="view === 'week'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_week") }}
+            </button>
+
+            <button @click="setView('month')"
+              class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+              :class="view === 'month'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_month") }}
+            </button>
+
+          </span>
+
+
+          <!-- mobile-view-today-button -->
+          <button
+            class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+            @click="goToday" data-main-today>
+            <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
           </button>
+          <div class="cursor-pointer relative flex xl:hidden">
+            <div @click="toggleDropdown">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M3.38589 5.66687C2.62955 4.82155 2.25138 4.39889 2.23712 4.03968C2.22473 3.72764 2.35882 3.42772 2.59963 3.22889C2.87684 3 3.44399 3 4.57828 3H19.4212C20.5555 3 21.1227 3 21.3999 3.22889C21.6407 3.42772 21.7748 3.72764 21.7624 4.03968C21.7481 4.39889 21.3699 4.82155 20.6136 5.66687L14.9074 12.0444C14.7566 12.2129 14.6812 12.2972 14.6275 12.3931C14.5798 12.4781 14.5448 12.5697 14.5236 12.6648C14.4997 12.7721 14.4997 12.8852 14.4997 13.1113V18.4584C14.4997 18.6539 14.4997 18.7517 14.4682 18.8363C14.4403 18.911 14.395 18.9779 14.336 19.0315C14.2692 19.0922 14.1784 19.1285 13.9969 19.2012L10.5969 20.5612C10.2293 20.7082 10.0455 20.7817 9.89802 20.751C9.76901 20.7242 9.6558 20.6476 9.583 20.5377C9.49975 20.4122 9.49975 20.2142 9.49975 19.8184V13.1113C9.49975 12.8852 9.49975 12.7721 9.47587 12.6648C9.45469 12.5697 9.41971 12.4781 9.37204 12.3931C9.31828 12.2972 9.2429 12.2129 9.09213 12.0444L3.38589 5.66687Z"
+                  stroke="#667085" stroke-width="1.77778" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
 
-          <button @click="setView('week')"
-            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
-            :class="view === 'week'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_week") }}
-          </button>
+            <div v-if="isDropdownOpen" class="absolute top-full right-5 mt-2 z-50 origin-top-left">
+              <EventDropdownContent v-model="dropdownFilters" />
+            </div>
 
-          <button @click="setView('month')"
-            class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
-            :class="view === 'month'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_month") }}
-          </button>
-
-        </span>
-
-
-        <!-- mobile-view-today-button -->
-        <button
-          class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
-          @click="goToday" data-main-today>
-          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
-        </button>
-        <div class="cursor-pointer relative flex xl:hidden">
-          <div @click="toggleDropdown">
+          </div>
+          <div class="cursor-pointer flex xl:hidden" @click="calendarPopupOpen = true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
-                d="M3.38589 5.66687C2.62955 4.82155 2.25138 4.39889 2.23712 4.03968C2.22473 3.72764 2.35882 3.42772 2.59963 3.22889C2.87684 3 3.44399 3 4.57828 3H19.4212C20.5555 3 21.1227 3 21.3999 3.22889C21.6407 3.42772 21.7748 3.72764 21.7624 4.03968C21.7481 4.39889 21.3699 4.82155 20.6136 5.66687L14.9074 12.0444C14.7566 12.2129 14.6812 12.2972 14.6275 12.3931C14.5798 12.4781 14.5448 12.5697 14.5236 12.6648C14.4997 12.7721 14.4997 12.8852 14.4997 13.1113V18.4584C14.4997 18.6539 14.4997 18.7517 14.4682 18.8363C14.4403 18.911 14.395 18.9779 14.336 19.0315C14.2692 19.0922 14.1784 19.1285 13.9969 19.2012L10.5969 20.5612C10.2293 20.7082 10.0455 20.7817 9.89802 20.751C9.76901 20.7242 9.6558 20.6476 9.583 20.5377C9.49975 20.4122 9.49975 20.2142 9.49975 19.8184V13.1113C9.49975 12.8852 9.49975 12.7721 9.47587 12.6648C9.45469 12.5697 9.41971 12.4781 9.37204 12.3931C9.31828 12.2972 9.2429 12.2129 9.09213 12.0444L3.38589 5.66687Z"
-                stroke="#667085" stroke-width="1.77778" stroke-linecap="round" stroke-linejoin="round" />
+                d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
+                stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
 
-          <div v-if="isDropdownOpen" class="absolute top-full right-5 mt-2 z-50 origin-top-left">
-            <EventDropdownContent v-model="dropdownFilters" />
-          </div>
+        </div>
+      </div>
 
+      <div v-show="showLegend" class="w-full hidden ipad-portrait:hidden lg:flex items-start gap-2 self-stretch rounded-[10px]">
+        <!-- Event type -->
+        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">EVENT TYPE</span>
+          <div class="flex justify-end items-start gap-5">
+            <!-- Item-1 -->
+             <div class="flex items-center gap-2">
+                <PhoneIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">1 on 1 call</span>
+             </div>
+             <!-- Item-2 -->
+             <div class="flex items-center gap-2">
+                 <GroupCallIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Group call</span>
+             </div>
+             <!-- Item-3 -->
+             <div class="flex items-center gap-2">
+                <BookingScheduleIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Booking schedule</span>
+             </div>
+          </div>
         </div>
-        <div class="cursor-pointer flex xl:hidden" @click="calendarPopupOpen = true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
-              stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+        <!-- /Event type -->
+         <!-- Status -->
+        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">Status</span>
+          <div class="flex justify-end items-start gap-5">
+            <!-- Item-1 -->
+             <div class="flex items-center gap-2">
+                <PendingStatus />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Pending</span>
+             </div>
+             <!-- Item-2 -->
+             <div class="flex items-center gap-2">
+                 <div class="w-[10px] h-[10px] rounded-full bg-[#07F468] flex items-center justify-center aspect-square"></div>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Confirmed</span>
+             </div>
+             <!-- Item-3 -->
+             <div class="flex items-center gap-2">
+                <div class="w-[10px] h-[10px] rounded-full bg-[#FF4405] flex items-center justify-center aspect-square"></div>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Declined/Canceled</span>
+             </div>
+          </div>
         </div>
+        <!-- /Status -->
 
       </div>
+
     </div>
 
     <!-- default-header-theme-2 -->
@@ -448,7 +505,11 @@ import { SOD, addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMon
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import { onUnmounted } from 'vue';
 import EventDropdownContent from './EventDropdownContent.vue';
+import PendingStatus from "@/components/icons/PendingStatus.vue";
 import PopupHandler from '../ui/popup/PopupHandler.vue';
+import PhoneIcon from "@/components/icons/PhoneIcon.vue";
+import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
@@ -494,6 +555,7 @@ const nowY = ref(0);
 const isDropdownOpen = ref(false);
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
+const showLegend = ref(false);
 const dropdownFilters = ref({
   video: true,
   audio: true,
