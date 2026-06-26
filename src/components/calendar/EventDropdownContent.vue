@@ -3,6 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import editIcon from '@/assets/images/icons/edit.webp';
 import slashCircleIcon from '@/assets/images/icons/slash-circle.webp';
+import phoneIcon from '@/assets/images/icons/phone.webp';
+import usersIcon from '@/assets/images/icons/users-03.svg';
+import calendarIcon from '@/assets/images/icons/calendar-date.webp';
+import calendarCheckIcon from '@/assets/images/icons/check-circle-broken.webp';
+import trendingIcon from '@/assets/images/icons/arrow-up-right.webp';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 const EVENT_TYPE_COLOR_STORAGE_KEY = 'calendar:eventTypeColors';
@@ -31,6 +36,8 @@ const props = defineProps({
       audio: true,
       groupCall: true,
       showSchedule: false,
+      showCompleted: false,
+      showAnalytics: false,
     }),
   },
 });
@@ -140,6 +147,8 @@ const filters = computed(() => ({
   audio: props.modelValue?.audio !== false,
   groupCall: props.modelValue?.groupCall !== false,
   showSchedule: props.modelValue?.showSchedule !== false,
+  showCompleted: props.modelValue?.showCompleted === true,
+  showAnalytics: props.modelValue?.showAnalytics === true,
   colorByType: {
     video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
     audio: normalizeColorChoice(props.modelValue?.colorByType?.audio, null),
@@ -153,6 +162,8 @@ function getFilterPayload(overrides = {}) {
     audio: filters.value.audio,
     groupCall: filters.value.groupCall,
     showSchedule: filters.value.showSchedule,
+    showCompleted: filters.value.showCompleted,
+    showAnalytics: filters.value.showAnalytics,
     ...overrides,
   };
 
@@ -236,16 +247,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="w-[240px] sm:w-[340px] bg-white rounded-[5px] inline-flex flex-col justify-start items-start shadow-lg border border-gray-100 z-50">
-    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
+  <div ref="rootRef" class="w-[240px] sm:w-[340px] lg:bg-white rounded-[12px] inline-flex flex-col justify-start items-start shadow-xl border border-gray-100 z-50 overflow-hidden">
+    <div class="self-stretch px-4 py-4 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
-        :label="t('dashboard_video_call')"
+        :label="t('event_1_on_1_call')"
         :model-value="filters.video"
         @update:modelValue="(value) => updateFilter('video', value)"
-        checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
+        checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer accent-[#07F468] rounded-[0.25rem]"
         :checkboxStyle="getCheckboxStyle('video')"
-        labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
-        wrapperClass="flex items-center gap-2"
+        labelClass="text-slate-900 sm:text-base text-[14px] cursor-pointer font-bold leading-6"
+        wrapperClass="w-full flex items-center"
+        :midImg="phoneIcon"
+        reverse
       />
       <div v-if="EVENT_TYPE_COLOR_PICKER_ENABLED" class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
@@ -283,7 +296,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
+    <div class="hidden self-stretch px-4 py-4 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         :label="t('dashboard_audio_call')"
         :model-value="filters.audio"
@@ -329,15 +342,17 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="self-stretch h-14 px-3 py-2 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
+    <div class="self-stretch px-4 py-4 inline-flex justify-start items-center gap-2 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         :label="t('dashboard_group_event')"
         :model-value="filters.groupCall"
         @update:modelValue="(value) => updateFilter('groupCall', value)"
-        checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer"
+        checkboxClass="m-0 w-4 h-4 rounded border cursor-pointer accent-[#07F468] rounded-[0.25rem] "
         :checkboxStyle="getCheckboxStyle('groupCall')"
-        labelClass="text-slate-700 sm:text-base text-[14px] cursor-pointer font-medium leading-6"
-        wrapperClass="flex items-center gap-2"
+        labelClass="text-slate-900 sm:text-base text-[14px] cursor-pointer font-bold leading-6"
+        wrapperClass="w-full flex items-center"
+        :midImg="usersIcon"
+        reverse
       />
       <div v-if="EVENT_TYPE_COLOR_PICKER_ENABLED" class="flex-1 flex justify-between items-center">
         <div class="flex justify-start items-center gap-2">
@@ -369,15 +384,18 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="self-stretch h-14 px-3 py-2 border-t border-gray-300 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
+    <div class="self-stretch px-4 py-4 border-t border-gray-100 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         :label="t('dashboard_show_booking_schedule_availability')"
         :model-value="filters.showSchedule"
         @update:modelValue="(value) => updateFilter('showSchedule', value)"
-        checkboxClass="m-0 [appearance:none] w-4 h-4 relative bg-white rounded border border-gray-900 relative cursor-pointer checked:bg-gray-900 checked:border-gray-900 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:w-[0.30rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[2px] checked:[&::after]:border-b-[2px] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-        labelClass="text-slate-700 sm:text-[16px] text-[12px]  cursor-pointer font-medium leading-6"
-        wrapperClass="flex items-center gap-2"
+        checkboxClass="m-0 [appearance:none] w-10 h-6 relative bg-slate-200 rounded-full cursor-pointer transition-colors checked:bg-slate-900 before:content-[''] before:absolute before:left-1 before:top-1 before:w-4 before:h-4 before:bg-white before:rounded-full before:transition-transform checked:before:translate-x-4"
+        labelClass="text-slate-900 sm:text-[16px] text-[14px] cursor-pointer font-bold leading-6"
+        wrapperClass="w-full flex items-center"
+        :midImg="calendarIcon"
+        reverse
       />
     </div>
+
   </div>
 </template>

@@ -7,7 +7,7 @@
       <div class="flex items-center gap-3">
         <div class="font-bold " :class="theme.main.title">{{ title }}</div>
         <!-- mobile-view-start-->
-        <div class="cursor-pointer flex lg:hidden" @click="toggleMobileCalendar">
+        <div class="cursor-pointer flex lg:hidden mobile-calendar-toggle" @click="toggleMobileCalendar">
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round" />
@@ -15,62 +15,86 @@
 
         </div>
 
-        <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
-          class="absolute top-12 left-0 z-[100] w-full lg:hidden rounded-bl-[0.75rem] rounded-br-[0.75rem] overflow-hidden">
-          <div
-            class="p-2 bg-white/80 backdrop-blur-[0.625rem] rounded-br-xl rounded-bl-xl md:rounded-xl shadow-[0px_5px_5px_0px_rgba(0,0,0,0.10)]">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-2 cursor-pointer" @click="isDatePopupOpen = true">
-                <div class="text-gray-900 text-base font-medium uppercase">{{ currentMonth }}</div>
-                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-                <div class="text-gray-900 text-base font-medium uppercase">{{ currentYear }}</div>
-                <svg width="15" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
+        <Teleport to="body">
+          <div v-show="isMobileCalendarOpen" class="fixed inset-0 z-[120] lg:hidden">
+            <!-- Backdrop -->
+            <Transition name="fade">
+              <div v-if="isMobileCalendarOpen" class="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                @click="isMobileCalendarOpen = false">
               </div>
+            </Transition>
 
-              <span class="flex items-center justify-between gap-4">
-                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
-                  <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round" />
-                  </svg>
-                </button>
-                <button class="w-[0.375rem] h-[0.75rem] flex items-center justify-center" @click="shift(1)" data-main-next>
-                  <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </span>
-            </div>
-            <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
-              ...theme,
-              mini: {
-                wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[20.375rem]',
-                header: 'font-semibold',
-                // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
-                // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                dayBase: 'w-[2.339rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
-                outside: 'opacity-0',
-                expired: 'opacity-100',
-                today: 'bg-[#FF0066] font-semibold text-white',
-                selected: 'rounded-full',
-                dot: 'mt-[2rem] w-1.5 h-1.5 rounded-full absolute'
-              }
-            }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
-            </MiniCalendar>
+            <!-- Bottom Sheet -->
+            <Transition name="slide-up">
+              <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
+                class="absolute bottom-0 left-0 w-full bg-white rounded-t-[1.5rem] shadow-[0px_-8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
+
+                <div class="p-4">
+
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2 cursor-pointer flex-1" @click="isDatePopupOpen = true">
+                      <div class="flex items-center justify-between flex-1 px-2 py-1">
+                        <div class="text-gray-950 text-base font-bold uppercase">{{ currentMonth }}</div>
+                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        </svg>
+                      </div>
+                      <div class="flex items-center justify-between flex-1 px-2 py-1">
+                        <div class="text-gray-950 text-base font-bold uppercase">{{ currentYear }}</div>
+                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <span class="flex hidden items-center justify-between gap-6 px-2">
+                      <button class="flex items-center justify-center p-2" @click="shift(-1)" data-main-prev>
+                        <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        </svg>
+                      </button>
+                      <button class="flex items-center justify-center p-2" @click="shift(1)" data-main-next>
+                        <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        </svg>
+                      </button>
+                    </span>
+                  </div>
+
+                  <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
+                    ...theme,
+                    mini: {
+                      wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl',
+                      header: 'font-semibold',
+                      // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
+                      // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
+                      dayBase: 'w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                      outside: 'opacity-0',
+                      expired: 'opacity-100',
+                      today: 'bg-[#FF0066] font-semibold text-white',
+                      selected: 'rounded-full',
+                      dot: 'bottom-1 w-1.5 h-1.5 rounded-full absolute'
+                    }
+                  }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
+                  </MiniCalendar>
+
+                  <!-- Bottom spacer for safe areas -->
+                  <div class="h-6"></div>
+                </div>
+              </div>
+            </Transition>
           </div>
-        </div>
+        </Teleport>
+
         <!-- mobile-view-end-->
 
 
         <button
-          class="px-[1.5rem] hidden xl:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+          class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
         </button>
@@ -91,15 +115,47 @@
       </div>
 
       <div class="flex items-center gap-2" ref="dropdownContainer">
-        <div class="relative inline-block text-left hidden xl:flex">
+        <!-- View selector dropdown -->
+        <div class="relative inline-block text-left  flex lg:hidden">
+          <div @click="toggleViewSelector"
+            :class="isViewSelectorOpen ? 'bg-[#0C111D]' : 'bg-white/90'"
+            class="border border-[#FB5BA2] gap-1 px-[1rem] py-1 rounded-full flex items-center justify-between cursor-pointer select-none transition-all duration-100">
+            <span class="flex items-center justify-center h-full py-1">
+              <h2 class="text-[0.875rem] font-semibold uppercase transition-colors" :class="isViewSelectorOpen ? 'text-white' : 'text-[#FB5BA2]'">
+                {{ t(`common_${view}`) }}
+              </h2>
+            </span>
+
+            <button class="flex items-center justify-center w-5 h-5 transition-transform duration-200"
+              :class="{ 'rotate-180': isViewSelectorOpen }">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 7.5L10 12.5L15 7.5" :stroke="isViewSelectorOpen ? 'white' : '#FB5BA2'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div v-if="isViewSelectorOpen"
+            class="absolute top-full right-0 mt-2 z-50 w-[5.813rem] bg-white rounded-[0.313rem] shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] overflow-hidden border border-gray-100">
+            <div class="py-1">
+              <button v-for="v in ['day', 'week']" :key="v" @click="setView(v); isViewSelectorOpen = false"
+                class="w-full text-left px-3 py-3 text-[0.875rem] text-[#0C111D] uppercase transition-colors"
+                :class="view === v ? 'bg-slate-50 font-bold' : 'font-semibold hover:bg-gray-50'">
+                {{ t(`common_${v}`) }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative inline-block text-left hidden lg:flex">
 
           <div @click="toggleDropdown"
             :class="isDropdownOpen ? 'bg-[#000]' : 'bg-gradient-to-l from-pink-500/20 to-pink-500/10'"
-            class="w-[11.25rem] px-[1.5rem] py-[0.5rem] rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
+            class="w-[10.25rem] px-[1.5rem] py-1 rounded-[3rem] flex items-center justify-between cursor-pointer select-none transition-all duration-300">
             <span class="flex items-center justify-center h-full py-2">
-              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{ t("dashboard_all_events") }}
+              <h2 class="text-[0.875rem] font-medium " :class="isDropdownOpen ? 'text-white' : 'text-black'">{{
+                t("dashboard_all_events") }}
               </h2>
-              <p data-test="all-events-count" class="text-pink-500 text-[0.625rem] font-bold h-full ml-1">
+              <p data-test="all-events-count" class="text-[#F06] text-[0.625rem] font-bold h-full ml-1">
                 {{ filteredBookedSlotsCount }}
               </p>
             </span>
@@ -115,14 +171,15 @@
             </button>
           </div>
 
-          <div v-if="isDropdownOpen" class="absolute top-full right-0 mt-2 z-50 origin-top-left">
+          <div v-if="isDropdownOpen"
+            class="absolute top-full right-0 mt-2 z-50 origin-top-left hidden lg:block tracking-normal">
             <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
         </div>
 
         <span
-          class="xl:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+          class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
 
           <button @click="setView('day')"
             class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
@@ -149,14 +206,16 @@
 
         </span>
 
+        
+
 
         <!-- mobile-view-today-button -->
         <button
-          class="px-6 flex xl:hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+          class="px-6 hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
         </button>
-        <div class="cursor-pointer relative flex xl:hidden">
+        <div class="cursor-pointer relative flex lg:hidden">
           <div @click="toggleDropdown">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -165,12 +224,10 @@
             </svg>
           </div>
 
-          <div v-if="isDropdownOpen" class="absolute top-full right-5 mt-2 z-50 origin-top-left">
-            <EventDropdownContent v-model="dropdownFilters" />
-          </div>
+          <!-- Mobile filter dropdown removed, replaced by Teleport below -->
 
         </div>
-        <div class="cursor-pointer flex xl:hidden" @click="calendarPopupOpen = true">
+        <div class="cursor-pointer flex lg:hidden" @click="calendarPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
@@ -429,12 +486,55 @@
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
         @cancel-booking="handleCancelBooking"
+        @close="eventDetailsPopupOpen = false"
       />
     </PopupHandler>
 
-    <PopupHandler v-model="isDatePopupOpen" :config="datePopupConfig">
+    <!-- <PopupHandler v-model="isDatePopupOpen" :config="datePopupConfig">
       <MobileDateSelector :current-date="cursor" @update:date="handleDateUpdate" @close="isDatePopupOpen = false" />
-    </PopupHandler>
+    </PopupHandler> -->
+    <Teleport to="body">
+      <div v-if="isDatePopupOpen && width < 1024" class="fixed inset-0 z-[120] lg:hidden">
+        <Transition name="fade">
+          <div v-if="isDatePopupOpen" class="absolute inset-0 bg-black/40 backdrop-blur-[2px]" @click="isDatePopupOpen = false"></div>
+        </Transition>
+
+        <Transition name="slide-up">
+          <div v-if="isDatePopupOpen" class="absolute bottom-0 left-0 w-full bg-white rounded-t-[1.5rem] shadow-[0px_-8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
+            <div class="py-4 pb-0">
+               <div class="max-h-[70vh] overflow-y-auto">
+                 <MobileDateSelector :current-date="cursor" @update:date="handleDateUpdate" @close="isDatePopupOpen = false" />
+               </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Teleport>
+
+    <!-- Teleport for Mobile Filter Bottom Sheet -->
+    <Teleport to="body">
+      <div v-if="isDropdownOpen && width < 1024" class="fixed inset-0 z-[120] lg:hidden">
+        <!-- Backdrop -->
+        <Transition name="fade">
+          <div v-if="isDropdownOpen" class="absolute inset-0 bg-black/40 backdrop-blur-[2px]" @click="isDropdownOpen = false"></div>
+        </Transition>
+
+        <!-- Bottom Sheet -->
+        <Transition name="slide-up">
+          <div v-if="isDropdownOpen" class="absolute bottom-0 left-0 w-full bg-[#F2F4F7] rounded-t-[1.5rem] shadow-[0px_-8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
+            <div class="py-4">
+              <div class="flex justify-between items-center px-4">
+                <h2 class="text-gray-950 text-sm font-semibold">{{ t("dashboard_display_options") }}</h2>
+              </div>
+              
+              <div class="max-h-[70vh] overflow-y-auto pb-6">
+                <EventDropdownContent v-model="dropdownFilters" class="!shadow-none !border-none !w-full" />
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Teleport>
 
 
   </section>
@@ -492,6 +592,7 @@ const nowTimer = ref(null);
 const nowY = ref(0);
 // State for dropdown
 const isDropdownOpen = ref(false);
+const isViewSelectorOpen = ref(false);
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
 const dropdownFilters = ref({
@@ -499,6 +600,8 @@ const dropdownFilters = ref({
   audio: true,
   groupCall: true,
   showSchedule: true,
+  showCompleted: false,
+  showAnalytics: false,
 });
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -516,7 +619,9 @@ const handleMobileCalendarClickOutside = (event) => {
     mobileCalendarRef.value &&
     !mobileCalendarRef.value.contains(event.target) &&
     // Check if the click was on the toggle button itself (to avoid immediate re-opening)
+    // !event.target.closest('.mobile-calendar-toggle')
     !event.target.closest('.cursor-pointer.flex.lg\\:hidden')
+
   ) {
     isMobileCalendarOpen.value = false;
   }
@@ -598,8 +703,8 @@ const calendarPopupConfig = {
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
-  width: { default: "24rem", "<500": "90%" },
-  height: { default: "100%", "<768": "100%" },
+  width: { default: "100%", "<500": "100%" },
+  height: { default: "80%", "<768": "80%" },
   scrollable: true,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -635,6 +740,7 @@ const eventDetailsPopupConfig = {
   scrollable: false,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
+  customClass: "mobile-event-details-sheet",
 };
 
 const datePopupConfig = {
@@ -1181,10 +1287,17 @@ const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
 };
 
+const toggleViewSelector = () => {
+  isViewSelectorOpen.value = !isViewSelectorOpen.value;
+};
+
 // Close dropdown if clicked outside
 const handleClickOutside = (event) => {
+  if (width.value >= 1024) {
   if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
     isDropdownOpen.value = false;
+    isViewSelectorOpen.value = false;
+  }
   }
 };
 onMounted(() => {
@@ -1249,3 +1362,42 @@ defineExpose({
   resetScrollToTop,
 });
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease-out;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+</style>
+
+<style>
+/* Mobile Bottom Sheet for Event Details (Teleported to body) */
+@media (max-width: 767px) {
+  .mobile-event-details-sheet {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: translateY(0) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+  }
+}
+</style>
