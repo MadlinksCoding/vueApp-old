@@ -192,7 +192,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-6 xl:pt-12 pb-[12.5rem] md:px-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -269,7 +269,7 @@
           </div>
         </div>
 
-        <div v-else-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
+        <div v-else-if="isCreator" class="relative w-full z-[999] hidden" ref="popupTrigger">
           <ButtonComponent
             :text="t('dashboard_new_events')"
             variant="none"
@@ -287,41 +287,61 @@
           </div>
         </div>
 
-        <BookingScheduleList
-          v-if="isCreator && !dashboardEventsEngine.state.events.loading"
-          :events="bookingScheduleEvents"
-          :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
-          @edit="handleEditScheduleEvent"
-          @delete="openDeleteEventPopup"
-          @view-card="openScheduleCardPreview"
-        />
-
-        <div v-if="!dashboardEventsEngine.state.events.loading">
-          <EventsWidget
-            :sections="eventsData"
-            :user-role="dashboardRole"
-            @join-click="handleJoin"
-            @reply-click="handleReply"
-            @event-click="handleWidgetEventClick"
-            @menu-action="handleWidgetMenuAction"
+        <div class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <BookingScheduleList
+            v-if="isCreator && !dashboardEventsEngine.state.events.loading"
+            :events="bookingScheduleEvents"
+            :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+            @edit="handleEditScheduleEvent"
+            @delete="openDeleteEventPopup"
+            @view-card="openScheduleCardPreview"
           />
+
+          <div v-if="!dashboardEventsEngine.state.events.loading">
+            <EventsWidget
+              :sections="eventsData"
+              :user-role="dashboardRole"
+              @join-click="handleJoin"
+              @reply-click="handleReply"
+              @event-click="handleWidgetEventClick"
+              @menu-action="handleWidgetMenuAction"
+            />
+          </div>
         </div>
       </div>
 
-      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
+      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
+        <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#ff0464] p-2 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img
-            src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
-            class="w-8 h-8 filter brightness-0 invert"
+            :src="calenderPlusIcon"
+            class="w-6 h-6"
             :alt="t('common_add')"
           />
         </button>
+        <!-- Landscape screen -->
+        <button
+          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden lg:flex items-center justify-between transition-transform"
+          @click="toggleFloatingPopup"
+        >
+          <div class="flex items-center gap-2 justify-between">
+            <img
+              :src="calenderPlusIcon"
+              class="w-6 h-6"
+              :alt="t('common_add')"
+            />
+            <span class="text-white font-poppins text-[1.25rem] font-semibold leading-[1.875rem]">NEW EVENT</span>
+          </div>
+          <div>
+            <img :src="DropdownArrowDown" alt="" class="w-4 h-4 transition-transform duration-300 ease-in-out" :class="isFloatingPopupOpen ? 'rotate-180' : ''" />
+          </div>
+        </button>
         <div
           v-show="isFloatingPopupOpen"
-          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto"
+          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 lg:!bottom-24 lg:!right-6 !top-auto !left-auto"
         >
           <CreateEventPopup
             @create-private="goToCreateEvent('private')"
@@ -460,6 +480,8 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { hhmm, addDays } from "@/utils/calendarHelpers.js";
+import calenderPlusIcon from "@/assets/images/icons/calender-plus-02.svg";
+import DropdownArrowDown from "@/assets/images/icons/dropdown-arrow-down.svg";
 import MiniCalendar from "@/components/calendar/MiniCalendar.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
@@ -663,7 +685,7 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
     dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
@@ -673,7 +695,7 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",

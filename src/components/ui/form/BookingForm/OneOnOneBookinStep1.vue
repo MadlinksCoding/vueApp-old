@@ -3126,7 +3126,7 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
                 <OptionalLabel v-if="true" />
-                <TooltipIcon :text="t('booking_reminders_tooltip')" />
+                <TooltipIcon class="ml-1" :text="t('booking_reminders_tooltip')" />
               </div>
               <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -3172,8 +3172,8 @@
                   <span>{{ t("booking_set_buffer_time") }}</span>
                   <TooltipIcon
                   :text="t('booking_buffer_time_tooltip')"
-                  tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[12.5rem]" 
-                  class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  tooltipClass="!max-w-[12rem] right-auto" 
+                  class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
                   />
                 </template>
               </CheckboxGroup>
@@ -3240,8 +3240,8 @@
 
                   <TooltipIcon
                     :text="t('booking_max_bookings_tooltip')"
-                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
-                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                    tooltipClass="" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
                   />
                 </template>
               </CheckboxGroup>
