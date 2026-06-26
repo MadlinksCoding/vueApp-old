@@ -190,15 +190,14 @@
                         </div>
                     </div>
 
-                    <div class="inline-flex w-full items-center gap-4 pointer-events-none opacity-30" v-if="true || chatUrl">
+                    <div class="inline-flex w-full items-center gap-4" v-if="bookingData?.meta?.chatId">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img :src="messageDots" alt="">
                         </div>
-                        <a
-                            class="flex items-center gap-0.5"
-                            :href="chatUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            type="button"
+                            class="flex items-center gap-0.5 hover:opacity-80 transition-opacity"
+                            @click="$emit('open-chat', bookingData.meta.chatId)"
                         >
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
                                 {{ t("calendar_event_open_chat") }}
@@ -210,15 +209,36 @@
                                     stroke="#000" stroke-width="2.5" stroke-linecap="round"
                                     stroke-linejoin="round" />
                             </svg>
-                        </a>
+                        </button>
                     </div>
 
-                    <div v-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
+                    <div v-if="bookingLoading" class="">
+                        <div class="h-8 w-32 bg-gray-200 rounded-full animate-pulse"></div>
+                    </div>
+                    <div v-else-if="canReviewPending && isWaitingForResponse" class="pt-1 pb-2">
+                        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
+                            <img :src="HourglassIcon" class="w-4 h-4" alt="" />
+                            {{ waitingText }}
+                        </div>
+                    </div>
+
+                    <div v-else-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
                     <button type="button" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
                         {{ t("calendar_event_accept") }}
                     </button>
                     <button type="button" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
                         {{ t("calendar_event_decline") }}
+                    </button>
+                    <button 
+                        v-if="bookingData?.meta?.bookingMessageId && bookingData?.meta?.chatId"
+                        type="button" 
+                        @click="handleAdjust" 
+                        class="px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Adjust Request and Price
                     </button>
                     </div>
 
@@ -260,6 +280,8 @@ import dotPoints from '@/assets/images/icons/dotpoints.png';
 import dollarIcon from '@/assets/images/icons/dollar.png';
 import bellIcon from '@/assets/images/icons/bell-1.webp';
 import messageDots from '@/assets/images/icons/message-dots.png';
+import FlowHandler from '@/services/flow-system/FlowHandler';
+import HourglassIcon from '@/assets/images/icons/hourglass-03.webp';
 
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
 
@@ -278,7 +300,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking']);
+const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking', 'adjust-booking', 'open-chat']);
 const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 
@@ -375,6 +397,22 @@ const duration = computed(() => {
 });
 
 const statusLabel = computed(() => String(raw.value?.status || props.event?.status || '').toLowerCase());
+
+const isCounterOffer = computed(() => 
+bookingData.value?.meta?.currentCounterOffer != null
+);
+
+const isWaitingForResponse = computed(() => {
+    if (!bookingData.value) return false;
+    const isCreator = props.userRole === 'creator';
+    return (isCreator && isCounterOffer.value) || (!isCreator && statusLabel.value === 'pending' && !isCounterOffer.value);
+});
+
+const waitingText = computed(() => {
+    return props.userRole === 'creator' ? 'Waiting for fan response' : 'Waiting for creator response';
+});
+
+const canReviewPending = computed(() => props.canReviewPending && statusLabel.value === 'pending' && !isWaitingForResponse.value);
 
 const statusTranslationKeyByLabel = {
     confirmed: 'calendar_event_status_confirmed',
@@ -488,16 +526,56 @@ function handleJoin() {
     });
 }
 
-const canReviewPending = computed(() => props.canReviewPending && statusLabel.value === 'pending');
 const showRejectConfirm = ref(false);
+
+const bookingData = ref(null);
+const bookingLoading = ref(false);
 
 watch(
     () => bookingId.value,
-    () => {
+    async (newBookingId) => {
         showRejectConfirm.value = false;
         menuOpen.value = false;
-    }
+        
+        bookingData.value = null;
+        if (newBookingId) {
+            bookingLoading.value = true;
+            try {
+                const res = await FlowHandler.run('bookings.fetchBooking', { bookingId: newBookingId });
+                if (res?.ok) {
+                    bookingData.value = res.data?.item;
+                }
+            } finally {
+                bookingLoading.value = false;
+            }
+        }
+    },
+    { immediate: true }
 );
+
+function handleAdjust() {
+    if (bookingData.value && bookingData.value.meta?.bookingMessageId && bookingData.value.meta?.chatId) {
+        emit('adjust-booking', {
+            message: {
+                chat_id: bookingData.value.meta.chatId,
+                message_id: bookingData.value.meta.bookingMessageId,
+                content_type: "booking_request",
+                content: {
+                    booking_id: bookingData.value.bookingId || bookingData.value.id,
+                    action: "pending",
+                    slot_date: bookingData.value.startAtIso || bookingData.value.startIso,
+                    start_at: null,
+                    end_at: null,
+                    event_id: bookingData.value.eventId,
+                    event_title: bookingData.value.eventTitle || "",
+                    text: "",
+                    meta: null
+                }
+            },
+            chatId: bookingData.value.meta.chatId
+        });
+    }
+}
 
 function toggleMenu() {
     menuOpen.value = !menuOpen.value;
