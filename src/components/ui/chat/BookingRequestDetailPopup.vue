@@ -206,24 +206,25 @@
             <div v-if="!fetchLoading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
-                @click="$emit('accept')"
+                @click="!(loading || isPassCall) && $emit('accept')"
               >
                 {{ loading ? 'Saving...' : 'ACCEPT' }}
               </button>
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
-                @click="$emit('decline')"
+                @click="!(loading || isPassCall) && $emit('decline')"
               >
                 {{ loading ? 'Saving...' : 'DECLINE' }}
               </button>
               <button
                 type="button"
-                class="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap"
-                @click="$emit('adjust')"
+                :disabled="loading || isPassCall"
+                class="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap disabled:opacity-50"
+                @click="!(loading || isPassCall) && $emit('adjust')"
               >
                 <img :src="EditIcon" alt="" class="w-4 h-4">
                 Adjust Request and Price
@@ -234,17 +235,17 @@
             <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer' && (!activeOfferType || activeOfferType === 'adjust')" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
-                @click="$emit('confirm-counter')"
+                @click="!(loading || isPassCall) && $emit('confirm-counter')"
               >
                 {{ loading ? 'Accepting...' : 'ACCEPT NEW Changes' }}
               </button>
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
-                @click="$emit('cancel-booking')"
+                @click="!(loading || isPassCall) && $emit('cancel-booking')"
               >
                 {{ loading ? 'Cancelling...' : 'CANCEL BOOKING' }}
               </button>
@@ -254,17 +255,17 @@
             <div v-else-if="!fetchLoading && !isCreator && currentAction === 'counter_offer' && (activeOfferType === 'moretime' || activeOfferType === 'reschedule')" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
-                @click="$emit('accept-counter')"
+                @click="!(loading || isPassCall) && $emit('accept-counter')"
               >
                 {{ loading ? 'Accepting...' : 'ACCEPT NEW TIME' }}
               </button>
               <button
                 type="button"
-                :disabled="loading"
+                :disabled="loading || isPassCall"
                 class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
-                @click="$emit('reject-counter')"
+                @click="!(loading || isPassCall) && $emit('reject-counter')"
               >
                 {{ loading ? 'Rejecting...' : 'REJECT' }}
               </button>
@@ -341,6 +342,28 @@ const menuOpen      = ref(false)
 
 const messageContent = computed(() => props.message?.content || {})
 const currentAction  = ref(messageContent.value.action || 'pending')
+
+const isPassCall = computed(() => {
+  const startIso = booking.value?.startAtIso || messageContent.value?.event_date || messageContent.value?.eventDate;
+  const endIso = booking.value?.endAtIso;
+
+  if (!startIso) return true; // If no date info, assume passed to avoid showing action buttons
+
+  const start = parseDate(startIso);
+  const end = parseDate(endIso);
+
+  const now = Date.now()
+  if (start) {
+    const startMs = start.getTime();
+    if (end) {
+      const endMs = end.getTime();
+      if (now >= startMs && now < endMs) return false;
+    }
+    const msToStart = startMs - now
+    return msToStart < 0; 
+  }
+  return true;
+})
 
 function deriveAction(apiStatus) {
   // console.error("deriveAction", apiStatus, messageContent.value, currentAction.value)
