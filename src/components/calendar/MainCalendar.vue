@@ -535,6 +535,7 @@
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
       <CalendarEventDetailsPopup
+        v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
@@ -542,6 +543,8 @@
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
         @cancel-booking="handleCancelBooking"
+        @adjust-booking="handleAdjustBooking"
+        @open-chat="handleOpenChat"
         @close="eventDetailsPopupOpen = false"
       />
     </PopupHandler>
@@ -592,6 +595,13 @@
       </div>
     </Teleport>
 
+    <AdjustBookingPopup
+      v-if="adjustBookingState"
+      :message="adjustBookingState.message"
+      :chatId="adjustBookingState.chatId"
+      @close="adjustBookingState = null"
+      @submitted="handleAdjustSubmitted"
+    />
 
   </section>
 
@@ -614,6 +624,10 @@ import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
+import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
+import FlowHandler from '@/services/flow-system/FlowHandler';
+import { useChatSocket } from '@/composables/useChatSocket';
+import { useChatStore } from '@/stores/useChatStore';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import MiniCalendar from './MiniCalendar.vue';
@@ -667,8 +681,12 @@ const dropdownFilters = ref({
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
+const adjustBookingState = ref(null);
 const selectedEvent = ref({});
 const isMobileCalendarOpen = ref(false);
+
+const chatStore = useChatStore();
+const { sendChatMessage } = useChatSocket();
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
 const mobileCalendarRef = ref(null);
@@ -1097,9 +1115,59 @@ const closeEventDetails = () => {
   eventDetailsPopupOpen.value = false;
 };
 
+const handleOpenChat = (payload) => {
+  if (window.self !== window.top) {
+    if (window.parent.chatEmbed && typeof window.parent.chatEmbed.openChat === 'function') {
+      window.parent.chatEmbed.openChat(payload);
+    } else {
+      console.warn('chatEmbed is not available in embed mode');
+    }
+  } else {
+    console.log('Open chat requested in normal mode:', payload);
+  }
+};
+
 const handleApproveBooking = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('approve-booking', payload);
+};
+
+const handleAdjustBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  adjustBookingState.value = payload;
+};
+
+const handleAdjustSubmitted = async ({ item, booking }) => {
+  const chatId = adjustBookingState.value?.chatId;
+  const currentUserId = chatStore.currentUserId; 
+  
+  if (chatId && item) {
+    const recipients = [booking.creatorId, booking.userId]
+      .map(id => parseInt(id, 10))
+      .filter(id => !isNaN(id));
+
+    // Send original updated message to BOTH
+    sendChatMessage(item, recipients);
+
+    // Send Activity Log
+    const logRes = await FlowHandler.run('chat.sendChatActivityLog', {
+      chatId: chatId,
+      senderId: currentUserId,
+      text: 'Counter offer sent',
+      meta: {
+        is_booking_request: true,
+        decision: 'counter_offer',
+        bookingId: item.content?.booking_id,
+      }
+    });
+
+    if (logRes?.ok) {
+      sendChatMessage(logRes.data.item, recipients);
+    }
+  }
+
+  adjustBookingState.value = null;
+  emit('refresh-events');
 };
 
 const handleJoin = (payload) => {

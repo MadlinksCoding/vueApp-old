@@ -133,25 +133,26 @@
           <div class="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
-              :disabled="disabled"
+              :disabled="disabled || isPassCall"
               class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
-              @click.stop="$emit('accept')"
+              @click.stop="!(disabled || isPassCall) && $emit('accept')"
             >
               Accept
             </button>
             <button
               type="button"
-              :disabled="disabled"
+              :disabled="disabled || isPassCall"
               class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-              @click.stop="$emit('decline')"
+              @click.stop="!(disabled || isPassCall) && $emit('decline')"
             >
               Decline
             </button>
           </div>
           <button
             type="button"
-            class="flex items-center gap-1 text-xs text-[#5549FF] hover:opacity-80"
-            @click.stop="$emit('adjust')"
+            :disabled="disabled || isPassCall"
+            class="flex items-center gap-1 text-xs text-[#5549FF] hover:opacity-80 disabled:opacity-50"
+            @click.stop="!(disabled || isPassCall) && $emit('adjust')"
           >
             <img :src="EditIcon" class="w-3 h-3" alt="" />
             Adjust request and price
@@ -182,17 +183,17 @@
         <div class="mt-auto flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
-            :disabled="disabled"
+            :disabled="disabled || isPassCall"
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click.stop="$emit('accept-counter')"
+            @click.stop="!(disabled || isPassCall) && $emit('accept-counter')"
           >
             Accept New Time
           </button>
           <button
             type="button"
-            :disabled="disabled"
+            :disabled="disabled || isPassCall"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="$emit('reject-counter')"
+            @click.stop="!(disabled || isPassCall) && $emit('reject-counter')"
           >
             Reject
           </button>
@@ -224,17 +225,17 @@
         <div class="mt-auto flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
-            :disabled="disabled"
+            :disabled="disabled || isPassCall"
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click.stop="$emit('confirm-counter')"
+            @click.stop="!(disabled || isPassCall) && $emit('confirm-counter')"
           >
             Accept Changes
           </button>
           <button
             type="button"
-            :disabled="disabled"
+            :disabled="disabled || isPassCall"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="$emit('cancel-booking')"
+            @click.stop="!(disabled || isPassCall) && $emit('cancel-booking')"
           >
             Cancel Booking
           </button>
@@ -359,9 +360,9 @@ const booking = computed(() => {
 })
 
 function toggleMenu() { menuOpen.value = !menuOpen.value }
-function handleAskMoreTime()     { menuOpen.value = false; emit('ask-more-time') }
-function handleAskToReschedule() { menuOpen.value = false; emit('ask-to-reschedule') }
-function handleCancelCall()      { menuOpen.value = false; emit('cancel-booking') }
+function handleAskMoreTime()     { if(isPassCall.value) return; menuOpen.value = false; emit('ask-more-time') }
+function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value = false; emit('ask-to-reschedule') }
+function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking') }
 
 function goToCalendar() {
   try {
