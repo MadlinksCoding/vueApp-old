@@ -217,17 +217,17 @@
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
              <div class="flex items-center gap-2">
-                <PendingStatus />
+                <PendingStatus status="pending" />
                 <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Pending</span>
              </div>
              <!-- Item-2 -->
              <div class="flex items-center gap-2">
-                 <div class="w-[10px] h-[10px] rounded-full bg-[#07F468] flex items-center justify-center aspect-square"></div>
+                <PendingStatus status="confirmed" />
                 <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Confirmed</span>
              </div>
              <!-- Item-3 -->
              <div class="flex items-center gap-2">
-                <div class="w-[10px] h-[10px] rounded-full bg-[#FF4405] flex items-center justify-center aspect-square"></div>
+                <PendingStatus status="declined" />
                 <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Declined/Canceled</span>
              </div>
           </div>

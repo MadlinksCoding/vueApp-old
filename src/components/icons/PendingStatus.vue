@@ -1,5 +1,16 @@
 <template>
+  <div
+    v-if="normalizedStatus === 'confirmed'"
+    class="rounded-full bg-[#07F468] flex items-center justify-center aspect-square flex-shrink-0"
+    :style="{ width: displayWidth, height: displayHeight }"
+  ></div>
+  <div
+    v-else-if="normalizedStatus === 'declined'"
+    class="rounded-full bg-[#FF4405] flex items-center justify-center aspect-square flex-shrink-0"
+    :style="{ width: displayWidth, height: displayHeight }"
+  ></div>
   <svg
+    v-else
     xmlns="http://www.w3.org/2000/svg"
     :width="width"
     :height="height"
@@ -27,7 +38,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
   width: {
     type: [Number, String],
     default: 10,
@@ -36,5 +49,29 @@ defineProps({
     type: [Number, String],
     default: 10,
   },
+  status: {
+    type: String,
+    default: 'pending',
+  },
+});
+
+const normalizedStatus = computed(() => {
+  const val = String(props.status || 'pending').toLowerCase();
+  if (['confirmed', 'confirm', 'approved', 'approve', 'active'].includes(val)) {
+    return 'confirmed';
+  }
+  if (['declined', 'decline', 'cancelled', 'canceled', 'cancel', 'rejected', 'reject'].includes(val)) {
+    return 'declined';
+  }
+  return 'pending';
+});
+
+const displayWidth = computed(() => {
+  return typeof props.width === 'number' ? `${props.width}px` : props.width;
+});
+
+const displayHeight = computed(() => {
+  return typeof props.height === 'number' ? `${props.height}px` : props.height;
 });
 </script>
+
