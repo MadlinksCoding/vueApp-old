@@ -22,11 +22,12 @@ vi.mock("@/components/calendar/BookingScheduleList.vue", () => ({
   default: {
     name: "BookingScheduleList",
     props: ["events", "bookedSlotsIndex"],
-    emits: ["edit", "delete"],
+    emits: ["edit", "delete", "view-card"],
     template: `
       <div data-test="mobile-booking-schedule">
         <button data-test="schedule-edit" @click="$emit('edit', events[0])">edit</button>
         <button data-test="schedule-delete" @click="$emit('delete', events[0])">delete</button>
+        <button data-test="schedule-view-card" @click="$emit('view-card', events[0])">view card</button>
       </div>
     `,
   },
@@ -138,9 +139,11 @@ describe("CalendarMobilePopupContent", () => {
 
     await wrapper.get("[data-test='schedule-edit']").trigger("click");
     await wrapper.get("[data-test='schedule-delete']").trigger("click");
+    await wrapper.get("[data-test='schedule-view-card']").trigger("click");
 
     expect(wrapper.emitted("edit-schedule-event")).toEqual([[scheduleEvents[0]]]);
     expect(wrapper.emitted("delete-schedule-event")).toEqual([[scheduleEvents[0]]]);
+    expect(wrapper.emitted("view-schedule-card")).toEqual([[scheduleEvents[0]]]);
   });
 
   it("hides the booking schedule list when the mobile schedule flag is off", async () => {

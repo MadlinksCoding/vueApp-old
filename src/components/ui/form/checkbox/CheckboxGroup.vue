@@ -1,7 +1,8 @@
 <template>
-  <label class="cursor-pointer !mb-0" :class="wrapperClass">
-    <div class="flex items-center gap-2 flex-1 min-w-0">
+  <label class="cursor-pointer !mb-0 w-full" :class="[wrapperClass, { 'flex items-center justify-between gap-2': reverse }]">
+    <div class="flex items-center gap-2 min-w-0" :class="{ 'flex-1': !reverse, 'order-1': reverse }">
       <input
+        v-if="!reverse"
         type="checkbox"
         :checked="modelValue"
         :disabled="disabled"
@@ -11,7 +12,7 @@
         @change="$emit('update:modelValue', $event.target.checked)"
       />
 
-      <img v-if="midImg" :src="midImg" alt="">
+      <img v-if="midImg" :src="midImg" alt="" class="w-5 h-5 object-contain">
       
       <span :class="labelClass">
         <slot name="label">
@@ -32,6 +33,17 @@
         </div>
       </span>
     </div>
+
+    <input
+      v-if="reverse"
+      type="checkbox"
+      :checked="modelValue"
+      :disabled="disabled"
+      class="flex-shrink-0 order-2"
+      :class="checkboxClass"
+      :style="checkboxStyle"
+      @change="$emit('update:modelValue', $event.target.checked)"
+    />
 
     <span v-if="metaText" class="text-xs leading-normal font-medium whitespace-nowrap text-[#667085] dark:text-[#9e9689] ml-auto">
       {{ metaText }}
@@ -59,6 +71,7 @@ export default {
     metaText: { type: String, default: "" } ,
     midImg: { type: String, default: "" },
     isOptional: { type: Boolean, default: false },
+    reverse: { type: Boolean, default: false },
     
   },
   emits: ["update:modelValue"],
