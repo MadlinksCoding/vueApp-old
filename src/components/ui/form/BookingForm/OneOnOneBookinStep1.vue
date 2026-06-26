@@ -3083,7 +3083,7 @@
                   <div class="justify-start text-slate-700 text-base font-normal leading-normal relative">
                     {{ t("booking_fan_can_request_extend_session") }}
                     <TooltipIcon :text="t('booking_session_extension_tooltip')" 
-                    tooltipClass="translate-x-[-90%] sm:translate-x-[-70%]" 
+                    tooltipClass="sm:translate-x-[-70%] lg:!translate-x-[-90%]" 
                     class="relative group inline-block mt-[0.125rem] ml-1   z-[9]  top-1" />
                      <OptionalLabel v-if="true" />
                   </div>
@@ -3172,7 +3172,7 @@
                   <span>{{ t("booking_set_buffer_time") }}</span>
                   <TooltipIcon
                   :text="t('booking_buffer_time_tooltip')"
-                  tooltipClass="!max-w-[12rem] right-auto" 
+                  tooltipClass="!max-w-[12rem] right-auto lg:translate-x-[-90%]" 
                   class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
                   />
                 </template>
