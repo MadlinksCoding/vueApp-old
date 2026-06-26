@@ -93,7 +93,7 @@
 
         <div class="flex items-center gap-2" ref="dropdownContainer">
           <div class="px-2 hidden ipad-portrait:hidden lg:flex items-center gap-2">
-            <CheckboxGroup label="SHOW LEGEND" v-model="showLegend"
+            <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
               checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
               labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem]"
               wrapperClass="flex items-center" />
@@ -191,44 +191,44 @@
       <div v-show="showLegend" class="w-full hidden ipad-portrait:hidden lg:flex items-start gap-2 self-stretch rounded-[10px]">
         <!-- Event type -->
         <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
-          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">EVENT TYPE</span>
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_event_type") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
              <div class="flex items-center gap-2">
                 <PhoneIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">1 on 1 call</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_one_on_one_call") }}</span>
              </div>
              <!-- Item-2 -->
              <div class="flex items-center gap-2">
                  <GroupCallIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Group call</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_group_call") }}</span>
              </div>
              <!-- Item-3 -->
              <div class="flex items-center gap-2">
                 <BookingScheduleIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Booking schedule</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_booking_schedule") }}</span>
              </div>
           </div>
         </div>
         <!-- /Event type -->
          <!-- Status -->
         <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
-          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">Status</span>
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_status") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
              <div class="flex items-center gap-2">
                 <PendingStatus status="pending" />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Pending</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("calendar_event_status_pending") }}</span>
              </div>
              <!-- Item-2 -->
              <div class="flex items-center gap-2">
                 <PendingStatus status="confirmed" />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Confirmed</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("calendar_event_status_confirmed") }}</span>
              </div>
              <!-- Item-3 -->
              <div class="flex items-center gap-2">
                 <PendingStatus status="declined" />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">Declined/Canceled</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_declined_canceled") }}</span>
              </div>
           </div>
         </div>
@@ -290,10 +290,10 @@
                   stroke-linejoin="round" />
               </svg>
             </span>
-            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">GMT +08</p>
+            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">{{ t("calendar_timezone_gmt_offset", { offset: " +08" }) }}</p>
           </div>
           <div v-else class="flex flex-col items-center justify-end pb-2">
-            <span class="text-[0.625rem] font-bold text-slate-400">GMT+5</span>
+            <span class="text-[0.625rem] font-bold text-slate-400">{{ t("calendar_timezone_gmt_offset", { offset: "+5" }) }}</span>
           </div>
         </div>
 
@@ -438,7 +438,7 @@
                       </div>
                     </div>
                     <div v-if="event.status" class="shrink-0 text-gray-500 text-xs font-medium font-['Poppins'] leading-4 capitalize">
-                      {{ event.status }}
+                      {{ formatEventStatus(event.status) }}
                     </div>
                   </div>
                 </button>
@@ -894,8 +894,9 @@ watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });
 
 function formatTime(time) {
   const [hour, rest] = time.split(':');
-  const period = rest.split(' ')[1];
-  return `${hour}${period}`;
+  const period = rest.split(' ')[1]?.toLowerCase();
+  const periodKey = period === 'pm' ? 'calendar_time_period_pm_short' : 'calendar_time_period_am_short';
+  return `${hour}${t(periodKey)}`;
 }
 
 function formatMonthClock(value) {
@@ -935,6 +936,26 @@ function monthEventMeta(event = {}) {
   const callType = String(event?.eventCallType || raw.eventCallType || '').toLowerCase();
   if (callType.includes('audio')) return t('dashboard_audio_call');
   return t('dashboard_video_call');
+}
+
+const eventStatusTranslationKeys = Object.freeze({
+  active: 'dashboard_status_active',
+  approved: 'calendar_event_status_confirmed',
+  completed: 'calendar_event_status_completed',
+  confirmed: 'calendar_event_status_confirmed',
+  declined: 'calendar_event_status_declined',
+  pending: 'calendar_event_status_pending',
+  pending_hold: 'calendar_event_status_pending_hold',
+  rejected: 'calendar_event_status_declined',
+  canceled: 'calendar_event_status_cancelled',
+  cancelled: 'calendar_event_status_cancelled',
+});
+
+function formatEventStatus(status) {
+  const rawStatus = String(status || '').trim();
+  const normalizedStatus = rawStatus.toLowerCase().replace(/[\s-]+/g, '_');
+  const translationKey = eventStatusTranslationKeys[normalizedStatus];
+  return translationKey ? t(translationKey) : rawStatus;
 }
 
 const sd = (d) => SOD(d);

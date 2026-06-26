@@ -141,7 +141,19 @@ vi.mock("@/components/calendar/MobileDateSelector.vue", () => ({
 vi.mock("@/components/ui/form/checkbox/CheckboxGroup.vue", () => ({
   default: {
     name: "CheckboxGroup",
-    template: "<label />",
+    props: ["label", "modelValue"],
+    emits: ["update:modelValue"],
+    template: `
+      <label>
+        <input
+          data-test="checkbox-group-input"
+          type="checkbox"
+          :checked="modelValue"
+          @change="$emit('update:modelValue', $event.target.checked)"
+        />
+        <span>{{ label }}</span>
+      </label>
+    `,
   },
 }));
 
@@ -193,6 +205,7 @@ function makeEvent(overrides = {}) {
     slot: overrides.slot || null,
     isAvailabilityBlock: overrides.isAvailabilityBlock ?? true,
     isDraftPreview: overrides.isDraftPreview || false,
+    status: overrides.status,
     raw: {
       eventId: overrides.eventId || "event_1",
       eventCallType: overrides.eventCallType || "video",
@@ -241,6 +254,87 @@ afterEach(() => {
 });
 
 describe("MainCalendar all events count", () => {
+  it("renders default calendar labels through booking translations", async () => {
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const translations = {
+      dashboard_calendar_show_legend: "Mostrar leyenda",
+      dashboard_calendar_legend_event_type: "Tipo de evento",
+      dashboard_calendar_legend_one_on_one_call: "Llamada individual",
+      dashboard_calendar_legend_group_call: "Llamada grupal",
+      dashboard_calendar_legend_booking_schedule: "Agenda de reservas",
+      dashboard_calendar_legend_status: "Estado",
+      calendar_event_status_pending: "Pendiente",
+      calendar_event_status_confirmed: "Confirmada",
+      dashboard_calendar_legend_declined_canceled: "Rechazada/Cancelada",
+      calendar_timezone_gmt_offset: "UTC{offset}",
+      calendar_time_period_am_short: "a. m.",
+      calendar_time_period_pm_short: "p. m.",
+    };
+
+    const wrapper = await mountCalendar(
+      [],
+      {},
+      {
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("es"),
+              t: (key, params = {}) => {
+                const message = translations[key] || key;
+                return message.replace(/\{offset\}/g, params.offset ?? "{offset}");
+              },
+            },
+          },
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain("Mostrar leyenda");
+    expect(wrapper.text()).toContain("UTC +08");
+    expect(wrapper.text()).toContain("12a. m.");
+
+    await wrapper.get("[data-test='checkbox-group-input']").setValue(true);
+
+    expect(wrapper.text()).toContain("Tipo de evento");
+    expect(wrapper.text()).toContain("Llamada individual");
+    expect(wrapper.text()).toContain("Llamada grupal");
+    expect(wrapper.text()).toContain("Agenda de reservas");
+    expect(wrapper.text()).toContain("Estado");
+    expect(wrapper.text()).toContain("Pendiente");
+    expect(wrapper.text()).toContain("Confirmada");
+    expect(wrapper.text()).toContain("Rechazada/Cancelada");
+  });
+
+  it("translates fallback month-expanded event statuses", async () => {
+    setWindowWidth(390);
+
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "pending_hold_booking",
+          status: "pending_hold",
+          isAvailabilityBlock: false,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("es"),
+              t: (key) => (key === "calendar_event_status_pending_hold" ? "En espera" : key),
+            },
+          },
+        },
+      },
+    );
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+
+    expect(wrapper.get("[data-test='month-expanded-event']").text()).toContain("En espera");
+  });
+
   it("renders a translated Today label above the current date in the theme2 header", async () => {
     vi.useFakeTimers();
     const currentDate = new Date(2026, 3, 23, 9, 0, 0);

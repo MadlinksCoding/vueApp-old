@@ -75,9 +75,30 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
-                <div class="block font-medium truncate w-full py-[0.125rem] px-1">{{ event.title }}</div>
+                <div
+                  class="flex min-w-0 w-full items-center gap-1 overflow-hidden font-medium py-[0.125rem] px-1"
+                  data-test="dashboard-calendar-booking-title"
+                >
+                  <component
+                    :is="getBookedSlotTypeIcon(event)"
+                    data-test="dashboard-calendar-booking-icon"
+                    :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                    color="currentColor"
+                    :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                  />
+                  <span class="min-w-0 truncate">{{ event.title }}</span>
+                </div>
               </div>
-              <div class="text-[0.625rem] opacity-90 truncate py-[0.125rem] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -92,6 +113,7 @@
               'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -100,8 +122,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -116,6 +159,7 @@
               'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -124,8 +168,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[0.625rem] truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -140,6 +205,7 @@
               'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -148,8 +214,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div class="text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-bold text-[0.75rem]"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -171,8 +258,20 @@
             @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
             @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
           >
-            <span v-if="event.title && !event.hideAvailabilityTitle" data-test="dashboard-calendar-availability-title" class="block truncate">
-              {{ event.title }}
+            <span
+              v-if="event.title && !event.hideAvailabilityTitle"
+              data-test="dashboard-calendar-availability-title"
+              class="flex min-w-0 items-center gap-1 overflow-hidden"
+            >
+              <BookingScheduleIcon
+                data-test="dashboard-calendar-availability-icon"
+                color="currentColor"
+                :class="[
+                  'shrink-0',
+                  view === 'month' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                ]"
+              />
+              <span class="min-w-0 truncate">{{ event.title }}</span>
             </span>
           </div>
         </template>
@@ -465,9 +564,12 @@
         </div>
         <div class="flex items-center gap-1.5 text-sm font-semibold leading-5">
           <span
-            class="h-3 w-3 shrink-0 rounded-full"
-            :style="{ backgroundColor: calendarTooltip.dotColor }"
-          />
+            class="shrink-0"
+            data-test="dashboard-booking-tooltip-status-icon"
+            :data-booking-tooltip-status-icon="calendarTooltip.status"
+          >
+            <PendingStatus :status="calendarTooltip.status" :width="12" :height="12" />
+          </span>
           <span class="truncate">{{ calendarTooltip.time }}</span>
         </div>
       </div>
@@ -488,6 +590,10 @@ import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
 import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
 import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
+import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
+import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import PendingStatus from "@/components/icons/PendingStatus.vue";
+import PhoneIcon from "@/components/icons/PhoneIcon.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
@@ -565,7 +671,7 @@ const calendarTooltip = reactive({
   visible: false,
   title: "",
   time: "",
-  dotColor: "#07F468",
+  status: "confirmed",
   x: 0,
   y: 0,
   placement: "bottom",
@@ -963,10 +1069,6 @@ function formatCalendarTooltipTime(event = {}) {
   return start || end;
 }
 
-function getCalendarTooltipDotColor() {
-  return "#07F468";
-}
-
 function isTouchCapableDevice() {
   if (typeof window === "undefined") return false;
   const nav = window.navigator || {};
@@ -1011,7 +1113,7 @@ function showCalendarEventTooltip(event = {}, domEvent = null) {
 
   calendarTooltip.title = event?.title || t("dashboard_booked_slot");
   calendarTooltip.time = formatCalendarTooltipTime(event);
-  calendarTooltip.dotColor = getCalendarTooltipDotColor(event);
+  calendarTooltip.status = getBookedSlotIndicatorStatus(event);
   calendarTooltip.x = Math.min(Math.max(unclampedX, minX), maxX);
   calendarTooltip.y = placement === "top" ? rect.top - gap : rect.bottom + gap;
   calendarTooltip.placement = placement;
@@ -1039,6 +1141,31 @@ function isGroupCalendarEvent(event = {}) {
       || eventCurrent.eventType
       || "",
   ).toLowerCase() === "group-event";
+}
+
+function getBookedSlotTypeIcon(event = {}) {
+  return isGroupCalendarEvent(event) ? GroupCallIcon : PhoneIcon;
+}
+
+function getBookedSlotTypeIconKind(event = {}) {
+  return isGroupCalendarEvent(event) ? "group" : "private";
+}
+
+function getCalendarSlotIconSizeClass(view) {
+  return view === "month" ? "h-2.5 w-2.5" : "h-3 w-3";
+}
+
+function getBookedSlotIndicatorStatus(event = {}) {
+  const status = resolveBookingStatus(event);
+  if (status.includes("pending")) return "pending";
+  if (
+    status.includes("cancel")
+    || status.includes("declin")
+    || status.includes("reject")
+  ) {
+    return "declined";
+  }
+  return "confirmed";
 }
 
 function makeAvatar(event) {
