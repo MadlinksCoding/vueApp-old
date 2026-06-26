@@ -208,11 +208,11 @@ describe("createEventMapper", () => {
       dateTo: "2026-06-11",
       selectedDate: "2026-06-11",
       selectedStartTime: "22:00",
-      selectedEndTime: "03:00",
+      selectedEndTime: "23:00",
       oneTimeAvailability: [
         {
           date: "2026-06-11",
-          slots: [{ startTime: "22:00", endTime: "03:00" }],
+          slots: [{ startTime: "22:00", endTime: "23:00" }],
         },
       ],
     });
@@ -276,7 +276,7 @@ describe("createEventMapper", () => {
     expect(time.endTime.endsWith(":59")).toBe(true);
   });
 
-  it("adds end day offset to custom HKT slots that cross midnight", () => {
+  it("does not add end day offset for invalid custom slots ending before the start", () => {
     const mapped = createEventMapper({
       ...baseDraft,
       eventType: "1on1-call",
@@ -295,8 +295,8 @@ describe("createEventMapper", () => {
       ],
     });
 
-    expect(mapped.slots[0].times[0].endDayOffset).toBe(1);
-    expect(mapped.dateTo > mapped.dateFrom).toBe(true);
+    expect(mapped.slots[0].times[0].endDayOffset).toBe(0);
+    expect(mapped.dateTo).toBe(mapped.dateFrom);
   });
 
   it("omits private-only call settings for group events", () => {
@@ -331,6 +331,29 @@ describe("createEventMapper", () => {
     });
 
     expect(mapped.description).toBe("<p>Join us for a spectacular live stream event.</p>");
+  });
+
+  it("does not generate placeholder copy for a blank event description", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      eventDescription: "",
+    });
+
+    expect(mapped.description).toBeNull();
+    expect(mapped.description).not.toBe("No description provided");
+  });
+
+  it("treats empty Quill description markup as no description", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "120",
+      eventDescription: "<p><br></p>",
+    });
+
+    expect(mapped.description).toBeNull();
   });
 
   it("maps group fixed price settings", () => {

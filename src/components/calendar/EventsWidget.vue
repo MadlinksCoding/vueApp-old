@@ -50,15 +50,29 @@
 
             <span class="flex" >
               
-              <template v-if="!event.isGroup">
+              <template v-if="shouldShowSingleProfile(event)">
+                <span
+                  v-if="isProfileLoading(event)"
+                  class="inline-flex items-center gap-1"
+                  data-test="event-profile-skeleton"
+                >
+                  <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
+                  <span class="h-3 w-20 rounded bg-[#E6E6E6] animate-skeleton-loading"></span>
+                </span>
+                <template v-else>
                 <img 
-                  class="z-[30] w-5 h-5 object-cover object-center mask-mango shrink-0"
-                  :src="event.avatars[0].src"
-                  :alt="t('common_creator')"
+                  class="z-[30] w-5 h-5 rounded-full object-cover object-center shrink-0"
+                    :src="displayProfile(event).avatar"
+                    :alt="displayProfile(event).name"
+                    data-test="event-profile-avatar"
                 />
-                <p class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate">
-                  {{ event.avatars[0].name }}
+                  <p
+                    class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate"
+                    data-test="event-profile-name"
+                  >
+                    {{ displayProfile(event).name }}
                 </p>
+                </template>
               </template>
 
               <template v-else>
@@ -86,27 +100,58 @@
 
           <div class="flex  gap-[0.25rem] shrink-0">
             
-            <div v-if="event.showJoin" class="flex flex-col items-end justify-between w-[5.4375rem]">
+            <div v-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
               <span class="flex items-center gap-[0.25rem]">
                 <div
+                  data-test="join-status-dot"
                   class="w-[0.375rem] h-[0.375rem] rounded-[50%]"
-                  :style="event.accentColor ? { backgroundColor: event.accentColor } : null"
-                  :class="event.accentColor ? '' : 'bg-lightViolet'"
+                  :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
+                  :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
                 ></div>
-                <p class="text-[0.75rem] text-gray-500 font-medium leading-[1.125rem]">{{ event.statusText }}</p>
+                <p
+                  data-test="join-status-text"
+                  class="text-[0.75rem] text-gray-500 font-medium leading-[1.125rem]"
+                  :style="event.statusColor ? { color: event.statusColor } : null"
+                >{{ event.statusText }}</p>
               </span>
 
-              <button 
-                @click.stop="$emit('join-click', event)" 
-                class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] bg-lightViolet hover:bg-lightViolet/90 transition-colors"
+              <span
+                class="relative inline-flex w-full"
+                data-test="join-tooltip-trigger"
+                @mouseenter="showJoinTooltip(`${sIndex}-${eIndex}`, event)"
+                @mouseleave="hideJoinTooltip"
+                @touchstart.stop="showJoinTooltip(`${sIndex}-${eIndex}`, event, true)"
+                @click.stop
               >
-                <span class="w-[1rem] h-[1rem]">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                <button 
+                  @click.stop="$emit('join-click', event)" 
+                  :disabled="!joinButtonEnabled(event)"
+                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed"
+                  :class="joinButtonEnabled(event)
+                    ? 'bg-lightViolet hover:bg-lightViolet/90'
+                    : 'bg-[#D0D5DD]'"
+                >
+                  <span class="w-[1rem] h-[1rem]">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" :stroke="joinButtonEnabled(event) ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <p
+                    class="text-[0.75rem] font-semibold leading-[1.125rem]"
+                    :class="joinButtonEnabled(event) ? 'text-white' : 'text-gray-600'"
+                  >
+                    {{ t("common_join_call") }}
+                  </p>
+                </button>
+                <span
+                  v-if="joinTooltipId === `${sIndex}-${eIndex}`"
+                  role="tooltip"
+                  data-test="disabled-join-tooltip"
+                  class="absolute right-0 bottom-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded-[0.25rem] bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-[1rem] text-white shadow-lg"
+                >
+                  {{ disabledJoinTooltipText(event) }}
                 </span>
-                <p class="text-[0.75rem] text-white font-semibold leading-[1.125rem]">{{ t("common_join_call") }}</p>
-              </button>
+              </span>
             </div>
 
             <span v-else-if="event.showReply" class="flex flex-col justify-end h-[2.875rem]">
@@ -186,11 +231,28 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
+
+const props = defineProps({
+  sections: {
+    type: Array,
+    default: () => [],
+  },
+  userRole: {
+    type: String,
+    default: "creator",
+  },
+});
 
 const openMenuId = ref(null);
+const joinTooltipId = ref(null);
+const joinTooltipTimer = ref(null);
 const { t } = useBookingTranslations();
+const profileStateById = reactive({});
+const profileAbortControllers = new Map();
+const DEFAULT_PROFILE_AVATAR = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
 
 const closeMenu = () => {
   openMenuId.value = null;
@@ -201,14 +263,267 @@ const toggleMenu = (menuId) => {
 };
 
 const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
+const CONFIRMED_STATUS_DOT_COLOR = "#22C55E";
+const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
+const isFanViewer = computed(() => viewerRole.value === "fan");
 
 const onMenuAction = (action, event) => {
   emit('menu-action', { action, event });
   closeMenu();
 };
 
+const shouldShowJoinButton = (event = {}) => (
+  event.showReply !== true
+  && (
+    event.showJoin === true
+    || event.canJoin === true
+    || Boolean(event.joinUrl)
+  )
+);
+
+const joinButtonEnabled = (event = {}) => (
+  event.canJoin === true
+  || (event.canJoin === undefined && event.showJoin === true)
+);
+
+const normalizedStatusText = (event = {}) => String(event.statusText || "").trim().toLowerCase();
+
+const joinStatusColor = (event = {}) => {
+  if (event.statusColor) return event.statusColor;
+
+  const statusText = normalizedStatusText(event);
+  if (statusText === "confirmed" || statusText === "live now") {
+    return CONFIRMED_STATUS_DOT_COLOR;
+  }
+
+  return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
+};
+
+const pickFirstString = (...values) => {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
+
+const normalizeGuestProfile = (user) => {
+  if (!user || typeof user !== "object") return null;
+
+  return {
+    displayName: pickFirstString(user.display_name, user.displayName, user.name),
+    username: pickFirstString(user.username, user.user_login),
+    avatar: pickFirstString(user.avatar, user.avatarUrl, user.avatar_url),
+  };
+};
+
+const getSourceEvent = (event = {}) => event?.sourceEvent || event?.event || event || {};
+
+const getRawEvent = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  return sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+};
+
+const getCreatorUserId = (event = {}) => {
+  const raw = getRawEvent(event);
+  const sourceEvent = getSourceEvent(event);
+  return firstDefined(raw.creatorId, sourceEvent?.creatorId, event?.creatorId, null);
+};
+
+const getFanUserId = (event = {}) => {
+  const raw = getRawEvent(event);
+  const sourceEvent = getSourceEvent(event);
+  return firstDefined(raw.userId, sourceEvent?.userId, event?.userId, null);
+};
+
+const getGuestUserId = (event = {}) => (
+  isFanViewer.value ? getCreatorUserId(event) : getFanUserId(event)
+);
+
+const shouldShowSingleProfile = (event = {}) => !event.isGroup || isFanViewer.value;
+
+const profileKeyForEvent = (event = {}) => {
+  if (!shouldShowSingleProfile(event)) return "";
+  const userId = getGuestUserId(event);
+  return userId === undefined || userId === null || userId === "" ? "" : String(userId);
+};
+
+const fallbackProfileForEvent = (event = {}) => {
+  const raw = getRawEvent(event);
+  const fallbackId = getGuestUserId(event);
+  const existingAvatar = Array.isArray(event?.avatars) ? event.avatars[0] : null;
+
+  if (isFanViewer.value) {
+    return {
+      name: pickFirstString(
+        raw.creatorDisplayName,
+        raw.creatorName,
+        raw.creatorUsername,
+        existingAvatar?.name,
+      ) || (fallbackId ? t("calendar_event_user_id_fallback", { id: fallbackId }) : t("calendar_event_guest_fallback")),
+      avatar: pickFirstString(raw.creatorAvatarUrl, raw.creatorAvatar, existingAvatar?.src) || DEFAULT_PROFILE_AVATAR,
+    };
+  }
+
+  return {
+    name: pickFirstString(
+      raw.userDisplayName,
+      raw.userName,
+      raw.userUsername,
+      fallbackId ? "" : existingAvatar?.name,
+    ) || (fallbackId ? t("calendar_event_user_id_fallback", { id: fallbackId }) : t("calendar_event_guest_fallback")),
+    avatar: pickFirstString(
+      raw.userAvatarUrl,
+      raw.userAvatar,
+      raw.fanAvatarUrl,
+      fallbackId ? "" : existingAvatar?.src,
+    ) || DEFAULT_PROFILE_AVATAR,
+  };
+};
+
+const displayProfile = (event = {}) => {
+  const key = profileKeyForEvent(event);
+  const state = key ? profileStateById[key] : null;
+  const fallback = fallbackProfileForEvent(event);
+  const profile = state?.profile || null;
+
+  return {
+    name: pickFirstString(profile?.displayName, profile?.username, fallback.name),
+    avatar: pickFirstString(profile?.avatar, fallback.avatar) || DEFAULT_PROFILE_AVATAR,
+  };
+};
+
+const isProfileLoading = (event = {}) => {
+  const key = profileKeyForEvent(event);
+  if (!key) return false;
+  const state = profileStateById[key];
+  return Boolean(state?.loading && !state?.profile);
+};
+
+const fetchProfile = async (userId) => {
+  const key = String(userId || "");
+  if (!key) return;
+  const existing = profileStateById[key];
+  if (existing?.loading || existing?.profile) return;
+
+  if (!profileStateById[key]) {
+    profileStateById[key] = { loading: false, profile: null, error: null };
+  }
+
+  const controller = new AbortController();
+  profileAbortControllers.set(key, controller);
+  profileStateById[key].loading = true;
+  profileStateById[key].error = null;
+
+  try {
+    const response = await fetch(
+      `${buildWpApiUrl("/users/get-profile-data")}?id=${encodeURIComponent(key)}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch event profile (HTTP ${response.status}).`);
+    }
+
+    const payload = await response.json();
+    profileStateById[key].profile = normalizeGuestProfile(payload?.user);
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      profileStateById[key].error = error;
+    }
+  } finally {
+    if (profileAbortControllers.get(key) === controller) {
+      profileAbortControllers.delete(key);
+      profileStateById[key].loading = false;
+    }
+  }
+};
+
+const collectProfileIds = () => {
+  const ids = new Set();
+  (Array.isArray(props.sections) ? props.sections : []).forEach((section) => {
+    (Array.isArray(section?.items) ? section.items : []).forEach((event) => {
+      const key = profileKeyForEvent(event);
+      if (key) ids.add(key);
+    });
+  });
+  return [...ids];
+};
+
+watch(
+  () => [props.sections, props.userRole],
+  () => {
+    collectProfileIds().forEach(fetchProfile);
+  },
+  { immediate: true, deep: true },
+);
+
+const resolveJoinAvailableAtIso = (event = {}) => {
+  if (event.joinAvailableAtIso) return event.joinAvailableAtIso;
+
+  const sourceStart = event?.sourceEvent?.start
+    || event?.sourceEvent?.startIso
+    || event?.sourceEvent?.raw?.startIso
+    || event?.start
+    || null;
+  const startDate = sourceStart ? new Date(sourceStart) : null;
+  if (!startDate || Number.isNaN(startDate.getTime())) return "";
+
+  return new Date(startDate.getTime() - (5 * 60 * 1000)).toISOString();
+};
+
+const formatJoinAvailableAt = (event = {}) => {
+  const iso = resolveJoinAvailableAtIso(event);
+  const date = iso ? new Date(iso) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+const disabledJoinTooltipText = (event = {}) => (
+  `This call can be joined at ${formatJoinAvailableAt(event)}`
+);
+
+const clearJoinTooltipTimer = () => {
+  if (!joinTooltipTimer.value) return;
+  window.clearTimeout(joinTooltipTimer.value);
+  joinTooltipTimer.value = null;
+};
+
+const hideJoinTooltip = () => {
+  clearJoinTooltipTimer();
+  joinTooltipId.value = null;
+};
+
+const showJoinTooltip = (tooltipId, event = {}, autoHide = false) => {
+  if (joinButtonEnabled(event)) {
+    hideJoinTooltip();
+    return;
+  }
+
+  clearJoinTooltipTimer();
+  joinTooltipId.value = tooltipId;
+
+  if (autoHide) {
+    joinTooltipTimer.value = window.setTimeout(hideJoinTooltip, 2500);
+  }
+};
+
 const handleDocumentClick = () => {
   closeMenu();
+  hideJoinTooltip();
 };
 
 onMounted(() => {
@@ -217,12 +532,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
-});
-
-defineProps({
-  sections: {
-    type: Array,
-    default: () => []
-  }
+  clearJoinTooltipTimer();
+  profileAbortControllers.forEach((controller) => controller.abort());
+  profileAbortControllers.clear();
 });
 </script>

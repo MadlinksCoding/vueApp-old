@@ -1,7 +1,7 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -37,6 +37,10 @@ const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
+  },
+  refreshBookingContext: {
+    type: Function,
+    default: null,
   },
 });
 
@@ -99,6 +103,10 @@ const contributionTokens = ref('');
 const walletBalance = ref(0);
 const groupAutoRedirecting = ref(false);
 const showMaxDurationWarning = ref(false);
+const isRefreshingAvailability = ref(false);
+let availabilityRefreshTimerId = null;
+
+const AVAILABILITY_REFRESH_INTERVAL_MS = 15000;
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const todayDateIso = computed(() => formatLocalDateIso(new Date()));
@@ -189,9 +197,76 @@ function resolveOneTimeLocalDateBounds(event = {}) {
   };
 }
 
+function resolveRecurringScheduleTimeEntries(event = {}) {
+  const entries = [];
+
+  getEventRawSlots(event).forEach((slot) => {
+    if (!slot || typeof slot !== 'object') return;
+    if (Array.isArray(slot?.times)) return;
+
+    const startHm = toHm(slot.startTime ?? slot.start, '');
+    if (!startHm) return;
+
+    const endHm = toHm(slot.endTime ?? slot.end, startHm);
+    entries.push({
+      startHm,
+      endHm,
+      endDayOffset: resolveSlotEndDayOffset(slot, startHm, endHm),
+    });
+  });
+
+  return entries;
+}
+
+function resolveRecurringBoundaryLocalDateBounds(event = {}) {
+  const raw = event.raw || {};
+  const dateFrom = extractDateIso(raw.dateFrom ?? event.dateFrom, null);
+  const dateTo = extractDateIso(raw.dateTo ?? event.dateTo, null);
+  const entries = resolveRecurringScheduleTimeEntries(event);
+  const fromDates = [];
+  const toDates = [];
+
+  if (dateFrom) {
+    if (entries.length > 0) {
+      entries.forEach((entry) => {
+        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, entry.startHm));
+        if (localDateIso) fromDates.push(localDateIso);
+      });
+    } else {
+      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, '12:00'));
+      if (localDateIso) fromDates.push(localDateIso);
+    }
+  }
+
+  if (dateTo) {
+    if (entries.length > 0) {
+      entries.forEach((entry) => {
+        const endHktDateIso = entry.endDayOffset > 0 ? addDaysToDateIso(dateTo, entry.endDayOffset) : dateTo;
+        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(endHktDateIso, entry.endHm));
+        if (localDateIso) toDates.push(localDateIso);
+      });
+    } else {
+      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateTo, '12:00'));
+      if (localDateIso) toDates.push(localDateIso);
+    }
+  }
+
+  const sortedFrom = Array.from(new Set(fromDates)).sort();
+  const sortedTo = Array.from(new Set(toDates)).sort();
+  return {
+    from: sortedFrom[0] || dateFrom,
+    to: sortedTo.at(-1) || dateTo,
+  };
+}
+
 const oneTimeLocalDateBounds = computed(() => (
   getEventRepeatRule(selectedEvent.value || {}) === 'doesnotrepeat'
     ? resolveOneTimeLocalDateBounds(selectedEvent.value || {})
+    : { from: null, to: null }
+));
+const recurringLocalDateBounds = computed(() => (
+  getEventRepeatRule(selectedEvent.value || {}) !== 'doesnotrepeat'
+    ? resolveRecurringBoundaryLocalDateBounds(selectedEvent.value || {})
     : { from: null, to: null }
 ));
 
@@ -201,6 +276,9 @@ const eventDateFromIso = computed(() => {
   if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.from) {
     return oneTimeLocalDateBounds.value.from;
   }
+  if (getEventRepeatRule(event) !== 'doesnotrepeat' && recurringLocalDateBounds.value.from) {
+    return recurringLocalDateBounds.value.from;
+  }
   return extractDateIso(raw.dateFrom ?? event.dateFrom, null);
 });
 const eventDateToIso = computed(() => {
@@ -208,6 +286,9 @@ const eventDateToIso = computed(() => {
   const raw = event.raw || {};
   if (getEventRepeatRule(event) === 'doesnotrepeat' && oneTimeLocalDateBounds.value.to) {
     return oneTimeLocalDateBounds.value.to;
+  }
+  if (getEventRepeatRule(event) !== 'doesnotrepeat' && recurringLocalDateBounds.value.to) {
+    return recurringLocalDateBounds.value.to;
   }
   return extractDateIso(raw.dateTo ?? event.dateTo, null);
 });
@@ -248,7 +329,7 @@ const popupBackgroundStyle = computed(() => ({
 }));
 const actionFooterClass = computed(() => (
   props.embedded
-    ? 'flex-none flex justify-end z-[99] absolute bottom-0 left-0 w-full'
+    ? 'flex-none flex justify-end z-[99] fixed md:absolute bottom-0 left-0 w-full'
     : 'flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full'
 ));
 
@@ -261,7 +342,7 @@ const candidateSlots = computed(() => {
   });
 });
 
-function canDurationFitSelectedSlot(slot, durationMinutes) {
+function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverride = bookedSlotsIndex.value) {
   if (!slot || !Number.isFinite(slot.startMs)) return false;
 
   const normalizedDuration = Number(durationMinutes || 0);
@@ -277,8 +358,167 @@ function canDurationFitSelectedSlot(slot, durationMinutes) {
     eventId: selectedEvent.value?.eventId,
     startMs: slot.startMs,
     endMs: targetEndMs,
-    bookedSlotsIndex: bookedSlotsIndex.value,
+    bookedSlotsIndex: bookedSlotsIndexOverride,
   });
+}
+
+function buildTimeSlotsForBookedIndex(latestBookedSlotsIndex = bookedSlotsIndex.value) {
+  if (!selectedEvent.value || !selectedDateIso.value) return [];
+
+  return buildCandidateSlotsForEventDate(selectedEvent.value, selectedDateIso.value, {
+    eventId: selectedEvent.value?.eventId,
+    bookedSlotsIndex: latestBookedSlotsIndex,
+    applyBufferAfterBooked: true,
+  }).map((slot) => {
+    const uiSlot = createSlotUiModel({
+      event: selectedEvent.value,
+      eventId: selectedEvent.value.eventId,
+      localDateIso: selectedDateIso.value,
+      slot,
+      bookedSlotsIndex: latestBookedSlotsIndex,
+    });
+
+    return {
+      ...uiSlot,
+      label: isGroupEvent.value
+        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
+        : hmToLabel(uiSlot.startHm),
+      value: uiSlot.startHm,
+      isOffHours: Boolean(uiSlot.offHours),
+    };
+  });
+}
+
+function getSelectedAvailabilitySnapshot() {
+  return {
+    dateIso: selectedDateIso.value,
+    slotValue: selectedTime.value?.value || selectedTime.value?.startHm || null,
+    durationMinutes: Number(selectedDurationObj.value?.value || 0),
+    duration: selectedDurationObj.value ? { ...selectedDurationObj.value } : null,
+  };
+}
+
+function resolveSelectedSnapshotAvailability(snapshot = {}) {
+  if (!snapshot.slotValue) return { available: true, slot: null, duration: null };
+  if (snapshot.dateIso && snapshot.dateIso !== selectedDateIso.value) {
+    return { available: true, slot: null, duration: null };
+  }
+
+  const latestBookedSlotsIndex = props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {};
+  const latestTimeSlots = buildTimeSlotsForBookedIndex(latestBookedSlotsIndex);
+  const matchedSlot = latestTimeSlots.find((slot) => (
+    String(slot.value) === String(snapshot.slotValue)
+    && !slot.disabled
+  ));
+  if (!matchedSlot) return { available: false, slot: null, duration: null };
+
+  const durationMinutes = Number(snapshot.durationMinutes || 0);
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return { available: false, slot: null, duration: null };
+  }
+
+  const available = canDurationFitSelectedSlot(matchedSlot, durationMinutes, latestBookedSlotsIndex);
+  return {
+    available,
+    slot: available ? matchedSlot : null,
+    duration: available ? snapshot.duration : null,
+  };
+}
+
+function restoreSelectedSnapshotIfAvailable(snapshot = {}) {
+  const resolved = resolveSelectedSnapshotAvailability(snapshot);
+  if (!resolved.available) return false;
+  if (!resolved.slot || !resolved.duration) return true;
+
+  selectedTime.value = resolved.slot;
+  selectedDurationObj.value = resolved.duration;
+  return true;
+}
+
+function clearSelectedSlotAfterAvailabilityRefresh(reason = 'step2-availability-refresh-conflict') {
+  selectedTime.value = null;
+  selectedDurationObj.value = null;
+  showMaxDurationWarning.value = false;
+
+  props.engine.setState('bookingDetails.selectedTime', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.selectedDuration', null, { reason, silent: true });
+  props.engine.setState('bookingDetails.formattedTimeRange', '-', { reason, silent: true });
+  props.engine.setState('bookingDetails.totalPrice', 0, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedSlot', null, { reason, silent: true });
+  props.engine.setState('fanBooking.selection.selectedDurationMinutes', null, { reason, silent: true });
+  props.engine.setState('fanBooking.temporaryHold', {
+    temporaryHoldId: null,
+    status: 'none',
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+  }, { reason, silent: true });
+}
+
+function showSelectedSlotBookedToast() {
+  showToast({
+    type: 'error',
+    title: t('fan_booking_slot_unavailable_title'),
+    message: t('fan_booking_slot_already_booked_try_different_slot'),
+  });
+}
+
+async function refreshAvailabilityAndValidateSelection({ notifyOnConflict = false, reason = 'availability-refresh' } = {}) {
+  if (!shouldAutoRefreshAvailability.value) return true;
+  if (isRefreshingAvailability.value) return true;
+
+  const snapshot = getSelectedAvailabilitySnapshot();
+  isRefreshingAvailability.value = true;
+
+  try {
+    const result = await props.refreshBookingContext({
+      silent: true,
+      preserveSelectedEvent: true,
+    });
+
+    if (!result?.ok) return true;
+    if (snapshot.slotValue && !restoreSelectedSnapshotIfAvailable(snapshot)) {
+      clearSelectedSlotAfterAvailabilityRefresh(reason);
+      if (notifyOnConflict) showSelectedSlotBookedToast();
+      return false;
+    }
+
+    return true;
+  } catch (_error) {
+    return true;
+  } finally {
+    isRefreshingAvailability.value = false;
+  }
+}
+
+function stopAvailabilityRefreshTimer() {
+  if (!availabilityRefreshTimerId) return;
+  clearInterval(availabilityRefreshTimerId);
+  availabilityRefreshTimerId = null;
+}
+
+function startAvailabilityRefreshTimer() {
+  if (!shouldAutoRefreshAvailability.value || availabilityRefreshTimerId) return;
+  availabilityRefreshTimerId = setInterval(() => {
+    refreshAvailabilityAndValidateSelection({
+      notifyOnConflict: true,
+      reason: 'step2-availability-refresh-interval',
+    });
+  }, AVAILABILITY_REFRESH_INTERVAL_MS);
+}
+
+function handleVisibilityRefresh() {
+  if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+  refreshAvailabilityAndValidateSelection({
+    notifyOnConflict: true,
+    reason: 'step2-availability-refresh-visible',
+  });
+}
+
+function getEventIdentity(event = null) {
+  if (!event) return '';
+  return String(event.eventId || event.id || event.raw?.eventId || '');
 }
 
 function toBoolean(value, fallback = false) {
@@ -304,8 +544,18 @@ const showApprovalNeeded = computed(() => {
 const isPreviewReadOnly = computed(() => (
   Boolean(props.engine.getState('fanBooking.ui.previewReadOnly'))
 ));
+const isPreviewMode = computed(() => (
+  Boolean(props.engine.getState('fanBooking.ui.previewMode'))
+));
 const isFirstBookingForCreator = computed(() => (
   toBoolean(props.engine.getState('fanBooking.context.isFirstBookingForCreator'), false)
+));
+const shouldAutoRefreshAvailability = computed(() => (
+  !isPreviewMode.value
+  && !isPreviewReadOnly.value
+  && !isGroupEvent.value
+  && Boolean(selectedEvent.value)
+  && typeof props.refreshBookingContext === 'function'
 ));
 
 function toWholeTokens(value) {
@@ -787,7 +1037,7 @@ const canProceedToPayment = computed(() => {
 });
 
 const bottomActionDisabled = computed(() => (
-  isPreviewReadOnly.value || !canProceedToPayment.value
+  isPreviewReadOnly.value || isRefreshingAvailability.value || !canProceedToPayment.value
 ));
 
 const formattedTimeRange = computed(() => {
@@ -1078,7 +1328,7 @@ const toggleAddon = (index) => {
   row.selected = !row.selected;
 };
 
-const goToNextStep = () => {
+const goToNextStep = async () => {
   if (isPreviewReadOnly.value) {
     return;
   }
@@ -1119,6 +1369,17 @@ const goToNextStep = () => {
         max: eventGoalMaximumTokens.value,
       }),
     });
+    return;
+  }
+
+  const selectionStillAvailable = await refreshAvailabilityAndValidateSelection({
+    notifyOnConflict: true,
+    reason: 'step2-continue-availability-refresh',
+  });
+  if (!selectionStillAvailable) return;
+
+  if (!selectedTime.value || selectedTime.value.disabled || !selectedDurationObj.value) {
+    showSelectedSlotBookedToast();
     return;
   }
 
@@ -1181,7 +1442,17 @@ watch(
 
 watch(
   () => selectedEvent.value,
-  async () => {
+  async (nextEvent, previousEvent) => {
+    const sameEventRefresh = (
+      isRefreshingAvailability.value
+      && getEventIdentity(nextEvent)
+      && getEventIdentity(nextEvent) === getEventIdentity(previousEvent)
+    );
+    if (sameEventRefresh && !isGroupEvent.value) {
+      ensureContributionDefault();
+      return;
+    }
+
     if (isGroupEvent.value) {
       hydrateAddons();
       hydrateFromState();
@@ -1258,7 +1529,24 @@ watch(
   },
 );
 
+watch(
+  () => shouldAutoRefreshAvailability.value,
+  (shouldRefresh) => {
+    if (shouldRefresh) {
+      startAvailabilityRefreshTimer();
+      return;
+    }
+
+    stopAvailabilityRefreshTimer();
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+  }
+
   if (!selectedEvent.value) {
     showToast({
       type: 'error',
@@ -1277,6 +1565,14 @@ onMounted(() => {
   hydrateAddons();
   hydrateFromState();
   refreshWalletBalance();
+  startAvailabilityRefreshTimer();
+});
+
+onBeforeUnmount(() => {
+  stopAvailabilityRefreshTimer();
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+  }
 });
 </script>
 
@@ -1291,7 +1587,12 @@ onMounted(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-b-[20px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row backdrop-blur-sm md:overflow-hidden">
+        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row before:content-['']
+before:absolute
+before:inset-0
+before:bg-[rgba(0,0,0,0.75)]
+before:backdrop-blur-sm
+md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
@@ -1308,7 +1609,7 @@ onMounted(() => {
           :price-setting="groupPriceSetting"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between min-h-0 overflow-y-auto h-auto max-h-[29.4rem] md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
 
           <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
@@ -1350,7 +1651,7 @@ onMounted(() => {
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-14 bg-gray-950/10"
+            class="flex-1 flex flex-col lg:px-5 gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -1363,7 +1664,7 @@ onMounted(() => {
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl font-semibold text-[#22CCEE]">
+              <h3 class="text-sm text-[#98A2B3]">
                 {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
               </h3>
               <div class="grid grid-cols-3 w-full gap-2">
@@ -1407,7 +1708,7 @@ onMounted(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl text-[#22CCEE] font-semibold">{{ t("fan_booking_select_length") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
               <div
                 class="border-[3px] rounded-[3.125rem]"
                 :class="durationStepperBorderClass"
@@ -1497,7 +1798,7 @@ onMounted(() => {
             </div>
 
             <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
-              <h3 class="text-xl text-[#22CCEE] font-semibold leading-5">{{ t("fan_booking_add_on_service_heading") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
                   v-for="(addon, index) in addons"
@@ -1526,7 +1827,7 @@ onMounted(() => {
             </div>
 
             <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-xl font-semibold text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
+              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
                   {{ t("fan_booking_other_request_body") }}
@@ -1550,7 +1851,7 @@ onMounted(() => {
             @click="goToNextStep"
           >
             <div
-              class="relative w-[14.625rem] p-[12px] md:rounded-br-[20px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
+              class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
               :class="!bottomActionDisabled
                 ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
                 : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"

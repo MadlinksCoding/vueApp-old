@@ -3,6 +3,7 @@ import { nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { showToast } from "@/utils/toastBus.js";
 
 vi.mock("@/utils/toastBus.js", () => ({
   showToast: vi.fn(),
@@ -132,6 +133,7 @@ function createMountedStep({
   selection = {},
   bookedSlotsIndex = {},
   fanId = 2615,
+  componentProps = {},
 } = {}) {
   const engine = createEngine({
     bookingDetails,
@@ -161,6 +163,7 @@ function createMountedStep({
         props: {
           engine,
           embedded: true,
+          ...componentProps,
         },
         global: {
           provide: {
@@ -206,9 +209,17 @@ function findPaymentSummaryButton(wrapper) {
   return wrapper.findAll("button").find((button) => button.text().includes("PAYMENT SUMMARY"));
 }
 
+async function flushStep2() {
+  await Promise.resolve();
+  await nextTick();
+  await Promise.resolve();
+  await nextTick();
+}
+
 describe("BookingFlowStep2", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.mocked(showToast).mockReset();
   });
 
   function setFixedStepClock() {
@@ -325,6 +336,170 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
     expect(wrapper.text()).toContain("OTHER REQUEST");
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it("periodically refreshes private availability but not group auto-routing", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const privateRefresh = vi.fn(() => Promise.resolve({ ok: true }));
+    const privateMounted = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      componentProps: {
+        refreshBookingContext: privateRefresh,
+      },
+    });
+    const privateWrapper = await privateMounted.wrapperPromise;
+    await flushStep2();
+
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushStep2();
+
+    expect(privateRefresh).toHaveBeenCalledWith({
+      silent: true,
+      preserveSelectedEvent: true,
+    });
+    privateWrapper.unmount();
+
+    vi.clearAllTimers();
+    const groupRefresh = vi.fn(() => Promise.resolve({ ok: true }));
+    const groupMounted = createMountedStep({
+      selectedEvent: createGroupEvent("2030-01-15"),
+      componentProps: {
+        refreshBookingContext: groupRefresh,
+      },
+    });
+    const groupWrapper = await groupMounted.wrapperPromise;
+    await flushStep2();
+
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushStep2();
+
+    expect(groupRefresh).not.toHaveBeenCalled();
+    groupWrapper.unmount();
+  });
+
+  it("keeps the selected private slot when Continue refresh still finds it available", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-15",
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      componentProps: {
+        refreshBookingContext,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await flushStep2();
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(refreshBookingContext).toHaveBeenCalledWith({
+      silent: true,
+      preserveSelectedEvent: true,
+    });
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedSlot).toEqual(expect.objectContaining({
+      value: "10:00",
+    }));
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(30);
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
+      message: "This slot has already been booked. Try booking a different slot",
+    }));
+  });
+
+  it("blocks Continue and clears the selected private slot when refresh finds it booked", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-15",
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      componentProps: {
+        refreshBookingContext,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await flushStep2();
+
+    refreshBookingContext.mockImplementationOnce(async () => {
+      engine.state.fanBooking.catalog.bookedSlotsIndex = buildBookedSlotsIndex([{
+        bookingId: "booking_other_fan",
+        eventId: "evt_private_1",
+        userId: 9001,
+        startIso: "2030-01-15T10:00:00",
+        endIso: "2030-01-15T10:30:00",
+        status: "confirmed",
+      }]);
+      return { ok: true };
+    });
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBeNull();
+    expect(engine.state.bookingDetails.selectedTime).toBeNull();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "This slot has already been booked. Try booking a different slot",
+    }));
+  });
+
+  it("blocks Continue when refresh finds the selected slot invalidated by booking buffer", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        enableBufferTime: true,
+        bookingBufferMinutes: 15,
+      },
+    };
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-15",
+      selectedEvent,
+      componentProps: {
+        refreshBookingContext,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const slots = wrapper.findAll("[data-testid='booking-flow-time-slot']");
+    await slots[1].trigger("click");
+    await flushStep2();
+
+    refreshBookingContext.mockImplementationOnce(async () => {
+      engine.state.fanBooking.catalog.bookedSlotsIndex = buildBookedSlotsIndex([{
+        bookingId: "booking_before_buffer",
+        eventId: "evt_private_1",
+        userId: 9001,
+        startIso: "2030-01-15T10:00:00",
+        endIso: "2030-01-15T10:30:00",
+        status: "confirmed",
+      }]);
+      return { ok: true };
+    });
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      message: "This slot has already been booked. Try booking a different slot",
+    }));
   });
 
   it("steps private booking length by the configured session duration", async () => {

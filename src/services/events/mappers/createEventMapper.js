@@ -12,6 +12,7 @@ import { normalizeBookingBufferMinutes } from "@/services/events/validators/even
 
 const HKT_TIMEZONE = "Asia/Hong_Kong";
 const DEFAULT_CREATOR_TIMEZONE = HKT_TIMEZONE;
+const MINUTES_PER_DAY = 24 * 60;
 
 const DAY_KEY_TO_INDEX = {
   sun: 0,
@@ -45,6 +46,39 @@ function nonEmptyString(value, fallback = "") {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
+}
+
+function richTextToPlainText(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function resolveDescriptionInput(payload = {}) {
+  if (hasOwn(payload, "eventDescription")) return payload.eventDescription;
+  if (hasOwn(payload, "description")) return payload.description;
+  return null;
+}
+
+function normalizeOptionalDescription(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  return richTextToPlainText(trimmed) ? trimmed : null;
 }
 
 function readBrowserTimezone() {
@@ -128,8 +162,24 @@ function inferDurationFromHm(startHm, endHm) {
   const start = hmToMinutes(startHm);
   const end = hmToMinutes(endHm);
   if (end > start) return end - start;
-  if (end < start) return (24 * 60) - start + end;
   return 0;
+}
+
+function minutesToSameDayHm(totalMinutes) {
+  const clamped = Math.min(Math.max(Number(totalMinutes) || 0, 0), MINUTES_PER_DAY - 1);
+  const hours = Math.floor(clamped / 60);
+  const minutes = clamped % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function resolveSameDayEndHm(startHm, endHm, duration = 15) {
+  const startMinutes = hmToMinutes(startHm);
+  const endMinutes = hmToMinutes(endHm);
+  if (endMinutes > startMinutes) return endHm;
+
+  const safeDuration = Math.max(5, Number(duration) || 15);
+  const fallbackEndMinutes = Math.min(startMinutes + safeDuration, MINUTES_PER_DAY - 1);
+  return fallbackEndMinutes > startMinutes ? minutesToSameDayHm(fallbackEndMinutes) : "";
 }
 
 function inferFirstAvailabilityDuration(payload = {}) {
@@ -233,16 +283,15 @@ function derivePrimarySlot(payload = {}, duration) {
     || nextDateIso(1);
 
   const startTimeLocal = toHm(payload.selectedStartTime || payload.startTime, "15:00");
-  const endTimeLocal = toHm(
+  const requestedEndTimeLocal = toHm(
     payload.selectedEndTime || payload.endTime,
     addMinutesToHm(startTimeLocal, duration)
   );
+  const endTimeLocal = resolveSameDayEndHm(startTimeLocal, requestedEndTimeLocal, duration)
+    || requestedEndTimeLocal;
 
   const explicitEndDateLocal = nonEmptyString(payload.selectedEndDate || payload.endDate, "");
-  const inferredEndDateLocal = hmToMinutes(endTimeLocal) <= hmToMinutes(startTimeLocal)
-    ? addDaysToDateIso(selectedDateLocal, 1)
-    : selectedDateLocal;
-  const endDateLocal = explicitEndDateLocal || inferredEndDateLocal;
+  const endDateLocal = explicitEndDateLocal || selectedDateLocal;
 
   const startHkt = localDateTimeToHkt(selectedDateLocal, startTimeLocal);
   const endHkt = localDateTimeToHkt(endDateLocal, endTimeLocal);
@@ -296,13 +345,12 @@ function buildWeeklySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
 
     daySlots.forEach((slotEntry) => {
       const startLocalHm = toHm(slotEntry?.startTime, fallbackStart);
-      const endLocalHm = toHm(slotEntry?.endTime, fallbackEnd);
-      const endDateIso = hmToMinutes(endLocalHm) <= hmToMinutes(startLocalHm)
-        ? addDaysToDateIso(localDateIso, 1)
-        : localDateIso;
+      const requestedEndLocalHm = toHm(slotEntry?.endTime, fallbackEnd);
+      const endLocalHm = resolveSameDayEndHm(startLocalHm, requestedEndLocalHm, duration);
+      if (!endLocalHm) return;
 
       const startHkt = localDateTimeToHkt(localDateIso, startLocalHm);
-      const endHkt = localDateTimeToHkt(endDateIso, endLocalHm);
+      const endHkt = localDateTimeToHkt(localDateIso, endLocalHm);
 
       slots.push({
         day: startHkt.weekday,
@@ -337,13 +385,12 @@ function buildOneTimeSlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
 
     localSlots.forEach((slot) => {
       const startLocalHm = toHm(slot?.startTime, fallbackStart);
-      const endLocalHm = toHm(slot?.endTime, fallbackEnd);
-      const endLocalDate = hmToMinutes(endLocalHm) <= hmToMinutes(startLocalHm)
-        ? addDaysToDateIso(localDate, 1)
-        : localDate;
+      const requestedEndLocalHm = toHm(slot?.endTime, fallbackEnd);
+      const endLocalHm = resolveSameDayEndHm(startLocalHm, requestedEndLocalHm, duration);
+      if (!endLocalHm) return;
 
       const startHkt = localDateTimeToHkt(localDate, startLocalHm);
-      const endHkt = localDateTimeToHkt(endLocalDate, endLocalHm);
+      const endHkt = localDateTimeToHkt(localDate, endLocalHm);
       const dateKey = startHkt.dateIso;
 
       if (!outputMap.has(dateKey)) {
@@ -375,13 +422,12 @@ function buildMonthlySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
   return monthlyRows
     .map((slot) => {
       const startLocalHm = toHm(slot?.startTime, fallbackStart);
-      const endLocalHm = toHm(slot?.endTime, fallbackEnd);
-      const endLocalDate = hmToMinutes(endLocalHm) <= hmToMinutes(startLocalHm)
-        ? addDaysToDateIso(anchorDate, 1)
-        : anchorDate;
+      const requestedEndLocalHm = toHm(slot?.endTime, fallbackEnd);
+      const endLocalHm = resolveSameDayEndHm(startLocalHm, requestedEndLocalHm, duration);
+      if (!endLocalHm) return null;
 
       const startHkt = localDateTimeToHkt(anchorDate, startLocalHm);
-      const endHkt = localDateTimeToHkt(endLocalDate, endLocalHm);
+      const endHkt = localDateTimeToHkt(anchorDate, endLocalHm);
 
       return {
         startTime: startHkt.hm,
@@ -390,7 +436,7 @@ function buildMonthlySlotsInHkt(payload = {}, primarySlot = {}, duration = 15) {
         offHours: asBoolean(slot?.offHours, false),
       };
     })
-    .filter((slot) => slot.startTime && slot.endTime);
+    .filter((slot) => slot?.startTime && slot?.endTime);
 }
 
 function buildRepeatSlots(repeatRule, payload = {}, primarySlot = {}, duration = 15) {
@@ -640,7 +686,7 @@ function mapBasePayload(payload = {}, context = {}) {
     creatorTimezone,
     type,
     title: nonEmptyString(payload.eventTitle || payload.title, "Untitled Event"),
-    description: nonEmptyString(payload.eventDescription || payload.description, "No description provided"),
+    description: normalizeOptionalDescription(resolveDescriptionInput(payload)),
     eventColorSkin: nonEmptyString(payload.eventColorSkin, "#5549FF"),
     eventCallType: nonEmptyString(payload.eventCallType, "video"),
     eventRingtoneUrl: nonEmptyString(payload.eventRingtoneUrl, "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"),

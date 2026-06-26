@@ -81,29 +81,14 @@
             </svg>
           </button>
 
-          <div
-            v-if="openMenuEventId === item.eventId"
-            class="absolute right-0 top-8 z-[1200] w-[12.25rem] overflow-hidden rounded-[0.125rem] border border-[#EAECF0] bg-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
-            data-test="booking-schedule-menu"
-            @click.stop
-          >
-            <button type="button" class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200" @click.stop="selectAction('edit', item)">
-              <img :src="editIcon" alt="edit" class="w-4 h-4" />
-              {{ t("common_edit") }}
-            </button>
-            <button type="button" disabled class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200 cursor-not-allowed text-slate-500 opacity-40">
-              <img :src="externalLinkIcon" alt="external link" class="w-4 h-4" />
-              {{ t("dashboard_booking_schedule_view_profile") }}
-            </button>
-            <button type="button" disabled class="w-full flex p-2 items-center gap-2 text-xs font-semibold  text-gray-700 hover:bg-gray-200 cursor-not-allowed text-slate-500 opacity-40">
-              <img :src="shareIcon" alt="share" class="w-4 h-4" />
-              {{ t("dashboard_booking_schedule_share_booking_page") }}
-            </button>
-            <button type="button" class="w-full flex p-2 items-center gap-2 text-xs font-semibold text-[#FF4405] hover:bg-[#fff4ef]" @click.stop="selectAction('delete', item)">
-              <img :src="deleteIcon" alt="delete" class="w-4 h-4" />
-              {{ t("common_delete") }}
-            </button>
-          </div>
+          <BookingScheduleMenu
+            :open="openMenuEventId === item.eventId"
+            :event="toScheduleActionPayload(item)"
+            @edit="selectAction('edit', $event)"
+            @view-card="selectAction('view-card', $event)"
+            @delete="selectAction('delete', $event)"
+            @close="closeMenu"
+          />
         </div>
       </article>
     </div>
@@ -114,10 +99,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
-import editIcon from '@/assets/images/icons/edit-02-gray.svg';
-import shareIcon from '@/assets/images/icons/share-06.svg';
-import externalLinkIcon from '@/assets/images/icons/link-external-02-gray.svg';
-import deleteIcon from '@/assets/images/icons/trash-01.svg';
+import BookingScheduleMenu from "./BookingScheduleMenu.vue";
 
 const props = defineProps({
   events: {
@@ -130,7 +112,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["edit", "delete"]);
+const emit = defineEmits(["edit", "delete", "view-card"]);
 const { t } = useBookingTranslations();
 const DEFAULT_EVENT_COLOR = "#5549FF";
 const openMenuEventId = ref("");
@@ -231,13 +213,19 @@ function toggleExpanded() {
   }
 }
 
-function selectAction(action, item) {
-  emit(action, {
+function toScheduleActionPayload(item) {
+  if (!item) return null;
+
+  return {
     ...item.event,
     eventId: item.eventId,
     title: item.title,
     type: item.type,
-  });
+  };
+}
+
+function selectAction(action, event) {
+  emit(action, event);
   closeMenu();
 }
 
@@ -253,4 +241,3 @@ onBeforeUnmount(() => {
   document.removeEventListener("click", handleDocumentClick);
 });
 </script>
-

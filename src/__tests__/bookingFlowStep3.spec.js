@@ -685,7 +685,8 @@ describe("BookingFlowStep3", () => {
       ["booking_already_in_progress", "A booking is already being created for this event time. Please wait a moment and try again."],
       ["invalid_user_event_slot_guard", "Could not reserve this group slot. Please try again."],
       ["event_full", "This event is full."],
-      ["slot_already_taken", "This time slot is no longer available."],
+      ["slot_already_taken", "This slot has already been booked. Try booking a different slot"],
+      ["slot_already_booked", "This slot has already been booked. Try booking a different slot"],
       ["daily_booking_limit_reached", "This event has reached its booking limit for that day."],
       ["token_hold_failed", "Could not reserve tokens for this booking."],
       ["token_hold_missing_txid", "Could not reserve tokens for this booking. Please try again."],
@@ -761,6 +762,57 @@ describe("BookingFlowStep3", () => {
       type: "error",
       message: "An active subscription to Gold is required.",
     }));
+  });
+
+  it.each([
+    ["booking_overlaps_existing"],
+    ["booking_buffer_after_booked_required"],
+  ])("handles stale slot validation code %s by returning to Step 2", async (validationCode) => {
+    tokenGet.mockResolvedValue({
+      data: {
+        balance: 3000,
+      },
+    });
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "CREATE_BOOKING_FAILED",
+            details: {
+              error: "validation_failed",
+              validation: {
+                errors: [{
+                  code: validationCode,
+                  translationKey: validationCode === "booking_overlaps_existing"
+                    ? "fan_booking_validation_booking_overlaps_existing"
+                    : "fan_booking_validation_booking_buffer_after_booked_required",
+                  params: { buffer_minutes: 15 },
+                }],
+              },
+            },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+
+    await mountAndSubmitStep3(engine, { refreshBookingContext });
+
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Booking Failed",
+      message: "This slot has already been booked. Try booking a different slot",
+    }));
+    expect(refreshBookingContext).toHaveBeenCalledWith({
+      silent: true,
+      preserveSelectedEvent: true,
+    });
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.state.bookingDetails.selectedTime).toBeNull();
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
   });
 
   it("keeps legacy validation messages ahead of backend booking code mapping", async () => {

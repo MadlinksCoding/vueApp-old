@@ -27,6 +27,9 @@
         :focus-date="state.focus"
         :events="events1"
         :events-data="eventsData"
+        :booking-schedule-events="bookingScheduleEvents"
+        :booking-schedule-booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+        :show-booking-schedule-list="isCreator && !dashboardEventsEngine.state.events.loading"
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
@@ -46,25 +49,56 @@
         @cancel-booking="onCancelBookingFromCalendar"
         @menu-action="handleWidgetMenuAction"
         @create-event="goToCreateEvent($event.type)"
+        @edit-schedule-event="handleEditScheduleEvent"
+        @delete-schedule-event="openDeleteEventPopup"
+        @view-schedule-card="openScheduleCardPreview"
       >
         <template #event="{ event, style, onClick, view }">
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
+              !event?.isAvailabilityBlock && (view === 'month' ? 'rounded-[0.25rem]' : 'rounded-[0.375rem]'),
               view === 'month'
-                ? 'hidden lg:block rounded-[0.25rem] text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
-                : 'rounded-[0.375rem] text-xs min-h-[1.25rem] w-full overflow-hidden'
+                ? 'hidden lg:block text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
+                : 'text-xs min-h-[1.25rem] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
-                <div class="block font-medium truncate w-full py-[0.125rem] px-1">{{ event.title }}</div>
+                <div
+                  class="flex min-w-0 w-full items-center gap-1 overflow-hidden font-medium py-[0.125rem] px-1"
+                  data-test="dashboard-calendar-booking-title"
+                >
+                  <component
+                    :is="getBookedSlotTypeIcon(event)"
+                    data-test="dashboard-calendar-booking-icon"
+                    :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                    color="currentColor"
+                    :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                  />
+                  <span class="min-w-0 truncate">{{ event.title }}</span>
+                </div>
               </div>
-              <div class="text-[0.625rem] opacity-90 truncate py-[0.125rem] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -74,14 +108,43 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-custom'
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -91,14 +154,43 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg text-xs shadow-md min-h-[1.25rem]'
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div hidden class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -108,14 +200,43 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
-              'py-[0.125rem] px-[0.25rem] rounded-lg shadow-md'
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
+              !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
+            tabindex="0"
+            @mouseenter="showCalendarEventTooltip(event, $event)"
+            @mouseleave="hideCalendarEventTooltip"
+            @focusin="showCalendarEventTooltip(event, $event)"
+            @focusout="hideCalendarEventTooltip"
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div class="text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-bold text-[0.75rem]"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -125,18 +246,41 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
-                ? 'hidden lg:block pointer-events-none rounded-sm h-1.5 min-h-1.5 w-full'
-                : 'pointer-events-none rounded-md min-h-[0.375rem] w-full'
+                ? 'hidden lg:block min-h-[1.25rem] w-full cursor-pointer overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
+                : 'min-h-[0.375rem] w-full cursor-pointer overflow-hidden px-2 py-1 text-xs font-medium leading-4'
             ]"
-            :style="[style, view === 'month' ? getMonthAvailabilityStyle() : getCalendarEventStyle(event)]"
+            :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-availability-marker"
-          />
+            role="button"
+            tabindex="0"
+            :aria-label="t('dashboard_booking_schedule_menu_aria', { title: event.title || t('dashboard_booking_schedule_untitled_event') })"
+            @click.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+          >
+            <span
+              v-if="event.title && !event.hideAvailabilityTitle"
+              data-test="dashboard-calendar-availability-title"
+              class="flex min-w-0 items-center gap-1 overflow-hidden"
+            >
+              <BookingScheduleIcon
+                data-test="dashboard-calendar-availability-icon"
+                color="currentColor"
+                :class="[
+                  'shrink-0',
+                  view === 'month' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                ]"
+              />
+              <span class="min-w-0 truncate">{{ event.title }}</span>
+            </span>
+          </div>
         </template>
 
         <template #month-expanded="{ events, day, onClick }">
           <div class="w-full p-2 bg-black/10 flex flex-col min-h-[8rem]" data-test="dashboard-month-expanded">
             <EventsWidget
               :sections="buildExpandedMonthSections(events, day)"
+              :user-role="dashboardRole"
               @join-click="handleJoin"
               @reply-click="handleReply"
               @event-click="handleMonthExpandedEventClick($event, onClick)"
@@ -147,7 +291,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-6 xl:pt-12 pb-[12.5rem] md:px-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -224,7 +368,7 @@
           </div>
         </div>
 
-        <div v-else-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
+        <div v-else-if="isCreator" class="relative w-full z-[999] hidden" ref="popupTrigger">
           <ButtonComponent
             :text="t('dashboard_new_events')"
             variant="none"
@@ -242,39 +386,61 @@
           </div>
         </div>
 
-        <BookingScheduleList
-          v-if="isCreator && !dashboardEventsEngine.state.events.loading"
-          :events="bookingScheduleEvents"
-          :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
-          @edit="handleEditScheduleEvent"
-          @delete="openDeleteEventPopup"
-        />
-
-        <div v-if="!dashboardEventsEngine.state.events.loading">
-          <EventsWidget
-            :sections="eventsData"
-            @join-click="handleJoin"
-            @reply-click="handleReply"
-            @event-click="handleWidgetEventClick"
-            @menu-action="handleWidgetMenuAction"
+        <div class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <BookingScheduleList
+            v-if="isCreator && !dashboardEventsEngine.state.events.loading"
+            :events="bookingScheduleEvents"
+            :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+            @edit="handleEditScheduleEvent"
+            @delete="openDeleteEventPopup"
+            @view-card="openScheduleCardPreview"
           />
+
+          <div v-if="!dashboardEventsEngine.state.events.loading">
+            <EventsWidget
+              :sections="eventsData"
+              :user-role="dashboardRole"
+              @join-click="handleJoin"
+              @reply-click="handleReply"
+              @event-click="handleWidgetEventClick"
+              @menu-action="handleWidgetMenuAction"
+            />
+          </div>
         </div>
       </div>
 
-      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
+      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
+        <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#ff0464] p-2 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img
-            src="https://i.ibb.co.com/RpWmJkcb/plus.webp"
-            class="w-8 h-8 filter brightness-0 invert"
+            :src="calenderPlusIcon"
+            class="w-6 h-6"
             :alt="t('common_add')"
           />
         </button>
+        <!-- Landscape screen -->
+        <button
+          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden lg:flex items-center justify-between transition-transform"
+          @click="toggleFloatingPopup"
+        >
+          <div class="flex items-center gap-2 justify-between">
+            <img
+              :src="calenderPlusIcon"
+              class="w-6 h-6"
+              :alt="t('common_add')"
+            />
+            <span class="text-white font-poppins text-[1.25rem] font-semibold leading-[1.875rem]">NEW EVENT</span>
+          </div>
+          <div>
+            <img :src="DropdownArrowDown" alt="" class="w-4 h-4 transition-transform duration-300 ease-in-out" :class="isFloatingPopupOpen ? 'rotate-180' : ''" />
+          </div>
+        </button>
         <div
           v-show="isFloatingPopupOpen"
-          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto"
+          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 lg:!bottom-24 lg:!right-6 !top-auto !left-auto"
         >
           <CreateEventPopup
             @create-private="goToCreateEvent('private')"
@@ -308,7 +474,7 @@
             :disabled="cancelBookingLoading"
             @click="closeCancelBookingPopup"
           >
-            {{ t("common_cancel") }}
+            {{ t("dashboard_cancel_confirm_back") }}
           </button>
           <button
             type="button"
@@ -351,6 +517,64 @@
       </div>
     </PopupHandler>
 
+    <OneOnOneBookingFlowPopup
+      v-if="isCreator"
+      :model-value="scheduleCardPreviewOpen"
+      :creator-id="normalizedCreatorId"
+      :fan-id="normalizedFanId"
+      :api-base-url="props.apiBaseUrl"
+      preview-mode
+      preview-read-only
+      :preview-event="scheduleCardPreviewEvent"
+      :preview-booked-slots="scheduleCardPreviewBookedSlots"
+      :preview-start-step="1"
+      step1-primary-action="edit-schedule"
+      @update:model-value="setScheduleCardPreviewOpen"
+      @edit-schedule="handleScheduleCardPreviewEdit"
+    />
+
+    <BookingScheduleMenu
+      v-if="isCreator"
+      :open="availabilityScheduleMenu.open"
+      :event="availabilityScheduleMenu.event"
+      position-class="fixed"
+      :menu-style="availabilityScheduleMenuStyle"
+      @edit="handleAvailabilityMenuEdit"
+      @view-card="handleAvailabilityMenuViewCard"
+      @delete="handleAvailabilityMenuDelete"
+      @close="closeAvailabilityScheduleMenu"
+    />
+
+    <div
+      v-if="calendarTooltip.visible"
+      class="pointer-events-none fixed z-[1600] w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
+      :style="calendarTooltipStyle"
+      :data-placement="calendarTooltip.placement"
+      data-test="dashboard-booking-tooltip"
+    >
+      <span
+        class="absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 bg-[#454158]"
+        :class="calendarTooltip.placement === 'top'
+          ? 'bottom-0 translate-y-1/2'
+          : 'top-0 -translate-y-1/2'"
+      />
+      <div class="relative flex flex-col gap-2">
+        <div class="truncate text-sm font-semibold leading-5">
+          {{ calendarTooltip.title }}
+        </div>
+        <div class="flex items-center gap-1.5 text-sm font-semibold leading-5">
+          <span
+            class="shrink-0"
+            data-test="dashboard-booking-tooltip-status-icon"
+            :data-booking-tooltip-status-icon="calendarTooltip.status"
+          >
+            <PendingStatus :status="calendarTooltip.status" :width="12" :height="12" />
+          </span>
+          <span class="truncate">{{ calendarTooltip.time }}</span>
+        </div>
+      </div>
+    </div>
+
     <ToastHost />
   </div>
 </template>
@@ -358,13 +582,21 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { hhmm, addDays } from "@/utils/calendarHelpers.js";
+import calenderPlusIcon from "@/assets/images/icons/calender-plus-02.svg";
+import DropdownArrowDown from "@/assets/images/icons/dropdown-arrow-down.svg";
 import MiniCalendar from "@/components/calendar/MiniCalendar.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
 import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
+import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
+import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
+import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import PendingStatus from "@/components/icons/PendingStatus.vue";
+import PhoneIcon from "@/components/icons/PhoneIcon.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
+import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
@@ -374,6 +606,7 @@ import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/book
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import plusIcon from "@/assets/images/icons/plus-icon.svg"
 
 const props = defineProps({
   creatorId: {
@@ -400,18 +633,14 @@ const props = defineProps({
     type: [String, Number, Boolean],
     default: "",
   },
+  filterPastPendingBookings: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["create-event", "edit-event", "open-url"]);
 const { t, locale } = useBookingTranslations();
-
-const EVENT_TYPE_COLOR_STORAGE_KEY = "calendar:eventTypeColors";
-const NONE_COLOR_VALUE = "none";
-const DEFAULT_EVENT_TYPE_COLORS = Object.freeze({
-  video: "#5549FF",
-  audio: "#06B6D4",
-  groupCall: "#E11D48",
-});
 
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -424,16 +653,43 @@ const cancelBookingCandidate = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
-const eventTypeColors = ref({
-  video: null,
-  audio: null,
-  groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
+const scheduleCardPreviewOpen = ref(false);
+const scheduleCardPreviewEvent = ref(null);
+const availabilityScheduleMenu = reactive({
+  open: false,
+  event: null,
+  left: 0,
+  top: 0,
 });
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
 const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
+const currentTime = ref(new Date());
+const currentTimeTimer = ref(null);
+const calendarTooltip = reactive({
+  visible: false,
+  title: "",
+  time: "",
+  status: "confirmed",
+  x: 0,
+  y: 0,
+  placement: "bottom",
+});
+
+const calendarTooltipStyle = computed(() => ({
+  left: `${calendarTooltip.x}px`,
+  top: `${calendarTooltip.y}px`,
+  transform: calendarTooltip.placement === "top"
+    ? "translate(-50%, -100%)"
+    : "translate(-50%, 0)",
+}));
+
+const availabilityScheduleMenuStyle = computed(() => ({
+  left: `${availabilityScheduleMenu.left}px`,
+  top: `${availabilityScheduleMenu.top}px`,
+}));
 
 const isEmbeddedMobileViewport = () => (
   props.embedded
@@ -536,7 +792,7 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
     dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
@@ -546,7 +802,7 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
@@ -567,6 +823,7 @@ const theme1 = computed(() => ({
 }));
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
+const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
 
 const toggleFloatingPopup = () => {
   isFloatingPopupOpen.value = !isFloatingPopupOpen.value;
@@ -589,16 +846,26 @@ const togglePopup = () => {
 
 const handlePositionUpdate = () => {
   if (isCreatePopupOpen.value) updatePopupPosition();
+  if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
 };
 
 const handleClickOutside = (event) => {
-  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value) return;
+  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value && !availabilityScheduleMenu.open) return;
   const path = event.composedPath ? event.composedPath() : [];
   if (popupTrigger.value && !path.includes(popupTrigger.value)) {
     isCreatePopupOpen.value = false;
   }
   if (floatingPopupTrigger.value && !path.includes(floatingPopupTrigger.value)) {
     isFloatingPopupOpen.value = false;
+  }
+  if (availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
+  }
+};
+
+const handleDocumentKeydown = (event) => {
+  if (event.key === "Escape" && availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
   }
 };
 
@@ -609,80 +876,18 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
   return fallback;
 }
 
-function isHexColor(color) {
-  return typeof color === "string" && /^#([0-9a-fA-F]{3}){1,2}$/.test(color.trim());
+function resolveOptionalEventColor(...candidates) {
+  for (const candidate of candidates) {
+    const color = normalizeHexColor(candidate, null);
+    if (color) return color;
+  }
+  return null;
 }
 
-function normalizeColorChoice(color, fallback = null) {
-  const normalized = typeof color === "string" ? color.trim() : "";
-  if (!normalized) return fallback;
-  if (normalized.toLowerCase() === NONE_COLOR_VALUE) return NONE_COLOR_VALUE;
-  return isHexColor(normalized) ? normalized : fallback;
-}
-
-function resolveCalendarColorChoice(typeColor, eventColorSkin, defaultColor) {
-  if (isHexColor(typeColor)) return typeColor.trim();
-
-  const fallbackEventColor = normalizeHexColor(eventColorSkin, null);
-  if (typeColor === NONE_COLOR_VALUE || typeColor == null || typeColor === "") {
-    return fallbackEventColor || defaultColor;
-  }
-
-  return fallbackEventColor || defaultColor;
-}
-
-function loadEventTypeColorsFromStorage() {
-  if (typeof window === "undefined") {
-    return {
-      video: null,
-      audio: null,
-      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-    };
-  }
-  try {
-    const raw = window.localStorage?.getItem(EVENT_TYPE_COLOR_STORAGE_KEY);
-    if (!raw) {
-      return {
-        video: null,
-        audio: null,
-        groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-      };
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      video: normalizeColorChoice(parsed?.video, null),
-      audio: normalizeColorChoice(parsed?.audio, null),
-      groupCall: normalizeHexColor(parsed?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall),
-    };
-  } catch (_error) {
-    return {
-      video: null,
-      audio: null,
-      groupCall: DEFAULT_EVENT_TYPE_COLORS.groupCall,
-    };
-  }
-}
-
-function resolveTypeColor({ callType = "", eventType = "", eventColorSkin = "" } = {}) {
-  const normalizedEventType = String(eventType || "").toLowerCase();
-  if (normalizedEventType.includes("group")) {
-    return normalizeHexColor(eventTypeColors.value?.groupCall, DEFAULT_EVENT_TYPE_COLORS.groupCall);
-  }
-
-  const normalizedCallType = String(callType || "").toLowerCase();
-  if (normalizedCallType.includes("audio")) {
-    return resolveCalendarColorChoice(
-      eventTypeColors.value?.audio,
-      eventColorSkin,
-      DEFAULT_EVENT_TYPE_COLORS.audio,
-    );
-  }
-
-  return resolveCalendarColorChoice(
-    eventTypeColors.value?.video,
-    eventColorSkin,
-    DEFAULT_EVENT_TYPE_COLORS.video,
-  );
+function resolveEventColor(...candidates) {
+  const color = resolveOptionalEventColor(...candidates);
+  if (color) return color;
+  return DEFAULT_EVENT_COLOR;
 }
 
 function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
@@ -701,30 +906,108 @@ function rgba(hexColor, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const GENERIC_EVENT_TITLE_FALLBACKS = new Set(["event title", "untitled event"]);
+
+function normalizeEventTitleCandidate(value) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function isGenericEventTitle(value) {
+  return GENERIC_EVENT_TITLE_FALLBACKS.has(String(value || "").trim().toLowerCase());
+}
+
+function resolveCalendarEventTitle(event = {}) {
+  const candidates = [
+    event?.title,
+    event?.eventTitle,
+    event?.eventName,
+    event?.event_name,
+    event?.name,
+    event?.raw?.title,
+    event?.raw?.eventTitle,
+    event?.raw?.eventName,
+    event?.raw?.event_name,
+    event?.raw?.name,
+  ];
+  let genericFallback = "";
+
+  for (const candidate of candidates) {
+    const normalized = normalizeEventTitleCandidate(candidate);
+    if (!normalized) continue;
+
+    if (isGenericEventTitle(normalized)) {
+      genericFallback = genericFallback || normalized;
+      continue;
+    }
+
+    return normalized;
+  }
+
+  return genericFallback || t("dashboard_booking_schedule_untitled_event");
+}
+
 const APPROVED_BOOKING_STATUSES = new Set(["approved", "completed", "confirmed"]);
+const PENDING_BOOKING_STATUSES = new Set(["pending", "pending_hold"]);
+
+function resolveBookingStatus(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  return String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
+}
 
 function isApprovedBookingStatus(event = {}) {
-  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-  const status = String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
-  return APPROVED_BOOKING_STATUSES.has(status);
+  return APPROVED_BOOKING_STATUSES.has(resolveBookingStatus(event));
+}
+
+function isPastBookedCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  if (!event || event.isAvailabilityBlock === true) return false;
+  const endDate = resolveEventEndDate(event);
+  if (!endDate) return false;
+  return endDate.getTime() < comparisonDate.getTime();
+}
+
+function isPastPendingBookedCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  return PENDING_BOOKING_STATUSES.has(resolveBookingStatus(event))
+    && isPastBookedCalendarEvent(event, comparisonDate);
+}
+
+function isMidnightDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date.getHours() === 0 && date.getMinutes() === 0;
 }
 
 function getCalendarEventStyle(event) {
-  if (event?.isAvailabilityBlock) {
-    return {
-      backgroundColor: "rgba(152, 162, 179, 0.1)",
-      border: "1px solid rgba(152, 162, 179, 0.16)",
-      color: "transparent",
-      borderRadius: "0px",
-      border: "none",
-      zIndex: 1,
-    };
-  }
-
   const color = normalizeHexColor(
     event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
     DEFAULT_EVENT_COLOR,
   );
+
+  if (event?.isAvailabilityBlock) {
+    const startsAtMidnight = isMidnightDateTime(event?.start);
+    const endsAtMidnight = isMidnightDateTime(event?.end);
+
+    return {
+      backgroundColor: rgba(color, 0.08),
+      borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
+      borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
+      borderRadius: "0px",
+      color,
+      zIndex: 1,
+    };
+  }
+
+  if (isPastBookedCalendarEvent(event)) {
+    return {
+      backgroundColor: "#D9DCE6",
+      border: "1px solid #C8CDD8",
+      borderBottom: "1px solid #C8CDD8",
+      boxShadow: "none",
+      color: "#98A2B3",
+      zIndex: 2,
+    };
+  }
 
   if (!isApprovedBookingStatus(event)) {
     return {
@@ -745,18 +1028,27 @@ function getCalendarEventStyle(event) {
   };
 }
 
-function getMonthAvailabilityStyle() {
-  return {
-    backgroundColor: "rgba(102, 112, 133, 0.55)",
-    border: "1px solid rgba(102, 112, 133, 0.18)",
-    color: "transparent",
-    zIndex: 1,
-  };
-}
-
 function asDate(value) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function resolveEventEndDate(event = {}) {
+  return asDate(
+    event?.end
+      || event?.endIso
+      || event?.endAtIso
+      || event?.endAt
+      || event?.raw?.endIso
+      || event?.raw?.endAtIso
+      || event?.raw?.endAt,
+  );
+}
+
+function hasNotEnded(event = {}, comparisonDate = currentTime.value) {
+  const endDate = resolveEventEndDate(event);
+  if (!endDate) return false;
+  return endDate.getTime() >= comparisonDate.getTime();
 }
 
 function sameDay(leftDate, rightDate) {
@@ -769,6 +1061,68 @@ function sameDay(leftDate, rightDate) {
 
 function formatWidgetTime(startDate, endDate) {
   return `${hhmm(startDate)}-${hhmm(endDate)}`;
+}
+
+function formatCalendarTooltipTime(event = {}) {
+  const start = event?.start ? hhmm(event.start) : "";
+  const end = event?.end ? hhmm(event.end) : "";
+  if (start && end) return `${start} - ${end}`;
+  return start || end;
+}
+
+function isTouchCapableDevice() {
+  if (typeof window === "undefined") return false;
+  const nav = window.navigator || {};
+  const touchPoints = Number(nav.maxTouchPoints || nav.msMaxTouchPoints || 0);
+  return touchPoints > 0;
+}
+
+function canShowCalendarEventTooltip() {
+  if (typeof window === "undefined") return false;
+  if (isTouchCapableDevice()) return false;
+  if (typeof window.matchMedia !== "function") return true;
+  if (window.matchMedia("(hover: none), (pointer: coarse)").matches) return false;
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function showCalendarEventTooltip(event = {}, domEvent = null) {
+  if (!canShowCalendarEventTooltip()) {
+    hideCalendarEventTooltip();
+    return;
+  }
+
+  if (!event || event.isAvailabilityBlock === true) {
+    hideCalendarEventTooltip();
+    return;
+  }
+
+  const target = domEvent?.currentTarget;
+  if (!target || typeof target.getBoundingClientRect !== "function" || typeof window === "undefined") return;
+
+  const rect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || 1024;
+  const viewportHeight = window.innerHeight || 768;
+  const margin = 12;
+  const tooltipWidth = Math.min(272, Math.max(160, viewportWidth - (margin * 2)));
+  const tooltipHeightEstimate = 84;
+  const gap = 14;
+  const hasBottomSpace = (viewportHeight - rect.bottom) >= (tooltipHeightEstimate + gap + margin);
+  const placement = hasBottomSpace ? "bottom" : "top";
+  const unclampedX = rect.left + (rect.width / 2);
+  const minX = margin + (tooltipWidth / 2);
+  const maxX = viewportWidth - margin - (tooltipWidth / 2);
+
+  calendarTooltip.title = event?.title || t("dashboard_booked_slot");
+  calendarTooltip.time = formatCalendarTooltipTime(event);
+  calendarTooltip.status = getBookedSlotIndicatorStatus(event);
+  calendarTooltip.x = Math.min(Math.max(unclampedX, minX), maxX);
+  calendarTooltip.y = placement === "top" ? rect.top - gap : rect.bottom + gap;
+  calendarTooltip.placement = placement;
+  calendarTooltip.visible = true;
+}
+
+function hideCalendarEventTooltip() {
+  calendarTooltip.visible = false;
 }
 
 const DEFAULT_AVATAR_URL = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
@@ -788,6 +1142,31 @@ function isGroupCalendarEvent(event = {}) {
       || eventCurrent.eventType
       || "",
   ).toLowerCase() === "group-event";
+}
+
+function getBookedSlotTypeIcon(event = {}) {
+  return isGroupCalendarEvent(event) ? GroupCallIcon : PhoneIcon;
+}
+
+function getBookedSlotTypeIconKind(event = {}) {
+  return isGroupCalendarEvent(event) ? "group" : "private";
+}
+
+function getCalendarSlotIconSizeClass(view) {
+  return view === "month" ? "h-2.5 w-2.5" : "h-3 w-3";
+}
+
+function getBookedSlotIndicatorStatus(event = {}) {
+  const status = resolveBookingStatus(event);
+  if (status.includes("pending")) return "pending";
+  if (
+    status.includes("cancel")
+    || status.includes("declin")
+    || status.includes("reject")
+  ) {
+    return "declined";
+  }
+  return "confirmed";
 }
 
 function makeAvatar(event) {
@@ -889,21 +1268,64 @@ function resolveJoinStateForEvent(event = {}) {
   };
 }
 
+function shouldShowJoinButtonForEvent(event = {}, joinState = {}, options = {}) {
+  if (options.showReply === true) return false;
+
+  const status = String(event?.status || event?.raw?.status || "").toLowerCase();
+  if (status === "pending" || status === "pending_hold" || status.startsWith("cancelled")) return false;
+
+  return Boolean(joinState.joinUrl || event?.bookingId || event?.raw?.bookingId);
+}
+
+function getWidgetStatusInfo(event = {}, startDate = null, endDate = null, accentColor = null) {
+  const status = String(event?.status || event?.raw?.status || "").toLowerCase();
+  const defaultText = event.status === "active" ? t("dashboard_status_active") : event.status;
+  const now = currentTime.value;
+
+  if (status === "confirmed" && startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
+    if (endDate instanceof Date && !Number.isNaN(endDate.getTime())) {
+      const nowMs = now.getTime();
+      if (nowMs >= startDate.getTime() && nowMs < endDate.getTime()) {
+        return {
+          text: t("calendar_event_live_now"),
+          color: null,
+        };
+      }
+    }
+
+    const msToStart = startDate.getTime() - now.getTime();
+    if (msToStart > 0 && msToStart <= (5 * 60 * 1000)) {
+      const minutesToStart = Math.max(1, Math.ceil(msToStart / 60000));
+      return {
+        text: `in ${minutesToStart} mins`,
+        color: accentColor,
+      };
+    }
+  }
+
+  return {
+    text: defaultText,
+    color: null,
+  };
+}
+
 function toWidgetItem(event, options = {}) {
   const startDate = asDate(event.start) || new Date();
   const endDate = asDate(event.end) || startDate;
   const isGroup = isGroupCalendarEvent(event);
   const joinState = resolveJoinStateForEvent(event);
-  const accentColor = resolveTypeColor({
-    callType: event?.eventCallType || event?.raw?.eventCallType || "",
-    eventType: event?.type || event?.raw?.eventType || event?.raw?.type || "",
-    eventColorSkin: event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || "",
-  });
+  const accentColor = resolveEventColor(
+    event?.color,
+    event?.eventColorSkin,
+    event?.raw?.eventColorSkin,
+  );
 
   const styles = isGroup
     ? { titleColorClass: "text-activePink", borderClass: "bg-brightPink" }
     : { titleColorClass: "text-lightViolet", borderClass: "bg-lightViolet" };
   const participantCount = isGroup && isCreator.value ? getGroupParticipantCount(event) : undefined;
+  const showJoinButton = shouldShowJoinButtonForEvent(event, joinState, options);
+  const statusInfo = getWidgetStatusInfo(event, startDate, endDate, accentColor);
 
   if (options.layout === "today") {
     return {
@@ -912,9 +1334,12 @@ function toWidgetItem(event, options = {}) {
       titleColorClass: styles.titleColorClass,
       borderClass: styles.borderClass,
       bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
-      showJoin: joinState.canJoin,
+      showJoin: showJoinButton,
+      canJoin: joinState.canJoin,
       joinUrl: joinState.joinUrl,
-      statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
+      joinAvailableAtIso: joinState.joinAvailableAtIso,
+      statusText: statusInfo.text,
+      statusColor: statusInfo.color,
       showReply: options.showReply === true,
       avatars: makeAvatar(event),
       sourceEvent: event,
@@ -935,9 +1360,12 @@ function toWidgetItem(event, options = {}) {
     isGroup,
     groupText: isGroup ? getWidgetGroupText(event) : undefined,
     participantCount,
-    showJoin: joinState.canJoin,
+    showJoin: showJoinButton,
+    canJoin: joinState.canJoin,
     joinUrl: joinState.joinUrl,
-    statusText: event.status === "active" ? t("dashboard_status_active") : event.status,
+    joinAvailableAtIso: joinState.joinAvailableAtIso,
+    statusText: statusInfo.text,
+    statusColor: statusInfo.color,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
     sourceEvent: event,
@@ -967,13 +1395,18 @@ function buildCalendarSlotsFromContext({
     titleFallback: t("dashboard_booked_slot"),
   });
 
-  const colorByEventId = new Map(
+  const eventColorByEventId = new Map(
     catalogEvents
       .map((event) => [
         String(event?.eventId || event?.id || ""),
-        event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+        resolveOptionalEventColor(
+          event?.color,
+          event?.eventColorSkin,
+          event?.raw?.color,
+          event?.raw?.eventColorSkin,
+        ),
       ])
-      .filter(([eventId]) => Boolean(eventId)),
+      .filter(([eventId, color]) => Boolean(eventId && color)),
   );
   const callTypeByEventId = new Map(
     catalogEvents
@@ -983,28 +1416,48 @@ function buildCalendarSlotsFromContext({
       ])
       .filter(([eventId]) => Boolean(eventId)),
   );
-  const eventTypeByEventId = new Map(
+  const eventTitleByEventId = new Map(
     catalogEvents
       .map((event) => [
         String(event?.eventId || event?.id || ""),
-        String(event?.type || event?.eventType || event?.raw?.type || event?.raw?.eventType || "").toLowerCase(),
+        resolveCalendarEventTitle(event),
       ])
-      .filter(([eventId]) => Boolean(eventId)),
+      .filter(([eventId, title]) => Boolean(eventId && title)),
   );
+  const bookedCalendarSlots = calendarSlots.map((slot) => {
+    const eventId = String(slot?.eventId || "");
+    const eventCallType = callTypeByEventId.get(eventId) || String(slot?.raw?.eventCallType || "").toLowerCase();
+    const eventColorSkin = eventColorByEventId.get(eventId)
+      || normalizeHexColor(slot?.eventColorSkin || slot?.raw?.eventColorSkin, null)
+      || null;
 
-  const bookedCalendarSlots = calendarSlots.map((slot) => ({
-    ...slot,
-    eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || "").toLowerCase(),
-    color: resolveTypeColor({
-      callType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || ""),
-      eventType: eventTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventType || slot?.type || ""),
-      eventColorSkin: colorByEventId.get(String(slot?.eventId || "")) || slot?.raw?.eventColorSkin || "",
-    }),
-    raw: {
-      ...(slot?.raw || {}),
-      eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.raw?.eventCallType || "").toLowerCase(),
-    },
-  }));
+    return {
+      ...slot,
+      eventCallType,
+      eventColorSkin,
+      raw: {
+        ...(slot?.raw || {}),
+        eventCallType,
+        eventColorSkin,
+      },
+    };
+  });
+  const shouldHideAvailabilityTitle = (slot) => {
+    const eventId = String(slot?.eventId || "").trim();
+    const availabilityStartMs = new Date(slot?.start).getTime();
+    if (!eventId || Number.isNaN(availabilityStartMs)) return false;
+
+    const windowEndMs = availabilityStartMs + AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS;
+
+    return bookedCalendarSlots.some((booking) => {
+      if (String(booking?.eventId || "").trim() !== eventId) return false;
+
+      const bookingStartMs = new Date(booking?.start).getTime();
+      if (Number.isNaN(bookingStartMs)) return false;
+
+      return bookingStartMs >= availabilityStartMs && bookingStartMs <= windowEndMs;
+    });
+  };
 
   const availabilitySlots = mapAvailabilityToCalendarEvents(catalogEvents, {
     bookedSlotsIndex,
@@ -1012,15 +1465,27 @@ function buildCalendarSlotsFromContext({
     rangeDaysBefore: 14,
     rangeDaysAfter: 56,
     mode: "scheduleWindow",
-  }).map((slot) => ({
-    ...slot,
-    color: "#98A2B3",
-    eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.eventCallType || "").toLowerCase(),
-    raw: {
-      ...(slot?.raw || {}),
-      eventCallType: callTypeByEventId.get(String(slot?.eventId || "")) || String(slot?.eventCallType || "").toLowerCase(),
-    },
-  }));
+  }).map((slot) => {
+    const eventId = String(slot?.eventId || "");
+    const eventCallType = callTypeByEventId.get(eventId) || String(slot?.eventCallType || "").toLowerCase();
+    const eventColorSkin = eventColorByEventId.get(eventId)
+      || resolveOptionalEventColor(slot?.color, slot?.eventColorSkin, slot?.raw?.eventColorSkin)
+      || DEFAULT_EVENT_COLOR;
+
+    return {
+      ...slot,
+      title: eventTitleByEventId.get(eventId) || resolveCalendarEventTitle(slot),
+      color: eventColorSkin,
+      eventColorSkin,
+      eventCallType,
+      hideAvailabilityTitle: shouldHideAvailabilityTitle(slot),
+      raw: {
+        ...(slot?.raw || {}),
+        eventCallType,
+        eventColorSkin,
+      },
+    };
+  });
 
   return {
     bookedCalendarSlots,
@@ -1202,16 +1667,150 @@ const bookingScheduleEvents = computed(() => {
   return events.filter((event) => String(event?.status || event?.raw?.status || "active").toLowerCase() === "active");
 });
 
-const handleEditScheduleEvent = (event) => {
-  const eventId = String(event?.eventId || event?.id || "").trim();
-  if (!eventId) return;
+const getScheduleEventId = (event = {}) => String(event?.eventId || event?.id || event?.raw?.eventId || event?.raw?.id || "").trim();
 
-  emit("edit-event", {
+const findBookingScheduleEventById = (eventId) => {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return null;
+
+  return bookingScheduleEvents.value.find((event) => getScheduleEventId(event) === normalizedEventId) || null;
+};
+
+const normalizeScheduleEventPayload = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  if (!eventId) return null;
+
+  return {
+    ...event,
     eventId,
-    type: event?.type === "group" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
+    title: String(event?.title || event?.eventTitle || event?.raw?.title || t("dashboard_booking_schedule_untitled_event")).trim(),
+    type: event?.type === "group" || event?.type === "group-event" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
       ? "group"
       : "private",
-    event,
+  };
+};
+
+const resolveAvailabilityScheduleEvent = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  const matchedScheduleEvent = findBookingScheduleEventById(eventId);
+  return normalizeScheduleEventPayload(matchedScheduleEvent || event);
+};
+
+const scheduleCardPreviewBookedSlots = computed(() => {
+  const eventId = getScheduleEventId(scheduleCardPreviewEvent.value);
+  const bookedSlots = dashboardEventsEngine.state?.events?.bookedSlotsRaw;
+  if (!eventId || !Array.isArray(bookedSlots)) return [];
+
+  return bookedSlots.filter((slot) => String(slot?.eventId || slot?.raw?.eventId || "").trim() === eventId);
+});
+
+const closeScheduleCardPreview = () => {
+  scheduleCardPreviewOpen.value = false;
+  scheduleCardPreviewEvent.value = null;
+};
+
+const setScheduleCardPreviewOpen = (open) => {
+  scheduleCardPreviewOpen.value = Boolean(open);
+  if (!open) {
+    scheduleCardPreviewEvent.value = null;
+  }
+};
+
+const openScheduleCardPreview = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  scheduleCardPreviewEvent.value = normalizedEvent;
+  scheduleCardPreviewOpen.value = true;
+};
+
+const closeAvailabilityScheduleMenu = () => {
+  availabilityScheduleMenu.open = false;
+  availabilityScheduleMenu.event = null;
+};
+
+const positionAvailabilityScheduleMenu = (domEvent) => {
+  const fallbackLeft = 8;
+  const fallbackTop = 8;
+  if (typeof window === "undefined") {
+    availabilityScheduleMenu.left = fallbackLeft;
+    availabilityScheduleMenu.top = fallbackTop;
+    return;
+  }
+
+  const trigger = domEvent?.currentTarget || domEvent?.target;
+  const menuWidth = 196;
+  const menuHeight = 176;
+  const gap = 8;
+  const viewportPadding = 8;
+  const viewportWidth = window.innerWidth || menuWidth + viewportPadding * 2;
+  const viewportHeight = window.innerHeight || menuHeight + viewportPadding * 2;
+  let left = fallbackLeft;
+  let top = fallbackTop;
+  let topWhenAbove = fallbackTop;
+
+  if (Number.isFinite(domEvent?.clientX) && Number.isFinite(domEvent?.clientY)) {
+    left = domEvent.clientX;
+    top = domEvent.clientY;
+    topWhenAbove = domEvent.clientY - menuHeight - gap;
+  } else if (trigger && typeof trigger.getBoundingClientRect === "function") {
+    const rect = trigger.getBoundingClientRect();
+    left = rect.left;
+    top = rect.bottom + gap;
+    topWhenAbove = rect.top - menuHeight - gap;
+  }
+
+  if (left + menuWidth > viewportWidth - viewportPadding) {
+    left = viewportWidth - menuWidth - viewportPadding;
+  }
+
+  if (top + menuHeight > viewportHeight - viewportPadding) {
+    top = topWhenAbove;
+  }
+
+  availabilityScheduleMenu.left = Math.max(viewportPadding, left);
+  availabilityScheduleMenu.top = Math.max(viewportPadding, top);
+};
+
+const openAvailabilityScheduleMenu = (event, domEvent) => {
+  if (!isCreator.value) return;
+  const scheduleEvent = resolveAvailabilityScheduleEvent(event);
+  if (!scheduleEvent) return;
+
+  availabilityScheduleMenu.event = scheduleEvent;
+  positionAvailabilityScheduleMenu(domEvent);
+  availabilityScheduleMenu.open = true;
+};
+
+const handleAvailabilityMenuEdit = (event) => {
+  closeAvailabilityScheduleMenu();
+  handleEditScheduleEvent(event);
+};
+
+const handleAvailabilityMenuViewCard = (event) => {
+  closeAvailabilityScheduleMenu();
+  openScheduleCardPreview(event);
+};
+
+const handleAvailabilityMenuDelete = (event) => {
+  closeAvailabilityScheduleMenu();
+  openDeleteEventPopup(event);
+};
+
+const handleScheduleCardPreviewEdit = (event) => {
+  const selectedEvent = normalizeScheduleEventPayload(event) || scheduleCardPreviewEvent.value;
+  closeScheduleCardPreview();
+  handleEditScheduleEvent(selectedEvent);
+};
+
+const handleEditScheduleEvent = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  emit("edit-event", {
+    eventId: normalizedEvent.eventId,
+    type: normalizedEvent.type,
+    event: normalizedEvent,
   });
 };
 
@@ -1432,20 +2031,11 @@ const closeCancelBookingPopup = () => {
   cancelBookingCandidate.value = null;
 };
 
-const handleEventTypeColorsChanged = () => {
-  eventTypeColors.value = loadEventTypeColorsFromStorage();
-  rebuildAvailabilityForFocusDate();
-};
-
-const handleEventTypeColorsStorageChanged = (event) => {
-  if (event?.key !== EVENT_TYPE_COLOR_STORAGE_KEY) return;
-  handleEventTypeColorsChanged();
-};
-
 const allEvents = computed(() => {
   const list = dashboardEventsEngine.state?.events?.bookedList;
   if (!Array.isArray(list)) return [];
-  return [...list].sort((left, right) => {
+  const now = currentTime.value;
+  return list.filter((event) => hasNotEnded(event, now)).sort((left, right) => {
     const leftStart = asDate(left.start)?.getTime() || 0;
     const rightStart = asDate(right.start)?.getTime() || 0;
     return leftStart - rightStart;
@@ -1462,7 +2052,14 @@ const calendarEvents = computed(() => {
   });
 });
 
-const events1 = computed(() => calendarEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
+const events1 = computed(() => {
+  const now = currentTime.value;
+  return calendarEvents.value.filter((event) => {
+    const status = resolveBookingStatus(event);
+    return !status.startsWith("cancelled")
+      && (!props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now));
+  });
+});
 const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
 
 const eventsData = computed(() => {
@@ -1493,7 +2090,7 @@ const eventsData = computed(() => {
     ];
   }
 
-  const now = new Date();
+  const now = currentTime.value;
 
   const todayItems = [];
   const weekItems = [];
@@ -1527,7 +2124,8 @@ const eventsData = computed(() => {
 });
 
 const buildExpandedMonthSections = (events = [], day = null) => {
-  const items = events.map((event) => {
+  const now = currentTime.value;
+  const items = events.filter((event) => hasNotEnded(event, now)).map((event) => {
     const status = String(event?.status || "").toLowerCase();
     return toWidgetItem(event, {
       layout: "today",
@@ -1695,14 +2293,16 @@ const confirmCancelBooking = async () => {
 
 onMounted(() => {
   isMounted.value = true;
-  eventTypeColors.value = loadEventTypeColorsFromStorage();
+  currentTime.value = new Date();
+  currentTimeTimer.value = window.setInterval(() => {
+    currentTime.value = new Date();
+  }, 60 * 1000);
   dashboardEventsEngine.initialize({ fromUrl: false });
 
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
-  window.addEventListener("event-type-colors:changed", handleEventTypeColorsChanged);
-  window.addEventListener("storage", handleEventTypeColorsStorageChanged);
   document.addEventListener("click", handleClickOutside);
+  document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
   if (hasDashboardContext.value) {
@@ -1753,15 +2353,23 @@ watch(dashboardRole, (nextRole) => {
     isCreatePopupOpen.value = false;
     isFloatingPopupOpen.value = false;
     newEventsPopupOpen.value = false;
+    closeAvailabilityScheduleMenu();
   }
 });
 
+watch(() => state.view, () => {
+  closeAvailabilityScheduleMenu();
+});
+
 onUnmounted(() => {
+  if (currentTimeTimer.value) {
+    window.clearInterval(currentTimeTimer.value);
+    currentTimeTimer.value = null;
+  }
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
-  window.removeEventListener("event-type-colors:changed", handleEventTypeColorsChanged);
-  window.removeEventListener("storage", handleEventTypeColorsStorageChanged);
   document.removeEventListener("click", handleClickOutside);
+  document.removeEventListener("keydown", handleDocumentKeydown);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);
 });
 

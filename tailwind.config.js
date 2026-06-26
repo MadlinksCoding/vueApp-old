@@ -21,6 +21,9 @@ export default {
         md: "768px",
         lg: "1010px",
         xl: "1365px",
+        'ipad-portrait': {
+          raw: '(max-width: 1366px) and (orientation: portrait)',
+        },
       },
       fontFamily: {
         sans: [

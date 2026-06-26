@@ -83,8 +83,8 @@ vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
 vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
-    props: ["view", "eventsData", "canCreateEvents"],
-    emits: ["join-click", "event-click", "menu-action", "open-new-events"],
+    props: ["view", "eventsData", "canCreateEvents", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
+    emits: ["join-click", "event-click", "menu-action", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     template: `
       <div data-test="mobile-popup">
         <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
@@ -99,6 +99,24 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
           @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { id: 'mobile-source' } } })"
         >
           menu
+        </button>
+        <button
+          data-test="mobile-schedule-edit"
+          @click="$emit('edit-schedule-event', bookingScheduleEvents[0])"
+        >
+          edit schedule
+        </button>
+        <button
+          data-test="mobile-schedule-delete"
+          @click="$emit('delete-schedule-event', bookingScheduleEvents[0])"
+        >
+          delete schedule
+        </button>
+        <button
+          data-test="mobile-schedule-view-card"
+          @click="$emit('view-schedule-card', bookingScheduleEvents[0])"
+        >
+          view schedule card
         </button>
       </div>
     `,
@@ -123,7 +141,19 @@ vi.mock("@/components/calendar/MobileDateSelector.vue", () => ({
 vi.mock("@/components/ui/form/checkbox/CheckboxGroup.vue", () => ({
   default: {
     name: "CheckboxGroup",
-    template: "<label />",
+    props: ["label", "modelValue"],
+    emits: ["update:modelValue"],
+    template: `
+      <label>
+        <input
+          data-test="checkbox-group-input"
+          type="checkbox"
+          :checked="modelValue"
+          @change="$emit('update:modelValue', $event.target.checked)"
+        />
+        <span>{{ label }}</span>
+      </label>
+    `,
   },
 }));
 
@@ -175,6 +205,7 @@ function makeEvent(overrides = {}) {
     slot: overrides.slot || null,
     isAvailabilityBlock: overrides.isAvailabilityBlock ?? true,
     isDraftPreview: overrides.isDraftPreview || false,
+    status: overrides.status,
     raw: {
       eventId: overrides.eventId || "event_1",
       eventCallType: overrides.eventCallType || "video",
@@ -182,6 +213,12 @@ function makeEvent(overrides = {}) {
       ...(overrides.raw || {}),
     },
   };
+}
+
+function calendarDateAttr(date, offsetDays = 0) {
+  const value = new Date(date);
+  value.setDate(value.getDate() + offsetDays);
+  return value.toISOString().slice(0, 10);
 }
 
 async function mountCalendar(events, extraProps = {}, mountOptions = {}) {
@@ -217,6 +254,87 @@ afterEach(() => {
 });
 
 describe("MainCalendar all events count", () => {
+  it("renders default calendar labels through booking translations", async () => {
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const translations = {
+      dashboard_calendar_show_legend: "Mostrar leyenda",
+      dashboard_calendar_legend_event_type: "Tipo de evento",
+      dashboard_calendar_legend_one_on_one_call: "Llamada individual",
+      dashboard_calendar_legend_group_call: "Llamada grupal",
+      dashboard_calendar_legend_booking_schedule: "Agenda de reservas",
+      dashboard_calendar_legend_status: "Estado",
+      calendar_event_status_pending: "Pendiente",
+      calendar_event_status_confirmed: "Confirmada",
+      dashboard_calendar_legend_declined_canceled: "Rechazada/Cancelada",
+      calendar_timezone_gmt_offset: "UTC{offset}",
+      calendar_time_period_am_short: "a. m.",
+      calendar_time_period_pm_short: "p. m.",
+    };
+
+    const wrapper = await mountCalendar(
+      [],
+      {},
+      {
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("es"),
+              t: (key, params = {}) => {
+                const message = translations[key] || key;
+                return message.replace(/\{offset\}/g, params.offset ?? "{offset}");
+              },
+            },
+          },
+        },
+      },
+    );
+
+    expect(wrapper.text()).toContain("Mostrar leyenda");
+    expect(wrapper.text()).toContain("UTC +08");
+    expect(wrapper.text()).toContain("12a. m.");
+
+    await wrapper.get("[data-test='checkbox-group-input']").setValue(true);
+
+    expect(wrapper.text()).toContain("Tipo de evento");
+    expect(wrapper.text()).toContain("Llamada individual");
+    expect(wrapper.text()).toContain("Llamada grupal");
+    expect(wrapper.text()).toContain("Agenda de reservas");
+    expect(wrapper.text()).toContain("Estado");
+    expect(wrapper.text()).toContain("Pendiente");
+    expect(wrapper.text()).toContain("Confirmada");
+    expect(wrapper.text()).toContain("Rechazada/Cancelada");
+  });
+
+  it("translates fallback month-expanded event statuses", async () => {
+    setWindowWidth(390);
+
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "pending_hold_booking",
+          status: "pending_hold",
+          isAvailabilityBlock: false,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("es"),
+              t: (key) => (key === "calendar_event_status_pending_hold" ? "En espera" : key),
+            },
+          },
+        },
+      },
+    );
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+
+    expect(wrapper.get("[data-test='month-expanded-event']").text()).toContain("En espera");
+  });
+
   it("renders a translated Today label above the current date in the theme2 header", async () => {
     vi.useFakeTimers();
     const currentDate = new Date(2026, 3, 23, 9, 0, 0);
@@ -373,6 +491,99 @@ describe("MainCalendar all events count", () => {
     const blocks = wrapper.findAll("[data-test='availability-block']");
     expect(blocks.length).toBeGreaterThan(0);
     expect(blocks.some((block) => block.attributes("style")?.includes("display: none"))).toBe(false);
+  });
+
+  it("aligns day view body columns with the previous, current, and next day headers", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "focused_day_availability",
+          title: "Focused availability",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 13, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "day" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day, style }">
+              <div
+                data-test="availability-block"
+                :data-event-id="event.eventId"
+                :data-day="day.toISOString().slice(0, 10)"
+                :style="style"
+              >
+                {{ event.title }}
+              </div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
+    const expectedDates = [
+      calendarDateAttr(baseDate, -1),
+      calendarDateAttr(baseDate),
+      calendarDateAttr(baseDate, 1),
+    ];
+
+    expect(bodyColumns).toHaveLength(3);
+    expect(bodyColumns.map((column) => column.attributes("data-date"))).toEqual(expectedDates);
+    expect(wrapper.findAll("[data-test='availability-block']")).toHaveLength(1);
+    expect(bodyColumns[0].find("[data-test='availability-block']").exists()).toBe(false);
+    expect(bodyColumns[1].get("[data-test='availability-block']").attributes("data-event-id")).toBe("focused_day_availability");
+    expect(bodyColumns[1].get("[data-test='availability-block']").attributes("data-day")).toBe(expectedDates[1]);
+    expect(bodyColumns[2].find("[data-test='availability-block']").exists()).toBe(false);
+  });
+
+  it("renders adjacent-day availability in its own day view body column", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "previous_day_availability",
+          title: "Previous day availability",
+          start: new Date(2026, 3, 22, 12, 0, 0),
+          end: new Date(2026, 3, 22, 13, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "day" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day }">
+              <div
+                data-test="availability-block"
+                :data-event-id="event.eventId"
+                :data-day="day.toISOString().slice(0, 10)"
+              >
+                {{ event.title }}
+              </div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
+    const expectedDates = [
+      calendarDateAttr(baseDate, -1),
+      calendarDateAttr(baseDate),
+      calendarDateAttr(baseDate, 1),
+    ];
+
+    expect(bodyColumns).toHaveLength(3);
+    expect(bodyColumns.map((column) => column.attributes("data-date"))).toEqual(expectedDates);
+    expect(wrapper.findAll("[data-test='availability-block']")).toHaveLength(1);
+    expect(bodyColumns[0].get("[data-test='availability-block']").attributes("data-event-id")).toBe("previous_day_availability");
+    expect(bodyColumns[0].get("[data-test='availability-block']").attributes("data-day")).toBe(expectedDates[0]);
+    expect(bodyColumns[1].find("[data-test='availability-block']").exists()).toBe(false);
+    expect(bodyColumns[2].find("[data-test='availability-block']").exists()).toBe(false);
   });
 
   it("keeps late-night availability aligned when earlier evening rows expand", async () => {
@@ -537,6 +748,93 @@ describe("MainCalendar all events count", () => {
     await openMobilePopup(wrapper);
 
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("passes booking schedule data to the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_schedule",
+        title: "Mobile Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const bookingScheduleBookedSlotsIndex = {
+      evt_mobile_schedule: {
+        "2026-04-23": [{ startAtIso: "2026-04-23T10:00:00Z" }],
+      },
+    };
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      bookingScheduleBookedSlotsIndex,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+
+    const mobilePopup = wrapper.getComponent({ name: "CalendarMobilePopupContent" });
+    expect(mobilePopup.props("bookingScheduleEvents")).toEqual(bookingScheduleEvents);
+    expect(mobilePopup.props("bookingScheduleBookedSlotsIndex")).toEqual(bookingScheduleBookedSlotsIndex);
+    expect(mobilePopup.props("showBookingScheduleList")).toBe(true);
+  });
+
+  it("forwards mobile schedule edit actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_edit",
+        title: "Mobile Edit Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-edit']").trigger("click");
+
+    expect(wrapper.emitted("edit-schedule-event")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile schedule delete actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_delete",
+        title: "Mobile Delete Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-delete']").trigger("click");
+
+    expect(wrapper.emitted("delete-schedule-event")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile schedule card preview actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_view_card",
+        title: "Mobile View Card Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-view-card']").trigger("click");
+
+    expect(wrapper.emitted("view-schedule-card")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
   });
 
   it("expands mobile month rows with real booked events instead of dummy content", async () => {

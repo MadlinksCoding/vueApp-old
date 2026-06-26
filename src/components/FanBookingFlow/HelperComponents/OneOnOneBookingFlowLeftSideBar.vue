@@ -275,7 +275,7 @@ const groupPolicyItems = computed(() => {
                 </div>
               </template>
             </div>
-            <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] lg:hidden md:p-[0.3125rem_0.375rem] w-fit md:min-h-[28px] flex justify-center items-center gap-2">
+            <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] hidden md:p-[0.3125rem_0.375rem] w-fit md:min-h-[28px] flex justify-center items-center gap-2">
               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>
               <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">{{ t("common_approval_needed") }}</div>
             </div>
@@ -305,7 +305,7 @@ const groupPolicyItems = computed(() => {
               </li>
             </ul>
             <span
-              class="text-[#2CE] text-xs leading-[18px] md:hidden pl-5 cursor-pointer select-none"
+              class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
               @click="showAllPolicy = !showAllPolicy"
             >
               {{ showAllPolicy ? t('fan_booking_show_less') : t('fan_booking_show_more') }}

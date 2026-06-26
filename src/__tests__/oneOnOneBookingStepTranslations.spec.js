@@ -667,15 +667,15 @@ describe("one-on-one booking step translations", () => {
           oneTimeAvailability: [{
             id: "date-1",
             date: today,
-            slots: [{ startTime: "23:55", endTime: "00:00" }],
+            slots: [{ startTime: "23:55", endTime: "23:59" }],
           }],
-          monthlyAvailability: [{ startTime: "23:55", endTime: "00:00" }],
+          monthlyAvailability: [{ startTime: "23:55", endTime: "23:59" }],
           weeklyAvailability: [{
             key: "sun",
             name: "Sun",
             unavailable: false,
             offHours: false,
-            slots: [{ startTime: "23:55", endTime: "00:00", offHours: false }],
+            slots: [{ startTime: "23:55", endTime: "23:59", offHours: false }],
           }],
         }),
         bookingType: "private",
@@ -693,7 +693,7 @@ describe("one-on-one booking step translations", () => {
     expect(customEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
     expect(monthlyEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
     expect(weeklyEndOptions.find((option) => option.value === "23:59")?.disabled).toBe(false);
-    expect(customEndOptions.find((option) => option.value === "00:00")?.disabled).toBe(false);
+    expect(customEndOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
   });
 
   it("keeps 11:59 PM literal for group slots shorter than five minutes", async () => {
@@ -709,7 +709,7 @@ describe("one-on-one booking step translations", () => {
           oneTimeAvailability: [{
             id: "date-1",
             date: today,
-            slots: [{ startTime: "23:55", endTime: "00:00" }],
+            slots: [{ startTime: "23:55", endTime: "23:59" }],
           }],
         }),
         bookingType: "group",
@@ -780,7 +780,7 @@ describe("one-on-one booking step translations", () => {
     expect(thirdSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(false);
 
     const thirdSlotEndOptions = customTimeDropdowns[5].props("optionFactory")();
-    expect(thirdSlotEndOptions.find((option) => option.value === "12:00")?.disabled).toBe(false);
+    expect(thirdSlotEndOptions.find((option) => option.value === "12:00")?.disabled).toBe(true);
     expect(thirdSlotEndOptions.find((option) => option.value === "15:00")?.disabled).toBe(true);
     expect(thirdSlotEndOptions.find((option) => option.value === "21:00")?.disabled).toBe(false);
 
@@ -798,7 +798,7 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
 
     expect(thirdSlot.startTime).toBe("23:55");
-    expect(thirdSlot.endTime).toBe("00:00");
+    expect(thirdSlot.endTime).toBe("23:59");
   });
 
   it("marks custom one-time slots as off hours", async () => {
@@ -837,7 +837,7 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.vm.formData.oneTimeAvailability[0].slots[0].offHours).toBe(false);
   });
 
-  it("disables early-morning custom times covered by an overnight slot", async () => {
+  it("disables custom end times at or before the selected start time", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -850,10 +850,7 @@ describe("one-on-one booking step translations", () => {
           oneTimeAvailability: [{
             id: "date-1",
             date: today,
-            slots: [
-              { startTime: "22:00", endTime: "03:00" },
-              { startTime: "03:00", endTime: "06:00" },
-            ],
+            slots: [{ startTime: "16:00", endTime: "17:00" }],
           }],
         }),
         bookingType: "private",
@@ -864,17 +861,22 @@ describe("one-on-one booking step translations", () => {
     const customTimeDropdowns = wrapper
       .findAllComponents({ name: "CustomDropdown" })
       .filter((dropdown) => typeof dropdown.props("optionFactory") === "function");
-    const secondSlotStartOptions = customTimeDropdowns[2].props("optionFactory")();
+    const endOptions = customTimeDropdowns[1].props("optionFactory")();
 
-    expect(secondSlotStartOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "02:55")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "03:00")?.disabled).toBe(false);
-    expect(secondSlotStartOptions.find((option) => option.value === "21:55")?.disabled).toBe(false);
-    expect(secondSlotStartOptions.find((option) => option.value === "22:00")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
+
+    const slot = unrefPublic(wrapper.vm.oneTimeDates)[0].slots[0];
+    slot.endTime = "15:00";
+    wrapper.vm.onOneTimeSlotChanged(0, 0, "end");
+    await nextTick();
+
+    expect(slot.startTime).toBe("16:00");
+    expect(slot.endTime).toBe("16:05");
   });
 
-  it("disables overlapping monthly repeat times and adds the next free slot", async () => {
+  it("disables monthly end times at or before the selected start time", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -884,10 +886,7 @@ describe("one-on-one booking step translations", () => {
           eventType: "1on1-call",
           repeatRule: "monthly",
           dateFrom: getTodayIsoDate(),
-          monthlyAvailability: [
-            { startTime: "22:00", endTime: "03:00" },
-            { startTime: "03:00", endTime: "06:00" },
-          ],
+          monthlyAvailability: [{ startTime: "16:00", endTime: "17:00" }],
         }),
         bookingType: "private",
       },
@@ -897,24 +896,22 @@ describe("one-on-one booking step translations", () => {
     const monthlyTimeDropdowns = wrapper
       .findAllComponents({ name: "CustomDropdown" })
       .filter((dropdown) => typeof dropdown.props("optionFactory") === "function");
-    const secondSlotStartOptions = monthlyTimeDropdowns[2].props("optionFactory")();
+    const endOptions = monthlyTimeDropdowns[1].props("optionFactory")();
 
-    expect(secondSlotStartOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "02:55")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "03:00")?.disabled).toBe(false);
-    expect(secondSlotStartOptions.find((option) => option.value === "21:55")?.disabled).toBe(false);
-    expect(secondSlotStartOptions.find((option) => option.value === "22:00")?.disabled).toBe(true);
-    expect(secondSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
 
-    wrapper.vm.addMonthlySlot();
+    const slot = unrefPublic(wrapper.vm.monthlySlots)[0];
+    slot.endTime = "15:00";
+    wrapper.vm.onMonthlySlotChanged(0, "end");
     await nextTick();
 
-    const slotKeys = unrefPublic(wrapper.vm.monthlySlots)
-      .map((slot) => `${slot.startTime}|${slot.endTime}`);
-    expect(slotKeys).toContain("06:00|09:00");
+    expect(slot.startTime).toBe("16:00");
+    expect(slot.endTime).toBe("16:05");
   });
 
-  it("disables overlapping weekly repeat times across same-day and next-day slots", async () => {
+  it("disables weekly end times at or before the selected start time", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -929,17 +926,7 @@ describe("one-on-one booking step translations", () => {
               name: "Sun",
               unavailable: false,
               offHours: false,
-              slots: [
-                { startTime: "22:00", endTime: "03:00", offHours: false },
-                { startTime: "03:00", endTime: "06:00", offHours: false },
-              ],
-            },
-            {
-              key: "mon",
-              name: "Mon",
-              unavailable: false,
-              offHours: false,
-              slots: [{ startTime: "03:00", endTime: "06:00", offHours: false }],
+              slots: [{ startTime: "16:00", endTime: "17:00", offHours: false }],
             },
           ],
         }),
@@ -951,25 +938,19 @@ describe("one-on-one booking step translations", () => {
     const weeklyTimeDropdowns = wrapper
       .findAllComponents({ name: "CustomDropdown" })
       .filter((dropdown) => typeof dropdown.props("optionFactory") === "function");
-    const sundaySecondSlotStartOptions = weeklyTimeDropdowns[2].props("optionFactory")();
-    const mondaySlotStartOptions = weeklyTimeDropdowns[4].props("optionFactory")();
+    const endOptions = weeklyTimeDropdowns[1].props("optionFactory")();
 
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "02:55")?.disabled).toBe(true);
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "03:00")?.disabled).toBe(false);
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "21:55")?.disabled).toBe(false);
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "22:00")?.disabled).toBe(true);
-    expect(sundaySecondSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(true);
-    expect(mondaySlotStartOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
-    expect(mondaySlotStartOptions.find((option) => option.value === "02:55")?.disabled).toBe(true);
-    expect(mondaySlotStartOptions.find((option) => option.value === "03:00")?.disabled).toBe(false);
+    expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
 
-    wrapper.vm.addWeeklySlot(0);
+    const slot = unrefPublic(wrapper.vm.weekDays)[0].slots[0];
+    slot.endTime = "15:00";
+    wrapper.vm.onWeeklySlotChanged(0, 0, "end");
     await nextTick();
 
-    const sundaySlotKeys = unrefPublic(wrapper.vm.weekDays)[0].slots
-      .map((slot) => `${slot.startTime}|${slot.endTime}`);
-    expect(sundaySlotKeys).toContain("06:00|09:00");
+    expect(slot.startTime).toBe("16:00");
+    expect(slot.endTime).toBe("16:05");
   });
 
   it("does not cap the start date with a stale past end date", async () => {
@@ -1254,6 +1235,27 @@ describe("one-on-one booking step translations", () => {
     });
 
     expect(wrapper.find("quill-editor-stub").exists()).toBe(true);
+  });
+
+  it("hides the late-start compensation setting in private step 1", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({}),
+        embedded: true,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.text()).toContain("Call Settings");
+    expect(wrapper.text()).not.toContain("Offer discount if call starts late");
+    expect(wrapper.text()).not.toContain("Allow reschedule");
+    expect(wrapper.text()).not.toContain("Issue refund");
+    expect(wrapper.text()).not.toContain("Give next-session discount");
   });
 
   it("hides session duration in group step 1 and keeps it for private step 1", async () => {

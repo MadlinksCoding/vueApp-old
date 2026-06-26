@@ -48,8 +48,8 @@ onMounted(() => {
 
     // Load Content from State
     if (props.modelValue) {
-        quillInstance.root.innerHTML = props.modelValue;
-    }
+    quillInstance.clipboard.dangerouslyPasteHTML(props.modelValue);
+}
 
     // Update Parent State on Change
     quillInstance.on('text-change', () => {
@@ -80,8 +80,19 @@ onMounted(() => {
 });
 
 watch(() => props.modelValue, (newValue) => {
-    if (quillInstance && newValue !== quillInstance.root.innerHTML && !isUpdating) {
-        quillInstance.root.innerHTML = newValue || '';
+    if (!quillInstance || isUpdating) return;
+
+    const currentHtml = quillInstance.root.innerHTML;
+
+    if (newValue !== currentHtml) {
+        const selection = quillInstance.getSelection();
+
+        quillInstance.setContents([]);
+        quillInstance.clipboard.dangerouslyPasteHTML(newValue || '');
+
+        if (selection) {
+            quillInstance.setSelection(selection);
+        }
     }
 });
 </script>

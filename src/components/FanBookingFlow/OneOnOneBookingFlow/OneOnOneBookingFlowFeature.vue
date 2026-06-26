@@ -115,9 +115,14 @@ const props = defineProps({
   previewBookedSlots: { type: Array, default: () => [] },
   previewStartStep: { type: Number, default: 1 },
   previewReadOnly: { type: Boolean, default: false },
+  step1PrimaryAction: {
+    type: String,
+    default: "book",
+    validator: (value) => ["book", "edit-schedule"].includes(value),
+  },
 });
 
-const emit = defineEmits(["close-request", "booking-created", "booking-failed"]);
+const emit = defineEmits(["close-request", "booking-created", "booking-failed", "edit-schedule"]);
 const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
 const hasScheduledStep3Prefetch = ref(false);
@@ -257,7 +262,8 @@ function getPreviewDurationMinutes(event) {
 
 function isGroupEvent(event = {}) {
   const raw = event?.raw || {};
-  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+  const type = String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase();
+  return type === "group-event" || type === "group";
 }
 
 function toPreviewDurationObject(event, durationMinutes) {
@@ -434,16 +440,16 @@ function resolveRequestedEventId() {
   return null;
 }
 
-function selectEventById(eventId) {
+function selectEventById(eventId, { clearWhenMissing = true } = {}) {
   if (!eventId) {
-    clearSelectedEvent("event-select-empty");
+    if (clearWhenMissing) clearSelectedEvent("event-select-empty");
     return null;
   }
 
   const events = engine.getState("fanBooking.catalog.events") || [];
   const selected = events.find((event) => String(event.eventId) === String(eventId) || String(event.id) === String(eventId));
   if (!selected) {
-    clearSelectedEvent("event-select-missing");
+    if (clearWhenMissing) clearSelectedEvent("event-select-missing");
     return null;
   }
 
@@ -452,33 +458,48 @@ function selectEventById(eventId) {
   return selected;
 }
 
-async function loadBookingContext({ forceRefresh = false } = {}) {
+async function loadBookingContext({ forceRefresh = false, silent = false, preserveSelectedEvent = false } = {}) {
   const { creatorId, fanId } = syncBookingContext();
   const requestedEventId = resolveRequestedEventId();
-  const shouldRequireFreshCatalog = Boolean(requestedEventId);
-  clearSelectedEvent("catalog-load");
+  const previousSelectedEvent = engine.getState("fanBooking.context.selectedEvent") || null;
+  const previousSelectedEventId = engine.getState("fanBooking.context.selectedEventId")
+    || previousSelectedEvent?.eventId
+    || previousSelectedEvent?.id
+    || null;
+  const selectedEventIdToRestore = preserveSelectedEvent ? previousSelectedEventId : requestedEventId;
+  const shouldRequireFreshCatalog = Boolean(requestedEventId || preserveSelectedEvent);
+  if (!preserveSelectedEvent) {
+    clearSelectedEvent("catalog-load");
+  }
 
   logFanBookingDebug("feature", "loadBookingContext:start", {
     creatorId,
     fanId,
     forceRefresh,
+    silent,
+    preserveSelectedEvent,
     requestedEventId,
+    selectedEventIdToRestore,
     shouldRequireFreshCatalog,
   });
 
   if (creatorId == null) {
     const message = t("fan_booking_missing_creator_id");
-    engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
-    showToast({
-      type: "error",
-      title: t("fan_booking_load_failed_title"),
-      message,
-    });
+    if (!silent) {
+      engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
+      showToast({
+        type: "error",
+        title: t("fan_booking_load_failed_title"),
+        message,
+      });
+    }
     return { ok: false, error: { message } };
   }
 
-  engine.setState("fanBooking.ui.catalogLoading", true, { reason: "catalog-load", silent: true });
-  engine.setState("fanBooking.ui.catalogError", "", { reason: "catalog-load", silent: true });
+  if (!silent) {
+    engine.setState("fanBooking.ui.catalogLoading", true, { reason: "catalog-load", silent: true });
+    engine.setState("fanBooking.ui.catalogError", "", { reason: "catalog-load", silent: true });
+  }
   engine.setState("fanBooking.ui.previewMode", false, { reason: "catalog-load", silent: true });
   engine.setState("fanBooking.ui.previewReadOnly", false, { reason: "catalog-load", silent: true });
 
@@ -498,16 +519,20 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     },
   );
 
-  engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
+  if (!silent) {
+    engine.setState("fanBooking.ui.catalogLoading", false, { reason: "catalog-load", silent: true });
+  }
 
   if (!result?.ok) {
     const message = result?.meta?.uiErrors?.[0] || result?.error?.message || t("fan_booking_load_failed_message");
-    engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
-    showToast({
-      type: "error",
-      title: t("fan_booking_load_failed_title"),
-      message,
-    });
+    if (!silent) {
+      engine.setState("fanBooking.ui.catalogError", message, { reason: "catalog-load-failed", silent: true });
+      showToast({
+        type: "error",
+        title: t("fan_booking_load_failed_title"),
+        message,
+      });
+    }
     return result;
   }
 
@@ -518,28 +543,44 @@ async function loadBookingContext({ forceRefresh = false } = {}) {
     requestedEventId: resolveRequestedEventId(),
   });
 
-  if (requestedEventId) {
-    const selectedEvent = selectEventById(requestedEventId);
+  if (selectedEventIdToRestore) {
+    const selectedEvent = selectEventById(selectedEventIdToRestore, { clearWhenMissing: !preserveSelectedEvent });
     if (!selectedEvent) {
-      logFanBookingDebug("feature", "loadBookingContext:event-missing", { requestedEventId });
-      showToast({
-        type: "error",
-        title: t("fan_booking_event_unavailable_title"),
-        message: t("fan_booking_event_unavailable_message"),
-      });
-      return result;
+      logFanBookingDebug("feature", "loadBookingContext:event-missing", { selectedEventIdToRestore });
+      if (!silent) {
+        showToast({
+          type: "error",
+          title: t("fan_booking_event_unavailable_title"),
+          message: t("fan_booking_event_unavailable_message"),
+        });
+      }
+      return { ...result, ok: false, error: { code: "event_missing_after_refresh" } };
     }
 
     logFanBookingDebug("feature", "loadBookingContext:event-selected", {
-      requestedEventId,
+      requestedEventId: selectedEventIdToRestore,
       selectedEventId: selectedEvent.eventId || selectedEvent.id,
     });
 
-    await engine.forceStep(2, { intent: "feature-open-with-event-id" });
-    await engine.forceSubstep(null, { intent: "feature-open-with-event-id" });
+    if (requestedEventId && !preserveSelectedEvent) {
+      await engine.forceStep(2, { intent: "feature-open-with-event-id" });
+      await engine.forceSubstep(null, { intent: "feature-open-with-event-id" });
+    }
   }
 
   return result;
+}
+
+async function refreshBookingContext({ silent = true, preserveSelectedEvent = true } = {}) {
+  if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) {
+    return { ok: true, skipped: true };
+  }
+
+  return loadBookingContext({
+    forceRefresh: true,
+    silent,
+    preserveSelectedEvent,
+  });
 }
 
 async function loadPreviewContext() {
@@ -839,16 +880,16 @@ const currentStepComponent = computed(() => {
   }
 });
 
-const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
+const showWrapperCloseButton = computed(() => props.previewMode || engine.step === 2 || engine.step === 3);
 </script>
 
 <template>
-  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full h-full md:h-auto items-center justify-center lg:w-[852px]">
+  <div data-test="booking-flow-shell" class="relative flex min-h-dvh w-full items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:h-auto md:min-h-0 md:-translate-x-1/2 md:-translate-y-1/2 lg:w-[852px]">
     <div
         v-if="showWrapperCloseButton"
         @click="emit('close-request')"
         data-test="booking-flow-close-button"
-        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-[8px] w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
@@ -856,11 +897,14 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       :is="currentStepComponent"
       :engine="engine"
       :embedded="embedded"
+      :step1-primary-action="step1PrimaryAction"
       :api-base-url="apiBaseUrl"
+      :refresh-booking-context="refreshBookingContext"
       @close-popup="emit('close-request')"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
       @booking-created="emit('booking-created', $event)"
       @booking-failed="emit('booking-failed', $event)"
+      @edit-schedule="emit('edit-schedule', $event)"
     />
     <ToastHost />
   </div>

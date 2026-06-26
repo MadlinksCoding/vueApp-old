@@ -85,6 +85,7 @@ describe("bookingTranslations", () => {
     expect(t("fan_booking_error_invalid_temporary_hold_time")).toBe("Please choose a valid booking time.");
     expect(t("fan_booking_error_event_not_available")).toBe("This event is no longer available.");
     expect(t("fan_booking_error_slot_already_held")).toBe("This time slot is temporarily reserved. Please choose another time.");
+    expect(t("fan_booking_slot_already_booked_try_different_slot")).toBe("This slot has already been booked. Try booking a different slot");
     expect(t("fan_booking_error_missing_bearer_token")).toBe("Please log in to complete your booking.");
     expect(t("fan_booking_error_internal_error")).toBe("Could not complete booking. Please try again.");
   });
@@ -93,11 +94,30 @@ describe("bookingTranslations", () => {
     const { t } = createBookingTranslator();
 
     expect(t("fan_booking_validation_booking_buffer_after_booked_required", { buffer_minutes: 10 }))
-      .toBe("A 10-minute buffer is required before this booking can start.");
+      .toBe("This slot has already been booked. Try booking a different slot");
     expect(t("fan_booking_validation_booking_duration_exceeds_limit", { max_allowed_duration: 60 }))
       .toBe("Booking duration exceeds the maximum allowed duration of 60 minutes.");
     expect(t("fan_booking_validation_payment_txid_already_used", { existing_booking_id: "b_123" }))
       .toBe("This payment transaction has already been used by b_123.");
+  });
+
+  it("formats stale slot validation errors with the single fan-facing conflict copy", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatBookingValidationErrors([
+      {
+        code: "booking_overlaps_existing",
+        translationKey: "fan_booking_validation_booking_overlaps_existing",
+      },
+      {
+        code: "booking_buffer_after_booked_required",
+        translationKey: "fan_booking_validation_booking_buffer_after_booked_required",
+        params: { buffer_minutes: 15 },
+      },
+    ], t)).toEqual([
+      "This slot has already been booked. Try booking a different slot",
+      "This slot has already been booked. Try booking a different slot",
+    ]);
   });
 
   it("formats create-event backend buffer validation details with translated copy", () => {
