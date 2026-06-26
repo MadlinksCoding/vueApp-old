@@ -2181,9 +2181,12 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                           </div>
                           
                           <div v-if="discountLines.length > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_discount_heading") }}
-                              <TooltipIcon :text="t('Creators can offer different discounts to their fans. This is optional and varies by creator.')" side="right" />
-                            </h4>
+                            <div class="flex gap-2 items-center">
+                              <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
+                              <TooltipIcon 
+                              class="!w-4 !h-4 relative"
+                              :text="t('Creators can offer different discounts to their fans. This is optional and varies by creator.')" side="right" />
+                            </div>
                             <div
                               v-for="row in discountLines"
                               :key="row.code"
@@ -2211,9 +2214,13 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                           </div>
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}
-                              <TooltipIcon :text="t('Creators may charge extra fees in certain cases (optional & varies by creator). These fees are non-refundable, even if the booking is rejected.')" side="right" />
-                            </h4>
+                            <div class="flex gap-2 items-center">
+                              <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}</h4>
+                              <TooltipIcon 
+                                tooltipClass="!max-w-[14rem] md:!max-w-[16rem]"
+                                class="!w-4 !h-4 relative !mt-0"
+                                :text="t('Creators may charge extra fees in certain cases (optional & varies by creator). These fees are non-refundable, even if the booking is rejected.')" side="right" />
+                            </div>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
                                 <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
