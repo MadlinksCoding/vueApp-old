@@ -1361,8 +1361,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'flex h-full flex-col gap-6 relative w-full lg:w-[31.25rem] lg:min-w-[31.25rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
-                        : 'flex h-full flex-col gap-6 relative w-full lg:w-[31.25rem] lg:min-w-[31.25rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
+                        ? 'flex h-full flex-col gap-6 relative w-full lg:w-[40vw] lg:min-w-[31.25rem] lg:max-w-[45rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
+                        : 'flex h-full flex-col gap-6 relative w-full lg:w-[40vw] lg:min-w-[31.25rem] lg:max-w-[45rem] bg-white/50 shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03)] backdrop-blur-xl lg:overflow-y-auto overflow-x-hidden lg:no-scrollbar lg:h-dvh lg:max-h-dvh'
                 ]">
 
                 <div class="px-2 md:px-4 lg:px-6 pt-6 pb-2 bg-white/20 flex justify-between items-center gap-3">
