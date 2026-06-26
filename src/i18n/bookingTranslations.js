@@ -112,7 +112,6 @@ export const bookingMessages = {
   dashboard_group_event: "Group event",
   dashboard_status_active: "active",
   dashboard_show_existing_schedule: "Show existing events/booking schedule",
-  dashboard_show_booking_schedule_availability: "Show booking schedule availability",
   dashboard_calendar_show_legend: "SHOW LEGEND",
   dashboard_calendar_legend_event_type: "EVENT TYPE",
   dashboard_calendar_legend_one_on_one_call: "1 on 1 call",
