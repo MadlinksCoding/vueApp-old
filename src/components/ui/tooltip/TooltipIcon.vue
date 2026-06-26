@@ -32,7 +32,7 @@ const sideClasses = {
 </script>
 
 <template>
-  <div :class="['md:relative group/tooltip inline-block', wrapperClass]"
+  <div :class="['md:relative group/tooltip inline-block w-6 h-6', wrapperClass]"
   @click.stop.prevent
   @mousedown.stop
   @touchstart.stop
