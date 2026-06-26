@@ -3,17 +3,18 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center justify-between sticky top-0 z-30 py-2 px-1 md:px-0 md:pl-0">
-      <div class="flex items-center gap-3">
-        <div class="font-bold " :class="theme.main.title">{{ title }}</div>
-        <!-- mobile-view-start-->
-        <div class="cursor-pointer flex lg:hidden mobile-calendar-toggle" @click="toggleMobileCalendar">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
+    <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
+      <div class="w-full flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="font-bold w-[9rem] uppercase" :class="theme.main.title">{{ title }}</div>
+          <!-- mobile-view-start-->
+          <div class="cursor-pointer flex lg:hidden mobile-calendar-toggle" @click="toggleMobileCalendar">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
 
-        </div>
+          </div>
 
         <Teleport to="body">
           <div v-show="isMobileCalendarOpen" class="fixed inset-0 z-[120] lg:hidden">
@@ -114,9 +115,15 @@
         </span>
       </div>
 
-      <div class="flex items-center gap-2" ref="dropdownContainer">
+        <div class="flex items-center gap-2" ref="dropdownContainer">
         <!-- View selector dropdown -->
-        <div class="relative inline-block text-left  flex lg:hidden">
+          <div class="px-2 hidden ipad-portrait:hidden lg:flex items-center gap-2">
+            <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
+              checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
+              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem]"
+              wrapperClass="flex items-center" />
+          </div>
+          <div class="relative inline-block text-left  flex lg:hidden">
           <div @click="toggleViewSelector"
             :class="isViewSelectorOpen ? 'bg-[#0C111D]' : 'bg-white/90'"
             class="border border-[#FB5BA2] gap-1 px-[1rem] py-1 rounded-full flex items-center justify-between cursor-pointer select-none transition-all duration-100">
@@ -160,53 +167,51 @@
               </p>
             </span>
 
-            <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200"
-              :class="{ 'rotate-180': isDropdownOpen }">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
-                  :fill="isDropdownOpen ? 'white' : 'black'" :stroke="isDropdownOpen ? 'white' : 'black'"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
-          </div>
+              <button class="flex items-center justify-center w-[0.5rem] h-[0.5rem] transition-transform duration-200"
+                :class="{ 'rotate-180': isDropdownOpen }">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M0.796688 1.96714L3.53832 6.70268C3.68984 6.9644 3.7656 7.09526 3.86444 7.13922C3.95066 7.17755 4.04909 7.17755 4.13531 7.13922C4.23415 7.09526 4.30992 6.9644 4.46144 6.70268L7.20307 1.96714C7.35513 1.70448 7.43117 1.57315 7.41993 1.46536C7.41013 1.37134 7.36087 1.28591 7.28442 1.23032C7.19677 1.16659 7.04501 1.16659 6.74151 1.16659H1.25825C0.954741 1.16659 0.802987 1.16659 0.715335 1.23032C0.638882 1.28591 0.589625 1.37134 0.579824 1.46536C0.568586 1.57315 0.64462 1.70448 0.796688 1.96714Z"
+                    :fill="isDropdownOpen ? 'white' : 'black'" :stroke="isDropdownOpen ? 'white' : 'black'"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
 
           <div v-if="isDropdownOpen"
             class="absolute top-full right-0 mt-2 z-50 origin-top-left hidden lg:block tracking-normal">
             <EventDropdownContent v-model="dropdownFilters" />
           </div>
 
-        </div>
+          </div>
 
         <span
           class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
 
-          <button @click="setView('day')"
-            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_day") }}
-          </button>
+            <button @click="setView('day')"
+              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_day") }}
+            </button>
 
-          <button @click="setView('week')"
-            class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
-            :class="view === 'week'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_week") }}
-          </button>
+            <button @click="setView('week')"
+              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
+              :class="view === 'week'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_week") }}
+            </button>
 
-          <button @click="setView('month')"
-            class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
-            :class="view === 'month'
-              ? 'bg-pink-400/80 text-white'
-              : 'text-pink-400/80'">
-            {{ t("common_month") }}
-          </button>
+            <button @click="setView('month')"
+              class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+              :class="view === 'month'
+                ? 'bg-pink-400/80 text-white'
+                : 'text-pink-400/80'">
+              {{ t("common_month") }}
+            </button>
 
-        </span>
-
-        
+          </span>
 
 
         <!-- mobile-view-today-button -->
@@ -235,7 +240,57 @@
           </svg>
         </div>
 
+        </div>
       </div>
+
+      <div v-show="showLegend" class="w-full hidden ipad-portrait:hidden lg:flex items-start gap-2 self-stretch rounded-[10px]">
+        <!-- Event type -->
+        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_event_type") }}</span>
+          <div class="flex justify-end items-start gap-5">
+            <!-- Item-1 -->
+             <div class="flex items-center gap-2">
+                <PhoneIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_one_on_one_call") }}</span>
+             </div>
+             <!-- Item-2 -->
+             <div class="flex items-center gap-2">
+                 <GroupCallIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_group_call") }}</span>
+             </div>
+             <!-- Item-3 -->
+             <div class="flex items-center gap-2">
+                <BookingScheduleIcon />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_booking_schedule") }}</span>
+             </div>
+          </div>
+        </div>
+        <!-- /Event type -->
+         <!-- Status -->
+        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_status") }}</span>
+          <div class="flex justify-end items-start gap-5">
+            <!-- Item-1 -->
+             <div class="flex items-center gap-2">
+                <PendingStatus status="pending" />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("calendar_event_status_pending") }}</span>
+             </div>
+             <!-- Item-2 -->
+             <div class="flex items-center gap-2">
+                <PendingStatus status="confirmed" />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("calendar_event_status_confirmed") }}</span>
+             </div>
+             <!-- Item-3 -->
+             <div class="flex items-center gap-2">
+                <PendingStatus status="declined" />
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_declined_canceled") }}</span>
+             </div>
+          </div>
+        </div>
+        <!-- /Status -->
+
+      </div>
+
     </div>
 
     <!-- default-header-theme-2 -->
@@ -290,10 +345,10 @@
                   stroke-linejoin="round" />
               </svg>
             </span>
-            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">GMT +08</p>
+            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">{{ t("calendar_timezone_gmt_offset", { offset: " +08" }) }}</p>
           </div>
           <div v-else class="flex flex-col items-center justify-end pb-2">
-            <span class="text-[0.625rem] font-bold text-slate-400">GMT+5</span>
+            <span class="text-[0.625rem] font-bold text-slate-400">{{ t("calendar_timezone_gmt_offset", { offset: "+5" }) }}</span>
           </div>
         </div>
 
@@ -438,7 +493,7 @@
                       </div>
                     </div>
                     <div v-if="event.status" class="shrink-0 text-gray-500 text-xs font-medium font-['Poppins'] leading-4 capitalize">
-                      {{ event.status }}
+                      {{ formatEventStatus(event.status) }}
                     </div>
                   </div>
                 </button>
@@ -467,6 +522,7 @@
         @open-new-events="handleOpenNewEvents"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
+        @view-schedule-card="handleMobileScheduleCardPreview"
       />
     </PopupHandler>
 
@@ -548,7 +604,11 @@ import { SOD, addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMon
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import { onUnmounted } from 'vue';
 import EventDropdownContent from './EventDropdownContent.vue';
+import PendingStatus from "@/components/icons/PendingStatus.vue";
 import PopupHandler from '../ui/popup/PopupHandler.vue';
+import PhoneIcon from "@/components/icons/PhoneIcon.vue";
+import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
@@ -580,7 +640,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -595,6 +655,7 @@ const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
+const showLegend = ref(false);
 const dropdownFilters = ref({
   video: true,
   audio: true,
@@ -937,8 +998,9 @@ watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });
 
 function formatTime(time) {
   const [hour, rest] = time.split(':');
-  const period = rest.split(' ')[1];
-  return `${hour}${period}`;
+  const period = rest.split(' ')[1]?.toLowerCase();
+  const periodKey = period === 'pm' ? 'calendar_time_period_pm_short' : 'calendar_time_period_am_short';
+  return `${hour}${t(periodKey)}`;
 }
 
 function formatMonthClock(value) {
@@ -978,6 +1040,26 @@ function monthEventMeta(event = {}) {
   const callType = String(event?.eventCallType || raw.eventCallType || '').toLowerCase();
   if (callType.includes('audio')) return t('dashboard_audio_call');
   return t('dashboard_video_call');
+}
+
+const eventStatusTranslationKeys = Object.freeze({
+  active: 'dashboard_status_active',
+  approved: 'calendar_event_status_confirmed',
+  completed: 'calendar_event_status_completed',
+  confirmed: 'calendar_event_status_confirmed',
+  declined: 'calendar_event_status_declined',
+  pending: 'calendar_event_status_pending',
+  pending_hold: 'calendar_event_status_pending_hold',
+  rejected: 'calendar_event_status_declined',
+  canceled: 'calendar_event_status_cancelled',
+  cancelled: 'calendar_event_status_cancelled',
+});
+
+function formatEventStatus(status) {
+  const rawStatus = String(status || '').trim();
+  const normalizedStatus = rawStatus.toLowerCase().replace(/[\s-]+/g, '_');
+  const translationKey = eventStatusTranslationKeys[normalizedStatus];
+  return translationKey ? t(translationKey) : rawStatus;
 }
 
 const sd = (d) => SOD(d);
@@ -1051,6 +1133,11 @@ const handleMobileScheduleEdit = (event) => {
 const handleMobileScheduleDelete = (event) => {
   calendarPopupOpen.value = false;
   emit('delete-schedule-event', event);
+};
+
+const handleMobileScheduleCardPreview = (event) => {
+  calendarPopupOpen.value = false;
+  emit('view-schedule-card', event);
 };
 
 const handleOpenNewEvents = () => {

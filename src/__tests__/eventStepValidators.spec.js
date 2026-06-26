@@ -222,7 +222,99 @@ describe("event step validators", () => {
     ]));
   });
 
-  it("rejects overlapping overnight one-time custom slots for the same date", () => {
+  it.each([
+    {
+      name: "custom one-time",
+      field: "oneTimeAvailability",
+      state: {
+        repeatRule: "doesNotRepeat",
+        oneTimeAvailability: [
+          {
+            date: "2026-06-10",
+            slots: [{ startTime: "16:00", endTime: "16:00" }],
+          },
+        ],
+      },
+    },
+    {
+      name: "custom one-time",
+      field: "oneTimeAvailability",
+      state: {
+        repeatRule: "doesNotRepeat",
+        oneTimeAvailability: [
+          {
+            date: "2026-06-10",
+            slots: [{ startTime: "16:00", endTime: "15:00" }],
+          },
+        ],
+      },
+    },
+    {
+      name: "monthly",
+      field: "monthlyAvailability",
+      state: {
+        repeatRule: "monthly",
+        dateFrom: "2026-06-10",
+        monthlyAvailability: [{ startTime: "16:00", endTime: "16:00" }],
+      },
+    },
+    {
+      name: "monthly",
+      field: "monthlyAvailability",
+      state: {
+        repeatRule: "monthly",
+        dateFrom: "2026-06-10",
+        monthlyAvailability: [{ startTime: "16:00", endTime: "15:00" }],
+      },
+    },
+    {
+      name: "weekly",
+      field: "weeklyAvailability",
+      state: {
+        repeatRule: "weekly",
+        weeklyAvailability: [
+          {
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            slots: [{ startTime: "16:00", endTime: "16:00" }],
+          },
+        ],
+      },
+    },
+    {
+      name: "weekly",
+      field: "weeklyAvailability",
+      state: {
+        repeatRule: "weekly",
+        weeklyAvailability: [
+          {
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            slots: [{ startTime: "16:00", endTime: "15:00" }],
+          },
+        ],
+      },
+    },
+  ])("rejects $name slots whose end time is not after start time", ({ field, state }) => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      ...state,
+    });
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field,
+        translationKey: "booking_validation_time_slot_order",
+      }),
+    ]));
+  });
+
+  it("rejects overnight one-time custom slots as invalid time order", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
@@ -232,10 +324,7 @@ describe("event step validators", () => {
       oneTimeAvailability: [
         {
           date: "2026-06-10",
-          slots: [
-            { startTime: "23:00", endTime: "00:30" },
-            { startTime: "23:55", endTime: "00:10" },
-          ],
+          slots: [{ startTime: "23:00", endTime: "00:30" }],
         },
       ],
     });
@@ -243,12 +332,12 @@ describe("event step validators", () => {
     expect(result.errors).toEqual(expect.arrayContaining([
       expect.objectContaining({
         field: "oneTimeAvailability",
-        translationKey: "booking_validation_one_time_slot_unique",
+        translationKey: "booking_validation_time_slot_order",
       }),
     ]));
   });
 
-  it("rejects early-morning slots inside a same-date overnight custom slot", () => {
+  it("rejects stale custom overnight slots without treating early-morning slots as overlap", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
@@ -269,12 +358,13 @@ describe("event step validators", () => {
     expect(result.errors).toEqual(expect.arrayContaining([
       expect.objectContaining({
         field: "oneTimeAvailability",
-        translationKey: "booking_validation_one_time_slot_unique",
+        translationKey: "booking_validation_time_slot_order",
       }),
     ]));
+    expect(result.errors.some((error) => error.translationKey === "booking_validation_one_time_slot_unique")).toBe(false);
   });
 
-  it("rejects overlapping monthly slots including overnight wrapped time", () => {
+  it("rejects overnight monthly slots as invalid time order", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
@@ -291,12 +381,12 @@ describe("event step validators", () => {
     expect(result.errors).toEqual(expect.arrayContaining([
       expect.objectContaining({
         field: "monthlyAvailability",
-        translationKey: "booking_validation_monthly_slot_unique",
+        translationKey: "booking_validation_time_slot_order",
       }),
     ]));
   });
 
-  it("rejects overlapping weekly slots across an overnight day boundary", () => {
+  it("rejects overnight weekly slots as invalid time order", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
@@ -322,7 +412,7 @@ describe("event step validators", () => {
     expect(result.errors).toEqual(expect.arrayContaining([
       expect.objectContaining({
         field: "weeklyAvailability",
-        translationKey: "booking_validation_weekly_slot_unique",
+        translationKey: "booking_validation_time_slot_order",
       }),
     ]));
   });
@@ -340,8 +430,8 @@ describe("event step validators", () => {
           name: "Sun",
           unavailable: false,
           slots: [
-            { startTime: "22:00", endTime: "03:00" },
-            { startTime: "00:00", endTime: "02:00" },
+            { startTime: "22:00", endTime: "23:00" },
+            { startTime: "22:30", endTime: "23:30" },
           ],
         },
       ],
@@ -487,13 +577,18 @@ describe("event step validators", () => {
     ]));
   });
 
-  it("accepts zero token conditional fees when explicitly filled", () => {
+  it("rejects zero values for enabled optional fees, discounts, and surcharges", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
       duration: 30,
       basePrice: 100,
       weeklyAvailability,
+      enableLongerDiscount: true,
+      sessionMinimum: "2",
+      longerSessionDiscountTokens: "0",
+      enableFirstTimeDiscount: true,
+      firstTimeDiscountTokens: "0",
       enableBookingFee: true,
       bookingFee: "0",
       enableRescheduleFee: true,
@@ -504,10 +599,75 @@ describe("event step validators", () => {
       offHourSurcharge: "0",
     });
 
-    expect(result.errors.some((error) => error.field === "bookingFee")).toBe(false);
-    expect(result.errors.some((error) => error.field === "rescheduleFee")).toBe(false);
-    expect(result.errors.some((error) => error.field === "cancellationFee")).toBe(false);
-    expect(result.errors.some((error) => error.field === "offHourSurcharge")).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "longerSessionDiscountTokens", conditional: false }),
+      expect.objectContaining({ field: "firstTimeDiscountTokens", conditional: false }),
+      expect.objectContaining({ field: "bookingFee", conditional: false }),
+      expect.objectContaining({ field: "rescheduleFee", conditional: false }),
+      expect.objectContaining({ field: "cancellationFee", conditional: false }),
+      expect.objectContaining({ field: "offHourSurcharge", conditional: false }),
+    ]));
+  });
+
+  it("accepts one as the minimum for enabled optional fees, discounts, and surcharges", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      enableLongerDiscount: true,
+      sessionMinimum: "2",
+      longerSessionDiscountTokens: "1",
+      enableFirstTimeDiscount: true,
+      firstTimeDiscountTokens: "1",
+      enableBookingFee: true,
+      bookingFee: "1",
+      enableRescheduleFee: true,
+      rescheduleFee: "1",
+      enableCancellationFee: true,
+      cancellationFee: "1",
+      addOffHourSurcharge: true,
+      offHourSurcharge: "1",
+    });
+    const fields = result.errors.map((error) => error.field);
+
+    expect(fields).not.toContain("longerSessionDiscountTokens");
+    expect(fields).not.toContain("firstTimeDiscountTokens");
+    expect(fields).not.toContain("bookingFee");
+    expect(fields).not.toContain("rescheduleFee");
+    expect(fields).not.toContain("cancellationFee");
+    expect(fields).not.toContain("offHourSurcharge");
+  });
+
+  it("ignores optional fees, discounts, and surcharges when their toggles are disabled", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      enableLongerDiscount: false,
+      longerSessionDiscountTokens: "0",
+      enableFirstTimeDiscount: false,
+      firstTimeDiscountTokens: "0",
+      enableBookingFee: false,
+      bookingFee: "0",
+      enableRescheduleFee: false,
+      rescheduleFee: "0",
+      enableCancellationFee: false,
+      cancellationFee: "0",
+      addOffHourSurcharge: false,
+      offHourSurcharge: "0",
+    });
+    const fields = result.errors.map((error) => error.field);
+
+    expect(fields).not.toContain("longerSessionDiscountTokens");
+    expect(fields).not.toContain("firstTimeDiscountTokens");
+    expect(fields).not.toContain("bookingFee");
+    expect(fields).not.toContain("rescheduleFee");
+    expect(fields).not.toContain("cancellationFee");
+    expect(fields).not.toContain("offHourSurcharge");
   });
 
   it("validates cancellation and advance-cancel values only when enabled", () => {

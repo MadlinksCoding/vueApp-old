@@ -865,7 +865,9 @@
             offHours: Boolean(slot?.offHours),
           }))
           .filter((slot) => {
-            if (!getOneTimeSlotRange(slot) || doesOneTimeSlotConflict(normalizedEntry, slot)) return false;
+            if (!getOneTimeSlotRange(slot)) return true;
+            if (!hasMinimumSlotDuration(slot.startTime, slot.endTime)) return true;
+            if (doesOneTimeSlotConflict(normalizedEntry, slot)) return false;
             normalizedEntry.slots.push(slot);
             return true;
           })
@@ -916,15 +918,6 @@
   const timeOptionValues = timeOptions.map((option) => option.value);
   const endTimeOptionValues = endTimeOptions.map((option) => option.value);
 
-  function getOrderedTimesAfter(startTime = "") {
-    const startIndex = timeOptionValues.indexOf(startTime);
-    if (startIndex < 0) return timeOptionValues;
-    return [
-      ...timeOptionValues.slice(startIndex + 1),
-      ...timeOptionValues.slice(0, startIndex),
-    ];
-  }
-
   function timeToMinutes(value) {
     const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
     if (!match) return null;
@@ -932,6 +925,15 @@
     const minutes = Number(match[2]);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
     return (hours * 60) + minutes;
+  }
+
+  function getOrderedEndTimesAfter(startTime = "") {
+    const startMinutes = timeToMinutes(startTime);
+    if (startMinutes === null) return endTimeOptionValues;
+    return endTimeOptionValues.filter((endTime) => {
+      const endMinutes = timeToMinutes(endTime);
+      return endMinutes !== null && endMinutes > startMinutes;
+    });
   }
 
   function minutesToTime(totalMinutes) {
@@ -950,10 +952,11 @@
   function getOneTimeRangeFromTimes(startTime = "", endTime = "", { inclusiveEndOfDay = !isGroupBooking.value } = {}) {
     const start = timeToMinutes(startTime);
     const rawEnd = timeToMinutes(endTime);
-    if (start === null || rawEnd === null || rawEnd === start) return null;
+    if (start === null || rawEnd === null) return null;
     const end = inclusiveEndOfDay && endTime === END_OF_DAY_TIME_VALUE && rawEnd >= start
       ? MINUTES_PER_DAY
-      : (rawEnd < start ? rawEnd + MINUTES_PER_DAY : rawEnd);
+      : rawEnd;
+    if (end <= start) return null;
     return { start, end };
   }
 
@@ -1032,18 +1035,6 @@
       .sort((first, second) => first.start - second.start);
   }
 
-  function hasValidEndTimeForStartSegments(existingSegments = [], startTime = "") {
-    const startMinutes = timeToMinutes(startTime);
-    if (startMinutes === null) return false;
-    const startsInsideExistingRange = existingSegments.some((segment) => (
-      segment.start <= startMinutes && startMinutes < segment.end
-    ));
-    if (startsInsideExistingRange) return false;
-
-    const nextOccupiedSegment = existingSegments.find((segment) => segment.start > startMinutes);
-    return !nextOccupiedSegment || nextOccupiedSegment.start - startMinutes >= TIME_OPTION_STEP_MINUTES;
-  }
-
   function hasValidStartTimeForEndRanges(existingRanges = [], endTime = "") {
     return timeOptionValues.some((startTime) => (
       isValidSlotCandidate(existingRanges, startTime, endTime)
@@ -1086,19 +1077,10 @@
         return nextOccupiedEndTime;
       }
 
-      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
-        return "00:00";
-      }
     }
 
-    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    const orderedEndTimes = getOrderedEndTimesAfter(startTime);
     return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
-  }
-
-  function pickValidStartTimeFromRanges(existingRanges = [], endTime = "", preferredStart = "") {
-    const validStartTimes = getValidStartTimesForEndRanges(existingRanges, endTime);
-    if (validStartTimes.includes(preferredStart)) return preferredStart;
-    return validStartTimes[0] || "";
   }
 
   function getNextAvailableSlotFromRanges(existingRanges = [], preferredStart = "00:00", preferredEnd = "03:00") {
@@ -1110,9 +1092,7 @@
     const preferredEndMinutes = timeToMinutes(preferredEnd);
     const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
-      ? (preferredEndMinutes > preferredStartMinutes
-        ? preferredEndMinutes - preferredStartMinutes
-        : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
+      ? (preferredEndMinutes > preferredStartMinutes ? preferredEndMinutes - preferredStartMinutes : 180)
       : 180);
     const searchStartTime = preferredEndMinutes !== null
       ? minutesToTime(preferredEndMinutes)
@@ -1156,9 +1136,8 @@
   }
 
   function getRecurringStartOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
-    const existingSegments = getOneTimeRangesSegments(existingRanges);
     return timeOptions.map((option) => {
-      const disabled = !hasValidEndTimeForStartSegments(existingSegments, option.value);
+      const disabled = getValidEndTimesForStartRanges(existingRanges, option.value).length === 0;
       return {
         ...option,
         disabled,
@@ -1263,19 +1242,10 @@
         return nextOccupiedEndTime;
       }
 
-      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
-        return "00:00";
-      }
     }
 
-    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    const orderedEndTimes = getOrderedEndTimesAfter(startTime);
     return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
-  }
-
-  function pickValidStartTime(dateEntry = {}, slotIndex = null, endTime = "", preferredStart = "") {
-    const validStartTimes = getValidStartTimesForEnd(dateEntry, slotIndex, endTime);
-    if (validStartTimes.includes(preferredStart)) return preferredStart;
-    return validStartTimes[0] || "";
   }
 
   function getOneTimeDisabledReason(slot = {}) {
@@ -1299,9 +1269,8 @@
 
   function getOneTimeStartOptions(dateEntry = {}, slotIndex = null) {
     const slot = dateEntry?.slots?.[slotIndex] || {};
-    const existingSegments = getOneTimeRangesSegments(getExistingOneTimeRanges(dateEntry, slotIndex));
     return timeOptions.map((option) => {
-      const disabled = !hasValidEndTimeForStartSegments(existingSegments, option.value);
+      const disabled = getValidEndTimesForStart(dateEntry, slotIndex, option.value).length === 0;
       return {
         ...option,
         disabled,
@@ -1421,30 +1390,6 @@
       .sort((first, second) => first.start - second.start);
   }
 
-  function hasValidWeeklyEndTimeForStart(dayIndex = -1, slotIndex = null, startTime = "") {
-    const startMinutes = timeToMinutes(startTime);
-    const resolvedDayIndex = resolveWeeklyDayIndex(dayIndex);
-    if (startMinutes === null || !Number.isFinite(resolvedDayIndex) || resolvedDayIndex < 0) {
-      return false;
-    }
-
-    const startAbsolute = (resolvedDayIndex * MINUTES_PER_DAY) + startMinutes;
-    const shiftedWeeklyRanges = getShiftedWeeklyRanges(getExistingWeeklyRanges(dayIndex, slotIndex));
-    const startsInsideWeeklyRange = shiftedWeeklyRanges.some((range) => (
-      range.start <= startAbsolute && startAbsolute < range.end
-    ));
-    if (startsInsideWeeklyRange) return false;
-
-    const nextWeeklyRange = shiftedWeeklyRanges.find((range) => range.start > startAbsolute);
-    const hasWeeklyGap = !nextWeeklyRange || nextWeeklyRange.start - startAbsolute >= TIME_OPTION_STEP_MINUTES;
-    if (!hasWeeklyGap) return false;
-
-    return hasValidEndTimeForStartSegments(
-      getOneTimeRangesSegments(getExistingWeeklySameDayRanges(dayIndex, slotIndex)),
-      startTime,
-    );
-  }
-
   function doesWeeklySlotConflict(dayIndex = -1, candidateSlot = {}, excludeSlotIndex = null) {
     if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
     return weeklyRangeOverlapsExisting(
@@ -1473,7 +1418,7 @@
   function getWeeklyStartOptions(dayIndex = -1, slotIndex = null) {
     const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
     return timeOptions.map((option) => {
-      const disabled = !hasValidWeeklyEndTimeForStart(dayIndex, slotIndex, option.value);
+      const disabled = getValidWeeklyEndTimesForStart(dayIndex, slotIndex, option.value).length === 0;
       return {
         ...option,
         disabled,
@@ -1519,9 +1464,7 @@
     const preferredEndMinutes = timeToMinutes(preferredEnd);
     const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
-      ? (preferredEndMinutes > preferredStartMinutes
-        ? preferredEndMinutes - preferredStartMinutes
-        : MINUTES_PER_DAY - preferredStartMinutes + preferredEndMinutes)
+      ? (preferredEndMinutes > preferredStartMinutes ? preferredEndMinutes - preferredStartMinutes : 180)
       : 180);
     const searchStartTime = preferredEndMinutes !== null ? minutesToTime(preferredEndMinutes) : preferredStart;
     const searchStartIndex = timeOptionValues.indexOf(searchStartTime);
@@ -1572,19 +1515,10 @@
         return nextOccupiedEndTime;
       }
 
-      if (startMinutes > 0 && validEndTimes.includes("00:00")) {
-        return "00:00";
-      }
     }
 
-    const orderedEndTimes = getOrderedTimesAfter(startTime);
+    const orderedEndTimes = getOrderedEndTimesAfter(startTime);
     return orderedEndTimes.find((endTime) => validEndTimes.includes(endTime)) || "";
-  }
-
-  function pickValidWeeklyStartTime(dayIndex = -1, slotIndex = null, endTime = "", preferredStart = "") {
-    const validStartTimes = getValidWeeklyStartTimesForEnd(dayIndex, slotIndex, endTime);
-    if (validStartTimes.includes(preferredStart)) return preferredStart;
-    return validStartTimes[0] || "";
   }
 
   function syncAvailabilityToForm() {
@@ -1746,14 +1680,7 @@
     const slot = day?.slots?.[slotIndex];
     if (!day || !slot || isWeeklyDayLocked(day.key || day.name)) return;
 
-    const startMinutes = timeToMinutes(slot.startTime);
-    const endMinutes = timeToMinutes(slot.endTime);
-    if (
-      changedField === "start"
-      && startMinutes !== null
-      && endMinutes !== null
-      && endMinutes <= startMinutes
-    ) {
+    if (!getSlotRange(slot)) {
       const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
       if (nextEndTime) {
         slot.endTime = nextEndTime;
@@ -1761,16 +1688,9 @@
     }
 
     if (doesWeeklySlotConflict(dayIndex, slot, slotIndex)) {
-      if (changedField === "start") {
-        const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
-        if (nextEndTime) {
-          slot.endTime = nextEndTime;
-        }
-      } else if (changedField === "end") {
-        const nextStartTime = pickValidWeeklyStartTime(dayIndex, slotIndex, slot.endTime, slot.startTime);
-        if (nextStartTime) {
-          slot.startTime = nextStartTime;
-        }
+      const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
       }
 
       if (doesWeeklySlotConflict(dayIndex, slot, slotIndex)) {
@@ -1781,9 +1701,12 @@
         }
       }
 
+      const stillInvalidOrder = !getSlotRange(slot);
       showScheduleValidationToast(
-        "booking_validation_weekly_slot_unique",
-        "Each weekly time slot must be unique and cannot overlap another weekly slot.",
+        stillInvalidOrder ? "booking_validation_time_slot_order" : "booking_validation_weekly_slot_unique",
+        stillInvalidOrder
+          ? "End time must be after start time."
+          : "Each weekly time slot must be unique and cannot overlap another weekly slot.",
       );
     }
 
@@ -1834,14 +1757,7 @@
     const slot = monthlySlots.value?.[slotIndex];
     if (!slot) return;
 
-    const startMinutes = timeToMinutes(slot.startTime);
-    const endMinutes = timeToMinutes(slot.endTime);
-    if (
-      changedField === "start"
-      && startMinutes !== null
-      && endMinutes !== null
-      && endMinutes <= startMinutes
-    ) {
+    if (!getSlotRange(slot)) {
       const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
       if (nextEndTime) {
         slot.endTime = nextEndTime;
@@ -1849,16 +1765,9 @@
     }
 
     if (oneTimeRangeOverlapsExisting(getMonthlyExistingRanges(slotIndex), getSlotRange(slot))) {
-      if (changedField === "start") {
-        const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
-        if (nextEndTime) {
-          slot.endTime = nextEndTime;
-        }
-      } else if (changedField === "end") {
-        const nextStartTime = pickValidStartTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.endTime, slot.startTime);
-        if (nextStartTime) {
-          slot.startTime = nextStartTime;
-        }
+      const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
       }
 
       if (oneTimeRangeOverlapsExisting(getMonthlyExistingRanges(slotIndex), getSlotRange(slot))) {
@@ -1869,9 +1778,12 @@
         }
       }
 
+      const stillInvalidOrder = !getSlotRange(slot);
       showScheduleValidationToast(
-        "booking_validation_monthly_slot_unique",
-        "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+        stillInvalidOrder ? "booking_validation_time_slot_order" : "booking_validation_monthly_slot_unique",
+        stillInvalidOrder
+          ? "End time must be after start time."
+          : "Each monthly time slot must be unique and cannot overlap another monthly slot.",
       );
     }
 
@@ -1933,14 +1845,7 @@
     const slot = dateEntry?.slots?.[slotIndex];
     if (!dateEntry || !slot) return;
 
-    const startMinutes = timeToMinutes(slot.startTime);
-    const endMinutes = timeToMinutes(slot.endTime);
-    if (
-      changedField === "start"
-      && startMinutes !== null
-      && endMinutes !== null
-      && endMinutes <= startMinutes
-    ) {
+    if (!getOneTimeSlotRange(slot)) {
       const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
       if (nextEndTime) {
         slot.endTime = nextEndTime;
@@ -1948,16 +1853,9 @@
     }
 
     if (doesOneTimeSlotConflict(dateEntry, slot, slotIndex)) {
-      if (changedField === "start") {
-        const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
-        if (nextEndTime) {
-          slot.endTime = nextEndTime;
-        }
-      } else if (changedField === "end") {
-        const nextStartTime = pickValidStartTime(dateEntry, slotIndex, slot.endTime, slot.startTime);
-        if (nextStartTime) {
-          slot.startTime = nextStartTime;
-        }
+      const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
+      if (nextEndTime) {
+        slot.endTime = nextEndTime;
       }
 
       if (doesOneTimeSlotConflict(dateEntry, slot, slotIndex)) {
@@ -1968,9 +1866,12 @@
         }
       }
 
+      const stillInvalidOrder = !getOneTimeSlotRange(slot);
       showScheduleValidationToast(
-        "booking_validation_one_time_slot_unique",
-        "Each custom time slot must be unique and cannot overlap another slot for that date.",
+        stillInvalidOrder ? "booking_validation_time_slot_order" : "booking_validation_one_time_slot_unique",
+        stillInvalidOrder
+          ? "End time must be after start time."
+          : "Each custom time slot must be unique and cannot overlap another slot for that date.",
       );
     }
 
@@ -2211,11 +2112,6 @@
             </div>
           </div>
         </div>
-        <ValidationInlineWarning
-          :messages="fieldValidationMessages('offHourSurcharge')"
-          field="offHourSurcharge"
-          spacing-class="-mt-3"
-        />
       </BookingSectionsWrapper>
       
 
@@ -2692,11 +2588,12 @@
 
       <BookingSectionsWrapper v-show="sectionsState.groupPricing || sectionsState.privatePricing"  v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period." :isOptional="true">
-        <div :class="['self-stretch inline-flex justify-start items-center gap-2 mt-5', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
-          <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
-            checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-            labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="flex items-center gap-2" />
-          <div class="flex-1 inline-flex flex-col justify-start items-start">
+        <div class="self-stretch flex flex-col gap-2 mt-5">
+          <div :class="['self-stretch inline-flex justify-start items-center gap-2', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
+            <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="flex items-center gap-2" />
+            <div class="flex-1 inline-flex justify-start items-start">
             <div class="inline-flex justify-end items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
                 data-booking-validation-input-field="offHourSurcharge"
@@ -2707,7 +2604,13 @@
                 <div v-if="offHourSurchargePreviewTokens > 0" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: offHourSurchargePreviewTokens }) }})</div>
               </div>
             </div>
+            </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldValidationMessages('offHourSurcharge')"
+            field="offHourSurcharge"
+            spacing-class="mt-0"
+          />
         </div>
       </BookingSectionsWrapper>
 
@@ -3223,7 +3126,7 @@
               <div class="self-stretch inline-flex justify-start items-center gap-1">
                 <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
                 <OptionalLabel v-if="true" />
-                <TooltipIcon :text="t('booking_reminders_tooltip')" />
+                <TooltipIcon class="ml-1" :text="t('booking_reminders_tooltip')" />
               </div>
               <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
@@ -3269,8 +3172,8 @@
                   <span>{{ t("booking_set_buffer_time") }}</span>
                   <TooltipIcon
                   :text="t('booking_buffer_time_tooltip')"
-                  tooltipClass="translate-x-[-80%] sm:translate-x-[-90%] max-w-[12.5rem]" 
-                  class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                  tooltipClass="!max-w-[12rem] right-auto" 
+                  class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
                   />
                 </template>
               </CheckboxGroup>
@@ -3337,8 +3240,8 @@
 
                   <TooltipIcon
                     :text="t('booking_max_bookings_tooltip')"
-                    tooltipClass="translate-x-[-80%] sm:translate-x-[-90%]" 
-                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6"
+                    tooltipClass="" 
+                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
                   />
                 </template>
               </CheckboxGroup>

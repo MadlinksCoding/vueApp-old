@@ -51,12 +51,14 @@
         @create-event="goToCreateEvent($event.type)"
         @edit-schedule-event="handleEditScheduleEvent"
         @delete-schedule-event="openDeleteEventPopup"
+        @view-schedule-card="openScheduleCardPreview"
       >
         <template #event="{ event, style, onClick, view }">
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock && (view === 'month' ? 'rounded-[0.25rem]' : 'rounded-[0.375rem]'),
               view === 'month'
                 ? 'hidden lg:block text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
@@ -73,9 +75,30 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
-                <div class="block font-medium truncate w-full py-[0.125rem] px-1">{{ event.title }}</div>
+                <div
+                  class="flex min-w-0 w-full items-center gap-1 overflow-hidden font-medium py-[0.125rem] px-1"
+                  data-test="dashboard-calendar-booking-title"
+                >
+                  <component
+                    :is="getBookedSlotTypeIcon(event)"
+                    data-test="dashboard-calendar-booking-icon"
+                    :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                    color="currentColor"
+                    :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                  />
+                  <span class="min-w-0 truncate">{{ event.title }}</span>
+                </div>
               </div>
-              <div class="text-[0.625rem] opacity-90 truncate py-[0.125rem] px-1">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -85,10 +108,12 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -97,8 +122,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -108,10 +154,12 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
-              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem]'
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -120,8 +168,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-semibold truncate">{{ event.title }}</div>
-              <div hidden class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -131,10 +200,12 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
+            data-test="dashboard-month-booking-marker"
             tabindex="0"
             @mouseenter="showCalendarEventTooltip(event, $event)"
             @mouseleave="hideCalendarEventTooltip"
@@ -143,8 +214,29 @@
             @click.stop="!event?.isAvailabilityBlock && onClick(event)"
           >
             <template v-if="!event?.isAvailabilityBlock">
-              <div class="font-bold text-[0.75rem] truncate">{{ event.title }}</div>
-              <div class="text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div
+                class="flex min-w-0 items-center gap-1 overflow-hidden font-bold text-[0.75rem]"
+                data-test="dashboard-calendar-booking-title"
+              >
+                <component
+                  :is="getBookedSlotTypeIcon(event)"
+                  data-test="dashboard-calendar-booking-icon"
+                  :data-booking-icon-type="getBookedSlotTypeIconKind(event)"
+                  color="currentColor"
+                  :class="['shrink-0', getCalendarSlotIconSizeClass(view)]"
+                />
+                <span class="min-w-0 truncate">{{ event.title }}</span>
+              </div>
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]">
+                <span
+                  class="shrink-0"
+                  data-test="dashboard-calendar-booking-status-icon"
+                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                >
+                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                </span>
+                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+              </div>
             </template>
           </div>
         </template>
@@ -154,14 +246,32 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
-                ? 'hidden lg:block pointer-events-none min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
-                : 'pointer-events-none min-h-[0.375rem] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4'
+                ? 'hidden lg:block min-h-[1.25rem] w-full cursor-pointer overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
+                : 'min-h-[0.375rem] w-full cursor-pointer overflow-hidden px-2 py-1 text-xs font-medium leading-4'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-availability-marker"
+            role="button"
+            tabindex="0"
+            :aria-label="t('dashboard_booking_schedule_menu_aria', { title: event.title || t('dashboard_booking_schedule_untitled_event') })"
+            @click.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
           >
-            <span v-if="event.title" data-test="dashboard-calendar-availability-title" class="block truncate">
-              {{ event.title }}
+            <span
+              v-if="event.title && !event.hideAvailabilityTitle"
+              data-test="dashboard-calendar-availability-title"
+              class="flex min-w-0 items-center gap-1 overflow-hidden"
+            >
+              <BookingScheduleIcon
+                data-test="dashboard-calendar-availability-icon"
+                color="currentColor"
+                :class="[
+                  'shrink-0',
+                  view === 'month' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                ]"
+              />
+              <span class="min-w-0 truncate">{{ event.title }}</span>
             </span>
           </div>
         </template>
@@ -181,7 +291,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-6 xl:pt-12 pb-[12.5rem] md:px-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -258,7 +368,7 @@
           </div>
         </div>
 
-        <div v-else-if="isCreator" class="relative w-full z-[999]" ref="popupTrigger">
+        <div v-else-if="isCreator" class="relative w-full z-[999] hidden" ref="popupTrigger">
           <ButtonComponent
             :text="t('dashboard_new_events')"
             variant="none"
@@ -276,40 +386,61 @@
           </div>
         </div>
 
-        <BookingScheduleList
-          v-if="isCreator && !dashboardEventsEngine.state.events.loading"
-          :events="bookingScheduleEvents"
-          :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
-          @edit="handleEditScheduleEvent"
-          @delete="openDeleteEventPopup"
-        />
-
-        <div v-if="!dashboardEventsEngine.state.events.loading">
-          <EventsWidget
-            :sections="eventsData"
-            :user-role="dashboardRole"
-            @join-click="handleJoin"
-            @reply-click="handleReply"
-            @event-click="handleWidgetEventClick"
-            @menu-action="handleWidgetMenuAction"
+        <div class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <BookingScheduleList
+            v-if="isCreator && !dashboardEventsEngine.state.events.loading"
+            :events="bookingScheduleEvents"
+            :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
+            @edit="handleEditScheduleEvent"
+            @delete="openDeleteEventPopup"
+            @view-card="openScheduleCardPreview"
           />
+
+          <div v-if="!dashboardEventsEngine.state.events.loading">
+            <EventsWidget
+              :sections="eventsData"
+              :user-role="dashboardRole"
+              @join-click="handleJoin"
+              @reply-click="handleReply"
+              @event-click="handleWidgetEventClick"
+              @menu-action="handleWidgetMenuAction"
+            />
+          </div>
         </div>
       </div>
 
-      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50 lg:hidden" ref="floatingPopupTrigger">
+      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
+        <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#ff0464] p-2 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img
-            :src="plusIcon"
-            class="w-8 h-8 filter"
+            :src="calenderPlusIcon"
+            class="w-6 h-6"
             :alt="t('common_add')"
           />
         </button>
+        <!-- Landscape screen -->
+        <button
+          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden lg:flex items-center justify-between transition-transform"
+          @click="toggleFloatingPopup"
+        >
+          <div class="flex items-center gap-2 justify-between">
+            <img
+              :src="calenderPlusIcon"
+              class="w-6 h-6"
+              :alt="t('common_add')"
+            />
+            <span class="text-white font-poppins text-[1.25rem] font-semibold leading-[1.875rem]">NEW EVENT</span>
+          </div>
+          <div>
+            <img :src="DropdownArrowDown" alt="" class="w-4 h-4 transition-transform duration-300 ease-in-out" :class="isFloatingPopupOpen ? 'rotate-180' : ''" />
+          </div>
+        </button>
         <div
           v-show="isFloatingPopupOpen"
-          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 !top-auto !left-auto"
+          class="w-full md:w-auto bg-white/90 rounded shadow-[0px_0px_12px_0px_rgba(0,0,0,0.10)] backdrop-blur-[3.125rem] inline-flex flex-col justify-start items-start overflow-hidden !fixed !bottom-0 !right-0 lg:!bottom-24 lg:!right-6 !top-auto !left-auto"
         >
           <CreateEventPopup
             @create-private="goToCreateEvent('private')"
@@ -386,6 +517,34 @@
       </div>
     </PopupHandler>
 
+    <OneOnOneBookingFlowPopup
+      v-if="isCreator"
+      :model-value="scheduleCardPreviewOpen"
+      :creator-id="normalizedCreatorId"
+      :fan-id="normalizedFanId"
+      :api-base-url="props.apiBaseUrl"
+      preview-mode
+      preview-read-only
+      :preview-event="scheduleCardPreviewEvent"
+      :preview-booked-slots="scheduleCardPreviewBookedSlots"
+      :preview-start-step="1"
+      step1-primary-action="edit-schedule"
+      @update:model-value="setScheduleCardPreviewOpen"
+      @edit-schedule="handleScheduleCardPreviewEdit"
+    />
+
+    <BookingScheduleMenu
+      v-if="isCreator"
+      :open="availabilityScheduleMenu.open"
+      :event="availabilityScheduleMenu.event"
+      position-class="fixed"
+      :menu-style="availabilityScheduleMenuStyle"
+      @edit="handleAvailabilityMenuEdit"
+      @view-card="handleAvailabilityMenuViewCard"
+      @delete="handleAvailabilityMenuDelete"
+      @close="closeAvailabilityScheduleMenu"
+    />
+
     <div
       v-if="calendarTooltip.visible"
       class="pointer-events-none fixed z-[1600] w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
@@ -405,9 +564,12 @@
         </div>
         <div class="flex items-center gap-1.5 text-sm font-semibold leading-5">
           <span
-            class="h-3 w-3 shrink-0 rounded-full"
-            :style="{ backgroundColor: calendarTooltip.dotColor }"
-          />
+            class="shrink-0"
+            data-test="dashboard-booking-tooltip-status-icon"
+            :data-booking-tooltip-status-icon="calendarTooltip.status"
+          >
+            <PendingStatus :status="calendarTooltip.status" :width="12" :height="12" />
+          </span>
           <span class="truncate">{{ calendarTooltip.time }}</span>
         </div>
       </div>
@@ -420,13 +582,21 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { hhmm, addDays } from "@/utils/calendarHelpers.js";
+import calenderPlusIcon from "@/assets/images/icons/calender-plus-02.svg";
+import DropdownArrowDown from "@/assets/images/icons/dropdown-arrow-down.svg";
 import MiniCalendar from "@/components/calendar/MiniCalendar.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
 import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
+import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
+import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
+import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import PendingStatus from "@/components/icons/PendingStatus.vue";
+import PhoneIcon from "@/components/icons/PhoneIcon.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
+import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
@@ -483,6 +653,14 @@ const cancelBookingCandidate = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
+const scheduleCardPreviewOpen = ref(false);
+const scheduleCardPreviewEvent = ref(null);
+const availabilityScheduleMenu = reactive({
+  open: false,
+  event: null,
+  left: 0,
+  top: 0,
+});
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
@@ -494,7 +672,7 @@ const calendarTooltip = reactive({
   visible: false,
   title: "",
   time: "",
-  dotColor: "#07F468",
+  status: "confirmed",
   x: 0,
   y: 0,
   placement: "bottom",
@@ -506,6 +684,11 @@ const calendarTooltipStyle = computed(() => ({
   transform: calendarTooltip.placement === "top"
     ? "translate(-50%, -100%)"
     : "translate(-50%, 0)",
+}));
+
+const availabilityScheduleMenuStyle = computed(() => ({
+  left: `${availabilityScheduleMenu.left}px`,
+  top: `${availabilityScheduleMenu.top}px`,
 }));
 
 const isEmbeddedMobileViewport = () => (
@@ -609,7 +792,7 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
     dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
     outside: "opacity-0",
@@ -619,7 +802,7 @@ const theme1 = computed(() => ({
     dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
   },
   main: {
-    wrapper: `relative flex flex-col gap-0 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.875rem]",
@@ -640,6 +823,7 @@ const theme1 = computed(() => ({
 }));
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
+const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
 
 const toggleFloatingPopup = () => {
   isFloatingPopupOpen.value = !isFloatingPopupOpen.value;
@@ -662,16 +846,26 @@ const togglePopup = () => {
 
 const handlePositionUpdate = () => {
   if (isCreatePopupOpen.value) updatePopupPosition();
+  if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
 };
 
 const handleClickOutside = (event) => {
-  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value) return;
+  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value && !availabilityScheduleMenu.open) return;
   const path = event.composedPath ? event.composedPath() : [];
   if (popupTrigger.value && !path.includes(popupTrigger.value)) {
     isCreatePopupOpen.value = false;
   }
   if (floatingPopupTrigger.value && !path.includes(floatingPopupTrigger.value)) {
     isFloatingPopupOpen.value = false;
+  }
+  if (availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
+  }
+};
+
+const handleDocumentKeydown = (event) => {
+  if (event.key === "Escape" && availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
   }
 };
 
@@ -876,10 +1070,6 @@ function formatCalendarTooltipTime(event = {}) {
   return start || end;
 }
 
-function getCalendarTooltipDotColor() {
-  return "#07F468";
-}
-
 function isTouchCapableDevice() {
   if (typeof window === "undefined") return false;
   const nav = window.navigator || {};
@@ -924,7 +1114,7 @@ function showCalendarEventTooltip(event = {}, domEvent = null) {
 
   calendarTooltip.title = event?.title || t("dashboard_booked_slot");
   calendarTooltip.time = formatCalendarTooltipTime(event);
-  calendarTooltip.dotColor = getCalendarTooltipDotColor(event);
+  calendarTooltip.status = getBookedSlotIndicatorStatus(event);
   calendarTooltip.x = Math.min(Math.max(unclampedX, minX), maxX);
   calendarTooltip.y = placement === "top" ? rect.top - gap : rect.bottom + gap;
   calendarTooltip.placement = placement;
@@ -952,6 +1142,31 @@ function isGroupCalendarEvent(event = {}) {
       || eventCurrent.eventType
       || "",
   ).toLowerCase() === "group-event";
+}
+
+function getBookedSlotTypeIcon(event = {}) {
+  return isGroupCalendarEvent(event) ? GroupCallIcon : PhoneIcon;
+}
+
+function getBookedSlotTypeIconKind(event = {}) {
+  return isGroupCalendarEvent(event) ? "group" : "private";
+}
+
+function getCalendarSlotIconSizeClass(view) {
+  return view === "month" ? "h-2.5 w-2.5" : "h-3 w-3";
+}
+
+function getBookedSlotIndicatorStatus(event = {}) {
+  const status = resolveBookingStatus(event);
+  if (status.includes("pending")) return "pending";
+  if (
+    status.includes("cancel")
+    || status.includes("declin")
+    || status.includes("reject")
+  ) {
+    return "declined";
+  }
+  return "confirmed";
 }
 
 function makeAvatar(event) {
@@ -1227,6 +1442,22 @@ function buildCalendarSlotsFromContext({
       },
     };
   });
+  const shouldHideAvailabilityTitle = (slot) => {
+    const eventId = String(slot?.eventId || "").trim();
+    const availabilityStartMs = new Date(slot?.start).getTime();
+    if (!eventId || Number.isNaN(availabilityStartMs)) return false;
+
+    const windowEndMs = availabilityStartMs + AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS;
+
+    return bookedCalendarSlots.some((booking) => {
+      if (String(booking?.eventId || "").trim() !== eventId) return false;
+
+      const bookingStartMs = new Date(booking?.start).getTime();
+      if (Number.isNaN(bookingStartMs)) return false;
+
+      return bookingStartMs >= availabilityStartMs && bookingStartMs <= windowEndMs;
+    });
+  };
 
   const availabilitySlots = mapAvailabilityToCalendarEvents(catalogEvents, {
     bookedSlotsIndex,
@@ -1247,6 +1478,7 @@ function buildCalendarSlotsFromContext({
       color: eventColorSkin,
       eventColorSkin,
       eventCallType,
+      hideAvailabilityTitle: shouldHideAvailabilityTitle(slot),
       raw: {
         ...(slot?.raw || {}),
         eventCallType,
@@ -1435,16 +1667,150 @@ const bookingScheduleEvents = computed(() => {
   return events.filter((event) => String(event?.status || event?.raw?.status || "active").toLowerCase() === "active");
 });
 
-const handleEditScheduleEvent = (event) => {
-  const eventId = String(event?.eventId || event?.id || "").trim();
-  if (!eventId) return;
+const getScheduleEventId = (event = {}) => String(event?.eventId || event?.id || event?.raw?.eventId || event?.raw?.id || "").trim();
 
-  emit("edit-event", {
+const findBookingScheduleEventById = (eventId) => {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return null;
+
+  return bookingScheduleEvents.value.find((event) => getScheduleEventId(event) === normalizedEventId) || null;
+};
+
+const normalizeScheduleEventPayload = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  if (!eventId) return null;
+
+  return {
+    ...event,
     eventId,
-    type: event?.type === "group" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
+    title: String(event?.title || event?.eventTitle || event?.raw?.title || t("dashboard_booking_schedule_untitled_event")).trim(),
+    type: event?.type === "group" || event?.type === "group-event" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
       ? "group"
       : "private",
-    event,
+  };
+};
+
+const resolveAvailabilityScheduleEvent = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  const matchedScheduleEvent = findBookingScheduleEventById(eventId);
+  return normalizeScheduleEventPayload(matchedScheduleEvent || event);
+};
+
+const scheduleCardPreviewBookedSlots = computed(() => {
+  const eventId = getScheduleEventId(scheduleCardPreviewEvent.value);
+  const bookedSlots = dashboardEventsEngine.state?.events?.bookedSlotsRaw;
+  if (!eventId || !Array.isArray(bookedSlots)) return [];
+
+  return bookedSlots.filter((slot) => String(slot?.eventId || slot?.raw?.eventId || "").trim() === eventId);
+});
+
+const closeScheduleCardPreview = () => {
+  scheduleCardPreviewOpen.value = false;
+  scheduleCardPreviewEvent.value = null;
+};
+
+const setScheduleCardPreviewOpen = (open) => {
+  scheduleCardPreviewOpen.value = Boolean(open);
+  if (!open) {
+    scheduleCardPreviewEvent.value = null;
+  }
+};
+
+const openScheduleCardPreview = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  scheduleCardPreviewEvent.value = normalizedEvent;
+  scheduleCardPreviewOpen.value = true;
+};
+
+const closeAvailabilityScheduleMenu = () => {
+  availabilityScheduleMenu.open = false;
+  availabilityScheduleMenu.event = null;
+};
+
+const positionAvailabilityScheduleMenu = (domEvent) => {
+  const fallbackLeft = 8;
+  const fallbackTop = 8;
+  if (typeof window === "undefined") {
+    availabilityScheduleMenu.left = fallbackLeft;
+    availabilityScheduleMenu.top = fallbackTop;
+    return;
+  }
+
+  const trigger = domEvent?.currentTarget || domEvent?.target;
+  const menuWidth = 196;
+  const menuHeight = 176;
+  const gap = 8;
+  const viewportPadding = 8;
+  const viewportWidth = window.innerWidth || menuWidth + viewportPadding * 2;
+  const viewportHeight = window.innerHeight || menuHeight + viewportPadding * 2;
+  let left = fallbackLeft;
+  let top = fallbackTop;
+  let topWhenAbove = fallbackTop;
+
+  if (Number.isFinite(domEvent?.clientX) && Number.isFinite(domEvent?.clientY)) {
+    left = domEvent.clientX;
+    top = domEvent.clientY;
+    topWhenAbove = domEvent.clientY - menuHeight - gap;
+  } else if (trigger && typeof trigger.getBoundingClientRect === "function") {
+    const rect = trigger.getBoundingClientRect();
+    left = rect.left;
+    top = rect.bottom + gap;
+    topWhenAbove = rect.top - menuHeight - gap;
+  }
+
+  if (left + menuWidth > viewportWidth - viewportPadding) {
+    left = viewportWidth - menuWidth - viewportPadding;
+  }
+
+  if (top + menuHeight > viewportHeight - viewportPadding) {
+    top = topWhenAbove;
+  }
+
+  availabilityScheduleMenu.left = Math.max(viewportPadding, left);
+  availabilityScheduleMenu.top = Math.max(viewportPadding, top);
+};
+
+const openAvailabilityScheduleMenu = (event, domEvent) => {
+  if (!isCreator.value) return;
+  const scheduleEvent = resolveAvailabilityScheduleEvent(event);
+  if (!scheduleEvent) return;
+
+  availabilityScheduleMenu.event = scheduleEvent;
+  positionAvailabilityScheduleMenu(domEvent);
+  availabilityScheduleMenu.open = true;
+};
+
+const handleAvailabilityMenuEdit = (event) => {
+  closeAvailabilityScheduleMenu();
+  handleEditScheduleEvent(event);
+};
+
+const handleAvailabilityMenuViewCard = (event) => {
+  closeAvailabilityScheduleMenu();
+  openScheduleCardPreview(event);
+};
+
+const handleAvailabilityMenuDelete = (event) => {
+  closeAvailabilityScheduleMenu();
+  openDeleteEventPopup(event);
+};
+
+const handleScheduleCardPreviewEdit = (event) => {
+  const selectedEvent = normalizeScheduleEventPayload(event) || scheduleCardPreviewEvent.value;
+  closeScheduleCardPreview();
+  handleEditScheduleEvent(selectedEvent);
+};
+
+const handleEditScheduleEvent = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  emit("edit-event", {
+    eventId: normalizedEvent.eventId,
+    type: normalizedEvent.type,
+    event: normalizedEvent,
   });
 };
 
@@ -1936,6 +2302,7 @@ onMounted(() => {
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
   document.addEventListener("click", handleClickOutside);
+  document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
   if (hasDashboardContext.value) {
@@ -1986,7 +2353,12 @@ watch(dashboardRole, (nextRole) => {
     isCreatePopupOpen.value = false;
     isFloatingPopupOpen.value = false;
     newEventsPopupOpen.value = false;
+    closeAvailabilityScheduleMenu();
   }
+});
+
+watch(() => state.view, () => {
+  closeAvailabilityScheduleMenu();
 });
 
 onUnmounted(() => {
@@ -1997,6 +2369,7 @@ onUnmounted(() => {
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
   document.removeEventListener("click", handleClickOutside);
+  document.removeEventListener("keydown", handleDocumentKeydown);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);
 });
 

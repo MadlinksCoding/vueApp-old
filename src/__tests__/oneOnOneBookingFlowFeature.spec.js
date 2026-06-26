@@ -133,7 +133,16 @@ vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
 vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep1.vue", () => ({
   default: {
     name: "BookingFlowStep1",
-    template: "<div data-test='step-1'>Step 1</div>",
+    props: ["step1PrimaryAction"],
+    emits: ["edit-schedule"],
+    template: `
+      <button
+        data-test="step-1"
+        @click="$emit('edit-schedule', { eventId: 'evt_step1_edit', title: 'Step 1 Edit' })"
+      >
+        Step 1 {{ step1PrimaryAction }}
+      </button>
+    `,
   },
 }));
 
@@ -404,6 +413,49 @@ describe("OneOnOneBookingFlowFeature", () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it("passes the step 1 edit-schedule action through and forwards edit events", async () => {
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+        previewMode: true,
+        previewEvent: {
+          eventId: "evt_preview_schedule",
+          title: "Preview Schedule",
+          type: "1on1-call",
+        },
+        step1PrimaryAction: "edit-schedule",
+      },
+    });
+
+    await flushAsync();
+
+    const stepOne = wrapper.get("[data-test='step-1']");
+    expect(stepOne.text()).toContain("edit-schedule");
+
+    const shell = wrapper.get("[data-test='booking-flow-shell']");
+    expect(shell.classes()).toContain("relative");
+    expect(shell.classes()).toContain("min-h-dvh");
+    expect(shell.classes()).not.toContain("absolute");
+    expect(shell.classes()).not.toContain("-translate-y-1/2");
+    expect(shell.classes()).toContain("md:absolute");
+    expect(shell.classes()).toContain("md:-translate-y-1/2");
+
+    const closeButton = wrapper.get("[data-test='booking-flow-close-button']");
+    expect(closeButton.classes()).toContain("w-10");
+    expect(closeButton.classes()).toContain("h-10");
+    expect(closeButton.classes()).toContain("bg-black/25");
+
+    await stepOne.trigger("click");
+
+    expect(wrapper.emitted("edit-schedule")?.[0]?.[0]).toEqual({
+      eventId: "evt_step1_edit",
+      title: "Step 1 Edit",
+    });
   });
 
   it("emits close-request when the wrapper close button is clicked", async () => {
