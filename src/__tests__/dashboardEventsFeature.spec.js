@@ -122,6 +122,17 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           color: "#E11D48",
           isAvailabilityBlock: false,
         },
+        monthDeclinedEvent: {
+          id: "month-declined",
+          eventId: "evt_month_declined",
+          title: "Month Cancelled Slot",
+          start: "2026-03-23T14:00:00",
+          end: "2026-03-23T14:30:00",
+          status: "cancelled_creator",
+          type: "1on1-call",
+          eventCallType: "video",
+          isAvailabilityBlock: false,
+        },
         monthAvailabilityEvent: {
           id: "month-availability",
           eventId: "evt_month_availability",
@@ -194,6 +205,13 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <slot
           name="event"
           :event="monthPendingEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          name="event-alt"
+          :event="monthDeclinedEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
           view="month"
@@ -800,10 +818,12 @@ describe("DashboardEventsFeature", () => {
     const bookingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Booked Slot"));
     const pastBookingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Past Booked Slot"));
     const pendingMarker = bookingMarkers.find((marker) => marker.text().includes("Month Pending Slot"));
+    const declinedMarker = bookingMarkers.find((marker) => marker.text().includes("Month Cancelled Slot"));
 
     expect(bookingMarker).toBeTruthy();
     expect(pastBookingMarker).toBeTruthy();
     expect(pendingMarker).toBeTruthy();
+    expect(declinedMarker).toBeTruthy();
 
     expect(bookingMarker.text()).toContain("Month Booked Slot");
     expect(bookingMarker.text()).toContain("12:00pm - 12:30pm");
@@ -815,6 +835,10 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
     expect(bookingMarker.element.style.borderTopWidth).toBe("1px");
     expect(bookingMarker.element.style.color).toBe("rgb(255, 255, 255)");
+    const bookingIcon = bookingMarker.get("[data-test='dashboard-calendar-booking-icon']");
+    expect(bookingIcon.attributes("data-booking-icon-type")).toBe("private");
+    expect(bookingIcon.get("path").attributes("stroke")).toBe("currentColor");
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("confirmed");
 
     bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
       left: 120,
@@ -832,6 +856,7 @@ describe("DashboardEventsFeature", () => {
     expect(bottomTooltip.text()).toContain("Month Booked Slot");
     expect(bottomTooltip.text()).toContain("12:00pm - 12:30pm");
     expect(bottomTooltip.attributes("data-placement")).toBe("bottom");
+    expect(bottomTooltip.get("[data-test='dashboard-booking-tooltip-status-icon']").attributes("data-booking-tooltip-status-icon")).toBe("confirmed");
 
     await bookingMarker.trigger("mouseleave");
     expect(wrapper.find("[data-test='dashboard-booking-tooltip']").exists()).toBe(false);
@@ -879,6 +904,47 @@ describe("DashboardEventsFeature", () => {
     expect(pendingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
     expect(pendingMarker.text()).toContain("1:00pm - 1:30pm");
+    expect(pendingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("pending");
+
+    pendingMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+    await pendingMarker.trigger("mouseenter");
+    const pendingTooltip = wrapper.get("[data-test='dashboard-booking-tooltip']");
+    expect(pendingTooltip.text()).toContain("Month Pending Slot");
+    expect(pendingTooltip.get("[data-test='dashboard-booking-tooltip-status-icon']").attributes("data-booking-tooltip-status-icon")).toBe("pending");
+    await pendingMarker.trigger("mouseleave");
+
+    expect(wrapper.text()).toContain("Month Cancelled Slot");
+    expect(wrapper.text()).toContain("2:00pm - 2:30pm");
+    const statusIconStates = wrapper.findAll("[data-test='dashboard-calendar-booking-status-icon']")
+      .map((icon) => icon.attributes("data-booking-status-icon"));
+    expect(statusIconStates).toEqual(expect.arrayContaining(["confirmed", "pending", "declined"]));
+
+    declinedMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+    await declinedMarker.trigger("mouseenter");
+    const declinedTooltip = wrapper.get("[data-test='dashboard-booking-tooltip']");
+    expect(declinedTooltip.text()).toContain("Month Cancelled Slot");
+    expect(declinedTooltip.get("[data-test='dashboard-booking-tooltip-status-icon']").attributes("data-booking-tooltip-status-icon")).toBe("declined");
+    await declinedMarker.trigger("mouseleave");
 
     const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
     expect(availabilityMarker.classes()).toContain("static");
@@ -886,6 +952,10 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.classes()).toContain("lg:block");
     expect(availabilityMarker.classes().some((className) => className.startsWith("rounded"))).toBe(false);
     expect(availabilityMarker.text()).toContain("Month Availability Window");
+    const availabilityTitle = availabilityMarker.get("[data-test='dashboard-calendar-availability-title']");
+    const availabilityIcon = availabilityTitle.get("[data-test='dashboard-calendar-availability-icon']");
+    expect(availabilityIcon.get("path").attributes("stroke")).toBe("currentColor");
+    expect(availabilityTitle.text()).toContain("Month Availability Window");
     expect(availabilityMarker.element.style.backgroundColor).toBe("rgba(14, 165, 233, 0.08)");
     expect(availabilityMarker.element.style.borderTopColor).toBe("rgb(14, 165, 233)");
     expect(availabilityMarker.element.style.borderTopWidth).toBe("1px");
@@ -1055,6 +1125,13 @@ describe("DashboardEventsFeature", () => {
       eventColorSkin: "#28C76F",
     }));
     expect(booking.color).toBeUndefined();
+
+    const groupBookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Group Color Skin"));
+    expect(groupBookingMarker).toBeTruthy();
+    const groupBookingIcon = groupBookingMarker.get("[data-test='dashboard-calendar-booking-icon']");
+    expect(groupBookingIcon.attributes("data-booking-icon-type")).toBe("group");
+    expect(groupBookingIcon.get("path").attributes("stroke")).toBe("currentColor");
 
     const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
     const todayItem = widgetSections
