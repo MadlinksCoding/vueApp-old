@@ -480,7 +480,6 @@ const waitingText = computed(() => {
     return props.userRole === 'creator' ? 'Waiting for fan response' : 'Waiting for creator response';
 });
 
-const canReviewPending = computed(() => props.canReviewPending && statusLabel.value === 'pending' && !isWaitingForResponse.value);
 
 const statusTranslationKeyByLabel = {
     confirmed: 'calendar_event_status_confirmed',
@@ -666,6 +665,7 @@ const canReviewPending = computed(() => (
     props.canReviewPending
     && statusLabel.value === 'pending'
     && !callHasPassed.value
+    && !isWaitingForResponse.value
 ));
 const showRejectConfirm = ref(false);
 
