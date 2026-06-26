@@ -606,6 +606,7 @@ import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/book
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import plusIcon from "@/assets/images/icons/plus-icon.svg"
 
 const props = defineProps({
   creatorId: {
