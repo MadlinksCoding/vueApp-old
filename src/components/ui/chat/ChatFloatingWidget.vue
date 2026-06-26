@@ -306,7 +306,8 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
     const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
     if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
     const bookingFlag = chat.metadata?.is_booking_request === true
-    return isBookingRequest ? bookingFlag : !bookingFlag
+    console.log("Checking chat:", chat.chat_id, "participants:", parts, "myId:", myId, "targetId:", targetId, "isBookingRequest:", isBookingRequest, "bookingFlag:", bookingFlag)
+    return isBookingRequest ? bookingFlag : true
   })
 }
 

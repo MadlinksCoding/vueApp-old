@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event & Chat Embed Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100vh; 
+      font-family: 'Poppins', sans-serif; 
+      overflow: hidden; /* Let the iframe handle scroll */
+    }
+    
+    /* Full width events container */
+    #events-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #events-container .fs-events-embed,
+    #events-container iframe {
+      width: 100%;
+      /* height: 720px;  */
+      height: 100%; 
+      /* Adjust height as needed */
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Events Embed Container -->
+  <div id="events-container"></div>
+
+  <!-- FS Scripts -->
+  <script src="/bookings-embed/fs-events-host.js"></script>
+  <script src="/bookings-embed/fs-chat-host.js"></script>
+
+  <script>
+    // ── Parameter Parsing ──────────────────────────────────────────────────
+    var params = new URLSearchParams(window.location.search);
+    var isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    var __embedBase__ = isDev ? 'http://localhost:5173/bookings-embed/' : '/wp-content/plugins/fansocial/bookings-embed';
+
+    var currentUserRole = params.get('userRole') || 'creator';
+    var currentUserId   = params.get('currentUserId') || '';
+    var creatorId       = currentUserRole === 'creator' ? currentUserId : 0;
+    var fanId           = currentUserRole !== 'creator' ? currentUserId : 0;
+    var jwtToken        = params.get('jwtToken') || '';
+    var apiBaseUrl      = params.get('apiBaseUrl') || '';
+    var tokenHandlerApiUrl    = params.get('tokenHandlerApiUrl') || '';
+    var initialRoute    = params.get('initialRoute') || 'events'; // Default to events route
+
+    // ── Mount Events Embed ──────────────────────────────────────────────────
+    if (window.FSEventsEmbed) {
+      window.FSEventsEmbed.mount(document.getElementById('events-container'), {
+        src:           __embedBase__ + 'dashboard.html',
+        currentUserId: currentUserId,
+        creatorId:     creatorId,
+        fanId:         fanId,
+        userRole:      currentUserRole,
+        apiBaseUrl:    apiBaseUrl,
+        jwtToken:      jwtToken,
+        initialRoute:  initialRoute,
+        tokenHandlerApiUrl: tokenHandlerApiUrl,
+      });
+      console.log('[FSEventsEmbed] Mounted dashboard.html full width');
+    }
+
+    // ── Mount Chat Embed ───────────────────────────────────────────────────
+    if (window.FSChatEmbed) {
+      var chatEmbed = window.FSChatEmbed.mountChatEmbed(document.body, {
+        src:           __embedBase__ + 'chat.html',
+        currentUserId: currentUserId,
+        userRole:      currentUserRole,
+        apiBaseUrl:    apiBaseUrl,
+        fanUid:        fanId, // Use fanId as fanUid based on params
+        jwtToken:      jwtToken,
+        startHidden:   params.get('startHidden') === '1',
+        autoHideWhenClosed: true,
+      });
+      console.log('[FSChatEmbed] Mounted chat.html floating widget');
+    }
+
+    // Optional: Log any chat events caught by the host
+    window.addEventListener('FS_CHAT_EVENT', function (e) {
+      console.log('Chat Event received in host:', e.detail);
+    });
+
+  </script>
+</body>
+</html>
