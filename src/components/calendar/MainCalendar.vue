@@ -919,8 +919,8 @@ const closeEventDetails = () => {
 
 const handleOpenChat = (chatId) => {
   if (window.self !== window.top) {
-    if (window.chatEmbed && typeof window.chatEmbed.openChat === 'function') {
-      window.chatEmbed.openChat({ chatId });
+    if (window.parent.chatEmbed && typeof window.parent.chatEmbed.openChat === 'function') {
+      window.parent.chatEmbed.openChat({ chatId });
     } else {
       console.warn('chatEmbed is not available in embed mode');
     }
