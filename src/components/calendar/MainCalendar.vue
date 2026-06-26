@@ -120,7 +120,7 @@
           <div class="px-2 hidden ipad-portrait:hidden lg:flex items-center gap-2">
             <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
               checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
-              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem]"
+              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
               wrapperClass="flex items-center" />
           </div>
           <div class="relative inline-block text-left  flex lg:hidden">
@@ -245,29 +245,29 @@
 
       <div v-show="showLegend" class="w-full hidden ipad-portrait:hidden lg:flex items-start gap-2 self-stretch rounded-[10px]">
         <!-- Event type -->
-        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
-          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_event_type") }}</span>
+        <div class="flex flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+          <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase whitespace-nowrap">{{ t("dashboard_calendar_legend_event_type") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
              <div class="flex items-center gap-2">
                 <PhoneIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_one_on_one_call") }}</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D] whitespace-nowrap">{{ t("dashboard_calendar_legend_one_on_one_call") }}</span>
              </div>
              <!-- Item-2 -->
              <div class="flex items-center gap-2">
                  <GroupCallIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_group_call") }}</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D] whitespace-nowrap">{{ t("dashboard_calendar_legend_group_call") }}</span>
              </div>
              <!-- Item-3 -->
              <div class="flex items-center gap-2">
                 <BookingScheduleIcon />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_booking_schedule") }}</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D] whitespace-nowrap">{{ t("dashboard_calendar_legend_booking_schedule") }}</span>
              </div>
           </div>
         </div>
         <!-- /Event type -->
          <!-- Status -->
-        <div class="flex flex-1 items-start justify-between rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+        <div class="flex flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
           <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_status") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
@@ -278,12 +278,12 @@
              <!-- Item-2 -->
              <div class="flex items-center gap-2">
                 <PendingStatus status="confirmed" />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("calendar_event_status_confirmed") }}</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D] whitespace-nowrap">{{ t("calendar_event_status_confirmed") }}</span>
              </div>
              <!-- Item-3 -->
              <div class="flex items-center gap-2">
                 <PendingStatus status="declined" />
-                <span class="font-medium text-xs leading-[18px] text-[#0C111D]">{{ t("dashboard_calendar_legend_declined_canceled") }}</span>
+                <span class="font-medium text-xs leading-[18px] text-[#0C111D] whitespace-nowrap">{{ t("dashboard_calendar_legend_declined_canceled") }}</span>
              </div>
           </div>
         </div>
