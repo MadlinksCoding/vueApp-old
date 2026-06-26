@@ -115,9 +115,14 @@ const props = defineProps({
   previewBookedSlots: { type: Array, default: () => [] },
   previewStartStep: { type: Number, default: 1 },
   previewReadOnly: { type: Boolean, default: false },
+  step1PrimaryAction: {
+    type: String,
+    default: "book",
+    validator: (value) => ["book", "edit-schedule"].includes(value),
+  },
 });
 
-const emit = defineEmits(["close-request", "booking-created", "booking-failed"]);
+const emit = defineEmits(["close-request", "booking-created", "booking-failed", "edit-schedule"]);
 const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
 const hasScheduledStep3Prefetch = ref(false);
@@ -257,7 +262,8 @@ function getPreviewDurationMinutes(event) {
 
 function isGroupEvent(event = {}) {
   const raw = event?.raw || {};
-  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+  const type = String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase();
+  return type === "group-event" || type === "group";
 }
 
 function toPreviewDurationObject(event, durationMinutes) {
@@ -874,16 +880,16 @@ const currentStepComponent = computed(() => {
   }
 });
 
-const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
+const showWrapperCloseButton = computed(() => props.previewMode || engine.step === 2 || engine.step === 3);
 </script>
 
 <template>
-  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex w-full h-full md:h-auto items-center justify-center lg:w-[852px]">
+  <div data-test="booking-flow-shell" class="relative flex min-h-dvh w-full items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:h-auto md:min-h-0 md:-translate-x-1/2 md:-translate-y-1/2 lg:w-[852px]">
     <div
         v-if="showWrapperCloseButton"
         @click="emit('close-request')"
         data-test="booking-flow-close-button"
-        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] md:p-[8px] w-4 h-4 md:w-10 md:h-10 lg:w-12 lg:h-12 flex justify-center items-center md:bg-white/10 md:rounded-full md:backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>
@@ -891,12 +897,14 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       :is="currentStepComponent"
       :engine="engine"
       :embedded="embedded"
+      :step1-primary-action="step1PrimaryAction"
       :api-base-url="apiBaseUrl"
       :refresh-booking-context="refreshBookingContext"
       @close-popup="emit('close-request')"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
       @booking-created="emit('booking-created', $event)"
       @booking-failed="emit('booking-failed', $event)"
+      @edit-schedule="emit('edit-schedule', $event)"
     />
     <ToastHost />
   </div>

@@ -467,6 +467,7 @@
         @open-new-events="handleOpenNewEvents"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
+        @view-schedule-card="handleMobileScheduleCardPreview"
       />
     </PopupHandler>
 
@@ -541,7 +542,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1007,6 +1008,11 @@ const handleMobileScheduleEdit = (event) => {
 const handleMobileScheduleDelete = (event) => {
   calendarPopupOpen.value = false;
   emit('delete-schedule-event', event);
+};
+
+const handleMobileScheduleCardPreview = (event) => {
+  calendarPopupOpen.value = false;
+  emit('view-schedule-card', event);
 };
 
 const handleOpenNewEvents = () => {

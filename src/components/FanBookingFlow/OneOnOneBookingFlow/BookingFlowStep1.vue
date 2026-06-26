@@ -20,8 +20,9 @@ import {
 import BookingFlowStepLoading from "./BookingFlowStepLoading.vue";
 import { useEventBackgroundImage } from "./useEventBackgroundImage.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { PencilIcon } from "@heroicons/vue/24/outline";
 
-const emit = defineEmits(["retry-catalog"]);
+const emit = defineEmits(["retry-catalog", "edit-schedule"]);
 
 const props = defineProps({
   engine: {
@@ -31,6 +32,11 @@ const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
+  },
+  step1PrimaryAction: {
+    type: String,
+    default: "book",
+    validator: (value) => ["book", "edit-schedule"].includes(value),
   },
 });
 
@@ -81,14 +87,15 @@ const groupCardBackgroundStyle = computed(() => {
 
 function callTypeLabel(event = {}) {
   const mediaTypeLabel = event.eventCallType === "audio" ? t("fan_booking_audio") : t("fan_booking_video");
-  return event.type === "group-event"
+  return isGroupEvent(event)
     ? t("fan_booking_group_call_type", { media: mediaTypeLabel })
     : t("fan_booking_one_on_one_call_type", { media: mediaTypeLabel });
 }
 
 function isGroupEvent(event = {}) {
   const raw = event?.raw || {};
-  return String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase() === "group-event";
+  const type = String(event?.type || event?.eventType || raw?.type || raw?.eventType || "").toLowerCase();
+  return type === "group-event" || type === "group";
 }
 
 function isEventGoalGroupEvent(event = {}) {
@@ -301,6 +308,7 @@ function groupCardStats(event = {}) {
 }
 
 const currentGroupStats = computed(() => groupCardStats(currentEvent.value || {}));
+const isEditSchedulePrimaryAction = computed(() => props.step1PrimaryAction === "edit-schedule");
 
 function toPlainText(value, fallback = t("fan_booking_no_description")) {
   if (typeof value !== "string" || !value.trim()) return fallback;
@@ -422,6 +430,11 @@ async function selectEvent(event) {
   await props.engine.goToStep(2);
 }
 
+function editSchedule(event) {
+  if (!event) return;
+  emit("edit-schedule", event);
+}
+
 function goPrev() {
   if (currentIndex.value <= 0) return;
   currentIndex.value -= 1;
@@ -472,7 +485,7 @@ watch(
       </div>
 
       <div v-else class="flex flex-col justify-between w-full h-full rounded-3xl bg-black/15 relative">
-        <div class="absolute right-0 flex items-center justify-end gap-2 px-3 pt-3">
+        <div v-if="!isEditSchedulePrimaryAction" class="absolute right-0 flex items-center justify-end gap-2 px-3 pt-3">
           <button
             type="button"
             class="w-7 h-7 rounded-full bg-white/20 text-white text-xl disabled:opacity-40"
@@ -562,7 +575,20 @@ watch(
               </div>
             </div>
 
+            <div v-if="isEditSchedulePrimaryAction" class="flex-none p-2">
+              <button
+                type="button"
+                class="flex min-h-[3rem] w-full items-center justify-center gap-3 rounded-full bg-[#FF0066] px-5 py-3 text-base font-bold uppercase leading-5 text-white transition-colors hover:bg-[#E6005C]"
+                data-test="booking-step1-edit-schedule"
+                @click="editSchedule(currentEvent)"
+              >
+                <PencilIcon class="h-6 w-6" aria-hidden="true" />
+                {{ t("dashboard_booking_schedule_edit_cta") }}
+              </button>
+            </div>
+
             <button
+              v-else
               type="button"
               :disabled="currentGroupStats.ctaDisabled"
               @click="selectEvent(currentEvent)"
@@ -685,6 +711,18 @@ watch(
         </div>
 
         <button
+          v-if="isEditSchedulePrimaryAction"
+          type="button"
+          class="mx-2 mb-3 flex min-h-[3rem] items-center justify-center gap-3 rounded-full bg-[#FF0066] px-5 py-3 text-base font-bold uppercase leading-5 text-white transition-colors hover:bg-[#E6005C]"
+          data-test="booking-step1-edit-schedule"
+          @click="editSchedule(currentEvent)"
+        >
+          <PencilIcon class="h-6 w-6" aria-hidden="true" />
+          {{ t("dashboard_booking_schedule_edit_cta") }}
+        </button>
+
+        <button
+          v-else
           @click="selectEvent(currentEvent)"
           class="card-footer flex flex-row justify-between items-center text-[#0C111D] bg-[#22CCEE] md:rounded-b-3xl cursor-pointer transition-colors"
         >

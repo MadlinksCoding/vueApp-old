@@ -15,9 +15,14 @@ const props = defineProps({
   previewBookedSlots: { type: Array, default: () => [] },
   previewStartStep: { type: Number, default: 1 },
   previewReadOnly: { type: Boolean, default: false },
+  step1PrimaryAction: {
+    type: String,
+    default: "book",
+    validator: (value) => ["book", "edit-schedule"].includes(value),
+  },
 });
 
-const emit = defineEmits(["update:modelValue", "booking-created", "booking-failed"]);
+const emit = defineEmits(["update:modelValue", "booking-created", "booking-failed", "edit-schedule"]);
 
 const oneOnOneBookingFlowPopupConfig = {
   actionType: "popup",
@@ -57,9 +62,11 @@ const oneOnOneBookingFlowPopupConfig = {
       :preview-booked-slots="previewBookedSlots"
       :preview-start-step="previewStartStep"
       :preview-read-only="previewReadOnly"
+      :step1-primary-action="step1PrimaryAction"
       @close-request="emit('update:modelValue', false)"
       @booking-created="emit('booking-created', $event)"
       @booking-failed="emit('booking-failed', $event)"
+      @edit-schedule="emit('edit-schedule', $event)"
     />
   </PopupHandler>
 </template>

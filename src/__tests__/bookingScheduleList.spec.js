@@ -69,12 +69,13 @@ describe("BookingScheduleList", () => {
     const menuButtons = wrapper.find("[data-test='booking-schedule-menu']").findAll("button");
     expect(menuButtons.map((button) => button.text())).toEqual([
       "Edit",
+      "View schedule card",
       "View in profile",
       "Share booking page",
       "Delete",
     ]);
-    expect(menuButtons[1].attributes("disabled")).toBeDefined();
     expect(menuButtons[2].attributes("disabled")).toBeDefined();
+    expect(menuButtons[3].attributes("disabled")).toBeDefined();
 
     await menuButtons[0].trigger("click");
     expect(wrapper.emitted("edit")?.[0]?.[0]).toEqual(expect.objectContaining({
@@ -84,7 +85,15 @@ describe("BookingScheduleList", () => {
     }));
 
     await rows[0].find("button[aria-label='Open options for High School simulator']").trigger("click");
-    await wrapper.find("[data-test='booking-schedule-menu']").findAll("button")[3].trigger("click");
+    await wrapper.find("[data-test='booking-schedule-menu']").findAll("button")[1].trigger("click");
+    expect(wrapper.emitted("view-card")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_open",
+      title: "High School simulator",
+      type: "private",
+    }));
+
+    await rows[0].find("button[aria-label='Open options for High School simulator']").trigger("click");
+    await wrapper.find("[data-test='booking-schedule-menu']").findAll("button")[4].trigger("click");
     expect(wrapper.emitted("delete")?.[0]?.[0]).toEqual(expect.objectContaining({
       eventId: "evt_open",
       title: "High School simulator",
@@ -165,6 +174,7 @@ describe("BookingScheduleList", () => {
               dashboard_booking_schedule_menu_aria: "Opciones para {title}",
               dashboard_booking_schedule_toggle_aria: "Alternar agenda",
               common_edit: "Editar",
+              dashboard_booking_schedule_view_card: "Ver tarjeta de agenda",
               dashboard_booking_schedule_view_profile: "Ver perfil",
               dashboard_booking_schedule_share_booking_page: "Compartir pagina",
               common_delete: "Eliminar",
@@ -184,6 +194,7 @@ describe("BookingScheduleList", () => {
     const menuButtons = wrapper.find("[data-test='booking-schedule-menu']").findAll("button");
     expect(menuButtons.map((button) => button.text())).toEqual([
       "Editar",
+      "Ver tarjeta de agenda",
       "Ver perfil",
       "Compartir pagina",
       "Eliminar",

@@ -51,12 +51,14 @@
         @create-event="goToCreateEvent($event.type)"
         @edit-schedule-event="handleEditScheduleEvent"
         @delete-schedule-event="openDeleteEventPopup"
+        @view-schedule-card="openScheduleCardPreview"
       >
         <template #event="{ event, style, onClick, view }">
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock && (view === 'month' ? 'rounded-[0.25rem]' : 'rounded-[0.375rem]'),
               view === 'month'
                 ? 'hidden lg:block text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
@@ -85,6 +87,7 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
@@ -108,8 +111,9 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
-              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem]'
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             tabindex="0"
@@ -121,7 +125,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div class="font-semibold truncate">{{ event.title }}</div>
-              <div class="opacity-90 text-[0.625rem]">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
+              <div class="opacity-90 text-[0.625rem] truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</div>
             </template>
           </div>
         </template>
@@ -131,6 +135,7 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
+              !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
@@ -154,13 +159,19 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
-                ? 'hidden lg:block pointer-events-none min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
-                : 'pointer-events-none min-h-[0.375rem] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4'
+                ? 'hidden lg:block min-h-[1.25rem] w-full cursor-pointer overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
+                : 'min-h-[0.375rem] w-full cursor-pointer overflow-hidden px-2 py-1 text-xs font-medium leading-4'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-availability-marker"
+            role="button"
+            tabindex="0"
+            :aria-label="t('dashboard_booking_schedule_menu_aria', { title: event.title || t('dashboard_booking_schedule_untitled_event') })"
+            @click.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+            @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
           >
-            <span v-if="event.title" data-test="dashboard-calendar-availability-title" class="block truncate">
+            <span v-if="event.title && !event.hideAvailabilityTitle" data-test="dashboard-calendar-availability-title" class="block truncate">
               {{ event.title }}
             </span>
           </div>
@@ -283,6 +294,7 @@
             :booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
             @edit="handleEditScheduleEvent"
             @delete="openDeleteEventPopup"
+            @view-card="openScheduleCardPreview"
           />
 
           <div v-if="!dashboardEventsEngine.state.events.loading">
@@ -406,6 +418,34 @@
       </div>
     </PopupHandler>
 
+    <OneOnOneBookingFlowPopup
+      v-if="isCreator"
+      :model-value="scheduleCardPreviewOpen"
+      :creator-id="normalizedCreatorId"
+      :fan-id="normalizedFanId"
+      :api-base-url="props.apiBaseUrl"
+      preview-mode
+      preview-read-only
+      :preview-event="scheduleCardPreviewEvent"
+      :preview-booked-slots="scheduleCardPreviewBookedSlots"
+      :preview-start-step="1"
+      step1-primary-action="edit-schedule"
+      @update:model-value="setScheduleCardPreviewOpen"
+      @edit-schedule="handleScheduleCardPreviewEdit"
+    />
+
+    <BookingScheduleMenu
+      v-if="isCreator"
+      :open="availabilityScheduleMenu.open"
+      :event="availabilityScheduleMenu.event"
+      position-class="fixed"
+      :menu-style="availabilityScheduleMenuStyle"
+      @edit="handleAvailabilityMenuEdit"
+      @view-card="handleAvailabilityMenuViewCard"
+      @delete="handleAvailabilityMenuDelete"
+      @close="closeAvailabilityScheduleMenu"
+    />
+
     <div
       v-if="calendarTooltip.visible"
       class="pointer-events-none fixed z-[1600] w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
@@ -447,8 +487,10 @@ import MainCalendar from "@/components/calendar/MainCalendar.vue";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
 import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
+import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
+import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
@@ -504,6 +546,14 @@ const cancelBookingCandidate = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
+const scheduleCardPreviewOpen = ref(false);
+const scheduleCardPreviewEvent = ref(null);
+const availabilityScheduleMenu = reactive({
+  open: false,
+  event: null,
+  left: 0,
+  top: 0,
+});
 const isFloatingPopupOpen = ref(false);
 const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
@@ -527,6 +577,11 @@ const calendarTooltipStyle = computed(() => ({
   transform: calendarTooltip.placement === "top"
     ? "translate(-50%, -100%)"
     : "translate(-50%, 0)",
+}));
+
+const availabilityScheduleMenuStyle = computed(() => ({
+  left: `${availabilityScheduleMenu.left}px`,
+  top: `${availabilityScheduleMenu.top}px`,
 }));
 
 const isEmbeddedMobileViewport = () => (
@@ -661,6 +716,7 @@ const theme1 = computed(() => ({
 }));
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
+const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
 
 const toggleFloatingPopup = () => {
   isFloatingPopupOpen.value = !isFloatingPopupOpen.value;
@@ -683,16 +739,26 @@ const togglePopup = () => {
 
 const handlePositionUpdate = () => {
   if (isCreatePopupOpen.value) updatePopupPosition();
+  if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
 };
 
 const handleClickOutside = (event) => {
-  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value) return;
+  if (!isCreatePopupOpen.value && !isFloatingPopupOpen.value && !availabilityScheduleMenu.open) return;
   const path = event.composedPath ? event.composedPath() : [];
   if (popupTrigger.value && !path.includes(popupTrigger.value)) {
     isCreatePopupOpen.value = false;
   }
   if (floatingPopupTrigger.value && !path.includes(floatingPopupTrigger.value)) {
     isFloatingPopupOpen.value = false;
+  }
+  if (availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
+  }
+};
+
+const handleDocumentKeydown = (event) => {
+  if (event.key === "Escape" && availabilityScheduleMenu.open) {
+    closeAvailabilityScheduleMenu();
   }
 };
 
@@ -1248,6 +1314,22 @@ function buildCalendarSlotsFromContext({
       },
     };
   });
+  const shouldHideAvailabilityTitle = (slot) => {
+    const eventId = String(slot?.eventId || "").trim();
+    const availabilityStartMs = new Date(slot?.start).getTime();
+    if (!eventId || Number.isNaN(availabilityStartMs)) return false;
+
+    const windowEndMs = availabilityStartMs + AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS;
+
+    return bookedCalendarSlots.some((booking) => {
+      if (String(booking?.eventId || "").trim() !== eventId) return false;
+
+      const bookingStartMs = new Date(booking?.start).getTime();
+      if (Number.isNaN(bookingStartMs)) return false;
+
+      return bookingStartMs >= availabilityStartMs && bookingStartMs <= windowEndMs;
+    });
+  };
 
   const availabilitySlots = mapAvailabilityToCalendarEvents(catalogEvents, {
     bookedSlotsIndex,
@@ -1268,6 +1350,7 @@ function buildCalendarSlotsFromContext({
       color: eventColorSkin,
       eventColorSkin,
       eventCallType,
+      hideAvailabilityTitle: shouldHideAvailabilityTitle(slot),
       raw: {
         ...(slot?.raw || {}),
         eventCallType,
@@ -1456,16 +1539,150 @@ const bookingScheduleEvents = computed(() => {
   return events.filter((event) => String(event?.status || event?.raw?.status || "active").toLowerCase() === "active");
 });
 
-const handleEditScheduleEvent = (event) => {
-  const eventId = String(event?.eventId || event?.id || "").trim();
-  if (!eventId) return;
+const getScheduleEventId = (event = {}) => String(event?.eventId || event?.id || event?.raw?.eventId || event?.raw?.id || "").trim();
 
-  emit("edit-event", {
+const findBookingScheduleEventById = (eventId) => {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return null;
+
+  return bookingScheduleEvents.value.find((event) => getScheduleEventId(event) === normalizedEventId) || null;
+};
+
+const normalizeScheduleEventPayload = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  if (!eventId) return null;
+
+  return {
+    ...event,
     eventId,
-    type: event?.type === "group" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
+    title: String(event?.title || event?.eventTitle || event?.raw?.title || t("dashboard_booking_schedule_untitled_event")).trim(),
+    type: event?.type === "group" || event?.type === "group-event" || event?.eventType === "group-event" || event?.raw?.type === "group-event"
       ? "group"
       : "private",
-    event,
+  };
+};
+
+const resolveAvailabilityScheduleEvent = (event = {}) => {
+  const eventId = getScheduleEventId(event);
+  const matchedScheduleEvent = findBookingScheduleEventById(eventId);
+  return normalizeScheduleEventPayload(matchedScheduleEvent || event);
+};
+
+const scheduleCardPreviewBookedSlots = computed(() => {
+  const eventId = getScheduleEventId(scheduleCardPreviewEvent.value);
+  const bookedSlots = dashboardEventsEngine.state?.events?.bookedSlotsRaw;
+  if (!eventId || !Array.isArray(bookedSlots)) return [];
+
+  return bookedSlots.filter((slot) => String(slot?.eventId || slot?.raw?.eventId || "").trim() === eventId);
+});
+
+const closeScheduleCardPreview = () => {
+  scheduleCardPreviewOpen.value = false;
+  scheduleCardPreviewEvent.value = null;
+};
+
+const setScheduleCardPreviewOpen = (open) => {
+  scheduleCardPreviewOpen.value = Boolean(open);
+  if (!open) {
+    scheduleCardPreviewEvent.value = null;
+  }
+};
+
+const openScheduleCardPreview = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  scheduleCardPreviewEvent.value = normalizedEvent;
+  scheduleCardPreviewOpen.value = true;
+};
+
+const closeAvailabilityScheduleMenu = () => {
+  availabilityScheduleMenu.open = false;
+  availabilityScheduleMenu.event = null;
+};
+
+const positionAvailabilityScheduleMenu = (domEvent) => {
+  const fallbackLeft = 8;
+  const fallbackTop = 8;
+  if (typeof window === "undefined") {
+    availabilityScheduleMenu.left = fallbackLeft;
+    availabilityScheduleMenu.top = fallbackTop;
+    return;
+  }
+
+  const trigger = domEvent?.currentTarget || domEvent?.target;
+  const menuWidth = 196;
+  const menuHeight = 176;
+  const gap = 8;
+  const viewportPadding = 8;
+  const viewportWidth = window.innerWidth || menuWidth + viewportPadding * 2;
+  const viewportHeight = window.innerHeight || menuHeight + viewportPadding * 2;
+  let left = fallbackLeft;
+  let top = fallbackTop;
+  let topWhenAbove = fallbackTop;
+
+  if (Number.isFinite(domEvent?.clientX) && Number.isFinite(domEvent?.clientY)) {
+    left = domEvent.clientX;
+    top = domEvent.clientY;
+    topWhenAbove = domEvent.clientY - menuHeight - gap;
+  } else if (trigger && typeof trigger.getBoundingClientRect === "function") {
+    const rect = trigger.getBoundingClientRect();
+    left = rect.left;
+    top = rect.bottom + gap;
+    topWhenAbove = rect.top - menuHeight - gap;
+  }
+
+  if (left + menuWidth > viewportWidth - viewportPadding) {
+    left = viewportWidth - menuWidth - viewportPadding;
+  }
+
+  if (top + menuHeight > viewportHeight - viewportPadding) {
+    top = topWhenAbove;
+  }
+
+  availabilityScheduleMenu.left = Math.max(viewportPadding, left);
+  availabilityScheduleMenu.top = Math.max(viewportPadding, top);
+};
+
+const openAvailabilityScheduleMenu = (event, domEvent) => {
+  if (!isCreator.value) return;
+  const scheduleEvent = resolveAvailabilityScheduleEvent(event);
+  if (!scheduleEvent) return;
+
+  availabilityScheduleMenu.event = scheduleEvent;
+  positionAvailabilityScheduleMenu(domEvent);
+  availabilityScheduleMenu.open = true;
+};
+
+const handleAvailabilityMenuEdit = (event) => {
+  closeAvailabilityScheduleMenu();
+  handleEditScheduleEvent(event);
+};
+
+const handleAvailabilityMenuViewCard = (event) => {
+  closeAvailabilityScheduleMenu();
+  openScheduleCardPreview(event);
+};
+
+const handleAvailabilityMenuDelete = (event) => {
+  closeAvailabilityScheduleMenu();
+  openDeleteEventPopup(event);
+};
+
+const handleScheduleCardPreviewEdit = (event) => {
+  const selectedEvent = normalizeScheduleEventPayload(event) || scheduleCardPreviewEvent.value;
+  closeScheduleCardPreview();
+  handleEditScheduleEvent(selectedEvent);
+};
+
+const handleEditScheduleEvent = (event) => {
+  const normalizedEvent = normalizeScheduleEventPayload(event);
+  if (!normalizedEvent) return;
+
+  emit("edit-event", {
+    eventId: normalizedEvent.eventId,
+    type: normalizedEvent.type,
+    event: normalizedEvent,
   });
 };
 
@@ -1957,6 +2174,7 @@ onMounted(() => {
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
   document.addEventListener("click", handleClickOutside);
+  document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
   if (hasDashboardContext.value) {
@@ -2007,7 +2225,12 @@ watch(dashboardRole, (nextRole) => {
     isCreatePopupOpen.value = false;
     isFloatingPopupOpen.value = false;
     newEventsPopupOpen.value = false;
+    closeAvailabilityScheduleMenu();
   }
+});
+
+watch(() => state.view, () => {
+  closeAvailabilityScheduleMenu();
 });
 
 onUnmounted(() => {
@@ -2018,6 +2241,7 @@ onUnmounted(() => {
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
   document.removeEventListener("click", handleClickOutside);
+  document.removeEventListener("keydown", handleDocumentKeydown);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);
 });
 

@@ -77,24 +77,34 @@ function hmToMinutes(value) {
   return (hours * 60) + minutes;
 }
 
-function slotDurationMinutes(slot = {}, { inclusiveEndOfDay = false } = {}) {
+function slotBoundaryMinutes(slot = {}, { inclusiveEndOfDay = false } = {}) {
   const start = hmToMinutes(slot?.startTime);
   const rawEnd = hmToMinutes(slot?.endTime);
   if (start == null || rawEnd == null) return null;
   const end = inclusiveEndOfDay && rawEnd === (24 * 60) - 1 && rawEnd >= start
     ? 24 * 60
     : rawEnd;
-  if (end > start) return end - start;
-  if (end < start) return (24 * 60) - start + end;
-  return 0;
+  return { start, end };
+}
+
+function slotDurationMinutes(slot = {}, options = {}) {
+  const boundary = slotBoundaryMinutes(slot, options);
+  if (!boundary || boundary.end <= boundary.start) return null;
+  return boundary.end - boundary.start;
+}
+
+function hasInvalidSlotTimeOrder(slot = {}, options = {}) {
+  const start = typeof slot?.startTime === "string" ? slot.startTime.trim() : "";
+  const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
+  if (!start || !end) return false;
+  const boundary = slotBoundaryMinutes(slot, options);
+  return Boolean(boundary && boundary.end <= boundary.start);
 }
 
 function slotTimeRange(slot = {}) {
-  const start = hmToMinutes(slot?.startTime);
-  const rawEnd = hmToMinutes(slot?.endTime);
-  if (start == null || rawEnd == null || rawEnd === start) return null;
-  const end = rawEnd < start ? rawEnd + (24 * 60) : rawEnd;
-  return { start, end };
+  const boundary = slotBoundaryMinutes(slot);
+  if (!boundary || boundary.end <= boundary.start) return null;
+  return boundary;
 }
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -200,8 +210,12 @@ function hasSlotUnderMinimumDuration(slots = [], options = {}) {
     const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
     if (!start || !end) return false;
     const duration = slotDurationMinutes(slot, options);
-    return duration == null || duration < 5;
+    return duration == null ? !hasInvalidSlotTimeOrder(slot, options) : duration < 5;
   });
+}
+
+function hasSlotWithInvalidTimeOrder(slots = [], options = {}) {
+  return (Array.isArray(slots) ? slots : []).some((slot) => hasInvalidSlotTimeOrder(slot, options));
 }
 
 function hasAtLeastOneWeeklySlot(state = {}) {
@@ -225,6 +239,11 @@ function hasWeeklySlotUnderMinimumDuration(state = {}, options = {}) {
   return weekly.some((day) => !day?.unavailable && hasSlotUnderMinimumDuration(day?.slots, options));
 }
 
+function hasWeeklySlotWithInvalidTimeOrder(state = {}, options = {}) {
+  const weekly = Array.isArray(state?.weeklyAvailability) ? state.weeklyAvailability : [];
+  return weekly.some((day) => !day?.unavailable && hasSlotWithInvalidTimeOrder(day?.slots, options));
+}
+
 function hasAtLeastOneOneTimeSlot(state = {}) {
   const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
   return oneTime.some((entry) => hasAnyValidSlots(entry?.slots));
@@ -238,6 +257,11 @@ function hasAtLeastOneOneTimeGroupSlot(state = {}) {
 function hasOneTimeSlotUnderMinimumDuration(state = {}, options = {}) {
   const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
   return oneTime.some((entry) => hasSlotUnderMinimumDuration(entry?.slots, options));
+}
+
+function hasOneTimeSlotWithInvalidTimeOrder(state = {}, options = {}) {
+  const oneTime = Array.isArray(state?.oneTimeAvailability) ? state.oneTimeAvailability : [];
+  return oneTime.some((entry) => hasSlotWithInvalidTimeOrder(entry?.slots, options));
 }
 
 function hasOneTimeDateWithoutSlot(state = {}) {
@@ -286,6 +310,11 @@ function hasAtLeastOneMonthlyGroupSlot(state = {}) {
 function hasMonthlySlotUnderMinimumDuration(state = {}, options = {}) {
   const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
   return hasSlotUnderMinimumDuration(monthly, options);
+}
+
+function hasMonthlySlotWithInvalidTimeOrder(state = {}, options = {}) {
+  const monthly = Array.isArray(state?.monthlyAvailability) ? state.monthlyAvailability : [];
+  return hasSlotWithInvalidTimeOrder(monthly, options);
 }
 
 function asArray(value) {
@@ -361,8 +390,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.firstTimeDiscountTokens, state?.firstTimeDiscount], {
       field: "firstTimeDiscountTokens",
       translationKey: "booking_validation_first_time_discount_range",
-      message: "First-time discount must be greater than 0 tokens.",
-      min: 0.000001,
+      message: "First-time discount must be at least 1 token.",
+      min: 1,
     });
   }
 
@@ -378,8 +407,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.longerSessionDiscountTokens, state?.discountPercentage, state?.discountPercentOfBase], {
       field: "longerSessionDiscountTokens",
       translationKey: "booking_validation_longer_discount_tokens",
-      message: "Longer-session discount must be greater than 0 tokens.",
-      min: 0.000001,
+      message: "Longer-session discount must be at least 1 token.",
+      min: 1,
     });
   }
 
@@ -405,8 +434,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.bookingFee, state?.bookingFeeTokens], {
       field: "bookingFee",
       translationKey: "booking_validation_booking_fee_min",
-      message: "Booking fee must be 0 or higher.",
-      min: 0,
+      message: "Booking fee must be at least 1 token.",
+      min: 1,
     });
   }
 
@@ -414,8 +443,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.rescheduleFee, state?.rescheduleFeeTokens], {
       field: "rescheduleFee",
       translationKey: "booking_validation_reschedule_fee_min",
-      message: "Reschedule fee must be 0 or higher.",
-      min: 0,
+      message: "Reschedule fee must be at least 1 token.",
+      min: 1,
     });
   }
 
@@ -423,8 +452,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.cancellationFee, state?.cancellationFeeTokens], {
       field: "cancellationFee",
       translationKey: "booking_validation_cancellation_fee_min",
-      message: "Cancellation fee must be 0 or higher.",
-      min: 0,
+      message: "Cancellation fee must be at least 1 token.",
+      min: 1,
     });
   }
 
@@ -446,8 +475,8 @@ export function step1Validator(state = {}) {
     addRequiredNumberError(errors, [state?.offHourSurcharge, state?.offHourSurchargePercent], {
       field: "offHourSurcharge",
       translationKey: "booking_validation_off_hour_surcharge_range",
-      message: "Off-hour surcharge must be between 0 and 100 percent.",
-      min: 0,
+      message: "Off-hour surcharge must be between 1 and 100 percent.",
+      min: 1,
       max: 100,
     });
   }
@@ -510,7 +539,9 @@ export function step1Validator(state = {}) {
       errors.push(asError("oneTimeAvailability", "booking_validation_one_time_date_slot_required", "Each custom date must have at least one available time slot."));
     }
 
-    if (hasOneTimeSlotUnderMinimumDuration(state, durationOptions)) {
+    if (hasOneTimeSlotWithInvalidTimeOrder(state, durationOptions)) {
+      errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
+    } else if (hasOneTimeSlotUnderMinimumDuration(state, durationOptions)) {
       errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
     }
 
@@ -529,7 +560,9 @@ export function step1Validator(state = {}) {
     if (!hasSlot) {
       errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_required", "Add at least one monthly slot before continuing."));
     }
-    if (hasMonthlySlotUnderMinimumDuration(state, durationOptions)) {
+    if (hasMonthlySlotWithInvalidTimeOrder(state, durationOptions)) {
+      errors.push(asError("monthlyAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
+    } else if (hasMonthlySlotUnderMinimumDuration(state, durationOptions)) {
       errors.push(asError("monthlyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
     }
     if (hasOverlappingSlots(state?.monthlyAvailability)) {
@@ -538,7 +571,9 @@ export function step1Validator(state = {}) {
   } else if (!(isGroupEvent ? hasAtLeastOneWeeklyGroupSlot(state) : hasAtLeastOneWeeklySlot(state))) {
     errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_required", "Add at least one available slot before continuing."));
   } else {
-    if (hasWeeklySlotUnderMinimumDuration(state, durationOptions)) {
+    if (hasWeeklySlotWithInvalidTimeOrder(state, durationOptions)) {
+      errors.push(asError("weeklyAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
+    } else if (hasWeeklySlotUnderMinimumDuration(state, durationOptions)) {
       errors.push(asError("weeklyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
     }
     if (hasOverlappingWeeklyAvailability(state)) {
