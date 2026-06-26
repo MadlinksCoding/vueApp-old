@@ -917,15 +917,15 @@ const closeEventDetails = () => {
   eventDetailsPopupOpen.value = false;
 };
 
-const handleOpenChat = (chatId) => {
+const handleOpenChat = (payload) => {
   if (window.self !== window.top) {
     if (window.parent.chatEmbed && typeof window.parent.chatEmbed.openChat === 'function') {
-      window.parent.chatEmbed.openChat({ chatId });
+      window.parent.chatEmbed.openChat(payload);
     } else {
       console.warn('chatEmbed is not available in embed mode');
     }
   } else {
-    console.log('Open chat requested in normal mode for chatId:', chatId);
+    console.log('Open chat requested in normal mode:', payload);
   }
 };
 

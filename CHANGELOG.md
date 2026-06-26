@@ -6,13 +6,20 @@
 
 #### `src/components/calendar/CalendarEventDetailsPopup.vue`
 - **Loading State UI** — Added a `bookingLoading` state to show a skeleton loading animation while `bookingData` is being fetched. This hides the Accept/Decline/Adjust buttons and waiting statuses until data is fully loaded.
+- **Conditional Fetching** — Added a condition to only execute `bookings.fetchBooking` if `canReviewPending` is true, preventing unnecessary API calls.
 - **Dynamic Waiting UI** — Replaced Accept/Decline buttons with a "Waiting for response" indicator (with Hourglass icon) when a request is in `pending` or `counter_offer` state depending on the user role.
-- **Open Chat Button** — Updated the static "Open chat" link to an active `<button>` that checks for `bookingData.meta.chatId` and emits an `@open-chat` event to handle chat opening dynamically.
+- **Open Chat Fallback** — Updated the "Open chat" button to emit an `@open-chat` event containing a payload. If `chatId` is missing, it dynamically falls back to the target `userId` (using `user_id` if the current user is a creator, or `creator_id` if the user is a fan).
 
 #### `src/components/calendar/MainCalendar.vue`
 - **Socket Messaging Fix** — Resolved `TypeError: Cannot read properties of undefined (reading 'value')` by destructuring `sendChatMessage` directly from `useChatSocket()` instead of accessing it through `socket.value`.
 - **Real-time Counter Offer** — Updated `handleAdjustSubmitted` to broadcast the counter-offer socket message to both Creator and Fan to ensure optimistic UI updates across both clients.
-- **Dynamic Open Chat Logic** — Added `handleOpenChat` listener to process `@open-chat` events from the details popup. In Embed Mode (`window.self !== window.top`), it triggers `window.chatEmbed.openChat()` to open the floating widget. In Normal Mode, it outputs a `console.log` pending further integration.
+- **Dynamic Open Chat Logic** — Added `handleOpenChat` listener to process `@open-chat` events from the details popup. In Embed Mode (`window.self !== window.top`), it securely triggers `window.parent.chatEmbed.openChat(payload)` to open the floating widget. In Normal Mode, it outputs a `console.log` pending further integration.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Past Requests Interaction Prevention** — Disabled all actionable buttons (Accept, Decline, Adjust, Accept New Time, Reject, Accept Changes, Cancel Booking) and prevented emit events for booking requests that have already passed their scheduled time (`isPassCall`). Added an opacity-50 styling to visually indicate the disabled state.
+
+#### `public/bookings-embed/event-chat-iframe.html`
+- **New Host Demo Page** — Created a combined test bed HTML file demonstrating seamless integration of both `fs-events-host.js` and `fs-chat-host.js`. The events dashboard renders full-width, while the chat widget runs as a floating overlay.
 
 ## 2026-06-18 — Chat Popup UI & Iframe Resize Fixes
 

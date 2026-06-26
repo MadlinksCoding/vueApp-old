@@ -190,14 +190,14 @@
                         </div>
                     </div>
 
-                    <div class="inline-flex w-full items-center gap-4" v-if="bookingData?.meta?.chatId">
+                    <div class="inline-flex w-full items-center gap-4" v-if="canOpenChat">
                         <div class="w-6 h-6 relative overflow-hidden">
                             <img :src="messageDots" alt="">
                         </div>
                         <button
                             type="button"
                             class="flex items-center gap-0.5 hover:opacity-80 transition-opacity"
-                            @click="$emit('open-chat', bookingData.meta.chatId)"
+                            @click="handleOpenChatClick"
                         >
                             <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
                                 {{ t("calendar_event_open_chat") }}
@@ -531,6 +531,27 @@ const showRejectConfirm = ref(false);
 const bookingData = ref(null);
 const bookingLoading = ref(false);
 
+const targetUserIdForChat = computed(() => {
+    const isCreator = props.userRole === 'creator';
+    return isCreator 
+        ? (bookingData.value?.userId || bookingData.value?.user_id || raw.value?.userId || raw.value?.user_id) 
+        : (bookingData.value?.creatorId || bookingData.value?.creator_id || raw.value?.creatorId || raw.value?.creator_id);
+});
+
+const canOpenChat = computed(() => {
+    return !!(bookingData.value?.meta?.chatId || targetUserIdForChat.value);
+});
+
+function handleOpenChatClick() {
+    const payload = {};
+    if (bookingData.value?.meta?.chatId) {
+        payload.chatId = bookingData.value.meta.chatId;
+    } else if (targetUserIdForChat.value) {
+        payload.userId = String(targetUserIdForChat.value);
+    }
+    emit('open-chat', payload);
+}
+
 watch(
     () => bookingId.value,
     async (newBookingId) => {
@@ -538,7 +559,7 @@ watch(
         menuOpen.value = false;
         
         bookingData.value = null;
-        if (newBookingId) {
+        if (newBookingId && props.canReviewPending) {
             bookingLoading.value = true;
             try {
                 const res = await FlowHandler.run('bookings.fetchBooking', { bookingId: newBookingId });
