@@ -91,6 +91,7 @@ async function mountStep1({
   contextFanId = 2615,
   rootFanId = undefined,
   rootUserId = undefined,
+  step1PrimaryAction = "book",
 }) {
   const engine = createEngine({
     ...(rootFanId !== undefined ? { fanId: rootFanId } : {}),
@@ -118,6 +119,7 @@ async function mountStep1({
     props: {
       engine,
       embedded: true,
+      step1PrimaryAction,
     },
     global: {
       provide: {
@@ -165,6 +167,33 @@ describe("BookingFlowStep1 group cards", () => {
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
     expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("renders edit booking schedule CTA in creator preview mode without booking navigation", async () => {
+    const dateIso = localDateOffset(1);
+    const event = groupEvent(dateIso, {
+      type: "group",
+      raw: {
+        type: "group",
+        eventType: "group-event",
+      },
+    });
+    const { engine, wrapper } = await mountStep1({
+      event,
+      step1PrimaryAction: "edit-schedule",
+    });
+
+    const editButton = wrapper.get("[data-test='booking-step1-edit-schedule']");
+    expect(editButton.text()).toContain("EDIT BOOKING SCHEDULE");
+    expect(wrapper.text()).not.toContain("JOIN EVENT");
+
+    await editButton.trigger("click");
+
+    expect(wrapper.emitted("edit-schedule")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: event.eventId,
+      title: event.title,
+    }));
+    expect(engine.goToStep).not.toHaveBeenCalled();
   });
 
   it("renders event-goal progress from booked slot contribution totals", async () => {

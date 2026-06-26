@@ -66,6 +66,7 @@
             :booked-slots-index="bookingScheduleBookedSlotsIndex"
             @edit="$emit('edit-schedule-event', $event)"
             @delete="$emit('delete-schedule-event', $event)"
+            @view-card="$emit('view-schedule-card', $event)"
         />
 
         <div class="w-full p-2 border-t border-black/20 mb-[100px]">
@@ -118,5 +119,5 @@ defineProps({
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 </script>

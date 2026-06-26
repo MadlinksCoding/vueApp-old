@@ -67,7 +67,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
-    emits: ["create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event"],
+    emits: ["create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
@@ -157,13 +157,25 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       emitScheduleDelete() {
         this.$emit("delete-schedule-event", this.bookingScheduleEvents?.[0]);
       },
+      emitScheduleViewCard() {
+        this.$emit("view-schedule-card", this.bookingScheduleEvents?.[0]);
+      },
       resetScrollToTop: mainCalendarResetScrollToTop,
+    },
+    computed: {
+      dynamicBookedEvents() {
+        return (this.events || []).filter((event) => event?.slot !== "availability");
+      },
+      dynamicAvailabilityEvents() {
+        return (this.events || []).filter((event) => event?.slot === "availability");
+      },
     },
     template: `
       <div class='main-calendar-stub'>
         <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
         <button data-test="main-calendar-schedule-edit" @click="emitScheduleEdit">edit schedule</button>
         <button data-test="main-calendar-schedule-delete" @click="emitScheduleDelete">delete schedule</button>
+        <button data-test="main-calendar-schedule-view-card" @click="emitScheduleViewCard">view schedule card</button>
         <slot />
         <slot
           name="event"
@@ -189,6 +201,24 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <slot
           name="event-availability"
           :event="monthAvailabilityEvent"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          v-for="event in dynamicBookedEvents"
+          :key="'dynamic-booked-' + (event.id || event.eventId || event.title)"
+          name="event"
+          :event="event"
+          :style="undefined"
+          :onClick="handleMonthEventClick"
+          view="month"
+        />
+        <slot
+          v-for="event in dynamicAvailabilityEvents"
+          :key="'dynamic-availability-' + (event.id || event.eventId || event.start)"
+          name="event-availability"
+          :event="event"
           :style="undefined"
           :onClick="handleMonthEventClick"
           view="month"
@@ -237,6 +267,35 @@ vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
   default: {
     name: "NewEventsPopup",
     template: "<div />",
+  },
+}));
+
+vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue", () => ({
+  default: {
+    name: "OneOnOneBookingFlowPopup",
+    props: {
+      modelValue: { type: Boolean, default: false },
+      creatorId: { type: [Number, String], default: null },
+      fanId: { type: [Number, String], default: null },
+      apiBaseUrl: { type: String, default: "" },
+      previewMode: { type: Boolean, default: false },
+      previewReadOnly: { type: Boolean, default: false },
+      previewEvent: { type: Object, default: null },
+      previewBookedSlots: { type: Array, default: () => [] },
+      previewStartStep: { type: Number, default: 1 },
+      step1PrimaryAction: { type: String, default: "book" },
+    },
+    emits: ["update:modelValue", "edit-schedule"],
+    template: `
+      <div v-if="modelValue" data-test="schedule-card-preview-popup">
+        <button
+          data-test="schedule-card-preview-edit"
+          @click="$emit('edit-schedule', previewEvent)"
+        >
+          edit preview
+        </button>
+      </div>
+    `,
   },
 }));
 
@@ -751,6 +810,7 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.classes()).toContain("static");
     expect(bookingMarker.classes()).toContain("hidden");
     expect(bookingMarker.classes()).toContain("lg:block");
+    expect(bookingMarker.classes()).toContain("cursor-pointer");
     expect(bookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
     expect(bookingMarker.element.style.borderTopWidth).toBe("1px");
@@ -798,6 +858,7 @@ describe("DashboardEventsFeature", () => {
     expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
     expect(pastBookingMarker.element.style.borderTopColor).toBe("rgb(200, 205, 216)");
     expect(pastBookingMarker.element.style.borderTopWidth).toBe("1px");
+    expect(pastBookingMarker.classes()).toContain("cursor-pointer");
     expect(pastBookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pastBookingMarker.element.style.boxShadow).toBe("none");
     expect(pastBookingMarker.element.style.color).toBe("rgb(152, 162, 179)");
@@ -813,6 +874,8 @@ describe("DashboardEventsFeature", () => {
     expect(pendingMarker.element.style.backgroundColor).toBe("transparent");
     expect(pendingMarker.element.style.borderTopColor).toBe("rgb(225, 29, 72)");
     expect(pendingMarker.element.style.borderTopWidth).toBe("1px");
+    expect(pendingMarker.classes()).toContain("cursor-pointer");
+    expect(pendingMarker.classes()).toContain("overflow-hidden");
     expect(pendingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
     expect(pendingMarker.text()).toContain("1:00pm - 1:30pm");
@@ -831,6 +894,80 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.element.style.backgroundImage).toBe("");
     expect(availabilityMarker.attributes("style")).not.toContain("repeating-linear-gradient");
     expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
+  });
+
+  it.each([
+    { label: "same-event booking at availability start", bookingMinute: 0, bookingEventId: "evt_overlap_window", shouldHideTitle: true },
+    { label: "same-event booking exactly fifteen minutes after availability start", bookingMinute: 15, bookingEventId: "evt_overlap_window", shouldHideTitle: true },
+    { label: "same-event booking sixteen minutes after availability start", bookingMinute: 16, bookingEventId: "evt_overlap_window", shouldHideTitle: false },
+    { label: "different-event booking at availability start", bookingMinute: 0, bookingEventId: "evt_different_window", shouldHideTitle: false },
+  ])("controls availability title visibility for $label", async ({ bookingMinute, bookingEventId, shouldHideTitle }) => {
+    const eventTitle = "Overlap Window";
+    const bookingStartIso = new Date(Date.UTC(2026, 2, 22, 17, bookingMinute, 0)).toISOString();
+    const bookingEndIso = new Date(Date.UTC(2026, 2, 22, 17, bookingMinute + 5, 0)).toISOString();
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_overlap_window",
+          title: eventTitle,
+          status: "active",
+          type: "1on1-call",
+          eventCallType: "video",
+          eventColorSkin: "#5549FF",
+          raw: {
+            repeatRule: "doesNotRepeat",
+            dates: [{
+              date: "2026-03-23",
+              times: [{ startTime: "01:00", endTime: "03:00" }],
+            }],
+          },
+        }],
+        bookedSlots: [{
+          bookingId: `booking_${bookingEventId}_${bookingMinute}`,
+          eventId: bookingEventId,
+          eventTitle: "Early Booking",
+          eventType: "1on1-call",
+          eventCallType: "video",
+          startIso: bookingStartIso,
+          endIso: bookingEndIso,
+          status: "confirmed",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const calendarEvents = wrapper.getComponent({ name: "MainCalendar" }).props("events");
+    const availabilityEvent = calendarEvents.find((event) => (
+      event.eventId === "evt_overlap_window" && event.slot === "availability"
+    ));
+    const bookedEvent = calendarEvents.find((event) => (
+      event.bookingId === `booking_${bookingEventId}_${bookingMinute}`
+    ));
+
+    expect(bookedEvent).toEqual(expect.objectContaining({
+      title: "Early Booking",
+      start: bookingStartIso,
+    }));
+    expect(availabilityEvent).toEqual(expect.objectContaining({
+      title: eventTitle,
+      hideAvailabilityTitle: shouldHideTitle,
+    }));
+
+    const bookedMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Early Booking"));
+    expect(bookedMarker).toBeTruthy();
+
+    const availabilityMarker = wrapper.findAll("[data-test='dashboard-month-availability-marker']")
+      .find((marker) => marker.attributes("aria-label")?.includes(eventTitle));
+    expect(availabilityMarker).toBeTruthy();
+    expect(availabilityMarker.find("[data-test='dashboard-calendar-availability-title']").exists()).toBe(!shouldHideTitle);
   });
 
   it("does not show the main calendar booking tooltip on touch-capable devices", async () => {
@@ -1310,6 +1447,241 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
       eventId: "evt_schedule_edit",
       type: "private",
+    }));
+  });
+
+  it("opens a selected schedule card preview and reuses the edit flow from the preview CTA", async () => {
+    const selectedSlot = {
+      bookingId: "booking_selected_schedule",
+      eventId: "evt_schedule_preview",
+      startIso: "2026-03-23T10:00:00",
+      endIso: "2026-03-23T10:30:00",
+      status: "confirmed",
+    };
+    const otherSlot = {
+      bookingId: "booking_other_schedule",
+      eventId: "evt_other_schedule",
+      startIso: "2026-03-23T11:00:00",
+      endIso: "2026-03-23T11:30:00",
+      status: "confirmed",
+    };
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_schedule_preview",
+          title: "Preview schedule card",
+          status: "active",
+          type: "1on1-call",
+          eventColorSkin: "#5549FF",
+        }],
+        bookedSlots: [selectedSlot, otherSlot],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+      apiBaseUrl: "https://api.example.test",
+    });
+
+    await wrapper.get("button[aria-label='Open options for Preview schedule card']").trigger("click");
+    const viewCardButton = wrapper
+      .find("[data-test='booking-schedule-menu']")
+      .findAll("button")
+      .find((button) => button.text() === "View schedule card");
+    await viewCardButton.trigger("click");
+    await flushPromises();
+
+    const previewPopup = wrapper.getComponent({ name: "OneOnOneBookingFlowPopup" });
+    expect(previewPopup.props()).toEqual(expect.objectContaining({
+      modelValue: true,
+      creatorId: 77,
+      apiBaseUrl: "https://api.example.test",
+      previewMode: true,
+      previewReadOnly: true,
+      previewStartStep: 1,
+      step1PrimaryAction: "edit-schedule",
+    }));
+    expect(previewPopup.props("previewEvent")).toEqual(expect.objectContaining({
+      eventId: "evt_schedule_preview",
+      title: "Preview schedule card",
+      type: "private",
+    }));
+    expect(previewPopup.props("previewBookedSlots")).toEqual([selectedSlot]);
+
+    await wrapper.get("[data-test='schedule-card-preview-edit']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_schedule_preview",
+      type: "private",
+      event: expect.objectContaining({
+        eventId: "evt_schedule_preview",
+        title: "Preview schedule card",
+      }),
+    }));
+    expect(previewPopup.props("modelValue")).toBe(false);
+  });
+
+  it("opens the booking schedule menu from availability blocks and routes actions through the matched schedule event", async () => {
+    const selectedSlot = {
+      bookingId: "booking_availability_selected",
+      eventId: "evt_month_availability",
+      startIso: "2026-03-23T10:00:00",
+      endIso: "2026-03-23T10:30:00",
+      status: "confirmed",
+    };
+    const otherSlot = {
+      bookingId: "booking_availability_other",
+      eventId: "evt_other_schedule",
+      startIso: "2026-03-23T11:00:00",
+      endIso: "2026-03-23T11:30:00",
+      status: "confirmed",
+    };
+
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_month_availability",
+          title: "Matched availability schedule",
+          status: "active",
+          type: "group-event",
+          eventColorSkin: "#0EA5E9",
+        }],
+        bookedSlots: [selectedSlot, otherSlot],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+      apiBaseUrl: "https://api.example.test",
+    }, {
+      dashboard_delete_booking_schedule_title: "Delete schedule '{title}'?",
+    });
+
+    const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
+    availabilityMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+
+    await availabilityMarker.trigger("click", { clientX: 148, clientY: 156 });
+
+    const scheduleMenu = wrapper.get("[data-test='booking-schedule-menu']");
+    expect(scheduleMenu.element.style.left).toBe("148px");
+    expect(scheduleMenu.element.style.top).toBe("156px");
+
+    let menuButtons = scheduleMenu.findAll("button");
+    expect(menuButtons.map((button) => button.text())).toEqual([
+      "Edit",
+      "View schedule card",
+      "View in profile",
+      "Share booking page",
+      "Delete",
+    ]);
+
+    await menuButtons.find((button) => button.text() === "Edit").trigger("click");
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+    expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_month_availability",
+      type: "group",
+      event: expect.objectContaining({
+        eventId: "evt_month_availability",
+        title: "Matched availability schedule",
+      }),
+    }));
+
+    await availabilityMarker.trigger("click");
+    menuButtons = wrapper.get("[data-test='booking-schedule-menu']").findAll("button");
+    await menuButtons.find((button) => button.text() === "View schedule card").trigger("click");
+    await flushPromises();
+
+    const previewPopup = wrapper.getComponent({ name: "OneOnOneBookingFlowPopup" });
+    expect(previewPopup.props()).toEqual(expect.objectContaining({
+      modelValue: true,
+      creatorId: 77,
+      apiBaseUrl: "https://api.example.test",
+      previewMode: true,
+      previewReadOnly: true,
+      previewStartStep: 1,
+      step1PrimaryAction: "edit-schedule",
+    }));
+    expect(previewPopup.props("previewEvent")).toEqual(expect.objectContaining({
+      eventId: "evt_month_availability",
+      title: "Matched availability schedule",
+      type: "group",
+    }));
+    expect(previewPopup.props("previewBookedSlots")).toEqual([selectedSlot]);
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+
+    await availabilityMarker.trigger("click");
+    menuButtons = wrapper.get("[data-test='booking-schedule-menu']").findAll("button");
+    await menuButtons.find((button) => button.text() === "Delete").trigger("click");
+
+    expect(wrapper.text()).toContain("Delete schedule 'Matched availability schedule'?");
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+  });
+
+  it("closes the availability schedule menu on outside click and falls back to the availability payload safely", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
+    availabilityMarker.element.getBoundingClientRect = vi.fn(() => ({
+      left: 120,
+      right: 260,
+      top: 120,
+      bottom: 180,
+      width: 140,
+      height: 60,
+      x: 120,
+      y: 120,
+      toJSON: () => ({}),
+    }));
+
+    await availabilityMarker.trigger("click");
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
+
+    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+
+    await availabilityMarker.trigger("click");
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+
+    await availabilityMarker.trigger("click");
+    const editButton = wrapper
+      .get("[data-test='booking-schedule-menu']")
+      .findAll("button")
+      .find((button) => button.text() === "Edit");
+    await editButton.trigger("click");
+
+    expect(wrapper.emitted("edit-event")?.[0]?.[0]).toEqual(expect.objectContaining({
+      eventId: "evt_month_availability",
+      type: "private",
+      event: expect.objectContaining({
+        eventId: "evt_month_availability",
+        title: "Month Availability Window",
+      }),
     }));
   });
 

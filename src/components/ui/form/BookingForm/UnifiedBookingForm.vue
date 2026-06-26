@@ -1082,8 +1082,7 @@ function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }
     const startMinutes = Number(startTime.slice(0, 2)) * 60 + Number(startTime.slice(3, 5));
     const endMinutes = Number(endTime.slice(0, 2)) * 60 + Number(endTime.slice(3, 5));
     if (endMinutes <= startMinutes) {
-        const nextDay = addDays(dateFromIso(dateIso), 1);
-        endDateIso = formatDateIso(nextDay) || dateIso;
+        return null;
     }
 
     const end = dateTimeFromIsoHm(endDateIso, endTime);

@@ -84,7 +84,7 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
     props: ["view", "eventsData", "canCreateEvents", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
-    emits: ["join-click", "event-click", "menu-action", "open-new-events", "edit-schedule-event", "delete-schedule-event"],
+    emits: ["join-click", "event-click", "menu-action", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     template: `
       <div data-test="mobile-popup">
         <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
@@ -111,6 +111,12 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
           @click="$emit('delete-schedule-event', bookingScheduleEvents[0])"
         >
           delete schedule
+        </button>
+        <button
+          data-test="mobile-schedule-view-card"
+          @click="$emit('view-schedule-card', bookingScheduleEvents[0])"
+        >
+          view schedule card
         </button>
       </div>
     `,
@@ -714,6 +720,26 @@ describe("MainCalendar all events count", () => {
     await wrapper.get("[data-test='mobile-schedule-delete']").trigger("click");
 
     expect(wrapper.emitted("delete-schedule-event")).toEqual([[bookingScheduleEvents[0]]]);
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile schedule card preview actions and closes the mobile popup", async () => {
+    const bookingScheduleEvents = [
+      makeEvent({
+        eventId: "evt_mobile_view_card",
+        title: "Mobile View Card Schedule",
+        isAvailabilityBlock: false,
+      }),
+    ];
+    const wrapper = await mountCalendar([], {
+      bookingScheduleEvents,
+      showBookingScheduleList: true,
+    });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-schedule-view-card']").trigger("click");
+
+    expect(wrapper.emitted("view-schedule-card")).toEqual([[bookingScheduleEvents[0]]]);
     expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
   });
 
