@@ -594,7 +594,7 @@ onMounted(async () => {
          ]"
          :style="{ 
            pointerEvents: isDragging ? 'none' : 'auto',
-           marginRight: (isListOpen && !isLeftAligned && hostWidth >= 768) ? '29rem' : '0',
+           marginRight:isListOpen && !isLeftAligned ? hostWidth >= 1024 ? '29rem' : hostWidth >= 768 ? '23.125rem' : '0' : '0',
            marginLeft: (isListOpen && isLeftAligned && hostWidth >= 768) ? '29rem' : '0'
          }">
       <ChatWindow

@@ -2659,7 +2659,9 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col w-[28.125rem] h-[37.5rem] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
-       :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '']">
+       :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '',
+        hostWidth >= 768 && hostWidth <= 1023 ? ' w-[22.125rem] ' : '',
+       ]">
     <FlexChat
       ref="flexChatRef"
       :messages="messages"
