@@ -146,7 +146,7 @@
 
         <!-- Report Member -->
         <button
-          class="w-full flex items-center gap-6 px-4 py-[0.563rem] h-14 text-left hover:bg-slate-50 transition-colors text-gray-950 font-medium font-['Poppins'] text-sm md:text-base md:gap-1.5 opacity-40 pointer-events-none cursor-not-allowed"
+          class="w-full flex items-center gap-6 px-4 py-[0.563rem] h-14 text-left hover:bg-slate-50 transition-colors text-gray-950 font-medium font-['Poppins'] text-sm md:text-base md:gap-1.5"
           @click="handleReport"
         >
           <img :src="ReportIcon" alt="report member" class="w-4 h-4 md:w-6 md:h-6 text-gray-500 shrink-0" />

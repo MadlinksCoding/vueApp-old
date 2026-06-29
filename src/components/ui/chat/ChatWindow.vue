@@ -4,6 +4,9 @@ import {
   MusicalNoteIcon,
   RectangleStackIcon,
   VideoCameraIcon,
+  EllipsisVerticalIcon,
+  NoSymbolIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/vue/24/outline'
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
@@ -89,9 +92,56 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
 
+const showUserActionsMenu = ref(false)
+
+const singleChatTargetMember = computed(() => {
+  if (isGroupChat.value) return null
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const otherId = participants.find(id => String(id) !== String(props.currentUserId))
+  if (otherId) {
+    const ud = chatStore.chatUsersData[otherId]
+    return { ...ud, id: otherId, username: ud?.username || ud?.display_name || props.chatName }
+  }
+  return { id: props.targetUserId, username: props.chatName }
+})
+
 const chatStore = useChatStore()
 const { t } = useBookingTranslations()
 const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
+const isCheckingBlock = ref(false)
+const localIsBlocked = ref(false)
+
+async function toggleUserActionsMenu() {
+  if (showUserActionsMenu.value) {
+    showUserActionsMenu.value = false
+    return
+  }
+  
+  showUserActionsMenu.value = true
+  const targetId = String(singleChatTargetMember.value?.id)
+  
+  if (!targetId || targetId === 'undefined') return
+
+  if (chatStore.blockedUserIds.includes(targetId)) {
+    localIsBlocked.value = true
+    return
+  }
+
+  isCheckingBlock.value = true
+  const res = await FlowHandler.run('blocks.isUserBlocked', {
+    from: currentUserId,
+    to: targetId,
+    scope: 'private_chat',
+  })
+  
+  if (res?.ok) {
+    localIsBlocked.value = res.data?.blocked === true
+    if (localIsBlocked.value && !chatStore.blockedUserIds.includes(targetId)) {
+      chatStore.blockedUserIds.push(targetId)
+    }
+  }
+  isCheckingBlock.value = false
+}
 const isCreatorAccount = computed(() => {
   const ud = resolveParentUserData()
   return ud?.accountType === 'creator'
@@ -297,17 +347,20 @@ const isChatBlocked = computed(() => {
     return chatStore.blockedUserIds.includes(String(groupOwnerId.value))
   }
 
-  // Only apply blocking logic for private chats
-  if (!activeChatId.value && props.targetUserIds?.length !== 1 || props.groupType !== 'private') {
-    return false
-  }
-  if (activeChatId.value && isGroupChat.value) {
-    return false
-  }
+  // Do not apply blocking logic for group chats
+  if (props.groupType === 'group' || props.chatType === 'group') return false
+  if (isGroupChat.value) return false
   
   const participants = activeChatId.value ? (chatStore.chatParticipants[activeChatId.value] || []) : (props.targetUserIds || [])
-  const otherUserId = participants.find(id => String(id) !== String(currentUserId))
+  let otherUserId = participants.find(id => String(id) !== String(currentUserId))
   
+  // Fallback if otherUserId is not found in participants
+  if (!otherUserId && props.targetUserId) {
+    otherUserId = props.targetUserId
+  } else if (!otherUserId && props.targetUserIds && props.targetUserIds.length === 1) {
+    otherUserId = props.targetUserIds[0]
+  }
+
   if (!otherUserId) return false
   
   return chatStore.blockedUserIds.includes(String(otherUserId))
@@ -385,6 +438,7 @@ async function handleKickMember(member) {
 }
 
 async function handleBlockMember(member) {
+  showUserActionsMenu.value = false
   const res = await FlowHandler.run('blocks.blockUser', { 
     from: currentUserId, 
     to: member.id,
@@ -396,6 +450,7 @@ async function handleBlockMember(member) {
     if (!chatStore.blockedUserIds.includes(String(member.id))) {
       chatStore.blockedUserIds.push(String(member.id));
     }
+    localIsBlocked.value = true;
     props.socket?.sendBlockUpdate?.(String(member.id), true);
   } else {
     showToast({ type: 'error', title: 'Failed', message: `Could not block @${member.username}` });
@@ -403,6 +458,7 @@ async function handleBlockMember(member) {
 }
 
 async function handleUnblockMember(member) {
+  showUserActionsMenu.value = false
   const res = await FlowHandler.run('blocks.unblockUser', { 
     from: currentUserId, 
     to: member.id,
@@ -412,6 +468,7 @@ async function handleUnblockMember(member) {
   if (res?.ok) {
     showToast({ type: 'success', title: 'Unblocked', message: `Unblocked @${member.username}` });
     chatStore.blockedUserIds = chatStore.blockedUserIds.filter(id => id !== String(member.id));
+    localIsBlocked.value = false;
     props.socket?.sendBlockUpdate?.(String(member.id), false);
   } else {
     showToast({ type: 'error', title: 'Failed', message: `Could not unblock @${member.username}` });
@@ -419,7 +476,13 @@ async function handleUnblockMember(member) {
 }
 
 function handleReportMember(member) {
-  showToast({ type: 'success', title: 'Reported', message: `Reported @${member.username}` })
+  showUserActionsMenu.value = false
+  console.log("Reporting member:", member)
+  postToParent('FS_CHAT_EVENT', {
+    type: 'report_chat_user',
+    targetUserId: member.id,
+    targetUsername: member.username
+  })
 }
 
 // Pre-fetched booking for the active popup message (may be null until loaded)
@@ -2271,6 +2334,7 @@ function _flushVisibleBatch() {
     if (senderId) {
       const readReceipts = res?.data?.result?.read_receipts ?? []
       props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', currentUserId, readReceipts)
     }
   })
 }
@@ -2553,6 +2617,7 @@ watch(pinnedBookingMessages, (msgs) => {
     if (senderId) {
       const readReceipts = res?.data?.result?.read_receipts ?? []
       props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', currentUserId, readReceipts)
     }
   })
 }, { immediate: true })
@@ -2790,11 +2855,39 @@ onUnmounted(() => {
             {{ chatName.charAt(0).toUpperCase() }}
           </div>
 
-          <div class="flex-1 min-w-0">
-            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }}
-              <!-- No need right now -->
-               <!-- <span class="text-zinc-400">•••</span> -->
+          <div class="flex-1 min-w-0 flex items-center gap-1">
+            <div class="text-[#0C111D] text-sm font-semibold truncate">{{ chatName }}</div>
+            
+            <!-- 3 dots menu -->
+            <div class="relative flex items-center" v-if="isCreatorAccount">
+              <button @click.stop="toggleUserActionsMenu" class="hover:bg-gray-200/50 rounded p-0.5 ml-1 transition-colors">
+                <EllipsisVerticalIcon class="w-5 h-5 text-gray-500" />
+              </button>
+              
+              <!-- Dropdown -->
+              <div v-if="showUserActionsMenu" class="absolute left-0 top-full mt-1.5 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1.5 z-50">
+                <button 
+                  @click.stop="localIsBlocked ? handleUnblockMember(singleChatTargetMember) : handleBlockMember(singleChatTargetMember)" 
+                  :disabled="isCheckingBlock"
+                  class="w-full px-4 py-2 text-left flex items-center gap-2 text-[#F04438] hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <NoSymbolIcon class="w-5 h-5" />
+                  <span v-if="isCheckingBlock" class="text-sm font-medium font-['Poppins']">Checking...</span>
+                  <span v-else class="text-sm font-medium font-['Poppins']">
+                    {{ localIsBlocked ? 'Unblock' : 'Block' }} @{{ singleChatTargetMember?.username?.toLowerCase() }}
+                  </span>
+                </button>
+                <div class="w-full h-px bg-gray-100 my-1"></div>
+                <button @click.stop="handleReportMember(singleChatTargetMember)" class="w-full px-4 py-2 text-left flex items-center gap-2 text-gray-500 hover:bg-gray-50">
+                  <ExclamationCircleIcon class="w-5 h-5" />
+                  <span class="text-sm font-medium font-['Poppins']">Report</span>
+                </button>
+              </div>
+              
+              <!-- Overlay to close menu -->
+              <div v-if="showUserActionsMenu" @click="showUserActionsMenu = false" class="fixed inset-0 z-40"></div>
             </div>
+
             <!-- hide online indicator -->
             <div v-if="1 != 1" class="flex items-center gap-1">
               <div class="flex items-center self-stretch">

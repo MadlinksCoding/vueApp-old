@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-06-29 — Cross-Tab Chat Sync & Booking Detail Actions
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Past Requests Interaction Prevention** — Implemented `isPassCall` logic to check if a booking request's scheduled time has passed. If passed, all actionable buttons (Accept, Decline, Adjust, Accept New Time, Reject, Accept Changes, Cancel Booking) are disabled and visually faded (using `opacity-50`) to prevent interaction on expired requests.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **1-on-1 Chat Block & Report** — Added a 3-dots actions menu to the 1-on-1 Chat Header for Creator accounts. This allows creators to directly "Block" or "Report" the other user.
+  - Clicking "Block" invokes the existing block flow.
+  - Clicking "Report" triggers a `postToParent` event with `type: 'report_chat_user'` to notify the parent window.
+- **Fixed Chat Blocking Logic** — Fixed `isChatBlocked` logic to properly evaluate 1-on-1 chats even when `groupType` is implicitly `null`, ensuring blocked users cannot send messages and the input box is properly disabled.
+- **Cross-Tab Unread Sync (Emit)** — Updated `markMessageRead` API call logic to dispatch an additional `sendStatusUpdate` (`read` status) to the current user's own `userId` via socket. This ensures that when a user reads a message in one tab, all their other active tabs receive the status update immediately to sync the unread counts.
+
+#### `src/components/ui/chat/ChatMembersPopup.vue`
+- **Fixed Report Button state** — Removed hardcoded disabled/dimmed classes from the Report button, making it clickable again.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Handled Report Chat User Event** — Intercepted the `report_chat_user` event and mapped it to trigger `open_popup({ target: '#report-popup' })` dynamically if the report modal is present in the parent DOM.
+
+#### `src/components/ui/toast/ToastHost.vue`
+- **Fixed Toast Z-Index Overlap** — Increased the `z-index` of the ToastHost container to `100000` to ensure toast notifications always appear visually above floating widgets like Chat, fixing an issue where they appeared hidden beneath the chat.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Tablet Layout Navigation** — Updated the threshold for maximum allowed chat windows from `768px` to `1024px`.
+  - Tablet portrait screens (768px - 1023px) now display a maximum of 1 chat window at a time (down from 2).
+  - When opening a chat on a tablet, the Chat List automatically closes.
+  - When the last active chat is closed on a tablet, the Chat List automatically reopens, improving the navigation flow.
+
+#### `src/composables/useChatSocket.js`
+- **Cross-Tab Unread Sync (Receive)** — Enhanced `_handleIncomingStatusUpdate` to intercept incoming `read` status events. If the message was sent by another user, it now automatically clears the chat's local unread count (`chatStore.updateChatUnread(..., false)`).
+- **Duplicate Event Prevention** — Added a check to see if an incoming `read` status event is for a message that is already marked as `read` locally (`isAlreadyRead`). If so, it skips emitting the `message_read` event to the parent window, resolving an issue where reading a message triggered duplicate events in the active tab.
+
 ## 2026-06-26 — Calendar Event Details UI & Chat Integration
 
 ### Changed
