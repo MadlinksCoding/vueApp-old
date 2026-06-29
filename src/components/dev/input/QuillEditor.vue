@@ -65,7 +65,7 @@ onMounted(() => {
         toolbar.style.border = 'none';
         toolbar.classList.add('!border-0', 'dark:!border-[#3b4043]', '!px-0', '!pt-0', '!pb-2');
         toolbar.querySelectorAll('button').forEach(b => {
-            b.classList.add('!w-auto', '!min-w-[30px]', '!h-auto', '!p-1', 'rounded', 'hover:!bg-[#F9FAFB]', 'dark:hover:!bg-[#323232]', 'flex', 'items-center', 'justify-center');
+            b.classList.add('!w-auto', '!min-w-[30px]', '!h-auto', '!p-1', 'rounded', 'hover:!bg-black/5', 'dark:hover:!bg-[#323232]', 'flex', 'items-center', 'justify-center');
         });
     }
     const editorContainer = container.querySelector('.ql-container.ql-snow');
