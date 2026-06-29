@@ -249,7 +249,7 @@ function toggleList(e) {
 }
 
 function openChatWindow(chat) {
-  if (hostWidth.value < 768) {
+  if (hostWidth.value < 1024) {
     isListOpen.value = false
   }
   console.log("Attempting to open chat window with:", chat)
@@ -275,7 +275,7 @@ function openChatWindow(chat) {
 
   const newChat = { ...chat, uid: Date.now() + Math.random() }
 
-  const limit = hostWidth.value >= 768 ? 2 : 1
+  const limit = hostWidth.value >= 1024 ? 2 : 1
   if (openChats.value.length >= limit) {
     const toKeep = limit - 1
     openChats.value = toKeep > 0 ? [...openChats.value.slice(-toKeep), newChat] : [newChat]
@@ -286,6 +286,9 @@ function openChatWindow(chat) {
 
 function closeChatWindow(uid) {
   openChats.value = openChats.value.filter((c) => c.uid !== uid)
+  if (hostWidth.value < 1024 && openChats.value.length === 0) {
+    isListOpen.value = true
+  }
 }
 
 function closeAll() {
@@ -394,7 +397,7 @@ const widgetEl  = ref(null)
 const hostWidth = ref(window.innerWidth)
 
 watch(hostWidth, (newWidth) => {
-  const limit = newWidth >= 768 ? 2 : 1
+  const limit = newWidth >= 1024 ? 2 : 1
   if (openChats.value.length > limit) {
     const toRemove = openChats.value.length - limit
     openChats.value.splice(0, toRemove)

@@ -23,6 +23,12 @@
 #### `src/components/ui/toast/ToastHost.vue`
 - **Fixed Toast Z-Index Overlap** — Increased the `z-index` of the ToastHost container to `100000` to ensure toast notifications always appear visually above floating widgets like Chat, fixing an issue where they appeared hidden beneath the chat.
 
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Tablet Layout Navigation** — Updated the threshold for maximum allowed chat windows from `768px` to `1024px`.
+  - Tablet portrait screens (768px - 1023px) now display a maximum of 1 chat window at a time (down from 2).
+  - When opening a chat on a tablet, the Chat List automatically closes.
+  - When the last active chat is closed on a tablet, the Chat List automatically reopens, improving the navigation flow.
+
 #### `src/composables/useChatSocket.js`
 - **Cross-Tab Unread Sync (Receive)** — Enhanced `_handleIncomingStatusUpdate` to intercept incoming `read` status events. If the message was sent by another user, it now automatically clears the chat's local unread count (`chatStore.updateChatUnread(..., false)`).
 - **Duplicate Event Prevention** — Added a check to see if an incoming `read` status event is for a message that is already marked as `read` locally (`isAlreadyRead`). If so, it skips emitting the `message_read` event to the parent window, resolving an issue where reading a message triggered duplicate events in the active tab.
