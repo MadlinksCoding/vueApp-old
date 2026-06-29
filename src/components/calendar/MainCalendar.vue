@@ -216,9 +216,9 @@
 
         <!-- mobile-view-today-button -->
         <button
-          class="px-6 hidden justify-center items-center py-1 rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+          class="flex fixed bottom-2 left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)]"
           @click="goToday" data-main-today>
-          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
+          <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
         <div class="cursor-pointer relative flex lg:hidden">
           <div @click="toggleDropdown">
