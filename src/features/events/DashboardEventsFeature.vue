@@ -291,7 +291,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden ipad-portrait:hidden lg:flex lg:max-w-[20.375rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden lg:flex lg:w-[22vw] lg:min-w-[20.375rem] lg:max-w-[28rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
