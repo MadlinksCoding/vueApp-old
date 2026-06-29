@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="isActiveHost"
-    class="fixed top-4 right-4 z-[1200] flex flex-col gap-2 pointer-events-none">
+    class="fixed top-4 right-4 z-[100000] flex flex-col gap-2 pointer-events-none">
     <transition-group name="toast-fade" tag="div" class="flex flex-col gap-2">
       <div
         v-for="toast in toasts"

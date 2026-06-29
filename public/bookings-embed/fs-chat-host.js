@@ -516,6 +516,15 @@
         var eventPayload = data.payload || {};
         // Stamp the last activity timestamp on the parent window
         window._fsChatLastTimestamp = eventPayload.timestamp || Date.now();
+
+        // Handle specific chat events
+        if (eventPayload.type === 'report_chat_user') {
+          console.warn("Received report_chat_user event:", eventPayload);
+          if (document.querySelector('#report-popup') && typeof window.open_popup === 'function') {
+            window.open_popup({ 'target': '#report-popup' });
+          }
+        }
+
         // Dispatch a single event — listeners branch on e.detail.type
         window.dispatchEvent(new CustomEvent("FS_CHAT_EVENT", {
           bubbles: true,
