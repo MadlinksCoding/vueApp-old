@@ -155,6 +155,12 @@ export function useChatSocket(userId) {
   function _handleIncomingStatusUpdate(body) {
     body = normalizeSocketBody(body);
     if (!body?.chat_id || !body?.message_id || !body?.status) return;
+
+    // Check if the message is already read locally before we update the store
+    const msgs = chatStore.messages[body.chat_id] || [];
+    const msg = msgs.find(m => (m.id || m.message_id) === body.message_id);
+    const isAlreadyRead = msg?.status === 'read';
+
     if (body.status === 'read' && Array.isArray(body.read_receipts) && body.read_receipts.length > 0) {
       chatStore.updateMessageReadReceiptsAction({
         chatId: body.chat_id,
@@ -169,8 +175,13 @@ export function useChatSocket(userId) {
       });
     }
 
-    // Notify parent window when a message is marked read
-    if (body.status === 'read') {
+    if (body.status === 'read' && !isAlreadyRead) {
+      const senderId = msg ? String(msg.sender_id || msg.senderId) : null;
+      if (senderId && senderId !== String(userId)) {
+        chatStore.updateChatUnread(body.chat_id, false);
+      }
+
+      // Notify parent window when a message is marked read
       postToParent('FS_CHAT_EVENT', {
         type:      'message_read',
         chatId:    body.chat_id,

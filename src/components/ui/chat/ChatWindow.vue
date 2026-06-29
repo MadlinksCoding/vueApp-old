@@ -2271,6 +2271,7 @@ function _flushVisibleBatch() {
     if (senderId) {
       const readReceipts = res?.data?.result?.read_receipts ?? []
       props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', currentUserId, readReceipts)
     }
   })
 }
@@ -2553,6 +2554,7 @@ watch(pinnedBookingMessages, (msgs) => {
     if (senderId) {
       const readReceipts = res?.data?.result?.read_receipts ?? []
       props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', senderId, readReceipts)
+      props.socket?.sendStatusUpdate(activeChatId.value, messageId, 'read', currentUserId, readReceipts)
     }
   })
 }, { immediate: true })

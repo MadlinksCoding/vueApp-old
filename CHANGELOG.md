@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-29 — Cross-Tab Chat Sync & Booking Detail Actions
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Past Requests Interaction Prevention** — Implemented `isPassCall` logic to check if a booking request's scheduled time has passed. If passed, all actionable buttons (Accept, Decline, Adjust, Accept New Time, Reject, Accept Changes, Cancel Booking) are disabled and visually faded (using `opacity-50`) to prevent interaction on expired requests.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Cross-Tab Unread Sync (Emit)** — Updated `markMessageRead` API call logic to dispatch an additional `sendStatusUpdate` (`read` status) to the current user's own `userId` via socket. This ensures that when a user reads a message in one tab, all their other active tabs receive the status update immediately to sync the unread counts.
+
+#### `src/composables/useChatSocket.js`
+- **Cross-Tab Unread Sync (Receive)** — Enhanced `_handleIncomingStatusUpdate` to intercept incoming `read` status events. If the message was sent by another user, it now automatically clears the chat's local unread count (`chatStore.updateChatUnread(..., false)`).
+- **Duplicate Event Prevention** — Added a check to see if an incoming `read` status event is for a message that is already marked as `read` locally (`isAlreadyRead`). If so, it skips emitting the `message_read` event to the parent window, resolving an issue where reading a message triggered duplicate events in the active tab.
+
 ## 2026-06-26 — Calendar Event Details UI & Chat Integration
 
 ### Changed
