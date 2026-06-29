@@ -1762,7 +1762,7 @@ function productCardDisabledReason(message, action = '') {
   if (cta === 'loading') return 'Checking your access. Please wait.'
   const statusError = toNonEmptyString(productCardStatus(message)?.error)
   if (statusError) return statusError
-  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return 'Previewing the fan view. Actions are disabled for creators.'
+  if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return "Fan's POV (for creator reference)"
   if (cta === 'subscribed') return 'You are already subscribed to this plan.'
   if (cta === 'unavailable') return 'This product is not available right now.'
 
