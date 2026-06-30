@@ -92,7 +92,6 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
 
-const showUserActionsMenu = ref(false)
 
 const singleChatTargetMember = computed(() => {
   if (isGroupChat.value) return null
@@ -110,13 +109,23 @@ const { t } = useBookingTranslations()
 const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
 const isCheckingBlock = ref(false)
 const localIsBlocked = ref(false)
+const showUserActionsMenu = ref(false)
+const dropdownAlignRight = ref(false)
+const userActionsMenuBtnRef = ref(null)
 
 async function toggleUserActionsMenu() {
   if (showUserActionsMenu.value) {
     showUserActionsMenu.value = false
     return
   }
-  
+
+  // Detect overflow: if button is too close to the right edge, align dropdown to the right
+  if (userActionsMenuBtnRef.value) {
+    const rect = userActionsMenuBtnRef.value.getBoundingClientRect()
+    const dropdownWidth = 208 // w-52 = 13rem = 208px
+    dropdownAlignRight.value = rect.left + dropdownWidth > window.innerWidth
+  }
+
   showUserActionsMenu.value = true
   const targetId = String(singleChatTargetMember.value?.id)
   
@@ -2860,12 +2869,12 @@ onUnmounted(() => {
             
             <!-- 3 dots menu -->
             <div class="relative flex items-center" v-if="isCreatorAccount">
-              <button @click.stop="toggleUserActionsMenu" class="hover:bg-gray-200/50 rounded p-0.5 ml-1 transition-colors">
+              <button ref="userActionsMenuBtnRef" @click.stop="toggleUserActionsMenu" class="hover:bg-gray-200/50 rounded p-0.5 ml-1 transition-colors">
                 <EllipsisVerticalIcon class="w-5 h-5 text-gray-500" />
               </button>
               
               <!-- Dropdown -->
-              <div v-if="showUserActionsMenu" class="absolute left-0 top-full mt-1.5 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1.5 z-50">
+              <div v-if="showUserActionsMenu" :class="['absolute top-full mt-1.5 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1.5 z-50', dropdownAlignRight ? 'right-0' : 'left-0']">
                 <button 
                   @click.stop="localIsBlocked ? handleUnblockMember(singleChatTargetMember) : handleBlockMember(singleChatTargetMember)" 
                   :disabled="isCheckingBlock"
@@ -2873,7 +2882,7 @@ onUnmounted(() => {
                 >
                   <NoSymbolIcon class="w-5 h-5" />
                   <span v-if="isCheckingBlock" class="text-sm font-medium font-['Poppins']">Checking...</span>
-                  <span v-else class="text-sm font-medium font-['Poppins']">
+                  <span v-else class="text-sm font-medium font-['Poppins'] truncate">
                     {{ localIsBlocked ? 'Unblock' : 'Block' }} @{{ singleChatTargetMember?.username?.toLowerCase() }}
                   </span>
                 </button>
