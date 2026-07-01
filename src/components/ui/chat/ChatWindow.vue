@@ -27,6 +27,7 @@ import {
   buildProductSelectedPayload,
   extractProductRecommendation,
   isProductCtaDisabled,
+  isScheduledSubscriptionCta,
   normalizeProductForChat,
   productActionFromCta,
   productPriceLabel,
@@ -34,6 +35,7 @@ import {
   productRefreshMatchesMessage,
   productStatusCtaLabel,
   resolveChatFanUid,
+  scheduledSubscriptionTooltip,
 } from '@/utils/chatProductRecommendation.js'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatResolverUtils'
@@ -1810,6 +1812,14 @@ function productCardCtaDisabled(message) {
   return isProductCtaDisabled(productCardCta(message))
 }
 
+function productCardCurrentStatus(message) {
+  return productCardStatus(message) || { cta: productCardCta(message) }
+}
+
+function isScheduledSubscriptionButton(message, action = '') {
+  return action === 'subscribe' && isScheduledSubscriptionCta(productCardCurrentStatus(message))
+}
+
 function isProductCardReadOnly(message) {
   return isCreatorAccount.value && message?.content_type === 'product_recommendation'
 }
@@ -1821,6 +1831,7 @@ function isProductWatchAction(action = '') {
 function productCardButtonDisabled(message, action = '') {
   return isProductActionPending(message, action)
     || productCardCtaDisabled(message)
+    || isScheduledSubscriptionButton(message, action)
     || (isProductCardReadOnly(message) && !isProductWatchAction(action))
     || isChatBlocked.value
 }
@@ -1838,6 +1849,7 @@ function productCardDisabledReason(message, action = '') {
   const statusError = toNonEmptyString(productCardStatus(message)?.error)
   if (statusError) return statusError
   if (isProductCardReadOnly(message) && !isProductWatchAction(action)) return "Fan's POV (for creator reference)"
+  if (isScheduledSubscriptionButton(message, action)) return scheduledSubscriptionTooltip(productCardCurrentStatus(message))
   if (cta === 'subscribed') return 'You are already subscribed to this plan.'
   if (cta === 'unavailable') return 'This product is not available right now.'
 

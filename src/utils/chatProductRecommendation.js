@@ -88,6 +88,10 @@ function firstPresent(...values) {
   return undefined;
 }
 
+const SCHEDULED_SUBSCRIPTION_CTA_LABELS = new Set(["expiring", "downgraded"]);
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function mediaBadgeMetadata(source = {}) {
   if (!source || typeof source !== "object") return {};
   const raw = source.raw && typeof source.raw === "object" ? source.raw : {};
@@ -394,6 +398,51 @@ export function productCtaLabel(cta) {
 export function productStatusCtaLabel(status = {}) {
   const customLabel = toString(status?.ctaLabel);
   return customLabel || productCtaLabel(status?.cta);
+}
+
+export function scheduledSubscriptionCtaKind(status = {}) {
+  const label = productStatusCtaLabel(status).trim().toLowerCase();
+  return SCHEDULED_SUBSCRIPTION_CTA_LABELS.has(label) ? label : "";
+}
+
+export function isScheduledSubscriptionCta(status = {}) {
+  return Boolean(scheduledSubscriptionCtaKind(status));
+}
+
+export function formatSubscriptionScheduleDate(seconds) {
+  const timestamp = Number(seconds);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "";
+
+  const date = new Date(timestamp * 1000);
+  if (!Number.isFinite(date.getTime())) return "";
+
+  return `${WEEKDAY_LABELS[date.getDay()]} ${date.getDate()} ${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function subscriptionScheduleTimes(detail = {}) {
+  if (!detail || typeof detail !== "object") return {};
+  if (detail.times && typeof detail.times === "object") return detail.times;
+  if (detail.subscription?.times && typeof detail.subscription.times === "object") return detail.subscription.times;
+  if (detail.subscribe_data?.times && typeof detail.subscribe_data.times === "object") return detail.subscribe_data.times;
+  return {};
+}
+
+function subscriptionScheduleTimestamp(status = {}) {
+  const times = subscriptionScheduleTimes(status?.detail || {});
+  const timestamp = Number(firstPresent(times.next_payment, times.nextPayment, times.end));
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : null;
+}
+
+export function scheduledSubscriptionTooltip(status = {}) {
+  const kind = scheduledSubscriptionCtaKind(status);
+  if (!kind) return "";
+
+  const date = formatSubscriptionScheduleDate(subscriptionScheduleTimestamp(status));
+  if (!date) return "";
+
+  return kind === "expiring"
+    ? `You will be downgraded from this plan on ${date}`
+    : `You will be downgraded to this plan on ${date}`;
 }
 
 export function isProductCtaDisabled(cta) {
