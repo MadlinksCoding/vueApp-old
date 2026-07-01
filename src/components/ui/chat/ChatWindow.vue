@@ -1725,7 +1725,7 @@ function shouldShowFreeSubscribePending(message, action = '') {
     && isFreeSubscriptionDetail(productCardStatus(message)?.detail || {})
 }
 
-async function fetchProductRecommendationStatus(message, { force = false } = {}) {
+async function fetchProductRecommendationStatus(message, { force = false, bypassCache = false } = {}) {
   if (!shouldFetchProductRecommendationStatus(message)) return
 
   const product = productForMessage(message)
@@ -1752,10 +1752,13 @@ async function fetchProductRecommendationStatus(message, { force = false } = {})
     cta: 'loading',
   })
 
-  const result = await FlowHandler.run('chat.fetchProductRecommendationStatus', {
+  const statusPayload = {
     product,
     fanUid,
-  }, {
+  }
+  if (bypassCache) statusPayload.nocache = 1
+
+  const result = await FlowHandler.run('chat.fetchProductRecommendationStatus', statusPayload, {
     forceRefresh: true,
     skipDestinationRead: true,
   })
@@ -1998,7 +2001,7 @@ async function refreshProductRecommendationMessages(payload = {}) {
   )
   try {
     await Promise.all(targetMessages.map((message) =>
-      fetchProductRecommendationStatus(message, { force: true })
+      fetchProductRecommendationStatus(message, { force: true, bypassCache: true })
     ))
   } finally {
     clearProductActionPendingForMessages(targetMessages, 'subscribe')

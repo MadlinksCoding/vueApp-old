@@ -58,12 +58,17 @@ export async function fetchProductRecommendationStatusFlow({ payload, context, a
     });
   }
 
+  const params = {
+    ...endpoint.params,
+    uid: fanUid,
+  };
+  if (payload?.nocache) {
+    params.nocache = 1;
+  }
+
   try {
     const response = await api.get(buildWpApiUrl(endpoint.path), {
-      params: {
-        ...endpoint.params,
-        uid: fanUid,
-      },
+      params,
       headers: context.requestHeaders || {},
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,
