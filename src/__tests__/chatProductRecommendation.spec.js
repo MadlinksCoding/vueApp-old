@@ -6,12 +6,15 @@ import { fetchProductRecommendationStatusFlow } from "@/services/chat/flows/fetc
 import {
   buildProductSelectedPayload,
   extractProductRecommendation,
+  formatSubscriptionScheduleDate,
+  isScheduledSubscriptionCta,
   normalizeProductForChat,
   normalizeProductRecommendationStatus,
   productStatusCtaLabel,
   productPriceLabel,
   productRefreshMatchesMessage,
   resolveChatFanUid,
+  scheduledSubscriptionTooltip,
   toCloneSafeProductPayload,
 } from "@/utils/chatProductRecommendation.js";
 import { formatMediaDuration, getSpendingRequirementMediaBadge } from "@/utils/spendingRequirementMediaBadge.js";
@@ -245,6 +248,48 @@ describe("chat product recommendations", () => {
     expect(productStatusCtaLabel(custom)).toBe("Join this tier");
     expect(productStatusCtaLabel(subscribedFallback)).toBe("Subscribed");
     expect(productStatusCtaLabel(subscribeFallback)).toBe("Subscribe");
+  });
+
+  it("disables scheduled subscription CTAs with downgrade date tooltips", () => {
+    const scheduledSeconds = Math.floor(new Date(2026, 6, 1, 12).getTime() / 1000);
+    const expiring = normalizeProductRecommendationStatus({
+      product: { id: 14322, type: "subscription", title: "Tier" },
+      response: {
+        result: {
+          stats: { is_subscribed: true },
+          action_text: " Expiring ",
+          times: { next_payment: scheduledSeconds },
+        },
+      },
+    });
+    const downgraded = normalizeProductRecommendationStatus({
+      product: { id: 14322, type: "subscription", title: "Tier" },
+      response: {
+        result: {
+          stats: { is_subscribed: true },
+          action_text: "Downgraded",
+          times: { end: scheduledSeconds },
+        },
+      },
+    });
+    const missingDate = normalizeProductRecommendationStatus({
+      product: { id: 14322, type: "subscription", title: "Tier" },
+      response: {
+        result: {
+          stats: { is_subscribed: true },
+          action_text: "Expiring",
+          times: {},
+        },
+      },
+    });
+
+    expect(formatSubscriptionScheduleDate(scheduledSeconds)).toBe("Wed 1 Jul 2026");
+    expect(isScheduledSubscriptionCta(expiring)).toBe(true);
+    expect(scheduledSubscriptionTooltip(expiring)).toBe("You will be downgraded from this plan on Wed 1 Jul 2026");
+    expect(isScheduledSubscriptionCta(downgraded)).toBe(true);
+    expect(scheduledSubscriptionTooltip(downgraded)).toBe("You will be downgraded to this plan on Wed 1 Jul 2026");
+    expect(isScheduledSubscriptionCta(missingDate)).toBe(true);
+    expect(scheduledSubscriptionTooltip(missingDate)).toBe("");
   });
 
   it("fetches product eligibility from the expected WordPress endpoints", async () => {
