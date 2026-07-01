@@ -250,8 +250,8 @@ describe("chat product recommendations", () => {
     expect(productStatusCtaLabel(subscribeFallback)).toBe("Subscribe");
   });
 
-  it("disables scheduled subscription CTAs with downgrade date tooltips", () => {
-    const scheduledSeconds = Math.floor(new Date(2026, 6, 1, 12).getTime() / 1000);
+  it("disables scheduled subscription CTAs with downgraded date tooltips", () => {
+    const scheduledSeconds = Math.floor(new Date(2026, 7, 1, 12).getTime() / 1000);
     const expiring = normalizeProductRecommendationStatus({
       product: { id: 14322, type: "subscription", title: "Tier" },
       response: {
@@ -283,11 +283,11 @@ describe("chat product recommendations", () => {
       },
     });
 
-    expect(formatSubscriptionScheduleDate(scheduledSeconds)).toBe("Wed 1 Jul 2026");
+    expect(formatSubscriptionScheduleDate(scheduledSeconds)).toBe("August 1, 2026");
     expect(isScheduledSubscriptionCta(expiring)).toBe(true);
-    expect(scheduledSubscriptionTooltip(expiring)).toBe("You will be downgraded from this plan on Wed 1 Jul 2026");
+    expect(scheduledSubscriptionTooltip(expiring)).toBe("");
     expect(isScheduledSubscriptionCta(downgraded)).toBe(true);
-    expect(scheduledSubscriptionTooltip(downgraded)).toBe("You will be downgraded to this plan on Wed 1 Jul 2026");
+    expect(scheduledSubscriptionTooltip(downgraded)).toBe("Effective on August 1, 2026");
     expect(isScheduledSubscriptionCta(missingDate)).toBe(true);
     expect(scheduledSubscriptionTooltip(missingDate)).toBe("");
   });

@@ -89,8 +89,20 @@ function firstPresent(...values) {
 }
 
 const SCHEDULED_SUBSCRIPTION_CTA_LABELS = new Set(["expiring", "downgraded"]);
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function mediaBadgeMetadata(source = {}) {
   if (!source || typeof source !== "object") return {};
@@ -416,7 +428,7 @@ export function formatSubscriptionScheduleDate(seconds) {
   const date = new Date(timestamp * 1000);
   if (!Number.isFinite(date.getTime())) return "";
 
-  return `${WEEKDAY_LABELS[date.getDay()]} ${date.getDate()} ${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+  return `${MONTH_LABELS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
 
 function subscriptionScheduleTimes(detail = {}) {
@@ -436,13 +448,12 @@ function subscriptionScheduleTimestamp(status = {}) {
 export function scheduledSubscriptionTooltip(status = {}) {
   const kind = scheduledSubscriptionCtaKind(status);
   if (!kind) return "";
+  if (kind === "expiring") return "";
 
   const date = formatSubscriptionScheduleDate(subscriptionScheduleTimestamp(status));
   if (!date) return "";
 
-  return kind === "expiring"
-    ? `You will be downgraded from this plan on ${date}`
-    : `You will be downgraded to this plan on ${date}`;
+  return `Effective on ${date}`;
 }
 
 export function isProductCtaDisabled(cta) {
