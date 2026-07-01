@@ -2974,6 +2974,7 @@ onUnmounted(() => {
               muted
               playsinline
               controls
+              controlslist="nodownload"
               @click.stop
             />
             <audio
@@ -2981,6 +2982,7 @@ onUnmounted(() => {
               :src="productForMessage(message).preview.url"
               class="w-full h-10 px-2 bg-black"
               controls
+              controlslist="nodownload"
               @click.stop
             />
             <img
