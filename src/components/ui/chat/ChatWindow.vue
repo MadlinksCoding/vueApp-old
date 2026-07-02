@@ -87,6 +87,7 @@ const props = defineProps({
   groupCategory: { type: String, default: null },
   coverImageUrl: { type: String, default: null },
   visibilitySettings: { type: Object, default: null },
+  chatSource:    { type: String, default: null },
   currentUserId: { type: [String, Number], default: null },
   hostWidth:     { type: Number, default: window.innerWidth },
   index:         { type: Number, default: 0 },
@@ -1637,6 +1638,14 @@ async function onConfirmChatProducts(selectedItems = []) {
     const item = withMessageProductRecommendationContext(rawItem, fanViewContext)
     chatStore.updateChatLastMessage(activeChatId.value, item)
     props.socket?.sendChatMessage(item, getMessageRecipients())
+
+    if (props.chatSource === 'missed_call') {
+      const recipients = getMessageRecipients()
+      const targetId = props.targetUserId || props.targetUserData?.id || recipients.find(id => String(id) !== String(currentUserId))
+      if (targetId && currentUserId) {
+        markMissedCallMessaged(targetId, currentUserId)
+      }
+    }
   }
 
   isSending.value = false
@@ -2477,6 +2486,18 @@ function sendTelegramNotification(receiverId, senderId, messageType) {
   }).catch(err => console.error('Failed to send Telegram noti:', err))
 }
 
+function markMissedCallMessaged(targetId, creatorId) {
+  const baseUrl = import.meta.env.VITE_WEB_BASE_URL || ''
+  fetch(`${baseUrl}/wp-json/api/chime-calls/mark-message-sent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      creator_id: creatorId,
+      user_id: targetId
+    })
+  }).catch(err => console.error('Failed to mark missed call as messaged:', err))
+}
+
 async function sendMessage() {
   const rawText = composeText.value.trim().slice(0, MAX_MESSAGE_LENGTH)
   if (!rawText || isSending.value) return
@@ -2524,6 +2545,14 @@ async function sendMessage() {
   if (res?.ok) {
     chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
     props.socket?.sendChatMessage(res.data.item, getMessageRecipients())
+
+    if (props.chatSource === 'missed_call') {
+      const recipients = getMessageRecipients()
+      const targetId = props.targetUserId || props.targetUserData?.id || recipients.find(id => String(id) !== String(currentUserId))
+      if (targetId && currentUserId) {
+        markMissedCallMessaged(targetId, currentUserId)
+      }
+    }
 
     if (!isCreatorAccount.value) {
       const recipients = getMessageRecipients()

@@ -270,6 +270,7 @@ function openChatWindow(chat) {
   })
   if (isDupe) {
     console.log("Chat window already open for this chat/user/group - skipping:", isDupe)
+    if (chat.chatSource) isDupe.chatSource = chat.chatSource
     return
   }
 
@@ -314,8 +315,8 @@ function findExistingDirectChat(targetUserId, isBookingRequest = false) {
   })
 }
 
-async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId }) {
-  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId })
+async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId, chatSource }) {
+  console.log("onStartChat called with:", { userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId, chatSource })
   // --- Group chat (Message All) ---
   if (userIds && userIds.length > 0) {
     // Check for existing group with same type
@@ -367,6 +368,7 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
       targetUserData: directUserData,
       fanViewUid: directFanViewUid,
       fanViewUserId: directFanViewUserId,
+      chatSource: chatSource || null,
     })
     chatListRef.value?.chatReady?.()
     return
@@ -386,6 +388,7 @@ async function onStartChat({ userId, userIds, displayName, username, avatar, gro
     targetUserData: directUserData,
     fanViewUid: directFanViewUid,
     fanViewUserId: directFanViewUserId,
+    chatSource: chatSource || null,
   })
   chatListRef.value?.chatReady?.()
 }
@@ -620,6 +623,7 @@ onMounted(async () => {
         :group-category="chat.groupCategory"
         :cover-image-url="chat.coverImageUrl"
         :visibility-settings="chat.visibilitySettings"
+        :chat-source="chat.chatSource"
         :socket="socket"
         :current-user-id="currentUserId"
         :host-width="hostWidth"

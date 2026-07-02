@@ -91,22 +91,23 @@
             <div class="flex p-2 md:p-4 flex-col gap-6">
 
                 <!-- Missed Call Users -->
-                <div v-if="data.missed_call_users && data.missed_call_users.length"
+                <div v-if="data.missed_call_users && (data.missed_call_users.users?.length || data.missed_call_users.length || missedCallUsersList.length)"
                     class="self-stretch inline-flex flex-col justify-start items-start gap-2">
                     <div class="self-stretch py-1 inline-flex justify-between items-center">
                         <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Missed Call
                             Users
                         </div>
                     </div>
-                    <div class="self-stretch inline-flex justify-start items-start gap-2 flex-col md:flex-row">
-                        <div v-for="user in data.missed_call_users" :key="user.id"
-                            class="flex-1 flex justify-start items-start gap-2 w-full">
+                    <div class="self-stretch grid grid-cols-1 md:grid-cols-4 gap-2 w-full">
+                        <div v-for="user in missedCallUsersList" :key="user.id"
+                            class="flex justify-start items-start gap-2 w-full">
                             <div
                                 class="flex-1 md:px-1 inline-flex md:flex-col justify-between md:justify-start items-center md:items-center gap-2">
                                 <div class="self-stretch flex md:flex-col justify-center items-center gap-2 md:gap-1">
                                     <div class="inline-flex justify-start items-center">
                                         <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
                                             <img :src="user.avatar || SmilingPeachIcon" alt=""
+                                                onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'"
                                                 class="w-12 h-12 object-cover" />
                                         </div>
                                     </div>
@@ -121,13 +122,19 @@
                                             @{{ user.username }}</div>
                                     </div>
                                 </div>
-                                <button @click="onMessage(user)"
+                                <button @click="onMessage(user, 'missed_call')"
                                     class=" min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-[#F06] inline-flex justify-center items-center gap-2 cursor-pointer md:self-stretch">
                                     <img :src="MessageCircleIconPink" alt="" class="w-4 h-4" />
                                     <span class="text-center text-[#F06] text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</span>
                                 </button>
                             </div>
                         </div>
+                    </div>
+                    <div v-if="data.missed_call_users?.has_more || missedCallUsersPage > 1" class="self-stretch w-full pt-1">
+                        <button v-if="canLoadMoreMissed" @click="loadMoreMissedCallUsers" :disabled="loadingMoreMissed"
+                            class="self-stretch text-center text-pink-500 text-xs font-bold font-['Poppins'] leading-4 w-full">
+                            {{ loadingMoreMissed ? 'Loading...' : 'View more' }}
+                        </button>
                     </div>
                 </div>
 
@@ -209,7 +216,7 @@
                 </div>
 
                 <!-- Top Followers -->
-                <div v-if="data.top_followers" class="flex flex-col gap-2">
+                <div v-if="data.top_followers && (data.top_followers.users?.length || data.top_followers.length || topFollowersList.length || data.top_followers.total)" class="flex flex-col gap-2">
                     <div class="self-stretch py-1 inline-flex justify-between items-center">
                         <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Top Followers
                         </div>
@@ -264,7 +271,7 @@
                 </div>
 
                 <!-- Unsubscribed Users -->
-                <div v-if="data.unsubscribed" class="flex flex-col gap-2">
+                <div v-if="data.unsubscribed && (data.unsubscribed.users?.length || data.unsubscribed.length || unsubscribedList.length || data.unsubscribed.total)" class="flex flex-col gap-2">
                     <div class="self-stretch py-1 inline-flex justify-between items-center">
                         <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Unsubscribed
                             Users
@@ -345,7 +352,7 @@ const emit = defineEmits(['start-chat', 'close'])
 // --- State ---
 const loading = ref(false)
 const data = ref({
-    missed_call_users: [],
+    missed_call_users: null,
     subscribers: [],
     top_followers: null,
     unsubscribed: null,
@@ -363,6 +370,11 @@ const loadingMoreTop = ref(false)
 const unsubscribedPage = ref(1)
 const unsubscribedList = ref([])
 const loadingMoreUnsub = ref(false)
+
+const missedCallUsersPage = ref(1)
+const missedCallUsersList = ref([])
+const loadingMoreMissed = ref(false)
+
 const loadingGroupType = ref(null)
 
 // --- Computed ---
@@ -378,9 +390,18 @@ const canLoadMoreUnsub = computed(() => {
     return loaded < data.value.unsubscribed.total
 })
 
+const canLoadMoreMissed = computed(() => {
+    if (!data.value.missed_call_users || !data.value.missed_call_users.total) return false
+    const loaded = missedCallUsersList.value.length
+    return loaded < data.value.missed_call_users.total
+})
+
 // --- Methods ---
 async function fetchData() {
     loading.value = true
+    missedCallUsersPage.value = 1
+    topFollowersPage.value = 1
+    unsubscribedPage.value = 1
     try {
         const res = await fetchNewMessageUsersFlow({
             payload: { creatorId: props.creatorId },
@@ -389,6 +410,7 @@ async function fetchData() {
         })
         if (res?.ok) {
             data.value = res.data
+            missedCallUsersList.value = res.data.missed_call_users?.users || (Array.isArray(res.data.missed_call_users) ? res.data.missed_call_users : [])
             topFollowersList.value = res.data.top_followers?.users || []
             unsubscribedList.value = res.data.unsubscribed?.users || []
         }
@@ -486,8 +508,32 @@ async function loadMoreUnsubscribed() {
     }
 }
 
-function onMessage(user) {
-    console.log('Starting chat with user:', user)
+async function loadMoreMissedCallUsers() {
+    if (loadingMoreMissed.value) return
+    loadingMoreMissed.value = true
+    try {
+        const nextPage = missedCallUsersPage.value + 1
+        const res = await fetchNewMessageUsersFlow({
+            payload: { creatorId: props.creatorId, section: 'missed_call_users', page: nextPage, perPage: 4 },
+            context: {},
+            api: buildApi(),
+        })
+        if (res?.ok) {
+            missedCallUsersPage.value = nextPage
+            missedCallUsersList.value = [...missedCallUsersList.value, ...(res.data.users || [])]
+            data.value.missed_call_users = {
+                ...data.value.missed_call_users,
+                has_more: res.data.has_more,
+                total: res.data.total,
+            }
+        }
+    } finally {
+        loadingMoreMissed.value = false
+    }
+}
+
+function onMessage(user, chatSource = null) {
+    console.log('Starting chat with user:', user, 'chatSource:', chatSource)
     const fanViewUid = getFanViewUid(user)
     emit('start-chat', {
         userId: user.id,
@@ -497,6 +543,7 @@ function onMessage(user) {
         targetUserData: user,
         fanViewUid,
         fanViewUserId: user.id,
+        chatSource: chatSource || user.chatSource || null,
     })
 }
 
@@ -512,6 +559,8 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
         apiSection = 'top_followers'
     } else if (groupType === 'unsubscribed' || groupType === 'unsubscribed-users') {
         apiSection = 'unsubscribed'
+    } else if (groupType === 'missed-call-users' || groupType === 'missed_call_users') {
+        apiSection = 'missed_call_users'
     }
 
     try {
@@ -521,7 +570,7 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
             api: buildApi(),
         })
         if (res?.ok) {
-            const isUserScopedGroup = ['subscribers', 'top_followers', 'subscription', 'unsubscribed'].includes(apiSection)
+            const isUserScopedGroup = ['subscribers', 'top_followers', 'subscription', 'unsubscribed', 'missed_call_users'].includes(apiSection)
             const chatVisibility = isUserScopedGroup ? 'userScoped' : null
             
             let chatSubtype = 'standard'
