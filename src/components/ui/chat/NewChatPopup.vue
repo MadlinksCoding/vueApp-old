@@ -145,11 +145,11 @@
                             <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">
                                 Subscribers</div>
                         </div>
-                        <div class="self-stretch flex-col md:flex-row inline-flex justify-start md:items-stretch items-start gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 w-full self-stretch justify-start items-start md:items-stretch w-full md:overflow-x-auto gap-2">
                             <div v-for="tier in data.subscribers" :key="tier.tier_id"
-                                class="inline-flex justify-start items-stretch gap-2 w-full md:w-[135px] flex-1">
+                                class="inline-flex justify-start items-stretch gap-2 w-full md:min-w-[135px] flex-1">
                                 <div
-                                    class="flex-1 md:px-1 inline-flex md:flex-col justify-between items-center md:items-center gap-4 w-full md:h-full">
+                                    class="flex-1 inline-flex md:flex-col justify-between items-center md:items-center gap-4 w-full md:h-full">
                                     <div class="self-stretch flex md:flex-col justify-start items-center gap-2 flex-1">
                                         <div class="inline-flex justify-start items-center">
                                             <div v-if="tier.subscriber_count > 0" class="flex items-center">
@@ -186,14 +186,14 @@
                                                     <span class="line-clamp-2 md:text-center">{{ tier.subscriber_preview.join(', ') }}</span>
                                                 </template>
                                                 <template v-else>
-                                                    <span class="text-gray-400 italic font-normal">No active subscribers</span>
+                                                    <span class="text-gray-400 italic font-normal text-center">No active subscribers</span>
                                                 </template>
                                             </div>
                                         </div>
                                     </div>
                                     <button v-if="tier.subscriber_count === 0"
                                         disabled
-                                        class="px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed leading-tight">
+                                        class="px-2 py-1 bg-gray-100 border border-gray-200 text-gray-400 inline-flex justify-center items-center gap-1.5 cursor-not-allowed leading-tight whitespace-nowrap">
                                         <img :src="MessageCircleIcon" alt="" class="w-4 h-4 filter invert opacity-50" />
                                         <span class="text-center text-gray-400 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message All</span>
                                     </button>
@@ -205,7 +205,7 @@
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                                         </svg>
                                         <img v-else :src="MessageCircleIcon" alt="" class="w-4 h-4" />
-                                        <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
+                                        <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight whitespace-nowrap">
                                             {{ loadingGroupType === 'subscribers-' + tier.tier_id ? '...' : 'Message All' }}
                                         </span>
                                     </button>
