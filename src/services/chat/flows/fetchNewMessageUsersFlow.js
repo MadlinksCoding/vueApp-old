@@ -28,7 +28,7 @@ export async function fetchNewMessageUsersFlow({ payload, context, api }) {
   // Add a 5-minute rounded cache buster to the URL
   const fiveMinMs = 5 * 60 * 1000;
   // params._t = Math.floor(Date.now() / fiveMinMs) * fiveMinMs;
-  params._t = date.now(); // Use current timestamp for cache busting
+  params._t = Date.now(); // Use current timestamp for cache busting
 
   try {
     const response = await api.get(
