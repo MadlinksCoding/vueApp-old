@@ -431,6 +431,9 @@
           chatContainer.style.width = "100vw";
           // chatContainer.style.height = "100dvh";
           chatContainer.style.height = String(window.innerHeight / 16) + "rem";
+        } else if (window.innerWidth >= 768 && window.innerWidth <= 1009) {
+          chatContainer.style.width = "calc(100vw - 90px)";
+          chatContainer.style.height = String(window.innerHeight / 16) + "rem";
         } else {
           chatContainer.style.width = String(window.innerWidth / 16) + "rem";
           chatContainer.style.height = String(window.innerHeight / 16) + "rem";
