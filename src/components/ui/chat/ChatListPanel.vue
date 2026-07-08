@@ -73,22 +73,32 @@ const creatorId = computed(() => {
   return isCreator.value ? (ud?.userID ?? props.currentUserId) : null || props.currentUserId
 })
 
-const newChatPopupConfig = {
-  actionType: 'popup',
-  position: props.hostWidth >= 768 ? 'center' : { default: 'top-center', '>768': 'center' },
-  customEffect: 'scale',
-  speed: '250ms',
-  effect: 'ease-in-out',
-  closeSpeed: '250ms',
-  showOverlay: true,
-  closeOnOutside: true,
-  lockScroll: false,
-  escToClose: true,
-  width: props.hostWidth >= 768 ? '42.188rem' : { default: '100%', '>768': '675px' },
-  height: props.hostWidth >= 768 ? '80vh' : { default: '100vh', '>768': '90vh' },
-  scrollable: false,
-  zIndex: 10000,
-}
+const isEmbedded = window.self !== window.top
+
+const newChatPopupConfig = computed(() => {
+  const isTabletPortrait = props.hostWidth >= 768 && props.hostWidth <= 1009
+  return {
+    actionType: 'popup',
+    position: isTabletPortrait ? 'top-center' : (props.hostWidth >= 768 ? 'center' : { default: 'top-center', '>768': 'center' }),
+    customEffect: 'scale',
+    speed: '250ms',
+    effect: 'ease-in-out',
+    closeSpeed: '250ms',
+    showOverlay: true,
+    closeOnOutside: true,
+    lockScroll: false,
+    escToClose: true,
+    width: isTabletPortrait ? (isEmbedded ? '100%' : 'calc(100% - 90px)') : (props.hostWidth >= 768 ? '42.188rem' : { default: '100%', '>768': '675px' }),
+    height: isTabletPortrait ? '100vh' : (props.hostWidth >= 768 ? '80vh' : { default: '100vh', '>768': '90vh' }),
+    scrollable: false,
+    zIndex: 10000,
+    containerClass: isTabletPortrait
+      ? (isEmbedded
+          ? '!fixed !top-0 !right-0 !left-0 !bottom-0 !w-full !h-full !max-w-none !transform-none !rounded-none !border-none'
+          : '!fixed !top-0 !right-0 !left-[90px] !bottom-0 !w-[calc(100%-90px)] !h-full !max-w-none !transform-none !rounded-none !border-none')
+      : ''
+  }
+})
 
 const chatStore = useChatStore()
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-07 — Tablet Portrait Responsive Layout for New Chat Popup & Embed Container
+
+### Changed
+
+#### `public/bookings-embed/fs-chat-host.js` (and `dist/bookings-embed/fs-chat-host.js`)
+- **Tablet Portrait Container Resizing (`FS_CHAT_FULLSCREEN`)** — Updated the fullscreen message handler so that when a popup (e.g. `NewChatPopup`) opens on a tablet portrait screen (`window.innerWidth >= 768 && window.innerWidth <= 1009`), `.fs-chat-embed-container` is resized to `width: calc(100vw - 90px)` and full viewport height (`100vh` / rem equivalent). Because the container is positioned at `right: 0; bottom: 0;`, this leaves exactly `90px` on the left open for the dashboard navigation sidebar, preventing UI overlap and blocking.
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Dynamic Width for Tablet Portrait** — Replaced `md:w-[42.188rem]` with `min-[1010px]:w-[42.188rem]`. On tablet portrait screens (`768px - 1009px`), the popup is no longer restricted to a static `675px` box and instead dynamically expands to fill `w-full h-full` (`100% x 100vh`).
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Reactive Popup Configuration & Positioning** — Converted `newChatPopupConfig` from a static object to a reactive `computed` property that dynamically adjusts based on `props.hostWidth` and embed status (`isEmbedded`):
+  - In Embed mode (`isEmbedded === true`) on Tablet Portrait (`768px - 1009px`): Sets `width: '100%'`, `height: '100vh'`, `position: 'top-center'`, and applies custom fixed styles (`!left-0 !right-0 !top-0 !bottom-0 !w-full !h-full`) to fill the `calc(100vw - 90px)` embed container completely without double-subtracting the sidebar width.
+  - In Standalone Demo mode (`isEmbedded === false`) on Tablet Portrait: Sets `width: 'calc(100% - 90px)'`, `height: '100vh'`, and applies `!left-[90px] !w-[calc(100%-90px)]` to simulate the 90px left sidebar offset directly when not enclosed inside the iframe container.
+
 ## 2026-06-29 — Cross-Tab Chat Sync & Booking Detail Actions
 
 ### Changed

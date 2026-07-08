@@ -1,6 +1,6 @@
 <template>
     <div
-        class="w-full md:w-[42.188rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
+        class="w-full min-[1010px]:w-[42.188rem] h-full flex flex-col bg-gray-200 shadow-[0_0_10px_0_rgba(0,0,0,0.25)] backdrop-blur-[50px]">
 
         <!-- Header -->
         <div class="self-stretch min-h-14 px-2 inline-flex justify-between items-center">
