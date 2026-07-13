@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(() => Promise.resolve()),
+  route: { query: {} },
   requestEventsEmbedScrollToTop: vi.fn(),
+  requestEventsEmbedOpenUrl: vi.fn(),
+  isEmbeddedIframe: vi.fn(() => true),
 }));
 
 const mockBootstrap = {
@@ -20,6 +23,7 @@ const mockBootstrap = {
 };
 
 vi.mock("vue-router", () => ({
+  useRoute: () => mocks.route,
   useRouter: () => ({
     push: mocks.push,
   }),
@@ -30,13 +34,15 @@ vi.mock("@/embeds/events/bootstrap.js", () => ({
 }));
 
 vi.mock("@/embeds/events/bridge.js", () => ({
+  isEmbeddedIframe: mocks.isEmbeddedIframe,
+  requestEventsEmbedOpenUrl: mocks.requestEventsEmbedOpenUrl,
   requestEventsEmbedScrollToTop: mocks.requestEventsEmbedScrollToTop,
 }));
 
 vi.mock("@/components/ui/form/BookingForm/UnifiedBookingForm.vue", () => ({
   default: {
     name: "UnifiedBookingForm",
-    props: ["type", "creatorId", "apiBaseUrl", "creatorData", "embedded"],
+    props: ["type", "creatorId", "apiBaseUrl", "creatorData", "embedded", "mode", "eventId"],
     template: "<div data-test='booking-form' />",
   },
 }));
@@ -60,7 +66,11 @@ describe("EventsEmbedCreatePage", () => {
   beforeEach(() => {
     mocks.push.mockReset();
     mocks.push.mockResolvedValue();
+    mocks.route.query = {};
     mocks.requestEventsEmbedScrollToTop.mockReset();
+    mocks.requestEventsEmbedOpenUrl.mockReset();
+    mocks.isEmbeddedIframe.mockReset();
+    mocks.isEmbeddedIframe.mockReturnValue(true);
     originalScrollTo = window.scrollTo;
     window.scrollTo = vi.fn();
     setWindowWidth(500);
@@ -149,5 +159,40 @@ describe("EventsEmbedCreatePage", () => {
 
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(mocks.requestEventsEmbedScrollToTop).not.toHaveBeenCalled();
+  });
+
+  it("passes edit route state to a keyed form and routes schedule edits", async () => {
+    mocks.route.query = { mode: "edit", eventId: "evt_current" };
+    const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
+    const wrapper = mount(EventsEmbedCreatePage, { props: { type: "private" } });
+    const bookingForm = wrapper.getComponent({ name: "UnifiedBookingForm" });
+
+    expect(bookingForm.props("mode")).toBe("edit");
+    expect(bookingForm.props("eventId")).toBe("evt_current");
+
+    bookingForm.vm.$emit("edit-event", { eventId: "evt_next", type: "group" });
+    await flushPromises();
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: "events-embed-create",
+      params: { type: "group" },
+      query: { mode: "edit", eventId: "evt_next" },
+    });
+  });
+
+  it("forwards join URLs to the embedded host in a new tab", async () => {
+    const { default: EventsEmbedCreatePage } = await import("@/embeds/events/pages/EventsEmbedCreatePage.vue");
+    const wrapper = mount(EventsEmbedCreatePage, { props: { type: "private" } });
+
+    wrapper.getComponent({ name: "UnifiedBookingForm" }).vm.$emit("open-url", {
+      url: "https://example.com/scheduled-meeting",
+      target: "_blank",
+    });
+    await flushPromises();
+
+    expect(mocks.requestEventsEmbedOpenUrl).toHaveBeenCalledWith({
+      url: "https://example.com/scheduled-meeting",
+      target: "_blank",
+    });
   });
 });

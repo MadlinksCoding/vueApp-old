@@ -349,7 +349,7 @@
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex shrink-0" :class="[theme.main.xHeader]">
 
-        <div :class="theme.main.axisXLabel">
+        <div :class="[theme.main.axisXLabel, 'shrink-0']">
           <div
             v-if="variant === 'default'"
             :class="[
@@ -466,11 +466,12 @@
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
                 :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
-                :style="weekEventDayGroupStyle"
+                :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"
                 :data-today="sameDay(group.day, today) ? 'true' : 'false'"
-                data-week-day-width="50%"
+                :data-week-day-units="group.widthUnits"
+                :data-week-day-base-width="`${group.baseWidthPercent}%`"
                 data-test="calendar-week-event-header-day"
                 @click="selectWeekDate(group.day)"
               >
@@ -612,11 +613,12 @@
               :key="'week-day-' + group.dateKey"
               class="relative shrink-0 transition-opacity"
               :class="[theme.main.colBase, group.isSelected ? 'opacity-100' : 'opacity-30']"
-              :style="{ ...weekEventDayGroupStyle, height: gridMetrics.totalHeight + 'px' }"
+              :style="{ ...weekEventDayGroupStyle(group), height: gridMetrics.totalHeight + 'px' }"
               :data-date="group.dateKey"
               :data-selected="group.isSelected ? 'true' : 'false'"
               :data-expired="sd(group.day) < today ? 'true' : 'false'"
-              data-week-day-width="50%"
+              :data-week-day-units="group.widthUnits"
+              :data-week-day-base-width="`${group.baseWidthPercent}%`"
               data-test="calendar-week-event-day-group"
               @click.self="selectWeekDate(group.day)"
             >
@@ -1289,7 +1291,7 @@ const effectiveView = computed(() => {
 
 const isEventColumnMode = computed(() => (
   ['day', 'week'].includes(effectiveView.value)
-  && props.variant === 'default'
+  && ['default', 'theme2'].includes(props.variant)
   && props.dayColumnMode === 'events'
 ));
 
@@ -1657,27 +1659,46 @@ const dayEventColumns = computed(() => {
 const weekEventDayGroups = computed(() => {
   if (!isWeekEventColumnMode.value) return [];
 
-  return weekDays.value.map((day) => ({
-    day,
-    dateKey: formatLocalDateKey(day),
-    columns: eventColumnsForDay(day),
-    isSelected: sameDay(day, selectedDay.value),
-  }));
+  return weekDays.value.map((day) => {
+    const columns = eventColumnsForDay(day);
+    const eventCount = columns.filter((column) => !column.isEmpty).length;
+    const widthUnits = Math.max(eventCount, 1);
+
+    return {
+      day,
+      dateKey: formatLocalDateKey(day),
+      columns,
+      isSelected: sameDay(day, selectedDay.value),
+      widthUnits,
+      baseWidthPercent: widthUnits * 8,
+    };
+  });
 });
+
+const weekEventTotalWidthUnits = computed(() => (
+  weekEventDayGroups.value.reduce((total, group) => total + group.widthUnits, 0)
+));
 
 const weekEventTrackStyle = computed(() => {
   if (!isWeekEventColumnMode.value) return {};
 
+  const trackWidthPercent = Math.max(100, weekEventTotalWidthUnits.value * 8);
+
   return {
-    width: '350%',
-    minWidth: '350%',
+    width: `${trackWidthPercent}%`,
+    minWidth: `${trackWidthPercent}%`,
   };
 });
 
-const weekEventDayGroupStyle = computed(() => ({
-  flex: '0 0 calc(100% / 7)',
-  width: 'calc(100% / 7)',
-}));
+const weekEventDayGroupStyle = (group = {}) => {
+  const totalWidthUnits = Math.max(weekEventTotalWidthUnits.value, 1);
+  const groupWidthPercent = (Math.max(Number(group.widthUnits) || 1, 1) / totalWidthUnits) * 100;
+
+  return {
+    flex: `0 0 ${groupWidthPercent}%`,
+    width: `${groupWidthPercent}%`,
+  };
+};
 
 const eventColumnsGridStyle = (columns = []) => ({
   gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`,
