@@ -148,7 +148,7 @@ const filters = computed(() => ({
   groupCall: props.modelValue?.groupCall !== false,
   showSchedule: props.modelValue?.showSchedule !== false,
   showCompleted: props.modelValue?.showCompleted === true,
-  showAnalytics: props.modelValue?.showAnalytics === true,
+  showAnalytics: false,
   colorByType: {
     video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
     audio: normalizeColorChoice(props.modelValue?.colorByType?.audio, null),
@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="self-stretch px-4 py-4 border-t border-gray-100 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
+    <div data-test="show-schedule-filter" class="self-stretch px-4 py-4 border-t border-gray-100 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
       <CheckboxGroup
         :label="t('dashboard_show_booking_schedule_availability')"
         :model-value="filters.showSchedule"
@@ -393,6 +393,34 @@ onBeforeUnmount(() => {
         labelClass="text-slate-900 sm:text-[16px] text-[14px] cursor-pointer font-bold leading-6"
         wrapperClass="w-full flex items-center"
         :midImg="calendarIcon"
+        reverse
+      />
+    </div>
+
+    <div data-test="show-completed-filter" class="self-stretch px-4 py-4 inline-flex justify-start items-center gap-4 hover:bg-gray-50 transition-colors">
+      <CheckboxGroup
+        class="[&_img]:brightness-0"
+        :label="t('dashboard_show_completed_events')"
+        :model-value="filters.showCompleted"
+        @update:modelValue="(value) => updateFilter('showCompleted', value)"
+        checkboxClass="m-0 [appearance:none] w-10 h-6 relative bg-slate-200 rounded-full cursor-pointer transition-colors checked:bg-slate-900 before:content-[''] before:absolute before:left-1 before:top-1 before:w-4 before:h-4 before:bg-white before:rounded-full before:transition-transform checked:before:translate-x-4"
+        labelClass="text-slate-900 sm:text-[16px] text-[14px] cursor-pointer font-bold leading-6"
+        wrapperClass="w-full flex items-center"
+        :midImg="calendarCheckIcon"
+        reverse
+      />
+    </div>
+
+    <div data-test="show-analytics-filter" class="self-stretch px-4 py-4 inline-flex justify-start items-center gap-4 opacity-40">
+      <CheckboxGroup
+        class="!cursor-default"
+        :label="t('dashboard_show_earning_analytics')"
+        :model-value="false"
+        :disabled="true"
+        checkboxClass="m-0 [appearance:none] w-10 h-6 relative bg-slate-200 rounded-full cursor-not-allowed before:content-[''] before:absolute before:left-1 before:top-1 before:w-4 before:h-4 before:bg-white before:rounded-full"
+        labelClass="text-slate-900 sm:text-[16px] text-[14px] cursor-default font-bold leading-6"
+        wrapperClass="w-full flex items-center cursor-default"
+        :midImg="trendingIcon"
         reverse
       />
     </div>

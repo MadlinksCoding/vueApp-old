@@ -8,6 +8,7 @@ const callFlow = vi.fn();
 const showToast = vi.fn();
 const getBookingJoinState = vi.fn();
 const mainCalendarResetScrollToTop = vi.fn();
+const mainCalendarScrollToCurrentTime = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -66,7 +67,7 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
+    props: ["events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode"],
     emits: ["create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
@@ -172,6 +173,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         this.$emit("view-schedule-card", this.bookingScheduleEvents?.[0]);
       },
       resetScrollToTop: mainCalendarResetScrollToTop,
+      scrollToCurrentTime: mainCalendarScrollToCurrentTime,
     },
     computed: {
       dynamicBookedEvents() {
@@ -504,6 +506,7 @@ describe("DashboardEventsFeature", () => {
     showToast.mockReset();
     getBookingJoinState.mockReset();
     mainCalendarResetScrollToTop.mockReset();
+    mainCalendarScrollToCurrentTime.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -553,6 +556,7 @@ describe("DashboardEventsFeature", () => {
         context: expect.objectContaining({ creatorId: 99 }),
       }),
     );
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
   });
 
   it("resets embedded mobile dashboard and calendar scroll through the exposed method", async () => {
@@ -802,7 +806,7 @@ describe("DashboardEventsFeature", () => {
     ]);
   });
 
-  it("renders visible desktop month markers for bookings and availability", async () => {
+  it("renders visible desktop month booking markers and the availability summary chip", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
     const wrapper = mount(DashboardEventsFeature, {
@@ -826,10 +830,12 @@ describe("DashboardEventsFeature", () => {
     expect(declinedMarker).toBeTruthy();
 
     expect(bookingMarker.text()).toContain("Month Booked Slot");
-    expect(bookingMarker.text()).toContain("12:00pm - 12:30pm");
+    expect(bookingMarker.text()).toContain("12:00pm");
+    expect(bookingMarker.text()).not.toContain("12:30pm");
     expect(bookingMarker.classes()).toContain("static");
     expect(bookingMarker.classes()).toContain("hidden");
-    expect(bookingMarker.classes()).toContain("lg:block");
+    expect(bookingMarker.classes()).toContain("lg:flex");
+    expect(bookingMarker.classes()).toContain("month-booking-row");
     expect(bookingMarker.classes()).toContain("cursor-pointer");
     expect(bookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
@@ -839,6 +845,7 @@ describe("DashboardEventsFeature", () => {
     expect(bookingIcon.attributes("data-booking-icon-type")).toBe("private");
     expect(bookingIcon.get("path").attributes("stroke")).toBe("currentColor");
     expect(bookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("confirmed");
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text()).toBe("12:00pm");
 
     bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
       left: 120,
@@ -879,7 +886,8 @@ describe("DashboardEventsFeature", () => {
     await bookingMarker.trigger("mouseleave");
 
     expect(pastBookingMarker.text()).toContain("Month Past Booked Slot");
-    expect(pastBookingMarker.text()).toContain("7:30am - 8:30am");
+    expect(pastBookingMarker.text()).toContain("7:30am");
+    expect(pastBookingMarker.text()).not.toContain("8:30am");
     expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
     expect(pastBookingMarker.element.style.borderTopColor).toBe("rgb(200, 205, 216)");
     expect(pastBookingMarker.element.style.borderTopWidth).toBe("1px");
@@ -903,7 +911,8 @@ describe("DashboardEventsFeature", () => {
     expect(pendingMarker.classes()).toContain("overflow-hidden");
     expect(pendingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pendingMarker.element.style.color).toBe("rgb(225, 29, 72)");
-    expect(pendingMarker.text()).toContain("1:00pm - 1:30pm");
+    expect(pendingMarker.text()).toContain("1:00pm");
+    expect(pendingMarker.text()).not.toContain("1:30pm");
     expect(pendingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("pending");
 
     pendingMarker.element.getBoundingClientRect = vi.fn(() => ({
@@ -924,7 +933,8 @@ describe("DashboardEventsFeature", () => {
     await pendingMarker.trigger("mouseleave");
 
     expect(wrapper.text()).toContain("Month Cancelled Slot");
-    expect(wrapper.text()).toContain("2:00pm - 2:30pm");
+    expect(declinedMarker.text()).toContain("2:00pm");
+    expect(declinedMarker.text()).not.toContain("2:30pm");
     const statusIconStates = wrapper.findAll("[data-test='dashboard-calendar-booking-status-icon']")
       .map((icon) => icon.attributes("data-booking-status-icon"));
     expect(statusIconStates).toEqual(expect.arrayContaining(["confirmed", "pending", "declined"]));
@@ -948,18 +958,21 @@ describe("DashboardEventsFeature", () => {
 
     const availabilityMarker = wrapper.get("[data-test='dashboard-month-availability-marker']");
     expect(availabilityMarker.classes()).toContain("static");
-    expect(availabilityMarker.classes()).toContain("hidden");
-    expect(availabilityMarker.classes()).toContain("lg:block");
-    expect(availabilityMarker.classes().some((className) => className.startsWith("rounded"))).toBe(false);
+    expect(availabilityMarker.classes()).toContain("flex");
+    expect(availabilityMarker.classes()).not.toContain("hidden");
+    expect(availabilityMarker.classes()).toContain("rounded-[0.25rem]");
+    expect(availabilityMarker.classes()).toContain("text-xs");
+    expect(availabilityMarker.classes()).toContain("font-medium");
     expect(availabilityMarker.text()).toContain("Month Availability Window");
     const availabilityTitle = availabilityMarker.get("[data-test='dashboard-calendar-availability-title']");
     const availabilityIcon = availabilityTitle.get("[data-test='dashboard-calendar-availability-icon']");
+    expect(availabilityIcon.classes()).toEqual(expect.arrayContaining(["h-3", "w-3"]));
     expect(availabilityIcon.get("path").attributes("stroke")).toBe("currentColor");
     expect(availabilityTitle.text()).toContain("Month Availability Window");
     expect(availabilityMarker.element.style.backgroundColor).toBe("rgba(14, 165, 233, 0.08)");
-    expect(availabilityMarker.element.style.borderTopColor).toBe("rgb(14, 165, 233)");
-    expect(availabilityMarker.element.style.borderTopWidth).toBe("1px");
-    expect(availabilityMarker.element.style.borderRadius).toBe("0px");
+    expect(availabilityMarker.element.style.borderTopWidth).toBe("0px");
+    expect(availabilityMarker.element.style.borderBottomWidth).toBe("0px");
+    expect(availabilityMarker.element.style.borderRadius).toBe("4px");
     expect(availabilityMarker.element.style.color).toBe("rgb(14, 165, 233)");
     expect(availabilityMarker.element.style.backgroundImage).toBe("");
     expect(availabilityMarker.attributes("style")).not.toContain("repeating-linear-gradient");
@@ -1037,7 +1050,7 @@ describe("DashboardEventsFeature", () => {
     const availabilityMarker = wrapper.findAll("[data-test='dashboard-month-availability-marker']")
       .find((marker) => marker.attributes("aria-label")?.includes(eventTitle));
     expect(availabilityMarker).toBeTruthy();
-    expect(availabilityMarker.find("[data-test='dashboard-calendar-availability-title']").exists()).toBe(!shouldHideTitle);
+    expect(availabilityMarker.find("[data-test='dashboard-calendar-availability-title']").exists()).toBe(true);
   });
 
   it("does not show the main calendar booking tooltip on touch-capable devices", async () => {
@@ -1094,6 +1107,11 @@ describe("DashboardEventsFeature", () => {
           type: "1on1-call",
           eventCallType: "video",
           eventColorSkin: "#28C76F",
+        }, {
+          eventId: "evt_group_color",
+          type: "group-event",
+          eventCallType: "video",
+          eventColorSkin: "#8B5CF6",
         }],
         bookedSlots: [{
           bookingId: "booking_private_color",
@@ -1108,6 +1126,20 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventSnapshot: {
             eventColorSkin: "#FF3B30",
+          },
+        }, {
+          bookingId: "booking_group_color",
+          eventId: "evt_group_color",
+          userId: 2616,
+          creatorId: 77,
+          startIso: isoTodayAt(11),
+          endIso: isoTodayAt(11, 30),
+          status: "confirmed",
+          eventTitle: "Group Color Skin",
+          eventType: "group-event",
+          eventCallType: "video",
+          eventSnapshot: {
+            eventColorSkin: "#E11D48",
           },
         }],
         bookedSlotsIndex: {},
@@ -2088,7 +2120,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-group']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
     expect(confirmButton).toBeTruthy();
     await confirmButton.trigger("click");
     await flushPromises();
@@ -2146,7 +2178,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-private']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
     expect(confirmButton).toBeTruthy();
     await confirmButton.trigger("click");
     await flushPromises();
@@ -2208,7 +2240,7 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.text()).toContain("Cancelling this event will notify the host and remove it from your schedule.");
     expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text() === "Cancel call");
+    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
     expect(confirmButton).toBeTruthy();
     await confirmButton.trigger("click");
     await flushPromises();

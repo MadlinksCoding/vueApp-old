@@ -188,7 +188,7 @@ describe("bookingTranslations", () => {
     }, t)).toBe("Backend rejected the event request (HTTP_500).");
   });
 
-  it("formats create-event event-limit failures with backend counts", () => {
+  it("formats create-event event-limit failures with the first blocked date and counts", () => {
     const { t } = createBookingTranslator();
     const flowResult = {
       ok: false,
@@ -201,12 +201,51 @@ describe("bookingTranslations", () => {
           details: {
             limit: 5,
             current: 5,
+            days: [
+              {
+                date: "2026-07-15",
+                current: 5,
+                limit: 5,
+              },
+            ],
           },
         },
       },
     };
 
     expect(formatCreateEventFailureMessage(flowResult, t))
-      .toBe("You have reached the event limit (5/5).");
+      .toBe("Event limit reached for Wednesday, July 15 (5/5).");
+  });
+
+  it("translates the event-limit date and message without using backend English copy", () => {
+    const { t } = createBookingTranslator({
+      translations: {
+        date_wednesday: "Miércoles",
+        date_july: "Julio",
+        booking_event_limit_date_label: "{weekday} {day} de {month}",
+        booking_event_limit_reached_for_date_message: "Límite de eventos alcanzado para {date} ({current}/{limit}).",
+      },
+    });
+
+    expect(formatCreateEventFailureMessage({
+      ok: false,
+      error: "Event limit reached",
+      message: "Event limit reached for Wednesday, July 15 (5/5).",
+      details: {
+        current: 5,
+        limit: 5,
+        days: [{ date: "2026-07-15", current: 5, limit: 5 }],
+      },
+    }, t)).toBe("Límite de eventos alcanzado para Miércoles 15 de Julio (5/5).");
+  });
+
+  it("keeps the count-only event-limit fallback for older responses", () => {
+    const { t } = createBookingTranslator();
+
+    expect(formatCreateEventFailureMessage({
+      ok: false,
+      error: "Event limit reached",
+      details: { current: 5, limit: 5 },
+    }, t)).toBe("You have reached the event limit (5/5).");
   });
 });
