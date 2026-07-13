@@ -349,7 +349,7 @@
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex shrink-0" :class="[theme.main.xHeader]">
 
-        <div :class="theme.main.axisXLabel">
+        <div :class="[theme.main.axisXLabel, 'shrink-0']">
           <div
             v-if="variant === 'default'"
             :class="[
@@ -466,11 +466,12 @@
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
                 :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
-                :style="weekEventDayGroupStyle"
+                :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"
                 :data-today="sameDay(group.day, today) ? 'true' : 'false'"
-                data-week-day-width="50%"
+                :data-week-day-units="group.widthUnits"
+                :data-week-day-base-width="`${group.baseWidthPercent}%`"
                 data-test="calendar-week-event-header-day"
                 @click="selectWeekDate(group.day)"
               >
@@ -548,7 +549,8 @@
 
         <div
           ref="weekBodyScrollRef"
-          class="flex-1 min-w-0 overflow-x-auto overscroll-x-contain touch-pan-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          class="flex-1 min-w-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          :class="isWeekEventColumnMode ? 'overflow-x-auto overscroll-x-contain touch-pan-x' : 'overflow-x-hidden'"
           data-test="calendar-week-event-body-scroll"
           :style="{ height: gridMetrics.totalHeight + 'px' }"
           @scroll="syncWeekHorizontalScroll('body')"
@@ -578,7 +580,7 @@
               :data-event-id="column.isEmpty ? undefined : column.eventId"
               :data-empty-column="column.isEmpty ? 'true' : 'false'"
               :data-expired="sd(selectedDay) < today ? 'true' : 'false'"
-              :class="theme.main.colBase"
+              :class="[theme.main.colBase, 'min-w-0']"
               @click.self="emitDate(selectedDay)"
             >
 
@@ -611,11 +613,12 @@
               :key="'week-day-' + group.dateKey"
               class="relative shrink-0 transition-opacity"
               :class="[theme.main.colBase, group.isSelected ? 'opacity-100' : 'opacity-30']"
-              :style="{ ...weekEventDayGroupStyle, height: gridMetrics.totalHeight + 'px' }"
+              :style="{ ...weekEventDayGroupStyle(group), height: gridMetrics.totalHeight + 'px' }"
               :data-date="group.dateKey"
               :data-selected="group.isSelected ? 'true' : 'false'"
               :data-expired="sd(group.day) < today ? 'true' : 'false'"
-              data-week-day-width="50%"
+              :data-week-day-units="group.widthUnits"
+              :data-week-day-base-width="`${group.baseWidthPercent}%`"
               data-test="calendar-week-event-day-group"
               @click.self="selectWeekDate(group.day)"
             >
@@ -1288,7 +1291,7 @@ const effectiveView = computed(() => {
 
 const isEventColumnMode = computed(() => (
   ['day', 'week'].includes(effectiveView.value)
-  && props.variant === 'default'
+  && ['default', 'theme2'].includes(props.variant)
   && props.dayColumnMode === 'events'
 ));
 
@@ -1656,27 +1659,46 @@ const dayEventColumns = computed(() => {
 const weekEventDayGroups = computed(() => {
   if (!isWeekEventColumnMode.value) return [];
 
-  return weekDays.value.map((day) => ({
-    day,
-    dateKey: formatLocalDateKey(day),
-    columns: eventColumnsForDay(day),
-    isSelected: sameDay(day, selectedDay.value),
-  }));
+  return weekDays.value.map((day) => {
+    const columns = eventColumnsForDay(day);
+    const eventCount = columns.filter((column) => !column.isEmpty).length;
+    const widthUnits = Math.max(eventCount, 1);
+
+    return {
+      day,
+      dateKey: formatLocalDateKey(day),
+      columns,
+      isSelected: sameDay(day, selectedDay.value),
+      widthUnits,
+      baseWidthPercent: widthUnits * 8,
+    };
+  });
 });
+
+const weekEventTotalWidthUnits = computed(() => (
+  weekEventDayGroups.value.reduce((total, group) => total + group.widthUnits, 0)
+));
 
 const weekEventTrackStyle = computed(() => {
   if (!isWeekEventColumnMode.value) return {};
 
+  const trackWidthPercent = Math.max(100, weekEventTotalWidthUnits.value * 8);
+
   return {
-    width: '350%',
-    minWidth: '350%',
+    width: `${trackWidthPercent}%`,
+    minWidth: `${trackWidthPercent}%`,
   };
 });
 
-const weekEventDayGroupStyle = computed(() => ({
-  flex: '0 0 calc(100% / 7)',
-  width: 'calc(100% / 7)',
-}));
+const weekEventDayGroupStyle = (group = {}) => {
+  const totalWidthUnits = Math.max(weekEventTotalWidthUnits.value, 1);
+  const groupWidthPercent = (Math.max(Number(group.widthUnits) || 1, 1) / totalWidthUnits) * 100;
+
+  return {
+    flex: `0 0 ${groupWidthPercent}%`,
+    width: `${groupWidthPercent}%`,
+  };
+};
 
 const eventColumnsGridStyle = (columns = []) => ({
   gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`,
@@ -1687,11 +1709,11 @@ const timeGridColumnStyle = computed(() => {
   if (!isDayEventColumnMode.value) return {};
 
   const count = Math.max(1, dayEventColumns.value.length);
-  const minColumnRem = width.value < 640 ? 7.5 : 8.5;
 
   return {
-    gridTemplateColumns: `repeat(${count}, minmax(${minColumnRem}rem, 1fr))`,
-    minWidth: `max(100%, ${count * minColumnRem}rem)`,
+    gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+    width: '100%',
+    minWidth: '0',
   };
 });
 
@@ -1872,6 +1894,40 @@ const syncWeekHorizontalScroll = (source) => {
   if (Math.abs(targetEl.scrollLeft - targetLeft) > 0.5) {
     targetEl.scrollLeft = targetLeft;
   }
+};
+
+const revealSelectedWeekDay = ({ behavior = 'smooth' } = {}) => {
+  nextTick(() => {
+    if (!isWeekEventColumnMode.value || width.value < 1024) return;
+
+    const scroller = weekHeaderScrollRef.value;
+    const selected = scroller?.querySelector?.('[data-selected="true"]');
+    if (!scroller || !selected) return;
+
+    const scrollerRect = scroller.getBoundingClientRect();
+    const selectedRect = selected.getBoundingClientRect();
+    let delta = 0;
+
+    if (selectedRect.left < scrollerRect.left) {
+      delta = selectedRect.left - scrollerRect.left;
+    } else if (selectedRect.right > scrollerRect.right) {
+      delta = selectedRect.right - scrollerRect.right;
+    }
+
+    if (Math.abs(delta) < 1) return;
+
+    const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const targetLeft = Math.max(0, Math.min(maxScrollLeft, scroller.scrollLeft + delta));
+    if (Math.abs(targetLeft - scroller.scrollLeft) < 1) return;
+
+    if (typeof scroller.scrollTo === 'function') {
+      scroller.scrollTo({ left: targetLeft, behavior });
+      return;
+    }
+
+    scroller.scrollLeft = targetLeft;
+    syncWeekHorizontalScroll('header');
+  });
 };
 
 const getWeekHorizontalScrollElement = (source) => (
@@ -2586,10 +2642,13 @@ const nowLineTopPx = computed(() => {
 
 const setView = (v) => {
   closeMonthDateOverlay();
+  const previousView = view.value;
   view.value = v;
   emit('view-changed', v);
   if (v === 'day') {
     selectTodayForMobileDay();
+  } else if (v === 'week' && previousView === 'day') {
+    revealSelectedWeekDay();
   }
 };
 
@@ -2618,8 +2677,12 @@ const shift = (n) => {
 
 const goToday = () => {
   closeMonthDateOverlay();
+  const shouldRevealTodayInWeek = isWeekEventColumnMode.value;
   cursor.value = new Date();
   emit('date-selected', new Date(cursor.value)); // Sync on Today click
+  if (shouldRevealTodayInWeek) {
+    revealSelectedWeekDay();
+  }
 };
 const updateNowLine = () => {
   const { sMin, eMin } = range.value;

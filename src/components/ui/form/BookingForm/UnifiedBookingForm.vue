@@ -10,10 +10,14 @@ import OneOnOneBookinStep2 from "./OneOnOneBookinStep2.vue";
 import GroupBookingStep1 from "./GroupBookingStep1.vue";
 import GroupBookingStep2 from "./GroupBookingStep2.vue";
 import MainCalendar from "@/components/calendar/MainCalendar.vue";
+import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
+import CalendarWeekAvailabilityBlock from "@/components/calendar/CalendarWeekAvailabilityBlock.vue";
+import CalendarWeekBookingBlock from "@/components/calendar/CalendarWeekBookingBlock.vue";
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
+import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
-import { mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
@@ -21,6 +25,8 @@ import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormS
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
+import { showToast } from "@/utils/toastBus.js";
+import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
 
 // Import Validators
@@ -58,7 +64,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["created", "back", "scroll-top-request"]);
+const emit = defineEmits(["created", "back", "scroll-top-request", "edit-event", "open-url"]);
 const route = useRoute();
 const router = useRouter();
 const { t } = useBookingTranslations();
@@ -245,6 +251,7 @@ const step1ValidationRevealRequest = ref({
     scroll: true,
 });
 const previewSchedule = ref(false);
+const mainCalendarRef = ref(null);
 const formScrollContainer = ref(null);
 const calendarBookedSlots = ref([]);
 const calendarAvailabilitySlots = ref([]);
@@ -253,6 +260,36 @@ const bookedSlotsRawForCalendar = ref([]);
 const bookedSlotsIndexForCalendar = ref({});
 const calendarLoading = ref(false);
 const calendarError = ref(null);
+const reviewPendingLoading = ref(false);
+const cancelBookingPopupOpen = ref(false);
+const cancelBookingLoading = ref(false);
+const cancelBookingCandidate = ref(null);
+const deleteEventPopupOpen = ref(false);
+const deleteEventLoading = ref(false);
+const deleteEventCandidate = ref(null);
+const scheduleCardPreviewOpen = ref(false);
+const scheduleCardPreviewEvent = ref(null);
+const availabilityScheduleMenu = reactive({
+    open: false,
+    event: null,
+    left: 8,
+    top: 8,
+});
+const confirmationPopupConfig = {
+    actionType: "popup",
+    position: "center",
+    customEffect: "scale",
+    offset: "0px",
+    speed: "250ms",
+    effect: "ease-in-out",
+    showOverlay: true,
+    closeOnOutside: true,
+    lockScroll: true,
+    escToClose: true,
+    width: { default: "auto", "<480": "90%" },
+    height: "auto",
+    scrollable: false,
+};
 
 async function revealStep1Validation(payload = []) {
     const errors = Array.isArray(payload) ? payload : payload?.errors;
@@ -499,6 +536,7 @@ watch(editPricingLocked, (locked) => {
 }, { immediate: true });
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
+const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
 const DAY_KEY_TO_INDEX = {
     sun: 0,
     sunday: 0,
@@ -641,7 +679,8 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         bookedSlotsIndexForCalendar.value = bookedSlotsIndex;
         const availabilityPreviewEvents = filterCreatorEventsForAvailabilityPreview(creatorEvents);
         const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
-            creatorEvents: availabilityPreviewEvents,
+            creatorEvents,
+            availabilityEvents: availabilityPreviewEvents,
             bookedSlotsRaw,
             bookedSlotsIndex,
             focusDate: state.focus,
@@ -652,6 +691,8 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     }
 
     calendarLoading.value = false;
+    await nextTick();
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
 };
 
 function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
@@ -738,6 +779,7 @@ const scrollToStepTopOnMobile = async () => {
 // Init
 onMounted(async () => {
     window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleCalendarDocumentClick);
     bookingFlow.initialize();
     const resolvedCreatorId = resolveCreatorId();
     bookingFlow.setState("apiBaseUrl", props.apiBaseUrl || "", { reason: "initial-api-base-url", silent: true });
@@ -829,6 +871,7 @@ onBeforeRouteLeave(async () => {
 
 onBeforeUnmount(() => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
+    document.removeEventListener("click", handleCalendarDocumentClick);
     notifyEventsEmbedFormDirtyState(false);
     
     document.body.classList.remove("event-form-open");
@@ -851,12 +894,12 @@ const theme2 = {
         wrapper: 'relative flex flex-col gap-[0px] overflow-hidden rounded-xl',
         title: ' text-base font-semibold text-slate-800 ',
         xHeader: '',
-        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.875rem] min-h-[5rem]',
+        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.8rem] min-h-[5rem]',
         axisXDay: 'py-1 text-center min-h-[5rem] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
-        axisYRow: 'booking-form-calendar-time-label h-[3.914rem] text-right pr-4 w-[2.4rem] uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
+        axisYRow: 'booking-form-calendar-time-label h-[7.5rem] text-right pr-2 w-[4.8rem] shrink-0 uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',
         colBase: 'relative bg-white/20 border-l border-white/50 overflow-hidden',
-        gridRow: 'h-[3.914rem] border-b border-white/50',
+        gridRow: 'h-[7.5rem] border-b border-white/50',
         eventBase: 'absolute mx-1 rounded-md p-2 text-xs shadow-sm'
     },
     month: {}
@@ -891,24 +934,6 @@ function normalizeHexColor(color, fallback = DEFAULT_EVENT_COLOR) {
     const normalized = color.trim();
     if (/^#([0-9a-fA-F]{3}){1,2}$/.test(normalized)) return normalized;
     return fallback;
-}
-
-function hexToRgb(hexColor = DEFAULT_EVENT_COLOR) {
-    const hex = normalizeHexColor(hexColor).replace("#", "");
-    const full = hex.length === 3
-        ? hex.split("").map((char) => char + char).join("")
-        : hex;
-    const number = Number.parseInt(full, 16);
-    return {
-        r: (number >> 16) & 255,
-        g: (number >> 8) & 255,
-        b: number & 255,
-    };
-}
-
-function rgba(hexColor, alpha = 1) {
-    const { r, g, b } = hexToRgb(hexColor);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 const GENERIC_EVENT_TITLE_FALLBACKS = new Set(["event title", "untitled event"]);
@@ -954,6 +979,9 @@ function resolveEventTitle(event) {
 
 function buildCalendarSlotsFromContext({
     creatorEvents = [],
+    availabilityEvents = creatorEvents,
+    bookedSlotsRaw = [],
+    bookedSlotsIndex = {},
     focusDate = new Date(),
 }) {
     const colorByEventId = new Map(
@@ -992,11 +1020,70 @@ function buildCalendarSlotsFromContext({
             .filter(([eventId]) => Boolean(eventId))
     );
 
-    const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(creatorEvents, {
-        bookedSlotsIndex: {},
+    const createdAtByEventId = new Map(
+        creatorEvents
+            .map((event) => [
+                resolveCreatorEventId(event),
+                event?.createdAt || event?.created_at || event?.raw?.createdAt || event?.raw?.created_at || null,
+            ])
+            .filter(([eventId]) => Boolean(eventId))
+    );
+
+    const bookedCalendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
+        includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
+        titleFallback: t("dashboard_booked_slot"),
+    }).map((event) => {
+        const eventId = String(event?.eventId || "");
+        const eventColorSkin = colorByEventId.get(eventId)
+            || event?.eventColorSkin
+            || event?.raw?.eventColorSkin
+            || DEFAULT_EVENT_COLOR;
+        const eventCallType = callTypeByEventId.get(eventId)
+            || String(event?.eventCallType || event?.raw?.eventCallType || "").toLowerCase();
+        const eventType = eventTypeByEventId.get(eventId)
+            || String(event?.eventType || event?.type || event?.raw?.eventType || "").toLowerCase();
+        const createdAt = createdAtByEventId.get(eventId) || event?.createdAt || event?.raw?.createdAt || null;
+
+        return {
+            ...event,
+            title: titleByEventId.get(eventId) || event?.title || t("dashboard_booked_slot"),
+            color: eventColorSkin,
+            eventColorSkin,
+            eventCallType,
+            eventType,
+            createdAt,
+            isExistingSchedule: true,
+            raw: {
+                ...(event?.raw || {}),
+                eventCallType,
+                eventType,
+                eventColorSkin,
+                createdAt,
+            },
+        };
+    });
+
+    const shouldHideAvailabilityTitle = (slot) => {
+        const eventId = String(slot?.eventId || "").trim();
+        const availabilityStartMs = new Date(slot?.start).getTime();
+        if (!eventId || Number.isNaN(availabilityStartMs)) return false;
+        const windowEndMs = availabilityStartMs + AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS;
+
+        return bookedCalendarSlots.some((booking) => {
+            if (String(booking?.eventId || "").trim() !== eventId) return false;
+            const bookingStartMs = new Date(booking?.start).getTime();
+            return !Number.isNaN(bookingStartMs)
+                && bookingStartMs >= availabilityStartMs
+                && bookingStartMs <= windowEndMs;
+        });
+    };
+
+    const availabilityCalendarSlots = mapAvailabilityToCalendarEvents(availabilityEvents, {
+        bookedSlotsIndex,
         focusDate,
         rangeDaysBefore: 14,
         rangeDaysAfter: 56,
+        mode: "scheduleWindow",
     }).map((event) => ({
         ...event,
         slot: "availability",
@@ -1004,74 +1091,22 @@ function buildCalendarSlotsFromContext({
         color: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
         eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || DEFAULT_EVENT_COLOR,
         eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
+        createdAt: createdAtByEventId.get(String(event?.eventId || "")) || event?.createdAt || event?.raw?.createdAt || null,
+        hideAvailabilityTitle: shouldHideAvailabilityTitle(event),
+        isExistingSchedule: true,
         raw: {
             ...(event?.raw || {}),
             eventCallType: callTypeByEventId.get(String(event?.eventId || "")) || String(event?.eventCallType || "").toLowerCase(),
             eventType: eventTypeByEventId.get(String(event?.eventId || "")) || String(event?.raw?.eventType || event?.type || "").toLowerCase(),
             eventColorSkin: colorByEventId.get(String(event?.eventId || "")) || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+            createdAt: createdAtByEventId.get(String(event?.eventId || "")) || event?.createdAt || event?.raw?.createdAt || null,
         },
     }));
 
     return {
-        bookedCalendarSlots: [],
+        bookedCalendarSlots,
         availabilityCalendarSlots,
     };
-}
-
-function getCalendarEventStyle(event, mode = "existing") {
-    const color = normalizeHexColor(
-        event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
-        DEFAULT_EVENT_COLOR,
-    );
-    const startsAtMidnight = isMidnightDateTime(event?.start);
-    const endsAtMidnight = isMidnightDateTime(event?.end);
-
-    if (mode === "draft") {
-        return {
-            borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
-            borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
-            color,
-            background: `repeating-linear-gradient(-45deg, ${rgba(color, 0.24)}, ${rgba(color, 0.24)} 2px, ${rgba(color, 0.14)} 3px, ${rgba(color, 0.14)} 10px)`,
-            zIndex: 3,
-        };
-    }
-
-    if (mode === "availability" || event?.isAvailabilityBlock) {
-        return {
-            backgroundColor: rgba(color, 0.08),
-            backgroundImage: `repeating-linear-gradient(-45deg, ${rgba(color, 0.16)} 0px, ${rgba(color, 0.16)} 3px, transparent 3px, transparent 13px)`,
-            borderTop: startsAtMidnight ? "0" : `2px solid ${color}`,
-            borderBottom: endsAtMidnight ? "0" : `2px solid ${color}`,
-            color,
-            zIndex: 1,
-        };
-    }
-
-    return {
-        borderBottom: `1px solid ${color}`,
-        color,
-        backgroundColor: rgba(color, 0.2),
-        zIndex: 2,
-    };
-}
-
-function shouldOpenCalendarEvent(event) {
-    return !event?.isAvailabilityBlock && !event?.isDraftPreview;
-}
-
-function isMidnightDateTime(value) {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-
-    return date.getHours() === 0 && date.getMinutes() === 0;
-}
-
-function expandCalendarBlockStyle(style) {
-    if (typeof style !== "string") return style;
-
-    return style
-        .replace(/left:\s*2px;/g, "left:0;")
-        .replace(/right:\s*2px;/g, "right:0;");
 }
 
 function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }) {
@@ -1090,6 +1125,7 @@ function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }
 
     return {
         id: `draft_${dateIso}_${startTime}_${endTime}_${index}`,
+        eventId: resolvedEditEventId.value ? `draft_${resolvedEditEventId.value}` : "draft_new_event",
         title,
         start,
         end,
@@ -1098,6 +1134,7 @@ function createPreviewEvent({ dateIso, startTime, endTime, title, color, index }
         isDraftPreview: true,
         isDraft: true,
         isAvailabilityBlock: true,
+        isExistingSchedule: false,
     };
 }
 
@@ -1275,7 +1312,7 @@ const previewDraftEvents = computed(() => {
 });
 
 const events2 = computed(() => {
-    return [...calendarAvailabilitySlots.value, ...previewDraftEvents.value];
+    return [...calendarAvailabilitySlots.value, ...calendarBookedSlots.value, ...previewDraftEvents.value];
 });
 
 const state = reactive({
@@ -1307,7 +1344,8 @@ function rebuildAvailabilityPreview() {
 
     const availabilityPreviewEvents = filterCreatorEventsForAvailabilityPreview(creatorEvents);
     const { bookedCalendarSlots, availabilityCalendarSlots } = buildCalendarSlotsFromContext({
-        creatorEvents: availabilityPreviewEvents,
+        creatorEvents,
+        availabilityEvents: availabilityPreviewEvents,
         bookedSlotsRaw,
         bookedSlotsIndex,
         focusDate: state.focus,
@@ -1315,6 +1353,347 @@ function rebuildAvailabilityPreview() {
 
     calendarBookedSlots.value = bookedCalendarSlots;
     calendarAvailabilitySlots.value = availabilityCalendarSlots;
+}
+
+function getScheduleEventId(event = {}) {
+    return String(event?.eventId || event?.id || event?.raw?.eventId || event?.raw?.id || "").trim();
+}
+
+function normalizeScheduleEventPayload(event = {}) {
+    const eventId = getScheduleEventId(event);
+    if (!eventId) return null;
+
+    const catalogEvent = creatorEventsForCalendar.value.find(
+        (candidate) => getScheduleEventId(candidate) === eventId,
+    );
+    const source = catalogEvent || event;
+    const rawType = String(source?.type || source?.eventType || source?.raw?.type || "").toLowerCase();
+
+    return {
+        ...source,
+        eventId,
+        title: resolveEventTitle(source),
+        type: rawType.includes("group") ? "group" : "private",
+    };
+}
+
+const availabilityScheduleMenuStyle = computed(() => ({
+    left: `${availabilityScheduleMenu.left}px`,
+    top: `${availabilityScheduleMenu.top}px`,
+}));
+
+const scheduleCardPreviewBookedSlots = computed(() => {
+    const eventId = getScheduleEventId(scheduleCardPreviewEvent.value);
+    if (!eventId) return [];
+    return bookedSlotsRawForCalendar.value.filter(
+        (slot) => String(slot?.eventId || slot?.raw?.eventId || "").trim() === eventId,
+    );
+});
+
+const deleteEventCandidateTitle = computed(() => (
+    resolveEventTitle(deleteEventCandidate.value || {})
+));
+
+const cancelBookingCandidateTitle = computed(() => (
+    cancelBookingCandidate.value?.event?.title || t("common_booking")
+));
+
+const cancelBookingCandidateTime = computed(() => {
+    const event = cancelBookingCandidate.value?.event;
+    const start = new Date(event?.start);
+    const end = new Date(event?.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+    const time = (date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return `${start.toLocaleDateString()} - ${time(start)} - ${time(end)}`;
+});
+
+function positionAvailabilityScheduleMenu(domEvent) {
+    if (typeof window === "undefined") return;
+    const trigger = domEvent?.currentTarget || domEvent?.target;
+    const menuWidth = 196;
+    const menuHeight = 176;
+    const gap = 8;
+    const padding = 8;
+    let left = Number.isFinite(domEvent?.clientX) ? domEvent.clientX : padding;
+    let top = Number.isFinite(domEvent?.clientY) ? domEvent.clientY : padding;
+    let topWhenAbove = top - menuHeight - gap;
+
+    if (!Number.isFinite(domEvent?.clientX) && trigger?.getBoundingClientRect) {
+        const rect = trigger.getBoundingClientRect();
+        left = rect.left;
+        top = rect.bottom + gap;
+        topWhenAbove = rect.top - menuHeight - gap;
+    }
+
+    if (left + menuWidth > window.innerWidth - padding) {
+        left = window.innerWidth - menuWidth - padding;
+    }
+    if (top + menuHeight > window.innerHeight - padding) {
+        top = topWhenAbove;
+    }
+
+    availabilityScheduleMenu.left = Math.max(padding, left);
+    availabilityScheduleMenu.top = Math.max(padding, top);
+}
+
+function openAvailabilityScheduleMenu(event, domEvent) {
+    if (event?.isDraftPreview) return;
+    const normalizedEvent = normalizeScheduleEventPayload(event);
+    if (!normalizedEvent) return;
+    domEvent?.stopPropagation?.();
+    availabilityScheduleMenu.event = normalizedEvent;
+    positionAvailabilityScheduleMenu(domEvent);
+    availabilityScheduleMenu.open = false;
+    nextTick(() => {
+        if (availabilityScheduleMenu.event?.eventId === normalizedEvent.eventId) {
+            availabilityScheduleMenu.open = true;
+        }
+    });
+}
+
+function closeAvailabilityScheduleMenu() {
+    availabilityScheduleMenu.open = false;
+    availabilityScheduleMenu.event = null;
+}
+
+function handleCalendarDocumentClick(event) {
+    if (!availabilityScheduleMenu.open) return;
+    const target = event?.target;
+    if (target?.closest?.("[data-test='booking-schedule-menu']")) return;
+    if (target?.closest?.("[data-test='calendar-existing-availability-block']")) return;
+    closeAvailabilityScheduleMenu();
+}
+
+function openScheduleCardPreview(event) {
+    const normalizedEvent = normalizeScheduleEventPayload(event);
+    if (!normalizedEvent) return;
+    scheduleCardPreviewEvent.value = normalizedEvent;
+    scheduleCardPreviewOpen.value = true;
+}
+
+function setScheduleCardPreviewOpen(open) {
+    scheduleCardPreviewOpen.value = Boolean(open);
+    if (!open) scheduleCardPreviewEvent.value = null;
+}
+
+async function requestEditScheduleEvent(event) {
+    const normalizedEvent = normalizeScheduleEventPayload(event);
+    if (!normalizedEvent) return;
+    const canLeave = await requestUnsavedLeaveConfirmation();
+    if (!canLeave) return;
+    setScheduleCardPreviewOpen(false);
+    closeAvailabilityScheduleMenu();
+    emit("edit-event", {
+        eventId: normalizedEvent.eventId,
+        type: normalizedEvent.type,
+        event: normalizedEvent,
+    });
+}
+
+function openDeleteEventPopup(event) {
+    const normalizedEvent = normalizeScheduleEventPayload(event);
+    if (!normalizedEvent) return;
+    closeAvailabilityScheduleMenu();
+    deleteEventCandidate.value = normalizedEvent;
+    deleteEventPopupOpen.value = true;
+}
+
+function closeDeleteEventPopup() {
+    if (deleteEventLoading.value) return;
+    deleteEventPopupOpen.value = false;
+    deleteEventCandidate.value = null;
+}
+
+async function confirmDeleteEvent() {
+    const eventId = getScheduleEventId(deleteEventCandidate.value);
+    if (!eventId || deleteEventLoading.value) return;
+    deleteEventLoading.value = true;
+    try {
+        const result = await bookingFlow.callFlow(
+            "events.deleteEvent",
+            { eventId },
+            {
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+        if (!result?.ok) {
+            showToast({
+                type: "error",
+                title: t("dashboard_delete_booking_schedule_failed_title"),
+                message: result?.meta?.uiErrors?.[0] || result?.error?.message || t("common_try_again"),
+            });
+            return;
+        }
+        showToast({
+            type: "success",
+            title: t("dashboard_delete_booking_schedule_success_title"),
+            message: t("dashboard_delete_booking_schedule_success_message"),
+        });
+        deleteEventPopupOpen.value = false;
+        deleteEventCandidate.value = null;
+        await fetchCreatorBookedSlots(true);
+    } finally {
+        deleteEventLoading.value = false;
+    }
+}
+
+function resolveBookingIdFromPayload(payload = {}) {
+    return String(
+        payload?.bookingId || payload?.event?.bookingId || payload?.event?.raw?.bookingId || "",
+    ).trim() || null;
+}
+
+async function reviewPendingBooking(payload, decision) {
+    const bookingId = resolveBookingIdFromPayload(payload);
+    if (!bookingId) {
+        showToast({
+            type: "error",
+            title: t("dashboard_booking_action_failed_title"),
+            message: t("dashboard_booking_action_missing_id"),
+        });
+        return;
+    }
+    if (reviewPendingLoading.value) return;
+    reviewPendingLoading.value = true;
+    try {
+        const result = await bookingFlow.callFlow(
+            "bookings.reviewPendingBooking",
+            {
+                bookingId,
+                decision,
+                actor: "creator",
+                reason: decision === "approve" ? "approved_by_creator" : "rejected_by_creator",
+            },
+            {
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+        if (!result?.ok) {
+            showToast({
+                type: "error",
+                title: t("dashboard_booking_action_failed_title"),
+                message: result?.meta?.uiErrors?.[0] || result?.error?.message || t("dashboard_booking_action_update_failed"),
+            });
+            return;
+        }
+        showToast({
+            type: "success",
+            title: t("dashboard_booking_updated_title"),
+            message: t("dashboard_booking_updated_message", {
+                action: decision === "approve" ? "approved" : "rejected",
+            }),
+        });
+        await fetchCreatorBookedSlots(true);
+    } finally {
+        reviewPendingLoading.value = false;
+    }
+}
+
+function handleApproveBooking(payload) {
+    return reviewPendingBooking(payload, "approve");
+}
+
+function handleRejectBooking(payload) {
+    return reviewPendingBooking(payload, "reject");
+}
+
+function openCancelBookingPopup(payload = {}) {
+    const bookingId = resolveBookingIdFromPayload(payload);
+    if (!bookingId) {
+        showToast({
+            type: "error",
+            title: t("dashboard_booking_cancel_failed_title"),
+            message: t("dashboard_cancel_missing_id"),
+        });
+        return;
+    }
+    cancelBookingCandidate.value = { bookingId, event: payload?.event || payload };
+    cancelBookingPopupOpen.value = true;
+}
+
+function closeCancelBookingPopup() {
+    if (cancelBookingLoading.value) return;
+    cancelBookingPopupOpen.value = false;
+    cancelBookingCandidate.value = null;
+}
+
+async function confirmCancelBooking() {
+    const bookingId = cancelBookingCandidate.value?.bookingId;
+    if (!bookingId || cancelBookingLoading.value) return;
+    cancelBookingLoading.value = true;
+    try {
+        const result = await bookingFlow.callFlow(
+            "bookings.cancelBooking",
+            { bookingId, actor: "creator", reason: "creator_cancelled_from_booking_form_calendar" },
+            {
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+        if (!result?.ok) {
+            showToast({
+                type: "error",
+                title: t("dashboard_booking_cancel_failed_title"),
+                message: result?.meta?.uiErrors?.[0] || result?.error?.message || t("dashboard_booking_cancel_failed_message"),
+            });
+            return;
+        }
+        showToast({
+            type: "success",
+            title: t("dashboard_booking_cancelled_title"),
+            message: t("dashboard_booking_cancelled_message"),
+        });
+        cancelBookingPopupOpen.value = false;
+        cancelBookingCandidate.value = null;
+        await fetchCreatorBookedSlots(true);
+    } finally {
+        cancelBookingLoading.value = false;
+    }
+}
+
+function handleJoinCall(payload = {}) {
+    const event = payload?.sourceEvent || payload?.event || payload;
+    const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+    const isGroup = String(event?.eventType || event?.type || raw?.eventType || raw?.type || "")
+        .toLowerCase()
+        .includes("group");
+    const joinState = getBookingJoinState({
+        bookingId: event?.bookingId || raw?.bookingId,
+        startAt: event?.start,
+        endAt: event?.end,
+        status: event?.status || raw?.status,
+        enableCallReminderMinutesBefore: raw?.enableCallReminderMinutesBefore,
+        callReminderMinutesBefore: raw?.callReminderMinutesBefore,
+        reminderMinutes: raw?.reminderMinutes,
+        extensions: raw?.extensions,
+    });
+    const groupUrl = isGroup
+        ? buildScheduledGroupMeetingUrl({
+            eventId: getScheduleEventId(event),
+            startIso: event?.start || raw?.startIso || raw?.startAtIso,
+        })
+        : null;
+    const joinUrl = groupUrl || joinState.joinUrl;
+    if (!joinState.canJoin || !joinUrl) {
+        showToast({
+            type: "error",
+            title: t("dashboard_join_unavailable_title"),
+            message: t("dashboard_join_unavailable_message"),
+        });
+        return;
+    }
+    emit("open-url", { url: joinUrl, target: "_blank" });
 }
 
 const onDebugSubmit = () => {
@@ -1522,42 +1901,50 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </div>
                 </div>
-                <MainCalendar v-else class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
-                    :row-height-px="64" :min-event-height-px="0" @date-selected="onSelectFromMain"
-                    @preview-schedule="previewSchedule = true">
+                    day-column-mode="events" :row-height-px="120" :min-event-height-px="0"
+                    @date-selected="onSelectFromMain"
+                    @preview-schedule="previewSchedule = true"
+                    @join-call="handleJoinCall"
+                    @approve-booking="handleApproveBooking"
+                    @reject-booking="handleRejectBooking"
+                    @cancel-booking="openCancelBookingPopup"
+                    @refresh-events="fetchCreatorBookedSlots(true)">
+
+                    <template #event="{ event, style, onClick }">
+                        <CalendarWeekBookingBlock :event="event" :style="style" @activate="onClick" />
+                    </template>
+
+                    <template #event-alt="{ event, style, onClick }">
+                        <CalendarWeekBookingBlock :event="event" :style="style" @activate="onClick" />
+                    </template>
 
                     <template #event-custom="{ event, style, onClick }">
-                        <div
-                            :class="[
-                                'absolute py-1 px-2 border-b text-xs shadow-sm overflow-hidden min-h-[2.375rem]',
-                                (event?.isAvailabilityBlock || event?.isDraftPreview) ? 'pointer-events-none' : ''
-                            ]"
-                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, event?.isDraftPreview ? 'draft' : 'existing')]"
-                            @click.stop="shouldOpenCalendarEvent(event) && onClick(event)">
-                            <div class="flex items-center gap-1 font-normal leading-4 truncate">
-                                <svg width="11" height="12" viewBox="0 0 11 12" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M10.2898 5H1.28979M7.78979 1V3M3.78979 1V3M3.68979 11H7.88979C8.72987 11 9.14991 11 9.47078 10.8365C9.75302 10.6927 9.98249 10.4632 10.1263 10.181C10.2898 9.86012 10.2898 9.44008 10.2898 8.6V4.4C10.2898 3.55992 10.2898 3.13988 10.1263 2.81901C9.98249 2.53677 9.75302 2.3073 9.47078 2.16349C9.14991 2 8.72987 2 7.8898 2H3.6898C2.84972 2 2.42968 2 2.10881 2.16349C1.82657 2.3073 1.5971 2.53677 1.45329 2.81901C1.28979 3.13988 1.28979 3.55992 1.28979 4.4V8.6C1.28979 9.44008 1.28979 9.86012 1.45329 10.181C1.5971 10.4632 1.82657 10.6927 2.10881 10.8365C2.42968 11 2.84972 11 3.68979 11Z"
-                                        stroke="currentColor" stroke-width="1.25" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                                <span class="mt-1 truncate">{{ event.title }}</span>
-                            </div>
-                        </div>
+                        <CalendarWeekAvailabilityBlock
+                            v-if="event?.isDraftPreview"
+                            :event="event"
+                            :style="style"
+                        />
+                        <CalendarWeekBookingBlock
+                            v-else
+                            :event="event"
+                            :style="style"
+                            @activate="onClick"
+                        />
+                    </template>
+
+                    <template #event-custom2="{ event, style, onClick }">
+                        <CalendarWeekBookingBlock :event="event" :style="style" @activate="onClick" />
                     </template>
 
                     <template #event-availability="{ event, style }">
-                        <div
-                            class="absolute pointer-events-none min-h-[0.375rem] w-full overflow-hidden px-2 py-1 text-xs font-medium leading-4"
-                            :title="event.title"
-                            :style="[expandCalendarBlockStyle(style), getCalendarEventStyle(event, 'availability')]">
-                            <span v-if="event.title" data-test="calendar-availability-title" class="block truncate">
-                                {{ event.title }}
-                            </span>
-                        </div>
+                        <CalendarWeekAvailabilityBlock
+                            :event="event"
+                            :style="style"
+                            @activate="openAvailabilityScheduleMenu"
+                        />
                     </template>
 
                 </MainCalendar>
@@ -1635,6 +2022,93 @@ useBodyOverflowHidden({ minWidth: 1010 });
             </div>
         </div>
     </div>
+
+    <PopupHandler v-model="cancelBookingPopupOpen" :config="confirmationPopupConfig">
+        <div class="w-[30.9375rem] max-w-[90vw] border border-[#EAECF0] bg-white p-4 shadow-xl">
+            <h3 class="text-base font-semibold text-gray-700">
+                {{ t("dashboard_cancel_confirm_title") }}
+            </h3>
+            <p class="mt-2 text-black">{{ t("dashboard_cancel_confirm_body") }}</p>
+            <div class="mt-2 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                <p class="truncate font-semibold">{{ cancelBookingCandidateTitle }}</p>
+                <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
+            </div>
+            <div class="mt-2 flex items-center justify-center gap-2">
+                <button
+                    type="button"
+                    class="h-9 px-3 text-base font-medium text-[#ff4405] hover:bg-gray-50 disabled:opacity-60"
+                    :disabled="cancelBookingLoading"
+                    @click="closeCancelBookingPopup"
+                >
+                    {{ t("dashboard_cancel_confirm_back") }}
+                </button>
+                <button
+                    type="button"
+                    data-test="booking-form-cancel-confirm"
+                    class="h-9 bg-[#ff4405] px-3 text-base font-medium text-white hover:bg-[#ff692e] disabled:opacity-60"
+                    :disabled="cancelBookingLoading"
+                    @click="confirmCancelBooking"
+                >
+                    {{ cancelBookingLoading ? t("common_loading") : t("dashboard_cancel_confirm_action") }}
+                </button>
+            </div>
+        </div>
+    </PopupHandler>
+
+    <PopupHandler v-model="deleteEventPopupOpen" :config="confirmationPopupConfig">
+        <div class="w-[32.875rem] max-w-[90vw] rounded border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+            <h3 class="text-base font-semibold leading-6 text-gray-700">
+                {{ t("dashboard_delete_booking_schedule_title", { title: deleteEventCandidateTitle }) }}
+            </h3>
+            <p class="mt-2 text-base leading-6 text-slate-700">
+                {{ t("dashboard_delete_booking_schedule_body") }}
+            </p>
+            <div class="mt-6 flex items-center justify-end gap-6">
+                <button
+                    type="button"
+                    class="h-10 px-4 text-base font-medium text-[#ff4405] hover:bg-gray-50 disabled:opacity-60"
+                    :disabled="deleteEventLoading"
+                    @click="closeDeleteEventPopup"
+                >
+                    {{ t("common_cancel") }}
+                </button>
+                <button
+                    type="button"
+                    data-test="booking-form-delete-confirm"
+                    class="h-10 bg-[#ff4405] px-6 text-base font-medium text-white hover:bg-[#ff692e] disabled:opacity-60"
+                    :disabled="deleteEventLoading"
+                    @click="confirmDeleteEvent"
+                >
+                    {{ deleteEventLoading ? t("common_loading") : t("dashboard_delete_booking_schedule_action") }}
+                </button>
+            </div>
+        </div>
+    </PopupHandler>
+
+    <BookingScheduleMenu
+        :open="availabilityScheduleMenu.open"
+        :event="availabilityScheduleMenu.event"
+        position-class="fixed"
+        :menu-style="availabilityScheduleMenuStyle"
+        @edit="requestEditScheduleEvent"
+        @view-card="openScheduleCardPreview"
+        @delete="openDeleteEventPopup"
+        @close="closeAvailabilityScheduleMenu"
+    />
+
+    <OneOnOneBookingFlowPopup
+        :model-value="scheduleCardPreviewOpen"
+        :creator-id="resolveCreatorId()"
+        :api-base-url="apiBaseUrl"
+        preview-mode
+        preview-read-only
+        :preview-event="scheduleCardPreviewEvent"
+        :preview-booked-slots="scheduleCardPreviewBookedSlots"
+        :preview-start-step="1"
+        step1-primary-action="edit-schedule"
+        @update:model-value="setScheduleCardPreviewOpen"
+        @edit-schedule="requestEditScheduleEvent"
+    />
 
     <OneOnOneBookingFlowPopup
         v-model="previewSchedule"
