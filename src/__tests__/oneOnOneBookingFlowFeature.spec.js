@@ -445,10 +445,15 @@ describe("OneOnOneBookingFlowFeature", () => {
     expect(shell.classes()).toContain("md:absolute");
     expect(shell.classes()).toContain("md:-translate-y-1/2");
 
+    const closeAnchor = wrapper.get("[data-test='booking-flow-step-one-close-anchor']");
+    expect(closeAnchor.classes()).toContain("items-center");
+    expect(closeAnchor.classes()).toContain("justify-center");
+
     const closeButton = wrapper.get("[data-test='booking-flow-close-button']");
     expect(closeButton.classes()).toContain("w-10");
     expect(closeButton.classes()).toContain("h-10");
     expect(closeButton.classes()).toContain("bg-black/25");
+    expect(closeButton.element.tagName).toBe("BUTTON");
 
     await stepOne.trigger("click");
 

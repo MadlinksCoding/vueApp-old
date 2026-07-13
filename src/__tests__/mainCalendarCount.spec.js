@@ -786,6 +786,7 @@ describe("MainCalendar all events count", () => {
     expect(dayGroups.every((day) => day.attributes("data-week-day-width") === "50%")).toBe(true);
     expect(wrapper.get("[data-test='calendar-week-event-header-track']").attributes("style")).toContain("width: 350%");
     expect(wrapper.get("[data-cal-time-grid] span.relative").attributes("style")).toContain("width: 350%");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-auto");
 
     expect(selectedGroup.attributes("data-selected")).toBe("true");
     expect(selectedGroup.classes()).toContain("opacity-100");
@@ -1119,6 +1120,76 @@ describe("MainCalendar all events count", () => {
     expect(bodyColumns[0].attributes("data-event-id")).toBe("evt_today");
   });
 
+  it("fits all mobile Day event columns equally within the calendar width", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 23, 9, 0, 0));
+    setWindowWidth(390);
+
+    const events = Array.from({ length: 5 }, (_, index) => [
+      makeEvent({
+        id: `availability_${index + 1}`,
+        eventId: `evt_${index + 1}`,
+        title: `Availability ${index + 1} with a long title`,
+        start: new Date(2026, 3, 23, 10, 0, 0),
+        end: new Date(2026, 3, 23, 12, 0, 0),
+        slot: "availability",
+        isAvailabilityBlock: true,
+      }),
+      makeEvent({
+        id: `booking_${index + 1}`,
+        eventId: `evt_${index + 1}`,
+        title: `Booking ${index + 1} with a long title`,
+        start: new Date(2026, 3, 23, 10, 30, 0),
+        end: new Date(2026, 3, 23, 11, 0, 0),
+        isAvailabilityBlock: false,
+      }),
+    ]).flat();
+
+    const wrapper = await mountCalendar(
+      events,
+      { initialView: "day", dayColumnMode: "events" },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, style }">
+              <div data-test="mobile-availability" :data-event-id="event.eventId" :style="style">
+                {{ event.title }}
+              </div>
+            </template>
+          `,
+          event: `
+            <template #event="{ event, style, onClick }">
+              <button
+                data-test="mobile-booking"
+                :data-event-id="event.eventId"
+                :style="style"
+                @click="onClick(event)"
+              >
+                {{ event.title }}
+              </button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const track = wrapper.get("[data-cal-time-grid] span.grid");
+    const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-event-id]");
+
+    expect(bodyColumns).toHaveLength(5);
+    expect(bodyColumns.every((column) => column.classes().includes("min-w-0"))).toBe(true);
+    expect(track.attributes("style")).toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
+    expect(track.attributes("style")).toContain("width: 100%");
+    expect(track.attributes("style")).toContain("min-width: 0");
+    expect(track.attributes("style")).not.toContain("7.5rem");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-hidden");
+    expect(wrapper.findAll("[data-test='mobile-availability']")).toHaveLength(5);
+    expect(wrapper.findAll("[data-test='mobile-booking']")).toHaveLength(5);
+
+    await wrapper.get("[data-test='mobile-booking']").trigger("click");
+    expect(wrapper.findComponent({ name: "CalendarEventDetailsPopup" }).exists()).toBe(true);
+  });
+
   it("uses month and year for the mobile day calendar toggle title", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 3, 23, 9, 0, 0));
@@ -1374,6 +1445,131 @@ describe("MainCalendar all events count", () => {
     await viewButton("month").trigger("click");
 
     expect(wrapper.emitted("view-changed")).toEqual([["day"], ["week"], ["month"]]);
+  });
+
+  it("smoothly reveals the selected date when desktop switches from Day to Week", async () => {
+    setWindowWidth(1280);
+
+    const originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+    const originalScrollTo = window.HTMLElement.prototype.scrollTo;
+    const originalClientWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "clientWidth");
+    const originalScrollWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "scrollWidth");
+    const scrollTo = vi.fn(function scrollToWeekDate({ left }) {
+      this.scrollLeft = left;
+    });
+
+    window.HTMLElement.prototype.getBoundingClientRect = function getCalendarRect() {
+      if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") {
+        return { left: 0, right: 400, top: 0, bottom: 64, width: 400, height: 64, x: 0, y: 0, toJSON: () => ({}) };
+      }
+      if (this.getAttribute?.("data-test") === "calendar-week-event-header-day" && this.getAttribute("data-selected") === "true") {
+        return { left: 600, right: 800, top: 0, bottom: 64, width: 200, height: 64, x: 600, y: 0, toJSON: () => ({}) };
+      }
+      return originalGetBoundingClientRect.call(this);
+    };
+    Object.defineProperty(window.HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 400;
+        return originalClientWidth?.get?.call(this) ?? 0;
+      },
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get() {
+        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 1400;
+        return originalScrollWidth?.get?.call(this) ?? 0;
+      },
+    });
+    window.HTMLElement.prototype.scrollTo = scrollTo;
+
+    try {
+      const wrapper = await mountCalendar(
+        [],
+        { initialView: "day", dayColumnMode: "events" },
+      );
+      const viewButton = (label) => wrapper.findAll("button").find((button) => (
+        button.text().trim().toLowerCase() === label
+        || button.text().trim().toLowerCase() === `common_${label}`
+      ));
+
+      await viewButton("week").trigger("click");
+      await wrapper.vm.$nextTick();
+
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+      expect(wrapper.get("[data-test='calendar-week-event-header-day'][data-selected='true']").attributes("data-date")).toBe(localDateKey(baseDate));
+    } finally {
+      window.HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      window.HTMLElement.prototype.scrollTo = originalScrollTo;
+      if (originalClientWidth) Object.defineProperty(window.HTMLElement.prototype, "clientWidth", originalClientWidth);
+      else delete window.HTMLElement.prototype.clientWidth;
+      if (originalScrollWidth) Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", originalScrollWidth);
+      else delete window.HTMLElement.prototype.scrollWidth;
+    }
+  });
+
+  it("smoothly reveals today when Today is clicked in desktop Week view", async () => {
+    setWindowWidth(1280);
+
+    const originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+    const originalScrollTo = window.HTMLElement.prototype.scrollTo;
+    const originalClientWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "clientWidth");
+    const originalScrollWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "scrollWidth");
+    const scrollTo = vi.fn(function scrollToToday({ left }) {
+      this.scrollLeft = left;
+    });
+
+    window.HTMLElement.prototype.getBoundingClientRect = function getCalendarRect() {
+      if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") {
+        return { left: 0, right: 400, top: 0, bottom: 64, width: 400, height: 64, x: 0, y: 0, toJSON: () => ({}) };
+      }
+      if (this.getAttribute?.("data-test") === "calendar-week-event-header-day" && this.getAttribute("data-selected") === "true") {
+        return { left: 600, right: 800, top: 0, bottom: 64, width: 200, height: 64, x: 600, y: 0, toJSON: () => ({}) };
+      }
+      return originalGetBoundingClientRect.call(this);
+    };
+    Object.defineProperty(window.HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 400;
+        return originalClientWidth?.get?.call(this) ?? 0;
+      },
+    });
+    Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get() {
+        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 1400;
+        return originalScrollWidth?.get?.call(this) ?? 0;
+      },
+    });
+    window.HTMLElement.prototype.scrollTo = scrollTo;
+
+    try {
+      const wrapper = await mountCalendar(
+        [],
+        {
+          focusDate: new Date(2026, 4, 7),
+          initialView: "week",
+          dayColumnMode: "events",
+        },
+      );
+
+      await wrapper.get("[data-main-today]").trigger("click");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.emitted("date-selected")?.at(-1)?.[0]).toEqual(new Date(2026, 3, 23, 9, 0, 0));
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+      expect(wrapper.get("[data-test='calendar-week-event-header-day'][data-selected='true']").attributes("data-today")).toBe("true");
+    } finally {
+      window.HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      window.HTMLElement.prototype.scrollTo = originalScrollTo;
+      if (originalClientWidth) Object.defineProperty(window.HTMLElement.prototype, "clientWidth", originalClientWidth);
+      else delete window.HTMLElement.prototype.clientWidth;
+      if (originalScrollWidth) Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", originalScrollWidth);
+      else delete window.HTMLElement.prototype.scrollWidth;
+    }
   });
 
   it("keeps late-night availability aligned when earlier evening rows expand", async () => {
