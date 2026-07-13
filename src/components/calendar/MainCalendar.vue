@@ -6,15 +6,23 @@
     <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
       <div class="w-full flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="font-bold w-[9rem] uppercase" :class="theme.main.title">{{ title }}</div>
+          <div class="font-bold hidden lg:block w-[9rem] uppercase" :class="theme.main.title" data-test="calendar-desktop-title">{{ title }}</div>
           <!-- mobile-view-start-->
-          <div class="cursor-pointer flex lg:hidden mobile-calendar-toggle" @click="toggleMobileCalendar">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="2" stroke-linecap="round"
+          <button
+            type="button"
+            class="cursor-pointer flex lg:hidden items-center gap-1 mobile-calendar-toggle"
+            data-test="calendar-mobile-month-toggle"
+            @click="toggleMobileCalendar"
+          >
+            <span class="text-gray-950 text-base font-bold uppercase" data-test="calendar-mobile-month-title">
+              {{ mobileCalendarTitle }}
+            </span>
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="3" stroke-linecap="round"
                 stroke-linejoin="round" />
             </svg>
 
-          </div>
+          </button>
 
         <Teleport to="body">
           <div v-show="isMobileCalendarOpen" class="fixed inset-0 z-[120] lg:hidden">
@@ -123,7 +131,11 @@
               labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
               wrapperClass="flex items-center" />
           </div>
-          <div class="relative inline-block text-left  flex lg:hidden">
+          <div
+            v-if="dayColumnMode !== 'events'"
+            class="relative inline-block text-left flex lg:hidden"
+            data-test="calendar-mobile-view-selector"
+          >
           <div @click="toggleViewSelector"
             :class="isViewSelectorOpen ? 'bg-[#0C111D]' : 'bg-white/90'"
             class="border border-[#FB5BA2] gap-1 px-[1rem] py-1 rounded-full flex items-center justify-between cursor-pointer select-none transition-all duration-100">
@@ -232,7 +244,7 @@
           <!-- Mobile filter dropdown removed, replaced by Teleport below -->
 
         </div>
-        <div class="cursor-pointer flex lg:hidden" @click="calendarPopupOpen = true">
+        <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
@@ -334,11 +346,17 @@
     </div>
 
 
-    <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div class="flex" :class="[effectiveView === 'day' ? 'grid-cols-2' : 'grid-cols-8', theme.main.xHeader]">
+    <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div class="flex shrink-0" :class="[theme.main.xHeader]">
 
         <div :class="theme.main.axisXLabel">
-          <div v-if="variant === 'default'" class="lg:flex hidden justify-end items-center px-[0.25rem] gap-[0.125rem]">
+          <div
+            v-if="variant === 'default'"
+            :class="[
+              isEventColumnMode ? 'flex' : 'lg:flex hidden',
+              'justify-end items-center px-[0.25rem] gap-[0.125rem]'
+            ]"
+          >
             <span class="flex items-center justify-center w-[0.625rem] h-[0.625rem] flex-1 text-right">
               <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round"
@@ -352,7 +370,133 @@
           </div>
         </div>
 
-        <div class="grid w-full" :class="[
+        <div
+          v-if="isDayEventColumnMode"
+          class="flex min-w-0 w-full items-center h-[3.995rem] pl-2"
+          :class="isMobileDayEventColumnMode ? 'gap-0' : 'gap-4'"
+          data-test="calendar-day-event-header"
+        >
+          <div
+            v-if="isMobileDayEventColumnMode"
+            ref="mobileDayStripRef"
+            class="flex w-full min-w-0 snap-x snap-mandatory overflow-x-auto scroll-smooth scroll-px-[37.5%] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            data-test="calendar-mobile-day-strip"
+          >
+            <button
+              v-for="d in mobileDayStripDays"
+              :key="'mobile-day-' + formatLocalDateKey(d)"
+              type="button"
+              class="flex min-w-[25%] snap-center flex-col items-center justify-center gap-1 px-1 py-1 text-center"
+              :data-date="formatLocalDateKey(d)"
+              :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'"
+              :data-today="sameDay(d, today) ? 'true' : 'false'"
+              data-test="calendar-mobile-day-strip-date"
+              @click="selectMobileDayDate(d)"
+            >
+              <span
+                class="text-[0.625rem] font-bold uppercase leading-4"
+                :class="[
+                  d.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]',
+                  sameDay(d, selectedDay) ? 'opacity-100' : 'opacity-80'
+                ]"
+              >
+                {{ shortWeekdays[d.getDay()] }}
+              </span>
+              <span
+                class="flex h-8 w-8 items-center justify-center rounded-full text-[1rem] font-bold leading-8"
+                :class="[
+                  sameDay(d, selectedDay)
+                    ? 'bg-[#0C111D] text-white'
+                    : (d.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'),
+                  sameDay(d, today) && !sameDay(d, selectedDay) ? 'ring-1 ring-[#FB5BA2]/40' : ''
+                ]"
+              >
+                {{ d.getDate() }}
+              </span>
+            </button>
+          </div>
+
+          <template v-else>
+            <div
+              class="min-w-0 truncate text-sm md:text-base font-bold uppercase tracking-[0.04em] text-[#344054]"
+              data-test="calendar-day-event-title"
+            >
+              {{ dayModeTitle }}
+            </div>
+            <span class="flex shrink-0 items-center justify-between">
+              <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+                <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#101828" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
+                <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#101828" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+            </span>
+          </template>
+        </div>
+
+        <div
+          v-else-if="isWeekEventColumnMode"
+          class="flex min-w-0 w-full items-center h-[3.995rem] pl-2"
+          data-test="calendar-week-event-header"
+        >
+          <div
+            ref="weekHeaderScrollRef"
+            class="w-full min-w-0 select-none overflow-x-auto overscroll-x-contain touch-pan-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            :class="isWeekHeaderMouseDragging ? 'cursor-grabbing' : 'cursor-grab'"
+            data-test="calendar-week-event-header-scroll"
+            @scroll="syncWeekHorizontalScroll('header')"
+            @wheel="handleWeekHorizontalWheel($event, 'header')"
+            @mousedown="beginWeekHeaderMouseDrag"
+            @click.capture="handleWeekHeaderClickCapture"
+          >
+            <div
+              class="flex h-[3.995rem]"
+              :style="weekEventTrackStyle"
+              data-test="calendar-week-event-header-track"
+            >
+              <button
+                v-for="group in weekEventDayGroups"
+                :key="'week-header-' + group.dateKey"
+                type="button"
+                class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
+                :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
+                :style="weekEventDayGroupStyle"
+                :data-date="group.dateKey"
+                :data-selected="group.isSelected ? 'true' : 'false'"
+                :data-today="sameDay(group.day, today) ? 'true' : 'false'"
+                data-week-day-width="50%"
+                data-test="calendar-week-event-header-day"
+                @click="selectWeekDate(group.day)"
+              >
+                <span
+                  class="text-[0.625rem] font-bold uppercase leading-4"
+                  :class="group.day.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'"
+                >
+                  {{ shortWeekdays[group.day.getDay()] }}
+                </span>
+                <span
+                  class="flex h-8 w-8 items-center justify-center rounded-full text-[1rem] font-bold leading-8"
+                  :class="[
+                    group.isSelected
+                      ? 'bg-[#0C111D] text-white'
+                      : (group.day.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'),
+                    sameDay(group.day, today) && !group.isSelected ? 'ring-1 ring-[#FB5BA2]/40' : ''
+                  ]"
+                >
+                  {{ group.day.getDate() }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="grid w-full" :class="[
           effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7',
           variant === 'theme2' ? 'min-h-[5rem]' : 'h-[3.995rem]'
         ]">
@@ -391,46 +535,165 @@
       </div>
 
       <div
-        class="flex gap-2 flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <div class="flex flex-col">
+        ref="timeGridScrollRef"
+        data-cal-time-scroll
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div class="flex flex-col shrink-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
-            :class="[theme.main.axisYRow, isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
+            :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
             :style="idx < gridMetrics.rows.length ? { height: gridMetrics.rows[idx].height + 'px' } : {}">
             {{ formatTime(t) }}
           </div>
         </div>
 
-        <span class="grid w-full relative rounded-md overflow-hidden"
-          :class="[effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7']">
-          <div v-for="(d, idx) in bodyDays" :key="'col-' + idx" :data-date="d.toISOString().slice(0, 10)"
-            :data-expired="sd(d) < today ? 'true' : 'false'" :class="theme.main.colBase" @click.self="emitDate(d)">
+        <div
+          ref="weekBodyScrollRef"
+          class="flex-1 min-w-0 overflow-x-auto overscroll-x-contain touch-pan-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          data-test="calendar-week-event-body-scroll"
+          :style="{ height: gridMetrics.totalHeight + 'px' }"
+          @scroll="syncWeekHorizontalScroll('body')"
+          @wheel="handleWeekBodyWheel"
+        >
+        <span
+          class="w-full min-w-0 relative rounded-md"
+          :class="[
+            isWeekEventColumnMode ? 'flex' : 'grid',
+            isEventColumnMode ? 'overflow-visible' : 'overflow-hidden',
+            !isEventColumnMode ? (effectiveView === 'day' ? 'grid-cols-3' : 'grid-cols-7') : ''
+          ]"
+          :style="timeGridColumnStyle"
+        >
+          <div
+            v-if="showNowLine"
+            class="pointer-events-none absolute left-0 right-0 z-[6] h-[2px] bg-[#FF0066]"
+            data-test="calendar-now-line"
+            :style="{ top: `${nowLineTopPx}px` }"
+          ></div>
 
-            <div class="absolute z-[0] inset-0 pointer-events-none">
-              <div v-for="(metric, i) in gridMetrics.rows" :key="'grid-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
+          <template v-if="isDayEventColumnMode">
+            <div
+              v-for="column in dayEventColumns"
+              :key="'event-col-' + column.eventId"
+              :data-date="selectedDayIso"
+              :data-event-id="column.isEmpty ? undefined : column.eventId"
+              :data-empty-column="column.isEmpty ? 'true' : 'false'"
+              :data-expired="sd(selectedDay) < today ? 'true' : 'false'"
+              :class="theme.main.colBase"
+              @click.self="emitDate(selectedDay)"
+            >
+
+              <div class="absolute z-[0] inset-0 pointer-events-none">
+                <div v-for="(metric, i) in gridMetrics.rows" :key="'grid-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
+              </div>
+
+              <div class="relative z-[0]" data-cal-scroll
+                :style="{ height: gridMetrics.totalHeight + 'px' }">
+                <template v-for="ev in eventsForEventColumn(column)" :key="ev.id||ev.title+ev.start">
+                  <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="selectedDay" :view="effectiveView"
+                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="selectedDay" :view="effectiveView"
+                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="selectedDay" :view="effectiveView"
+                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="selectedDay" :view="effectiveView"
+                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else name="event" :event="ev" :day="selectedDay" :view="effectiveView" :style="styleBlock(ev, selectedDay)"
+                    :onClick="dispatchEventClick"></slot>
+                </template>
+              </div>
+
             </div>
+          </template>
 
-            <div class="relative z-[0]" data-cal-scroll
-              :style="{ height: gridMetrics.totalHeight + 'px', overflowY: 'auto' }">
-              <template v-for="ev in eventsForBodyDay(d)" :key="ev.id||ev.title+ev.start">
-                <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
-                <slot v-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
-                <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
-                <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="d" :view="effectiveView"
-                  :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
-                <slot v-else name="event" :event="ev" :day="d" :view="effectiveView" :style="styleBlock(ev, d)"
-                  :onClick="dispatchEventClick"></slot>
-              </template>
+          <template v-else-if="isWeekEventColumnMode">
+            <div
+              v-for="group in weekEventDayGroups"
+              :key="'week-day-' + group.dateKey"
+              class="relative shrink-0 transition-opacity"
+              :class="[theme.main.colBase, group.isSelected ? 'opacity-100' : 'opacity-30']"
+              :style="{ ...weekEventDayGroupStyle, height: gridMetrics.totalHeight + 'px' }"
+              :data-date="group.dateKey"
+              :data-selected="group.isSelected ? 'true' : 'false'"
+              :data-expired="sd(group.day) < today ? 'true' : 'false'"
+              data-week-day-width="50%"
+              data-test="calendar-week-event-day-group"
+              @click.self="selectWeekDate(group.day)"
+            >
+              <div
+                class="grid h-full min-w-0"
+                :style="eventColumnsGridStyle(group.columns)"
+                data-test="calendar-week-event-day-columns"
+              >
+                <div
+                  v-for="column in group.columns"
+                  :key="'week-event-col-' + group.dateKey + '-' + column.eventId"
+                  :data-date="group.dateKey"
+                  :data-event-id="column.isEmpty ? undefined : column.eventId"
+                  :data-empty-column="column.isEmpty ? 'true' : 'false'"
+                  :data-selected-day="group.isSelected ? 'true' : 'false'"
+                  :data-expired="sd(group.day) < today ? 'true' : 'false'"
+                  :class="[theme.main.colBase, 'min-w-0']"
+                  data-test="calendar-week-event-column"
+                  @click.self="selectWeekDate(group.day)"
+                >
+
+                  <div class="absolute z-[0] inset-0 pointer-events-none">
+                    <div v-for="(metric, i) in gridMetrics.rows" :key="'week-grid-' + group.dateKey + '-' + column.eventId + '-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
+                  </div>
+
+                  <div class="relative z-[0]" data-cal-scroll
+                    :style="{ height: gridMetrics.totalHeight + 'px' }">
+                    <template v-for="ev in eventsForEventColumn(column, group.day)" :key="ev.id||ev.title+ev.start">
+                      <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="group.day" :view="effectiveView"
+                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                      <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="group.day" :view="effectiveView"
+                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                      <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="group.day" :view="effectiveView"
+                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                      <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="group.day" :view="effectiveView"
+                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                      <slot v-else name="event" :event="ev" :day="group.day" :view="effectiveView" :style="styleBlock(ev, group.day)"
+                        :onClick="dispatchEventClick"></slot>
+                    </template>
+                  </div>
+
+                </div>
+              </div>
             </div>
+          </template>
 
-          </div>
+          <template v-else>
+            <div v-for="(d, idx) in bodyDays" :key="'col-' + idx" :data-date="d.toISOString().slice(0, 10)"
+              :data-expired="sd(d) < today ? 'true' : 'false'" :class="theme.main.colBase" @click.self="emitDate(d)">
+
+              <div class="absolute z-[0] inset-0 pointer-events-none">
+                <div v-for="(metric, i) in gridMetrics.rows" :key="'grid-' + i" :class="theme.main.gridRow" :style="{ height: metric.height + 'px' }"></div>
+              </div>
+
+              <div class="relative z-[0]" data-cal-scroll
+                :style="{ height: gridMetrics.totalHeight + 'px' }">
+                <template v-for="ev in eventsForBodyDay(d)" :key="ev.id||ev.title+ev.start">
+                  <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
+                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
+                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
+                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="d" :view="effectiveView"
+                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else name="event" :event="ev" :day="d" :view="effectiveView" :style="styleBlock(ev, d)"
+                    :onClick="dispatchEventClick"></slot>
+                </template>
+              </div>
+
+            </div>
+          </template>
         </span>
+        </div>
       </div>
     </div>
 
-    <div v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div ref="monthViewRef" v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" data-test="calendar-month-view">
 
       <div class="grid grid-cols-7 shrink-0 top-0 sticky w-full backdrop-blur-md z-10">
         <div v-for="(w, index) in shortWeekdays" :key="w"
@@ -440,27 +703,82 @@
         </div>
       </div>
 
-      <div class="flex-1 flex flex-col">
+      <div class="min-h-0 flex-1 flex flex-col">
 
         <div v-for="(row, rowIndex) in monthRows" :key="'row-' + rowIndex" class="contents">
 
-          <div class="grid grid-cols-7 flex-1">
-            <button v-for="(d, i) in row" :key="'m-' + i" type="button" :data-date="d.toISOString().slice(0, 10)" @click="handleMonthDateClick(d)" :class="[
+          <div class="grid min-h-0 grid-cols-7 flex-1 overflow-hidden" data-test="calendar-month-week-row">
+            <button v-for="(d, i) in row" :key="'m-' + i" :ref="(element) => setMonthCellRef(formatLocalDateKey(d), element)" type="button" :data-date="d.toISOString().slice(0, 10)" @click="handleMonthDateClick(d)" :class="[
               theme.month.cellBase,
+              'min-h-0 overflow-hidden',
               d.getMonth() !== cursor.getMonth() ? theme.month.outside : '',
               (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '',
               d.getDay() === 0 ? 'text-red-400' : '',
               expandedDate && sameDay(d, expandedDate) ? 'bg-slate-50' : ''
             ]">
-              <div class="text-sm mb-1" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">
+              <div class="text-sm mb-1" data-test="calendar-month-date-label" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">
                 {{ d.getDate() }}
               </div>
 
-              <div class="space-y-1 w-full">
-                <template v-for="ev in eventsForDay(d)" :key="ev.id || ev.title + ev.start">
-                  <slot :name="resolveEventSlotName(ev)" :event="ev" :day="d" view="month"
-                    :onClick="dispatchEventClick" />
-                </template>
+              <div
+                :ref="(element) => setMonthBookingViewportRef(formatLocalDateKey(d), element)"
+                class="min-h-0 flex-1 w-full overflow-hidden"
+                data-test="calendar-month-bookings"
+                :data-booking-count="monthBookingEventsForDay(d).length"
+                :data-visible-booking-count="monthBookingVisibleCount(d)"
+              >
+                <div :ref="(element) => setMonthBookingContentRef(formatLocalDateKey(d), element)" class="flex w-full flex-col gap-1">
+                  <div
+                    v-for="(booking, bookingIndex) in visibleMonthBookingEventsForDay(d)"
+                    :key="booking.id || booking.title + booking.start"
+                    class="flex h-[1.375rem] w-full shrink-0 items-center gap-1 overflow-hidden"
+                    data-test="calendar-month-booking-row"
+                  >
+                    <div class="min-w-0 flex-1 overflow-hidden">
+                      <slot :name="resolveEventSlotName(booking)" :event="booking" :day="d" view="month"
+                        :onClick="dispatchEventClick" />
+                    </div>
+                    <span
+                      v-if="bookingIndex === visibleMonthBookingEventsForDay(d).length - 1 && monthHiddenBookingCount(d) > 0"
+                      class="shrink-0 text-[0.625rem] font-medium leading-4 text-[#344054]"
+                      data-test="calendar-month-booking-more"
+                    >
+                      +{{ monthHiddenBookingCount(d) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-if="monthAvailabilityEventsForDay(d).length > 0"
+                class="mt-auto flex min-h-0 w-full shrink-0 flex-col gap-1 overflow-hidden"
+                data-test="calendar-month-availability-summary"
+                :data-availability-count="monthAvailabilityEventsForDay(d).length"
+                :data-visible-availability-count="monthAvailabilityVisibleCount(d)"
+              >
+                <div
+                  v-for="(availability, availabilityIndex) in visibleMonthAvailabilityEventsForDay(d)"
+                  :key="'month-availability-' + (availability.eventId || availability.id || availabilityIndex)"
+                  class="flex h-[1.375rem] w-full shrink-0 items-center gap-1 overflow-hidden"
+                  data-test="calendar-month-availability-row"
+                >
+                  <div class="min-w-0 flex-1 overflow-hidden">
+                    <slot
+                      name="event-availability"
+                      :event="availability"
+                      :day="d"
+                      view="month"
+                      :onClick="dispatchEventClick"
+                    />
+                  </div>
+                  <span
+                    v-if="availabilityIndex === visibleMonthAvailabilityEventsForDay(d).length - 1 && monthHiddenAvailabilityCount(d) > 0"
+                    class="shrink-0 text-[0.625rem] font-medium leading-4 text-[#344054]"
+                    data-test="calendar-month-availability-more"
+                  >
+                    +{{ monthHiddenAvailabilityCount(d) }}
+                  </span>
+                </div>
               </div>
             </button>
           </div>
@@ -499,6 +817,64 @@
                 </button>
               </div>
             </slot>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="width >= 1024 && expandedDate && expandedMonthEventCount > 0"
+        ref="monthOverlayRef"
+        class="month-date-overlay absolute z-30 flex flex-col overflow-hidden border border-[#344054] bg-white/95 shadow-[0_12px_32px_rgba(16,24,40,0.22)] backdrop-blur-md"
+        data-test="calendar-month-date-overlay"
+        :data-date="formatLocalDateKey(expandedDate)"
+        :style="monthOverlayStyle"
+        @click.stop
+      >
+        <div class="sticky top-0 z-10 flex h-10 shrink-0 items-center justify-between border-none border-[#D0D5DD] bg-white/95 px-2">
+          <div class="flex items-center gap-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#0C111D] text-sm font-bold text-white" data-test="calendar-month-overlay-date">
+              {{ expandedDate.getDate() }}
+            </span>
+            <span class="hidden text-[0.625rem] font-semibold uppercase text-[#667085]">
+              {{ shortWeekdays[expandedDate.getDay()] }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="hidden _flex h-7 w-7 items-center justify-center text-[#667085] hover:text-[#101828]"
+            data-test="calendar-month-overlay-close"
+            :aria-label="t('common_close')"
+            @click.stop="closeMonthDateOverlay"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="min-h-0 flex-1 space-y-1 overflow-y-auto p-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div data-test="calendar-month-overlay-bookings" class="space-y-1">
+            <template v-for="event in expandedMonthBookingEvents" :key="'month-overlay-booking-' + (event.id || event.eventId || event.title + event.start)">
+              <slot
+                :name="resolveEventSlotName(event)"
+                :event="event"
+                :day="expandedDate"
+                view="month"
+                :onClick="handleMonthOverlayBookingClick"
+              />
+            </template>
+          </div>
+
+          <div v-if="expandedMonthAvailabilityEvents.length > 0" data-test="calendar-month-overlay-availabilities" class="space-y-1">
+            <template v-for="availability in expandedMonthAvailabilityEvents" :key="'month-overlay-availability-' + (availability.eventId || availability.id || availability.title + availability.start)">
+              <slot
+                name="event-availability"
+                :event="availability"
+                :day="expandedDate"
+                view="month"
+                :onClick="dispatchEventClick"
+              />
+            </template>
           </div>
         </div>
       </div>
@@ -609,7 +985,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { SOD, addDays, addMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, timeToMinutes, overlaps, monthNames } from '@/utils/calendarHelpers.js';
 import CheckboxGroup from '../ui/form/checkbox/CheckboxGroup.vue';
 import { onUnmounted } from 'vue';
@@ -651,10 +1027,11 @@ const props = defineProps({
   timeEnd: { type: String, default: '23:00' },
   slotMinutes: { type: Number, default: 60 },
   rowHeightPx: { type: Number, default: 64 },
-  minEventHeightPx: { type: Number, default: 0 }
+  minEventHeightPx: { type: Number, default: 0 },
+  dayColumnMode: { type: String, default: 'dates' }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -662,8 +1039,27 @@ const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const calendarRootRef = ref(null);
 const timeGridBodyRef = ref(null);
+const timeGridScrollRef = ref(null);
+const mobileDayStripRef = ref(null);
+const weekHeaderScrollRef = ref(null);
+const weekBodyScrollRef = ref(null);
+const monthCellRefs = new Map();
+const monthBookingViewportRefs = new Map();
+const monthBookingContentRefs = new Map();
+const monthBookingVisibleCounts = ref({});
+const monthAvailabilityVisibleCounts = ref({});
+let monthAvailabilityResizeObserver = null;
+let monthAvailabilityLayoutFrame = null;
+const weekHeaderMouseDrag = ref({
+  active: false,
+  dragging: false,
+  startX: 0,
+  startLeft: 0,
+});
+const suppressWeekHeaderClick = ref(false);
 const nowTimer = ref(null);
 const nowY = ref(0);
+const currentTimeMs = ref(Date.now());
 // State for dropdown
 const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
@@ -689,6 +1085,9 @@ const chatStore = useChatStore();
 const { sendChatMessage } = useChatSocket();
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
+const monthViewRef = ref(null);
+const monthOverlayRef = ref(null);
+const monthOverlayStyle = ref({});
 const mobileCalendarRef = ref(null);
 const canCreateEvents = computed(() => props.userRole === 'creator');
 
@@ -742,14 +1141,39 @@ const expandedDayEvents = computed(() => (
   expandedDate.value ? getExpandableMonthEvents(expandedDate.value) : []
 ));
 
+const expandedMonthBookingEvents = computed(() => (
+  expandedDate.value ? monthBookingEventsForDay(expandedDate.value) : []
+));
+
+const expandedMonthAvailabilityEvents = computed(() => (
+  expandedDate.value ? monthAvailabilityEventsForDay(expandedDate.value) : []
+));
+
+const expandedMonthEventCount = computed(() => (
+  expandedMonthBookingEvents.value.length + expandedMonthAvailabilityEvents.value.length
+));
+
 const resolveEventSlotName = (event = {}) => {
   if (!event?.slot || event.slot === 'event') return 'event';
   return `event-${event.slot}`;
 };
 
 const handleMonthDateClick = (d) => {
-  // Check if it's a large screen (lg breakpoint is usually 1024px)
-  if (window.innerWidth >= 1024) return;
+  if (window.innerWidth >= 1024) {
+    const hasEvents = monthBookingEventsForDay(d).length > 0
+      || monthAvailabilityEventsForDay(d).length > 0;
+
+    if (!hasEvents || (expandedDate.value && sameDay(d, expandedDate.value))) {
+      expandedDate.value = null;
+      monthOverlayStyle.value = {};
+    } else {
+      expandedDate.value = new Date(d);
+      positionMonthDateOverlay(d);
+    }
+
+    emitDate(d);
+    return;
+  }
 
   const dayEvents = getExpandableMonthEvents(d);
 
@@ -764,6 +1188,16 @@ const handleMonthDateClick = (d) => {
   }
   emitDate(d);
 };
+
+function closeMonthDateOverlay() {
+  expandedDate.value = null;
+  monthOverlayStyle.value = {};
+}
+
+function handleMonthOverlayBookingClick(event) {
+  closeMonthDateOverlay();
+  dispatchEventClick(event);
+}
 
 
 
@@ -852,6 +1286,42 @@ const effectiveView = computed(() => {
   return view.value;
 });
 
+const isEventColumnMode = computed(() => (
+  ['day', 'week'].includes(effectiveView.value)
+  && props.variant === 'default'
+  && props.dayColumnMode === 'events'
+));
+
+const isDayEventColumnMode = computed(() => (
+  isEventColumnMode.value && effectiveView.value === 'day'
+));
+
+const isWeekEventColumnMode = computed(() => (
+  isEventColumnMode.value && effectiveView.value === 'week'
+));
+
+const isMobileDayEventColumnMode = computed(() => (
+  isDayEventColumnMode.value && width.value < 1024
+));
+
+function formatLocalDateKey(date) {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const selectedDay = computed(() => new Date(cursor.value));
+const selectedDayIso = computed(() => formatLocalDateKey(selectedDay.value));
+const dayModeTitle = computed(() => selectedDay.value.toLocaleDateString(locale.value, {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+}).toUpperCase());
+
 const range = computed(() => {
   const sMin = timeToMinutes(props.timeStart);
   const eMin = timeToMinutes(props.timeEnd);
@@ -875,7 +1345,22 @@ const weekDays = computed(() => {
   return Array.from({ length: 7 }, (_, i) => addDays(s, i));
 });
 
+const selectedWeekContainsToday = computed(() => (
+  weekDays.value.some((day) => sameDay(day, today.value))
+));
+
+const mobileDayStripDays = computed(() => {
+  if (!isMobileDayEventColumnMode.value) return [];
+
+  const s = startOfWeek(selectedDay.value);
+  return Array.from({ length: 7 }, (_, i) => addDays(s, i));
+});
+
 const headerDays = computed(() => {
+  if (isDayEventColumnMode.value) {
+    return [cursor.value];
+  }
+
   if (effectiveView.value === 'day') {
     return [addDays(cursor.value, -1), cursor.value, addDays(cursor.value, 1)];
   }
@@ -893,15 +1378,35 @@ const days = computed(() => {
 });
 
 const bodyDays = computed(() => {
+  if (isDayEventColumnMode.value) {
+    return [cursor.value];
+  }
+
   if (effectiveView.value === 'day') {
     return [addDays(cursor.value, -1), cursor.value, addDays(cursor.value, 1)];
   }
   return days.value;
 });
 
-// CHANGE 4: Refined Normalized Logic for JSON Handling
-// The .map function with `new Date(ev.start)` automatically handles ISO strings.
-// Added a filter check to ensure ev.start/ev.end exist before processing to prevent crashes on bad JSON.
+function resolveCalendarBookingStatus(event = {}) {
+  const raw = event?.raw && typeof event.raw === 'object' ? event.raw : {};
+  return String(
+    event?.status
+      || event?.bookingStatus
+      || raw?.status
+      || raw?.bookingStatus
+      || '',
+  ).trim().toLowerCase();
+}
+
+function isCompletedCalendarBooking(event = {}, comparisonTimeMs = currentTimeMs.value) {
+  if (event?.isAvailabilityBlock === true) return false;
+  if (resolveCalendarBookingStatus(event) === 'completed') return true;
+
+  const endTimeMs = new Date(event?.end).getTime();
+  return Number.isFinite(endTimeMs) && endTimeMs <= comparisonTimeMs;
+}
+
 const normalized = computed(() => {
   let evs = props.events || [];
 
@@ -909,6 +1414,9 @@ const normalized = computed(() => {
     evs = evs.filter((ev) => {
       const isAvailabilityBlock = ev?.isAvailabilityBlock === true;
       if (isAvailabilityBlock && !showSchedule.value) return false;
+      if (!isAvailabilityBlock
+        && !dropdownFilters.value.showCompleted
+        && isCompletedCalendarBooking(ev, currentTimeMs.value)) return false;
 
       const rawCallType = String(
         ev?.eventCallType
@@ -981,6 +1489,212 @@ function resolveCountEventId(event = {}) {
   return resolved || null;
 }
 
+function resolveDayColumnEventId(event = {}) {
+  return resolveCountEventId(event) || String(event?.eventId || event?.id || '').trim() || null;
+}
+
+function eventOverlapsDay(event = {}, day = null) {
+  const dayStart = day ? SOD(day) : null;
+  if (!dayStart || !event?.start || !event?.end) return false;
+
+  const dayEnd = addDays(dayStart, 1);
+  return event.start < dayEnd && event.end > dayStart;
+}
+
+function resolveDayColumnTitle(event = {}) {
+  const candidates = [
+    event?.title,
+    event?.eventTitle,
+    event?.raw?.title,
+    event?.raw?.eventTitle,
+    event?.raw?.event?.title,
+    event?.raw?.eventCurrent?.title,
+    event?.raw?.eventSnapshot?.title,
+  ];
+
+  return candidates
+    .map((value) => String(value || '').trim())
+    .find(Boolean) || '';
+}
+
+function toTimestampMs(value) {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  const ms = parsed.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function resolveDayColumnCreatedAtMs(event = {}) {
+  const raw = event?.raw && typeof event.raw === 'object' ? event.raw : {};
+  const rawEvent = raw?.event && typeof raw.event === 'object' ? raw.event : {};
+  const rawCurrent = raw?.eventCurrent && typeof raw.eventCurrent === 'object' ? raw.eventCurrent : {};
+  const rawSnapshot = raw?.eventSnapshot && typeof raw.eventSnapshot === 'object' ? raw.eventSnapshot : {};
+
+  const candidates = [
+    event?.createdAt,
+    event?.created_at,
+    event?.createdOn,
+    event?.created_on,
+    raw?.createdAt,
+    raw?.created_at,
+    raw?.createdOn,
+    raw?.created_on,
+    rawEvent?.createdAt,
+    rawEvent?.created_at,
+    rawEvent?.createdOn,
+    rawEvent?.created_on,
+    rawCurrent?.createdAt,
+    rawCurrent?.created_at,
+    rawCurrent?.createdOn,
+    rawCurrent?.created_on,
+    rawSnapshot?.createdAt,
+    rawSnapshot?.created_at,
+    rawSnapshot?.createdOn,
+    rawSnapshot?.created_on,
+  ];
+
+  for (const candidate of candidates) {
+    const timestamp = toTimestampMs(candidate);
+    if (timestamp != null) return timestamp;
+  }
+
+  return null;
+}
+
+function buildEventColumnsForDay(day) {
+  const columns = new Map();
+
+  normalized.value.forEach((event) => {
+    if (!eventOverlapsDay(event, day)) return;
+
+    const eventId = resolveDayColumnEventId(event);
+    if (!eventId) return;
+
+    const existing = columns.get(eventId) || {
+      eventId,
+      title: '',
+      createdAtMs: Infinity,
+      firstStartMs: Infinity,
+      hasAvailability: false,
+      hasBooking: false,
+      isEmpty: false,
+    };
+
+    const createdAtMs = resolveDayColumnCreatedAtMs(event);
+    if (createdAtMs != null) {
+      existing.createdAtMs = Math.min(existing.createdAtMs, createdAtMs);
+    }
+
+    existing.firstStartMs = Math.min(existing.firstStartMs, event.start.getTime());
+    existing.hasAvailability = existing.hasAvailability || event.isAvailabilityBlock === true;
+    existing.hasBooking = existing.hasBooking || event.isAvailabilityBlock !== true;
+
+    const title = resolveDayColumnTitle(event);
+    if (title && (!existing.title || event.isAvailabilityBlock)) {
+      existing.title = title;
+    }
+
+    columns.set(eventId, existing);
+  });
+
+  const sortedColumns = Array.from(columns.values()).sort((left, right) => {
+    const leftCreatedAt = Number.isFinite(left.createdAtMs) ? left.createdAtMs : null;
+    const rightCreatedAt = Number.isFinite(right.createdAtMs) ? right.createdAtMs : null;
+    if (leftCreatedAt != null && rightCreatedAt != null && leftCreatedAt !== rightCreatedAt) {
+      return leftCreatedAt - rightCreatedAt;
+    }
+    if (leftCreatedAt != null && rightCreatedAt == null) return -1;
+    if (leftCreatedAt == null && rightCreatedAt != null) return 1;
+
+    const leftStart = Number.isFinite(left.firstStartMs) ? left.firstStartMs : 0;
+    const rightStart = Number.isFinite(right.firstStartMs) ? right.firstStartMs : 0;
+    if (leftStart !== rightStart) return leftStart - rightStart;
+
+    const titleCompare = String(left.title || '').localeCompare(String(right.title || ''), locale.value);
+    if (titleCompare !== 0) return titleCompare;
+
+    return String(left.eventId).localeCompare(String(right.eventId));
+  });
+
+  return sortedColumns.length > 0
+    ? sortedColumns
+    : [{
+      eventId: `__empty_${formatLocalDateKey(day) || 'day'}__`,
+      title: '',
+      createdAtMs: 0,
+      firstStartMs: 0,
+      hasAvailability: false,
+      hasBooking: false,
+      isEmpty: true,
+    }];
+}
+
+const eventColumnDays = computed(() => {
+  if (!isEventColumnMode.value) return [];
+  return isWeekEventColumnMode.value ? weekDays.value : [selectedDay.value];
+});
+
+const eventColumnsByDay = computed(() => {
+  if (!isEventColumnMode.value) return {};
+
+  return eventColumnDays.value.reduce((acc, day) => {
+    acc[formatLocalDateKey(day)] = buildEventColumnsForDay(day);
+    return acc;
+  }, {});
+});
+
+const eventColumnsForDay = (day) => (
+  eventColumnsByDay.value[formatLocalDateKey(day)] || []
+);
+
+const dayEventColumns = computed(() => {
+  if (!isDayEventColumnMode.value) return [];
+  return eventColumnsForDay(selectedDay.value);
+});
+
+const weekEventDayGroups = computed(() => {
+  if (!isWeekEventColumnMode.value) return [];
+
+  return weekDays.value.map((day) => ({
+    day,
+    dateKey: formatLocalDateKey(day),
+    columns: eventColumnsForDay(day),
+    isSelected: sameDay(day, selectedDay.value),
+  }));
+});
+
+const weekEventTrackStyle = computed(() => {
+  if (!isWeekEventColumnMode.value) return {};
+
+  return {
+    width: '350%',
+    minWidth: '350%',
+  };
+});
+
+const weekEventDayGroupStyle = computed(() => ({
+  flex: '0 0 calc(100% / 7)',
+  width: 'calc(100% / 7)',
+}));
+
+const eventColumnsGridStyle = (columns = []) => ({
+  gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`,
+});
+
+const timeGridColumnStyle = computed(() => {
+  if (isWeekEventColumnMode.value) return weekEventTrackStyle.value;
+  if (!isDayEventColumnMode.value) return {};
+
+  const count = Math.max(1, dayEventColumns.value.length);
+  const minColumnRem = width.value < 640 ? 7.5 : 8.5;
+
+  return {
+    gridTemplateColumns: `repeat(${count}, minmax(${minColumnRem}rem, 1fr))`,
+    minWidth: `max(100%, ${count * minColumnRem}rem)`,
+  };
+});
+
 const filteredBookedSlotsCount = computed(() => {
   const countedEventIds = new Set();
 
@@ -1005,15 +1719,31 @@ const shortWeekdays = computed(() => [
 ]);
 
 const title = computed(() => {
+  if (isDayEventColumnMode.value) {
+    return dayModeTitle.value;
+  }
+
   const d = cursor.value;
   return d.toLocaleDateString(locale.value, { month: "long", year: "numeric" });
 });
 
 const currentMonth = computed(() => cursor.value.toLocaleDateString(locale.value, { month: "long" }));
 const currentYear = computed(() => cursor.value.getFullYear());
+const mobileCalendarTitle = computed(() => cursor.value.toLocaleDateString(locale.value, {
+  month: "long",
+  year: "numeric",
+}).toUpperCase());
 
-watch(() => props.focusDate, (v) => { if (v) { cursor.value = new Date(v); } });
-
+watch(() => props.focusDate, (v) => {
+  if (!v) return;
+  if (expandedDate.value && !sameDay(v, expandedDate.value)) {
+    closeMonthDateOverlay();
+  }
+  cursor.value = new Date(v);
+});
+watch([isMobileDayEventColumnMode, selectedDayIso], () => {
+  centerMobileDayStrip();
+}, { flush: 'post' });
 function formatTime(time) {
   const [hour, rest] = time.split(':');
   const period = rest.split(' ')[1]?.toLowerCase();
@@ -1082,9 +1812,15 @@ function formatEventStatus(status) {
 
 const sd = (d) => SOD(d);
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const shouldShowCurrentTimeForView = () => {
+  const todayStart = SOD(new Date());
+  if (isDayEventColumnMode.value) return sameDay(selectedDay.value, todayStart);
+  if (isWeekEventColumnMode.value) return selectedWeekContainsToday.value;
+  return sameDay(cursor.value, todayStart);
+};
 const isNowLabel = (label) => {
   const now = new Date();
-  if (!sameDay(cursor.value, SOD(now))) return false;
+  if (!shouldShowCurrentTimeForView()) return false;
   if (typeof label !== 'string') return false;
   const match = label.match(/^(\d{1,2}):(\d{2})\s?(am|pm)$/i);
   if (!match) return false;
@@ -1098,6 +1834,173 @@ const isNowLabel = (label) => {
   return cur >= labelMinutes && cur < labelMinutes + props.slotMinutes;
 };
 const emitDate = (d) => { if (!d) return; emit('date-selected', new Date(d)); };
+const emitFocusDate = (d) => {
+  if (!d) return;
+  const date = new Date(d);
+  emit('date-selected', new Date(date));
+  emit('update:focus-date', new Date(date));
+};
+
+const centerMobileDayStrip = () => {
+  nextTick(() => {
+    if (!isMobileDayEventColumnMode.value) return;
+    const selected = mobileDayStripRef.value?.querySelector?.('[data-selected="true"]');
+    if (!selected || typeof selected.scrollIntoView !== 'function') return;
+
+    selected.scrollIntoView({
+      behavior: 'auto',
+      block: 'nearest',
+      inline: 'center',
+    });
+  });
+};
+
+const syncWeekHorizontalScroll = (source) => {
+  if (!isWeekEventColumnMode.value) return;
+
+  const sourceEl = source === 'header' ? weekHeaderScrollRef.value : weekBodyScrollRef.value;
+  const targetEl = source === 'header' ? weekBodyScrollRef.value : weekHeaderScrollRef.value;
+  if (!sourceEl || !targetEl) return;
+
+  const sourceMax = Math.max(0, sourceEl.scrollWidth - sourceEl.clientWidth);
+  const targetMax = Math.max(0, targetEl.scrollWidth - targetEl.clientWidth);
+  const ratio = sourceMax > 0 ? sourceEl.scrollLeft / sourceMax : 0;
+  const targetLeft = targetMax > 0 ? ratio * targetMax : sourceEl.scrollLeft;
+
+  // Ignore the matching scroll event generated by this assignment. Comparing
+  // positions avoids a header/body feedback loop without dropping user input.
+  if (Math.abs(targetEl.scrollLeft - targetLeft) > 0.5) {
+    targetEl.scrollLeft = targetLeft;
+  }
+};
+
+const getWeekHorizontalScrollElement = (source) => (
+  source === 'header' ? weekHeaderScrollRef.value : weekBodyScrollRef.value
+);
+
+const scrollWeekHorizontally = (source, delta) => {
+  if (!isWeekEventColumnMode.value || !Number.isFinite(delta) || delta === 0) return false;
+
+  const element = getWeekHorizontalScrollElement(source);
+  if (!element) return false;
+
+  const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+  if (maxScrollLeft <= 1) return false;
+
+  const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, element.scrollLeft + delta));
+  if (Math.abs(nextScrollLeft - element.scrollLeft) < 0.5) return false;
+
+  element.scrollLeft = nextScrollLeft;
+  syncWeekHorizontalScroll(source);
+  return true;
+};
+
+const handleWeekHorizontalWheel = (event, source) => {
+  if (!isWeekEventColumnMode.value) return;
+
+  // Horizontal trackpad gestures are handled natively for momentum and touch
+  // physics. Translate only a vertical mouse-wheel gesture over the header.
+  if (Math.abs(event.deltaY) > Math.abs(event.deltaX) && scrollWeekHorizontally(source, event.deltaY)) {
+    event.preventDefault();
+  }
+};
+
+const handleWeekBodyWheel = (event) => {
+  if (!isWeekEventColumnMode.value) return;
+  if (!event.shiftKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+  if (scrollWeekHorizontally('body', event.deltaY)) {
+    event.preventDefault();
+  }
+};
+
+const isWeekHeaderMouseDragging = computed(() => weekHeaderMouseDrag.value.dragging);
+
+const beginWeekHeaderMouseDrag = (event) => {
+  if (!isWeekEventColumnMode.value || event.button !== 0) return;
+
+  const element = weekHeaderScrollRef.value;
+  if (!element || element.scrollWidth - element.clientWidth <= 1) return;
+
+  weekHeaderMouseDrag.value = {
+    active: true,
+    dragging: false,
+    startX: event.clientX,
+    startLeft: element.scrollLeft,
+  };
+  suppressWeekHeaderClick.value = false;
+};
+
+const moveWeekHeaderMouseDrag = (event) => {
+  const drag = weekHeaderMouseDrag.value;
+  if (!drag.active) return;
+
+  const delta = drag.startX - event.clientX;
+  if (!drag.dragging && Math.abs(delta) < 5) return;
+
+  drag.dragging = true;
+  suppressWeekHeaderClick.value = true;
+
+  const element = weekHeaderScrollRef.value;
+  if (!element) return;
+
+  const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+  element.scrollLeft = Math.max(0, Math.min(maxScrollLeft, drag.startLeft + delta));
+  syncWeekHorizontalScroll('header');
+  event.preventDefault();
+};
+
+const endWeekHeaderMouseDrag = () => {
+  if (!weekHeaderMouseDrag.value.active) return;
+
+  const dragged = weekHeaderMouseDrag.value.dragging;
+  weekHeaderMouseDrag.value = {
+    active: false,
+    dragging: false,
+    startX: 0,
+    startLeft: 0,
+  };
+
+  if (dragged) {
+    setTimeout(() => {
+      suppressWeekHeaderClick.value = false;
+    }, 0);
+  }
+};
+
+const handleWeekHeaderClickCapture = (event) => {
+  if (!suppressWeekHeaderClick.value) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  suppressWeekHeaderClick.value = false;
+};
+
+const selectMobileDayDate = (date) => {
+  if (!date) return;
+  cursor.value = new Date(date);
+  emitFocusDate(cursor.value);
+  centerMobileDayStrip();
+};
+
+const selectWeekDate = (date) => {
+  if (!date) return;
+  cursor.value = new Date(date);
+  emitFocusDate(cursor.value);
+};
+
+const selectTodayForMobileDay = () => {
+  if (!isMobileDayEventColumnMode.value) return;
+
+  const todayDate = SOD(new Date());
+  if (!sameDay(cursor.value, todayDate)) {
+    cursor.value = new Date(todayDate);
+    emitFocusDate(cursor.value);
+  }
+
+  centerMobileDayStrip();
+};
+
 const dispatchEventClick = (event) => {
   // console.log('Event clicked:', event);
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
@@ -1282,16 +2185,18 @@ const processedEventsByDay = computed(() => {
     const stacked = [];
     sorted.forEach(ev => {
       const boundsEv = getVisualBounds(ev, sMin, eMin, step, minHeightPx, day);
+      const stackGroup = isEventColumnMode.value ? (resolveDayColumnEventId(ev) || '__eventless__') : '__day__';
       let order = 0;
       
       if (!boundsEv.isValid) {
-        stacked.push({...ev, stackOrder: 0});
+        stacked.push({...ev, stackOrder: 0, stackGroup});
         return;
       }
 
       while (true) {
         const overlappingInOrder = stacked.find(s => {
           if (s.stackOrder !== order) return false;
+          if ((s.stackGroup || '__day__') !== stackGroup) return false;
           if (s.isAvailabilityBlock || ev.isAvailabilityBlock) return false;
           const boundsS = getVisualBounds(s, sMin, eMin, step, minHeightPx, day);
           if (!boundsS.isValid) return false;
@@ -1299,7 +2204,7 @@ const processedEventsByDay = computed(() => {
         });
         
         if (!overlappingInOrder) {
-          stacked.push({...ev, stackOrder: order});
+          stacked.push({...ev, stackOrder: order, stackGroup});
           break;
         }
         order++;
@@ -1368,8 +2273,256 @@ const eventsForDay = (day) => {
   return processedEventsByDay.value[key] || [];
 };
 
+const monthBookingEventsForDay = (day) => eventsForDay(day).filter((event) => (
+  event?.isAvailabilityBlock !== true && event?.slot !== 'availability'
+));
+
+const monthBookingVisibleCount = (day) => {
+  const total = monthBookingEventsForDay(day).length;
+  if (total === 0) return 0;
+
+  const measured = monthBookingVisibleCounts.value[formatLocalDateKey(day)];
+  return Math.max(1, Math.min(total, Number.isFinite(measured) ? measured : total));
+};
+
+const visibleMonthBookingEventsForDay = (day) => (
+  monthBookingEventsForDay(day).slice(0, monthBookingVisibleCount(day))
+);
+
+const monthHiddenBookingCount = (day) => (
+  Math.max(0, monthBookingEventsForDay(day).length - monthBookingVisibleCount(day))
+);
+
+const monthAvailabilityEventsForDay = (day) => {
+  const seen = new Set();
+
+  return eventsForDay(day).filter((event) => {
+    if (event?.isAvailabilityBlock !== true && event?.slot !== 'availability') return false;
+
+    const resourceKey = resolveDayColumnEventId(event)
+      || event?.id
+      || `${event?.title || ''}-${event?.start?.getTime?.() || event?.start || ''}`;
+    if (seen.has(resourceKey)) return false;
+    seen.add(resourceKey);
+    return true;
+  });
+};
+
+const monthAvailabilityVisibleCount = (day) => {
+  const total = monthAvailabilityEventsForDay(day).length;
+  if (total === 0) return 0;
+
+  const measured = monthAvailabilityVisibleCounts.value[formatLocalDateKey(day)];
+  return Math.max(1, Math.min(total, Number.isFinite(measured) ? measured : 1));
+};
+
+const visibleMonthAvailabilityEventsForDay = (day) => (
+  monthAvailabilityEventsForDay(day).slice(0, monthAvailabilityVisibleCount(day))
+);
+
+const monthHiddenAvailabilityCount = (day) => (
+  Math.max(0, monthAvailabilityEventsForDay(day).length - monthAvailabilityVisibleCount(day))
+);
+
+function setMonthObservedElement(collection, key, element) {
+  const previous = collection.get(key);
+  if (previous && previous !== element) {
+    monthAvailabilityResizeObserver?.unobserve(previous);
+  }
+
+  if (!element) {
+    collection.delete(key);
+    return;
+  }
+
+  collection.set(key, element);
+  monthAvailabilityResizeObserver?.observe(element);
+  scheduleMonthAvailabilityLayout();
+}
+
+function setMonthCellRef(key, element) {
+  setMonthObservedElement(monthCellRefs, key, element);
+}
+
+function setMonthBookingViewportRef(key, element) {
+  setMonthObservedElement(monthBookingViewportRefs, key, element);
+}
+
+function setMonthBookingContentRef(key, element) {
+  setMonthObservedElement(monthBookingContentRefs, key, element);
+}
+
+function recalculateMonthAvailabilityLayout() {
+  if (effectiveView.value !== 'month' || typeof window === 'undefined') return;
+
+  const nextAvailabilityCounts = { ...monthAvailabilityVisibleCounts.value };
+  const nextBookingCounts = { ...monthBookingVisibleCounts.value };
+  let availabilityChanged = false;
+  let bookingChanged = false;
+
+  monthCellRefs.forEach((cell, key) => {
+    const day = days.value.find((candidate) => formatLocalDateKey(candidate) === key);
+    if (!day) return;
+
+    const bookingTotal = monthBookingEventsForDay(day).length;
+    if (bookingTotal === 0) {
+      if (key in nextBookingCounts) {
+        delete nextBookingCounts[key];
+        bookingChanged = true;
+      }
+    } else {
+      const bookingViewportHeight = monthBookingViewportRefs.get(key)?.clientHeight || 0;
+      const rowHeight = 22;
+      const rowGap = 4;
+      const fittingBookingRows = bookingViewportHeight > 0
+        ? Math.floor((bookingViewportHeight + rowGap) / (rowHeight + rowGap))
+        : bookingTotal;
+      const visibleBookingCount = Math.max(1, Math.min(bookingTotal, fittingBookingRows));
+
+      if (nextBookingCounts[key] !== visibleBookingCount) {
+        nextBookingCounts[key] = visibleBookingCount;
+        bookingChanged = true;
+      }
+    }
+
+    const availabilityTotal = monthAvailabilityEventsForDay(day).length;
+    if (availabilityTotal === 0) {
+      if (key in nextAvailabilityCounts) {
+        delete nextAvailabilityCounts[key];
+        availabilityChanged = true;
+      }
+      return;
+    }
+
+    const cellStyle = window.getComputedStyle(cell);
+    const paddingTop = Number.parseFloat(cellStyle.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(cellStyle.paddingBottom) || 0;
+    const dateLabel = cell.querySelector('[data-test="calendar-month-date-label"]');
+    const dateLabelStyle = dateLabel ? window.getComputedStyle(dateLabel) : null;
+    const dateLabelHeight = dateLabel
+      ? dateLabel.offsetHeight + (Number.parseFloat(dateLabelStyle?.marginBottom) || 0)
+      : 0;
+    const estimatedBookingHeight = bookingTotal > 0
+      ? bookingTotal * 22 + (bookingTotal - 1) * 4
+      : 0;
+    const bookingHeight = Math.max(
+      estimatedBookingHeight,
+      monthBookingContentRefs.get(key)?.scrollHeight || 0,
+    );
+    const availableHeight = Math.max(
+      0,
+      cell.clientHeight - paddingTop - paddingBottom - dateLabelHeight - bookingHeight,
+    );
+    const rowHeight = 22;
+    const rowGap = 4;
+    const fittingRows = Math.floor((availableHeight + rowGap) / (rowHeight + rowGap));
+    const visibleCount = Math.max(1, Math.min(availabilityTotal, fittingRows));
+
+    if (nextAvailabilityCounts[key] !== visibleCount) {
+      nextAvailabilityCounts[key] = visibleCount;
+      availabilityChanged = true;
+    }
+  });
+
+  if (bookingChanged) {
+    monthBookingVisibleCounts.value = nextBookingCounts;
+  }
+  if (availabilityChanged) {
+    monthAvailabilityVisibleCounts.value = nextAvailabilityCounts;
+  }
+}
+
+function scheduleMonthAvailabilityLayout() {
+  if (typeof window === 'undefined') return;
+
+  if (monthAvailabilityLayoutFrame != null && typeof window.cancelAnimationFrame === 'function') {
+    window.cancelAnimationFrame(monthAvailabilityLayoutFrame);
+  }
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    monthAvailabilityLayoutFrame = window.requestAnimationFrame(() => {
+      monthAvailabilityLayoutFrame = null;
+      recalculateMonthAvailabilityLayout();
+    });
+    return;
+  }
+
+  nextTick(recalculateMonthAvailabilityLayout);
+}
+
+async function positionMonthDateOverlay(day = expandedDate.value) {
+  if (!day || width.value < 1024 || effectiveView.value !== 'month') return;
+
+  await nextTick();
+  if (!expandedDate.value || !sameDay(day, expandedDate.value)) return;
+
+  const root = monthViewRef.value;
+  const cell = monthCellRefs.get(formatLocalDateKey(day));
+  if (!root || !cell) return;
+
+  const rootRect = root.getBoundingClientRect();
+  const cellRect = cell.getBoundingClientRect();
+  const viewportWidth = root.clientWidth || rootRect.width || 700;
+  const viewportHeight = root.clientHeight || rootRect.height || 560;
+  const cellWidth = cellRect.width || viewportWidth / 7;
+  const cellHeight = cellRect.height || viewportHeight / Math.max(1, monthRows.value.length);
+  const widthPx = Math.min(Math.max(cellWidth * 1.539, 194.4), Math.max(194.4, viewportWidth - 16));
+  const maxHeightPx = Math.max(160, viewportHeight - 16);
+  const contentHeightPx = 52 + expandedMonthEventCount.value * 26;
+  const heightPx = Math.min(
+    maxHeightPx,
+    Math.max(cellHeight, 104, contentHeightPx),
+  );
+  const visibleLeft = (root.scrollLeft || 0) + 8;
+  const visibleTop = (root.scrollTop || 0) + 8;
+  const maxLeft = Math.max(visibleLeft, visibleLeft + viewportWidth - widthPx - 16);
+  const maxTop = Math.max(visibleTop, visibleTop + viewportHeight - heightPx - 16);
+  const naturalLeft = cellRect.left - rootRect.left + (root.scrollLeft || 0);
+  const naturalTop = cellRect.top - rootRect.top + (root.scrollTop || 0);
+
+  monthOverlayStyle.value = {
+    left: `${Math.min(maxLeft, Math.max(visibleLeft, naturalLeft))}px`,
+    top: `${Math.min(maxTop, Math.max(visibleTop, naturalTop))}px`,
+    width: `${widthPx}px`,
+    height: `${heightPx}px`,
+    maxHeight: `${maxHeightPx}px`,
+  };
+}
+
+function handleMonthOverlayOutsideClick(event) {
+  if (width.value < 1024 || !expandedDate.value) return;
+  const target = event.target;
+  if (monthOverlayRef.value?.contains(target)) return;
+  if (target?.closest?.('[data-date]')) return;
+  closeMonthDateOverlay();
+}
+
+function handleMonthOverlayKeydown(event) {
+  if (event.key === 'Escape' && width.value >= 1024 && expandedDate.value) {
+    closeMonthDateOverlay();
+  }
+}
+
+watch([effectiveView, processedEventsByDay], () => {
+  nextTick(scheduleMonthAvailabilityLayout);
+}, { flush: 'post' });
+
+watch(expandedMonthEventCount, () => {
+  if (expandedDate.value && width.value >= 1024) {
+    positionMonthDateOverlay();
+  }
+});
+
 const eventsForBodyDay = (day) => {
   return eventsForDay(day);
+};
+
+const eventsForEventColumn = (column, day = selectedDay.value) => {
+  if (!column || column.isEmpty) return [];
+
+  return eventsForDay(day).filter((event) => (
+    resolveDayColumnEventId(event) === column.eventId
+  ));
 };
 
 const minuteToGridOffset = (minute) => {
@@ -1408,8 +2561,48 @@ const styleBlock = (ev, day = null) => {
 
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
 };
-const setView = (v) => { view.value = v; };
+
+const currentMinute = () => {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+};
+
+const showNowLine = computed(() => {
+  void nowY.value;
+  if (!isEventColumnMode.value) return false;
+  if (!shouldShowCurrentTimeForView()) return false;
+
+  const { sMin, eMin } = range.value;
+  const minute = currentMinute();
+  return minute >= sMin && minute <= eMin;
+});
+
+const nowLineTopPx = computed(() => {
+  void nowY.value;
+  const { sMin, eMin } = range.value;
+  const minute = Math.min(eMin, Math.max(sMin, currentMinute()));
+  return minuteToGridOffset(minute);
+});
+
+const setView = (v) => {
+  closeMonthDateOverlay();
+  view.value = v;
+  emit('view-changed', v);
+  if (v === 'day') {
+    selectTodayForMobileDay();
+  }
+};
+
+const ensureMobileEventDayView = () => {
+  if (width.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
+  if (view.value === 'day') return false;
+
+  setView('day');
+  return true;
+};
+
 const shift = (n) => {
+  closeMonthDateOverlay();
   const v = effectiveView.value;
   if (v === 'month') {
     cursor.value = addMonths(cursor.value, n);
@@ -1424,18 +2617,34 @@ const shift = (n) => {
 };
 
 const goToday = () => {
+  closeMonthDateOverlay();
   cursor.value = new Date();
   emit('date-selected', new Date(cursor.value)); // Sync on Today click
 };
 const updateNowLine = () => {
   const { sMin, eMin } = range.value;
   const now = new Date();
+  currentTimeMs.value = now.getTime();
   if (!sameDay(cursor.value, SOD(now))) { nowY.value = 0; return; }
   const cur = now.getHours() * 60 + now.getMinutes();
   const pct = ((cur - sMin) / Math.max(1, (eMin - sMin))) * 100;
   nowY.value = Math.min(100, Math.max(0, pct));
 };
-const handleResize = () => { width.value = window.innerWidth; };
+const handleResize = () => {
+  const previousWidth = width.value;
+  width.value = window.innerWidth;
+  const enteredMobile = previousWidth >= 1024 && width.value < 1024;
+
+  if ((previousWidth < 1024) !== (width.value < 1024)) {
+    closeMonthDateOverlay();
+  } else if (width.value >= 1024 && expandedDate.value) {
+    positionMonthDateOverlay();
+  }
+
+  if (enteredMobile) {
+    ensureMobileEventDayView();
+  }
+};
 
 // Toggle function
 const toggleDropdown = () => {
@@ -1457,24 +2666,40 @@ const handleClickOutside = (event) => {
 };
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  document.addEventListener('click', handleMonthOverlayOutsideClick);
+  document.addEventListener('keydown', handleMonthOverlayKeydown);
   window.addEventListener('resize', handleResize);
+  window.addEventListener('mousemove', moveWeekHeaderMouseDrag);
+  window.addEventListener('mouseup', endWeekHeaderMouseDrag);
+  if (typeof window.ResizeObserver === 'function') {
+    monthAvailabilityResizeObserver = new window.ResizeObserver(scheduleMonthAvailabilityLayout);
+    monthCellRefs.forEach((element) => monthAvailabilityResizeObserver.observe(element));
+    monthBookingViewportRefs.forEach((element) => monthAvailabilityResizeObserver.observe(element));
+    monthBookingContentRefs.forEach((element) => monthAvailabilityResizeObserver.observe(element));
+  }
   nowTimer.value = setInterval(updateNowLine, 60000);
   updateNowLine();
-});
-// Resize listener taake agar koi window khuli rakh kar screen bari kare toh section band ho jaye
-onMounted(() => {
-  window.addEventListener('resize', () => {
-    if (window.innerWidth >= 1024) {
-      expandedDate.value = null;
-    }
-  });
+  if (!ensureMobileEventDayView()) {
+    selectTodayForMobileDay();
+  }
+  scheduleMonthAvailabilityLayout();
 });
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('mousemove', moveWeekHeaderMouseDrag);
+  window.removeEventListener('mouseup', endWeekHeaderMouseDrag);
+  monthAvailabilityResizeObserver?.disconnect();
+  monthAvailabilityResizeObserver = null;
+  if (monthAvailabilityLayoutFrame != null && typeof window.cancelAnimationFrame === 'function') {
+    window.cancelAnimationFrame(monthAvailabilityLayoutFrame);
+    monthAvailabilityLayoutFrame = null;
+  }
   clearInterval(nowTimer.value);
 });
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener('click', handleMonthOverlayOutsideClick);
+  document.removeEventListener('keydown', handleMonthOverlayKeydown);
 });
 
 watch(
@@ -1508,13 +2733,44 @@ const resetElementScroll = (element) => {
 const resetScrollToTop = () => {
   resetElementScroll(calendarRootRef.value);
   resetElementScroll(timeGridBodyRef.value);
+  resetElementScroll(timeGridScrollRef.value);
+  resetElementScroll(weekHeaderScrollRef.value);
+  resetElementScroll(weekBodyScrollRef.value);
   calendarRootRef.value?.querySelectorAll?.('[data-cal-scroll]').forEach(resetElementScroll);
+};
+
+const scrollToCurrentTime = async ({ behavior = 'smooth' } = {}) => {
+  await nextTick();
+
+  const element = timeGridScrollRef.value;
+  if (!element || !showNowLine.value) return false;
+
+  const viewportHeight = element.clientHeight || 0;
+  const maxScrollTop = Math.max(0, element.scrollHeight - viewportHeight);
+  const targetTop = Math.max(
+    0,
+    Math.min(maxScrollTop, nowLineTopPx.value - viewportHeight * 0.4),
+  );
+
+  if (typeof element.scrollTo === 'function') {
+    element.scrollTo({
+      top: targetTop,
+      left: element.scrollLeft || 0,
+      behavior,
+    });
+  } else {
+    element.scrollTop = targetTop;
+  }
+
+  return true;
 };
 
 defineExpose({
   openEventDetails,
   closeEventDetails,
   resetScrollToTop,
+  scrollToCurrentTime,
+  recalculateMonthAvailabilityLayout,
 });
 </script>
 
@@ -1537,6 +2793,63 @@ defineExpose({
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.month-date-overlay {
+  animation: month-overlay-expand 140ms ease-out;
+  transform-origin: top left;
+}
+
+.month-date-overlay :deep([data-test="dashboard-month-booking-marker"]) {
+  display: flex;
+  height: 1.375rem;
+  min-height: 1.375rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+.month-date-overlay :deep([data-test="dashboard-month-booking-marker"] > :first-child) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.month-date-overlay :deep([data-test="dashboard-calendar-booking-title"]) {
+  flex: 1 1 auto;
+}
+
+.month-date-overlay :deep([data-test="dashboard-calendar-booking-time"]) {
+  min-width: max-content;
+  flex: 0 0 auto;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.month-date-overlay :deep([data-test="dashboard-calendar-booking-time"] > :last-child) {
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+@keyframes month-overlay-expand {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .month-date-overlay {
+    animation: none;
+  }
 }
 </style>
 

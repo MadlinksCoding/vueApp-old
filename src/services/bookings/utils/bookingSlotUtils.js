@@ -1354,6 +1354,7 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
           eventType: event?.type || event?.raw?.type || null,
           eventCallType: callType,
           title: "",
+          createdAt: event?.createdAt || event?.raw?.createdAt || null,
           start: new Date(windowSlot.startMs).toISOString(),
           end: new Date(windowSlot.endMs).toISOString(),
           status: "available",
@@ -1361,6 +1362,7 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
           isAvailabilityBlock: true,
           raw: {
             eventId,
+            createdAt: event?.createdAt || event?.raw?.createdAt || null,
             eventCallType: callType,
             eventColorSkin: event?.eventColorSkin || event?.raw?.eventColorSkin || null,
           },

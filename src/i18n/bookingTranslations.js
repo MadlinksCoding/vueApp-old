@@ -66,6 +66,13 @@ export const bookingMessages = {
   date_thu_short: "Thu",
   date_fri_short: "Fri",
   date_sat_short: "Sat",
+  date_sunday: "Sunday",
+  date_monday: "Monday",
+  date_tuesday: "Tuesday",
+  date_wednesday: "Wednesday",
+  date_thursday: "Thursday",
+  date_friday: "Friday",
+  date_saturday: "Saturday",
   date_sun_tiny: "S",
   date_mon_tiny: "M",
   date_tue_tiny: "T",
@@ -120,6 +127,8 @@ export const bookingMessages = {
   dashboard_calendar_legend_status: "Status",
   dashboard_calendar_legend_declined_canceled: "Declined/Canceled",
   dashboard_show_booking_schedule_availability: "Show booking schedule",
+  dashboard_show_completed_events: "Show completed events",
+  dashboard_show_earning_analytics: "Show earning analytics",
   dashboard_booking_schedule_title: "YOUR BOOKING SCHEDULE",
   dashboard_booking_schedule_open_today: "OPEN FOR BOOKING TODAY",
   dashboard_booking_schedule_closed_today: "CLOSED FOR BOOKING TODAY",
@@ -405,6 +414,8 @@ export const bookingMessages = {
   booking_create_success_message: "Your event was created successfully.",
   booking_create_failed_message: "Could not create event. Please try again.",
   booking_event_limit_reached_message: "You have reached the event limit ({current}/{limit}).",
+  booking_event_limit_date_label: "{weekday}, {month} {day}",
+  booking_event_limit_reached_for_date_message: "Event limit reached for {date} ({current}/{limit}).",
   booking_load_products_failed: "Could not load products.",
   booking_load_active_tiers_failed: "Could not load active tiers.",
   booking_search_users_failed: "Could not search users.",
@@ -982,6 +993,53 @@ function isEventLimitReachedError(value) {
   return String(value || "").trim().toLowerCase() === "event limit reached";
 }
 
+const eventLimitWeekdayTranslationKeys = [
+  "date_sunday",
+  "date_monday",
+  "date_tuesday",
+  "date_wednesday",
+  "date_thursday",
+  "date_friday",
+  "date_saturday",
+];
+
+const eventLimitMonthTranslationKeys = [
+  "date_january",
+  "date_february",
+  "date_march",
+  "date_april",
+  "date_may",
+  "date_june",
+  "date_july",
+  "date_august",
+  "date_september",
+  "date_october",
+  "date_november",
+  "date_december",
+];
+
+function formatEventLimitDateLabel(value, t = bookingT) {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, monthIndex, day));
+  if (
+    Number.isNaN(date.getTime())
+    || date.getUTCFullYear() !== year
+    || date.getUTCMonth() !== monthIndex
+    || date.getUTCDate() !== day
+  ) return "";
+
+  return t("booking_event_limit_date_label", {
+    weekday: t(eventLimitWeekdayTranslationKeys[date.getUTCDay()]),
+    month: t(eventLimitMonthTranslationKeys[monthIndex]),
+    day,
+  });
+}
+
 function getCreateEventEventLimitInfo(errorLike = {}) {
   const candidates = [
     errorLike,
@@ -1009,10 +1067,13 @@ function getCreateEventEventLimitInfo(errorLike = {}) {
   const nestedDetails = details.details && typeof details.details === "object"
     ? details.details
     : {};
+  const days = firstArray(nestedDetails.days, details.days, limitSource.days);
+  const firstBlockedDay = days.find((day) => day && typeof day === "object") || {};
 
   return {
-    limit: nestedDetails.limit ?? details.limit ?? limitSource.limit ?? "",
-    current: nestedDetails.current ?? details.current ?? limitSource.current ?? "",
+    limit: firstBlockedDay.limit ?? nestedDetails.limit ?? details.limit ?? limitSource.limit ?? "",
+    current: firstBlockedDay.current ?? nestedDetails.current ?? details.current ?? limitSource.current ?? "",
+    date: firstBlockedDay.date || "",
   };
 }
 
@@ -1033,6 +1094,13 @@ export function formatCreateEventFailureMessage(errorLike = {}, t = bookingT) {
 
   const eventLimitInfo = getCreateEventEventLimitInfo(errorLike);
   if (eventLimitInfo) {
+    const date = formatEventLimitDateLabel(eventLimitInfo.date, t);
+    if (date) {
+      return t("booking_event_limit_reached_for_date_message", {
+        ...eventLimitInfo,
+        date,
+      });
+    }
     return t("booking_event_limit_reached_message", eventLimitInfo);
   }
 

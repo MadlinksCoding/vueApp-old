@@ -36,10 +36,11 @@
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"
         :highlight-today-column="true"
+        day-column-mode="events"
         time-start="00:00"
         time-end="24:00"
         :slot-minutes="60"
-        :row-height-px="64"
+        :row-height-px="120"
         :min-event-height-px="0"
         @date-selected="onSelectFromMain"
         @view-changed="state.view = $event"
@@ -60,8 +61,9 @@
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock && (view === 'month' ? 'rounded-[0.25rem]' : 'rounded-[0.375rem]'),
+              view === 'month' ? 'month-booking-row overflow-hidden' : '',
               view === 'month'
-                ? 'hidden lg:block text-[0.625rem] leading-3 min-h-[1.25rem] w-full overflow-hidden px-1.5 py-1 shadow-sm'
+                ? 'hidden lg:flex text-xs leading-3 w-full shadow-sm'
                 : 'text-xs min-h-[1.25rem] w-full overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
@@ -89,7 +91,7 @@
                   <span class="min-w-0 truncate">{{ event.title }}</span>
                 </div>
               </div>
-              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1">
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -97,7 +99,9 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+                <span class="min-w-0 truncate">
+                  {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
+                </span>
               </div>
             </template>
           </div>
@@ -110,6 +114,7 @@
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
               'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
@@ -135,7 +140,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -143,7 +148,9 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+                <span class="min-w-0 truncate">
+                  {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
+                </span>
               </div>
             </template>
           </div>
@@ -156,6 +163,7 @@
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
               'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
@@ -181,7 +189,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]">
+              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -189,7 +197,9 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+                <span class="min-w-0 truncate">
+                  {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
+                </span>
               </div>
             </template>
           </div>
@@ -202,6 +212,7 @@
               event?.isAvailabilityBlock ? 'pointer-events-none' : '',
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
+              view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
               'py-[0.125rem] px-[0.25rem] shadow-md'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
@@ -227,7 +238,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]">
+              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -235,7 +246,9 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">{{ hhmm(event.start) }} - {{ hhmm(event.end) }}</span>
+                <span class="min-w-0 truncate">
+                  {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
+                </span>
               </div>
             </template>
           </div>
@@ -246,10 +259,14 @@
             :class="[
               view === 'month' ? 'static' : 'absolute',
               view === 'month'
-                ? 'hidden lg:block min-h-[1.25rem] w-full cursor-pointer overflow-hidden px-1.5 py-1 text-[0.625rem] font-medium leading-3'
+                ? 'flex h-[1.375rem] min-w-0 w-full cursor-pointer items-center overflow-hidden rounded-[0.25rem] px-1 py-0 text-xs font-medium leading-4 shadow-sm'
                 : 'min-h-[0.375rem] w-full cursor-pointer overflow-hidden px-2 py-1 text-xs font-medium leading-4'
             ]"
-            :style="[style, getCalendarEventStyle(event)]"
+            :style="[
+              style,
+              getCalendarEventStyle(event),
+              view === 'month' ? getMonthAvailabilitySummaryStyle(event) : {}
+            ]"
             data-test="dashboard-month-availability-marker"
             role="button"
             tabindex="0"
@@ -259,7 +276,7 @@
             @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
           >
             <span
-              v-if="event.title && !event.hideAvailabilityTitle"
+              v-if="event.title && (view === 'month' || !event.hideAvailabilityTitle)"
               data-test="dashboard-calendar-availability-title"
               class="flex min-w-0 items-center gap-1 overflow-hidden"
             >
@@ -268,7 +285,7 @@
                 color="currentColor"
                 :class="[
                   'shrink-0',
-                  view === 'month' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                  'h-3 w-3'
                 ]"
               />
               <span class="min-w-0 truncate">{{ event.title }}</span>
@@ -580,7 +597,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { hhmm, addDays } from "@/utils/calendarHelpers.js";
 import calenderPlusIcon from "@/assets/images/icons/calender-plus-02.svg";
 import DropdownArrowDown from "@/assets/images/icons/dropdown-arrow-down.svg";
@@ -1025,6 +1042,25 @@ function getCalendarEventStyle(event) {
     borderBottom: `1px solid ${color}`,
     color: "#ffffff",
     zIndex: 2,
+  };
+}
+
+function getMonthAvailabilitySummaryStyle(event) {
+  const color = normalizeHexColor(
+    event?.color || event?.eventColorSkin || event?.raw?.eventColorSkin || DEFAULT_EVENT_COLOR,
+    DEFAULT_EVENT_COLOR,
+  );
+
+  return {
+    backgroundColor: rgba(color, 0.08),
+    border: "0",
+    borderTop: "0",
+    borderRight: "0",
+    borderBottom: "0",
+    borderLeft: "0",
+    borderRadius: "4px",
+    boxShadow: "none",
+    color,
   };
 }
 
@@ -1580,6 +1616,8 @@ const fetchDashboardContext = async (forceRefresh = false) => {
   }
 
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
+  await nextTick();
+  await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
 };
 
 const resolveBookingIdFromPayload = (payload) => {
@@ -2381,5 +2419,43 @@ defineExpose({
 <style scoped>
 :deep(.dashboard-events-calendar-time-label:last-child) {
   display: none;
+}
+
+.month-booking-row {
+  height: 1.375rem;
+  min-height: 1.375rem;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+  padding: 0 0.25rem;
+}
+
+.month-booking-row > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.month-booking-row [data-test="dashboard-calendar-booking-title"] {
+  min-width: 0;
+  width: auto;
+  flex: 1 1 auto;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.month-booking-row [data-test="dashboard-calendar-booking-time"] {
+  min-width: max-content;
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.month-booking-row [data-test="dashboard-calendar-booking-time"] > :last-child {
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 </style>
