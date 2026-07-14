@@ -505,7 +505,7 @@ export const bookingMessages = {
   booking_validation_subscription_tiers_required: "Please select at least one subscription tier.",
   booking_validation_invite_secret_required: "Invite link is not ready yet. Please try again.",
   booking_validation_min_spend_tokens_min: "Minimum spend must be 0 or higher.",
-  booking_validation_required_products_required: "Please add at least one product for spending requirement.",
+  booking_validation_required_products_required: "Please add at least one required product.",
   booking_validation_buffer_time_min: "Buffer time must be at least 5 minutes.",
   booking_validation_addon_title_required: "Add-on service {index} title is required.",
   booking_validation_addon_price_min: "Add-on service {index} price must be 0 or higher.",

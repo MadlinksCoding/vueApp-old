@@ -2589,21 +2589,20 @@
       <BookingSectionsWrapper v-show="sectionsState.groupPricing || sectionsState.privatePricing"  v-else-if="section === 'offHourSurcharge'" :title="t('booking_off_hour_surcharge')" leftIcon="https://i.ibb.co/k6kzjyCp/Icon-2.png"
         tooltipText="Approval will be required for bookings made during this period." :isOptional="true">
         <div class="self-stretch flex flex-col gap-2 mt-5">
-          <div :class="['self-stretch inline-flex justify-start items-center gap-2', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
+          <div :class="['self-stretch flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
             <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
+              data-test="off-hour-surcharge-toggle"
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-              labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="flex items-center gap-2" />
-            <div class="flex-1 inline-flex justify-start items-start">
-            <div class="inline-flex justify-end items-center gap-2">
+              labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="!w-auto flex-none flex items-center gap-2" />
+            <div class="flex min-w-0 w-full flex-1 items-center gap-2" data-test="off-hour-surcharge-controls">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
                 data-booking-validation-input-field="offHourSurcharge"
                 :disabled="!formData.addOffHourSurcharge"
-                inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
-              <div class="h-10 inline-flex flex-col justify-between items-start">
-                <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_percent_from_base_price") }}</div>
+                inputClass="px-3.5 min-w-0 w-full sm:w-36 md:w-44 sm:flex-none text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
+              <div class="h-10 min-w-[8.75rem] shrink-0 inline-flex flex-col justify-between items-start">
+                <div class="whitespace-nowrap text-black text-base font-medium leading-normal" data-test="off-hour-surcharge-suffix">{{ t("booking_percent_from_base_price") }}</div>
                 <div v-if="offHourSurchargePreviewTokens > 0" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: offHourSurchargePreviewTokens }) }})</div>
               </div>
-            </div>
             </div>
           </div>
           <ValidationInlineWarning

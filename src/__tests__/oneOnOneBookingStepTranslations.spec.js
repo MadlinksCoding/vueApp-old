@@ -2,6 +2,7 @@ import { mount, shallowMount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+import { fetchActiveSubscriptionTiers } from "@/services/events/eventsAudienceApi.js";
 import { showToast } from "@/utils/toastBus.js";
 
 let sendBeaconDescriptor;
@@ -83,7 +84,8 @@ function mountOptions(translations = {}) {
       },
       CustomDropdown: {
         name: "CustomDropdown",
-        props: ["options", "searchable", "searchPlaceholder", "disabled", "optionFactory"],
+        props: ["modelValue", "options", "placeholder", "multiple", "hasCheckboxes", "searchable", "searchPlaceholder", "disabled", "optionFactory"],
+        emits: ["update:modelValue"],
         template: "<div :data-disabled='disabled ? \"true\" : \"false\"'><span v-for='option in options' :key='option.value'>{{ option.label }}</span></div>",
       },
       InputComponentDashbaord: {
@@ -148,6 +150,7 @@ describe("one-on-one booking step translations", () => {
     scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
     focusDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "focus");
     vi.clearAllMocks();
+    fetchActiveSubscriptionTiers.mockResolvedValue([]);
     document.body.innerHTML = "";
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: true,
@@ -1525,6 +1528,16 @@ describe("one-on-one booking step translations", () => {
 
     expect(wrapper.text()).toContain("5 tokens/session");
     expect(wrapper.text()).not.toContain("4.5 tokens/session");
+    expect(wrapper.get("[data-test='off-hour-surcharge-controls']").classes()).toEqual(expect.arrayContaining([
+      "min-w-0",
+      "w-full",
+    ]));
+    expect(wrapper.get("[data-test='off-hour-surcharge-controls']").classes()).not.toContain("sm:justify-end");
+    expect(wrapper.get("[data-test='off-hour-surcharge-toggle']").attributes("wrapperclass")).toContain("!w-auto");
+    expect(wrapper.get("[data-test='off-hour-surcharge-toggle']").attributes("wrapperclass")).toContain("flex-none");
+    expect(wrapper.get("[data-test='off-hour-surcharge-suffix']").classes()).toEqual(expect.arrayContaining([
+      "whitespace-nowrap",
+    ]));
   });
 
   it("syncs group event-goal pricing controls into engine state", async () => {
@@ -1609,6 +1622,96 @@ describe("one-on-one booking step translations", () => {
     expect(groupWrapper.text()).not.toContain("waitlist spots");
   });
 
+  it("uses a single subscription tier selector and removes spending requirement controls", async () => {
+    fetchActiveSubscriptionTiers.mockResolvedValue([
+      { id: 101, label: "Starter" },
+      { id: 202, label: "Premium" },
+    ]);
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      whoCanBook: "subscribersOnly",
+      subscriptionTiers: [202, 101],
+      spendingRequirement: "minSpend",
+      minSpendTokens: "50",
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, embedded: true },
+      global: mountOptions(),
+    });
+    await settleValidation();
+
+    const dropdowns = wrapper.findAllComponents({ name: "CustomDropdown" });
+    const audienceDropdown = dropdowns.find((dropdown) => (
+      dropdown.props("options")?.some((option) => option.value === "mustOwnProducts")
+    ));
+    const tierDropdown = dropdowns.find((dropdown) => (
+      dropdown.props("options")?.some((option) => option.value === 202)
+    ));
+
+    expect(audienceDropdown.props("options").map((option) => option.value)).toEqual([
+      "everyone",
+      "subscribersOnly",
+      "mustOwnProducts",
+      "inviteOnly",
+    ]);
+    expect(tierDropdown.props("options").map((option) => option.value)).toEqual([101, 202]);
+    expect(tierDropdown.props("options").some((option) => option.label === "All Tiers")).toBe(false);
+    expect(tierDropdown.props("multiple")).toBeFalsy();
+    expect(tierDropdown.props("hasCheckboxes")).toBeFalsy();
+    expect(wrapper.vm.formData.subscriptionTiers).toEqual([202]);
+    expect(engine.state.spendingRequirement).toBe("none");
+    expect(wrapper.text()).not.toContain("Spending Requirement");
+
+    tierDropdown.vm.$emit("update:modelValue", 101);
+    await nextTick();
+    expect(wrapper.vm.formData.subscriptionTiers).toEqual([101]);
+    expect(engine.state.subscriptionTiers).toEqual([101]);
+  });
+
+  it("maps Must own products to the existing audience payload fields", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      whoCanBook: "inviteOnly",
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [{
+        id: 9,
+        type: "product",
+        title: "Creator product",
+        buyPrice: 12,
+      }],
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, embedded: true },
+      global: mountOptions(),
+    });
+    await settleValidation();
+
+    const audienceDropdown = wrapper.findAllComponents({ name: "CustomDropdown" }).find((dropdown) => (
+      dropdown.props("options")?.some((option) => option.value === "mustOwnProducts")
+    ));
+
+    expect(audienceDropdown.props("modelValue")).toBe("mustOwnProducts");
+    expect(wrapper.vm.formData.whoCanBook).toBe("everyone");
+    expect(engine.state.whoCanBook).toBe("everyone");
+    expect(engine.state.spendingRequirement).toBe("mustOwnProducts");
+    expect(wrapper.text()).toContain("Creator product");
+    expect(wrapper.text()).toContain("Switch Product");
+
+    audienceDropdown.vm.$emit("update:modelValue", "inviteOnly");
+    await settleValidation();
+
+    expect(wrapper.vm.formData.whoCanBook).toBe("inviteOnly");
+    expect(engine.state.whoCanBook).toBe("inviteOnly");
+    expect(engine.state.spendingRequirement).toBe("none");
+    expect(wrapper.text()).not.toContain("Creator product");
+  });
+
   it("renders translated overrides in step 2", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
@@ -1640,7 +1743,7 @@ describe("one-on-one booking step translations", () => {
       }),
     });
 
-    expect(wrapper.text()).toContain("Requisito de gasto");
+    expect(wrapper.text()).not.toContain("Requisito de gasto");
     expect(wrapper.text()).toContain("Quien puede reservar una llamada?");
     expect(wrapper.text()).toContain("Servicio adicional 1");
     expect(wrapper.text()).toContain("Cuenta");
