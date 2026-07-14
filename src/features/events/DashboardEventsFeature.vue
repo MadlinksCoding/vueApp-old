@@ -664,6 +664,7 @@ const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
 const dashboardRootRef = ref(null);
 const mainCalendarRef = ref(null);
+const initialWeekDateRevealed = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
@@ -1617,6 +1618,16 @@ const fetchDashboardContext = async (forceRefresh = false) => {
 
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
   await nextTick();
+  if (
+    !initialWeekDateRevealed.value
+    && state.view === "week"
+    && typeof window !== "undefined"
+    && window.innerWidth >= 1024
+    && typeof mainCalendarRef.value?.revealSelectedWeekDay === "function"
+  ) {
+    initialWeekDateRevealed.value = true;
+    mainCalendarRef.value.revealSelectedWeekDay({ behavior: "smooth" });
+  }
   await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
 };
 

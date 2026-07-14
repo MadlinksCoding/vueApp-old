@@ -9,6 +9,7 @@ const showToast = vi.fn();
 const getBookingJoinState = vi.fn();
 const mainCalendarResetScrollToTop = vi.fn();
 const mainCalendarScrollToCurrentTime = vi.fn();
+const mainCalendarRevealSelectedWeekDay = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -174,6 +175,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       },
       resetScrollToTop: mainCalendarResetScrollToTop,
       scrollToCurrentTime: mainCalendarScrollToCurrentTime,
+      revealSelectedWeekDay: mainCalendarRevealSelectedWeekDay,
     },
     computed: {
       dynamicBookedEvents() {
@@ -507,6 +509,7 @@ describe("DashboardEventsFeature", () => {
     getBookingJoinState.mockReset();
     mainCalendarResetScrollToTop.mockReset();
     mainCalendarScrollToCurrentTime.mockReset();
+    mainCalendarRevealSelectedWeekDay.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -556,6 +559,8 @@ describe("DashboardEventsFeature", () => {
         context: expect.objectContaining({ creatorId: 99 }),
       }),
     );
+    expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledTimes(1);
+    expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledWith({ behavior: "smooth" });
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
   });
 

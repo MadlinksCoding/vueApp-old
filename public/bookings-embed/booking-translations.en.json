@@ -268,7 +268,7 @@
   "booking_validation_recurring_discount_percent_range": "Recurring discount must be between 0 and 100 percent.",
   "booking_validation_reminder_time_min": "Reminder time must be at least 1 minute.",
   "booking_validation_required_fields_title": "Please fill these fields",
-  "booking_validation_required_products_required": "Please add at least one product for spending requirement.",
+  "booking_validation_required_products_required": "Please add at least one required product.",
   "booking_validation_reschedule_fee_min": "Reschedule fee must be at least 1 token.",
   "booking_validation_subscription_tiers_required": "Please select at least one subscription tier.",
   "booking_validation_time_slot_duration_min": "Time slots must be at least 5 minutes.",

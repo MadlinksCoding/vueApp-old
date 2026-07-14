@@ -2833,6 +2833,7 @@ defineExpose({
   closeEventDetails,
   resetScrollToTop,
   scrollToCurrentTime,
+  revealSelectedWeekDay,
   recalculateMonthAvailabilityLayout,
 });
 </script>
