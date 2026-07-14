@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { reactive } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mock = vi.hoisted(() => ({
@@ -32,10 +33,10 @@ function setByPath(target, path, value) {
 }
 
 function createMockEngine() {
-  const state = {
+  const state = reactive({
     focus: new Date("2026-05-07T00:00:00"),
     creatorTimezone: "Asia/Hong_Kong",
-  };
+  });
 
   return {
     state,
@@ -463,6 +464,32 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(calendar.props("variant")).toBe("theme2");
     expect(calendar.props("dayColumnMode")).toBe("events");
     expect(calendar.props("rowHeightPx")).toBe(120);
+  });
+
+  it("moves the calendar to a future draft schedule edited after mount", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    mock.engine.setState("weeklyAvailability", [{
+      key: "tue",
+      name: "Tue",
+      unavailable: false,
+      slots: [{ startTime: "10:00", endTime: "11:00" }],
+    }]);
+    mock.engine.setState("dateFrom", "2026-05-19");
+    await flushPromises();
+
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+    expect(calendar.props("focusDate")).toEqual(new Date("2026-05-19T00:00:00"));
+    expect(calendar.props("events")).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventId: "draft_new_event",
+        isDraftPreview: true,
+        start: new Date("2026-05-19T10:00:00"),
+        end: new Date("2026-05-19T11:00:00"),
+      }),
+    ]));
   });
 
   it("decorates completed bookings and groups every draft window under one event id", async () => {

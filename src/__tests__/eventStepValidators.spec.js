@@ -720,4 +720,18 @@ describe("event step validators", () => {
       expect.objectContaining({ field: "addOns.0.priceTokens", conditional: true }),
     ]));
   });
+
+  it("requires a product for product-owner audience access", () => {
+    const result = step2Validator({
+      whoCanBook: "everyone",
+      spendingRequirement: "mustOwnProducts",
+      requiredProducts: [],
+    });
+
+    expect(result.errors).toContainEqual(expect.objectContaining({
+      field: "requiredProducts",
+      message: "Please add at least one required product.",
+      conditional: true,
+    }));
+  });
 });

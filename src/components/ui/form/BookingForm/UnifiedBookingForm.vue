@@ -695,8 +695,30 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
 };
 
+function normalizeHydratedAudienceState(formState = {}) {
+    const normalizedState = { ...formState };
+    const savedTiers = Array.isArray(formState.subscriptionTiers)
+        ? formState.subscriptionTiers
+        : String(formState.subscriptionTiers || "")
+            .split(",")
+            .map((tierId) => tierId.trim())
+            .filter(Boolean);
+
+    normalizedState.subscriptionTiers = savedTiers.slice(0, 1);
+
+    if (formState.spendingRequirement === "mustOwnProducts") {
+        normalizedState.whoCanBook = "everyone";
+        normalizedState.spendingRequirement = "mustOwnProducts";
+    } else {
+        normalizedState.spendingRequirement = "none";
+    }
+
+    return normalizedState;
+}
+
 function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
-    Object.entries(formState).forEach(([key, value]) => {
+    const normalizedState = normalizeHydratedAudienceState(formState);
+    Object.entries(normalizedState).forEach(([key, value]) => {
         bookingFlow.setState(key, value, { reason, silent: true });
     });
     bookingFlow.initializeFromState?.();
@@ -1169,6 +1191,46 @@ function shouldIncludeMonthlyDate({ candidateDateIso, anchorDateIso }) {
     return candidate.getDate() === targetDay;
 }
 
+function resolveDraftCalendarFocusDate(stateSnapshot = {}) {
+    const repeatRule = String(stateSnapshot.repeatRule || "weekly");
+    const selectedDateIso = String(stateSnapshot.selectedDate || "").trim();
+    const dateFromIsoValue = String(stateSnapshot.dateFrom || "").trim();
+
+    if (repeatRule === "doesNotRepeat") {
+        const firstScheduledDate = (Array.isArray(stateSnapshot.oneTimeAvailability)
+            ? stateSnapshot.oneTimeAvailability
+            : [])
+            .find((entry) => (
+                String(entry?.date || "").trim()
+                && Array.isArray(entry?.slots)
+                && entry.slots.length > 0
+            ))?.date;
+
+        return dateFromIso(String(firstScheduledDate || selectedDateIso || dateFromIsoValue).slice(0, 10));
+    }
+
+    const anchorDate = dateFromIso(dateFromIsoValue);
+    if (!anchorDate || repeatRule === "monthly" || repeatRule === "daily") {
+        return anchorDate;
+    }
+
+    const scheduledDayIndexes = new Set(
+        (Array.isArray(stateSnapshot.weeklyAvailability) ? stateSnapshot.weeklyAvailability : [])
+            .filter((day) => !day?.unavailable && Array.isArray(day?.slots) && day.slots.length > 0)
+            .map((day) => DAY_KEY_TO_INDEX[String(day?.key || day?.name || "").toLowerCase()])
+            .filter(Number.isFinite),
+    );
+
+    if (scheduledDayIndexes.size === 0) return anchorDate;
+
+    for (let offset = 0; offset < 7; offset += 1) {
+        const candidate = addDays(anchorDate, offset);
+        if (scheduledDayIndexes.has(candidate.getDay())) return candidate;
+    }
+
+    return anchorDate;
+}
+
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
@@ -1354,6 +1416,35 @@ function rebuildAvailabilityPreview() {
     calendarBookedSlots.value = bookedCalendarSlots;
     calendarAvailabilitySlots.value = availabilityCalendarSlots;
 }
+
+watch(
+    () => [
+        bookingFlow.state?.repeatRule,
+        bookingFlow.state?.dateFrom,
+        bookingFlow.state?.selectedDate,
+        (Array.isArray(bookingFlow.state?.weeklyAvailability)
+            ? bookingFlow.state.weeklyAvailability
+            : [])
+            .map((day) => `${day?.key || day?.name || ""}:${day?.unavailable ? 1 : 0}:${day?.slots?.length || 0}`)
+            .join("|"),
+        (Array.isArray(bookingFlow.state?.oneTimeAvailability)
+            ? bookingFlow.state.oneTimeAvailability
+            : [])
+            .map((entry) => `${entry?.date || ""}:${entry?.slots?.length || 0}`)
+            .join("|"),
+    ],
+    () => {
+        const nextFocus = resolveDraftCalendarFocusDate(bookingFlow.state || {});
+        if (!nextFocus || Number.isNaN(nextFocus.getTime())) return;
+
+        const nextDateKey = formatDateIso(nextFocus);
+        if (!nextDateKey || nextDateKey === formatDateIso(state.focus)) return;
+
+        state.focus = new Date(nextFocus);
+        state.selected = new Date(nextFocus);
+        rebuildAvailabilityPreview();
+    },
+);
 
 function getScheduleEventId(event = {}) {
     return String(event?.eventId || event?.id || event?.raw?.eventId || event?.raw?.id || "").trim();

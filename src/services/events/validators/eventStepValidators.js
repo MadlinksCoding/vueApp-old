@@ -626,7 +626,7 @@ export function step2Validator(state = {}) {
       ? state.requiredProducts.filter((item) => item && item.id && item.type)
       : [];
     if (requiredProducts.length === 0) {
-      errors.push(asError("requiredProducts", "booking_validation_required_products_required", "Please add at least one product for spending requirement.", {}, { conditional: true }));
+      errors.push(asError("requiredProducts", "booking_validation_required_products_required", "Please add at least one required product.", {}, { conditional: true }));
     }
   }
 

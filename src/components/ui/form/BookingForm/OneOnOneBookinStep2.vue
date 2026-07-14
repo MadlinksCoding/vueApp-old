@@ -138,13 +138,8 @@ const STEP2_FIELD_LABEL_FALLBACKS = Object.freeze({
 const whoCanBookOptions = [
   { label: t('booking_everyone'), value: 'everyone' },
   { label: t('booking_subscribers_only'), value: 'subscribersOnly' },
+  { label: t('booking_spending_must_own_products'), value: 'mustOwnProducts' },
   { label: t('booking_invite_only'), value: 'inviteOnly' }
-];
-
-const spendingRequirementOptions = [
-  { label: t('booking_spending_none'), value: 'none' },
-  // { label: 'User need to spend minimum amount to join', value: 'minSpend' },
-  { label: t('booking_spending_must_own_products'), value: 'mustOwnProducts' }
 ];
 
 const props = defineProps({
@@ -256,6 +251,13 @@ function normalizeAddOns(value) {
     }));
 }
 
+const initialSpendingRequirement = props.engine.state.spendingRequirement === "mustOwnProducts"
+  ? "mustOwnProducts"
+  : "none";
+const initialWhoCanBook = initialSpendingRequirement === "mustOwnProducts"
+  ? "everyone"
+  : (props.engine.state.whoCanBook || "everyone");
+
 const formData = ref({
   allowRecording: props.engine.state.allowRecording || false,
   recordingPrice: props.engine.state.recordingPrice || "",
@@ -264,11 +266,11 @@ const formData = ref({
   addOns: normalizeAddOns(props.engine.state.addOns),
   blockedUsers: normalizeSelectionArray(props.engine.state.blockedUsers || props.engine.state.blockedUserSearch),
   coPerformerSearch: props.engine.state.coPerformerSearch || "",
-  whoCanBook: props.engine.state.whoCanBook || "everyone",
-  subscriptionTiers: normalizeSelectionArray(props.engine.state.subscriptionTiers),
+  whoCanBook: initialWhoCanBook,
+  subscriptionTiers: normalizeSelectionArray(props.engine.state.subscriptionTiers).slice(0, 1),
   invitedUsers: normalizeSelectionArray(props.engine.state.invitedUsers),
   inviteSecret: props.engine.state.inviteSecret || "",
-  spendingRequirement: props.engine.state.spendingRequirement || "none",
+  spendingRequirement: initialSpendingRequirement,
   minSpendTokens: props.engine.state.minSpendTokens || "",
   requiredProducts: normalizeRequiredProducts(props.engine.state.requiredProducts),
   xPostLive: props.engine.state.xPostLive || false,
@@ -291,6 +293,25 @@ const formData = ref({
   on_in_session_media_url: props.engine.state.on_in_session_media_url || "",
   on_tipped_session_media_url: props.engine.state.on_tipped_session_media_url || "",
   on_purchased_media_url: props.engine.state.on_purchased_media_url || "",
+});
+
+const audienceSelectionModel = computed({
+  get() {
+    if (formData.value.spendingRequirement === "mustOwnProducts") {
+      return "mustOwnProducts";
+    }
+    return formData.value.whoCanBook;
+  },
+  set(nextValue) {
+    if (nextValue === "mustOwnProducts") {
+      formData.value.whoCanBook = "everyone";
+      formData.value.spendingRequirement = "mustOwnProducts";
+      return;
+    }
+
+    formData.value.whoCanBook = nextValue || "everyone";
+    formData.value.spendingRequirement = "none";
+  },
 });
 
 const X_REPOST_BOOLEAN_FIELDS = [
@@ -339,82 +360,31 @@ watch(formData, (newVal) => {
   if (validationUiReady) {
     void validateCreateEventForm();
   }
-}, { deep: true });
+}, { deep: true, immediate: true });
 
 const subscriptionTierOptions = ref([]);
-const ALL_TIERS_OPTION_VALUE = "__all_tiers__";
-
-function getNormalizedSelectedSubscriptionTierIds(values) {
-  const selected = Array.isArray(values) ? values : [];
-  return subscriptionTierOptions.value
-    .map((tier) => tier.id)
-    .filter((tierId) => selected.some((item) => String(item) === String(tierId)));
-}
-
-function hasAllSubscriptionTiersSelected(values) {
-  const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
-  if (tierIds.length === 0) return false;
-  const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(values);
-  return selectedTierIds.length === tierIds.length;
-}
 
 const subscriptionTierDropdownOptions = computed(() => {
-  return [{
-    label: t("booking_all_tiers"),
-    value: ALL_TIERS_OPTION_VALUE,
-  }, ...subscriptionTierOptions.value.map((tier) => ({
+  return subscriptionTierOptions.value.map((tier) => ({
     label: tier.label,
     value: tier.id,
-  }))];
+  }));
 });
 
 const subscriptionTierDropdownModel = computed({
   get() {
-    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers);
-    if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) {
-      return [ALL_TIERS_OPTION_VALUE, ...selectedTierIds];
-    }
-    return selectedTierIds;
+    return Array.isArray(formData.value.subscriptionTiers)
+      ? (formData.value.subscriptionTiers[0] ?? null)
+      : null;
   },
-  set(nextValues) {
-    const tierIds = subscriptionTierOptions.value.map((tier) => tier.id);
-    const hasAllInNext = Array.isArray(nextValues) && nextValues.includes(ALL_TIERS_OPTION_VALUE);
-    const selectedTierIds = getNormalizedSelectedSubscriptionTierIds(nextValues);
-    const hadAllPreviously = hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers);
-
-    if (hasAllInNext) {
-      // Clicking a single tier while "All Tiers" is currently selected should
-      // remove that tier and drop "All Tiers" state.
-      if (hadAllPreviously && selectedTierIds.length < tierIds.length) {
-        formData.value.subscriptionTiers = selectedTierIds;
-        return;
-      }
-      // Selecting "All Tiers" (or selecting everything) should normalize to full list.
-      formData.value.subscriptionTiers = [...tierIds];
-      return;
-    }
-
-    // If "All Tiers" was toggled off while previously all were selected,
-    // clear everything.
-    if (hadAllPreviously && selectedTierIds.length === tierIds.length) {
-      formData.value.subscriptionTiers = [];
-      return;
-    }
-
-    formData.value.subscriptionTiers = selectedTierIds;
+  set(nextValue) {
+    formData.value.subscriptionTiers = nextValue === null || nextValue === undefined || nextValue === ""
+      ? []
+      : [nextValue];
   },
-});
-
-const subscriptionTierTriggerLabel = computed(() => {
-  const selectedCount = getNormalizedSelectedSubscriptionTierIds(formData.value.subscriptionTiers).length;
-  if (selectedCount === 0) return t("booking_select_tiers");
-  if (hasAllSubscriptionTiersSelected(formData.value.subscriptionTiers)) return t("booking_all_tiers");
-  if (selectedCount === 1) return t("booking_tier_selected_one");
-  return t("booking_tiers_selected_count", { count: selectedCount });
 });
 const subscriptionTiersLoading = ref(false);
 const subscriptionTiersError = ref("");
-const subscriptionTierDropdownOpen = ref(false);
 let subscriptionTierAbortController = null;
 
 const inviteSearchQuery = ref("");
@@ -812,45 +782,6 @@ function getBlockedUserLabel(id) {
   return lookup.displayName || lookup.username || lookup.label || `User #${id}`;
 }
 
-function toggleSubscriptionTier(tierId) {
-  const existing = Array.isArray(formData.value.subscriptionTiers)
-    ? [...formData.value.subscriptionTiers]
-    : [];
-  const index = existing.findIndex((item) => String(item) === String(tierId));
-  if (index >= 0) {
-    existing.splice(index, 1);
-  } else {
-    existing.push(tierId);
-  }
-  formData.value.subscriptionTiers = existing;
-}
-
-function isAllSubscriptionTiersSelected() {
-  if (!Array.isArray(subscriptionTierOptions.value) || subscriptionTierOptions.value.length === 0) {
-    return false;
-  }
-  return subscriptionTierOptions.value.every((tier) => (
-    formData.value.subscriptionTiers.some((item) => String(item) === String(tier.id))
-  ));
-}
-
-function toggleAllSubscriptionTiers() {
-  if (isAllSubscriptionTiersSelected()) {
-    formData.value.subscriptionTiers = [];
-    return;
-  }
-  formData.value.subscriptionTiers = subscriptionTierOptions.value.map((tier) => tier.id);
-}
-
-function getSubscriptionTierDropdownLabel() {
-  const selectedCount = Array.isArray(formData.value.subscriptionTiers)
-    ? formData.value.subscriptionTiers.length
-    : 0;
-  if (selectedCount === 0) return t("booking_all_tiers");
-  if (selectedCount === 1) return t("booking_tier_selected_one");
-  return t("booking_tiers_selected_count", { count: selectedCount });
-}
-
 function toggleInvitedUser(user) {
   if (!user || user.id === undefined || user.id === null) return;
   const userId = user.id;
@@ -1107,6 +1038,14 @@ async function loadSubscriptionTierOptions() {
       creatorId: resolveCreatorId(),
       signal: subscriptionTierAbortController.signal,
     });
+
+    const selectedTier = Array.isArray(formData.value.subscriptionTiers)
+      ? formData.value.subscriptionTiers[0]
+      : null;
+    const selectedTierIsActive = subscriptionTierOptions.value.some((tier) => (
+      String(tier.id) === String(selectedTier)
+    ));
+    formData.value.subscriptionTiers = selectedTierIsActive ? [selectedTier] : [];
   } catch (error) {
     if (error?.name === "AbortError") return;
     subscriptionTiersError.value = error?.message || t("booking_load_active_tiers_failed");
@@ -1181,10 +1120,6 @@ watch(() => formData.value.whoCanBook, (whoCanBook) => {
 
   if (whoCanBook === "subscribersOnly" && subscriptionTierOptions.value.length === 0 && !subscriptionTiersLoading.value) {
     loadSubscriptionTierOptions();
-  }
-
-  if (whoCanBook !== "subscribersOnly") {
-    subscriptionTierDropdownOpen.value = false;
   }
 
   if (whoCanBook !== "inviteOnly") {
@@ -1773,9 +1708,66 @@ const createEvent = async () => {
               {{ t("booking_who_can_book_call") }}
             </div>
             <CustomDropdown 
-              v-model="formData.whoCanBook" 
+              v-model="audienceSelectionModel" 
               :options="whoCanBookOptions" 
             />
+
+            <div v-if="audienceSelectionModel === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
+              <div
+                v-if="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0"
+                class="flex flex-col gap-2"
+              >
+                <div
+                  v-for="product in formData.requiredProducts"
+                  :key="getRequiredProductKey(product)"
+                  class="flex items-start gap-2 pt-2"
+                >
+                  <div class="relative">
+                    <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
+                      <img src="" alt="">
+                      <span class="hidden text-xs text-white">{{ t("booking_count") }}</span>
+                    </div>
+                    <img
+                      :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
+                      :alt="product.title || t('booking_product_required')"
+                      class="w-[8.5rem] h-[4.875rem] aspect-[136.00/78.34] object-cover"
+                    />
+                  </div>
+                  <div class="flex flex-col gap-2 flex-1 min-w-0">
+                    <div class="text-xs font-semibold text-slate-800 truncate">
+                      {{ product.title || `${product.type} ${product.id}` }}
+                    </div>
+                    <div class="flex gap-2">
+                      <div v-if="product.subscribePrice" class="text-xs text-white capitalize flex gap-1 bg-[#F06] px-[0.375rem] py-[0.125rem]">
+                        <span>{{ t("booking_subscribe") }}</span>
+                        <span class="font-semibold">${{ product.subscribePrice || 0 }}</span>
+                      </div>
+                      <div v-if="product.buyPrice" class="text-xs text-white capitalize flex gap-1 bg-[#0133FB] px-[0.375rem] py-[0.125rem]">
+                        <span>{{ t("booking_buy") }}</span>
+                        <span class="font-semibold">${{ product.buyPrice || 0 }}</span>
+                      </div>
+                      <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
+                        <span>·</span> {{ t("common_free") }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <ButtonComponent
+                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? t('common_switch_product') : t('common_add_product')"
+                variant="none"
+                data-booking-validation-input-field="requiredProducts"
+                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
+                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
+                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
+                @click="openSpendingProductPopup"
+              />
+              <ValidationInlineWarning
+                :messages="fieldValidationMessages('requiredProducts')"
+                field="requiredProducts"
+                spacing-class="mt-0"
+              />
+            </div>
 
             <div v-if="formData.whoCanBook === 'subscribersOnly'" class=" flex flex-col gap-2 relative">
               <div v-if="subscriptionTiersLoading" class="text-slate-500 text-sm">
@@ -1791,17 +1783,10 @@ const createEvent = async () => {
                 <CustomDropdown
                   v-model="subscriptionTierDropdownModel"
                   :options="subscriptionTierDropdownOptions"
-                  :multiple="true"
-                  :hasCheckboxes="true"
+                  :placeholder="t('booking_select_tiers')"
                   data-booking-validation-input-field="subscriptionTiers"
                   tabindex="0"
-                >
-                  <template #trigger>
-                    <span class="text-slate-900 font-medium">
-                      {{ subscriptionTierTriggerLabel }}
-                    </span>
-                  </template>
-                </CustomDropdown>
+                />
               </div>
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('subscriptionTiers')"
@@ -1942,92 +1927,6 @@ const createEvent = async () => {
                 </button>
               </div>
               -->
-            </div>
-          </div>
-        </div>
-        <div class="flex flex-col gap-3">
-          <div class="flex flex-col gap-2">
-            <div class="inline-flex justify-start items-center gap-1">
-              <div class="text-slate-700 text-base font-normal leading-normal">
-                {{ t("booking_spending_requirement") }}
-              </div>
-              <TooltipIcon :text="t('booking_user_must_spend_tooltip')" />
-            </div>
-            <CustomDropdown 
-              v-model="formData.spendingRequirement" 
-              :options="spendingRequirementOptions" 
-            />
-            <div v-if="formData.spendingRequirement === 'minSpend'" class="pt-1">
-              <BaseInput type="number" :placeholder="t('booking_minimum_spend_tokens')" v-model="formData.minSpendTokens"
-                data-booking-validation-input-field="minSpendTokens"
-                inputClass="bg-white/50 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300" />
-              <ValidationInlineWarning
-                :messages="fieldValidationMessages('minSpendTokens')"
-                field="minSpendTokens"
-                spacing-class="mt-2"
-              />
-            </div>
-            <div v-if="formData.spendingRequirement === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
-              <div
-                v-if="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0"
-                class="flex flex-col gap-2"
-              >
-                <div
-                  v-for="product in formData.requiredProducts"
-                  :key="getRequiredProductKey(product)"
-                  class="flex items-start gap-2 pt-2"
-                >
-                  <div class="relative">
-                    <div class="absolute left-0 top-0 bg-[rgba(24,34,48,0.5)] px-1 py-[1px] flex items-center gap-[0.188rem]">
-                      <img src="" alt="">
-                      <span class="hidden text-xs text-white">{{ t("booking_count") }}</span>
-                    </div>
-                    <img
-                    :src="product.thumbnailUrl || 'https://picsum.photos/seed/default-product/120/80'"
-                    :alt="product.title || t('booking_product_required')"
-                    class="w-[8.5rem] h-[4.875rem] aspect-[136.00/78.34] object-cover"
-                  />
-                  </div>
-                  <div class="flex flex-col gap-2 flex-1 min-w-0">
-                    <div class="text-xs font-semibold text-slate-800 truncate">
-                      {{ product.title || `${product.type} ${product.id}` }}
-                    </div>
-                    <div class="flex gap-2">
-                     <!-- <div class="text-[11px] text-slate-500 capitalize">
-                        {{ product.type }}
-                      </div> -->
-                      <div v-if="product.subscribePrice" class="text-xs text-white capitalize flex gap-1 bg-[#F06] px-[0.375rem] py-[0.125rem]">
-                        <span>{{ t("booking_subscribe") }}</span> 
-                        <span class="font-semibold">${{ product.subscribePrice || 0 }}</span>
-                      </div>
-
-                      <div v-if="product.buyPrice" class="text-xs text-white capitalize flex gap-1 bg-[#0133FB] px-[0.375rem] py-[0.125rem]">
-                        <span>{{ t("booking_buy") }}</span> 
-                        <span class="font-semibold">${{ product.buyPrice || 0 }}</span>
-                      </div>
-
-
-                      <div v-if="!product.buyPrice && !product.subscribePrice" class="text-[11px] text-slate-500 capitalize flex gap-2">
-                        <span>·</span> {{ t("common_free") }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <ButtonComponent
-                :text="Array.isArray(formData.requiredProducts) && formData.requiredProducts.length > 0 ? t('common_switch_product') : t('common_add_product')"
-                variant="none"
-                data-booking-validation-input-field="requiredProducts"
-                customClass="group bg-gray-900 inline-flex justify-center items-center gap-2 min-w-14 px-3 py-2 text-center text-[#07F468] text-xs font-semibold capitalize tracking-tight hover:text-black hover:bg-[#07F468]"
-                :leftIcon="'https://i.ibb.co/bRYvsTVs/Icon.png'"
-                :leftIconClass="'w-3 h-3 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]'"
-                @click="openSpendingProductPopup"
-              />
-              <ValidationInlineWarning
-                :messages="fieldValidationMessages('requiredProducts')"
-                field="requiredProducts"
-                spacing-class="mt-0"
-              />
             </div>
           </div>
         </div>
