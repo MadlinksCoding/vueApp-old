@@ -93,19 +93,6 @@
               class="flex h-11 w-full items-center justify-between rounded-full border border-[#EAECF0] bg-[#F2F4F7] px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]"
               data-testid="adjustment-token-stepper"
             >
-              <button
-                type="button"
-                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-[#5549FF] text-xl font-medium leading-none text-white transition-colors hover:bg-[#4640E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5549FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-                aria-label="Decrease adjustment by 1 token"
-                data-testid="adjustment-token-minus"
-                :disabled="!canDecrementAdjustment"
-                @click="handleAdjustmentClick(-1, $event)"
-                @pointerdown="startAdjustmentRepeat(-1)"
-                @contextmenu.prevent
-              >
-                <span aria-hidden="true">−</span>
-              </button>
-
               <output
                 class="text-base font-semibold text-gray-700"
                 aria-live="polite"
@@ -114,17 +101,38 @@
                 {{ form.adjustmentTokens }} Tokens
               </output>
 
+              <div class="flex gap-2 items-center justify-end">
+                <button
+                type="button"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-[#5549FF]/10 border border-[#5549FF] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
+                aria-label="Decrease adjustment by 1 token"
+                data-testid="adjustment-token-minus"
+                :disabled="!canDecrementAdjustment"
+                @click="handleAdjustmentClick(-1, $event)"
+                @pointerdown="startAdjustmentRepeat(-1)"
+                @contextmenu.prevent
+              >
+                <span aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M5 12H19" stroke="#5549FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                </span>
+              </button>
+
               <button
                 type="button"
-                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-[#5549FF] text-xl font-medium leading-none text-white transition-colors hover:bg-[#4640E6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5549FF] focus-visible:ring-offset-2"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-[#5549FF]/10 border border-[#5549FF] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
                 aria-label="Increase adjustment by 1 token"
                 data-testid="adjustment-token-plus"
                 @click="handleAdjustmentClick(1, $event)"
                 @pointerdown="startAdjustmentRepeat(1)"
                 @contextmenu.prevent
               >
-                <span aria-hidden="true">+</span>
+                <span aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M12 5V19M5 12H19" stroke="#5549FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></span>
               </button>
+              </div>
             </div>
           </div>
 
