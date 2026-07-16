@@ -1999,7 +1999,7 @@
                 layout="grid"
                 placeholder="Choose Event Color"
                 buttonClass="h-full bg-white/50 border-l pr-3 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
-                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0"
+                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0 [&_.overflow-y-auto::-webkit-scrollbar]:!w-[2px] [&_.overflow-y-auto::-webkit-scrollbar]:!block [&_.overflow-y-auto::-webkit-scrollbar-button]:!hidden [&_.overflow-y-auto::-webkit-scrollbar-button]:!h-0 [&_.overflow-y-auto::-webkit-scrollbar-button]:!w-0 [&_.overflow-y-auto::-webkit-scrollbar-thumb]:!bg-slate-300 [&_.overflow-y-auto::-webkit-scrollbar-thumb]:!rounded-full [&_.overflow-y-auto::-webkit-scrollbar-track]:!bg-transparent [&_.overflow-y-auto]:[scrollbar-width:thin] [&_.overflow-y-auto]:[scrollbar-color:#cbd5e1_transparent]"
               >
                 <!-- Trigger: Only show the selected color dot -->
                 <template #trigger="{ selected }">
