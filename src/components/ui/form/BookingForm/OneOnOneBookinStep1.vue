@@ -572,8 +572,8 @@
 
   const colorOptions = [
     { label: t("booking_color_blue"), value: "#5549FF", color: "#5549FF" },
-    { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
-    { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
+    // { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
+    // { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
     { label: t("booking_color_pink"), value: "#FF2D92", color: "#FF2D92" },
     { label: t("booking_color_orange"), value: "#F97316", color: "#F97316" },
     { label: t("booking_color_purple"), value: "#8B5CF6", color: "#8B5CF6" },
@@ -1999,7 +1999,7 @@
                 layout="grid"
                 placeholder="Choose Event Color"
                 buttonClass="h-full bg-white/50 border-l pr-3 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
-                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0 [&_.overflow-y-auto::-webkit-scrollbar]:!w-[2px] [&_.overflow-y-auto::-webkit-scrollbar]:!block [&_.overflow-y-auto::-webkit-scrollbar-button]:!hidden [&_.overflow-y-auto::-webkit-scrollbar-button]:!h-0 [&_.overflow-y-auto::-webkit-scrollbar-button]:!w-0 [&_.overflow-y-auto::-webkit-scrollbar-thumb]:!bg-slate-300 [&_.overflow-y-auto::-webkit-scrollbar-thumb]:!rounded-full [&_.overflow-y-auto::-webkit-scrollbar-track]:!bg-transparent [&_.overflow-y-auto]:[scrollbar-width:thin] [&_.overflow-y-auto]:[scrollbar-color:#cbd5e1_transparent]"
+                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0 !max-h-none"
               >
                 <!-- Trigger: Only show the selected color dot -->
                 <template #trigger="{ selected }">

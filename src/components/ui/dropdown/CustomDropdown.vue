@@ -206,7 +206,7 @@ watch(isOpen, (val) => {
         >
           <div 
             :class="[
-              layout === 'grid' ? 'flex flex-nowrap md:flex-wrap gap-4 min-w-max md:min-w-0 justify-start md:justify-center' : 'flex flex-col'
+              layout === 'grid' ? 'flex flex-nowrap md:flex-wrap gap-4 min-w-max md:min-w-0 justify-between md:justify-center' : 'flex flex-col'
             ]"
           >
             <div 
