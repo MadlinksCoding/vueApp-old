@@ -1717,7 +1717,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                 <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
                 <span class="text-xs font-normal leading-[18px] text-[#EAECF0]">6 SESSION MAX.</span>
                 <!-- Max session length reached alert currentyly its hide and non functional -->
-                 <div class="dn items-center gap-1">
+                 <div class="hidden items-center gap-1">
                   <span class="w-4 h-4 flex items-center justify-center">
                     <img :src="bookingFlowAlertHexagonIcon" alt="alert" />
                   </span>
@@ -1791,14 +1791,14 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                 
                 <p
                   v-if="showDurationMaxNotice"
-                  class="dn items-center gap-1 text-sm font-normal leading-[18px]"
+                  class="hidden items-center gap-1 text-sm font-normal leading-[18px]"
                   :class="durationMaxNoticeClass"
                   data-testid="booking-flow-duration-max-warning"
                 >
                   <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
                   <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
                 </p>
-                <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+                <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
                 
               </div>
               
