@@ -902,6 +902,7 @@
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
         @view-schedule-card="handleMobileScheduleCardPreview"
+        @close="calendarPopupOpen = false"
       />
     </PopupHandler>
 
