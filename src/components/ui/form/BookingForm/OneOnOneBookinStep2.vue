@@ -2193,3 +2193,20 @@ const createEvent = async () => {
       `" />
   </div>
 </template>
+<style scoped>
+  /* Hide default browser up/down spin buttons/chevrons */
+  :deep(input[type="number"]::-webkit-outer-spin-button),
+  :deep(input[type="number"]::-webkit-inner-spin-button) {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  :deep(input[type="number"]) {
+    -moz-appearance: textfield;
+  }
+
+  /* Hide custom up/down spin buttons/chevrons in BaseInput */
+  :deep(input[type="number"] + div) {
+    display: none !important;
+  }
+  </style>
