@@ -1,6 +1,17 @@
 <template>
     <div class="bg-white rounded-tl-[10px] outline-none rounded-tr-[10px] flex flex-col w-full h-full 
         overflow-y-auto  box-border">
+        
+        <!-- Header with Close Button -->
+        <div class="w-full flex justify-between items-center p-4 border-b border-gray-100 flex-shrink-0">
+            <div> </div>
+            <button @click="$emit('close')" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
         <div class="w-full p-2 flex gap-2 flex-shrink-0">
             <div @click="$emit('set-view', 'day')"
                 class="w-full cursor-pointer p-2 rounded-2xl inline-flex flex-col justify-center items-center transition-all duration-200"
@@ -119,5 +130,5 @@ defineProps({
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'close']);
 </script>
