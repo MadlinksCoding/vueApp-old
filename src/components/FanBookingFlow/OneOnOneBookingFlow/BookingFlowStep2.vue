@@ -24,6 +24,10 @@ import {
   bookingFlowCheckIcon,
   bookingFlowCloudMoonIcon,
   bookingFlowTokenIcon,
+  bookingFlowCalendarIcon,
+  bookingFlowCalendarCheckIcon,
+  bookingFlowSaleIcon,
+  bookingFlowAlertHexagonIcon,
 } from './oneOnOneBookingFlowAssets.js';
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
@@ -1587,9 +1591,10 @@ onBeforeUnmount(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] flex bg-black/75 flex-col md:flex-row before:content-['']
+        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] bg-[rgba(12,17,29,0.5)] flex flex-col md:flex-row before:content-['']
 before:absolute
 before:inset-0
+before:z-[-1]
 before:bg-[rgba(0,0,0,0.75)]
 before:backdrop-blur-sm
 md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
@@ -1609,7 +1614,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
           :price-setting="groupPriceSetting"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 backdrop-blur-sm">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 bg-[rgba(12,17,29,0.5)]">
 
           <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
@@ -1707,54 +1712,96 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               </div>
             </div>
 
-            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
+            <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5">
+              <div class="flex items-center gap--2 justify-between">
+                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
+                <span class="text-xs font-normal leading-[18px] text-[#EAECF0]">6 SESSION MAX.</span>
+                <!-- Max session length reached alert currentyly its hide and non functional -->
+                 <div class="dn items-center gap-1">
+                  <span class="w-4 h-4 flex items-center justify-center">
+                    <img :src="bookingFlowAlertHexagonIcon" alt="alert" />
+                  </span>
+                  <span class="text-xs font-normal leading-[18px] text-[#FCE40D]">MAX SESSION LENGTH REACHED</span>
+                </div>
+              </div>
               <div
-                class="border-[3px] rounded-[3.125rem]"
+                class=""
                 :class="durationStepperBorderClass"
                 data-testid="booking-flow-duration-stepper"
               >
-                <div class="w-full min-h-[2.375rem] grid grid-cols-[2rem_1fr_2rem] items-center gap-2 bg-[#FFFFFF26] rounded-[3.125rem] px-[0.375rem] py-[0.25rem]">
-                  <button
-                    type="button"
-                    data-testid="booking-flow-duration-minus"
-                    class="flex h-6 w-6 items-center justify-center rounded-full bg-[#12840F] text-base font-semibold leading-none text-[#07F468] transition-colors hover:bg-[#0f7410]"
-                    :class="(!canAdjustDuration || isAtMinimumDuration) ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
-                    :disabled="!canAdjustDuration || isAtMinimumDuration"
-                    :aria-label="t('fan_booking_decrease_length')"
-                    @click="decreaseDuration"
-                  >
-                    -
-                  </button>
-                  <div class="min-w-0 text-center text-base font-normal leading-6 text-white">
-                    {{ selectedDurationDisplayLabel }}
+                <div class="w-full min-h-[4rem] flex justify-between items-center gap-2 px-[1rem] py-[0.5rem] rounded-t-[8px] border-b border-b-white bg-[#0C111D] shadow-[0_4px_8px_rgba(255,255,255,0.05)]">
+                  <div class="flex items-center justify-between gap-2 flex-1">
+                    <div class="flex items-center gap-2">
+                      <div class="min-w-0 text-left text-base font-medium leading-6 text-white">
+                        {{ selectedDurationDisplayLabel }}
+                      </div>
+                      <span class="text-[#98A2B3] text-sm font-normal leading-5 font-[Poppins]">3 SESSIONS</span>
+                    </div>
+                    <div class="flex justify-end items-center gap-0.5">
+                      <p class="text-base text-[#07F468] font-normal">≈</p>
+                      <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                      <p class="text-base font-semibold text-[#07F468]">400</p>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    data-testid="booking-flow-duration-plus"
-                    class="flex h-6 w-6 items-center justify-center rounded-full bg-[#12840F] text-base font-semibold leading-none text-[#07F468] transition-colors hover:bg-[#0f7410]"
-                    :class="!canAdjustDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
-                    :disabled="!canAdjustDuration"
-                    :aria-label="t('fan_booking_increase_length')"
-                    @click="increaseDuration"
-                  >
-                    +
-                  </button>
+                  <div class="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      data-testid="booking-flow-duration-minus"
+                      class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
+                      :class="(!canAdjustDuration || isAtMinimumDuration) ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                      :disabled="!canAdjustDuration || isAtMinimumDuration"
+                      :aria-label="t('fan_booking_decrease_length')"
+                      @click="decreaseDuration"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="2" viewBox="0 0 16 2" fill="none">
+    <path d="M0.75 0.75H14.75" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="booking-flow-duration-plus"
+                      class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
+                      :class="!canAdjustDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                      :disabled="!canAdjustDuration"
+                      :aria-label="t('fan_booking_increase_length')"
+                      @click="increaseDuration"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M12 5V19M5 12H19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <p
-                v-if="showDurationMaxNotice"
-                class="flex items-center gap-1 text-sm font-normal leading-[18px]"
-                :class="durationMaxNoticeClass"
-                data-testid="booking-flow-duration-max-warning"
-              >
-                <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
-                <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
-              </p>
-              <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
-              <p class="text-sm leading-[20px] text-[#07F468]">
-                {{ t("fan_booking_session_will_be_on", { date: selectedDateDisplay, time: formattedTimeRange !== '-' ? formattedTimeRange : '' }) }}
-              </p>
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-1">
+                  <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
+                  <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
+                </div>
+                
+                <div class="flex items-center gap-1">
+                  <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
+                  <p class="text-sm font-normal leading-5 text-[#07F468]">You have received first time booking discount!</p>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                  <p class="text-sm font-normal leading-5 text-[#FCE40D]">Book <span class="font-semibold">2</span> more session to get long session discount</p>
+                </div>
+                
+                <p
+                  v-if="showDurationMaxNotice"
+                  class="dn items-center gap-1 text-sm font-normal leading-[18px]"
+                  :class="durationMaxNoticeClass"
+                  data-testid="booking-flow-duration-max-warning"
+                >
+                  <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                  <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
+                </p>
+                <p v-if="!selectedTime" class="text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+                
+              </div>
+              
 
               <div
                 v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
