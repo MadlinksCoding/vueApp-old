@@ -39,17 +39,10 @@
           </div>
 
           <!-- Session Duration (read-only) -->
-          <div class="flex flex-col gap-2">
-            <label class="text-gray-700 text-base font-medium">Session duration</label>
-            <div class="flex items-center gap-2 mt-3">
-              <BaseInput
-                v-model="form.durationMinutes"
-                type="number"
-                placeholder=""
-                :disabled="true"
-                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 cursor-default"
-              />
-              <div class="text-black text-base font-medium leading-normal">Minutes</div>
+          <div class="flex gap-2 items-center">
+            <label class="text-gray-700 text-base font-medium">Session duration: </label>
+            <div class="flex items-center gap-1 mt-0">
+              <span class="text-gray-900 text-base font-medium">{{ form.durationMinutes }} Minutes</span>
             </div>
           </div>
 
