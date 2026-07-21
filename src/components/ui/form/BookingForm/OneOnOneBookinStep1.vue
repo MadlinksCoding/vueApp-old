@@ -572,8 +572,8 @@
 
   const colorOptions = [
     { label: t("booking_color_blue"), value: "#5549FF", color: "#5549FF" },
-    { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
-    { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
+    // { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
+    // { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
     { label: t("booking_color_pink"), value: "#FF2D92", color: "#FF2D92" },
     { label: t("booking_color_orange"), value: "#F97316", color: "#F97316" },
     { label: t("booking_color_purple"), value: "#8B5CF6", color: "#8B5CF6" },
@@ -1999,7 +1999,7 @@
                 layout="grid"
                 placeholder="Choose Event Color"
                 buttonClass="h-full bg-white/50 border-l pr-3 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none w-full"
-                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0"
+                dropdownClass="w-full bg-white shadow-lg border border-gray-100 right-0 origin-top-right mt-0 !max-h-none"
               >
                 <!-- Trigger: Only show the selected color dot -->
                 <template #trigger="{ selected }">
@@ -2097,7 +2097,7 @@
                   <BaseInput type="number" placeholder="" v-model="formData.maxSessionDuration"
                     data-booking-validation-input-field="maxSessionDuration"
                     :disabled="!formData.allowLongerSessions"
-                    inputClass="px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
+                    inputClass="no-spinner px-3.5 w-44 text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:cursor-not-allowed" />
                 </div>
                 <div class="flex flex-col">
                   <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions") }}</div>
@@ -2277,7 +2277,7 @@
                     wrapperClass="flex items-center gap-2 mb-2 mt-2" />
                   
                   <!-- New Toggle: Allow emoji -->
-                  <div v-if="formData.disableChatBeforeCall" class="ml-5">
+                  <div v-if="formData.disableChatBeforeCall" class="ml-5 hidden">
                     <CheckboxGroup v-model="formData.disableChatAllowEmoji" label="Allow reply with emoji"
                       checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                       labelClass="text-slate-700 text-sm leading-normal italic"
@@ -2791,7 +2791,7 @@
                           <img :src="plusIcon" alt="" />
                         </button>
                       </span>
-                      <TooltipIcon v-else :text="t('booking_add_period_day')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                      <TooltipIcon v-else :text="t('booking_add_period_day')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                         <button type="button" @click="addWeeklySlot(index)"
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center hover:bg-gray-100"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
@@ -2806,7 +2806,7 @@
                           <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                         </button>
                       </span>
-                      <TooltipIcon v-else-if="formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                      <TooltipIcon v-else-if="formData.repeatRule === 'weekly'" :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                         <button type="button" @click="toggleSlotOffHours(index, sIdx)"
                           class="w-6 h-6 rounded-full flex items-center justify-center"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
@@ -2900,7 +2900,7 @@
                   <img :src="plusIcon" alt="" />
                 </button>
                 </span>
-                <TooltipIcon v-else :text="t('booking_add_monthly_period')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <TooltipIcon v-else :text="t('booking_add_monthly_period')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                 <button
                   type="button"
                   @click="addMonthlySlot()"
@@ -2919,7 +2919,7 @@
                   <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                 </button>
                 </span>
-                <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                 <button
                   type="button"
                   @click="toggleMonthlySlotOffHours(slotIndex)"
@@ -3016,7 +3016,7 @@
                       <img :src="slot.offHours ? cloudMoonPinkIcon : cloudMoonIcon" alt="" />
                     </button>
                   </span>
-                  <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 translate-x-[-80%]">
+                  <TooltipIcon v-else :text="t('booking_mark_off_hours')" wrapperClass="flex items-center justify-center" tooltipClass="top-4 !translate-x-[-80%]">
                     <button
                       type="button"
                       @click="toggleOneTimeSlotOffHours(entryIndex, slotIndex)"
@@ -3068,7 +3068,7 @@
                   wrapperClass="flex items-center gap-2 mb-3 mt-2" />
                 
                 <!-- New Toggle: Allow emoji during call -->
-                <div v-if="formData.disableChatDuringCall" class="ml-6">
+                <div v-if="formData.disableChatDuringCall" class="ml-6 hidden">
                   <CheckboxGroup v-model="formData.disableChatDuringCallAllowEmoji" label="Allow reply with emoji"
                     checkboxClass="m-0 border border-checkboxBorder [appearance:none] w-[0.75rem] h-[0.75rem] rounded bg-transparent relative cursor-pointer checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45 "
                     labelClass="text-slate-700 text-sm leading-normal italic"
@@ -3097,9 +3097,9 @@
                     data-booking-validation-input-field="extendSessionMax"
                     :disabled="!formData.requestExtendSession"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                    <div class="h-10 inline-flex flex-col justify-between items-start">
-                      <div class="justify-center text-black text-base font-medium leading-normal">{{ t("booking_sessions_maximum") }}</div>
-                      <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.extendSessionMax}` }) }})</div>
+                    <div class="h-10 inline-flex flex-col justify-between items-start gap-1">
+                      <div class="justify-center text-black text-base font-medium leading-[1.25rem]">{{ t("booking_sessions_maximum") }}</div>
+                      <div v-if="formData.duration && formData.extendSessionMax" class="justify-center text-black text-xs font-medium leading-none whitespace-nowrap">({{ t("booking_minutes_count", { count: `${formData.duration}x${formData.extendSessionMax}` }) }})</div>
                     </div>
                   </div>
                 </div>
@@ -3290,3 +3290,21 @@
         `" btnBg="#07f468" btnHoverBg="black" btnText="black" btnHoverText="#07f468" />
     </div>
   </template>
+
+  <style scoped>
+  /* Hide default browser up/down spin buttons/chevrons */
+  :deep(input[type="number"]::-webkit-outer-spin-button),
+  :deep(input[type="number"]::-webkit-inner-spin-button) {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  :deep(input[type="number"]) {
+    -moz-appearance: textfield;
+  }
+
+  /* Hide custom up/down spin buttons/chevrons in BaseInput */
+  :deep(input[type="number"] + div) {
+    display: none !important;
+  }
+  </style>

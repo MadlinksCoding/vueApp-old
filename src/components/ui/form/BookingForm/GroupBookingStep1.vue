@@ -378,11 +378,29 @@
     </div>
   </template>
 
-<style scoped>
+<!-- <style scoped>
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   opacity: 1 !important;
   visibility: visible !important;
   -webkit-appearance: inner-spin-button !important;
 }
-</style>
+</style> -->
+
+  <style scoped>
+  /* Hide default browser up/down spin buttons/chevrons */
+  :deep(input[type="number"]::-webkit-outer-spin-button),
+  :deep(input[type="number"]::-webkit-inner-spin-button) {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  :deep(input[type="number"]) {
+    -moz-appearance: textfield;
+  }
+
+  /* Hide custom up/down spin buttons/chevrons in BaseInput */
+  :deep(input[type="number"] + div) {
+    display: none !important;
+  }
+  </style>

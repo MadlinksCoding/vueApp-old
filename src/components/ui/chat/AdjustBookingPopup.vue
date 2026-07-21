@@ -39,17 +39,10 @@
           </div>
 
           <!-- Session Duration (read-only) -->
-          <div class="flex flex-col gap-2">
-            <label class="text-gray-700 text-base font-medium">Session duration</label>
-            <div class="flex items-center gap-2 mt-3">
-              <BaseInput
-                v-model="form.durationMinutes"
-                type="number"
-                placeholder=""
-                :disabled="true"
-                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 cursor-default"
-              />
-              <div class="text-black text-base font-medium leading-normal">Minutes</div>
+          <div class="flex gap-2 items-center">
+            <label class="text-gray-700 text-base font-medium">Session duration: </label>
+            <div class="flex items-center gap-1 mt-0">
+              <span class="text-gray-900 text-base font-medium">{{ form.durationMinutes }} Minutes</span>
             </div>
           </div>
 
@@ -88,14 +81,52 @@
 
           <!-- Adjustment -->
           <div class="flex flex-col gap-2">
-            <!-- Add Adjustment (Original Price = 200 Tokens) -->
             <label class="text-gray-700 text-base font-medium">Adjustment ( Original Price = {{ baseTokens }} Tokens )</label>
-            <BaseInput
-              v-model="form.adjustmentTokens"
-              type="number"
-              placeholder=""
-              inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300"
-            />
+            <div
+              class="flex h-11 w-full items-center justify-between rounded-none border-b border-gray-300 bg-transparent px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]"
+              data-testid="adjustment-token-stepper"
+            >
+              <output
+                class="text-base font-semibold text-gray-700"
+                aria-live="polite"
+                data-testid="adjustment-token-value"
+              >
+                {{ form.adjustmentTokens }} Tokens
+              </output>
+
+              <div class="flex gap-2 items-center justify-end">
+                <button
+                type="button"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 border border-black transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
+                aria-label="Decrease adjustment by 1 token"
+                data-testid="adjustment-token-minus"
+                :disabled="!canDecrementAdjustment"
+                @click="handleAdjustmentClick(-1, $event)"
+                @pointerdown="startAdjustmentRepeat(-1)"
+                @contextmenu.prevent
+              >
+                <span aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M5 12H19" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 border border-black transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
+                aria-label="Increase adjustment by 1 token"
+                data-testid="adjustment-token-plus"
+                @click="handleAdjustmentClick(1, $event)"
+                @pointerdown="startAdjustmentRepeat(1)"
+                @contextmenu.prevent
+              >
+                <span aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M12 5V19M5 12H19" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></span>
+              </button>
+              </div>
+            </div>
           </div>
 
           <!-- Footer / Total Price -->
@@ -103,7 +134,10 @@
             <div class="text-gray-700 text-base font-medium">Total price after adjustment</div>
             <div class="flex items-end justify-between w-full mt-1">
               <div class="flex flex-col gap-0">
-                <div class="text-xl font-bold text-gray-950 leading-[1.2] tracking-tight">
+                <div
+                  class="text-xl font-bold text-gray-950 leading-[1.2] tracking-tight"
+                  data-testid="adjustment-total-tokens"
+                >
                   {{ totalTokens }} Tokens
                 </div>
                 <div v-if="baseTokens > 0" class="text-gray-950 text-base font-medium">
@@ -130,7 +164,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
 import BaseInput               from '@/components/dev/input/BaseInput.vue'
 import CloseIcon               from '@/assets/images/icons/cross-white.webp'
@@ -151,6 +185,13 @@ const submitting = ref(false)
 const booking    = ref(null)
 const event      = ref(null)
 
+const ADJUSTMENT_REPEAT_DELAY_MS = 400
+const ADJUSTMENT_REPEAT_INTERVAL_MS = 80
+
+let adjustmentRepeatDelayId = null
+let adjustmentRepeatIntervalId = null
+let suppressNextPointerClick = false
+
 const form = reactive({
   durationMinutes:  30,
   remarks:          '',
@@ -160,6 +201,19 @@ const form = reactive({
 })
 
 const messageContent = computed(() => props.message?.content || {})
+
+onMounted(() => {
+  window.addEventListener('pointerup', stopAdjustmentRepeat)
+  window.addEventListener('pointercancel', stopAdjustmentRepeat)
+  window.addEventListener('blur', stopAdjustmentRepeat)
+})
+
+onBeforeUnmount(() => {
+  stopAdjustmentRepeat()
+  window.removeEventListener('pointerup', stopAdjustmentRepeat)
+  window.removeEventListener('pointercancel', stopAdjustmentRepeat)
+  window.removeEventListener('blur', stopAdjustmentRepeat)
+})
 
 onMounted(async () => {
   const bookingId = messageContent.value.booking_id
@@ -263,6 +317,78 @@ const baseTokens = computed(() => {
 const totalTokens = computed(() =>
   Math.max(0, baseTokens.value + (Number(form.adjustmentTokens) || 0))
 )
+
+const minimumAdjustmentTokens = computed(() => -Math.max(0, baseTokens.value))
+
+const canDecrementAdjustment = computed(() =>
+  form.adjustmentTokens > minimumAdjustmentTokens.value
+)
+
+function changeAdjustmentTokens(direction) {
+  const currentValue = Number(form.adjustmentTokens) || 0
+
+  if (direction < 0) {
+    const nextValue = Math.max(minimumAdjustmentTokens.value, currentValue - 1)
+    if (nextValue === currentValue) return false
+    form.adjustmentTokens = nextValue
+    return true
+  }
+
+  form.adjustmentTokens = currentValue + 1
+  return true
+}
+
+function repeatAdjustmentTokens(direction) {
+  if (!changeAdjustmentTokens(direction)) {
+    stopAdjustmentRepeat()
+    return false
+  }
+
+  if (direction < 0 && !canDecrementAdjustment.value) {
+    stopAdjustmentRepeat()
+    return false
+  }
+
+  return true
+}
+
+function startAdjustmentRepeat(direction) {
+  stopAdjustmentRepeat()
+  suppressNextPointerClick = true
+
+  if (!repeatAdjustmentTokens(direction)) return
+
+  adjustmentRepeatDelayId = window.setTimeout(() => {
+    adjustmentRepeatDelayId = null
+    if (!repeatAdjustmentTokens(direction)) return
+
+    adjustmentRepeatIntervalId = window.setInterval(() => {
+      repeatAdjustmentTokens(direction)
+    }, ADJUSTMENT_REPEAT_INTERVAL_MS)
+  }, ADJUSTMENT_REPEAT_DELAY_MS)
+}
+
+function stopAdjustmentRepeat() {
+  if (adjustmentRepeatDelayId !== null) {
+    window.clearTimeout(adjustmentRepeatDelayId)
+    adjustmentRepeatDelayId = null
+  }
+
+  if (adjustmentRepeatIntervalId !== null) {
+    window.clearInterval(adjustmentRepeatIntervalId)
+    adjustmentRepeatIntervalId = null
+  }
+}
+
+function handleAdjustmentClick(direction, event) {
+  if (event.detail !== 0 && suppressNextPointerClick) {
+    suppressNextPointerClick = false
+    return
+  }
+
+  suppressNextPointerClick = false
+  changeAdjustmentTokens(direction)
+}
 
 const isDateTimeValid = computed(() => {
   const hasDate = !!form.newDate
