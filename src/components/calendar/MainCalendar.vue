@@ -81,12 +81,13 @@
                       header: 'font-semibold',
                       // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
                       // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                      dayBase: 'w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                      dayBase: 'relative w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
                       outside: 'opacity-0',
                       expired: 'opacity-100',
                       today: 'bg-[#FF0066] font-semibold text-white',
                       selected: 'rounded-full',
-                      dot: 'bottom-1 w-1.5 h-1.5 rounded-full absolute'
+                      dot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#101828]',
+                      selectedDot: '!bg-white'
                     }
                   }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
                   </MiniCalendar>
