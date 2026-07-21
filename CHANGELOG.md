@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-07-21 — Auto-unpin Cancelled/Declined Pinned Bookings, Tablet Landscape (`isTabletLandscape`) Chat Limit & Embed Spacing Fixes
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Auto-Unpin Cancelled & Declined Pinned Bookings** — Updated `_handleUnpinInterval` to check both message action strings (`msg.content?.action`) and API booking statuses (`booking?.status`) against cancelled (`cancelled`, `cancel`, or `status.startsWith('cancel')`) and declined (`declined`, `decline`, `rejected`) statuses. When evaluated as true, pinned booking requests and live call notifications are immediately unpinned (`is_pinned: false`) locally and synced with backend (`chat.pinMessage`, `pin: false`).
+- **Reactive Unpin Trigger** — Added a reactive `watch` on pinned booking messages and their store statuses (`map(msg => msg.content.action + booking.status)`), and invoked `_handleUnpinInterval()` right after `bookings.fetchBooking` resolves. This ensures any booking status transition (such as decline or cancellation) automatically unpins the banner instantly without waiting for the 10-second polling interval.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Tablet Landscape Single Chat Limit (`isTabletLandscape`)** — Added a computed `isTabletLandscape` check (`hostWidth >= 768 && hostWidth < 1366 && hostWidth > hostHeight`) to accurately identify tablet devices oriented in landscape mode (`window.innerWidth > window.innerHeight`) without incorrectly targeting standard desktop screens (`1920x1080`).
+- **Updated Max Chat Window Threshold** — Updated `openChatWindow` and `watch(hostWidth)` so that when `isTabletLandscape` is true (or when `hostWidth < 1024`), the maximum open chat limit is set to `limit = 1`. Desktop screens (`hostWidth >= 1366` and not `isTabletLandscape`) continue to allow `limit = 2` side-by-side chat windows.
+- **Side-by-Side Chat & List Layout on Tablet Landscape** — Ensured that on tablet landscape screens (`1024px <= hostWidth < 1366px`), opening a chat box keeps the Chat List Panel open (`isListOpen = true`) and displays the single chat box directly to the left of the Chat List Panel (`marginRight: 29rem`) without hiding or clipping any portion of the UI off-screen.
+- **Embed Host Dimensions & Clean Listeners** — Added `hostHeight` tracking via `ref(window.innerHeight)` and updated `handleHostResize` (`FS_CHAT_HOST_RESIZE`) to receive both `width` and `height` from the parent embed window. Removed unnecessary internal `window.addEventListener('resize')` calls inside the iframe to avoid overriding parent dimensions with iframe container bounds.
+
+#### `public/bookings-embed/fs-chat-host.js` (and `dist/bookings-embed/fs-chat-host.js`)
+- **Host Height Parameter in Iframe Query** — Updated `buildIframeSrcWithQuery` to pass `hostHeight: window.innerHeight` alongside `hostWidth: window.innerWidth` when rendering the chat embed iframe, ensuring accurate initial orientation detection upon mount.
+
+#### `src/components/ui/chat/ChatListPanel.vue`
+- **Embed Spacing Alignment Fix** — Added `:hide-floating-button="hideFloatingButton"` prop and updated classes to remove the 56px (`3.5rem`) bottom margin offset when in embed mode or when `hideFloatingButton` is true, aligning the Chat List height exactly (`600px`) with the adjacent `ChatWindow`.
+
 ## 2026-07-07 — Tablet Portrait Responsive Layout for New Chat Popup & Embed Container
 
 ### Changed
