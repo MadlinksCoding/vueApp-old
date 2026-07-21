@@ -4,129 +4,129 @@
 
     <!-- default-header-theme-1 -->
     <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
-      <div class="w-full flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="font-bold hidden lg:block w-[9rem] uppercase" :class="theme.main.title" data-test="calendar-desktop-title">{{ title }}</div>
-          <!-- mobile-view-start-->
-          <button
-            type="button"
-            class="cursor-pointer flex lg:hidden items-center gap-1 mobile-calendar-toggle"
-            data-test="calendar-mobile-month-toggle"
-            @click="toggleMobileCalendar"
-          >
-            <span class="text-gray-950 text-base font-bold uppercase" data-test="calendar-mobile-month-title">
-              {{ mobileCalendarTitle }}
-            </span>
-            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="3" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
+      <div class="w-full flex items-center justify-between ipad-portrait-large:items-start ipad-landscape-large:items-start">
+        <div class="flex items-center gap-3 ipad-portrait-large:flex-col ipad-portrait-large:items-start ipad-portrait-large:gap-2 ipad-landscape-large:flex-col ipad-landscape-large:items-start ipad-landscape-large:gap-2">
+          <div class="flex items-center gap-3">
+            <div class="font-bold hidden lg:block w-[9rem] uppercase" :class="theme.main.title" data-test="calendar-desktop-title">{{ title }}</div>
+            <!-- mobile-view-start-->
+            <button
+              type="button"
+              class="cursor-pointer flex lg:hidden items-center gap-1 mobile-calendar-toggle"
+              data-test="calendar-mobile-month-toggle"
+              @click="toggleMobileCalendar"
+            >
+              <span class="text-gray-950 text-base font-bold uppercase" data-test="calendar-mobile-month-title">
+                {{ mobileCalendarTitle }}
+              </span>
+              <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#667085" stroke-width="3" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
 
-          </button>
+            </button>
 
-        <Teleport to="body">
-          <div v-show="isMobileCalendarOpen" class="fixed inset-0 z-[120] lg:hidden">
-            <!-- Backdrop -->
-            <Transition name="fade">
-              <div v-if="isMobileCalendarOpen" class="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-                @click="isMobileCalendarOpen = false">
-              </div>
-            </Transition>
-
-            <!-- Bottom Sheet -->
-            <Transition name="slide-up">
-              <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
-                class="absolute bottom-0 left-0 w-full bg-white rounded-t-[1.5rem] shadow-[0px_-8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
-
-                <div class="p-4">
-
-                  <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2 cursor-pointer flex-1" @click="isDatePopupOpen = true">
-                      <div class="flex items-center justify-between flex-1 px-2 py-1">
-                        <div class="text-gray-950 text-base font-bold uppercase">{{ currentMonth }}</div>
-                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                      <div class="flex items-center justify-between flex-1 px-2 py-1">
-                        <div class="text-gray-950 text-base font-bold uppercase">{{ currentYear }}</div>
-                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    <span class="flex hidden items-center justify-between gap-6 px-2">
-                      <button class="flex items-center justify-center p-2" @click="shift(-1)" data-main-prev>
-                        <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        </svg>
-                      </button>
-                      <button class="flex items-center justify-center p-2" @click="shift(1)" data-main-next>
-                        <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        </svg>
-                      </button>
-                    </span>
+            <Teleport to="body">
+              <div v-show="isMobileCalendarOpen" class="fixed inset-0 z-[120] lg:hidden">
+                <!-- Backdrop -->
+                <Transition name="fade">
+                  <div v-if="isMobileCalendarOpen" class="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                    @click="isMobileCalendarOpen = false">
                   </div>
+                </Transition>
 
-                  <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
-                    ...theme,
-                    mini: {
-                      wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl',
-                      header: 'font-semibold',
-                      // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
-                      // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                      dayBase: 'relative w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
-                      outside: 'opacity-0',
-                      expired: 'opacity-100',
-                      today: 'bg-[#FF0066] font-semibold text-white',
-                      selected: 'rounded-full',
-                      dot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#101828]',
-                      selectedDot: '!bg-white'
-                    }
-                  }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
-                  </MiniCalendar>
+                <!-- Bottom Sheet -->
+                <Transition name="slide-up">
+                  <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
+                    class="absolute bottom-0 left-0 w-full bg-white rounded-t-[1.5rem] shadow-[0px_-8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
 
-                  <!-- Bottom spacer for safe areas -->
-                  <div class="h-6"></div>
-                </div>
+                    <div class="p-4">
+
+                      <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2 cursor-pointer flex-1" @click="isDatePopupOpen = true">
+                          <div class="flex items-center justify-between flex-1 px-2 py-1">
+                            <div class="text-gray-950 text-base font-bold uppercase">{{ currentMonth }}</div>
+                            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            </svg>
+                          </div>
+                          <div class="flex items-center justify-between flex-1 px-2 py-1">
+                            <div class="text-gray-950 text-base font-bold uppercase">{{ currentYear }}</div>
+                            <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8.00024 12L16.0002 20L24.0002 12" stroke="#101828" stroke-width="4" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        <span class="flex hidden items-center justify-between gap-6 px-2">
+                          <button class="flex items-center justify-center p-2" @click="shift(-1)" data-main-prev>
+                            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            </svg>
+                          </button>
+                          <button class="flex items-center justify-center p-2" @click="shift(1)" data-main-next>
+                            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#FF0066" stroke-width="3" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            </svg>
+                          </button>
+                        </span>
+                      </div>
+
+                      <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
+                        ...theme,
+                        mini: {
+                          wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl',
+                          header: 'font-semibold',
+                          // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
+                          // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
+                          dayBase: 'relative w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                          outside: 'opacity-0',
+                          expired: 'opacity-100',
+                          today: 'bg-[#FF0066] font-semibold text-white',
+                          selected: 'rounded-full',
+                          dot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#101828]',
+                          selectedDot: '!bg-white'
+                        }
+                      }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
+                      </MiniCalendar>
+
+                      <!-- Bottom spacer for safe areas -->
+                      <div class="h-6"></div>
+                    </div>
+                  </div>
+                </Transition>
               </div>
-            </Transition>
+            </Teleport>
+
+            <!-- mobile-view-end-->
+            <button
+              class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+              @click="goToday" data-main-today>
+              <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
+            </button>
           </div>
-        </Teleport>
-
-        <!-- mobile-view-end-->
-
-
-        <button
-          class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
-          @click="goToday" data-main-today>
-          <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
-        </button>
-        <span class="lg:flex items-center justify-between hidden ">
-          <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
-            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-          </button>
-          <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
-            <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-          </button>
-        </span>
-      </div>
+          <span class="lg:flex items-center justify-between hidden ">
+            <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+              <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
+              <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+          </span>
+        </div>
 
         <div class="flex items-center gap-2" ref="dropdownContainer">
         <!-- View selector dropdown -->
-          <div class="px-2 hidden ipad-portrait:hidden lg:flex items-center gap-2">
+          <div class="px-2 hidden lg:flex items-center gap-2">
             <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
               checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
               labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
@@ -157,7 +157,7 @@
           <div v-if="isViewSelectorOpen"
             class="absolute top-full right-0 mt-2 z-50 w-[5.813rem] bg-white rounded-[0.313rem] shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] overflow-hidden border border-gray-100">
             <div class="py-1">
-              <button v-for="v in ['day', 'week']" :key="v" @click="setView(v); isViewSelectorOpen = false"
+              <button v-for="v in availableViewOptions" :key="v" @click="setView(v); isViewSelectorOpen = false"
                 class="w-full text-left px-3 py-3 text-[0.875rem] text-[#0C111D] uppercase transition-colors"
                 :class="view === v ? 'bg-slate-50 font-bold' : 'font-semibold hover:bg-gray-50'">
                 {{ t(`common_${v}`) }}
@@ -199,7 +199,7 @@
           </div>
 
         <span
-          class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
+            class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
 
             <button @click="setView('day')"
               class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
@@ -226,6 +226,34 @@
 
           </span>
 
+          <div class="relative inline-block text-left flex lg:hidden">
+            <button
+              @click="isViewSelectorOpen = !isViewSelectorOpen"
+              class="h-[2.5rem] px-[1rem] py-[0.25rem] rounded-[3rem] border border-[#FB5BA2] font-medium text-sm flex items-center gap-2 cursor-pointer focus:outline-none select-none transition-colors duration-150"
+              :class="isViewSelectorOpen ? 'bg-[#0C111D] text-white' : 'bg-white/90 text-[#FB5BA2]'"
+            >
+              <span>{{ t(`common_${view}`) }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" class="transition-transform duration-200" :class="{ 'rotate-180': isViewSelectorOpen }">
+                <path d="M5 7.5L10 12.5L15 7.5" :stroke="isViewSelectorOpen ? 'white' : '#FB5BA2'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+
+            <div
+              v-if="isViewSelectorOpen"
+              class="absolute top-full right-0 mt-2 z-50 min-w-[5.813rem] rounded-[5px] bg-white shadow-sm flex flex-col overflow-hidden"
+            >
+              <button
+                v-for="v in availableViewOptions"
+                :key="v"
+                @click="setView(v); isViewSelectorOpen = false"
+                class="w-full text-left px-4 py-2 text-base font-medium text-[#0C111D] transition-colors flex-auto"
+                :class="view === v ? 'bg-[#EAECF0]/50 font-semiboldbold' : 'font-semiboldbold hover:bg-[#EAECF0]/50'"
+              >
+                {{ t(`common_${v}`) }}
+              </button>
+            </div>
+          </div>
+
 
         <!-- mobile-view-today-button -->
         <button
@@ -233,7 +261,7 @@
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
-        <div class="cursor-pointer relative flex lg:hidden">
+        <div class="cursor-pointer relative flex lg:hidden p-2">
           <div @click="toggleDropdown">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -245,7 +273,7 @@
           <!-- Mobile filter dropdown removed, replaced by Teleport below -->
 
         </div>
-        <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
+        <div class="cursor-pointer flex ipad-portrait-large:flex lg:hidden p-2" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
@@ -355,7 +383,7 @@
             v-if="variant === 'default'"
             :class="[
               isEventColumnMode ? 'flex' : 'lg:flex hidden',
-              'justify-end items-center px-[0.25rem] gap-[0.125rem]'
+              'justify-end items-center px-[0.25rem] gap-[0.125rem] opacity-0'
             ]"
           >
             <span class="flex items-center justify-center w-[0.625rem] h-[0.625rem] flex-1 text-right">
@@ -539,7 +567,7 @@
       <div
         ref="timeGridScrollRef"
         data-cal-time-scroll
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse md:flex-row">
         <div class="flex flex-col shrink-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
             :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
@@ -1068,6 +1096,7 @@ const currentTimeMs = ref(Date.now());
 // State for dropdown
 const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
+const availableViewOptions = computed(() => (width.value < 768 ? ['day'] : ['day', 'week', 'month']));
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
 const showLegend = ref(false);
