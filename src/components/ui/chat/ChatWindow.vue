@@ -2617,6 +2617,7 @@ watch(pinnedBookingMessages, (msgs) => {
       if (!res?.ok) return
       const bookingItem = res.data?.item || null
       chatStore.setBooking(bookingId, bookingItem)
+      _handleUnpinInterval()
 
       const eventId = bookingItem?.eventId ?? bookingItem?.event_id
       if (eventId && !chatStore.getEventById(eventId)) {
@@ -2705,10 +2706,18 @@ function _handleUnpinInterval() {
     const booking = chatStore.getBookingById(msg.content?.booking_id);
     const unpinAt = booking?.endAtIso;
 
-    const isCancelledBooking = msg.content_type === 'booking_request' && msg.content?.action === 'cancelled';
+    const action = String(msg.content?.action || '').toLowerCase();
+    const apiStatus = String(booking?.status || '').toLowerCase();
+
+    const isCancelledOrDeclinedAction = ['cancelled', 'cancel', 'declined', 'decline', 'rejected'].includes(action);
+    const isCancelledOrDeclinedApi = apiStatus.startsWith('cancel') || ['declined', 'rejected'].includes(apiStatus);
+
+    const isCancelledOrDeclined = (msg.content_type === 'booking_request' || msg.content_type === 'requestJoinCallNotification') &&
+                                  (isCancelledOrDeclinedAction || isCancelledOrDeclinedApi);
+
     const isTimeExpired = unpinAt && new Date(unpinAt).getTime() < Date.now();
 
-    if (isCancelledBooking || isTimeExpired) {
+    if (isCancelledOrDeclined || isTimeExpired) {
       let currentPinned = chatStore.chatPinnedMessages[activeChatId.value] || [];
       if (!Array.isArray(currentPinned)) currentPinned = [currentPinned];
       const updated = currentPinned.filter(m => (m.message_id || m.id) !== (msg.message_id || msg.id));
@@ -2727,6 +2736,13 @@ function _handleUnpinInterval() {
     }
   });
 }
+
+watch(() => pinnedBookingMessages.value.map(msg => {
+  const b = chatStore.getBookingById(msg.content?.booking_id);
+  return `${msg.message_id}_${msg.content?.action}_${b?.status}`;
+}), () => {
+  _handleUnpinInterval();
+})
 onMounted(async () => {
   window.addEventListener('message', _onTopupMessage)
 
