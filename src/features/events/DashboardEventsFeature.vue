@@ -1056,7 +1056,7 @@ function getMonthAvailabilitySummaryStyle(event) {
   );
 
   return {
-    backgroundColor: rgba(color, 0.08),
+    backgroundColor: rgba(color, 0.10),
     border: "0",
     borderTop: "0",
     borderRight: "0",

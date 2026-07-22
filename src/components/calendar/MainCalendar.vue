@@ -137,16 +137,19 @@
             class="relative inline-block text-left flex lg:hidden"
             data-test="calendar-mobile-view-selector"
           >
-          <div @click="toggleViewSelector"
-            :class="isViewSelectorOpen ? 'bg-[#0C111D]' : 'bg-white/90'"
-            class="border border-[#FB5BA2] gap-1 px-[1rem] py-1 rounded-full flex items-center justify-between cursor-pointer select-none transition-all duration-100">
+          <div @click="availableViewOptions.length > 1 ? toggleViewSelector() : null"
+            :class="[
+              isViewSelectorOpen ? 'bg-[#0C111D]' : 'bg-white/90',
+              availableViewOptions.length <= 1 ? 'cursor-default pointer-events-none justify-center' : 'cursor-pointer justify-between'
+            ]"
+            class="border border-[#FB5BA2] gap-1 px-[1rem] py-1 rounded-full flex items-center select-none transition-all duration-100">
             <span class="flex items-center justify-center h-full py-1">
               <h2 class="text-[0.875rem] font-semibold uppercase transition-colors" :class="isViewSelectorOpen ? 'text-white' : 'text-[#FB5BA2]'">
                 {{ t(`common_${view}`) }}
               </h2>
             </span>
 
-            <button class="flex items-center justify-center w-5 h-5 transition-transform duration-200"
+            <button v-if="availableViewOptions.length > 1" class="flex items-center justify-center w-5 h-5 transition-transform duration-200"
               :class="{ 'rotate-180': isViewSelectorOpen }">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M5 7.5L10 12.5L15 7.5" :stroke="isViewSelectorOpen ? 'white' : '#FB5BA2'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -228,12 +231,25 @@
 
           <div class="relative inline-block text-left flex lg:hidden">
             <button
-              @click="isViewSelectorOpen = !isViewSelectorOpen"
-              class="h-[2.5rem] px-[1rem] py-[0.25rem] rounded-[3rem] border border-[#FB5BA2] font-medium text-sm flex items-center gap-2 cursor-pointer focus:outline-none select-none transition-colors duration-150"
-              :class="isViewSelectorOpen ? 'bg-[#0C111D] text-white' : 'bg-white/90 text-[#FB5BA2]'"
+              @click="availableViewOptions.length > 1 ? (isViewSelectorOpen = !isViewSelectorOpen) : null"
+              class="min-w-[5.875rem] h-[2.5rem] px-[1rem] py-[0.25rem] rounded-[3rem] border border-[#FB5BA2] font-medium text-sm flex items-center justify-center gap-2 focus:outline-none select-none transition-colors duration-150"
+              :class="[
+                isViewSelectorOpen ? 'bg-[#0C111D] text-white' : 'bg-white/90 text-[#FB5BA2]',
+                availableViewOptions.length <= 1 ? 'cursor-default pointer-events-none' : 'cursor-pointer'
+              ]"
+              :disabled="availableViewOptions.length <= 1"
             >
-              <span>{{ t(`common_${view}`) }}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" class="transition-transform duration-200" :class="{ 'rotate-180': isViewSelectorOpen }">
+              <span :class="{ 'w-full text-center': availableViewOptions.length <= 1 }">{{ t(`common_${view}`) }}</span>
+              <svg
+                v-if="availableViewOptions.length > 1"
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                class="transition-transform duration-200"
+                :class="{ 'rotate-180': isViewSelectorOpen }"
+              >
                 <path d="M5 7.5L10 12.5L15 7.5" :stroke="isViewSelectorOpen ? 'white' : '#FB5BA2'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
@@ -748,13 +764,21 @@
               d.getDay() === 0 ? 'text-red-400' : '',
               expandedDate && sameDay(d, expandedDate) ? 'bg-slate-50' : ''
             ]">
-              <div class="text-sm mb-1" data-test="calendar-month-date-label" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">
+              <div class="w-full mb-1 flex justify-between gap-1 items-center">
+                <div class="text-sm font-semibold text-[#101828]" data-test="calendar-month-date-label" :class="d.getDay() === 0 ? 'text-red-400 font-semibold' : ''">
                 {{ d.getDate() }}
+                </div>  
+
+                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+                  <span class="text-xs font-medium text-[#F06]">+</span>
+                  <img src="/images/token-sm-calender.svg" alt="" class="w-4 h-4" />
+                  <span class="text-xs font-medium text-[#F06]">3,800</span>
+                </div>
               </div>
 
               <div
                 :ref="(element) => setMonthBookingViewportRef(formatLocalDateKey(d), element)"
-                class="min-h-0 flex-1 w-full overflow-hidden"
+                class="min-h-0 flex-1 w-full overflow-visible"
                 data-test="calendar-month-bookings"
                 :data-booking-count="monthBookingEventsForDay(d).length"
                 :data-visible-booking-count="monthBookingVisibleCount(d)"
@@ -791,7 +815,7 @@
                 <div
                   v-for="(availability, availabilityIndex) in visibleMonthAvailabilityEventsForDay(d)"
                   :key="'month-availability-' + (availability.eventId || availability.id || availabilityIndex)"
-                  class="flex h-[1.375rem] w-full shrink-0 items-center gap-1 overflow-hidden"
+                  class="flex h-[1.375rem] last:h-[2.6rem] w-full shrink-0 items-start gap-1 overflow-hidden flex-col"
                   data-test="calendar-month-availability-row"
                 >
                   <div class="min-w-0 flex-1 overflow-hidden">
@@ -805,10 +829,12 @@
                   </div>
                   <span
                     v-if="availabilityIndex === visibleMonthAvailabilityEventsForDay(d).length - 1 && monthHiddenAvailabilityCount(d) > 0"
-                    class="shrink-0 text-[0.625rem] font-medium leading-4 text-[#344054]"
+                    class="shrink-0 text-xs font-medium text-[#344054] flex items-center gap-1"
                     data-test="calendar-month-availability-more"
                   >
-                    +{{ monthHiddenAvailabilityCount(d) }}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <path d="M7.99967 3.33337V12.6667M3.33301 8.00004H12.6663" stroke="#344054" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>{{ monthHiddenAvailabilityCount(d) }} MORE...
                   </span>
                 </div>
               </div>
@@ -864,7 +890,7 @@
       >
         <div class="sticky top-0 z-10 flex h-10 shrink-0 items-center justify-between border-none border-[#D0D5DD] bg-white/95 px-2">
           <div class="flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#0C111D] text-sm font-bold text-white" data-test="calendar-month-overlay-date">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#0C111D] text-sm font-semibold text-white" data-test="calendar-month-overlay-date">
               {{ expandedDate.getDate() }}
             </span>
             <span class="hidden text-[0.625rem] font-semibold uppercase text-[#667085]">
