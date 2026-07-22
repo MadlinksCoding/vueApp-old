@@ -316,6 +316,7 @@
           :selected-date="state.selected || state.focus"
           :events="miniEvents"
           :theme="theme1"
+          :hide-past-dots="true"
           :data-attrs="{ 'data-calendar': 'mini' }"
           @date-selected="onSelectFromMini"
         />
@@ -810,20 +811,22 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-[#0C111D] mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
-    dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
+    dayBase: "relative w-[2rem] h-[2rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-0 focus:ring-inset focus:ring-emerald-500 text-xs leading-[18px] font-medium text-[#0C111D]",
     outside: "opacity-0",
     expired: "opacity-40",
-    today: "bg-gray-500 font-semibold text-white",
-    selected: "rounded-full",
-    dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
+    today: "bg-[#101828] !font-semibold text-white",
+    selected: "bg-[#101828] !font-semibold text-white",
+    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#101828]",
+    selectedDot: "!bg-white",
+    pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {
     wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
-    xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
-    axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.8rem]",
+    xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10 flex-row-reverse md:flex-row",
+    axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
     axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
@@ -2109,7 +2112,22 @@ const events1 = computed(() => {
       && (!props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now));
   });
 });
-const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
+const miniEvents = computed(() => {
+  const combined = [
+    ...(events1.value || []),
+    ...(allEvents.value || []),
+    ...(calendarEvents.value || []),
+  ];
+  const seen = new Set();
+  return combined.filter((event) => {
+    if (!event) return false;
+    const id = String(event.id || event.eventId || event.bookingId || `${event.start}-${event.title}`);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const status = String(event.status || resolveBookingStatus(event) || "").toLowerCase();
+    return !status.startsWith("cancelled");
+  });
+});
 
 const eventsData = computed(() => {
   const focus = state.focus || new Date();
