@@ -77,19 +77,19 @@
                       <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
                         ...theme,
                         mini: {
-                          wrapper: 'flex flex-col w-full font-medium text-gray-500 mt-[0.625rem] gap-[0.625rem] rounded-xl',
+                          wrapper: 'flex flex-col w-full font-medium text-[#0C111D] mt-[0.625rem] gap-[0.625rem] rounded-xl',
                           header: 'font-semibold',
-                          // CHANGE 1: 'hover:bg-slate-50' yahan se HATA diya hai.
-                          // CHANGE 2: 'focus:ring-inset' ADD kiya hai taake outline andar bane aur cut na ho.
-                          dayBase: 'relative w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500',
+                          dayBase: 'relative w-full aspect-square rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-0 focus:ring-inset focus:ring-emerald-500 text-xs leading-[18px] font-medium text-[#0C111D]',
                           outside: 'opacity-0',
-                          expired: 'opacity-100',
-                          today: 'bg-[#FF0066] font-semibold text-white',
-                          selected: 'rounded-full',
-                          dot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#101828]',
-                          selectedDot: '!bg-white'
+                          expired: 'opacity-40',
+                          today: 'bg-[#101828] !font-semibold text-white',
+                          selected: 'bg-[#101828] !font-semibold text-white',
+                          dot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#101828]',
+                          selectedDot: '!bg-white',
+                          pendingDot: 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]',
+                          ...(theme?.mini || {})
                         }
-                      }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
+                      }" :hide-past-dots="true" :data-attrs="{ 'data-calendar': 'mini' }" @date-selected="(d) => { emitDate(d); isMobileCalendarOpen = false; }">
                       </MiniCalendar>
 
                       <!-- Bottom spacer for safe areas -->
