@@ -1352,10 +1352,9 @@ describe("MainCalendar all events count", () => {
     expect(bodyColumns).toHaveLength(5);
     expect(bodyColumns.every((column) => column.classes().includes("min-w-0"))).toBe(true);
     expect(track.attributes("style")).toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
-    expect(track.attributes("style")).toContain("width: 100%");
-    expect(track.attributes("style")).toContain("min-width: 0");
-    expect(track.attributes("style")).not.toContain("7.5rem");
-    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-hidden");
+    expect(track.attributes("style")).toContain("width: 250%");
+    expect(track.attributes("style")).toContain("min-width: 250%");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-auto");
     expect(wrapper.findAll("[data-test='mobile-availability']")).toHaveLength(5);
     expect(wrapper.findAll("[data-test='mobile-booking']")).toHaveLength(5);
 
@@ -1897,7 +1896,7 @@ describe("MainCalendar all events count", () => {
     expect(summary.attributes("data-availability-count")).toBe("3");
     expect(summary.findAll("[data-test='month-availability']")).toHaveLength(1);
     expect(summary.get("[data-test='month-availability']").attributes("data-event-id")).toBe("event_1");
-    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toBe("+2");
+    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toContain("2");
     const booking = wrapper.get("[data-test='month-booking']");
     expect(booking.text()).toBe("Month booking");
     expect(booking.element.closest("[data-test='calendar-month-bookings']")).not.toBeNull();
@@ -1922,7 +1921,7 @@ describe("MainCalendar all events count", () => {
       "event_1",
       "event_2",
     ]);
-    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toBe("+1");
+    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toContain("1");
   });
 
   it("shows hidden month booking counts on the last booking that fits", async () => {

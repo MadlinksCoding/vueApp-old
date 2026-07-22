@@ -102,7 +102,7 @@
 
             <!-- mobile-view-end-->
             <button
-              class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 hover:bg-slate-50"
+              class="px-[1.5rem] hidden lg:flex justify-center items-center py-[0.25rem] h-[3rem] rounded-[2rem] border border-pink-400 bg-white/20 hover:bg-slate-50"
               @click="goToday" data-main-today>
               <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
             </button>
@@ -405,7 +405,7 @@
             v-if="variant === 'default'"
             :class="[
               isEventColumnMode ? 'flex' : 'lg:flex hidden',
-              'justify-end items-center px-[0.25rem] gap-[0.125rem] opacity-0'
+              'justify-end items-center px-[0.25rem] gap-[0.125rem] opacity-0 md:opacity-100'
             ]"
           >
             <span class="flex items-center justify-center w-[0.625rem] h-[0.625rem] flex-1 text-right">
@@ -423,7 +423,7 @@
 
         <div
           v-if="isDayEventColumnMode"
-          class="flex min-w-0 w-full items-center h-[3.995rem] pl-2"
+          class="flex min-w-0 w-full items-center h-[5.125rem] pl-2"
           :class="isMobileDayEventColumnMode ? 'gap-0' : 'gap-4'"
           data-test="calendar-day-event-header"
         >
@@ -447,7 +447,7 @@
               <span
                 class="text-[0.625rem] font-bold uppercase leading-4"
                 :class="[
-                  d.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]',
+                  d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]',
                   sameDay(d, selectedDay) ? 'opacity-100' : 'opacity-80'
                 ]"
               >
@@ -458,42 +458,52 @@
                 :class="[
                   sameDay(d, selectedDay)
                     ? 'bg-[#0C111D] text-white'
-                    : (d.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'),
+                    : (d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]'),
                   sameDay(d, today) && !sameDay(d, selectedDay) ? 'ring-1 ring-[#FB5BA2]/40' : ''
                 ]"
               >
                 {{ d.getDate() }}
               </span>
+              <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+                <span class="text-xs font-medium text-[#F06]">+</span>
+                <img :src="TokenIcon" alt="" class="w-4 h-4" />
+                <span class="text-xs font-medium text-[#F06]">3,800</span>
+              </div>
             </button>
           </div>
 
           <template v-else>
-            <div
+            <div class="flex w-full items-center">
+              <div
               class="min-w-0 truncate text-sm md:text-base font-bold uppercase tracking-[0.04em] text-[#344054]"
-              data-test="calendar-day-event-title"
-            >
-              {{ dayModeTitle }}
+                data-test="calendar-day-event-title"
+              >
+                {{ dayModeTitle }}
+              </div>
+              <span class="flex shrink-0 items-center justify-between">
+                <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M15 18L9 12L15 6" stroke="#0C111D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                </button>
+                <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M9 18L15 12L9 6" stroke="#0C111D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                </button>
+              </span>
             </div>
-            <span class="flex shrink-0 items-center justify-between">
-              <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
-                <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#101828" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </button>
-              <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(1)" data-main-next>
-                <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M1 16.9995L9 8.99951L1 0.999512" stroke="#101828" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </button>
-            </span>
+            <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+              <span class="text-xs font-medium text-[#F06]">+</span>
+              <img :src="TokenIcon" alt="" class="w-4 h-4" />
+              <span class="text-xs font-medium text-[#F06]">3,800</span>
+            </div>
           </template>
         </div>
 
         <div
           v-else-if="isWeekEventColumnMode"
-          class="flex min-w-0 w-full items-center h-[3.995rem] pl-2"
+          class="flex min-w-0 w-full items-center h-[6rem] pl-2"
           data-test="calendar-week-event-header"
         >
           <div
@@ -507,7 +517,7 @@
             @click.capture="handleWeekHeaderClickCapture"
           >
             <div
-              class="flex h-[3.995rem]"
+              class="flex h-[6rem]"
               :style="weekEventTrackStyle"
               data-test="calendar-week-event-header-track"
             >
@@ -516,7 +526,7 @@
                 :key="'week-header-' + group.dateKey"
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
-                :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
+                :class="group.isSelected ? 'opacity-100' : 'opacity-100'"
                 :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"
@@ -527,8 +537,8 @@
                 @click="selectWeekDate(group.day)"
               >
                 <span
-                  class="text-[0.625rem] font-bold uppercase leading-4"
-                  :class="group.day.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'"
+                  class="text-[0.625rem] font-bold uppercase leading-5"
+                  :class="group.day.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]'"
                 >
                   {{ shortWeekdays[group.day.getDay()] }}
                 </span>
@@ -537,12 +547,17 @@
                   :class="[
                     group.isSelected
                       ? 'bg-[#0C111D] text-white'
-                      : (group.day.getDay() === 0 ? 'text-[#FF0066]' : 'text-[#0C111D]'),
+                      : (group.day.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]'),
                     sameDay(group.day, today) && !group.isSelected ? 'ring-1 ring-[#FB5BA2]/40' : ''
                   ]"
                 >
                   {{ group.day.getDate() }}
                 </span>
+                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+                  <span class="text-xs font-medium" :class="sameDay(group.day, today) ? 'text-[#F06]' : 'text-[#344054]'">+</span>
+                  <img :src="TokenIcon" alt="" class="w-4 h-4" />
+                  <span class="text-xs font-medium" :class="sameDay(group.day, today) ? 'text-[#F06]' : 'text-[#344054]'">3,800</span>
+                </div>
               </button>
             </div>
           </div>
@@ -601,7 +616,7 @@
         <div
           ref="weekBodyScrollRef"
           class="flex-1 min-w-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          :class="isWeekEventColumnMode ? 'overflow-x-auto overscroll-x-contain touch-pan-x' : 'overflow-x-hidden'"
+          :class="(isWeekEventColumnMode || isDayEventColumnMode) ? 'overflow-x-auto overscroll-x-contain touch-pan-x' : 'overflow-x-hidden'"
           data-test="calendar-week-event-body-scroll"
           :style="{ height: gridMetrics.totalHeight + 'px' }"
           @scroll="syncWeekHorizontalScroll('body')"
@@ -751,13 +766,13 @@
 
       <div class="grid grid-cols-7 shrink-0 top-0 sticky w-full backdrop-blur-md z-10">
         <div v-for="(w, index) in shortWeekdays" :key="w"
-          class="text-center text-sm sm:text-lg font-semibold uppercase leading-7 mb-[0.625rem]"
-          :class="index === 0 ? 'text-red-400' : 'text-gray-500'">
+          class="text-center text-sm font-semibold uppercase mb-[0.625rem]"
+          :class="index === 0 ? 'text-[#FF4405]' : 'text-[#0C111D]'">
           {{ w }}
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 flex flex-col">
+      <div class="min-h-0 flex-1 flex flex-col border border-white bg-[#FCFCFD]/25">
 
         <div v-for="(row, rowIndex) in monthRows" :key="'row-' + rowIndex" class="contents">
 
@@ -776,9 +791,9 @@
                 </div>  
 
                 <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
-                  <span class="text-xs font-medium text-[#F06]">+</span>
-                  <img src="/images/token-sm-calender.svg" alt="" class="w-4 h-4" />
-                  <span class="text-xs font-medium text-[#F06]">3,800</span>
+                  <span class="text-xs font-medium" :class="sameDay(d, today) ? 'text-[#F06]' : 'text-[#344054]'">+</span>
+                  <img :src="TokenIcon" alt="" class="w-4 h-4" />
+                  <span class="text-xs font-medium" :class="sameDay(d, today) ? 'text-[#F06]' : 'text-[#344054]'">3,800</span>
                 </div>
               </div>
 
@@ -1136,6 +1151,7 @@ import IndicatorDot from '../icons/IndicatorDot.vue';
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 import PhoneIncoming02Icon from "@/assets/images/icons/phone-incoming-02.svg"
 import ThreeDotsIcon from "@/assets/images/icons/dots-vertical.svg"
+import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
 
 const props = defineProps({
   variant: { type: String, default: 'default' },
@@ -1853,11 +1869,12 @@ const timeGridColumnStyle = computed(() => {
   if (!isDayEventColumnMode.value) return {};
 
   const count = Math.max(1, dayEventColumns.value.length);
+  const trackWidthPercent = Math.max(100, count * 50);
 
   return {
     gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
-    width: '100%',
-    minWidth: '0',
+    width: `${trackWidthPercent}%`,
+    minWidth: `${trackWidthPercent}%`,
   };
 });
 
@@ -2023,10 +2040,14 @@ const centerMobileDayStrip = ({ behavior = 'smooth' } = {}) => {
     // Keep the selected date in the SECOND column (offset by 1 itemWidth from container left edge)
     const targetScrollLeft = Math.max(0, itemLeft - itemWidth);
 
-    container.scrollTo({
-      left: targetScrollLeft,
-      behavior,
-    });
+    if (typeof container.scrollTo === 'function') {
+      container.scrollTo({
+        left: targetScrollLeft,
+        behavior,
+      });
+    } else {
+      container.scrollLeft = targetScrollLeft;
+    }
   });
 };
 
