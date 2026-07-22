@@ -33,7 +33,6 @@
                     @click="isMobileCalendarOpen = false">
                   </div>
                 </Transition>
-
                 <!-- Bottom Sheet -->
                 <Transition name="slide-up">
                   <div v-if="isMobileCalendarOpen" ref="mobileCalendarRef"
@@ -296,6 +295,13 @@
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
+         <!-- <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
+              stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div> -->
 
         </div>
       </div>
@@ -961,6 +967,19 @@
       />
     </PopupHandler>
 
+    <PopupHandler v-model="eventsRequestsPopupOpen" :config="eventsRequestsPopupConfig">
+      <EventsRequestsPopup
+        v-if="eventsRequestsPopupOpen"
+        :events-data="props.eventsData"
+        :user-role="props.userRole"
+        @close="eventsRequestsPopupOpen = false"
+        @join-click="handleJoin"
+        @reply-click="handleReply"
+        @event-click="handleMobileWidgetEventClick"
+        @menu-action="handleMobileWidgetMenuAction"
+      />
+    </PopupHandler>
+
     <PopupHandler v-model="newEventsPopupOpen" :config="newEventsPopupConfig">
       <NewEventsPopup
         @create-private="handleCreateEvent('private')"
@@ -1037,8 +1056,54 @@
       @close="adjustBookingState = null"
       @submitted="handleAdjustSubmitted"
     />
+    <!-- Mobile sticky bottom event card -->
+    <Teleport to="body">
+      <div class="fixed hidden bottom-0 left-0 right-0 z-[90] md:hidden">
+        <div class="w-full bg-white min-h-[80px] shadow-[0_0_12px_0_rgba(85,73,255,0.75),0_4px_8px_-2px_rgba(85,73,255,0.10),0_2px_4px_-2px_rgba(85,73,255,0.06)] border border-gray-100 p-3 flex gap-1.5">
+         
+          <div 
+            class="w-[0.25rem] h-[auto] rounded-[0.875rem] bg-[#5549FF]"
+          > </div>
+          <span class="text-xs py-2 text-gray-700 font-semibold leading-4 shrink-0 w-[54px]">12:30pm– 1:00pm</span>
+          <div class="flex flex-col gap-1 self-stretch flex-1">
+            <div class="flex items-center gap-2">
+              <div class="flex flex-1 items-center gap-1 min-w-0">
+                <PhoneIcon color="#5549FF"/>
+                <p class="text-[0.875rem] font-semibold text-[#5549FF] truncate leading-5">High School Simulator</p>
+                <img :src=GreenCheckIcon />
+              </div>
+              <button class="flex items-center justify-center w-5 h-5 shrink-0">
+                <img :src=ThreeDotsIcon />
+              </button>
+            </div>
+  
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <img
+                  src="https://i.pravatar.cc/32?img=5"
+                  alt="Guest"
+                  class="w-5 h-5 rounded-full object-cover shrink-0"
+                />
+                <p class="text-[0.6875rem] text-gray-500 font-medium flex-1 truncate">Apples</p>
+              </div>
+              <div class="flex flex-col items-end gap-1">
+                <span class="flex items-center gap-1 shrink-0">
+                  <IndicatorDot color="#FF4405" class="w-2 h-2" />
+                  <span class="text-[0.6875rem] font-medium text-[#FF4405]">in 5 min</span>
+                </span>
+                <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-[0.25rem] bg-[#5549FF] hover:bg-[#5549FF]/90 transition-colors shrink-0 blink-border-blue-effect">
+                  <img :src=PhoneIncoming02Icon />
+                  <span class="text-white text-[0.75rem] font-semibold">{{ t('common_join_call') }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
   </section>
+
 
 
 </template>
@@ -1058,6 +1123,7 @@ import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
+import EventsRequestsPopup from './EventsRequestsPopup.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
 import FlowHandler from '@/services/flow-system/FlowHandler';
@@ -1066,6 +1132,10 @@ import { useChatStore } from '@/stores/useChatStore';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import MiniCalendar from './MiniCalendar.vue';
+import IndicatorDot from '../icons/IndicatorDot.vue';
+import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
+import PhoneIncoming02Icon from "@/assets/images/icons/phone-incoming-02.svg"
+import ThreeDotsIcon from "@/assets/images/icons/dots-vertical.svg"
 
 const props = defineProps({
   variant: { type: String, default: 'default' },
@@ -1136,6 +1206,7 @@ const dropdownFilters = ref({
 });
 const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
+const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
 const adjustBookingState = ref(null);
 const selectedEvent = ref({});
@@ -1276,11 +1347,27 @@ const calendarPopupConfig = {
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
-  width: { default: "100%", "<500": "100%" },
+  width: { default: "480px" },
   height: { default: "80%", "<768": "80%" },
   scrollable: true,
   closeSpeed: "250ms",
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
+};
+
+const eventsRequestsPopupConfig = {
+  actionType: "slidein",
+  from: "bottom",
+  offset: "0px",
+  speed: "300ms",
+  effect: "ease-in-out",
+  showOverlay: true,
+  closeOnOutside: true,
+  lockScroll: true,
+  escToClose: true,
+  width: { default: "100%" },
+  height: { default: "80%" },
+  scrollable: false,
+  closeSpeed: "250ms",
 };
 
 const newEventsPopupConfig = {
@@ -2954,6 +3041,17 @@ defineExpose({
   overflow: visible;
   text-overflow: clip;
   white-space: nowrap;
+}
+@keyframes blink-border-blue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(7, 244, 104, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(85, 73, 255, 0.25);
+  }
+}
+.blink-border-blue-effect {
+  animation: blink-border-blue 1.5s ease-in-out infinite;
 }
 
 @keyframes month-overlay-expand {

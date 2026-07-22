@@ -1,6 +1,6 @@
 <template>
     <div
-        class="w-full md:w-[492px] bg-gray-50 rounded-[0.5rem] md:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none"
+        class="w-full md:w-[492px] bg-gray-50 rounded-t-[24px] rounded-b-none md:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none"
         :style="popupStyle"
     >
         <div class="w-1 self-stretch shrink-0" :style="{ backgroundColor: eventColor }" />
@@ -119,6 +119,7 @@
                             data-popup-close
                             class=" p-2 rounded-full hover:bg-gray-200 transition-colors md:hidden"
                             :aria-label="t('common_close')"
+                            @click="$emit('close')"
                         >
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M15 5L5 15M5 5L15 15" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
