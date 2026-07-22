@@ -430,14 +430,14 @@
           <div
             v-if="isMobileDayEventColumnMode"
             ref="mobileDayStripRef"
-            class="flex w-full min-w-0 snap-x snap-mandatory overflow-x-auto scroll-smooth scroll-px-[37.5%] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            class="flex w-full min-w-0 snap-x snap-mandatory overflow-x-auto scroll-smooth scroll-pl-[25%] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             data-test="calendar-mobile-day-strip"
           >
             <button
               v-for="d in mobileDayStripDays"
               :key="'mobile-day-' + formatLocalDateKey(d)"
               type="button"
-              class="flex min-w-[25%] snap-center flex-col items-center justify-center gap-1 px-1 py-1 text-center"
+              class="flex min-w-[25%] w-[25%] shrink-0 snap-start flex-col items-center justify-center gap-1 px-1 py-1 text-center"
               :data-date="formatLocalDateKey(d)"
               :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'"
               :data-today="sameDay(d, today) ? 'true' : 'false'"
@@ -2007,16 +2007,25 @@ const emitFocusDate = (d) => {
   emit('update:focus-date', new Date(date));
 };
 
-const centerMobileDayStrip = () => {
+const centerMobileDayStrip = ({ behavior = 'smooth' } = {}) => {
   nextTick(() => {
     if (!isMobileDayEventColumnMode.value) return;
-    const selected = mobileDayStripRef.value?.querySelector?.('[data-selected="true"]');
-    if (!selected || typeof selected.scrollIntoView !== 'function') return;
+    const container = mobileDayStripRef.value;
+    if (!container) return;
 
-    selected.scrollIntoView({
-      behavior: 'auto',
-      block: 'nearest',
-      inline: 'center',
+    const selected = container.querySelector?.('[data-selected="true"]');
+    if (!selected) return;
+
+    const containerWidth = container.clientWidth;
+    const itemLeft = selected.offsetLeft;
+    const itemWidth = selected.offsetWidth || (containerWidth * 0.25);
+
+    // Keep the selected date in the SECOND column (offset by 1 itemWidth from container left edge)
+    const targetScrollLeft = Math.max(0, itemLeft - itemWidth);
+
+    container.scrollTo({
+      left: targetScrollLeft,
+      behavior,
     });
   });
 };
