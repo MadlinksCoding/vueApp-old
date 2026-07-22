@@ -1,5 +1,5 @@
 <template>
-  <section v-if="items.length > 0" class="flex w-full flex-col gap-3" data-test="booking-schedule-list">
+  <section v-if="items.length > 0" class="flex w-full flex-col gap-3 pb-5" data-test="booking-schedule-list">
     <div class="flex items-center justify-between gap-3 px-0.5">
       <div class="flex items-center gap-2">
         <h3 class="text-[0.75rem] font-bold uppercase leading-[1.125rem] tracking-wide text-slate-900">
@@ -55,7 +55,7 @@
           <div class="flex items-center gap-1.5">
             <span
               class="h-2 w-2 rounded-full"
-              :class="item.openToday ? 'bg-emerald-500' : 'bg-[#ff4405]'"
+              :class="item.openToday ? 'bg-[#07F468]' : 'bg-[#ff4405]'"
             />
             <span
               class="truncate text-[0.688rem] font-medium uppercase leading-4"
