@@ -37,6 +37,10 @@
   min-width: 46px; /* Prevent horizontal shrinking */
 }
 
+#fs-chat-external-btn.is-open {
+  display: none !important;
+}
+
 #fs-chat-external-btn.edge-bottom { border-radius: 10px 10px 0 0; }
 #fs-chat-external-btn.edge-top { border-radius: 0 0 10px 10px; }
 #fs-chat-external-btn.edge-left { border-radius: 0 10px 10px 0; }

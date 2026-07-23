@@ -276,7 +276,7 @@ function openChatWindow(chat) {
 
   const newChat = { ...chat, uid: Date.now() + Math.random() }
 
-  const limit = hostWidth.value >= 1024 ? 2 : 1
+  const limit = (isTabletLandscape.value || hostWidth.value < 1024) ? 1 : (hostWidth.value >= 1024 ? 2 : 1)
   if (openChats.value.length >= limit) {
     const toKeep = limit - 1
     openChats.value = toKeep > 0 ? [...openChats.value.slice(-toKeep), newChat] : [newChat]
@@ -398,9 +398,14 @@ const widgetEl  = ref(null)
 
 // Track host width for iframe embeds, while still allowing normal tailwind md classes
 const hostWidth = ref(window.innerWidth)
+const hostHeight = ref(window.innerHeight)
+
+const isTabletLandscape = computed(() => {
+  return hostWidth.value >= 768 && hostWidth.value < 1366 && hostWidth.value > hostHeight.value
+})
 
 watch(hostWidth, (newWidth) => {
-  const limit = newWidth >= 1024 ? 2 : 1
+  const limit = (isTabletLandscape.value || newWidth < 1024) ? 1 : (newWidth >= 1024 ? 2 : 1)
   if (openChats.value.length > limit) {
     const toRemove = openChats.value.length - limit
     openChats.value.splice(0, toRemove)
@@ -516,10 +521,17 @@ onMounted(async () => {
   if (params.get('hostWidth')) {
     hostWidth.value = parseInt(params.get('hostWidth'), 10)
   }
+  if (params.get('hostHeight')) {
+    hostHeight.value = parseInt(params.get('hostHeight'), 10)
+  }
+
 
   const handleHostResize = (e) => {
     if (e.data?.type === 'FS_CHAT_HOST_RESIZE') {
       hostWidth.value = e.data.payload.width
+      if (e.data.payload.height) {
+        hostHeight.value = e.data.payload.height
+      }
     } else if (e.data?.type === 'FS_CHAT_DRAG_END' && e.data.payload) {
       isLeftAligned.value = e.data.payload.isLeftAligned
       isTopAligned.value = e.data.payload.isTopAligned
@@ -645,6 +657,7 @@ onMounted(async () => {
         :host-width="hostWidth"
         :is-left-aligned="isLeftAligned"
         :is-top-aligned="isTopAligned"
+        :hide-floating-button="hideFloatingButton"
         @open-chat="openChatWindow"
         @close="isListOpen = false"
         @start-chat="onStartChat"

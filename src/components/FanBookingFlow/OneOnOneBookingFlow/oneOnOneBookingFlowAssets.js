@@ -3,6 +3,7 @@ export { default as bookingFlowTokenIcon } from "@/assets/images/icons/token-02.
 export { default as bookingFlowCalendarIcon } from "@/assets/images/icons/calendar-check-01.svg";
 export { default as bookingFlowCalendarCheckIcon } from "@/assets/images/icons/check-circle.svg";
 export { default as bookingFlowSaleIcon } from "@/assets/images/icons/sale-04.svg";
+export { default as bookingFlowCloudMoon } from "@/assets/images/icons/cloud-moon.svg";
 export { default as bookingFlowAlertHexagonIcon } from "@/assets/images/icons/alert-hexagon.svg";
 export { default as bookingFlowUnionIcon } from "@/assets/images/icons/Union.webp";
 export { default as bookingFlowUnionBlackIcon } from "@/assets/images/icons/union-black-gray.svg";
