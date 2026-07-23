@@ -107,7 +107,7 @@
               <p class="font-medium text-sm text-pink-500">{{ t("common_today") }}</p>
             </button>
           </div>
-          <span class="lg:flex items-center justify-between hidden ">
+          <span class="lg:flex items-center justify-between hidden gap-2 ">
             <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
               <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 16.9995L1 8.99951L9 0.999512" stroke="#667085" stroke-width="2" stroke-linecap="round"
@@ -128,7 +128,7 @@
           <div class="px-2 hidden lg:flex items-center gap-2">
             <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
               checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
-              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-slate-700 cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
+              labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-[#0C111D] cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
               wrapperClass="flex items-center" />
           </div>
           <div
@@ -204,9 +204,9 @@
             class="lg:flex items-center hidden w-[14.375rem] rounded-[3rem] p-[0.25rem] bg-white/20 border border-pink-400/80">
 
             <button @click="setView('day')"
-              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold" :class="view === 'day'
+              class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold" :class="view === 'day'
                 ? 'bg-pink-400/80 text-white'
-                : 'text-pink-400/80'">
+                : 'text-[#FB5BA2]'">
               {{ t("common_day") }}
             </button>
 
@@ -214,15 +214,15 @@
               class="w-[4.5rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
               :class="view === 'week'
                 ? 'bg-pink-400/80 text-white'
-                : 'text-pink-400/80'">
+                : 'text-[#FB5BA2]'">
               {{ t("common_week") }}
             </button>
 
             <button @click="setView('month')"
-              class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-bold"
+              class="w-[4.875rem] h-[2.5rem] px-[1rem] py-[0.5rem] leading-[1.25rem] rounded-[3rem] text-[0.875rem] font-semibold"
               :class="view === 'month'
                 ? 'bg-pink-400/80 text-white'
-                : 'text-pink-400/80'">
+                : 'text-[#FB5BA2]'">
               {{ t("common_month") }}
             </button>
 
@@ -298,7 +298,7 @@
             <span class="text-white text-[10px] font-semibold">31</span>
           </div>
         </div>
-         <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
+         <div class="cursor-pointer flex lg:hidden p-2" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
@@ -413,11 +413,11 @@
           >
             <span class="flex items-center justify-center w-[0.625rem] h-[0.625rem] flex-1 text-right">
               <svg width="6" height="5" viewBox="0 0 6 5" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#98A2B3" stroke-linecap="round"
+                <path d="M0.5 1.36523L3 3.86523L5.5 1.36523" stroke="#0C111D" stroke-linecap="round"
                   stroke-linejoin="round" />
               </svg>
             </span>
-            <p class="text-xs text-gray-400 font-medium leading-[1.125rem]">{{ t("calendar_timezone_gmt_offset", { offset: " +08" }) }}</p>
+            <p class="text-xs text-[#0C111D] font-medium leading-[1.125rem]">{{ t("calendar_timezone_gmt_offset", { offset: " +08" }) }}</p>
           </div>
           <div v-else class="flex flex-col items-center justify-end pb-2">
             <span class="text-[0.625rem] font-bold text-slate-400">{{ t("calendar_timezone_gmt_offset", { offset: "+5" }) }}</span>
@@ -607,10 +607,10 @@
       <div
         ref="timeGridScrollRef"
         data-cal-time-scroll
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse md:flex-row">
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row">
         <div class="flex flex-col shrink-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
-            :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(t) ? ' !text-brand-textPink font-bold' : '']"
+            :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(t) ? ' !text-[#F06] !font-semibold' : '']"
             :style="idx < gridMetrics.rows.length ? { height: gridMetrics.rows[idx].height + 'px' } : {}">
             {{ formatTime(t) }}
           </div>
@@ -681,7 +681,7 @@
               v-for="group in weekEventDayGroups"
               :key="'week-day-' + group.dateKey"
               class="relative shrink-0 transition-opacity"
-              :class="[theme.main.colBase, group.isSelected ? 'opacity-100' : 'opacity-30']"
+              :class="[theme.main.colBase, group.isSelected ? 'bg-white/50' : '']"
               :style="{ ...weekEventDayGroupStyle(group), height: gridMetrics.totalHeight + 'px' }"
               :data-date="group.dateKey"
               :data-selected="group.isSelected ? 'true' : 'false'"

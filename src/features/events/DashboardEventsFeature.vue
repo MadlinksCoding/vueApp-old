@@ -299,7 +299,7 @@
                 color="currentColor"
                 :class="[
                   'shrink-0',
-                  'h-3 w-3'
+                  'h-4 w-4'
                 ]"
               />
               <span class="min-w-0 truncate">{{ event.title }}</span>
@@ -444,7 +444,7 @@
       <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
         <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img
@@ -455,7 +455,7 @@
         </button>
         <!-- Landscape screen -->
         <button
-          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden lg:flex items-center justify-between transition-transform"
+          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden ipad-portrait-large:flex lg:flex items-center justify-between transition-transform"
           @click="toggleFloatingPopup"
         >
           <div class="flex items-center gap-2 justify-between">
@@ -843,14 +843,14 @@ const theme1 = computed(() => ({
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
-    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
+    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-700 text-xs font-medium leading-4",
     colBase: "relative bg-white/20",
-    gridRow: "h-[4rem] border-b border-white/50",
+    gridRow: "h-[4rem] border-b border-gray-400",
     eventBase: "absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm",
   },
   month: {
     weekHeader: "text-xs uppercase tracking-wide text-slate-500",
-    cellBase: "h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden",
+    cellBase: "h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-[#344054] border border-white/50 flex flex-col items-start justify-start overflow-hidden",
     outside: "opacity-40",
     today: "border-2 border-emerald-500",
     cellEvent: "w-full text-[0.563rem] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer",
@@ -1207,7 +1207,7 @@ function getBookedSlotTypeIconKind(event = {}) {
 }
 
 function getCalendarSlotIconSizeClass(view) {
-  return view === "month" ? "h-2.5 w-2.5" : "h-3 w-3";
+  return view === "month" ? "h-3.5 w-3.5" : "h-3.5 w-3.5";
 }
 
 function getBookedSlotIndicatorStatus(event = {}) {

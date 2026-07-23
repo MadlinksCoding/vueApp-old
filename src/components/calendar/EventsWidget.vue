@@ -2,19 +2,43 @@
   <section class="flex flex-col gap-[1rem]">
     
     <div v-for="(section, sIndex) in sections" :key="sIndex" class="flex flex-col gap-[0.5rem] w-full">
-      <div class="flex gap-1 items-center self-stretch">
-        <h3
-          v-if="section.items && section.items.length > 0"
-          class="text-sm text-[#0C111D] leading-[1.125rem] font-semibold uppercase"
-        >
-          {{ section.title }}
-        </h3>
-        <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
-              :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
-          <span class="text-sm font-semibold text-white">3</span>
+      <div class="flex items-center justify-between gap-3 self-stretch">
+        <div class="flex gap-1 items-center">
+          <h3
+            v-if="section.items && section.items.length > 0"
+            class="text-sm text-[#0C111D] leading-[1.125rem] font-semibold uppercase"
+          >
+            {{ section.title }}
+          </h3>
+          <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
+                :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
+            <span class="text-sm font-semibold text-white">3</span>
+          </div>
         </div>
+        <button
+          v-if="section.items && section.items.length > 0"
+          type="button"
+          class="hidden ipad-portrait-large:hidden lg:flex h-5 w-5 items-center justify-center rounded text-slate-700 hover:bg-slate-200/70"
+          :aria-expanded="isSectionExpanded(sIndex) ? 'true' : 'false'"
+          @click.stop="toggleSection(sIndex)"
+        >
+          <svg
+            width="10"
+            height="7"
+            viewBox="0 0 10 7"
+            fill="none"
+            :class="[
+              'transition-transform duration-150',
+              isSectionExpanded(sIndex) ? '' : 'rotate-180',
+            ]"
+            aria-hidden="true"
+          >
+            <path d="M5 0.75L9.25 6.25H0.75L5 0.75Z" fill="currentColor" />
+          </svg>
+        </button>
       </div>
 
+      <template v-if="isSectionExpanded(sIndex)">
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
@@ -178,13 +202,13 @@
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
-                  class="w-[0.375rem] h-[0.375rem] rounded-[50%]"
+                  class="w-2 h-2 rounded-[50%]"
                   :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
                   :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
                 ></div>
                 <p
                   data-test="join-status-text"
-                  class="text-[0.75rem] text-gray-500 font-medium leading-[1.125rem]"
+                  class="text-xs text-gray-500 font-medium leading-[1.125rem] uppercase"
                   :style="event.statusColor ? { color: event.statusColor } : null"
                 >{{ event.statusText }}</p>
               </span>
@@ -263,6 +287,7 @@
 
         </section>
       </section>
+      </template>
     </div>
   </section>
 </template>
@@ -315,6 +340,16 @@ const props = defineProps({
 const openMenuId = ref(null);
 const joinTooltipId = ref(null);
 const joinTooltipTimer = ref(null);
+const expandedSections = ref({});
+
+const isSectionExpanded = (sIndex) => {
+  return expandedSections.value[sIndex] !== false;
+};
+
+const toggleSection = (sIndex) => {
+  expandedSections.value[sIndex] = !isSectionExpanded(sIndex);
+};
+
 const { t } = useBookingTranslations();
 const profileStateById = reactive({});
 const profileAbortControllers = new Map();
@@ -329,7 +364,7 @@ const toggleMenu = (menuId) => {
 };
 
 const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
-const CONFIRMED_STATUS_DOT_COLOR = "#22C55E";
+const CONFIRMED_STATUS_DOT_COLOR = "#07F468";
 const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === "fan");
 
