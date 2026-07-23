@@ -5,6 +5,9 @@ import {
   bookingFlowDotsIcon,
   bookingFlowProfileImage,
   bookingFlowVerifiedIcon,
+  bookingFlowTokenIcon,
+  bookingFlowSaleIcon,
+  bookingFlowCloudMoon,
 } from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
 
 const showAllPolicy = ref(false);
@@ -186,7 +189,7 @@ const groupPolicyItems = computed(() => {
 
 <template>
   <div
-    class="flex-none md:max-w-[21.875rem] h-auto lg:h-[41.625rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
+    class="flex-none md:max-w-[25.5rem] h-auto lg:h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
     :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-4 lg:p-5'"
   >
     <template v-if="props.isGroupEvent">
@@ -245,23 +248,25 @@ const groupPolicyItems = computed(() => {
     <template v-else>
      <!-- Gradient overlay -->
   <div class="absolute inset-0 bg-[#22ccee]/20 pointer-events-none"></div>
-    <div class="w-full flex flex-col">
+    <div class="w-full flex flex-col h-full">
 
-      <div class="w-full flex flex-col justify-between items-stretch md:gap-6">
+      <div class="w-full flex flex-col justify-between items-stretch gap-3 md:gap-4 h-full">
 
-        <div class="flex flex-col gap-0 md:gap-4 pb-2 md:py-2 w-full">
-          <div class="flex flex-row items-center">
-            <div class="bg-[#22CCEE] rounded-br-[4px] md:rounded px-2 py-1 w-fit h-[22px] flex justify-center items-center">
-              <p class="text-sm leading-[20px] text-[#0C111D] font-bold">{{ t("fan_booking_1on1_call") }}</p>
+        <div class="flex flex-col gap-3 md:gap-4">
+          <!-- User details section -->
+          <div class="flex flex-col gap-0 md:gap-4 w-full">
+            <div class="flex flex-row items-center">
+              <div class="bg-[#22CCEE] rounded-br-[4px] md:rounded px-2 py-1 w-fit h-[22px] flex justify-center items-center">
+                <p class="text-sm leading-[20px] text-[#0C111D] font-bold">{{ t("fan_booking_1on1_call") }}</p>
+              </div>
             </div>
-          </div>
           
-          <div class="flex flex-col text-white w-full gap-2 px-2 pt-2 md:p-0 lg:p-0">
-            <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
-            <div class="flex flex-row items-center gap-2">
-              <template v-if="props.creatorLoading">
-                <div class="w-6 h-6 rounded-full bg-white/20 animate-skeleton-loading"></div>
-                <div class="h-3.5 w-28 rounded bg-white/20 animate-skeleton-loading"></div>
+            <div class="flex flex-col text-white w-full gap-2 px-2 pt-2 md:p-0 lg:p-0">
+              <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
+              <div class="flex flex-row items-center gap-2">
+                <template v-if="props.creatorLoading">
+                  <div class="w-6 h-6 rounded-full bg-white/20 animate-skeleton-loading"></div>
+                  <div class="h-3.5 w-28 rounded bg-white/20 animate-skeleton-loading"></div>
               </template>
               <template v-else>
                 <div class="w-6 h-6 flex justify-center items-center">
@@ -274,17 +279,81 @@ const groupPolicyItems = computed(() => {
                   </div>
                 </div>
               </template>
-            </div>
-            <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] hidden md:p-[0.3125rem_0.375rem] w-fit md:min-h-[28px] flex justify-center items-center gap-2">
-              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>
-              <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">{{ t("common_approval_needed") }}</div>
+              </div>
+              <div v-if="showApprovalNeeded" class="bg-[#0C111D] rounded-[6px] hidden md:p-[0.3125rem_0.375rem] w-fit md:min-h-[28px] flex justify-center items-center gap-2">
+                <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowDotsIcon" alt="status-icon" /></div>
+                <div class="text-[11px] text-[#FFED29] font-semibold leading-[18px] italic">{{ t("common_approval_needed") }}</div>
+              </div>
             </div>
           </div>
+          <!-- /User details section -->
+
+          <!-- Session Cost -->
+          <div class="flex flex-col gap-2 md:gap-4 px-2 lg:px-0">
+            <div class="flex flex-col gap-2">
+              <h3 class="text-sm font-semibold text-[#2CE]">SESSION COST</h3>
+              <div class="flex flex-col md:gap-2">
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Normal Hour</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-0.5">
+                    <div class="w-5 h-5 flex justify-center items-center">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-5 h-5" />
+                    </div>
+                    <span class="text-xs md:text-base font-medium text-white">300</span>
+                    <p class="text-xs md:text-sm font-normal text-white">/10 min.</p>
+                  </div>
+                </div>
+
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center gap-1">
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Off Hour</p>
+                    <img :src=bookingFlowCloudMoon alt="" class="w-3.5 h-3.5">
+                  </div>
+                  <div class="flex justify-center items-center gap-0.5">
+                    <div class="w-5 h-5 flex justify-center items-center">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-5 h-5" />
+                    </div>
+                    <span class="text-xs md:text-base font-medium text-white">450</span>
+                    <p class="text-xs md:text-sm font-normal text-white">/10 min.</p>
+                  </div>
+                </div>
+
+                <div class="flex flex-row justify-between items-center text-white">
+                  <div class="flex items-center">
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Max. session length</p>
+                  </div>
+                  <div class="flex justify-center items-center gap-0.5">
+                    <span class="text-xs md:text-base font-medium text-white">60 min.</span>
+                    <p class="text-xs md:text-sm font-normal text-white">(6 sessions)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1 md:gap-4">
+              <div class="flex items-start gap-1">
+                <div class="w-4 h-4 md:w-5 md:h-5 flex justify-center items-center flex-none">
+                  <img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" class="filter [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(21%)_saturate(3990%)_hue-rotate(80deg)_brightness(95%)_contrast(106%)]" />
+                </div>
+                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]"><span class="font-semibold">FIRST TIME OFFER: </span> 100 tokens off entire booking</p>
+              </div>
+
+              <div class="flex items-start gap-1">
+                <div class="w-4 h-4 md:w-5 md:h-5 flex justify-center items-center flex-none">
+                  <img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" class="filter [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(21%)_saturate(3990%)_hue-rotate(80deg)_brightness(95%)_contrast(106%)]" />
+                </div>
+                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]"><span class="font-semibold">LONG SESSION OFFER: </span> 100 tokens off each session when you book 3+ sessions</p>
+              </div>
+            </div>
+          </div>
+          <!-- /Session Cost -->
         </div>
 
         <div class="flex flex-col w-full gap-1 md:gap-3 px-2 pb-2 md:p-0 lg:p-0">
             <div class="flex gap-1 md:gap-2">
-              <h3 class="text-sm font-medium text-white/50 leading-5">{{ t("fan_booking_booking_policy") }}</h3>
+              <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy") }}</h3>
             </div>
             <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
               <li class="flex items-start gap-2">
