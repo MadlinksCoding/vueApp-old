@@ -9,21 +9,22 @@
         >
           {{ section.title }}
         </h3>
-        <!-- <div class="px-2 py-1 h-[18px] flex items-center justify-center rounded-full"
+        <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
               :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
           <span class="text-sm font-semibold text-white">3</span>
-        </div> -->
+        </div>
       </div>
 
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
-        class="relative flex justify-end rounded-[10px] shadow-purple-glow cursor-pointer"
+        class="relative flex justify-end rounded-[10px] cursor-pointer shadow-purple-glow"
         :class="[
           event.bgClass || 'bg-customGrey',
           section.title === 'PENDING EVENTS' &&
             'border-[1.5px] border-white bg-white/10 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.10),0_2px_4px_-2px_rgba(16,24,40,0.06)]'
         ]"
+        :style="section.title !== 'PENDING EVENTS' && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
         @click="$emit('event-click', event)"
       >
       
@@ -276,6 +277,30 @@ import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 
 
+const getDynamicBoxShadow = (color) => {
+  if (!color) return null;
+  
+  let r, g, b;
+  
+  if (color.startsWith('rgb')) {
+    const match = color.match(/\d+(\.\d+)?/g);
+    if (!match || match.length < 3) return null;
+    [r, g, b] = match;
+  } else {
+    let hex = color.replace(/^#/, '');
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    if (hex.length !== 6 && hex.length !== 8) return null;
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+  }
+  
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+  
+  return `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+};
 const props = defineProps({
   sections: {
     type: Array,

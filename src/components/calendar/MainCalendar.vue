@@ -288,20 +288,23 @@
           <!-- Mobile filter dropdown removed, replaced by Teleport below -->
 
         </div>
-        <div class="cursor-pointer flex ipad-portrait-large:flex lg:hidden p-2" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
+        <div class="cursor-pointer hidden ipad-portrait-large:flex p-2 relative" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
+              stroke="#0C111D" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
+            <span class="text-white text-[10px] font-semibold">31</span>
+          </div>
+        </div>
+         <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
-         <!-- <div class="cursor-pointer flex lg:hidden" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
-              stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div> -->
 
         </div>
       </div>
@@ -1400,24 +1403,30 @@ const newEventsPopupConfig = {
   lockScroll: false,
 };
 
-const eventDetailsPopupConfig = {
-  actionType: "popup",
-  position: "center",
-  customEffect: "scale",
-  offset: "0px",
-  speed: "250ms",
-  effect: "ease-in-out",
-  showOverlay: true,
-  closeOnOutside: true,
-  lockScroll: true,
-  escToClose: true,
-  width: { default: "auto", "<480": "98%" },
-  height: "auto",
-  scrollable: false,
-  closeSpeed: "250ms",
-  closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
-  customClass: "mobile-event-details-sheet",
-};
+const eventDetailsPopupConfig = computed(() => {
+  const isIpadPortraitLarge = width.value >= 1024 && width.value <= 1279 && window.matchMedia('(orientation: portrait)').matches;
+
+  return {
+    actionType: isIpadPortraitLarge ? "slidein" : "popup",
+    from: isIpadPortraitLarge ? "right" : undefined,
+    position: "center",
+    verticalAlign: isIpadPortraitLarge ? "stretch" : undefined,
+    customEffect: "scale",
+    offset: "0px",
+    speed: "250ms",
+    effect: "ease-in-out",
+    showOverlay: true,
+    closeOnOutside: true,
+    lockScroll: true,
+    escToClose: true,
+    width: { default: "auto", "<1023": "98%", "1024-1279": "auto" },
+    height: "auto",
+    scrollable: false,
+    closeSpeed: "250ms",
+    closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
+    customClass: "mobile-event-details-sheet",
+  };
+});
 
 const datePopupConfig = {
   actionType: "slidein",
@@ -3104,7 +3113,7 @@ defineExpose({
 
 <style>
 /* Mobile Bottom Sheet for Event Details (Teleported to body) */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .mobile-event-details-sheet {
     top: auto !important;
     bottom: 0 !important;

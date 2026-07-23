@@ -574,10 +574,10 @@
     { label: t("booking_color_blue"), value: "#5549FF", color: "#5549FF" },
     // { label: t("booking_color_red"), value: "#FF3B30", color: "#FF3B30" },
     // { label: t("booking_color_green"), value: "#22C55E", color: "#22C55E" },
-    { label: t("booking_color_pink"), value: "#FF2D92", color: "#FF2D92" },
-    { label: t("booking_color_orange"), value: "#F97316", color: "#F97316" },
-    { label: t("booking_color_purple"), value: "#8B5CF6", color: "#8B5CF6" },
-    { label: t("booking_color_teal"), value: "#14B8A6", color: "#14B8A6" },
+    { label: t("booking_color_pink"), value: "#FF0066", color: "#FF0066" },
+    { label: t("booking_color_orange"), value: "#DC6803", color: "#DC6803" },
+    { label: t("booking_color_purple"), value: "#AE4AEF", color: "#AE4AEF" },
+    { label: t("booking_color_teal"), value: "#0E9384", color: "#0E9384" },
   ];
 
   const bufferUnitOptions = [
