@@ -385,6 +385,7 @@
       fanUid: settings.fanUid || null,
       jwtToken: settings.jwtToken || null,
       hostWidth: window.innerWidth,
+      hostHeight: window.innerHeight,
       alwaysHideFloatingButton: "1",
     });
     iframe.title = settings.iframeTitle;
