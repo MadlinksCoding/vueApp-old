@@ -2,167 +2,91 @@
   <section class="flex flex-col gap-[1rem]">
     
     <div v-for="(section, sIndex) in sections" :key="sIndex" class="flex flex-col gap-[0.5rem] w-full">
-      
-      <h3
-        v-if="section.items && section.items.length > 0"
-        class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold uppercase"
-      >
-        {{ section.title }}
-      </h3>
+      <div class="flex items-center justify-between gap-3 self-stretch">
+        <div class="flex gap-1 items-center">
+          <h3
+            v-if="section.items && section.items.length > 0"
+            class="text-sm text-[#0C111D] leading-[1.125rem] font-semibold uppercase"
+          >
+            {{ section.title }}
+          </h3>
+          <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
+                :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
+            <span class="text-sm font-semibold text-white">3</span>
+          </div>
+        </div>
+        <button
+          v-if="section.items && section.items.length > 0"
+          type="button"
+          class="hidden ipad-portrait-large:hidden lg:flex h-5 w-5 items-center justify-center rounded text-slate-700 hover:bg-slate-200/70"
+          :aria-expanded="isSectionExpanded(sIndex) ? 'true' : 'false'"
+          @click.stop="toggleSection(sIndex)"
+        >
+          <svg
+            width="10"
+            height="7"
+            viewBox="0 0 10 7"
+            fill="none"
+            :class="[
+              'transition-transform duration-150',
+              isSectionExpanded(sIndex) ? '' : 'rotate-180',
+            ]"
+            aria-hidden="true"
+          >
+            <path d="M5 0.75L9.25 6.25H0.75L5 0.75Z" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
 
+      <template v-if="isSectionExpanded(sIndex)">
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
-        class="relative flex h-[4.125rem] pr-[0.25rem] justify-end rounded-[0.25rem] shadow-purple-glow cursor-pointer"
-        :class="event.bgClass || 'bg-customGrey'"
+        class="relative flex justify-end rounded-[10px] cursor-pointer shadow-purple-glow"
+        :class="[
+          event.bgClass || 'bg-customGrey',
+          section.title === 'PENDING EVENTS' &&
+            'border-[1.5px] border-white bg-white/10 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.10),0_2px_4px_-2px_rgba(16,24,40,0.06)]'
+        ]"
+        :style="section.title !== 'PENDING EVENTS' && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
         @click="$emit('event-click', event)"
       >
-        <div 
-          class="absolute w-[0.25rem] left-[0] h-full rounded-l-[0.25rem]"
-          :class="event.borderClass"
-          :style="section.title === 'PENDING EVENTS'
-            ? { background: 'rgba(0, 0, 0, 0.20)' }
-            : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
-        ></div>
-
-        <section class="flex gap-1 h-[4.125rem] px-[0.5rem] py-[0.5rem] w-full">
+      
+      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full">
+          <div 
+            class="w-[0.25rem] h-full rounded-[0.875rem]"
+            :class="event.borderClass"
+            :style="section.title === 'PENDING EVENTS'
+              ? { background: '#fff' }
+              : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
+          ></div>
           
           <span v-if="event.time" class="flex items-center justify-center w-[3.4375rem] h-auto shrink-0">
             <p class="text-[0.6875rem] text-gray-700 font-medium leading-[1rem]">{{ event.time }}</p>
           </span>
           
-          <span v-else class="flex flex-col justify-center w-[3.4375rem] h-auto shrink-0">
+          <span v-else class="flex flex-col py-2 justify-start items-center w-[3.375rem] h-auto shrink-0">
              <p class="text-[0.75rem] text-gray-700 font-semibold leading-[1.125rem] uppercase">{{ event.dayName }}</p>
              <p class="text-[1.125rem] text-gray-700 font-semibold leading-[1.75rem]">{{ event.dayNumber }}</p>
           </span>
 
           <span class="flex flex-col gap-[0.25rem] h-auto flex-1 min-w-0"> 
-            
-            <h3
-              class="text-[0.875rem] font-semibold leading-[1.25rem] max-w-[11.25rem] truncate pr-1"
-              :class="event.titleColorClass"
-              :style="section.title === 'PENDING EVENTS'
+            <div class="flex justify-between items-center">
+              <div class="flex items-center justify-center gap-1">
+                <h3
+                  class="text-[0.875rem] font-semibold leading-[1.25rem] max-w-[11.25rem] truncate pr-1"
+                  :class="event.titleColorClass"
+                  :style="section.title === 'PENDING EVENTS'
                 ? { color: '#101828' }
                 : (event.accentColor ? { color: event.accentColor } : null)"
             >
               {{ event.title }}
             </h3>
-
-            <span class="flex" >
-              
-              <template v-if="shouldShowSingleProfile(event)">
-                <span
-                  v-if="isProfileLoading(event)"
-                  class="inline-flex items-center gap-1"
-                  data-test="event-profile-skeleton"
-                >
-                  <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
-                  <span class="h-3 w-20 rounded bg-[#E6E6E6] animate-skeleton-loading"></span>
-                </span>
-                <template v-else>
-                <img 
-                  class="z-[30] w-5 h-5 rounded-full object-cover object-center shrink-0"
-                    :src="displayProfile(event).avatar"
-                    :alt="displayProfile(event).name"
-                    data-test="event-profile-avatar"
-                />
-                  <p
-                    class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate"
-                    data-test="event-profile-name"
-                  >
-                    {{ displayProfile(event).name }}
-                </p>
-                </template>
-              </template>
-
-              <template v-else>
-                <div class="flex">
-
-                    <span class="flex -space-x-[.8rem]">
-
-                        <div 
-                        v-for="(av, i) in event.avatars" 
-                        :key="i"
-                        class="w-[1rem] h-[1rem] rounded bg-cover bg-center mask-mango shrink-0 border border-white"
-                        :class="`z-[${30 - (i*10)}]`" 
-                        :style="{ backgroundImage: `url(${av.src})` }"
-                        ></div>
-                    </span>
-
-                    <p v-if="event.isGroup" class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] mt-[-2px] truncate">
-                       {{ event.groupText }}
-                    </p>
-                </div>
-              </template>
-            </span>
-            
-          </span>
-
-          <div class="flex  gap-[0.25rem] shrink-0">
-            
-            <div v-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
-              <span class="flex items-center gap-[0.25rem]">
-                <div
-                  data-test="join-status-dot"
-                  class="w-[0.375rem] h-[0.375rem] rounded-[50%]"
-                  :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
-                  :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
-                ></div>
-                <p
-                  data-test="join-status-text"
-                  class="text-[0.75rem] text-gray-500 font-medium leading-[1.125rem]"
-                  :style="event.statusColor ? { color: event.statusColor } : null"
-                >{{ event.statusText }}</p>
-              </span>
-
-              <span
-                class="relative inline-flex w-full"
-                data-test="join-tooltip-trigger"
-                @mouseenter="showJoinTooltip(`${sIndex}-${eIndex}`, event)"
-                @mouseleave="hideJoinTooltip"
-                @touchstart.stop="showJoinTooltip(`${sIndex}-${eIndex}`, event, true)"
-                @click.stop
-              >
-                <button 
-                  @click.stop="$emit('join-click', event)" 
-                  :disabled="!joinButtonEnabled(event)"
-                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed"
-                  :class="joinButtonEnabled(event)
-                    ? 'bg-lightViolet hover:bg-lightViolet/90'
-                    : 'bg-[#D0D5DD]'"
-                >
-                  <span class="w-[1rem] h-[1rem]">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" :stroke="joinButtonEnabled(event) ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                  <p
-                    class="text-[0.75rem] font-semibold leading-[1.125rem]"
-                    :class="joinButtonEnabled(event) ? 'text-white' : 'text-gray-600'"
-                  >
-                    {{ t("common_join_call") }}
-                  </p>
-                </button>
-                <span
-                  v-if="joinTooltipId === `${sIndex}-${eIndex}`"
-                  role="tooltip"
-                  data-test="disabled-join-tooltip"
-                  class="absolute right-0 bottom-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded-[0.25rem] bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-[1rem] text-white shadow-lg"
-                >
-                  {{ disabledJoinTooltipText(event) }}
-                </span>
-              </span>
+            <div>
+              <img v-if="section.title !== 'PENDING EVENTS'" :src=GreenCheckIcon class="w-[14px] h-[14px]">
             </div>
-
-            <span v-else-if="event.showReply" class="flex flex-col justify-end h-[2.875rem]">
-              <button 
-                @click.stop="$emit('event-click', event)"
-                class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold px-[0.5rem] py-[0.1875rem] border border-gray-500 rounded-[0.25rem] hover:bg-gray-50"
-              >
-                {{ t("common_reply") }}
-              </button>
-            </span>
-            
+            <TooltipIcon  v-if="section.title === 'PENDING EVENTS'" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('Lorem ipsum')" />
+            </div>
             <span class="relative flex items-center justify-center w-[1rem] h-[1rem]">
               <button
                 type="button"
@@ -222,10 +146,148 @@
                 </button>
               </div>
             </span>
+            </div>
+            <!-- <span class="text-xs font-semibold text-gray-500">{{ event.dayName }} {{ event.time }}</span> -->
+
+            <div class="flex gap-1.5 items-start">
+              <span class="flex flex-1" >
+                
+                <template v-if="shouldShowSingleProfile(event)">
+                  <span
+                    v-if="isProfileLoading(event)"
+                    class="inline-flex items-center gap-1"
+                    data-test="event-profile-skeleton"
+                  >
+                    <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
+                    <span class="h-3 w-20 rounded bg-[#E6E6E6] animate-skeleton-loading"></span>
+                  </span>
+                  <template v-else>
+                  <img 
+                    class="z-[30] w-5 h-5 rounded-full object-cover object-center shrink-0"
+                      :src="displayProfile(event).avatar"
+                      :alt="displayProfile(event).name"
+                      data-test="event-profile-avatar"
+                  />
+                    <p
+                      class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] ml-1 truncate"
+                      data-test="event-profile-name"
+                    >
+                      {{ displayProfile(event).name }}
+                  </p>
+                  </template>
+                </template>
+  
+                <template v-else>
+                  <div class="flex">
+  
+                      <span class="flex -space-x-[.8rem]">
+  
+                          <div 
+                          v-for="(av, i) in event.avatars" 
+                          :key="i"
+                          class="w-[1rem] h-[1rem] rounded bg-cover bg-center mask-mango shrink-0 border border-white"
+                          :class="`z-[${30 - (i*10)}]`" 
+                          :style="{ backgroundImage: `url(${av.src})` }"
+                          ></div>
+                      </span>
+  
+                      <p v-if="event.isGroup" class="text-[0.6875rem]  text-gray-500 font-medium leading-[1.125rem] mt-[-2px] truncate">
+                         {{ event.groupText }}
+                      </p>
+                  </div>
+                </template>
+              </span>
+
+              <div v-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
+              <span class="flex items-center gap-[0.25rem]">
+                <div
+                  data-test="join-status-dot"
+                  class="w-2 h-2 rounded-[50%]"
+                  :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
+                  :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
+                ></div>
+                <p
+                  data-test="join-status-text"
+                  class="text-xs text-gray-500 font-medium leading-[1.125rem] uppercase"
+                  :style="event.statusColor ? { color: event.statusColor } : null"
+                >{{ event.statusText }}</p>
+              </span>
+
+              <span
+                class="relative inline-flex w-full"
+                data-test="join-tooltip-trigger"
+                @mouseenter="showJoinTooltip(`${sIndex}-${eIndex}`, event)"
+                @mouseleave="hideJoinTooltip"
+                @touchstart.stop="showJoinTooltip(`${sIndex}-${eIndex}`, event, true)"
+                @click.stop
+              >
+                <button 
+                  @click.stop="$emit('join-click', event)" 
+                  :disabled="!joinButtonEnabled(event)"
+                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed"
+                  :class="joinButtonEnabled(event)
+                    ? 'bg-[#07F468] blink-border-effect'
+                    : 'bg-[#D0D5DD]'"
+                >
+                  <span class="w-[1rem] h-[1rem]">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" :stroke="joinButtonEnabled(event) ? '#0C111D' : '#667085'" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <p
+                    class="text-[0.75rem] font-semibold leading-[1.125rem]"
+                    :class="joinButtonEnabled(event) ? 'text-black' : 'text-gray-600'"
+                  >
+                    {{ t("common_join_call") }}
+                  </p>
+                </button>
+                <span
+                  v-if="joinTooltipId === `${sIndex}-${eIndex}`"
+                  role="tooltip"
+                  data-test="disabled-join-tooltip"
+                  class="absolute right-0 bottom-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded-[0.25rem] bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-[1rem] text-white shadow-lg"
+                >
+                  {{ disabledJoinTooltipText(event) }}
+                </span>
+              </span>
+            </div>
+
+            <div class="hidden flex gap-2 flex-col">
+              <button class="flex h-[27px] w-full items-center justify-center gap-1 self-stretch rounded border border-[#FF4405] bg-white px-2 py-1">
+                 <div class="relative">
+                    <IndicatorDot color="#FF4405" size="7" class="absolute top-[-2px] left-[-2px]"/>
+                    <img class="" :src="fileSearchIcon"/>
+                 </div>
+                 <span class="text-[#FF4405] font-semibold text-xs leading-[18px] uppercase">Review</span>
+              </button>
+
+              <button class="flex h-7 items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1">
+                 <div class="relative">
+                    <img class="" :src="GreenCheckIcon"/>
+                 </div>
+                 <span class="text-[#079455] font-semibold text-xs leading-[18px] uppercase">Accept</span>
+              </button>
+            </div>
+            </div>
+            
+          </span>
+
+          <div class="flex  gap-[0.25rem] shrink-0">
+        
+
+            <!-- <span v-else-if="event.showReply" class="flex flex-col justify-end h-[2.875rem]">
+              <button 
+                @click.stop="$emit('event-click', event)"
+                class="text-[0.75rem] text-gray-500 leading-[1.125rem] font-semibold px-[0.5rem] py-[0.1875rem] border border-gray-500 rounded-[0.25rem] hover:bg-gray-50"
+              >
+                {{ t("common_reply") }}
+              </button>
+            </span> -->
           </div>
 
         </section>
       </section>
+      </template>
     </div>
   </section>
 </template>
@@ -234,7 +296,36 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { buildWpApiUrl } from "@/utils/wpApiBaseUrl.js";
+import TooltipIcon from '../ui/tooltip/TooltipIcon.vue';
+import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
+import IndicatorDot from "../icons/IndicatorDot.vue";
+import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 
+
+const getDynamicBoxShadow = (color) => {
+  if (!color) return null;
+  
+  let r, g, b;
+  
+  if (color.startsWith('rgb')) {
+    const match = color.match(/\d+(\.\d+)?/g);
+    if (!match || match.length < 3) return null;
+    [r, g, b] = match;
+  } else {
+    let hex = color.replace(/^#/, '');
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    if (hex.length !== 6 && hex.length !== 8) return null;
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+  }
+  
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+  
+  return `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+};
 const props = defineProps({
   sections: {
     type: Array,
@@ -249,6 +340,16 @@ const props = defineProps({
 const openMenuId = ref(null);
 const joinTooltipId = ref(null);
 const joinTooltipTimer = ref(null);
+const expandedSections = ref({});
+
+const isSectionExpanded = (sIndex) => {
+  return expandedSections.value[sIndex] !== false;
+};
+
+const toggleSection = (sIndex) => {
+  expandedSections.value[sIndex] = !isSectionExpanded(sIndex);
+};
+
 const { t } = useBookingTranslations();
 const profileStateById = reactive({});
 const profileAbortControllers = new Map();
@@ -263,7 +364,7 @@ const toggleMenu = (menuId) => {
 };
 
 const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
-const CONFIRMED_STATUS_DOT_COLOR = "#22C55E";
+const CONFIRMED_STATUS_DOT_COLOR = "#07F468";
 const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === "fan");
 
@@ -537,3 +638,17 @@ onBeforeUnmount(() => {
   profileAbortControllers.clear();
 });
 </script>
+
+<style scoped>
+@keyframes blink-border {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(7, 244, 104, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(7, 244, 104, 0.25);
+  }
+}
+.blink-border-effect {
+  animation: blink-border 1.5s ease-in-out infinite;
+}
+</style>

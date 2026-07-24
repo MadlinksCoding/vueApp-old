@@ -1,18 +1,19 @@
 <template>
-    <div class="bg-white rounded-tl-[10px] outline-none rounded-tr-[10px] flex flex-col w-full h-full 
+    <div class="bg-white outline-none  p-4 flex flex-col gap-4 w-full h-full 
         overflow-y-auto  box-border">
         
         <!-- Header with Close Button -->
-        <div class="w-full flex justify-between items-center p-4 border-b border-gray-100 flex-shrink-0">
+        <div class="w-full px-2 flex justify-between items-center  flex-shrink-0">
             <div> </div>
-            <button @click="$emit('close')" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+            <h2 class="text-sm font-semibold text-[#0C111D]">Events &amp; Requests</h2>
+            <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
             </button>
         </div>
 
-        <div class="w-full p-2 flex gap-2 flex-shrink-0">
+        <!-- <div class="w-full p-2 flex gap-2 flex-shrink-0">
             <div @click="$emit('set-view', 'day')"
                 class="w-full cursor-pointer p-2 rounded-2xl inline-flex flex-col justify-center items-center transition-all duration-200"
                 :class="view === 'day' ? 'bg-pink-500/75' : 'bg-white/20 outline outline-1 outline-offset-[-1px] outline-pink-500'">
@@ -68,7 +69,7 @@
                         :class="view === 'month' ? 'text-black' : 'text-pink-500'">{{ t("common_month") }}</div>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <BookingScheduleList
             v-if="showBookingScheduleList"
@@ -80,18 +81,18 @@
             @view-card="$emit('view-schedule-card', $event)"
         />
 
-        <div class="w-full p-2 border-t border-black/20 mb-[100px]">
+        <div class="w-full p-2 mb-[100px]">
             <EventsWidget :sections="eventsData" @join-click="$emit('join-click', $event)"
                 @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
                 @menu-action="$emit('menu-action', $event)" />
         </div>
 
-        <div v-if="canCreateEvents" class="p-4 mt-auto flex-shrink-0">
+        <!-- <div v-if="canCreateEvents" class="p-4 mt-auto flex-shrink-0">
             <ButtonComponent @click="$emit('open-new-events')" :text="t('dashboard_new_events')" variant="none"
                 customClass="group w-full h-12 min-h-10 px-4 py-2 text-base font-semibold bg-black rounded-[48px] inline-flex justify-center items-center gap-2 text-[#07F468] hover:text-black hover:bg-[#07F468]"
                 :leftIcon="'https://i.ibb.co.com/RpWmJkcb/plus.webp'"
                 :leftIconClass="`w-6 h-6 transition duration-200 group-hover:[filter:brightness(0)_saturate(100%)]`" />
-        </div>
+        </div> -->
     </div>
 </template>
 

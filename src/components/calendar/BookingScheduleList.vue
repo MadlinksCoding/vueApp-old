@@ -1,8 +1,8 @@
 <template>
-  <section v-if="items.length > 0" class="flex w-full flex-col gap-3" data-test="booking-schedule-list">
+  <section v-if="items.length > 0" class="flex w-full flex-col gap-3 pb-5" data-test="booking-schedule-list">
     <div class="flex items-center justify-between gap-3 px-0.5">
       <div class="flex items-center gap-2">
-        <h3 class="text-[0.75rem] font-bold uppercase leading-[1.125rem] tracking-wide text-slate-900">
+        <h3 class="text-[0.75rem] font-semibold uppercase leading-[1.125rem] tracking-wide text-[#0C111D]">
           {{ t("dashboard_booking_schedule_title") }}
         </h3>
         <span class="inline-flex h-4 min-w-6 items-center justify-center rounded-full bg-slate-400 px-2 text-[0.7rem] font-bold leading-none text-white">
@@ -11,7 +11,7 @@
       </div>
       <button
         type="button"
-        class="inline-flex h-5 w-5 items-center justify-center rounded text-slate-700 hover:bg-slate-200/70"
+        class="hidden ipad-portrait-large:hidden lg:flex h-5 w-5 items-center justify-center rounded text-slate-700 hover:bg-slate-200/70"
         :aria-expanded="isExpanded ? 'true' : 'false'"
         :aria-label="t('dashboard_booking_schedule_toggle_aria')"
         data-test="booking-schedule-toggle"
@@ -49,24 +49,12 @@
         </span>
 
         <div class="min-w-0 flex-1 flex flex-col gap-0.5">
-          <h4 class="truncate text-sm font-semibold leading-5" :style="{ color: item.color }">
-            {{ item.title }}
-          </h4>
-          <div class="flex items-center gap-1.5">
-            <span
-              class="h-2 w-2 rounded-full"
-              :class="item.openToday ? 'bg-emerald-500' : 'bg-[#ff4405]'"
-            />
-            <span
-              class="truncate text-[0.688rem] font-medium uppercase leading-4"
-              :class="item.openToday ? 'text-[#0E9384]' : 'text-gray-500'"
-            >
-              {{ item.openToday ? t("dashboard_booking_schedule_open_today") : t("dashboard_booking_schedule_closed_today") }}
-            </span>
-          </div>
-        </div>
+          <div class="flex justify-between">
+            <h4 class="truncate text-sm font-semibold leading-5" :style="{ color: item.color }">
+              {{ item.title }}
+            </h4>
 
-        <div class="relative ml-2 flex h-full shrink-0 items-start justify-center">
+                    <div class="relative ml-2 flex h-full shrink-0 items-start justify-center">
           <button
             type="button"
             class="inline-flex h-5 w-3 items-center justify-center rounded text-slate-700 hover:bg-white/40"
@@ -89,6 +77,20 @@
             @delete="selectAction('delete', $event)"
             @close="closeMenu"
           />
+        </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="h-2 w-2 rounded-full"
+              :class="item.openToday ? 'bg-[#07F468]' : 'bg-[#ff4405]'"
+            />
+            <span
+              class="truncate text-[0.688rem] font-medium uppercase leading-4"
+              :class="item.openToday ? 'text-[#0E9384]' : 'text-gray-500'"
+            >
+              {{ item.openToday ? t("dashboard_booking_schedule_open_today") : t("dashboard_booking_schedule_closed_today") }}
+            </span>
+          </div>
         </div>
       </article>
     </div>

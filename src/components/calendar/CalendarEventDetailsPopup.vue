@@ -1,6 +1,6 @@
 <template>
     <div
-        class="w-full md:w-[492px] bg-gray-50 rounded-[0.5rem] md:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none"
+        class="w-full lg:w-[492px] bg-gray-50 rounded-t-[24px] rounded-b-none lg:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none ipad-portrait-large:w-[40vw] ipad-portrait-large:h-full"
         :style="popupStyle"
     >
         <div class="w-1 self-stretch shrink-0" :style="{ backgroundColor: eventColor }" />
@@ -26,7 +26,7 @@
                         >
                         <button
                             type="button"
-                            class="px-2 py-[3px] rounded hidden md:flex items-center gap-1 transition-colors disabled:cursor-not-allowed"
+                            class="px-2 py-[3px] rounded hidden ipad-portrait-large:hidden lg:flex items-center gap-1 transition-colors disabled:cursor-not-allowed"
                             :class="canJoinCall ? 'cursor-pointer' : ''"
                             :disabled="!canJoinCall"
                             :style="joinButtonStyle"
@@ -117,8 +117,9 @@
                         <button
                             type="button"
                             data-popup-close
-                            class=" p-2 rounded-full hover:bg-gray-200 transition-colors md:hidden"
+                            class=" p-2 rounded-full hover:bg-gray-200 transition-colors ipad-portrait-large:block lg:hidden"
                             :aria-label="t('common_close')"
+                            @click="$emit('close')"
                         >
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M15 5L5 15M5 5L15 15" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -299,9 +300,10 @@
                     </div>
                 </div>
 
+                <!-- Add bg-[#07F468] for active button -->
                 <button
                             type="button"
-                            class="px-2 py-3 rounded-full flex md:hidden items-center justify-center flex-1 self-stretch gap-2 transition-colors disabled:cursor-not-allowed"
+                            class="px-2 py-3 rounded-full flex ipad-portrait-large:flex lg:hidden items-center justify-center flex-1 self-stretch gap-2 transition-colors disabled:cursor-not-allowed"
                             :class="canJoinCall ? 'cursor-pointer bg-[#07F468]' : 'bg-gray-200'"
                             :disabled="!canJoinCall"
                             @click="handleJoin"

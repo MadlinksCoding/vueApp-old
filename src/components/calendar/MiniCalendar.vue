@@ -20,23 +20,34 @@
           :data-disabled="isDisabled(d) ? 'true' : 'false'"
           :disabled="isDisabled(d)"
           :class="[
-            theme.mini.dayBase,
-            isDisabled(d) ? theme.mini.expired : '',
+            'relative flex flex-col items-center justify-center',
+            theme.mini?.dayBase || '',
+            isDisabled(d) ? (theme.mini?.expired || 'opacity-40') : '',
             
-            // CHANGE 3: Logic update. Agar Today hai to 'today' class, warna 'hover' class.
-            sameDay(d, today) ? theme.mini.today : 'hover:bg-gray-300', 
+            !isDisabled(d) && sameDay(d, selectedDate)
+              ? (theme.mini?.selected || 'bg-[#101828] !font-semibold text-white')
+              : (sameDay(d, today)
+                  ? (theme.mini?.today || 'bg-[#101828] !font-semibold text-white')
+                  : (!isDisabled(d) ? 'hover:bg-gray-300' : '')),
             
-            !isDisabled(d) && sameDay(d, selectedDate) ? theme.mini.selected : '',
             d.getDay() === 0 ? 'text-[#FF6A6A]' : ''
           ]">
-          <span class="text-[0.75rem] font-medium ">{{ d.getDate() }}</span>
+          <span class="text-[0.75rem] ">{{ d.getDate() }}</span>
           <span
-            v-if="dotMap[localDateKey(d)]"
+            v-if="dotMap[localDateKey(d)] && (!hidePastDots || d >= today)"
             :class="[
-              theme.mini.dot,
-              !isDisabled(d) && sameDay(d, selectedDate) ? theme.mini.selectedDot : '',
+              'absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
+              dotMap[localDateKey(d)].hasPending
+                ? ((sameDay(d, selectedDate) || sameDay(d, today))
+                    ? 'w-1 h-1 !bg-transparent border border-white'
+                    : (theme.mini?.pendingDot || 'w-1 h-1 !bg-transparent border border-[#101828]'))
+                : [
+                    theme.mini?.dot || 'w-1 h-1 bg-[#101828]',
+                    (sameDay(d, selectedDate) || sameDay(d, today)) ? (theme.mini?.selectedDot || '!bg-white') : ''
+                  ]
             ]"
             data-has-events="true"
+            :data-pending="dotMap[localDateKey(d)].hasPending ? 'true' : 'false'"
           ></span>
         </button>
 
@@ -61,6 +72,7 @@ export default {
     monthDate: { type: Date, required: true },
     selectedDate: { type: Date, required: true },
     events: { type: Array, default: () => [] },
+    hidePastDots: { type: Boolean, default: false },
     theme: { type: Object, default: () => ({}) },
     dataAttrs: { type: Object, default: () => ({}) },
     minDate: { type: [Date, String], default: null },
@@ -100,10 +112,71 @@ export default {
     },
     dotMap() {
       const m = {};
+      const safeParse = (val) => {
+        if (!val) return null;
+        if (val instanceof Date) return Number.isNaN(val.getTime()) ? null : val;
+        if (typeof val === "number") return new Date(val);
+        if (typeof val === "string") {
+          let d = new Date(val);
+          if (!Number.isNaN(d.getTime())) return d;
+          d = new Date(val.replace(" ", "T"));
+          if (!Number.isNaN(d.getTime())) return d;
+        }
+        return null;
+      };
+
       (this.events || []).forEach(ev => {
-        if (!ev || !ev.start || !ev.end) return;
-        const s = SOD(new Date(ev.start)); const e = SOD(new Date(ev.end));
-        for (let d = new Date(s); d <= e; d = addDays(d, 1)) { const k = this.localDateKey(d); m[k] = (m[k] || 0) + 1; }
+        if (!ev) return;
+
+        const startRaw = ev.start
+          || ev.startIso
+          || ev.startAtIso
+          || ev.startAt
+          || ev.startDate
+          || ev.date
+          || ev.time
+          || ev.raw?.start
+          || ev.raw?.startIso
+          || ev.raw?.startAtIso
+          || ev.raw?.startAt;
+
+        const endRaw = ev.end
+          || ev.endIso
+          || ev.endAtIso
+          || ev.endAt
+          || ev.endDate
+          || ev.raw?.end
+          || ev.raw?.endIso
+          || ev.raw?.endAtIso
+          || ev.raw?.endAt
+          || startRaw;
+
+        if (!startRaw) return;
+
+        const startDateObj = safeParse(startRaw);
+        const endDateObj = safeParse(endRaw) || startDateObj;
+
+        if (!startDateObj || !endDateObj) return;
+
+        const s = SOD(startDateObj);
+        const e = SOD(endDateObj);
+        if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return;
+
+        const status = String(ev.status || ev.bookingStatus || ev.state || ev.raw?.status || "").toLowerCase();
+        const isPending = status === "pending" || status === "pending_hold" || status.includes("pending") || Boolean(ev.isPending);
+
+        for (let d = new Date(s); d <= e; d = addDays(d, 1)) {
+          const k = this.localDateKey(d);
+          if (!m[k]) {
+            m[k] = { count: 0, hasPending: false, hasConfirmed: false };
+          }
+          m[k].count += 1;
+          if (isPending) {
+            m[k].hasPending = true;
+          } else {
+            m[k].hasConfirmed = true;
+          }
+        }
       });
       return m;
     }

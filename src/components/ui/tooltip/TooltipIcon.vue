@@ -23,6 +23,10 @@ defineProps({
     default: "bottom",
     validator: (value) => ["top", "bottom", "left", "right"].includes(value),
   },
+  iconClass: {
+    type: String,
+    default: "",
+  },
 });
 
 const sideClasses = {
@@ -75,7 +79,7 @@ onBeforeUnmount(() => {
     @click.prevent="toggleTooltip"
   >
     <slot>
-      <img :src="iconSrc" alt="" class="cursor-pointer" />
+      <img :src="iconSrc" alt="" :class="['cursor-pointer', iconClass]" />
     </slot>
     <!-- Tooltip -->
     <div

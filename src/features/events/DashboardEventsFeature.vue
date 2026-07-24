@@ -103,6 +103,20 @@
                   {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                 </span>
               </div>
+              <button 
+                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed bg-[#07F468] blink-border-effect"
+                >
+                  <span class="w-[1rem] h-[1rem]">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <p
+                    class="text-[0.75rem] font-semibold leading-[1.125rem] text-black whitespace-nowrap"
+                  >
+                    {{ t("common_join_call") }}
+                  </p>
+                </button>
             </template>
           </div>
         </template>
@@ -285,7 +299,7 @@
                 color="currentColor"
                 :class="[
                   'shrink-0',
-                  'h-3 w-3'
+                  'h-4 w-4'
                 ]"
               />
               <span class="min-w-0 truncate">{{ event.title }}</span>
@@ -316,6 +330,7 @@
           :selected-date="state.selected || state.focus"
           :events="miniEvents"
           :theme="theme1"
+          :hide-past-dots="true"
           :data-attrs="{ 'data-calendar': 'mini' }"
           @date-selected="onSelectFromMini"
         />
@@ -429,7 +444,7 @@
       <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
         <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
           @click="toggleFloatingPopup"
         >
           <img
@@ -440,7 +455,7 @@
         </button>
         <!-- Landscape screen -->
         <button
-          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden lg:flex items-center justify-between transition-transform"
+          class="w-[14.3125rem] h-[4rem] min-h-10 px-6 py-2 rounded-full bg-[#F06] shadow-[0_4px_8px_-2px_rgba(255,0,102,0.10),0_2px_4px_-2px_rgba(255,0,102,0.06)] hidden ipad-portrait:hidden ipad-portrait-large:flex lg:flex items-center justify-between transition-transform"
           @click="toggleFloatingPopup"
         >
           <div class="flex items-center gap-2 justify-between">
@@ -810,30 +825,32 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-gray-500 mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-[#0C111D] mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
     header: "font-semibold",
-    dayBase: "w-[2.313rem] h-[2.313rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500",
+    dayBase: "relative w-[2rem] h-[2rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-0 focus:ring-inset focus:ring-emerald-500 text-xs leading-[18px] font-medium text-[#0C111D]",
     outside: "opacity-0",
     expired: "opacity-40",
-    today: "bg-gray-500 font-semibold text-white",
-    selected: "rounded-full",
-    dot: "mt-[2rem] w-1.5 h-1.5 rounded-full absolute",
+    today: "bg-[#101828] !font-semibold text-white",
+    selected: "bg-[#101828] !font-semibold text-white",
+    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#101828]",
+    selectedDot: "!bg-white",
+    pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {
-    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-xl h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
-    xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10",
-    axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[4.8rem]",
+    xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10 flex-row-reverse md:flex-row",
+    axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
-    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-400 text-xs font-medium leading-4",
+    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-700 text-xs font-medium leading-4",
     colBase: "relative bg-white/20",
-    gridRow: "h-[4rem] border-b border-white/50",
+    gridRow: "h-[4rem] border-b border-gray-400",
     eventBase: "absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm",
   },
   month: {
     weekHeader: "text-xs uppercase tracking-wide text-slate-500",
-    cellBase: "h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-emerald-500 border border-white/50 flex flex-col items-start justify-start overflow-hidden",
+    cellBase: "h-full w-full p-1 sm:p-2 text-left hover:bg-slate-50 focus:outline-none focus:border-2 focus:border-[#344054] border border-white/50 flex flex-col items-start justify-start overflow-hidden",
     outside: "opacity-40",
     today: "border-2 border-emerald-500",
     cellEvent: "w-full text-[0.563rem] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded-md bg-slate-100 border border-slate-200 truncate cursor-pointer",
@@ -1053,7 +1070,7 @@ function getMonthAvailabilitySummaryStyle(event) {
   );
 
   return {
-    backgroundColor: rgba(color, 0.08),
+    backgroundColor: rgba(color, 0.10),
     border: "0",
     borderTop: "0",
     borderRight: "0",
@@ -1190,7 +1207,7 @@ function getBookedSlotTypeIconKind(event = {}) {
 }
 
 function getCalendarSlotIconSizeClass(view) {
-  return view === "month" ? "h-2.5 w-2.5" : "h-3 w-3";
+  return view === "month" ? "h-3.5 w-3.5" : "h-3.5 w-3.5";
 }
 
 function getBookedSlotIndicatorStatus(event = {}) {
@@ -2109,7 +2126,22 @@ const events1 = computed(() => {
       && (!props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now));
   });
 });
-const miniEvents = computed(() => allEvents.value.filter((event) => !String(event.status || "").startsWith("cancelled")));
+const miniEvents = computed(() => {
+  const combined = [
+    ...(events1.value || []),
+    ...(allEvents.value || []),
+    ...(calendarEvents.value || []),
+  ];
+  const seen = new Set();
+  return combined.filter((event) => {
+    if (!event) return false;
+    const id = String(event.id || event.eventId || event.bookingId || `${event.start}-${event.title}`);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const status = String(event.status || resolveBookingStatus(event) || "").toLowerCase();
+    return !status.startsWith("cancelled");
+  });
+});
 
 const eventsData = computed(() => {
   const focus = state.focus || new Date();
