@@ -3,7 +3,7 @@
     :data-focus="cursor ? cursor.toISOString().slice(0, 10) : ''">
 
     <!-- default-header-theme-1 -->
-    <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
+    <div v-if="variant === 'default'" class="flex items-center flex-col gap-4 px-3 ipad-portrait-small:p-3 ipad-portrait-large:px-6 sticky top-0 z-30 py-0 px-1 md:px-0 md:pl-0">
       <div class="w-full flex items-center justify-between ipad-portrait-large:items-start ipad-landscape-large:items-start">
         <div class="flex items-center gap-3 ipad-portrait-large:flex-col ipad-portrait-large:items-start ipad-portrait-large:gap-2 ipad-landscape-large:flex-col ipad-landscape-large:items-start ipad-landscape-large:gap-2">
           <div class="flex items-center gap-3">
@@ -272,7 +272,10 @@
 
         <!-- mobile-view-today-button -->
         <button
-          class="flex fixed bottom-2 left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)]"
+          :class="[
+            'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
+            isStickyCardVisible ? 'bottom-[7rem] md:bottom-2' : 'bottom-2'
+          ]"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
@@ -298,12 +301,15 @@
             <span class="text-white text-[10px] font-semibold">31</span>
           </div>
         </div>
-         <div class="cursor-pointer flex lg:hidden p-2" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
+         <div class="cursor-pointer flex lg:hidden p-2 relative" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+          <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
+            <span class="text-white text-[10px] font-semibold">31</span>
+          </div>
         </div>
 
         </div>
@@ -400,7 +406,7 @@
     </div>
 
 
-    <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col px-1 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex shrink-0" :class="[theme.main.xHeader]">
 
         <div :class="[theme.main.axisXLabel, 'shrink-0']">
@@ -1076,7 +1082,7 @@
     />
     <!-- Mobile sticky bottom event card -->
     <Teleport to="body">
-      <div class="fixed hidden bottom-0 left-0 right-0 z-[90] md:hidden">
+      <div v-if="isStickyCardVisible" class="fixed bottom-0 left-0 right-0 z-[90] md:hidden">
         <div class="w-full bg-white min-h-[80px] shadow-[0_0_12px_0_rgba(85,73,255,0.75),0_4px_8px_-2px_rgba(85,73,255,0.10),0_2px_4px_-2px_rgba(85,73,255,0.06)] border border-gray-100 p-3 flex gap-1.5">
          
           <div 
@@ -1176,7 +1182,8 @@ const props = defineProps({
   slotMinutes: { type: Number, default: 60 },
   rowHeightPx: { type: Number, default: 64 },
   minEventHeightPx: { type: Number, default: 0 },
-  dayColumnMode: { type: String, default: 'dates' }
+  dayColumnMode: { type: String, default: 'dates' },
+  isStickyCardVisible: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events']);

@@ -17,6 +17,7 @@
           >
             {{ title }} <OptionalLabel v-if="isOptional" />
           </div>
+          <span v-if="isRequired" class="text-gray-500 text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
           <div v-if="titleIcon && !tooltipText">
             <img :src="titleIcon" alt="titleIcon" />
           </div>
@@ -93,6 +94,10 @@ export default {
       default: true,
     },
     isOptional: {
+      type: Boolean,
+      default: false,
+    },
+    isRequired: {
       type: Boolean,
       default: false,
     },

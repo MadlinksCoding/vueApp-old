@@ -24,6 +24,7 @@
           embedded ? 'lg:overflow-y-auto' : 'overflow-y-auto'
         ]"
         variant="default"
+        :is-sticky-card-visible="isStickyCardVisible"
         :focus-date="state.focus"
         :events="events1"
         :events-data="eventsData"
@@ -322,7 +323,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden ipad-portrait:hidden lg:flex lg:w-[22vw] lg:min-w-[20.375rem] lg:max-w-[28rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 pb-[6.5rem] md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden lg:flex lg:w-[22vw] lg:min-w-[20.375rem] lg:max-w-[28rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -418,7 +419,7 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div class="flex-1 overflow-y-auto pb-[6.5rem] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <BookingScheduleList
             v-if="isCreator && !dashboardEventsEngine.state.events.loading"
             :events="bookingScheduleEvents"
@@ -441,7 +442,10 @@
         </div>
       </div>
 
-      <div v-if="isCreator" class="fixed bottom-2 md:bottom-5 right-2 md:right-5 z-50" ref="floatingPopupTrigger">
+      <div v-if="isCreator" :class="[
+        'fixed right-2 md:right-5 z-[95] transition-all duration-300',
+        isStickyCardVisible ? 'bottom-[7rem] md:bottom-5' : 'bottom-2 md:bottom-5'
+      ]" ref="floatingPopupTrigger">
         <!-- For Tablet and Mobile-->
         <button
           class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
@@ -711,6 +715,8 @@ const calendarTooltip = reactive({
   placement: "bottom",
 });
 
+const isStickyCardVisible = ref(true); // Toggle this to show/hide the sticky bottom card and adjust spacing
+
 const calendarTooltipStyle = computed(() => ({
   left: `${calendarTooltip.x}px`,
   top: `${calendarTooltip.y}px`,
@@ -837,7 +843,7 @@ const theme1 = computed(() => ({
     pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {
-    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full px-2 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full p-0 ipad-portrait-small:p-0 ipad-portrait-large:p-0 ipad-portrait-large:pt-6 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10 flex-row-reverse md:flex-row",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",

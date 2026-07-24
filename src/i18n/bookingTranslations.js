@@ -821,6 +821,7 @@ export const bookingMessages = {
   fan_booking_deleting: "Deleting...",
   fan_booking_add_new_credit_card: "Add New Credit Card",
   fan_booking_processing_payment: "Processing your payment...",
+  required_title: "Required"
 };
 
 const fallbackState = reactive({

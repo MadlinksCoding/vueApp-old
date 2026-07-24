@@ -808,5 +808,6 @@
   "fan_booking_wallet_top_up": "WALLET TOP UP",
   "fan_booking_your_contribution": "Your contribution",
   "fan_booking_your_contribution_minimum": "Your Contribution ({min} Tokens minimum)",
-  "fan_booking_your_token_balance": "Your Token Balance"
+  "fan_booking_your_token_balance": "Your Token Balance",
+  "required_title": "Required"
 }
