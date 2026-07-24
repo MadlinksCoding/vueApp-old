@@ -254,12 +254,14 @@ vi.mock("@/components/FanBookingFlow/HelperComponents/OneOnOneBookingFlowLeftSid
       "groupPerformers",
       "titleDisplay",
       "showApprovalNeeded",
+      "isFirstBookingForCreator",
     ],
     template: `
       <div
         data-test="left-sidebar"
         :data-is-group-event="String(isGroupEvent)"
         :data-show-approval-needed="String(showApprovalNeeded)"
+        :data-first-booking="String(isFirstBookingForCreator)"
         :data-price-setting="priceSetting"
         :data-event-goal-reached-tokens="eventGoalReachedTokens"
         :data-event-goal-tokens="eventGoalTokens"
@@ -287,6 +289,11 @@ describe("BookingFlowStep3", () => {
     tokenGet.mockReset();
     showToast.mockReset();
     backendJwtToken = "jwt_test";
+    window.matchMedia = vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
   });
 
   async function mountAndSubmitStep3(engine, props = {}) {
@@ -402,6 +409,9 @@ describe("BookingFlowStep3", () => {
     });
 
     const engine = createEngine();
+    engine.state.fanBooking.context.isFirstBookingForCreator = true;
+    engine.state.bookingDetails.displayTimezoneOffsetMinutes = 480;
+    engine.state.bookingDetails.displayTimezoneLabel = "GMT+08:00";
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
 
     const wrapper = mount(BookingFlowStep3, {
@@ -415,6 +425,8 @@ describe("BookingFlowStep3", () => {
 
     const text = wrapper.text();
     expect(text).toContain("March 24, 2026");
+    expect(text).toContain("GMT+08:00 10:00 AM-10:15 AM");
+    expect(wrapper.get("[data-test='left-sidebar']").attributes("data-first-booking")).toBe("true");
     expect(text).toContain("Creator Name");
     expect(text).toContain("15 Minute x 2 sessions (30 Min.)");
     expect(text).toContain("1,000");
@@ -493,7 +505,7 @@ describe("BookingFlowStep3", () => {
     expect(tokenGet).not.toHaveBeenCalled();
     expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
     expect(wrapper.text()).toContain("TOP UP NEEDED");
-    expect(wrapper.text()).toContain("TOP-UP AND PAY");
+    expect(wrapper.text()).toContain("TOP-UP & PAY");
   });
 
   it("creates guest temporary holds with guest session identity and no auth header", async () => {
@@ -1046,7 +1058,7 @@ describe("BookingFlowStep3", () => {
 
     expect(engine.state.bookingDetails.contributionTokens).toBe(4000);
     expect(wrapper.text()).toContain("TOP UP NEEDED");
-    expect(wrapper.text()).toContain("TOP-UP AND PAY");
+    expect(wrapper.text()).toContain("TOP-UP & PAY");
   });
 
   it("allows event-goal contribution after the goal has already been reached", async () => {

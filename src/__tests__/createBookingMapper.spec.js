@@ -65,6 +65,24 @@ describe("create booking mapper", () => {
     expect(mapped.fanTimezone).toBe("America/New_York");
   });
 
+  it("keeps the canonical booking instant when display timezone fields change", () => {
+    const state = baseBookingState();
+    state.bookingDetails.selectedTime = {
+      localDateIso: "2030-01-16",
+      startHm: "01:00",
+      endHm: "01:30",
+      startMs: Date.parse("2030-01-15T17:00:00Z"),
+      endMs: Date.parse("2030-01-15T17:30:00Z"),
+    };
+    state.bookingDetails.selectedDuration = { value: 30, price: 100 };
+    state.bookingDetails.displayTimezoneOffsetMinutes = 480;
+
+    const mapped = mapCreateBookingToRequest(state);
+
+    expect(mapped.startIso).toBe("2030-01-16T01:00:00+08:00");
+    expect(mapped.endIso).toBe("2030-01-16T01:30:00+08:00");
+  });
+
   it("falls back to Hong Kong timezone when browser timezone is unavailable", () => {
     mockBrowserTimezone(undefined);
 

@@ -28,6 +28,10 @@ import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
 import { getBookingsApiBaseUrl } from '@/services/bookings/bookingsApiUtils.js';
 import { formatBookingValidationErrors, useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { extractBackendErrorMessage } from '@/utils/backendErrorMessage.js';
+import {
+  formatGmtOffsetLabel,
+  getBrowserOffsetMinutes,
+} from '@/services/bookings/utils/fixedOffsetTimezone.js';
 
 const loadTopUpForm = () => import('../HelperComponents/TopUpForm.vue');
 let topUpFormPrefetchPromise = null;
@@ -412,6 +416,9 @@ function ensureContributionDefault() {
 }
 
 const formattedTime = computed(() => bookingData.value.formattedTimeRange || '-');
+const isFirstBookingForCreator = computed(() => (
+  props.engine.getState('fanBooking.context.isFirstBookingForCreator') === true
+));
 const headerDateDisplay = computed(() => bookingData.value.headerDateDisplay || '-');
 const selectedDateDisplay = computed(() => bookingData.value.selectedDateDisplay || '-');
 const showApprovalNeeded = computed(() => {
@@ -588,24 +595,6 @@ function tokensToUsdDisplay(value) {
   return `USD$ ${usdFormatter.format(usd)}`;
 }
 
-function getBrowserGmtOffsetLabel() {
-  if (typeof Date === 'undefined') return '';
-
-  const offsetMinutes = -1 * new Date().getTimezoneOffset();
-  if (!Number.isFinite(offsetMinutes)) return '';
-
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absoluteMinutes = Math.abs(offsetMinutes);
-  const hours = Math.floor(absoluteMinutes / 60);
-  const minutes = absoluteMinutes % 60;
-
-  if (minutes === 0) {
-    return `GMT${sign}${hours}`;
-  }
-
-  return `GMT${sign}${hours}:${String(minutes).padStart(2, '0')}`;
-}
-
 const bookingScheduleDateDisplay = computed(() => (
   selectedDateDisplay.value || headerDateDisplay.value || '-'
 ));
@@ -616,7 +605,11 @@ const bookingScheduleTimeDisplay = computed(() => {
   if (!timeRange || timeRange === '-') return '-';
 
   const durationSuffix = duration > 0 ? ` (${duration} min)` : '';
-  const gmtOffset = getBrowserGmtOffsetLabel();
+  const savedOffset = Number(bookingData.value.displayTimezoneOffsetMinutes);
+  const gmtOffset = bookingData.value.displayTimezoneLabel
+    || formatGmtOffsetLabel(
+      Number.isFinite(savedOffset) ? savedOffset : getBrowserOffsetMinutes(),
+    );
   if (!gmtOffset) {
     return `${timeRange}${durationSuffix}`;
   }
@@ -2019,6 +2012,8 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               :subtotal="totalPrice"
               :subtotal-display="totalPrice > 0 ? formatTokenCompact(totalPrice) : '-'"
               :duration="sessionDuration"
+              :selected-event="selectedEvent"
+              :is-first-booking-for-creator="isFirstBookingForCreator"
               :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
               :creator-avatar="creatorPresentation.avatar"
               :creator-name="creatorPresentation.name"

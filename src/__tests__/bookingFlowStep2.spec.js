@@ -133,7 +133,9 @@ function createMountedStep({
   selection = {},
   bookedSlotsIndex = {},
   fanId = 2615,
+  isFirstBookingForCreator = false,
   componentProps = {},
+  translations = {},
 } = {}) {
   const engine = createEngine({
     bookingDetails,
@@ -144,7 +146,7 @@ function createMountedStep({
       context: {
         fanId,
         selectedEvent,
-        isFirstBookingForCreator: false,
+        isFirstBookingForCreator,
       },
       selection: {
         selectedDate: dateIso,
@@ -167,7 +169,7 @@ function createMountedStep({
         },
         global: {
           provide: {
-            [bookingTranslationSymbol]: createBookingTranslator(),
+            [bookingTranslationSymbol]: createBookingTranslator({ translations }),
           },
           stubs: {
             MiniCalendar: {
@@ -192,8 +194,8 @@ function createMountedStep({
               `,
             },
             OneOnOneBookingFlowLeftSideBar: {
-              props: ["timeDisplay", "duration"],
-              template: "<aside>{{ timeDisplay }} {{ duration }}</aside>",
+              props: ["timeDisplay", "duration", "isFirstBookingForCreator"],
+              template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)'>{{ timeDisplay }} {{ duration }}</aside>",
             },
           },
         },
@@ -331,11 +333,234 @@ describe("BookingFlowStep2", () => {
     await nextTick();
     await nextTick();
 
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
     expect(wrapper.text()).toContain("SELECT LENGTH");
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
     expect(wrapper.text()).toContain("OTHER REQUEST");
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it("passes first-booking eligibility to the sidebar", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      isFirstBookingForCreator: true,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.get("[data-testid='step2-sidebar']").attributes("data-first-booking")).toBe("true");
+  });
+
+  it("groups private start times into chronological hour columns", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      localEndHm: "12:00",
+      raw: {
+        ...baseEvent.raw,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const columns = wrapper.findAll("[data-testid='booking-flow-time-slot-column']");
+    expect(columns).toHaveLength(2);
+    expect(columns[0].attributes("data-hour")).toBe("10");
+    expect(columns[0].findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "10:00am",
+      "10:30am",
+    ]);
+    expect(columns[1].attributes("data-hour")).toBe("11");
+    expect(columns[1].findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "11:00am",
+      "11:30am",
+    ]);
+  });
+
+  it("opens the translated GMT selector and updates displayed slot times", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      translations: {
+        fan_booking_select_timezone: "Choose timezone",
+        fan_booking_timezone_options: "Available GMT offsets",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const trigger = wrapper.get("[data-testid='booking-flow-timezone-trigger']");
+    expect(trigger.attributes("aria-label")).toBe("Choose timezone");
+    expect(trigger.text()).toMatch(/^GMT[+-]\d{2}:\d{2}$/);
+
+    await trigger.trigger("click");
+    const options = wrapper.get("[data-testid='booking-flow-timezone-options']");
+    expect(options.attributes("aria-label")).toBe("Available GMT offsets");
+    expect(options.findAll("[role='option']")).toHaveLength(40);
+
+    const initialSlotStartMs = Number(
+      wrapper.get("[data-testid='booking-flow-time-slot']").attributes("data-start-ms"),
+    );
+    await wrapper.get("[data-testid='booking-flow-timezone-option-840']").trigger("click");
+    await flushStep2();
+
+    expect(wrapper.get("[data-testid='booking-flow-timezone-trigger']").text()).toContain("GMT+14:00");
+    expect(wrapper.find("[data-testid='booking-flow-timezone-options']").exists()).toBe(false);
+    expect(Number(
+      wrapper.get("[data-testid='booking-flow-time-slot']").attributes("data-start-ms"),
+    )).toBe(initialSlotStartMs);
+  });
+
+  it("scrolls the timezone menu to the selected GMT option when opened", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      bookingDetails: {
+        displayTimezoneOffsetMinutes: 480,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    try {
+      await wrapper.get("[data-testid='booking-flow-timezone-trigger']").trigger("click");
+      await nextTick();
+
+      expect(wrapper.get("[data-testid='booking-flow-timezone-option-480']").attributes("aria-selected")).toBe("true");
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        block: "center",
+        inline: "nearest",
+      });
+    } finally {
+      if (originalScrollIntoView) {
+        Element.prototype.scrollIntoView = originalScrollIntoView;
+      } else {
+        delete Element.prototype.scrollIntoView;
+      }
+    }
+  });
+
+  it("scrolls the time-slot columns one hour at a time and updates boundary controls", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        localEndHm: "14:00",
+        raw: {
+          ...baseEvent.raw,
+        },
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const scrollWrapper = wrapper.get("[data-testid='booking-flow-time-slots-scroll']");
+    const scrollElement = scrollWrapper.element;
+    const columns = wrapper.findAll("[data-testid='booking-flow-time-slot-column']");
+    Object.defineProperty(scrollElement, "clientWidth", { configurable: true, value: 260 });
+    Object.defineProperty(scrollElement, "scrollWidth", { configurable: true, value: 536 });
+    Object.defineProperty(columns[0].element, "offsetLeft", { configurable: true, value: 0 });
+    Object.defineProperty(columns[1].element, "offsetLeft", { configurable: true, value: 136 });
+    Object.defineProperty(scrollElement, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    scrollElement.scrollBy = vi.fn(({ left }) => {
+      scrollElement.scrollLeft += left;
+      scrollElement.dispatchEvent(new Event("scroll"));
+    });
+    scrollElement.dispatchEvent(new Event("scroll"));
+    await nextTick();
+
+    const previous = wrapper.get("[data-testid='booking-flow-time-slots-previous']");
+    const next = wrapper.get("[data-testid='booking-flow-time-slots-next']");
+    expect(previous.attributes("disabled")).toBeDefined();
+    expect(next.attributes("disabled")).toBeUndefined();
+
+    await next.trigger("click");
+    await nextTick();
+    expect(scrollElement.scrollBy).toHaveBeenCalledWith({ left: 136, behavior: "smooth" });
+    expect(previous.attributes("disabled")).toBeUndefined();
+
+    await previous.trigger("click");
+    await nextTick();
+    expect(scrollElement.scrollBy).toHaveBeenLastCalledWith({ left: -136, behavior: "smooth" });
+    expect(previous.attributes("disabled")).toBeDefined();
+
+    scrollElement.scrollLeft = 276;
+    scrollElement.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(next.attributes("disabled")).toBeDefined();
+  });
+
+  it("shows a translated off-hour surcharge legend only when applicable", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        offHourSurcharge: true,
+        offHourSurchargePercent: 25,
+        raw: {
+          ...baseEvent.raw,
+          offHourSurcharge: true,
+          offHourSurchargePercent: 25,
+          slots: [{
+            date: "2030-01-15",
+            times: [{ startTime: "10:00", endTime: "12:00", offHours: true }],
+          }],
+        },
+      },
+      translations: {
+        fan_booking_previous_time_slot_hours: "Earlier hours",
+        fan_booking_next_time_slot_hours: "Later hours",
+        fan_booking_off_hour_surcharge_applied: "PEAK RATE APPLIES",
+        fan_booking_slots_available: "OPEN TIMES",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.get("[data-testid='booking-flow-time-slots-previous']").attributes("aria-label")).toBe(
+      "Earlier hours",
+    );
+    expect(wrapper.get("[data-testid='booking-flow-time-slots-next']").attributes("aria-label")).toBe(
+      "Later hours",
+    );
+    expect(wrapper.get("[data-testid='booking-flow-off-hour-surcharge-indicator']").text()).toContain(
+      "PEAK RATE APPLIES",
+    );
+    expect(wrapper.get("[data-testid='booking-flow-time-slots-header']").classes()).toEqual(
+      expect.arrayContaining(["min-w-0", "flex-nowrap"]),
+    );
+    expect(wrapper.get("[data-testid='booking-flow-off-hour-surcharge-indicator']").classes()).toEqual(
+      expect.arrayContaining(["min-w-0", "overflow-hidden"]),
+    );
+    expect(wrapper.get("[data-testid='booking-flow-off-hour-surcharge-label']").classes()).toEqual(
+      expect.arrayContaining(["truncate", "whitespace-nowrap"]),
+    );
+    expect(wrapper.get("[data-testid='booking-flow-slots-available-legend']").text()).toContain(
+      "OPEN TIMES",
+    );
+
+    const { wrapperPromise: normalWrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        offHourSurcharge: true,
+        offHourSurchargePercent: 25,
+        raw: {
+          ...baseEvent.raw,
+          offHourSurcharge: true,
+          offHourSurchargePercent: 25,
+        },
+      },
+    });
+    const normalWrapper = await normalWrapperPromise;
+    await flushStep2();
+    expect(normalWrapper.find("[data-testid='booking-flow-off-hour-surcharge-indicator']").exists()).toBe(false);
   });
 
   it("periodically refreshes private availability but not group auto-routing", async () => {
@@ -523,12 +748,18 @@ describe("BookingFlowStep2", () => {
     const stepper = wrapper.get("[data-testid='booking-flow-duration-stepper']");
     const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
     const minus = wrapper.get("[data-testid='booking-flow-duration-minus']");
+    const sessionCount = wrapper.get("[data-testid='booking-flow-session-count']");
+    const tokenCost = wrapper.get("[data-testid='booking-flow-duration-token-cost']");
 
     expect(stepper.text()).toContain("30 mins");
+    expect(sessionCount.text()).toBe("1 session");
+    expect(tokenCost.text()).toBe("60");
 
     await plus.trigger("click");
     await nextTick();
     expect(stepper.text()).toContain("60 mins");
+    expect(sessionCount.text()).toBe("2 sessions");
+    expect(tokenCost.text()).toBe("120");
 
     await plus.trigger("click");
     await nextTick();
@@ -540,7 +771,334 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.find("[data-testid='booking-flow-duration-max-warning']").exists()).toBe(false);
   });
 
-  it("keeps private booking length within the configured maximum and shows a warning", async () => {
+  it("disables duration increase and identifies the booked slot blocking the next session", async () => {
+    const dateIso = "2030-01-15";
+    const selectedEvent = {
+      ...createPrivateEvent(dateIso),
+      sessionDurationMinutes: 5,
+      localStartHm: "10:00",
+      localEndHm: "11:00",
+      maxSessionMinutes: 4,
+      raw: {
+        ...createPrivateEvent(dateIso).raw,
+        sessionDurationMinutes: 5,
+        maxSessionMinutes: 4,
+      },
+    };
+    const bookedStart = new Date(`${dateIso}T10:10:00`);
+    const bookedEnd = new Date(`${dateIso}T10:15:00`);
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "booking_duration_boundary",
+      eventId: selectedEvent.eventId,
+      startIso: bookedStart.toISOString(),
+      endIso: bookedEnd.toISOString(),
+      status: "confirmed",
+    }]);
+    const { wrapperPromise } = createMountedStep({
+      dateIso,
+      selectedEvent,
+      bookedSlotsIndex,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+
+    const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
+    const minus = wrapper.get("[data-testid='booking-flow-duration-minus']");
+    expect(wrapper.get("[data-testid='booking-flow-duration-stepper']").text()).toContain("10 mins");
+    expect(plus.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
+
+    await plus.trigger("click");
+    await nextTick();
+
+    const warning = wrapper.get("[data-testid='booking-flow-duration-overlap-warning']");
+    expect(plus.attributes("disabled")).toBeDefined();
+    expect(minus.attributes("disabled")).toBeUndefined();
+    expect(warning.text()).toContain("Cannot book more because it overlaps with slot 10:10am");
+
+    const warningBeforeTimezoneChange = warning.text();
+    await wrapper.get("[data-testid='booking-flow-timezone-trigger']").trigger("click");
+    await wrapper.get("[data-testid='booking-flow-timezone-option--720']").trigger("click");
+    await flushStep2();
+    expect(wrapper.get("[data-testid='booking-flow-duration-overlap-warning']").text()).not.toBe(
+      warningBeforeTimezoneChange,
+    );
+
+    const unblockedSlot = wrapper.findAll("[data-testid='booking-flow-time-slot']").find((slot) => (
+      Number(slot.attributes("data-start-ms")) >= bookedEnd.getTime()
+      && !slot.attributes("disabled")
+    ));
+    expect(unblockedSlot).toBeTruthy();
+    await unblockedSlot.trigger("click");
+    await nextTick();
+
+    expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeUndefined();
+  });
+
+  it("disables duration increase at the schedule boundary without showing an overlap warning", async () => {
+    const dateIso = "2030-01-15";
+    const baseEvent = createPrivateEvent(dateIso);
+    const selectedEvent = {
+      ...baseEvent,
+      sessionDurationMinutes: 5,
+      localStartHm: "10:00",
+      localEndHm: "10:10",
+      maxSessionMinutes: 4,
+      raw: {
+        ...baseEvent.raw,
+        sessionDurationMinutes: 5,
+        maxSessionMinutes: 4,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ dateIso, selectedEvent });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    const slots = wrapper.findAll("[data-testid='booking-flow-time-slot']");
+    await slots[1].trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeDefined();
+    expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
+  });
+
+  it("uses translated singular and plural labels for the selected session count", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      translations: {
+        fan_booking_session: "appointment",
+        fan_booking_sessions: "appointments",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const sessionCount = wrapper.get("[data-testid='booking-flow-session-count']");
+    expect(sessionCount.text()).toBe("1 appointment");
+
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+
+    expect(sessionCount.text()).toBe("2 appointments");
+  });
+
+  it("shows the configured session maximum and switches to the reached alert at the limit", async () => {
+    const selectedEvent = {
+      ...createPrivateEvent("2030-01-15"),
+      localEndHm: "12:00",
+      maxSessionMinutes: 3,
+      raw: {
+        ...createPrivateEvent("2030-01-15").raw,
+        maxSessionMinutes: 3,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("3 SESSIONS MAX.");
+    expect(wrapper.find("[data-testid='booking-flow-session-maximum-reached']").exists()).toBe(false);
+
+    const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
+    await plus.trigger("click");
+    await plus.trigger("click");
+    await nextTick();
+
+    expect(wrapper.find("[data-testid='booking-flow-session-maximum']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "MAX SESSION LENGTH REACHED",
+    );
+
+    await wrapper.get("[data-testid='booking-flow-duration-minus']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("3 SESSIONS MAX.");
+    expect(wrapper.find("[data-testid='booking-flow-session-maximum-reached']").exists()).toBe(false);
+  });
+
+  it("uses translated maximum and reached labels", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      translations: {
+        fan_booking_sessions_maximum: "Maximum: {count} appointments",
+        fan_booking_max_session_length_reached: "Appointment limit reached",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe(
+      "Maximum: 2 appointments",
+    );
+
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "Appointment limit reached",
+    );
+  });
+
+  it("shows the translated first-time notice only for an eligible configured discount", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      enableFirstTimeDiscount: true,
+      firstTimeDiscountTokens: 15,
+      raw: {
+        ...baseEvent.raw,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscountTokens: 15,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent,
+      isFirstBookingForCreator: true,
+      translations: {
+        fan_booking_first_time_discount_received: "Your welcome discount is ready!",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-first-time-discount-notice']").text()).toContain(
+      "Your welcome discount is ready!",
+    );
+
+    const { wrapperPromise: returningWrapperPromise } = createMountedStep({
+      selectedEvent,
+      isFirstBookingForCreator: false,
+    });
+    const returningWrapper = await returningWrapperPromise;
+    await nextTick();
+    await nextTick();
+    expect(returningWrapper.find("[data-testid='booking-flow-first-time-discount-notice']").exists()).toBe(false);
+
+    const { wrapperPromise: disabledWrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...selectedEvent,
+        enableFirstTimeDiscount: false,
+        raw: {
+          ...selectedEvent.raw,
+          enableFirstTimeDiscount: false,
+        },
+      },
+      isFirstBookingForCreator: true,
+    });
+    const disabledWrapper = await disabledWrapperPromise;
+    await nextTick();
+    await nextTick();
+    expect(disabledWrapper.find("[data-testid='booking-flow-first-time-discount-notice']").exists()).toBe(false);
+  });
+
+  it("updates the translated longer-session discount notice and confirms when achieved", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      localEndHm: "12:00",
+      maxSessionMinutes: 4,
+      enableDiscountForLonger: true,
+      discountMinSessions: 3,
+      longerSessionDiscountTokens: 20,
+      raw: {
+        ...baseEvent.raw,
+        maxSessionMinutes: 4,
+        enableDiscountForLonger: true,
+        discountMinSessions: 3,
+        longerSessionDiscountTokens: 20,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent,
+      translations: {
+        fan_booking_longer_discount_one_session_remaining: "Add {count} appointment for the discount",
+        fan_booking_longer_discount_sessions_remaining: "Add {count} appointments for the discount",
+        fan_booking_longer_discount_achieved: "Longer booking discount achieved!",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    const notice = wrapper.get("[data-testid='booking-flow-longer-discount-notice']");
+    expect(notice.text()).toContain("Add 2 appointments for the discount");
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+    expect(notice.text()).toContain("Add 1 appointment for the discount");
+
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+    expect(notice.text()).toContain("Longer booking discount achieved!");
+  });
+
+  it.each([
+    {
+      name: "longer sessions are disabled",
+      eventOverrides: { allowLongerSessions: false },
+      rawOverrides: { allowLongerSessions: false },
+    },
+    {
+      name: "the discount is disabled",
+      eventOverrides: { enableDiscountForLonger: false },
+      rawOverrides: { enableDiscountForLonger: false },
+    },
+    {
+      name: "the discount amount is zero",
+      eventOverrides: { longerSessionDiscountTokens: 0 },
+      rawOverrides: { longerSessionDiscountTokens: 0 },
+    },
+    {
+      name: "the threshold is unreachable",
+      eventOverrides: { discountMinSessions: 4 },
+      rawOverrides: { discountMinSessions: 4 },
+    },
+  ])("hides the longer-session notice when $name", async ({ eventOverrides, rawOverrides }) => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      maxSessionMinutes: 3,
+      enableDiscountForLonger: true,
+      discountMinSessions: 2,
+      longerSessionDiscountTokens: 20,
+      ...eventOverrides,
+      raw: {
+        ...baseEvent.raw,
+        maxSessionMinutes: 3,
+        enableDiscountForLonger: true,
+        discountMinSessions: 2,
+        longerSessionDiscountTokens: 20,
+        ...rawOverrides,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find("[data-testid='booking-flow-longer-discount-notice']").exists()).toBe(false);
+  });
+
+  it("keeps private booking length within the configured maximum and disables increase", async () => {
     const selectedEvent = {
       ...createPrivateEvent("2030-01-15"),
       localEndHm: "12:00",
@@ -565,13 +1123,9 @@ describe("BookingFlowStep2", () => {
     await plus.trigger("click");
     await nextTick();
     expect(stepper.text()).toContain("1 hour 30 mins");
-
-    await plus.trigger("click");
-    await nextTick();
-
-    expect(stepper.text()).toContain("1 hour 30 mins");
-    expect(wrapper.get("[data-testid='booking-flow-duration-max-warning']").text()).toContain(
-      "Max session length is 1 hour 30 mins",
+    expect(plus.attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "MAX SESSION LENGTH REACHED",
     );
   });
 
@@ -591,6 +1145,8 @@ describe("BookingFlowStep2", () => {
     await nextTick();
     await nextTick();
 
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("1 SESSION MAX.");
+
     const noticeBeforeTime = wrapper.get("[data-testid='booking-flow-duration-max-warning']");
     expect(noticeBeforeTime.text()).toContain("Max session length is 30 mins");
     expect(noticeBeforeTime.attributes("class")).toContain("text-[#FACC15]");
@@ -600,6 +1156,9 @@ describe("BookingFlowStep2", () => {
 
     expect(wrapper.get("[data-testid='booking-flow-duration-minus']").attributes("disabled")).toBeDefined();
     expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "MAX SESSION LENGTH REACHED",
+    );
     expect(wrapper.get("[data-testid='booking-flow-duration-max-warning']").text()).toContain(
       "Max session length is 30 mins",
     );
@@ -648,7 +1207,7 @@ describe("BookingFlowStep2", () => {
 
     expect(wrapper.find(".mini-calendar-month").text()).toBe(today);
     expect(wrapper.find(".mini-calendar-selected").text()).toBe(today);
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
   });
 
   it("defaults a private booking to the first selectable future event date", async () => {
@@ -677,7 +1236,7 @@ describe("BookingFlowStep2", () => {
 
     expect(wrapper.find(".mini-calendar-min").text()).toBe(futureDate);
     expect(wrapper.find(".mini-calendar-selected").text()).toBe(futureDate);
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
   });
 
   it("leaves private booking unselected when no selectable date exists", async () => {
@@ -703,7 +1262,7 @@ describe("BookingFlowStep2", () => {
     await nextTick();
     await nextTick();
 
-    expect(wrapper.text()).not.toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).not.toContain("CALL START TIME");
   });
 
   it("passes event date bounds to the calendar and ignores out-of-range date selections", async () => {
@@ -733,7 +1292,7 @@ describe("BookingFlowStep2", () => {
     await wrapper.find(".mini-calendar-valid").trigger("click");
     await nextTick();
 
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
   });
 
   it("uses custom slot local dates when the raw one-time date range is inverted", async () => {
@@ -773,7 +1332,7 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.find(".mini-calendar-min").text()).toBe(localSlotDate);
     expect(wrapper.find(".mini-calendar-max").text()).toBe(localSlotEndDate);
     expect(wrapper.find(".mini-calendar-events").text()).toBe("2");
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
   });
 
   it("shows both local dates for a custom slot crossing midnight without saved end offset", async () => {
@@ -816,7 +1375,7 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.find(".mini-calendar-max").text()).toBe(localEndDate);
     expect(wrapper.find(".mini-calendar-events").text()).toBe("2");
     expect(wrapper.find(".mini-calendar-selected").text()).toBe(localStartDate);
-    expect(wrapper.text()).toContain("SELECT CALL START TIME");
+    expect(wrapper.text()).toContain("CALL START TIME");
   });
 
 });

@@ -30,6 +30,14 @@ const props = defineProps({
     type: [Number, String],
     default: 0
   },
+  selectedEvent: {
+    type: Object,
+    default: null,
+  },
+  isFirstBookingForCreator: {
+    type: Boolean,
+    default: false,
+  },
   // Date prop (e.g. "Tomorrow April 27, 2025")
   dateDisplay: {
     type: String,
@@ -128,6 +136,123 @@ function normalizePerformer(value, index = 0) {
 }
 
 const isEventGoalGroup = computed(() => String(props.priceSetting || "").toLowerCase() === "eventgoal");
+
+const selectedEventRaw = computed(() => props.selectedEvent?.raw || {});
+
+function eventField(name, ...fallbackNames) {
+  const raw = selectedEventRaw.value;
+  const event = props.selectedEvent || {};
+  const names = [name, ...fallbackNames];
+
+  for (const fieldName of names) {
+    if (raw[fieldName] !== undefined && raw[fieldName] !== null && raw[fieldName] !== "") {
+      return raw[fieldName];
+    }
+    if (event[fieldName] !== undefined && event[fieldName] !== null && event[fieldName] !== "") {
+      return event[fieldName];
+    }
+  }
+  return undefined;
+}
+
+function positiveNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function formatPriceTokens(value) {
+  const numeric = Number(value);
+  const normalized = Number.isFinite(numeric) ? Math.max(0, Math.ceil(numeric)) : 0;
+  return normalized.toLocaleString(locale.value);
+}
+
+const baseSessionDurationMinutes = computed(() => (
+  positiveNumber(eventField("sessionDurationMinutes"), 15)
+));
+
+const baseSessionPriceTokens = computed(() => (
+  positiveNumber(eventField("basePriceTokens"), 0)
+));
+
+const allowLongerSessions = computed(() => (
+  normalizeBoolean(eventField("allowLongerSessions"))
+));
+
+const maximumSessionCount = computed(() => {
+  if (!allowLongerSessions.value) return 1;
+  const configured = Math.floor(positiveNumber(eventField("maxSessionMinutes"), 1));
+  return Math.max(1, configured);
+});
+
+const maximumSessionDurationMinutes = computed(() => (
+  baseSessionDurationMinutes.value * maximumSessionCount.value
+));
+
+const maximumSessionDurationLabel = computed(() => {
+  const count = maximumSessionCount.value;
+  const sessionLabel = t(count === 1 ? "fan_booking_session" : "fan_booking_sessions");
+  return t("fan_booking_duration_session_count", {
+    minutes: maximumSessionDurationMinutes.value,
+    count,
+    session_label: sessionLabel,
+  });
+});
+
+const offHourSurchargePercent = computed(() => (
+  normalizeBoolean(eventField("offHourSurcharge"))
+    ? positiveNumber(eventField("offHourSurchargePercent"), 0)
+    : 0
+));
+
+const showOffHourPricing = computed(() => offHourSurchargePercent.value > 0);
+
+const offHourSessionPriceTokens = computed(() => {
+  const surcharge = Math.ceil(
+    baseSessionPriceTokens.value * offHourSurchargePercent.value / 100,
+  );
+  return baseSessionPriceTokens.value + surcharge;
+});
+
+const firstTimeDiscountTokens = computed(() => (
+  normalizeBoolean(eventField("enableFirstTimeDiscount"))
+    ? positiveNumber(eventField("firstTimeDiscountTokens", "firstTimeDiscount"), 0)
+    : 0
+));
+
+const showFirstTimeOffer = computed(() => (
+  props.isFirstBookingForCreator === true
+  && firstTimeDiscountTokens.value > 0
+));
+
+const longerSessionDiscountTokens = computed(() => (
+  normalizeBoolean(eventField("enableDiscountForLonger"))
+    ? positiveNumber(
+      eventField(
+        "longerSessionDiscountTokens",
+        "discountPercentOfBase",
+        "discountPercentage",
+      ),
+      0,
+    )
+    : 0
+));
+
+const longerDiscountMinimumSessionCount = computed(() => {
+  const configuredSessions = positiveNumber(eventField("discountMinSessions"), 0);
+  if (configuredSessions > 0) return Math.ceil(configuredSessions);
+
+  const legacyMinimumMinutes = positiveNumber(eventField("discountMinSessionMinutes"), 0);
+  if (legacyMinimumMinutes <= 0) return 0;
+  return Math.ceil(legacyMinimumMinutes / baseSessionDurationMinutes.value);
+});
+
+const showLongSessionOffer = computed(() => (
+  allowLongerSessions.value
+  && maximumSessionCount.value > 1
+  && longerSessionDiscountTokens.value > 0
+  && longerDiscountMinimumSessionCount.value > 1
+  && longerDiscountMinimumSessionCount.value <= maximumSessionCount.value
+));
 
 const groupPerformersDisplay = computed(() => {
   const host = {
@@ -289,62 +414,74 @@ const groupPolicyItems = computed(() => {
           <!-- /User details section -->
 
           <!-- Session Cost -->
-          <div class="flex flex-col gap-2 md:gap-4 px-2 lg:px-0">
+          <div class="flex flex-col gap-2 md:gap-4 px-2 lg:px-0" data-testid="booking-sidebar-session-cost">
             <div class="flex flex-col gap-2">
-              <h3 class="text-sm font-semibold text-[#2CE]">SESSION COST</h3>
+              <h3 class="text-sm font-semibold text-[#2CE]">{{ t("fan_booking_session_cost") }}</h3>
               <div class="flex flex-col md:gap-2">
-                <div class="flex flex-row justify-between items-center text-white">
+                <div class="flex flex-row justify-between items-center text-white" data-testid="booking-sidebar-normal-hour">
                   <div class="flex items-center">
-                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Normal Hour</p>
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">{{ t("fan_booking_normal_hour") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-0.5">
                     <div class="w-5 h-5 flex justify-center items-center">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-5 h-5" />
                     </div>
-                    <span class="text-xs md:text-base font-medium text-white">300</span>
-                    <p class="text-xs md:text-sm font-normal text-white">/10 min.</p>
+                    <span class="text-xs md:text-base font-medium text-white">{{ formatPriceTokens(baseSessionPriceTokens) }}</span>
+                    <p class="text-xs md:text-sm font-normal text-white">{{ t("fan_booking_price_per_minutes", { minutes: baseSessionDurationMinutes }) }}</p>
                   </div>
                 </div>
 
-                <div class="flex flex-row justify-between items-center text-white">
+                <div
+                  v-if="showOffHourPricing"
+                  class="flex flex-row justify-between items-center text-white"
+                  data-testid="booking-sidebar-off-hour"
+                >
                   <div class="flex items-center gap-1">
-                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Off Hour</p>
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">{{ t("fan_booking_off_hour") }}</p>
                     <img :src=bookingFlowCloudMoon alt="" class="w-3.5 h-3.5">
                   </div>
                   <div class="flex justify-center items-center gap-0.5">
                     <div class="w-5 h-5 flex justify-center items-center">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-5 h-5" />
                     </div>
-                    <span class="text-xs md:text-base font-medium text-white">450</span>
-                    <p class="text-xs md:text-sm font-normal text-white">/10 min.</p>
+                    <span class="text-xs md:text-base font-medium text-white">{{ formatPriceTokens(offHourSessionPriceTokens) }}</span>
+                    <p class="text-xs md:text-sm font-normal text-white">{{ t("fan_booking_price_per_minutes", { minutes: baseSessionDurationMinutes }) }}</p>
                   </div>
                 </div>
 
-                <div class="flex flex-row justify-between items-center text-white">
+                <div class="flex flex-row justify-between items-center text-white" data-testid="booking-sidebar-maximum-session">
                   <div class="flex items-center">
-                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">Max. session length</p>
+                    <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">{{ t("fan_booking_max_session_length") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-0.5">
-                    <span class="text-xs md:text-base font-medium text-white">60 min.</span>
-                    <p class="text-xs md:text-sm font-normal text-white">(6 sessions)</p>
+                    <p class="text-xs md:text-sm font-normal text-white">{{ maximumSessionDurationLabel }}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="flex flex-col gap-1 md:gap-4">
-              <div class="flex items-start gap-1">
+            <div v-if="showFirstTimeOffer || showLongSessionOffer" class="flex flex-col gap-1 md:gap-4">
+              <div v-if="showFirstTimeOffer" class="flex items-start gap-1" data-testid="booking-sidebar-first-time-offer">
                 <div class="w-4 h-4 md:w-5 md:h-5 flex justify-center items-center flex-none">
                   <img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" class="filter [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(21%)_saturate(3990%)_hue-rotate(80deg)_brightness(95%)_contrast(106%)]" />
                 </div>
-                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]"><span class="font-semibold">FIRST TIME OFFER: </span> 100 tokens off entire booking</p>
+                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]">
+                  <span class="font-semibold">{{ t("fan_booking_first_time_offer_label") }} </span>
+                  {{ t("fan_booking_first_time_offer_details", { tokens: formatPriceTokens(firstTimeDiscountTokens) }) }}
+                </p>
               </div>
 
-              <div class="flex items-start gap-1">
+              <div v-if="showLongSessionOffer" class="flex items-start gap-1" data-testid="booking-sidebar-long-session-offer">
                 <div class="w-4 h-4 md:w-5 md:h-5 flex justify-center items-center flex-none">
                   <img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" class="filter [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(21%)_saturate(3990%)_hue-rotate(80deg)_brightness(95%)_contrast(106%)]" />
                 </div>
-                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]"><span class="font-semibold">LONG SESSION OFFER: </span> 100 tokens off each session when you book 3+ sessions</p>
+                <p class="text-xs md:text-sm font-normal leading-5 text-[#07F468] py-[1px]">
+                  <span class="font-semibold">{{ t("fan_booking_long_session_offer_label") }} </span>
+                  {{ t("fan_booking_long_session_offer_details", {
+                    tokens: formatPriceTokens(longerSessionDiscountTokens),
+                    count: longerDiscountMinimumSessionCount,
+                  }) }}
+                </p>
               </div>
             </div>
           </div>

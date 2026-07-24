@@ -43,6 +43,22 @@ export function buildIdempotencyKey(prefix = "evt") {
   return `${prefix}_${randomPart}`;
 }
 
+export function utcMillisToHkt(timestamp) {
+  const timestampMs = Number(timestamp);
+  if (!Number.isFinite(timestampMs)) return null;
+
+  const shifted = new Date(timestampMs + (8 * 60 * 60 * 1000));
+  if (Number.isNaN(shifted.getTime())) return null;
+
+  const dateIso = `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(shifted.getUTCDate())}`;
+  const hm = `${pad2(shifted.getUTCHours())}:${pad2(shifted.getUTCMinutes())}`;
+  return {
+    dateIso,
+    hm,
+    iso: `${dateIso}T${hm}:00${HKT_OFFSET_SUFFIX}`,
+  };
+}
+
 export function stringToArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string") return [];
