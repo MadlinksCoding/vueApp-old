@@ -2644,7 +2644,7 @@
             <div v-if="formData.repeatRule !== 'doesNotRepeat'" class="self-stretch inline-flex justify-start items-end">
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                  <div class="flex items-end gap-1">
+                  <div class="flex items-center gap-1">
                     <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                       {{ t("booking_duration") }}
                     </div>
