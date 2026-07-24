@@ -3,6 +3,7 @@ import {
   buildIdempotencyKey,
   localDateTimeToHkt,
   toHm,
+  utcMillisToHkt,
 } from "@/services/events/eventsApiUtils.js";
 import { formatLocalDateIso } from "@/services/bookings/utils/bookingSlotUtils.js";
 
@@ -470,10 +471,18 @@ export function mapCreateBookingToRequest(state = {}, context = {}) {
   const groupEvent = isGroupEvent(event);
   const { localDateIso, endDateIso, startHm, endHm, duration } = resolveSlotRange(state);
 
-  const startHkt = localDateTimeToHkt(localDateIso, startHm);
-  const endHkt = localDateTimeToHkt(endDateIso, endHm);
-  const selectedAddOns = resolveAddOnSelections(state);
   const selectedSlot = resolveSelectedSlot(state);
+  const canonicalStartMs = Number(selectedSlot?.startMs);
+  const canonicalEndMs = groupEvent
+    ? Number(selectedSlot?.endMs)
+    : canonicalStartMs + (duration * 60 * 1000);
+  const startHkt = Number.isFinite(canonicalStartMs)
+    ? utcMillisToHkt(canonicalStartMs)
+    : localDateTimeToHkt(localDateIso, startHm);
+  const endHkt = Number.isFinite(canonicalEndMs)
+    ? utcMillisToHkt(canonicalEndMs)
+    : localDateTimeToHkt(endDateIso, endHm);
+  const selectedAddOns = resolveAddOnSelections(state);
   const eventBookingCounts = state?.fanBooking?.context?.eventBookingCountsByEventId || {};
   const priorEventBookingCount = safeNumber(eventBookingCounts?.[eventId], 0);
   const computed = buildBookingPaymentPreview(event, duration, selectedAddOns, selectedSlot, {

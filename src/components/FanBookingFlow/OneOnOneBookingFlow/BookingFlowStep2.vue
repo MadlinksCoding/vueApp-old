@@ -1,7 +1,7 @@
 <script setup>
 import MiniCalendar from '@/components/calendar/MiniCalendar.vue';
 import OneOnOneBookingFlowLeftSideBar from '../HelperComponents/OneOnOneBookingFlowLeftSideBar.vue';
-import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from 'vue';
+import { ref, reactive, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid';
 import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
@@ -13,6 +13,7 @@ import {
   computeNextAvailableSlot,
   createSlotUiModel,
   formatLocalDateIso,
+  getBlockingBookedSlotsForRange,
   hmToLabel,
   isRangeBooked,
   isSlotBookedByUser,
@@ -32,6 +33,12 @@ import {
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
+import {
+  CIVIL_TIME_OFFSET_MINUTES,
+  formatGmtOffsetLabel,
+  getBrowserOffsetMinutes,
+  getFixedOffsetDateTimeParts,
+} from '@/services/bookings/utils/fixedOffsetTimezone.js';
 
 const props = defineProps({
   engine: {
@@ -81,9 +88,22 @@ const shiftMonth = (n) => {
   state.focus = addMonths(state.focus, n);
 };
 
-const timezoneLabel = computed(() => {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Time';
-});
+const savedDisplayOffsetMinutes = Number(
+  props.engine.getState('bookingDetails.displayTimezoneOffsetMinutes')
+    ?? props.engine.getState('fanBooking.selection.displayTimezoneOffsetMinutes'),
+);
+const displayTimezoneOffsetMinutes = ref(
+  Number.isFinite(savedDisplayOffsetMinutes)
+    ? savedDisplayOffsetMinutes
+    : getBrowserOffsetMinutes(),
+);
+const timezoneMenuOpen = ref(false);
+const timezoneMenuContainer = ref(null);
+const timezoneLabel = computed(() => formatGmtOffsetLabel(displayTimezoneOffsetMinutes.value));
+const timezoneOptions = CIVIL_TIME_OFFSET_MINUTES.map((offsetMinutes) => ({
+  offsetMinutes,
+  label: formatGmtOffsetLabel(offsetMinutes),
+}));
 
 const theme1 = {
   mini: {
@@ -107,13 +127,70 @@ const contributionTokens = ref('');
 const walletBalance = ref(0);
 const groupAutoRedirecting = ref(false);
 const showMaxDurationWarning = ref(false);
+const acknowledgedDurationOverlapKey = ref('');
 const isRefreshingAvailability = ref(false);
+const timeSlotScrollContainer = ref(null);
+const canScrollTimeSlotsLeft = ref(false);
+const canScrollTimeSlotsRight = ref(false);
 let availabilityRefreshTimerId = null;
 
 const AVAILABILITY_REFRESH_INTERVAL_MS = 15000;
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
-const todayDateIso = computed(() => formatLocalDateIso(new Date()));
+const todayDateIso = computed(() => (
+  getFixedOffsetDateTimeParts(Date.now(), displayTimezoneOffsetMinutes.value)?.dateIso
+  || formatLocalDateIso(new Date())
+));
+
+function formatDateIsoAtDisplayOffset(date) {
+  return getFixedOffsetDateTimeParts(date, displayTimezoneOffsetMinutes.value)?.dateIso || null;
+}
+
+async function toggleTimezoneMenu() {
+  timezoneMenuOpen.value = !timezoneMenuOpen.value;
+  if (!timezoneMenuOpen.value) return;
+
+  await nextTick();
+  const selectedOption = timezoneMenuContainer.value?.querySelector?.(
+    '[role="option"][aria-selected="true"]',
+  );
+  selectedOption?.scrollIntoView?.({
+    block: 'center',
+    inline: 'nearest',
+  });
+}
+
+function closeTimezoneMenu() {
+  timezoneMenuOpen.value = false;
+}
+
+function selectDisplayTimezone(offsetMinutes) {
+  const normalized = Number(offsetMinutes);
+  if (!Number.isFinite(normalized)) return;
+
+  const selectedStartMs = Number(selectedTime.value?.startMs);
+  displayTimezoneOffsetMinutes.value = normalized;
+  closeTimezoneMenu();
+
+  if (Number.isFinite(selectedStartMs)) {
+    const convertedDateIso = getFixedOffsetDateTimeParts(selectedStartMs, normalized)?.dateIso;
+    const convertedDate = dateFromIso(convertedDateIso);
+    if (convertedDate) {
+      state.selected = convertedDate;
+      state.focus = new Date(convertedDate);
+    }
+  }
+}
+
+function handleTimezoneOutsideClick(event) {
+  if (!timezoneMenuOpen.value) return;
+  if (timezoneMenuContainer.value?.contains?.(event.target)) return;
+  closeTimezoneMenu();
+}
+
+function handleTimezoneKeydown(event) {
+  if (event.key === 'Escape') closeTimezoneMenu();
+}
 
 function normalizeRepeatRuleName(value) {
   return String(value || '').trim().toLowerCase();
@@ -171,7 +248,7 @@ function resolveOneTimeLocalDateBounds(event = {}) {
 
     if (times.length === 0) {
       const localDate = hktDateTimeToLocalDate(hktDateIso, '12:00');
-      const localDateIso = formatLocalDateIso(localDate);
+      const localDateIso = formatDateIsoAtDisplayOffset(localDate);
       if (localDateIso) dates.push(localDateIso);
       return;
     }
@@ -182,14 +259,14 @@ function resolveOneTimeLocalDateBounds(event = {}) {
       if (!startHm) return;
 
       const localDate = hktDateTimeToLocalDate(hktDateIso, startHm);
-      const localDateIso = formatLocalDateIso(localDate);
+      const localDateIso = formatDateIsoAtDisplayOffset(localDate);
       if (localDateIso) dates.push(localDateIso);
 
       if (!endHm) return;
       const endDayOffset = resolveSlotEndDayOffset(timeEntry, startHm, endHm);
       const endHktDateIso = endDayOffset > 0 ? addDaysToDateIso(hktDateIso, endDayOffset) : hktDateIso;
       const localEndDate = hktDateTimeToLocalDate(endHktDateIso, endHm);
-      const localEndDateIso = formatLocalDateIso(localEndDate);
+      const localEndDateIso = formatDateIsoAtDisplayOffset(localEndDate);
       if (localEndDateIso) dates.push(localEndDateIso);
     });
   });
@@ -233,11 +310,11 @@ function resolveRecurringBoundaryLocalDateBounds(event = {}) {
   if (dateFrom) {
     if (entries.length > 0) {
       entries.forEach((entry) => {
-        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, entry.startHm));
+        const localDateIso = formatDateIsoAtDisplayOffset(hktDateTimeToLocalDate(dateFrom, entry.startHm));
         if (localDateIso) fromDates.push(localDateIso);
       });
     } else {
-      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateFrom, '12:00'));
+      const localDateIso = formatDateIsoAtDisplayOffset(hktDateTimeToLocalDate(dateFrom, '12:00'));
       if (localDateIso) fromDates.push(localDateIso);
     }
   }
@@ -246,11 +323,11 @@ function resolveRecurringBoundaryLocalDateBounds(event = {}) {
     if (entries.length > 0) {
       entries.forEach((entry) => {
         const endHktDateIso = entry.endDayOffset > 0 ? addDaysToDateIso(dateTo, entry.endDayOffset) : dateTo;
-        const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(endHktDateIso, entry.endHm));
+        const localDateIso = formatDateIsoAtDisplayOffset(hktDateTimeToLocalDate(endHktDateIso, entry.endHm));
         if (localDateIso) toDates.push(localDateIso);
       });
     } else {
-      const localDateIso = formatLocalDateIso(hktDateTimeToLocalDate(dateTo, '12:00'));
+      const localDateIso = formatDateIsoAtDisplayOffset(hktDateTimeToLocalDate(dateTo, '12:00'));
       if (localDateIso) toDates.push(localDateIso);
     }
   }
@@ -337,13 +414,78 @@ const actionFooterClass = computed(() => (
     : 'flex-none flex justify-end z-[99] fixed bottom-0 left-0 w-full'
 ));
 
+function buildCandidateSlotsForDisplayDate(
+  event,
+  displayDateIso,
+  bookedIndex = bookedSlotsIndex.value,
+) {
+  if (!event || !displayDateIso) return [];
+
+  const deduped = new Map();
+  for (let dayOffset = -2; dayOffset <= 2; dayOffset += 1) {
+    const browserLocalDateIso = addDaysToDateIso(displayDateIso, dayOffset);
+    const slots = buildCandidateSlotsForEventDate(event, browserLocalDateIso, {
+      eventId: event.eventId,
+      bookedSlotsIndex: bookedIndex,
+      applyBufferAfterBooked: true,
+    });
+
+    slots.forEach((slot) => {
+      const displayParts = getFixedOffsetDateTimeParts(
+        slot.startMs,
+        displayTimezoneOffsetMinutes.value,
+      );
+      if (displayParts?.dateIso !== displayDateIso) return;
+      deduped.set(`${slot.startMs}_${slot.endMs}`, slot);
+    });
+  }
+
+  return Array.from(deduped.values()).sort((a, b) => a.startMs - b.startMs);
+}
+
+function buildDisplaySlot(slot, bookedIndex = bookedSlotsIndex.value) {
+  const canonicalLocalDateIso = slot.localDateIso;
+  const uiSlot = createSlotUiModel({
+    event: selectedEvent.value,
+    eventId: selectedEvent.value.eventId,
+    localDateIso: canonicalLocalDateIso,
+    slot,
+    bookedSlotsIndex: bookedIndex,
+  });
+  const displayStart = getFixedOffsetDateTimeParts(
+    uiSlot.startMs,
+    displayTimezoneOffsetMinutes.value,
+  );
+  const displayEnd = getFixedOffsetDateTimeParts(
+    uiSlot.endMs,
+    displayTimezoneOffsetMinutes.value,
+  );
+  const displayStartHm = displayStart?.hm || uiSlot.startHm;
+  const displayEndHm = displayEnd?.hm || uiSlot.endHm;
+
+  return {
+    ...uiSlot,
+    canonicalLocalDateIso,
+    canonicalStartHm: uiSlot.startHm,
+    canonicalEndHm: uiSlot.endHm,
+    displayDateIso: displayStart?.dateIso || canonicalLocalDateIso,
+    displayStartHm,
+    displayEndHm,
+    label: isGroupEvent.value
+      ? `${hmToLabel(displayStartHm)}-${hmToLabel(displayEndHm)}`
+      : hmToLabel(displayStartHm),
+    value: uiSlot.startHm,
+    isOffHours: Boolean(uiSlot.offHours),
+  };
+}
+
 const candidateSlots = computed(() => {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
-  return buildCandidateSlotsForEventDate(selectedEvent.value, selectedDateIso.value, {
-    eventId: selectedEvent.value?.eventId,
-    bookedSlotsIndex: bookedSlotsIndex.value,
-    applyBufferAfterBooked: true,
-  });
+  return buildCandidateSlotsForDisplayDate(
+    selectedEvent.value,
+    selectedDateIso.value,
+    bookedSlotsIndex.value,
+  );
 });
 
 function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverride = bookedSlotsIndex.value) {
@@ -369,34 +511,18 @@ function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverr
 function buildTimeSlotsForBookedIndex(latestBookedSlotsIndex = bookedSlotsIndex.value) {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
 
-  return buildCandidateSlotsForEventDate(selectedEvent.value, selectedDateIso.value, {
-    eventId: selectedEvent.value?.eventId,
-    bookedSlotsIndex: latestBookedSlotsIndex,
-    applyBufferAfterBooked: true,
-  }).map((slot) => {
-    const uiSlot = createSlotUiModel({
-      event: selectedEvent.value,
-      eventId: selectedEvent.value.eventId,
-      localDateIso: selectedDateIso.value,
-      slot,
-      bookedSlotsIndex: latestBookedSlotsIndex,
-    });
-
-    return {
-      ...uiSlot,
-      label: isGroupEvent.value
-        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
-        : hmToLabel(uiSlot.startHm),
-      value: uiSlot.startHm,
-      isOffHours: Boolean(uiSlot.offHours),
-    };
-  });
+  return buildCandidateSlotsForDisplayDate(
+    selectedEvent.value,
+    selectedDateIso.value,
+    latestBookedSlotsIndex,
+  ).map((slot) => buildDisplaySlot(slot, latestBookedSlotsIndex));
 }
 
 function getSelectedAvailabilitySnapshot() {
   return {
     dateIso: selectedDateIso.value,
     slotValue: selectedTime.value?.value || selectedTime.value?.startHm || null,
+    startMs: Number(selectedTime.value?.startMs),
     durationMinutes: Number(selectedDurationObj.value?.value || 0),
     duration: selectedDurationObj.value ? { ...selectedDurationObj.value } : null,
   };
@@ -411,7 +537,10 @@ function resolveSelectedSnapshotAvailability(snapshot = {}) {
   const latestBookedSlotsIndex = props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {};
   const latestTimeSlots = buildTimeSlotsForBookedIndex(latestBookedSlotsIndex);
   const matchedSlot = latestTimeSlots.find((slot) => (
-    String(slot.value) === String(snapshot.slotValue)
+    (
+      (Number.isFinite(snapshot.startMs) && slot.startMs === snapshot.startMs)
+      || String(slot.value) === String(snapshot.slotValue)
+    )
     && !slot.disabled
   ));
   if (!matchedSlot) return { available: false, slot: null, duration: null };
@@ -719,6 +848,8 @@ async function autoSelectGroupAndGoToPayment() {
     offHourSurchargePercent: 0,
     isOffHours: Boolean(next.slot?.offHours),
     walletBalance: Number(walletBalance.value || props.engine.getState('bookingDetails.walletBalance') || 0),
+    displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
+    displayTimezoneLabel: timezoneLabel.value,
   };
 
   props.engine.setState('bookingDetails', bookingData, { reason: 'step2-group-auto-selection', silent: true });
@@ -820,28 +951,107 @@ async function refreshWalletBalance() {
 
 const timeSlots = computed(() => {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
-
-  return candidateSlots.value.map((slot) => {
-    const uiSlot = createSlotUiModel({
-      event: selectedEvent.value,
-      eventId: selectedEvent.value.eventId,
-      localDateIso: selectedDateIso.value,
-      slot,
-      bookedSlotsIndex: bookedSlotsIndex.value,
-    });
-
-    return {
-      ...uiSlot,
-      label: isGroupEvent.value
-        ? `${hmToLabel(uiSlot.startHm)}-${hmToLabel(uiSlot.endHm)}`
-        : hmToLabel(uiSlot.startHm),
-      value: uiSlot.startHm,
-      isOffHours: Boolean(uiSlot.offHours),
-    };
-  });
+  return candidateSlots.value.map((slot) => buildDisplaySlot(slot));
 });
 
 const hasAvailableSlots = computed(() => timeSlots.value.some((slot) => !slot.disabled));
+
+const timeSlotHourColumns = computed(() => {
+  const columns = [];
+  const columnsByHour = new Map();
+
+  timeSlots.value.forEach((slot) => {
+    const hour = String(slot.displayStartHm || slot.startHm || "").slice(0, 2);
+    if (!hour) return;
+
+    let column = columnsByHour.get(hour);
+    if (!column) {
+      column = {
+        key: `hour-${hour}`,
+        hour,
+        slots: [],
+      };
+      columnsByHour.set(hour, column);
+      columns.push(column);
+    }
+    column.slots.push(slot);
+  });
+
+  return columns;
+});
+
+const configuredOffHourSurchargePercent = computed(() => {
+  const raw = selectedEvent.value?.raw || {};
+  const enabled = toBoolean(
+    raw.offHourSurcharge ?? selectedEvent.value?.offHourSurcharge,
+    false,
+  );
+  const percent = Number(
+    raw.offHourSurchargePercent
+      ?? selectedEvent.value?.offHourSurchargePercent
+      ?? 0,
+  );
+  return enabled && Number.isFinite(percent) && percent > 0 ? percent : 0;
+});
+
+const showOffHourSurchargeIndicator = computed(() => (
+  configuredOffHourSurchargePercent.value > 0
+  && timeSlots.value.some((slot) => slot.isOffHours)
+));
+
+function updateTimeSlotScrollControls() {
+  const container = timeSlotScrollContainer.value;
+  if (!container) {
+    canScrollTimeSlotsLeft.value = false;
+    canScrollTimeSlotsRight.value = false;
+    return;
+  }
+
+  const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+  canScrollTimeSlotsLeft.value = container.scrollLeft > 1;
+  canScrollTimeSlotsRight.value = container.scrollLeft < maxScrollLeft - 1;
+}
+
+function resolveTimeSlotColumnScrollStep(container) {
+  const columns = Array.from(
+    container?.querySelectorAll?.("[data-testid='booking-flow-time-slot-column']") || [],
+  );
+  if (columns.length >= 2) {
+    const offsetStep = Number(columns[1].offsetLeft) - Number(columns[0].offsetLeft);
+    if (Number.isFinite(offsetStep) && offsetStep > 0) return offsetStep;
+  }
+
+  const firstColumn = columns[0];
+  const columnWidth = Number(firstColumn?.offsetWidth)
+    || Number(firstColumn?.getBoundingClientRect?.().width)
+    || 128;
+  const styles = typeof window !== "undefined" && container
+    ? window.getComputedStyle(container)
+    : null;
+  const gap = Number.parseFloat(styles?.columnGap || styles?.gap || "8");
+  return columnWidth + (Number.isFinite(gap) ? gap : 8);
+}
+
+function scrollTimeSlotColumns(direction) {
+  const container = timeSlotScrollContainer.value;
+  if (!container) return;
+
+  const left = resolveTimeSlotColumnScrollStep(container) * direction;
+  if (typeof container.scrollBy === "function") {
+    container.scrollBy({ left, behavior: "smooth" });
+    return;
+  }
+  container.scrollLeft += left;
+  updateTimeSlotScrollControls();
+}
+
+async function resetTimeSlotScroll() {
+  await nextTick();
+  const container = timeSlotScrollContainer.value;
+  if (!container) return;
+  container.scrollLeft = 0;
+  updateTimeSlotScrollControls();
+}
 
 const getMultiplesOf = (base, max) => {
   const multiples = [];
@@ -930,14 +1140,207 @@ const selectedDurationDisplayLabel = computed(() => (
   formatDurationLabel(selectedDurationDisplayMinutes.value)
 ));
 
+const selectedSessionCount = computed(() => (
+  Math.max(1, Math.round(selectedDurationDisplayMinutes.value / baseSessionDurationMinutes.value))
+));
+
+const selectedSessionCountLabel = computed(() => {
+  const translationKey = selectedSessionCount.value === 1
+    ? 'fan_booking_session'
+    : 'fan_booking_sessions';
+  return `${selectedSessionCount.value} ${t(translationKey)}`;
+});
+
+const selectedDurationTokenCost = computed(() => (
+  Number(selectedDurationObj.value?.price || 0)
+));
+
+const showFirstTimeDiscountNotice = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  const enabled = toBoolean(
+    raw.enableFirstTimeDiscount ?? event.enableFirstTimeDiscount,
+    false,
+  );
+  const amount = Number(
+    raw.firstTimeDiscountTokens
+      ?? raw.firstTimeDiscount
+      ?? event.firstTimeDiscountTokens
+      ?? event.firstTimeDiscount
+      ?? 0,
+  );
+  return isFirstBookingForCreator.value
+    && enabled
+    && Number.isFinite(amount)
+    && amount > 0;
+});
+
+const longerDiscountMinimumSessionCount = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  const configuredSessions = Number(raw.discountMinSessions ?? event.discountMinSessions);
+  if (Number.isFinite(configuredSessions) && configuredSessions > 0) {
+    return Math.ceil(configuredSessions);
+  }
+
+  const legacyMinimumMinutes = Number(
+    raw.discountMinSessionMinutes ?? event.discountMinSessionMinutes,
+  );
+  if (
+    Number.isFinite(legacyMinimumMinutes)
+    && legacyMinimumMinutes > 0
+    && baseSessionDurationMinutes.value > 0
+  ) {
+    return Math.ceil(legacyMinimumMinutes / baseSessionDurationMinutes.value);
+  }
+
+  return 0;
+});
+
+const hasAvailableLongerSessionDiscount = computed(() => {
+  const event = selectedEvent.value || {};
+  const raw = event.raw || {};
+  const enabled = toBoolean(
+    raw.enableDiscountForLonger ?? event.enableDiscountForLonger,
+    false,
+  );
+  const amount = Number(
+    raw.longerSessionDiscountTokens
+      ?? raw.discountPercentOfBase
+      ?? raw.discountPercentage
+      ?? event.longerSessionDiscountTokens
+      ?? event.discountPercentOfBase
+      ?? event.discountPercentage
+      ?? 0,
+  );
+  const minimumSessions = longerDiscountMinimumSessionCount.value;
+
+  return allowPrivateLongerSessions.value
+    && privateMaxSessionCount.value > 1
+    && enabled
+    && Number.isFinite(amount)
+    && amount > 0
+    && minimumSessions > 1
+    && minimumSessions <= privateMaxSessionCount.value;
+});
+
+const longerDiscountRemainingSessionCount = computed(() => (
+  Math.max(0, longerDiscountMinimumSessionCount.value - selectedSessionCount.value)
+));
+
+const longerDiscountNoticeLabel = computed(() => {
+  if (longerDiscountRemainingSessionCount.value === 0) {
+    return t('fan_booking_longer_discount_achieved');
+  }
+
+  const translationKey = longerDiscountRemainingSessionCount.value === 1
+    ? 'fan_booking_longer_discount_one_session_remaining'
+    : 'fan_booking_longer_discount_sessions_remaining';
+  return t(translationKey, { count: longerDiscountRemainingSessionCount.value });
+});
+
+const maximumSessionCountLabel = computed(() => {
+  const translationKey = privateMaxSessionCount.value === 1
+    ? 'fan_booking_session_maximum'
+    : 'fan_booking_sessions_maximum';
+  return t(translationKey, { count: privateMaxSessionCount.value });
+});
+
 const maxSessionDurationDisplayLabel = computed(() => (
   formatDurationLabel(privateMaxSessionDurationMinutes.value)
+));
+
+const isAtMaximumDuration = computed(() => (
+  Boolean(selectedTime.value && !selectedTime.value.disabled)
+  && Boolean(selectedDurationObj.value)
+  && selectedDurationDisplayMinutes.value >= privateMaxSessionDurationMinutes.value
 ));
 
 const canAdjustDuration = computed(() => (
   !isDurationStepperLocked.value
   && Boolean(selectedTime.value && !selectedTime.value.disabled)
   && durationOptions.value.some((item) => !item.disabled)
+));
+
+const nextDurationMinutes = computed(() => (
+  selectedDurationDisplayMinutes.value + baseSessionDurationMinutes.value
+));
+
+const canIncreaseDuration = computed(() => {
+  if (
+    isDurationStepperLocked.value
+    || !selectedTime.value
+    || selectedTime.value.disabled
+    || !selectedDurationObj.value
+    || isAtMaximumDuration.value
+  ) {
+    return false;
+  }
+
+  if (nextDurationMinutes.value > privateMaxSessionDurationMinutes.value) {
+    return true;
+  }
+
+  if (findEnabledDurationOption(nextDurationMinutes.value)) {
+    return true;
+  }
+
+  if (nextDurationBlockingBooking.value) {
+    return !showDurationOverlapNotice.value;
+  }
+
+  return false;
+});
+
+const nextDurationBlockingBooking = computed(() => {
+  const selectedSlot = selectedTime.value;
+  const nextMinutes = nextDurationMinutes.value;
+  if (
+    !selectedSlot
+    || selectedSlot.disabled
+    || !selectedDurationObj.value
+    || nextMinutes > privateMaxSessionDurationMinutes.value
+    || findEnabledDurationOption(nextMinutes)
+  ) {
+    return null;
+  }
+
+  const targetEndMs = Number(selectedSlot.startMs) + (nextMinutes * 60 * 1000);
+  const blockingRows = getBlockingBookedSlotsForRange({
+    eventId: selectedEvent.value?.eventId,
+    startMs: Number(selectedSlot.startMs),
+    endMs: targetEndMs,
+    bookedSlotsIndex: bookedSlotsIndex.value,
+  });
+
+  return blockingRows
+    .filter((row) => Number.isFinite(Number(row?.startMs)))
+    .sort((left, right) => Number(left.startMs) - Number(right.startMs))[0] || null;
+});
+
+const nextDurationBlockingTimeLabel = computed(() => {
+  const startMs = Number(nextDurationBlockingBooking.value?.startMs);
+  if (!Number.isFinite(startMs)) return '';
+  const displayHm = getFixedOffsetDateTimeParts(
+    startMs,
+    displayTimezoneOffsetMinutes.value,
+  )?.hm;
+  return displayHm ? hmToLabel(displayHm) : '';
+});
+
+const nextDurationOverlapKey = computed(() => {
+  const selectedStartMs = Number(selectedTime.value?.startMs);
+  const blockingStartMs = Number(nextDurationBlockingBooking.value?.startMs);
+  if (!Number.isFinite(selectedStartMs) || !Number.isFinite(blockingStartMs)) return '';
+  return `${selectedStartMs}:${selectedDurationDisplayMinutes.value}:${blockingStartMs}`;
+});
+
+const showDurationOverlapNotice = computed(() => (
+  Boolean(
+    nextDurationOverlapKey.value
+    && acknowledgedDurationOverlapKey.value === nextDurationOverlapKey.value
+    && nextDurationBlockingTimeLabel.value
+  )
 ));
 
 const isAtMinimumDuration = computed(() => (
@@ -970,13 +1373,10 @@ function selectDefaultDuration() {
 const selectedAddons = computed(() => addons.value.filter((item) => item.selected));
 
 const offHourSurchargePercent = computed(() => {
-  const raw = selectedEvent.value?.raw || {};
-  const enabled = toBoolean(raw.offHourSurcharge, false);
-  const percent = Number(raw.offHourSurchargePercent || 0);
-  if (!enabled || !selectedTime.value?.offHours || !Number.isFinite(percent) || percent <= 0) {
+  if (!selectedTime.value?.offHours) {
     return 0;
   }
-  return percent;
+  return configuredOffHourSurchargePercent.value;
 });
 
 const pricingPreview = computed(() => {
@@ -1046,11 +1446,19 @@ const bottomActionDisabled = computed(() => (
 
 const formattedTimeRange = computed(() => {
   if (!state.selected || !selectedTime.value) return '-';
-  const startHm = selectedTime.value.startHm;
+  const startHm = selectedTime.value.displayStartHm || selectedTime.value.startHm;
   const selectedMinutes = Number(selectedDurationObj.value?.value || 0);
+  const calculatedEndMs = Number(selectedTime.value.startMs) + (selectedMinutes * 60 * 1000);
   const endHm = isGroupEvent.value
-    ? selectedTime.value.endHm
-    : (selectedMinutes > 0 ? addMinutesToHm(startHm, selectedMinutes) : selectedTime.value.endHm);
+    ? (selectedTime.value.displayEndHm || selectedTime.value.endHm)
+    : (
+      selectedMinutes > 0
+        ? (getFixedOffsetDateTimeParts(
+          calculatedEndMs,
+          displayTimezoneOffsetMinutes.value,
+        )?.hm || addMinutesToHm(startHm, selectedMinutes))
+        : (selectedTime.value.displayEndHm || selectedTime.value.endHm)
+    );
   return `${hmToLabel(startHm)}-${hmToLabel(endHm)}`;
 });
 
@@ -1070,17 +1478,12 @@ const selectedDateDisplay = computed(() => {
 const headerDateDisplay = computed(() => {
   if (!state.selected) return '';
   const selected = new Date(state.selected);
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
-  const isSameDay = (d1, d2) =>
-    d1.getDate() === d2.getDate() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getFullYear() === d2.getFullYear();
-
+  const selectedIso = formatLocalDateIso(selected);
+  const todayIso = todayDateIso.value;
+  const tomorrowIso = addDaysToDateIso(todayIso, 1);
   let prefix = '';
-  if (isSameDay(selected, today)) prefix = t('common_today');
-  else if (isSameDay(selected, tomorrow)) prefix = t('fan_booking_tomorrow');
+  if (selectedIso === todayIso) prefix = t('common_today');
+  else if (selectedIso === tomorrowIso) prefix = t('fan_booking_tomorrow');
 
   const dateStr = selected.toLocaleDateString(locale.value, { month: 'long', day: 'numeric', year: 'numeric' });
   return prefix ? `${prefix} ${dateStr}` : dateStr;
@@ -1092,23 +1495,17 @@ const events1 = computed(() => {
   if (!event) return rows;
 
   for (let offset = 0; offset <= 45; offset += 1) {
-    const date = new Date();
-    date.setDate(date.getDate() + offset);
-    const dateIso = formatLocalDateIso(date);
+    const dateIso = addDaysToDateIso(todayDateIso.value, offset);
     if (!dateIso) continue;
     if (minSelectableDateIso.value && dateIso < minSelectableDateIso.value) continue;
     if (maxSelectableDateIso.value && dateIso > maxSelectableDateIso.value) continue;
 
-    const slots = buildCandidateSlotsForEventDate(event, dateIso, {
-      eventId: event.eventId,
-      bookedSlotsIndex: bookedSlotsIndex.value,
-      applyBufferAfterBooked: true,
-    });
+    const slots = buildCandidateSlotsForDisplayDate(event, dateIso, bookedSlotsIndex.value);
     const free = slots.some((slot) => {
       const uiSlot = createSlotUiModel({
         event,
         eventId: event.eventId,
-        localDateIso: dateIso,
+        localDateIso: slot.localDateIso,
         slot,
         bookedSlotsIndex: bookedSlotsIndex.value,
       });
@@ -1167,12 +1564,11 @@ const onSelectFromMini = (date) => {
   const picked = new Date(date);
   if (Number.isNaN(picked.getTime())) return;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   picked.setHours(0, 0, 0, 0);
 
-  if (picked < today) return;
-  if (!isDateIsoSelectable(formatLocalDateIso(picked))) return;
+  const pickedIso = formatLocalDateIso(picked);
+  if (pickedIso < todayDateIso.value) return;
+  if (!isDateIsoSelectable(pickedIso)) return;
 
   state.selected = new Date(picked);
   state.focus = new Date(picked);
@@ -1232,7 +1628,15 @@ function hydrateFromState() {
   }
 
   if (restoredSavedDate && existing.selectedTime?.value) {
-    const matchedSlot = timeSlots.value.find((slot) => slot.value === existing.selectedTime.value && !slot.disabled);
+    const savedStartMs = Number(existing.selectedTime?.startMs);
+    const matchedSlot = timeSlots.value.find((slot) => (
+      (
+        (Number.isFinite(savedStartMs) && slot.startMs === savedStartMs)
+        || slot.value === existing.selectedTime.value
+        || slot.canonicalStartHm === existing.selectedTime.value
+      )
+      && !slot.disabled
+    ));
     selectedTime.value = matchedSlot || null;
   } else {
     selectedTime.value = null;
@@ -1278,6 +1682,7 @@ const selectTime = (slot) => {
   if (slot.disabled) return;
   selectedTime.value = slot;
   showMaxDurationWarning.value = false;
+  acknowledgedDurationOverlapKey.value = '';
   if (isGroupEvent.value) {
     const duration = Number(slot.durationMinutes || Math.round((slot.endMs - slot.startMs) / (60 * 1000)));
     selectedDurationObj.value = Number.isFinite(duration) && duration > 0
@@ -1292,6 +1697,7 @@ const selectDuration = (option) => {
   if (!selectedTime.value || option?.disabled) return;
   selectedDurationObj.value = option;
   showMaxDurationWarning.value = false;
+  acknowledgedDurationOverlapKey.value = '';
 };
 
 const decreaseDuration = () => {
@@ -1308,10 +1714,11 @@ const decreaseDuration = () => {
 
   selectedDurationObj.value = option;
   showMaxDurationWarning.value = false;
+  acknowledgedDurationOverlapKey.value = '';
 };
 
 const increaseDuration = () => {
-  if (!canAdjustDuration.value) return;
+  if (!canIncreaseDuration.value) return;
 
   const nextMinutes = selectedDurationDisplayMinutes.value + baseSessionDurationMinutes.value;
   if (nextMinutes > privateMaxSessionDurationMinutes.value) {
@@ -1320,10 +1727,16 @@ const increaseDuration = () => {
   }
 
   const option = findEnabledDurationOption(nextMinutes);
-  if (!option) return;
+  if (!option) {
+    if (nextDurationOverlapKey.value) {
+      acknowledgedDurationOverlapKey.value = nextDurationOverlapKey.value;
+    }
+    return;
+  }
 
   selectedDurationObj.value = option;
   showMaxDurationWarning.value = false;
+  acknowledgedDurationOverlapKey.value = '';
 };
 
 const toggleAddon = (index) => {
@@ -1405,6 +1818,8 @@ const goToNextStep = async () => {
     offHourSurchargePercent: offHourSurchargePercent.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
     walletBalance: Number(walletBalance.value || 0),
+    displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
+    displayTimezoneLabel: timezoneLabel.value,
   };
 
   props.engine.setState('bookingDetails', bookingData);
@@ -1414,6 +1829,7 @@ const goToNextStep = async () => {
   props.engine.setState('fanBooking.selection.contributionTokens', isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.selectedAddOns', isGroupEvent.value ? [] : selectedAddons.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.selection.personalRequestText', isGroupEvent.value ? '' : otherRequest.value, { reason: 'step2-selection', silent: true });
+  props.engine.setState('fanBooking.selection.displayTimezoneOffsetMinutes', displayTimezoneOffsetMinutes.value, { reason: 'step2-selection', silent: true });
   props.engine.setState('fanBooking.temporaryHold', {
     temporaryHoldId: null,
     status: 'none',
@@ -1496,11 +1912,31 @@ watch(
       return;
     }
 
+    const selectedStartMs = Number(selectedTime.value?.startMs);
     const selectedValue = selectedTime.value?.value;
-    const matched = slots.find((slot) => slot.value === selectedValue && !slot.disabled) || null;
+    const matched = slots.find((slot) => (
+      (
+        (Number.isFinite(selectedStartMs) && slot.startMs === selectedStartMs)
+        || slot.value === selectedValue
+      )
+      && !slot.disabled
+    )) || null;
     selectedTime.value = matched;
   },
   { deep: true },
+);
+
+watch(
+  () => [
+    selectedDateIso.value,
+    timeSlotHourColumns.value.map((column) => (
+      `${column.key}:${column.slots.map((slot) => slot.value).join(",")}`
+    )).join("|"),
+  ],
+  () => {
+    resetTimeSlotScroll();
+  },
+  { flush: "post" },
 );
 
 watch(
@@ -1549,6 +1985,11 @@ watch(
 onMounted(() => {
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
+    document.addEventListener('click', handleTimezoneOutsideClick);
+    document.addEventListener('keydown', handleTimezoneKeydown);
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', updateTimeSlotScrollControls);
   }
 
   if (!selectedEvent.value) {
@@ -1570,12 +2011,18 @@ onMounted(() => {
   hydrateFromState();
   refreshWalletBalance();
   startAvailabilityRefreshTimer();
+  resetTimeSlotScroll();
 });
 
 onBeforeUnmount(() => {
   stopAvailabilityRefreshTimer();
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+    document.removeEventListener('click', handleTimezoneOutsideClick);
+    document.removeEventListener('keydown', handleTimezoneKeydown);
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateTimeSlotScrollControls);
   }
 });
 </script>
@@ -1604,6 +2051,8 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
           :date-display="headerDateDisplay"
           :subtotal="totalPrice"
           :duration="currentDuration"
+          :selected-event="selectedEvent"
+          :is-first-booking-for-creator="isFirstBookingForCreator"
           :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
           :creator-avatar="creatorPresentation.avatar"
           :creator-name="creatorPresentation.name"
@@ -1618,7 +2067,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
           <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
              <div class="flex items-center justify-between w-full mb-2">
-              <span class="flex items-center gap-2">
+              <div class="flex items-center">
                 <div :class="theme1.mini.header">{{ header }}</div>
                 <div class="flex items-center gap-1">
                   <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(-1)">
@@ -1628,10 +2077,55 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                     <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 11.4181L5.91803 6.50006L1 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
-              </span>
-              <div class="flex text-[9.02px] text-gray-500 font-medium items-center gap-[6.56px]">
-                <p>{{ timezoneLabel }}</p>
-                <button class="flex items-center justify-center w-[8.2px] h-[8.2px]"><svg width="6" height="3" viewBox="0 0 6 3" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.07373 0.472656L3.12291 2.52184L5.17209 0.472656" stroke="#9CA3AF" stroke-width="0.819672" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <div
+                  class="ml-1 flex items-center gap-1.5 whitespace-nowrap text-xs font-normal text-[#EAECF0]"
+                  data-testid="booking-flow-slots-available-legend"
+                >
+                  <span class="h-2 w-2 shrink-0 rounded-full bg-[#07F468]" aria-hidden="true"></span>
+                  <span>= {{ t("fan_booking_slots_available") }}</span>
+                </div>
+              </div>
+              <div
+                ref="timezoneMenuContainer"
+                class="relative flex text-[9.02px] text-gray-500 font-medium items-center"
+                data-testid="booking-flow-timezone-selector"
+              >
+                <button
+                  type="button"
+                  class="flex items-center gap-[6.56px]"
+                  :aria-label="t('fan_booking_select_timezone')"
+                  :aria-expanded="timezoneMenuOpen"
+                  aria-haspopup="listbox"
+                  data-testid="booking-flow-timezone-trigger"
+                  @click.stop="toggleTimezoneMenu"
+                >
+                  <span>{{ timezoneLabel }}</span>
+                  <span class="flex shrink-0 items-center justify-center w-[8.2px] h-[8.2px]">
+                    <svg width="6" height="3" viewBox="0 0 6 3" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.07373 0.472656L3.12291 2.52184L5.17209 0.472656" stroke="#9CA3AF" stroke-width="0.819672" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                </button>
+                <div
+                  v-if="timezoneMenuOpen"
+                  class="absolute right-0 top-full z-[120] mt-2 max-h-64 min-w-[8.5rem] overflow-y-auto rounded-md border border-gray-700 bg-[#0C111D] py-1 shadow-xl"
+                  role="listbox"
+                  :aria-label="t('fan_booking_timezone_options')"
+                  data-testid="booking-flow-timezone-options"
+                >
+                  <button
+                    v-for="option in timezoneOptions"
+                    :key="option.offsetMinutes"
+                    type="button"
+                    role="option"
+                    :aria-selected="option.offsetMinutes === displayTimezoneOffsetMinutes"
+                    class="flex w-full items-center justify-between px-3 py-2 text-left text-[11px] hover:bg-gray-800"
+                    :class="option.offsetMinutes === displayTimezoneOffsetMinutes ? 'text-[#07F468]' : 'text-gray-300'"
+                    :data-testid="`booking-flow-timezone-option-${option.offsetMinutes}`"
+                    @click.stop="selectDisplayTimezone(option.offsetMinutes)"
+                  >
+                    <span>{{ option.label }}</span>
+                    <span v-if="option.offsetMinutes === displayTimezoneOffsetMinutes" aria-hidden="true">✓</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1669,44 +2163,102 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
-              <h3 class="text-sm text-[#98A2B3]">
-                {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
-              </h3>
-              <div class="grid grid-cols-3 w-full gap-2">
+              <div
+                class="flex w-full min-w-0 flex-nowrap items-center gap-x-3"
+                data-testid="booking-flow-time-slots-header"
+              >
+                <h3 class="shrink-0 text-sm text-[#98A2B3]">
+                  {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
+                </h3>
+                <div class="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                    data-testid="booking-flow-time-slots-previous"
+                    :aria-label="t('fan_booking_previous_time_slot_hours')"
+                    :disabled="!canScrollTimeSlotsLeft"
+                    @click="scrollTimeSlotColumns(-1)"
+                  >
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
+                      <path d="M8.5 1.5L1 9L8.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                    data-testid="booking-flow-time-slots-next"
+                    :aria-label="t('fan_booking_next_time_slot_hours')"
+                    :disabled="!canScrollTimeSlotsRight"
+                    @click="scrollTimeSlotColumns(1)"
+                  >
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
+                      <path d="M1.5 1.5L9 9L1.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
                 <div
-                  v-for="(slot, index) in timeSlots"
-                  :key="index"
-                  data-testid="booking-flow-time-slot"
-                  @click="selectTime(slot)"
-                  class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
-                  :class="[
-                    slot.disabled
-                      ? 'opacity-50 border border-white/30 cursor-not-allowed'
-                      : (
-                        selectedTime?.value === slot.value
-                          ? 'bg-[#07F468] border border-[#07F468] cursor-pointer'
-                          : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : 'border-[0.5px] border-white cursor-pointer')
-                      )
-                  ]"
+                  v-if="showOffHourSurchargeIndicator"
+                  class="ml-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-normal text-[#EAECF0]"
+                  data-testid="booking-flow-off-hour-surcharge-indicator"
                 >
-                  <p
-                    class="text-sm font-normal leading-"
+                  <img :src="bookingFlowCloudMoonIcon" alt="" class="h-5 w-5 shrink-0" />
+                  <span
+                    class="min-w-0 truncate whitespace-nowrap"
+                    data-testid="booking-flow-off-hour-surcharge-label"
+                  >
+                    = {{ t("fan_booking_off_hour_surcharge_applied") }}
+                  </span>
+                </div>
+              </div>
+              <div
+                ref="timeSlotScrollContainer"
+                class="flex w-full gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                data-testid="booking-flow-time-slots-scroll"
+                @scroll="updateTimeSlotScrollControls"
+              >
+                <div
+                  v-for="column in timeSlotHourColumns"
+                  :key="column.key"
+                  class="flex w-[calc((100%_-_1rem)/3)] min-w-32 flex-none flex-col gap-2"
+                  data-testid="booking-flow-time-slot-column"
+                  :data-hour="column.hour"
+                >
+                  <div
+                    v-for="slot in column.slots"
+                    :key="slot.value"
+                    data-testid="booking-flow-time-slot"
+                    :data-start-ms="slot.startMs"
+                    @click="selectTime(slot)"
+                    class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
                     :class="[
                       slot.disabled
-                        ? 'text-white/70'
+                        ? 'opacity-50 border border-white/30 cursor-not-allowed'
                         : (
                           selectedTime?.value === slot.value
-                            ? 'text-black font-semibold'
-                            : (slot.isOffHours ? 'text-[#FF0066]' : 'text-[#F9FAFB]')
+                            ? 'bg-[#07F468] border border-[#07F468] cursor-pointer'
+                            : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : 'border-[0.5px] border-white cursor-pointer')
                         )
                     ]"
                   >
-                    {{ slot.label }}
-                  </p>
+                    <p
+                      class="text-sm font-normal leading-"
+                      :class="[
+                        slot.disabled
+                          ? 'text-white/70'
+                          : (
+                            selectedTime?.value === slot.value
+                              ? 'text-black font-semibold'
+                              : (slot.isOffHours ? 'text-[#FF0066]' : 'text-[#F9FAFB]')
+                          )
+                      ]"
+                    >
+                      {{ slot.label }}
+                    </p>
 
-                  <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
-                  <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
-                    <img :src="bookingFlowCloudMoonIcon" alt="peak-icon" />
+                    <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
+                    <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
+                      <img :src="bookingFlowCloudMoonIcon" alt="" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1715,13 +2267,24 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
             <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5">
               <div class="flex items-center gap--2 justify-between">
                 <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
-                <span class="text-xs font-normal leading-[18px] text-[#EAECF0]">6 SESSION MAX.</span>
-                <!-- Max session length reached alert currentyly its hide and non functional -->
-                 <div class="hidden items-center gap-1">
+                <span
+                  v-if="!isAtMaximumDuration"
+                  class="text-xs font-normal leading-[18px] text-[#EAECF0]"
+                  data-testid="booking-flow-session-maximum"
+                >
+                  {{ maximumSessionCountLabel }}
+                </span>
+                <div
+                  v-else
+                  class="flex items-center gap-1"
+                  data-testid="booking-flow-session-maximum-reached"
+                >
                   <span class="w-4 h-4 flex items-center justify-center">
                     <img :src="bookingFlowAlertHexagonIcon" alt="alert" />
                   </span>
-                  <span class="text-xs font-normal leading-[18px] text-[#FCE40D]">MAX SESSION LENGTH REACHED</span>
+                  <span class="text-xs font-normal leading-[18px] text-[#FCE40D]">
+                    {{ t("fan_booking_max_session_length_reached") }}
+                  </span>
                 </div>
               </div>
               <div
@@ -1735,12 +2298,22 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                       <div class="min-w-0 text-left text-base font-medium leading-6 text-white">
                         {{ selectedDurationDisplayLabel }}
                       </div>
-                      <span class="text-[#98A2B3] text-sm font-normal leading-5 font-[Poppins]">3 SESSIONS</span>
+                      <span
+                        class="text-[#98A2B3] text-sm font-normal leading-5 font-[Poppins] uppercase"
+                        data-testid="booking-flow-session-count"
+                      >
+                        {{ selectedSessionCountLabel }}
+                      </span>
                     </div>
                     <div class="flex justify-end items-center gap-0.5">
                       <p class="text-base text-[#07F468] font-normal">≈</p>
                       <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                      <p class="text-base font-semibold text-[#07F468]">400</p>
+                      <p
+                        class="text-base font-semibold text-[#07F468]"
+                        data-testid="booking-flow-duration-token-cost"
+                      >
+                        {{ selectedDurationTokenCost }}
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center justify-end gap-2">
@@ -1761,8 +2334,8 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                       type="button"
                       data-testid="booking-flow-duration-plus"
                       class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
-                      :class="!canAdjustDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
-                      :disabled="!canAdjustDuration"
+                      :class="!canIncreaseDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                      :disabled="!canIncreaseDuration"
                       :aria-label="t('fan_booking_increase_length')"
                       @click="increaseDuration"
                     >
@@ -1774,19 +2347,40 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                 </div>
               </div>
               <div class="flex flex-col gap-2">
+                <p
+                  v-if="showDurationOverlapNotice"
+                  class="flex items-center gap-1 text-sm font-normal leading-[18px] text-[#FF4D6D]"
+                  data-testid="booking-flow-duration-overlap-warning"
+                >
+                  <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                  <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
+                </p>
+
                 <div class="flex items-center gap-1">
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
                   <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
                 </div>
                 
-                <div class="flex items-center gap-1">
+                <div
+                  v-if="showFirstTimeDiscountNotice"
+                  class="flex items-center gap-1"
+                  data-testid="booking-flow-first-time-discount-notice"
+                >
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
-                  <p class="text-sm font-normal leading-5 text-[#07F468]">You have received first time booking discount!</p>
+                  <p class="text-sm font-normal leading-5 text-[#07F468]">
+                    {{ t("fan_booking_first_time_discount_received") }}
+                  </p>
                 </div>
 
-                <div class="flex items-center gap-1">
+                <div
+                  v-if="hasAvailableLongerSessionDiscount"
+                  class="flex items-center gap-1"
+                  data-testid="booking-flow-longer-discount-notice"
+                >
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
-                  <p class="text-sm font-normal leading-5 text-[#FCE40D]">Book <span class="font-semibold">2</span> more session to get long session discount</p>
+                  <p class="text-sm font-normal leading-5 text-[#FCE40D]">
+                    {{ longerDiscountNoticeLabel }}
+                  </p>
                 </div>
                 
                 <p
