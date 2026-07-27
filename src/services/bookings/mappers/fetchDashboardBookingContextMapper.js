@@ -4,6 +4,9 @@ import { buildBookedSlotsIndex } from "@/services/bookings/utils/bookingSlotUtil
 export function mapFetchDashboardBookingContextFromResponse(responseData = {}) {
   const rawEvents = Array.isArray(responseData.rawEvents) ? responseData.rawEvents : [];
   const bookedSlots = Array.isArray(responseData.bookedSlots) ? responseData.bookedSlots : [];
+  const widgetBookedSlots = Array.isArray(responseData.widgetBookedSlots)
+    ? responseData.widgetBookedSlots
+    : null;
 
   const events = rawEvents.map((item) => mapSingleEventFromResponse(item));
   const bookedSlotsIndex = buildBookedSlotsIndex(bookedSlots);
@@ -12,12 +15,15 @@ export function mapFetchDashboardBookingContextFromResponse(responseData = {}) {
     events,
     rawEvents,
     bookedSlots,
+    widgetBookedSlots,
     bookedSlotsIndex,
     stats: responseData?.stats || {},
+    widgetStats: responseData?.widgetStats || {},
     meta: {
       fetchedAt: Date.now(),
       eventsCount: events.length,
       bookedSlotsCount: bookedSlots.length,
+      widgetBookedSlotsCount: widgetBookedSlots?.length || 0,
     },
   };
 }

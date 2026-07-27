@@ -337,9 +337,16 @@
 
         <div
           v-if="dashboardEventsEngine.state.events.error"
-          class="px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium"
+          class="flex items-center justify-between gap-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium"
         >
-          {{ dashboardEventsEngine.state.events.error }}
+          <span>{{ dashboardEventsEngine.state.events.error }}</span>
+          <button
+            type="button"
+            class="shrink-0 font-semibold underline underline-offset-2"
+            @click="fetchDashboardContext(true)"
+          >
+            {{ t("common_retry") }}
+          </button>
         </div>
         <div
           v-else-if="dashboardEventsEngine.state.events.loading"
@@ -632,7 +639,16 @@ import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookin
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
-import { mapBookedSlotsToCalendarEvents, mapAvailabilityToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import {
+  buildBookedSlotsIndex,
+  mapAvailabilityToCalendarEvents,
+  mapBookedSlotsToCalendarEvents,
+} from "@/services/bookings/utils/bookingSlotUtils.js";
+import {
+  resolveUpcomingWidgetBookedSlotRange,
+  resolveVisibleBookedSlotRange,
+} from "@/services/bookings/utils/calendarBookedSlotRange.js";
+import { mergeBookedSlotCollections } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 import { showToast } from "@/utils/toastBus.js";
 import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
@@ -771,9 +787,11 @@ const dashboardEventsEngine = createFlowStateEngine({
       cachedResponse: null,
       list: [],
       bookedList: [],
+      widgetBookedList: [],
       catalogEvents: [],
       rawEvents: [],
       bookedSlotsRaw: [],
+      widgetBookedSlotsRaw: [],
       bookedSlotsIndex: {},
       meta: {},
       loading: false,
@@ -1432,9 +1450,11 @@ function resetEventsState() {
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.list", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.bookedList", [], { reason: "events-reset", silent: true });
+  dashboardEventsEngine.setState("events.widgetBookedList", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.catalogEvents", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.rawEvents", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.bookedSlotsRaw", [], { reason: "events-reset", silent: true });
+  dashboardEventsEngine.setState("events.widgetBookedSlotsRaw", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.bookedSlotsIndex", {}, { reason: "events-reset", silent: true });
 }
 
@@ -1566,14 +1586,27 @@ const rebuildAvailabilityForFocusDate = () => {
   dashboardEventsEngine.setState("events.list", calendarSlots, { reason: "events-focus", silent: true });
 };
 
-const fetchDashboardContext = async (forceRefresh = false) => {
+let dashboardFetchGeneration = 0;
+
+const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = true } = {}) => {
   const creatorId = normalizedCreatorId.value;
   const fanId = normalizedFanId.value;
+  const fetchGeneration = ++dashboardFetchGeneration;
 
   if (!hasDashboardContext.value) {
     resetEventsState();
     return;
   }
+
+  const visibleRange = resolveVisibleBookedSlotRange({
+    focusDate: state.focus,
+    view: state.view,
+  });
+  const widgetRange = refreshWidgets
+    ? resolveUpcomingWidgetBookedSlotRange({ now: currentTime.value })
+    : null;
+  const previousWidgetBookedSlotsRaw = dashboardEventsEngine.state?.events?.widgetBookedSlotsRaw;
+  const previousWidgetBookedList = dashboardEventsEngine.state?.events?.widgetBookedList;
 
   dashboardEventsEngine.setState("creatorId", creatorId, { reason: "events-fetch", silent: true });
   dashboardEventsEngine.setState("fanId", fanId, { reason: "events-fetch", silent: true });
@@ -1586,9 +1619,17 @@ const fetchDashboardContext = async (forceRefresh = false) => {
       fanId: isFan.value ? fanId : null,
       userRole: dashboardRole.value,
       status: "active",
-      periodMonths: 6,
+      fromIso: visibleRange.fromIso,
+      toIso: visibleRange.toIso,
       slotLimit: 1000,
       statusIn: "pending,pending_hold,confirmed,completed",
+      ...(widgetRange
+        ? {
+            widgetFromIso: widgetRange.fromIso,
+            widgetToIso: widgetRange.toIso,
+            widgetStatusIn: "pending,pending_hold,confirmed",
+          }
+        : {}),
     },
     {
       forceRefresh,
@@ -1600,22 +1641,28 @@ const fetchDashboardContext = async (forceRefresh = false) => {
     },
   );
 
+  if (fetchGeneration !== dashboardFetchGeneration) return;
+
   if (!result?.ok) {
     const message = result?.meta?.uiErrors?.[0]
       || result?.error?.message
       || t("dashboard_load_failed_message");
     dashboardEventsEngine.setState("events.error", message, { reason: "events-fetch" });
-    dashboardEventsEngine.setState("events.list", [], { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.bookedList", [], { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.catalogEvents", [], { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.rawEvents", [], { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.bookedSlotsRaw", [], { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.bookedSlotsIndex", {}, { reason: "events-fetch", silent: true });
   } else {
     const catalogEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
     const rawEvents = Array.isArray(result?.data?.rawEvents) ? result.data.rawEvents : [];
     const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
-    const bookedSlotsIndex = result?.data?.bookedSlotsIndex || {};
+    const fetchedWidgetBookedSlotsRaw = Array.isArray(result?.data?.widgetBookedSlots)
+      ? result.data.widgetBookedSlots
+      : null;
+    const widgetBookedSlotsRaw = fetchedWidgetBookedSlotsRaw
+      || (refreshWidgets ? bookedSlotsRaw : null);
+    const effectiveWidgetBookedSlotsRaw = widgetBookedSlotsRaw
+      || (Array.isArray(previousWidgetBookedSlotsRaw) ? previousWidgetBookedSlotsRaw : []);
+    const combinedBookedSlotsRaw = mergeBookedSlotCollections(bookedSlotsRaw, effectiveWidgetBookedSlotsRaw);
+    const bookedSlotsIndex = combinedBookedSlotsRaw.length > 0
+      ? buildBookedSlotsIndex(combinedBookedSlotsRaw)
+      : (result?.data?.bookedSlotsIndex || {});
 
     dashboardEventsEngine.setState("events.catalogEvents", catalogEvents, { reason: "events-fetch", silent: true });
     dashboardEventsEngine.setState("events.rawEvents", rawEvents, { reason: "events-fetch", silent: true });
@@ -1630,6 +1677,27 @@ const fetchDashboardContext = async (forceRefresh = false) => {
     });
     dashboardEventsEngine.setState("events.bookedList", bookedCalendarSlots, { reason: "events-fetch", silent: true });
     dashboardEventsEngine.setState("events.list", calendarSlots, { reason: "events-fetch", silent: true });
+    if (widgetBookedSlotsRaw) {
+      const { bookedCalendarSlots: widgetBookedList } = buildCalendarSlotsFromContext({
+        catalogEvents,
+        bookedSlotsRaw: widgetBookedSlotsRaw,
+        bookedSlotsIndex: {},
+        focusDate: state.focus,
+      });
+      dashboardEventsEngine.setState("events.widgetBookedSlotsRaw", widgetBookedSlotsRaw, { reason: "events-fetch", silent: true });
+      dashboardEventsEngine.setState("events.widgetBookedList", widgetBookedList, { reason: "events-fetch", silent: true });
+    } else {
+      dashboardEventsEngine.setState(
+        "events.widgetBookedSlotsRaw",
+        Array.isArray(previousWidgetBookedSlotsRaw) ? previousWidgetBookedSlotsRaw : [],
+        { reason: "events-fetch", silent: true },
+      );
+      dashboardEventsEngine.setState(
+        "events.widgetBookedList",
+        Array.isArray(previousWidgetBookedList) ? previousWidgetBookedList : [],
+        { reason: "events-fetch", silent: true },
+      );
+    }
     dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
   }
 
@@ -1764,7 +1832,10 @@ const resolveAvailabilityScheduleEvent = (event = {}) => {
 
 const scheduleCardPreviewBookedSlots = computed(() => {
   const eventId = getScheduleEventId(scheduleCardPreviewEvent.value);
-  const bookedSlots = dashboardEventsEngine.state?.events?.bookedSlotsRaw;
+  const bookedSlots = mergeBookedSlotCollections(
+    dashboardEventsEngine.state?.events?.bookedSlotsRaw || [],
+    dashboardEventsEngine.state?.events?.widgetBookedSlotsRaw || [],
+  );
   if (!eventId || !Array.isArray(bookedSlots)) return [];
 
   return bookedSlots.filter((slot) => String(slot?.eventId || slot?.raw?.eventId || "").trim() === eventId);
@@ -2098,7 +2169,7 @@ const closeCancelBookingPopup = () => {
 };
 
 const allEvents = computed(() => {
-  const list = dashboardEventsEngine.state?.events?.bookedList;
+  const list = dashboardEventsEngine.state?.events?.widgetBookedList;
   if (!Array.isArray(list)) return [];
   const now = currentTime.value;
   return list.filter((event) => hasNotEnded(event, now)).sort((left, right) => {
@@ -2224,13 +2295,13 @@ const buildExpandedMonthSections = (events = [], day = null) => {
 const onSelectFromMini = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
-  rebuildAvailabilityForFocusDate();
+  fetchDashboardContext(false, { refreshWidgets: false });
 };
 
 const onSelectFromMain = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
-  rebuildAvailabilityForFocusDate();
+  fetchDashboardContext(false, { refreshWidgets: false });
 };
 
 const onCalendarEventClick = (event) => {
@@ -2440,6 +2511,9 @@ watch(dashboardRole, (nextRole) => {
 
 watch(() => state.view, () => {
   closeAvailabilityScheduleMenu();
+  if (isMounted.value && hasDashboardContext.value) {
+    fetchDashboardContext(false, { refreshWidgets: false });
+  }
 });
 
 onUnmounted(() => {

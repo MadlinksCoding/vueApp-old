@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { fetchDashboardBookingContextFlow } from "@/services/bookings/flows/fetchDashboardBookingContextFlow.js";
 import { fetchCreatorBookingContextFlow } from "@/services/bookings/flows/fetchCreatorBookingContextFlow.js";
+import { fetchAllBookedSlotPages } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
+import {
+  resolveUpcomingWidgetBookedSlotRange,
+  resolveVisibleBookedSlotRange,
+} from "@/services/bookings/utils/calendarBookedSlotRange.js";
 
 const freshBookedSlot = {
   bookingId: "booking_123",
@@ -17,6 +22,171 @@ function createApi(responses) {
 }
 
 describe("booking context flows", () => {
+  it("builds exact visible calendar ranges with an overnight lookback day", () => {
+    const focusDate = new Date(2026, 6, 27, 12);
+
+    expect(resolveVisibleBookedSlotRange({ focusDate, view: "day" })).toMatchObject({
+      fromIso: "2026-07-26",
+      toIso: "2026-07-27",
+      visibleFromIso: "2026-07-27",
+      visibleToIso: "2026-07-27",
+    });
+    expect(resolveVisibleBookedSlotRange({ focusDate, view: "week" })).toMatchObject({
+      fromIso: "2026-07-25",
+      toIso: "2026-08-01",
+      visibleFromIso: "2026-07-26",
+      visibleToIso: "2026-08-01",
+    });
+    expect(resolveVisibleBookedSlotRange({ focusDate, view: "month" })).toMatchObject({
+      fromIso: "2026-06-27",
+      toIso: "2026-08-08",
+      visibleFromIso: "2026-06-28",
+      visibleToIso: "2026-08-08",
+    });
+    expect(resolveUpcomingWidgetBookedSlotRange({ now: focusDate })).toMatchObject({
+      fromIso: "2026-07-27",
+      toIso: "2027-01-27",
+    });
+  });
+
+  it("follows every booked-slot cursor and deduplicates bookings", async () => {
+    const laterSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_later",
+      startIso: "2026-07-27T16:45:00Z",
+      endIso: "2026-07-27T16:50:00Z",
+      status: "pending",
+    };
+    const api = createApi([
+      {
+        slots: [freshBookedSlot],
+        next: "cursor-page-2",
+        hasMore: true,
+        truncated: true,
+        __meta: { status: 200 },
+      },
+      {
+        slots: [freshBookedSlot, laterSlot],
+        next: null,
+        hasMore: false,
+        truncated: false,
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchAllBookedSlotPages({
+      api,
+      url: "https://api.example.test/bookings/creators/1407/booked-slots",
+      params: {
+        fromIso: "2026-07-01",
+        toIso: "2026-08-01",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.pageCount).toBe(2);
+    expect(result.response.slots).toEqual([freshBookedSlot, laterSlot]);
+    expect(result.response.stats).toEqual({
+      total: 2,
+      byStatus: { confirmed: 1, pending: 1 },
+      byEvent: { event_77: 2 },
+    });
+    expect(api.get).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/bookings/creators/1407/booked-slots",
+      expect.objectContaining({
+        params: expect.objectContaining({ next: "cursor-page-2" }),
+      }),
+    );
+  });
+
+  it("returns a failed pagination result without exposing partial slots", async () => {
+    const api = createApi([
+      {
+        slots: [freshBookedSlot],
+        next: "cursor-page-2",
+      },
+      {
+        ok: false,
+        error: "temporary_failure",
+      },
+    ]);
+
+    const result = await fetchAllBookedSlotPages({
+      api,
+      url: "https://api.example.test/bookings/creators/1407/booked-slots",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.response).toEqual(expect.objectContaining({ error: "temporary_failure" }));
+    expect(result.response.slots).toBeUndefined();
+  });
+
+  it("rejects a repeated booked-slot cursor", async () => {
+    const api = createApi([
+      { slots: [], next: "repeated-cursor" },
+      { slots: [], next: "repeated-cursor" },
+    ]);
+
+    await expect(fetchAllBookedSlotPages({
+      api,
+      url: "https://api.example.test/bookings/creators/1407/booked-slots",
+    })).rejects.toMatchObject({ code: "BOOKED_SLOTS_CURSOR_LOOP" });
+  });
+
+  it("loads creator widget statuses through every cursor without losing a later pending booking", async () => {
+    const july27Pending = {
+      ...freshBookedSlot,
+      bookingId: "booking_july_27",
+      startIso: "2026-07-27T16:45:00Z",
+      endIso: "2026-07-27T16:50:00Z",
+      status: "pending",
+    };
+    const api = {
+      get: vi.fn(async (url, options = {}) => {
+        if (url.endsWith("/events")) {
+          return { items: [{ id: "event_77", title: "Event" }], __meta: { status: 200 } };
+        }
+        if (!options.params?.statusIn) {
+          return { slots: [freshBookedSlot], next: null, __meta: { status: 200 } };
+        }
+        if (options.params.statusIn === "pending" && !options.params.next) {
+          return { slots: [], next: "pending-page-2", __meta: { status: 200 } };
+        }
+        if (options.params.statusIn === "pending" && options.params.next === "pending-page-2") {
+          return { slots: [july27Pending], next: null, __meta: { status: 200 } };
+        }
+        return { slots: [], next: null, __meta: { status: 200 } };
+      }),
+    };
+
+    const result = await fetchDashboardBookingContextFlow({
+      payload: {
+        creatorId: 1407,
+        userRole: "creator",
+        fromIso: "2026-07-25",
+        toIso: "2026-08-01",
+        widgetFromIso: "2026-07-27",
+        widgetToIso: "2027-01-27",
+        widgetStatusIn: "pending,pending_hold,confirmed",
+      },
+      context: { apiBaseUrl: "https://api.example.test" },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.data.widgetBookedSlots).toEqual([july27Pending]);
+    expect(api.get).toHaveBeenCalledWith(
+      "https://api.example.test/bookings/creators/1407/booked-slots",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          statusIn: "pending",
+          next: "pending-page-2",
+        }),
+      }),
+    );
+  });
+
   it("keeps fresh creator dashboard booked slots when events are not modified", async () => {
     const cachedRawEvents = [{ id: "event_77", title: "Cached Event" }];
     const api = createApi([

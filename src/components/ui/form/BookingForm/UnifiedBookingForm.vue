@@ -18,6 +18,7 @@ import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookin
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { resolveVisibleBookedSlotRange } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
@@ -636,8 +637,15 @@ const clearRefreshQueryFlag = async () => {
     });
 };
 
+let creatorBookedSlotsFetchGeneration = 0;
+
 const fetchCreatorBookedSlots = async (forceRefresh = false) => {
     const creatorId = resolveCreatorId();
+    const fetchGeneration = ++creatorBookedSlotsFetchGeneration;
+    const visibleRange = resolveVisibleBookedSlotRange({
+        focusDate: state.focus,
+        view: "week",
+    });
     calendarLoading.value = true;
     calendarError.value = null;
     bookingFlow.setState("creatorId", creatorId, { reason: "calendar-booked-slots", silent: true });
@@ -646,7 +654,8 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         "bookings.fetchCreatorBookingContext",
         {
             creatorId,
-            periodMonths: 6,
+            fromIso: visibleRange.fromIso,
+            toIso: visibleRange.toIso,
             slotLimit: 1000,
             statusIn: "pending,pending_hold,confirmed,completed",
         },
@@ -660,15 +669,12 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         },
     );
 
+    if (fetchGeneration !== creatorBookedSlotsFetchGeneration) return;
+
     if (!result?.ok) {
         calendarError.value = result?.meta?.uiErrors?.[0]
             || result?.error?.message
             || t("booking_load_creator_booked_slots_failed");
-        calendarBookedSlots.value = [];
-        calendarAvailabilitySlots.value = [];
-        creatorEventsForCalendar.value = [];
-        bookedSlotsRawForCalendar.value = [];
-        bookedSlotsIndexForCalendar.value = {};
     } else {
         const creatorEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
         const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
@@ -1386,7 +1392,7 @@ const state = reactive({
 const onSelectFromMain = (date) => {
     state.selected = new Date(date);
     state.focus = new Date(date);
-    rebuildAvailabilityPreview();
+    fetchCreatorBookedSlots(false);
 };
 
 function rebuildAvailabilityPreview() {
@@ -1940,10 +1946,17 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 ]">
                 <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
                     :description="t('booking_calendar_notice_description')"  />
-                <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
-                    {{ calendarError }}
+                <div v-if="calendarError" class="mx-6 mt-3 flex items-center justify-between gap-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
+                    <span>{{ calendarError }}</span>
+                    <button
+                        type="button"
+                        class="shrink-0 font-semibold underline underline-offset-2"
+                        @click="fetchCreatorBookedSlots(true)"
+                    >
+                        {{ t("common_retry") }}
+                    </button>
                 </div>
-                <div v-else-if="calendarLoading" class="px-2 md:px-4 lg:px-6 pt-6">
+                <div v-if="calendarLoading && events2.length === 0" class="px-2 md:px-4 lg:px-6 pt-6">
                     <div class="overflow-hidden rounded-[1rem] border border-[#EAECF0] bg-white shadow-sm animate-pulse">
                         <div class="border-b border-[#EAECF0] px-4 py-4">
                             <div class="flex items-center justify-between gap-4">
