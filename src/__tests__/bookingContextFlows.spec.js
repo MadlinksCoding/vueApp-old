@@ -269,6 +269,96 @@ describe("booking context flows", () => {
     );
   });
 
+  it("replaces cached slots for an event-scoped refresh while preserving other events", async () => {
+    const staleTargetSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_stale",
+      eventId: "event_77",
+    };
+    const otherEventSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_other",
+      eventId: "event_other",
+    };
+    const refreshedTargetSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_fresh",
+      eventId: "event_77",
+      status: "pending",
+    };
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [refreshedTargetSlot],
+        stats: { total: 1 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchCreatorBookingContextFlow({
+      payload: { creatorId: 1407, eventId: "event_77" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+        stateEngine: {
+          getState: vi.fn((path) => (
+            path === "fanBooking.catalog.bookedSlots"
+              ? [staleTargetSlot, otherEventSlot]
+              : []
+          )),
+        },
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.data.bookedSlots).toEqual([otherEventSlot, refreshedTargetSlot]);
+  });
+
+  it("removes stale event slots when an event-scoped refresh returns no bookings", async () => {
+    const staleTargetSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_stale",
+      eventId: "event_77",
+    };
+    const otherEventSlot = {
+      ...freshBookedSlot,
+      bookingId: "booking_other",
+      eventId: "event_other",
+    };
+    const api = createApi([
+      {
+        items: [{ id: "event_77", title: "Event" }],
+        __meta: { status: 200 },
+      },
+      {
+        slots: [],
+        stats: { total: 0 },
+        __meta: { status: 200 },
+      },
+    ]);
+
+    const result = await fetchCreatorBookingContextFlow({
+      payload: { creatorId: 1407, eventId: "event_77" },
+      context: {
+        apiBaseUrl: "https://api.example.test",
+        stateEngine: {
+          getState: vi.fn((path) => (
+            path === "fanBooking.catalog.bookedSlots"
+              ? [staleTargetSlot, otherEventSlot]
+              : []
+          )),
+        },
+      },
+      api,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.data.bookedSlots).toEqual([otherEventSlot]);
+  });
+
   it("keeps creator booking context occupancy creator-wide even for fan payloads", async () => {
     const api = createApi([
       {

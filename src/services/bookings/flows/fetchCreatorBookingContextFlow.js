@@ -42,6 +42,25 @@ function readCachedRawEvents(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function readCachedBookedSlots(context) {
+  const engine = context?.stateEngine;
+  if (!engine || typeof engine.getState !== "function") return [];
+
+  const cached = engine.getState("fanBooking.catalog.bookedSlots");
+  return Array.isArray(cached) ? cached : [];
+}
+
+function mergeEventScopedBookedSlots(context, eventId, bookedSlots = []) {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return bookedSlots;
+
+  const cachedBookedSlots = readCachedBookedSlots(context);
+  return [
+    ...cachedBookedSlots.filter((slot) => String(slot?.eventId || "").trim() !== normalizedEventId),
+    ...bookedSlots,
+  ];
+}
+
 function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
   return eventsNotModified
     ? getHttpStatus(bookedSlotsResponse, 200)
@@ -115,7 +134,8 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       });
     }
 
-    const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
+    const fetchedBookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
+    const bookedSlots = mergeEventScopedBookedSlots(context, payload?.eventId, fetchedBookedSlots);
     let isFirstBookingForCreator = null;
     let eventBookingCountsByEventId = {};
 
