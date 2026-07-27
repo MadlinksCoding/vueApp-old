@@ -316,6 +316,7 @@ describe("OneOnOneBookingFlowFeature", () => {
       "bookings.fetchCreatorBookingContext",
       expect.objectContaining({
         creatorId: 1407,
+        eventId: "evt_selected",
         fanId: 12,
       }),
       expect.objectContaining({
@@ -325,6 +326,23 @@ describe("OneOnOneBookingFlowFeature", () => {
       }),
     );
     expect(wrapper.find("[data-test='step-2']").exists()).toBe(true);
+  });
+
+  it("keeps the initial multi-event catalog request creator-scoped", async () => {
+    availableEvents = [{ eventId: "evt_alpha", title: "Alpha Event" }];
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+
+    mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+      },
+    });
+
+    await flushAsync();
+
+    const [, payload] = callFlow.mock.calls[0];
+    expect(payload).not.toHaveProperty("eventId");
   });
 
   it("uses a fresh catalog for direct event opens even when stale state is missing the requested event", async () => {

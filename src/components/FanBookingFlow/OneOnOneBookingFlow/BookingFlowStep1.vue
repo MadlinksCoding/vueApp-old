@@ -38,6 +38,10 @@ const props = defineProps({
     default: "book",
     validator: (value) => ["book", "edit-schedule"].includes(value),
   },
+  refreshBookingContext: {
+    type: Function,
+    default: null,
+  },
 });
 
 const { t, locale } = useBookingTranslations();
@@ -359,6 +363,14 @@ async function selectEvent(event) {
   if (!event) return;
   props.engine.setState("fanBooking.context.selectedEventId", event.eventId || event.id, { reason: "select-event", silent: true });
   props.engine.setState("fanBooking.context.selectedEvent", event, { reason: "select-event", silent: true });
+
+  if (typeof props.refreshBookingContext === "function") {
+    const refreshResult = await props.refreshBookingContext({
+      silent: false,
+      preserveSelectedEvent: true,
+    });
+    if (!refreshResult?.ok) return;
+  }
 
   if (isGroupEvent(event)) {
     const selected = groupNextAvailable(event);

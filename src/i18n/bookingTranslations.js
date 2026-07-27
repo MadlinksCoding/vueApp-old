@@ -52,6 +52,7 @@ export const bookingMessages = {
   common_tokens: "Tokens",
   common_top_up_needed: "TOP UP NEEDED",
   common_try_again: "Please try again.",
+  common_retry: "Retry",
   common_validation_failed: "Validation Failed",
   common_wallet_balance: "Wallet Balance",
   common_week: "Week",

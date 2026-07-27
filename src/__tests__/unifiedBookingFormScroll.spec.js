@@ -175,7 +175,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["events", "variant", "dayColumnMode", "rowHeightPx", "focusDate"],
-    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events"],
+    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events", "date-selected"],
     methods: {
       noop() {},
       scrollToCurrentTime() {
@@ -189,6 +189,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <button data-test="calendar-cancel" @click="$emit('cancel-booking', { bookingId: 'booking_action', event: { title: 'Action event', start: '2026-05-07T10:00:00', end: '2026-05-07T11:00:00' } })">cancel</button>
         <button data-test="calendar-join" @click="$emit('join-call', { event: { bookingId: 'booking_action', eventId: 'evt_action', status: 'confirmed', start: '2026-05-07T10:00:00', end: '2026-05-07T11:00:00', eventType: '1on1-call' } })">join</button>
         <button data-test="calendar-refresh" @click="$emit('refresh-events')">refresh</button>
+        <button data-test="calendar-next-week" @click="$emit('date-selected', new Date(2026, 4, 14))">next week</button>
         <template v-for="event in events || []" :key="event.id || event.eventId || event.title">
           <slot
             v-if="event.slot === 'availability'"
@@ -804,6 +805,36 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
     ).length;
     expect(fetchCountAfterRefresh).toBeGreaterThan(fetchCountBeforeRefresh);
+  });
+
+  it("loads only the visible week and refetches when the selected week changes", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const initialFetch = mock.engine.callFlow.mock.calls.find(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    );
+    expect(initialFetch?.[1]).toEqual(expect.objectContaining({
+      fromIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    }));
+    expect(initialFetch?.[1]).not.toHaveProperty("periodMonths");
+
+    const fetchCountBeforeNavigation = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    ).length;
+    await wrapper.get("[data-test='calendar-next-week']").trigger("click");
+    await flushPromises();
+    const creatorFetches = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    );
+
+    expect(creatorFetches).toHaveLength(fetchCountBeforeNavigation + 1);
+    expect(creatorFetches.at(-1)?.[1]).toEqual(expect.objectContaining({
+      fromIso: "2026-05-09",
+      toIso: "2026-05-16",
+    }));
   });
 
   it("opens saved availability actions, emits confirmed edit navigation, and deletes through the flow engine", async () => {

@@ -92,6 +92,7 @@ async function mountStep1({
   rootFanId = undefined,
   rootUserId = undefined,
   step1PrimaryAction = "book",
+  refreshBookingContext = undefined,
 }) {
   const engine = createEngine({
     ...(rootFanId !== undefined ? { fanId: rootFanId } : {}),
@@ -120,6 +121,7 @@ async function mountStep1({
       engine,
       embedded: true,
       step1PrimaryAction,
+      ...(refreshBookingContext ? { refreshBookingContext } : {}),
     },
     global: {
       provide: {
@@ -167,6 +169,45 @@ describe("BookingFlowStep1 group cards", () => {
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
     expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("refreshes selected-event availability before navigating", async () => {
+    const dateIso = localDateOffset(1);
+    const event = groupEvent(dateIso);
+    let resolveRefresh;
+    const refreshBookingContext = vi.fn(() => new Promise((resolve) => {
+      resolveRefresh = resolve;
+    }));
+    const { engine, wrapper } = await mountStep1({ event, refreshBookingContext });
+    const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
+
+    const clickPromise = cta.trigger("click");
+    await nextTick();
+
+    expect(refreshBookingContext).toHaveBeenCalledWith({
+      silent: false,
+      preserveSelectedEvent: true,
+    });
+    expect(engine.goToStep).not.toHaveBeenCalled();
+
+    resolveRefresh({ ok: true });
+    await clickPromise;
+    await nextTick();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+  });
+
+  it("stays on step 1 when selected-event availability cannot be refreshed", async () => {
+    const dateIso = localDateOffset(1);
+    const event = groupEvent(dateIso);
+    const refreshBookingContext = vi.fn().mockResolvedValue({ ok: false });
+    const { engine, wrapper } = await mountStep1({ event, refreshBookingContext });
+    const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
+
+    await cta.trigger("click");
+
+    expect(refreshBookingContext).toHaveBeenCalled();
+    expect(engine.goToStep).not.toHaveBeenCalled();
   });
 
   it("renders edit booking schedule CTA in creator preview mode without booking navigation", async () => {

@@ -467,6 +467,9 @@ async function loadBookingContext({ forceRefresh = false, silent = false, preser
     || previousSelectedEvent?.id
     || null;
   const selectedEventIdToRestore = preserveSelectedEvent ? previousSelectedEventId : requestedEventId;
+  const bookedSlotsEventId = selectedEventIdToRestore == null
+    ? ""
+    : String(selectedEventIdToRestore).trim();
   const shouldRequireFreshCatalog = Boolean(requestedEventId || preserveSelectedEvent);
   if (!preserveSelectedEvent) {
     clearSelectedEvent("catalog-load");
@@ -505,7 +508,15 @@ async function loadBookingContext({ forceRefresh = false, silent = false, preser
 
   const result = await engine.callFlow(
     "bookings.fetchCreatorBookingContext",
-    { creatorId, fanId, status: "active", limit: 100, periodMonths: 6, slotLimit: 2000 },
+    {
+      creatorId,
+      fanId,
+      status: "active",
+      limit: 100,
+      periodMonths: 6,
+      slotLimit: 2000,
+      ...(bookedSlotsEventId ? { eventId: bookedSlotsEventId } : {}),
+    },
     {
       forceRefresh: forceRefresh || shouldRequireFreshCatalog,
       skipDestinationRead: shouldRequireFreshCatalog,

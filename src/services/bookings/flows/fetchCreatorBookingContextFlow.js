@@ -1,6 +1,7 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus, getEtag, isApiNotModified } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError, toNumber } from "@/services/bookings/bookingsApiUtils.js";
+import { fetchAllBookedSlotPages } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 
 function buildEventsParams(payload = {}) {
   return {
@@ -40,6 +41,25 @@ function readCachedRawEvents(context) {
 
   const cached = engine.getState("fanBooking.catalog.rawEvents");
   return Array.isArray(cached) ? cached : [];
+}
+
+function readCachedBookedSlots(context) {
+  const engine = context?.stateEngine;
+  if (!engine || typeof engine.getState !== "function") return [];
+
+  const cached = engine.getState("fanBooking.catalog.bookedSlots");
+  return Array.isArray(cached) ? cached : [];
+}
+
+function mergeEventScopedBookedSlots(context, eventId, bookedSlots = []) {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return bookedSlots;
+
+  const cachedBookedSlots = readCachedBookedSlots(context);
+  return [
+    ...cachedBookedSlots.filter((slot) => String(slot?.eventId || "").trim() !== normalizedEventId),
+    ...bookedSlots,
+  ];
 }
 
 function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
@@ -99,15 +119,18 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       ? readCachedRawEvents(context)
       : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
-    const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
+    const bookedSlotsResult = await fetchAllBookedSlotPages({
+      api,
+      url: resolveBookedSlotsEndpoint(baseUrl, payload),
       params: buildBookedSlotParams(payload, {
         includeEventId: true,
       }),
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,
     });
+    const bookedSlotsResponse = bookedSlotsResult.response;
 
-    if (bookedSlotsResponse?.ok === false) {
+    if (!bookedSlotsResult.ok || bookedSlotsResponse?.ok === false) {
       return fail({
         code: "FETCH_CREATOR_BOOKED_SLOTS_FAILED",
         message: bookedSlotsResponse?.error || "Failed to fetch creator booked slots.",
@@ -115,7 +138,8 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       });
     }
 
-    const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
+    const fetchedBookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
+    const bookedSlots = mergeEventScopedBookedSlots(context, payload?.eventId, fetchedBookedSlots);
     let isFirstBookingForCreator = null;
     let eventBookingCountsByEventId = {};
 
