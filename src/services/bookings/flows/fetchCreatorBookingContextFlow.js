@@ -1,6 +1,7 @@
 import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus, getEtag, isApiNotModified } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError, toNumber } from "@/services/bookings/bookingsApiUtils.js";
+import { fetchAllBookedSlotPages } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 
 function buildEventsParams(payload = {}) {
   return {
@@ -118,15 +119,18 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       ? readCachedRawEvents(context)
       : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
-    const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
+    const bookedSlotsResult = await fetchAllBookedSlotPages({
+      api,
+      url: resolveBookedSlotsEndpoint(baseUrl, payload),
       params: buildBookedSlotParams(payload, {
         includeEventId: true,
       }),
       signal: context.signal,
       timeoutMs: context.requestTimeoutMs,
     });
+    const bookedSlotsResponse = bookedSlotsResult.response;
 
-    if (bookedSlotsResponse?.ok === false) {
+    if (!bookedSlotsResult.ok || bookedSlotsResponse?.ok === false) {
       return fail({
         code: "FETCH_CREATOR_BOOKED_SLOTS_FAILED",
         message: bookedSlotsResponse?.error || "Failed to fetch creator booked slots.",

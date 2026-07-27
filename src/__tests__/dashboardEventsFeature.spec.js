@@ -554,7 +554,14 @@ describe("DashboardEventsFeature", () => {
 
     expect(callFlow).toHaveBeenCalledWith(
       "bookings.fetchDashboardBookingContext",
-      expect.objectContaining({ creatorId: 99 }),
+      expect.objectContaining({
+        creatorId: 99,
+        fromIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        widgetFromIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        widgetToIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        widgetStatusIn: "pending,pending_hold,confirmed",
+      }),
       expect.objectContaining({
         context: expect.objectContaining({ creatorId: 99 }),
       }),
@@ -971,10 +978,10 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.text()).toContain("Month Availability Window");
     const availabilityTitle = availabilityMarker.get("[data-test='dashboard-calendar-availability-title']");
     const availabilityIcon = availabilityTitle.get("[data-test='dashboard-calendar-availability-icon']");
-    expect(availabilityIcon.classes()).toEqual(expect.arrayContaining(["h-3", "w-3"]));
+    expect(availabilityIcon.classes()).toEqual(expect.arrayContaining(["h-4", "w-4"]));
     expect(availabilityIcon.get("path").attributes("stroke")).toBe("currentColor");
     expect(availabilityTitle.text()).toContain("Month Availability Window");
-    expect(availabilityMarker.element.style.backgroundColor).toBe("rgba(14, 165, 233, 0.08)");
+    expect(availabilityMarker.element.style.backgroundColor).toBe("rgba(14, 165, 233, 0.1)");
     expect(availabilityMarker.element.style.borderTopWidth).toBe("0px");
     expect(availabilityMarker.element.style.borderBottomWidth).toBe("0px");
     expect(availabilityMarker.element.style.borderRadius).toBe("4px");

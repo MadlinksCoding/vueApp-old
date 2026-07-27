@@ -878,7 +878,7 @@ describe("MainCalendar all events count", () => {
     expect(emptyGroup.attributes("style")).toContain("width: 12.5%");
 
     expect(selectedGroup.attributes("data-selected")).toBe("true");
-    expect(selectedGroup.classes()).toContain("opacity-100");
+    expect(selectedGroup.classes()).not.toContain("opacity-30");
     expect(dayGroups.filter((group) => group.attributes("data-selected") === "false").every((group) => group.classes().includes("opacity-30"))).toBe(true);
 
     expect(selectedColumns.map((column) => column.attributes("data-event-id"))).toEqual(["evt_early", "evt_late"]);

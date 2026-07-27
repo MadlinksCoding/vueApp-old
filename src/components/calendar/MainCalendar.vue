@@ -535,7 +535,7 @@
                 :key="'week-header-' + group.dateKey"
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
-                :class="group.isSelected ? 'opacity-100' : 'opacity-100'"
+                :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
                 :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"
@@ -687,7 +687,7 @@
               v-for="group in weekEventDayGroups"
               :key="'week-day-' + group.dateKey"
               class="relative shrink-0 transition-opacity"
-              :class="[theme.main.colBase, group.isSelected ? 'bg-white/50' : '']"
+              :class="[theme.main.colBase, group.isSelected ? 'bg-white/50 opacity-100' : 'opacity-30']"
               :style="{ ...weekEventDayGroupStyle(group), height: gridMetrics.totalHeight + 'px' }"
               :data-date="group.dateKey"
               :data-selected="group.isSelected ? 'true' : 'false'"
@@ -1411,7 +1411,10 @@ const newEventsPopupConfig = {
 };
 
 const eventDetailsPopupConfig = computed(() => {
-  const isIpadPortraitLarge = width.value >= 1024 && width.value <= 1279 && window.matchMedia('(orientation: portrait)').matches;
+  const isIpadPortraitLarge = width.value >= 1024
+    && width.value <= 1279
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(orientation: portrait)").matches;
 
   return {
     actionType: isIpadPortraitLarge ? "slidein" : "popup",
