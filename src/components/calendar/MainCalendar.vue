@@ -771,7 +771,7 @@
       </div>
     </div>
 
-    <div ref="monthViewRef" v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" data-test="calendar-month-view">
+    <div ref="monthViewRef" v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-2" data-test="calendar-month-view">
 
       <div class="grid grid-cols-7 shrink-0 top-0 sticky w-full backdrop-blur-md z-10">
         <div v-for="(w, index) in shortWeekdays" :key="w"
@@ -996,11 +996,16 @@
         v-if="eventsRequestsPopupOpen"
         :events-data="props.eventsData"
         :user-role="props.userRole"
+        :booking-schedule-events="props.bookingScheduleEvents"
+        :booking-schedule-booked-slots-index="props.bookingScheduleBookedSlotsIndex"
         @close="eventsRequestsPopupOpen = false"
         @join-click="handleJoin"
         @reply-click="handleReply"
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
+        @edit-schedule-event="handleMobileScheduleEdit"
+        @delete-schedule-event="handleMobileScheduleDelete"
+        @view-schedule-card="handleMobileScheduleCardPreview"
       />
     </PopupHandler>
 
