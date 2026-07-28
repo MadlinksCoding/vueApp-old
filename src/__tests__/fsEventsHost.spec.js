@@ -5,6 +5,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     vi.resetModules();
     vi.useFakeTimers();
     document.body.innerHTML = "";
+    delete window.FSScheduledCallOverlay;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
       text: () => Promise.resolve(""),
@@ -456,5 +457,79 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.body.contains(popup.overlay)).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.__FSFanBookingActivePopup).toBeNull();
+  });
+
+  it("opens scheduled meeting URLs through the shared WordPress overlay", () => {
+    const container = document.createElement("div");
+    const onOpenUrl = vi.fn();
+    const overlayOpen = vi.fn(() => ({ close: vi.fn() }));
+    document.body.appendChild(container);
+    window.FSScheduledCallOverlay = { open: overlayOpen };
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      onOpenUrl,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_OPEN_URL",
+        payload: {
+          url: "/scheduled-meeting/?booking_id=b_evt_123&source=calendar",
+          target: "_self",
+        },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(overlayOpen).toHaveBeenCalledWith(
+      "/scheduled-meeting/?booking_id=b_evt_123&source=calendar",
+      { source: "events_embed" },
+    );
+    expect(onOpenUrl).not.toHaveBeenCalled();
+  });
+
+  it("retains normal URL handling for unrelated URLs", () => {
+    const container = document.createElement("div");
+    const onOpenUrl = vi.fn();
+    const overlayOpen = vi.fn();
+    document.body.appendChild(container);
+    window.FSScheduledCallOverlay = { open: overlayOpen };
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      onOpenUrl,
+    });
+    const payload = { url: "/dashboard/settings", target: "_self" };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: { type: "FS_EVENTS_OPEN_URL", payload },
+      origin: window.location.origin,
+    }));
+
+    expect(onOpenUrl).toHaveBeenCalledWith(payload);
+    expect(overlayOpen).not.toHaveBeenCalled();
+  });
+
+  it("falls back to existing navigation handling when the overlay service is unavailable", () => {
+    const container = document.createElement("div");
+    const onOpenUrl = vi.fn();
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      onOpenUrl,
+    });
+    const payload = {
+      url: "/scheduled-meeting/?event_id=evt_group&start_iso=2026-07-28T12%3A00%3A00.000Z",
+      target: "_self",
+    };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: { type: "FS_EVENTS_OPEN_URL", payload },
+      origin: window.location.origin,
+    }));
+
+    expect(onOpenUrl).toHaveBeenCalledWith(payload);
   });
 });
