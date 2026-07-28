@@ -2011,7 +2011,7 @@
                 </CustomDropdown>
               </div>
             </div>
-            <span class="text-gray-500 text-xs italic font-normal leading-none ml-1">{{ t("required_title") }}</span>
+            <span class="text-[#F06] text-xs italic font-normal leading-none ml-1">{{ t("required_title") }}</span>
           </div>
           <ValidationInlineWarning
             :messages="fieldValidationMessages('eventTitle')"
@@ -2128,7 +2128,7 @@
               <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                 {{ t("booking_base_price") }}
               </div>
-              <span class="text-gray-500 text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
+              <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             </div>
             <div class="flex items-center gap-2">
               <BaseInput type="number" placeholder="" v-model="formData.basePrice"
@@ -2648,7 +2648,7 @@
                     <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                       {{ t("booking_duration") }}
                     </div>
-                    <span class="text-gray-500 text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
+                    <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
                   </div>
                   <div class="relative w-full bg-white/75 rounded-tl-sm rounded-tr-sm border-b border-gray-300">
                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">

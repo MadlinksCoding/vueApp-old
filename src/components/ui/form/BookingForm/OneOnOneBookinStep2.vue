@@ -1550,7 +1550,7 @@ const createEvent = async () => {
               wrapperClass="flex items-center gap-2" />
             <TooltipIcon :text="t('booking_recording_tooltip')" />
           </div>
-          <div class="inline-flex gap-2">
+          <div class="inline-flex">
             <div class="w-6" />
             <div :class="['inline-flex flex-col',!formData.allowRecording ? 'opacity-50':'opacity-100']">
               <div class="inline-flex justify-end items-center gap-2">
