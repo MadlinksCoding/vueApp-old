@@ -754,6 +754,7 @@ export const bookingMessages = {
   fan_booking_processing: "PROCESSING...",
   fan_booking_booking_schedule: "BOOKING SCHEDULE",
   fan_booking_change_schedule: "Change Schedule",
+  fan_booking_change_edit: "Edit",
   fan_booking_date: "DATE",
   fan_booking_session_cost: "SESSION COST",
   fan_booking_Non_Refundable: "NON-REFUNDABLE",
