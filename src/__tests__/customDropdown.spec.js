@@ -86,4 +86,23 @@ describe("CustomDropdown", () => {
     expect(optionFactory).toHaveBeenCalled();
     expect(wrapper.find('[aria-disabled="true"]').exists()).toBe(true);
   });
+
+  it("emits focus whenever the dropdown is opened", async () => {
+    const wrapper = mount(CustomDropdown, {
+      props: {
+        modelValue: "09:00",
+        options,
+      },
+    });
+    const trigger = wrapper.find(".cursor-pointer");
+
+    await trigger.trigger("click");
+    expect(wrapper.emitted("focus")).toHaveLength(1);
+
+    await trigger.trigger("click");
+    expect(wrapper.emitted("focus")).toHaveLength(1);
+
+    await trigger.trigger("click");
+    expect(wrapper.emitted("focus")).toHaveLength(2);
+  });
 });

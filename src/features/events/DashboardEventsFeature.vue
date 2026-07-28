@@ -26,6 +26,7 @@
         variant="default"
         :is-sticky-card-visible="isStickyCardVisible"
         :focus-date="state.focus"
+        :selected-date="state.selected"
         :events="events1"
         :events-data="eventsData"
         :booking-schedule-events="bookingScheduleEvents"
@@ -44,6 +45,7 @@
         :row-height-px="120"
         :min-event-height-px="0"
         @date-selected="onSelectFromMain"
+        @update:focus-date="onFocusFromMain"
         @view-changed="state.view = $event"
         @join-call="handleJoin"
         @approve-booking="onApprovePendingBooking"
@@ -843,7 +845,7 @@ const deleteEventPopupConfig = {
 
 const state = reactive({
   focus: new Date(),
-  selected: null,
+  selected: new Date(),
   view: "week",
 });
 
@@ -2307,6 +2309,14 @@ const onSelectFromMini = (date) => {
 const onSelectFromMain = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
+  fetchDashboardContext(false, { refreshWidgets: false });
+};
+
+const onFocusFromMain = (date) => {
+  const nextFocus = asDate(date);
+  if (!nextFocus || sameDay(nextFocus, state.focus)) return;
+
+  state.focus = nextFocus;
   fetchDashboardContext(false, { refreshWidgets: false });
 };
 

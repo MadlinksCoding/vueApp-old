@@ -36,7 +36,7 @@ const props = defineProps({
       audio: true,
       groupCall: true,
       showSchedule: false,
-      showCompleted: false,
+      showCompleted: true,
       showAnalytics: false,
     }),
   },
@@ -147,7 +147,7 @@ const filters = computed(() => ({
   audio: props.modelValue?.audio !== false,
   groupCall: props.modelValue?.groupCall !== false,
   showSchedule: props.modelValue?.showSchedule !== false,
-  showCompleted: props.modelValue?.showCompleted === true,
+  showCompleted: props.modelValue?.showCompleted !== false,
   showAnalytics: false,
   colorByType: {
     video: normalizeColorChoice(props.modelValue?.colorByType?.video, null),
