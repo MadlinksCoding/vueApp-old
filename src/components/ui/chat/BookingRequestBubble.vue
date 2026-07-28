@@ -479,6 +479,7 @@ function handleJoin() {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
+  if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
   window.open(joinState.value.joinUrl, '_top')
 }
 
