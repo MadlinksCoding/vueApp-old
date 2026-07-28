@@ -169,7 +169,7 @@ const emit = defineEmits(["created", "preview-schedule", "reveal-step1-validatio
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
-const X_REPOST_ALLOWED_CREATOR_ID = 566;
+const X_REPOST_ALLOWED_CREATOR_IDS = [566, 1407, 793];
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -178,7 +178,7 @@ const isGroupBooking = computed(() => (
 const submitButtonText = computed(() => (props.isEditMode ? t("booking_update_publish") : t("common_create_event")));
 
 function isCreatorAllowedForXRepost(creatorId = resolveCreatorId()) {
-  return Number(creatorId) === X_REPOST_ALLOWED_CREATOR_ID;
+  return X_REPOST_ALLOWED_CREATOR_IDS.includes(Number(creatorId));
 }
 
 const isXRepostAllowed = computed(() => isCreatorAllowedForXRepost());
