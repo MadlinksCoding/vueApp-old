@@ -29,6 +29,8 @@ import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from 
 import { showToast } from "@/utils/toastBus.js";
 import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
+import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
+import arrowPinkIcon from "@/assets/images/icons/arrow-up-right-pink.svg";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -65,7 +67,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["created", "back", "scroll-top-request", "edit-event", "open-url"]);
+const emit = defineEmits(["created", "back", "scroll-top-request", "edit-event", "open-url", "preview-schedule"]);
 const route = useRoute();
 const router = useRouter();
 const { t } = useBookingTranslations();
@@ -1865,6 +1867,14 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         <div class="justify-start text-slate-700 text-base font-semibold leading-6 truncate">
                             {{ formTitle }}
                         </div>
+                        <ButtonComponent
+                            @click="previewSchedule = true"
+                            :text="t('common_preview')"
+                            :customClass="'inline-flex lg:hidden text-[#FF0464] py-1 px-4 !rounded-[48px] !border !border-[#FB5BA2] gap-1 items-center'"
+                            :btnBg="'bg-white/20'"
+                            :rightIcon="arrowPinkIcon"
+                            variant="outline"
+                        />
                     </div>
                     <div data-test="booking-form-close" @click="requestFormExit" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
                         <img :src="closeIcon" alt="" />
@@ -1941,8 +1951,8 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
-                        : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
+                        ? 'hidden lg:block w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
+                        : 'hidden lg:block w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
                 <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
                     :description="t('booking_calendar_notice_description')"  />
