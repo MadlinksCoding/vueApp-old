@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-28 — Live Call & Booking Request Chat UI Fixes
+
+### Changed
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Dynamic Canceled Badge Styling** — Updated the styling of the "Canceled" badge. The text and icon now render in gray (`text-gray-500`) exclusively when the session has expired (`isExpired`). Prior to expiration, it retains its standard red styling.
+- **Improved Join Call Button Logic** — Implemented an `isJoinable` computed property to strictly disable the "Join Call" button if the session start time is more than 5 minutes away. Enforced this restriction within the `handleJoin` click handler to prevent premature session joining.
+- **Action Buttons Visibility on Expiration** — Modified the template to completely hide the action buttons row (including "Join Call" and "Other Options") when the session expires (`isExpired`).
+- **View Details Interactivity Fix** — Addressed an edge case with Vue 3 template binding by replacing `emit()` with the standard `$emit()` across all template event bindings. Fixed the "View Details" button click event being swallowed in the pinned banner by adding `@mousedown.stop` and `@touchstart.stop` modifiers, combined with `relative z-10`.
+
+#### `src/components/ui/chat/FlexChat.vue`
+- **Pinned Banner Dropdown Clipping Fix** — Added `relative z-10` to the `#pinned-banner` slot wrapper to establish a higher stacking context. This resolves a UI bug where dropdown menus (like the 3-dot "Other Options" menu in the pinned banner) were being clipped and hidden behind the scrollable chat messages body.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Missing Event Bindings on Chat Messages** — Added missing event bindings (`@view-details`, `@cancel`, `@accept-counter`, `@reject-counter`, `@cancel-booking`, `@ask-more-time`, and fixed the `@reschedule` typo) to both `LiveCallRequest` and `BookingRequestBubble` instances rendered within the `#message.system` template block. This ensures all interactive elements function identical to their pinned banner counterparts when viewed natively in the chat history.
+
 ## 2026-07-21 — Auto-unpin Cancelled/Declined Pinned Bookings, Tablet Landscape (`isTabletLandscape`) Chat Limit & Embed Spacing Fixes
 
 ### Changed
