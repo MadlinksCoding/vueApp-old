@@ -535,6 +535,7 @@
   "fan_booking_card_holder_name": "Card Holder Name",
   "fan_booking_change_card": "Change Card",
   "fan_booking_change_schedule": "Change Schedule",
+  "fan_booking_change_edit": "Edit",
   "fan_booking_check_balance": "CHECK BALANCE",
   "fan_booking_check_token_balance_failed": "Could not check token balance.",
   "fan_booking_checking": "Checking...",

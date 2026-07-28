@@ -2046,7 +2046,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                         class="px-3 py-[6px] flex items-center justify-center gap-1 rounded-3xl border border-white/50 bg-white/15"
                         @click="handleChangeSchedule"
                       >
-                        <span class="text-white text-xs font-medium">{{ t("fan_booking_change_schedule") }}</span>
+                        <span class="text-white text-xs font-medium">{{ t("fan_booking_change_edit") }}</span>
                       </button>
                     </div>
                     <p v-if="!isGroupEvent && showApprovalNeeded" class="text-[#FCE40D] text-sm leading-5">{{ approvalMessage }}</p>
