@@ -257,7 +257,7 @@ defineExpose({ bodyEl })
         </div>
 
         <!-- PINNED BANNER SLOT (sits between header and scrollable body, full-width sticky) -->
-        <div v-if="$slots['pinned-banner']" class="shrink-0 w-full">
+        <div v-if="$slots['pinned-banner']" class="shrink-0 w-full relative z-10">
             <slot name="pinned-banner"></slot>
         </div>
 

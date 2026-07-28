@@ -207,7 +207,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
+                class="px-3 py-2 rounded shadow-sm text-sm font-semibold transition-opacity tracking-wide uppercase"
+                :class="isPassCall ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-950 bg-[#07F468] hover:opacity-90 disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('accept')"
               >
                 {{ loading ? 'Saving...' : 'ACCEPT' }}
@@ -215,7 +216,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
+                class="px-3 py-2 rounded text-sm font-semibold bg-white border transition-colors tracking-wide uppercase shadow-sm"
+                :class="isPassCall ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'text-[#EE3400] border-[#EE3400] hover:bg-[#fff5f2] disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('decline')"
               >
                 {{ loading ? 'Saving...' : 'DECLINE' }}
@@ -223,10 +225,11 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap disabled:opacity-50"
+                class="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded transition-colors whitespace-nowrap"
+                :class="isPassCall ? 'text-gray-400 cursor-not-allowed' : 'text-[#5549FF] hover:bg-gray-50 disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('adjust')"
               >
-                <img :src="EditIcon" alt="" class="w-4 h-4">
+                <img :src="EditIcon" alt="" class="w-4 h-4" :class="isPassCall ? 'opacity-40 grayscale' : ''">
                 Adjust Request and Price
               </button>
             </div>
@@ -236,7 +239,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
+                class="px-3 py-2 rounded shadow-sm text-sm font-semibold transition-opacity tracking-wide uppercase"
+                :class="isPassCall ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-950 bg-[#07F468] hover:opacity-90 disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('confirm-counter')"
               >
                 {{ loading ? 'Accepting...' : 'ACCEPT NEW Changes' }}
@@ -244,7 +248,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
+                class="px-3 py-2 rounded text-sm font-semibold bg-white border transition-colors tracking-wide uppercase shadow-sm"
+                :class="isPassCall ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'text-[#EE3400] border-[#EE3400] hover:bg-[#fff5f2] disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('cancel-booking')"
               >
                 {{ loading ? 'Cancelling...' : 'CANCEL BOOKING' }}
@@ -256,7 +261,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:opacity-90 transition-opacity disabled:opacity-50 tracking-wide uppercase"
+                class="px-3 py-2 rounded shadow-sm text-sm font-semibold transition-opacity tracking-wide uppercase"
+                :class="isPassCall ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-950 bg-[#07F468] hover:opacity-90 disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('accept-counter')"
               >
                 {{ loading ? 'Accepting...' : 'ACCEPT NEW TIME' }}
@@ -264,7 +270,8 @@
               <button
                 type="button"
                 :disabled="loading || isPassCall"
-                class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors disabled:opacity-50 tracking-wide uppercase shadow-sm"
+                class="px-3 py-2 rounded text-sm font-semibold bg-white border transition-colors tracking-wide uppercase shadow-sm"
+                :class="isPassCall ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'text-[#EE3400] border-[#EE3400] hover:bg-[#fff5f2] disabled:opacity-50'"
                 @click="!(loading || isPassCall) && $emit('reject-counter')"
               >
                 {{ loading ? 'Rejecting...' : 'REJECT' }}
@@ -272,26 +279,32 @@
             </div>
 
             <!-- Creator + counter_offer: waiting -->
-            <div v-else-if="!fetchLoading && (isCreator && currentAction === 'counter_offer') || ( !isCreator && currentAction === 'pending')" class="pt-1">
+            <div v-else-if="!fetchLoading && ((isCreator && currentAction === 'counter_offer') || (!isCreator && currentAction === 'pending'))" class="pt-1">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
-                <img :src="HourglassIcon" class="w-4 h-4" alt="" />
-                Waiting for fan response
+                <img v-if="!isPassCall" :src="HourglassIcon" class="w-4 h-4" alt="" />
+                {{ isPassCall ? 'Request expired' : (isCreator ? 'Waiting for fan response' : 'Waiting for creator response') }}
               </div>
             </div>
 
             <!-- Accepted / declined cancelled_creator(cancelled) badge -->
             <div v-else-if="!fetchLoading && (currentAction === 'accepted' || currentAction === 'cancelled' || currentAction === 'declined' || currentAction.startsWith('cancel'))" class="pt-1">
+              
+              <div v-if="noShowLabelText" class="flex items-center gap-1.5 mb-2 mt-1">
+                <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+                <span class="text-gray-500 font-medium text-[13px]">{{ noShowLabelText }}</span>
+              </div>
+
               <div
                 class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold"
-                :style="currentAction === 'accepted'
+                :style="isPassCall ? 'background:#F3F4F6; color:#9CA3AF' : (currentAction === 'accepted'
                   ? 'background:#ECFDF5; color:#059669'
-                  : 'background:#FEF2F2; color:#DC2626'"
+                  : 'background:#FEF2F2; color:#DC2626')"
               >
                 <svg class="w-4 h-4 shrink-0 mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                   <circle cx="8" cy="8" r="6.5" />
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 8l2 2 4-4" />
                 </svg>
-                {{ currentAction === 'accepted' ? 'Accepted' : currentAction.startsWith('cancel') ? 'Cancelled' : 'Declined' }}
+                {{ currentAction === 'accepted' ? 'Accepted' : (currentAction === 'declined' || currentAction.startsWith('cancel')) ? resolvedCancelledText : '' }}
               </div>
             </div>
             <!-- {{ currentAction }} -->
@@ -610,6 +623,27 @@ const guestLabel = computed(() => {
     }
   }
   return null
+})
+
+const cancelledReason = computed(() => raw.value?.meta?.cancelled?.reason)
+const bookingStatus = computed(() => raw.value?.status || messageContent.value?.action || '')
+
+const noShowLabelText = computed(() => {
+  if (cancelledReason.value === 'creator_no_show_auto_cancel' && !props.isCreator) {
+    return 'Fully refunded'
+  }
+  if (cancelledReason.value === 'fan_no_show_auto_cancel' && props.isCreator) {
+    return 'Fan Forfeited'
+  }
+  return null
+})
+
+const resolvedCancelledText = computed(() => {
+  const statusStr = bookingStatus.value.toLowerCase()
+  if (statusStr.startsWith('cancel') || statusStr.startsWith('reject')) {
+    return 'Cancelled'
+  }
+  return 'Declined'
 })
 
 const guestAvatar = computed(() => {
