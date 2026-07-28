@@ -262,7 +262,7 @@
       default: null,
     },
   });
-  const emit = defineEmits(["preview-schedule"]);
+  const emit = defineEmits(["preview-schedule", "schedule-preview-focus"]);
   const DEFAULT_VUE_CREATOR_ID = 1407;
   const isGroupBooking = computed(() => props.bookingType === "group");
   const scheduleLockTooltip = computed(() => t("booking_schedule_locked_tooltip"));
@@ -927,6 +927,56 @@
     return (hours * 60) + minutes;
   }
 
+  function focusSchedulePreview({
+    day = null,
+    date = "",
+    startTime = "",
+    interaction = "",
+  } = {}) {
+    const weekday = day
+      ? DAY_KEY_TO_INDEX[String(day.key || day.name || "").toLowerCase()]
+      : null;
+
+    emit("schedule-preview-focus", {
+      repeatRule: formData.value.repeatRule,
+      weekday: Number.isFinite(weekday) ? weekday : null,
+      date: isIsoDate(date) ? date : "",
+      startTime,
+      ...(interaction ? { interaction } : {}),
+    });
+  }
+
+  function focusWeeklySlot(dayIndex, slotIndex) {
+    const day = weekDays.value?.[dayIndex];
+    const slot = day?.slots?.[slotIndex];
+    if (!day || !slot) return;
+    focusSchedulePreview({
+      day,
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
+  }
+
+  function focusMonthlySlot(slotIndex) {
+    const slot = monthlySlots.value?.[slotIndex];
+    if (!slot) return;
+    focusSchedulePreview({
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
+  }
+
+  function focusOneTimeSlot(entryIndex, slotIndex) {
+    const dateEntry = oneTimeDates.value?.[entryIndex];
+    const slot = dateEntry?.slots?.[slotIndex];
+    if (!dateEntry || !slot) return;
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
+  }
+
   function getOrderedEndTimesAfter(startTime = "") {
     const startMinutes = timeToMinutes(startTime);
     if (startMinutes === null) return endTimeOptionValues;
@@ -1041,6 +1091,12 @@
     ));
   }
 
+  function hasValidEndTimeForStartRanges(existingRanges = [], startTime = "") {
+    return endTimeOptionValues.some((endTime) => (
+      isValidSlotCandidate(existingRanges, startTime, endTime)
+    ));
+  }
+
   function getValidEndTimesForStartRanges(existingRanges = [], startTime = "") {
     return endTimeOptionValues.filter((endTime) => (
       isValidSlotCandidate(existingRanges, startTime, endTime)
@@ -1137,7 +1193,7 @@
 
   function getRecurringStartOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
     return timeOptions.map((option) => {
-      const disabled = getValidEndTimesForStartRanges(existingRanges, option.value).length === 0;
+      const disabled = !hasValidEndTimeForStartRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -1269,8 +1325,9 @@
 
   function getOneTimeStartOptions(dateEntry = {}, slotIndex = null) {
     const slot = dateEntry?.slots?.[slotIndex] || {};
+    const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
     return timeOptions.map((option) => {
-      const disabled = getValidEndTimesForStart(dateEntry, slotIndex, option.value).length === 0;
+      const disabled = !hasValidEndTimeForStartRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -1392,11 +1449,28 @@
 
   function doesWeeklySlotConflict(dayIndex = -1, candidateSlot = {}, excludeSlotIndex = null) {
     if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
+    const existingWeeklyRanges = getExistingWeeklyRanges(dayIndex, excludeSlotIndex);
+    const existingSameDayRanges = getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex);
+    return doesWeeklySlotConflictWithRanges(
+      dayIndex,
+      candidateSlot,
+      existingWeeklyRanges,
+      existingSameDayRanges,
+    );
+  }
+
+  function doesWeeklySlotConflictWithRanges(
+    dayIndex = -1,
+    candidateSlot = {},
+    existingWeeklyRanges = [],
+    existingSameDayRanges = [],
+  ) {
+    if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
     return weeklyRangeOverlapsExisting(
-      getExistingWeeklyRanges(dayIndex, excludeSlotIndex),
+      existingWeeklyRanges,
       getWeeklySlotRange(dayIndex, candidateSlot),
     ) || oneTimeRangeOverlapsExisting(
-      getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex),
+      existingSameDayRanges,
       getSlotRange(candidateSlot),
     );
   }
@@ -1417,8 +1491,17 @@
 
   function getWeeklyStartOptions(dayIndex = -1, slotIndex = null) {
     const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
+    const existingWeeklyRanges = getExistingWeeklyRanges(dayIndex, slotIndex);
+    const existingSameDayRanges = getExistingWeeklySameDayRanges(dayIndex, slotIndex);
     return timeOptions.map((option) => {
-      const disabled = getValidWeeklyEndTimesForStart(dayIndex, slotIndex, option.value).length === 0;
+      const disabled = !endTimeOptionValues.some((endTime) => (
+        !doesWeeklySlotConflictWithRanges(
+          dayIndex,
+          { startTime: option.value, endTime },
+          existingWeeklyRanges,
+          existingSameDayRanges,
+        )
+      ));
       return {
         ...option,
         disabled,
@@ -1623,6 +1706,7 @@
     day.slots = [nextSlot];
     day.offHours = false;
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
 
   function addWeeklySlot(dayIndex) {
@@ -1640,6 +1724,7 @@
     day.unavailable = false;
     day.slots.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
 
   function removeWeeklySlot(dayIndex, slotIndex) {
@@ -1674,11 +1759,14 @@
     syncAvailabilityToForm();
   }
 
-  function onWeeklySlotChanged(dayIndex, slotIndex, changedField = null) {
+  function onWeeklySlotChanged(dayIndex, slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const day = weekDays.value[dayIndex];
     const slot = day?.slots?.[slotIndex];
     if (!day || !slot || isWeeklyDayLocked(day.key || day.name)) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getSlotRange(slot)) {
       const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
@@ -1712,6 +1800,7 @@
 
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: slot.startTime });
   }
 
   function showScheduleValidationToast(messageKey, fallback) {
@@ -1735,6 +1824,7 @@
     }
     monthlySlots.value.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({ startTime: nextSlot.startTime });
   }
 
   function removeMonthlySlot(slotIndex) {
@@ -1752,10 +1842,13 @@
     syncAvailabilityToForm();
   }
 
-  function onMonthlySlotChanged(slotIndex, changedField = null) {
+  function onMonthlySlotChanged(slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const slot = monthlySlots.value?.[slotIndex];
     if (!slot) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getSlotRange(slot)) {
       const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
@@ -1788,14 +1881,17 @@
     }
 
     syncAvailabilityToForm();
+    focusSchedulePreview({ startTime: slot.startTime });
   }
 
   function addOneTimeDate() {
     if (isScheduleLocked.value) return;
     const nextDate = getNextAvailableOneTimeDate(getTodayIsoDate());
     if (!nextDate) return;
-    oneTimeDates.value.push(createOneTimeDate(nextDate));
+    const dateEntry = createOneTimeDate(nextDate);
+    oneTimeDates.value.push(dateEntry);
     syncAvailabilityToForm();
+    focusSchedulePreview({ date: dateEntry.date });
   }
 
   function removeOneTimeDate(dateIndex) {
@@ -1819,6 +1915,10 @@
     }
     dateEntry.slots.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: nextSlot.startTime,
+    });
   }
 
   function onOneTimeDateChanged(entryIndex) {
@@ -1837,13 +1937,20 @@
     }
 
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: dateEntry.slots?.[0]?.startTime || formData.value.selectedStartTime,
+    });
   }
 
-  function onOneTimeSlotChanged(entryIndex, slotIndex, changedField = null) {
+  function onOneTimeSlotChanged(entryIndex, slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const dateEntry = oneTimeDates.value[entryIndex];
     const slot = dateEntry?.slots?.[slotIndex];
     if (!dateEntry || !slot) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getOneTimeSlotRange(slot)) {
       const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
@@ -1876,6 +1983,10 @@
     }
 
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: slot.startTime,
+    });
   }
 
   function toggleOneTimeSlotOffHours(entryIndex, slotIndex) {
@@ -2751,7 +2862,8 @@
                           :searchable="true"
                           :searchPlaceholder="timeSearchPlaceholder"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
-                          @update:modelValue="onWeeklySlotChanged(index, sIdx, 'start')"
+                          @focus="focusWeeklySlot(index, sIdx)"
+                          @update:modelValue="onWeeklySlotChanged(index, sIdx, 'start', $event)"
                           buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                           dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                         />
@@ -2770,7 +2882,8 @@
                         :searchable="true"
                         :searchPlaceholder="timeSearchPlaceholder"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        @update:modelValue="onWeeklySlotChanged(index, sIdx, 'end')"
+                        @focus="focusWeeklySlot(index, sIdx)"
+                        @update:modelValue="onWeeklySlotChanged(index, sIdx, 'end', $event)"
                         buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                         dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                       />
@@ -2853,7 +2966,8 @@
                     :option-factory="() => getMonthlyStartOptions(slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onMonthlySlotChanged(slotIndex, 'start')"
+                    @focus="focusMonthlySlot(slotIndex)"
+                    @update:modelValue="onMonthlySlotChanged(slotIndex, 'start', $event)"
                     buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                   />
@@ -2871,7 +2985,8 @@
                   :option-factory="() => getMonthlyEndOptions(slotIndex)"
                   :searchable="true"
                   :searchPlaceholder="timeSearchPlaceholder"
-                  @update:modelValue="onMonthlySlotChanged(slotIndex, 'end')"
+                  @focus="focusMonthlySlot(slotIndex)"
+                  @update:modelValue="onMonthlySlotChanged(slotIndex, 'end', $event)"
                   buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                   dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                 />
@@ -2989,7 +3104,8 @@
                     :option-factory="() => getOneTimeStartOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'start')"
+                    @focus="focusOneTimeSlot(entryIndex, slotIndex)"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'start', $event)"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />
@@ -3000,7 +3116,8 @@
                     :option-factory="() => getOneTimeEndOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'end')"
+                    @focus="focusOneTimeSlot(entryIndex, slotIndex)"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'end', $event)"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />

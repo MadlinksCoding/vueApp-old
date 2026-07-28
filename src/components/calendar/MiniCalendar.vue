@@ -70,7 +70,7 @@ export default {
   },
   props: {
     monthDate: { type: Date, required: true },
-    selectedDate: { type: Date, required: true },
+    selectedDate: { type: Date, default: null },
     events: { type: Array, default: () => [] },
     hidePastDots: { type: Boolean, default: false },
     theme: { type: Object, default: () => ({}) },
