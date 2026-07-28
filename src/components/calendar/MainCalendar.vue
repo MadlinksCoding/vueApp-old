@@ -74,7 +74,7 @@
                         </span>
                       </div>
 
-                      <MiniCalendar class="w-full" :month-date="cursor" :selected-date="focusDate" :events="events" :theme="{
+                      <MiniCalendar class="w-full" :month-date="cursor" :selected-date="selectedDay" :events="events" :theme="{
                         ...theme,
                         mini: {
                           wrapper: 'flex flex-col w-full font-medium text-[#0C111D] mt-[0.625rem] gap-[0.625rem] rounded-xl',
@@ -434,6 +434,8 @@
           v-if="isDayEventColumnMode"
           class="flex min-w-0 w-full items-center h-[5.125rem] pl-2"
           :class="isMobileDayEventColumnMode ? 'gap-0' : 'gap-4'"
+          :data-date="activeDayIso"
+          :data-selected="sameDay(activeDay, selectedDay) ? 'true' : 'false'"
           data-test="calendar-day-event-header"
         >
           <div
@@ -581,9 +583,10 @@
             :class="[
               theme.main.axisXDay,
               (sd(d).getDay() === 0 && variant === 'default') ? 'text-[#FF6A6A]' : '',
-              sameDay(d, cursor) ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'
+              sameDay(d, selectedDay) ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'
             ]" 
             :data-date="d.toISOString().slice(0, 10)"
+            :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'"
             @click="emitDate(d)">
 
             <div v-if="variant === 'theme2'"
@@ -601,7 +604,7 @@
             <div class="text-[1rem] w-[2rem] text-center font-semibold leading-[2rem]"
               :class="[
                 (highlightTodayColumn && sameDay(d, today)) ? theme.main.axisXToday : '',
-                sameDay(d, cursor) && !sameDay(d, today) ? 'bg-pink-500/20 rounded-full' : ''
+                sameDay(d, selectedDay) && !sameDay(d, today) ? 'bg-pink-500/20 rounded-full' : ''
               ]">
               {{ d.getDate() }}
             </div>
@@ -651,12 +654,12 @@
             <div
               v-for="column in dayEventColumns"
               :key="'event-col-' + column.eventId"
-              :data-date="selectedDayIso"
+              :data-date="activeDayIso"
               :data-event-id="column.isEmpty ? undefined : column.eventId"
               :data-empty-column="column.isEmpty ? 'true' : 'false'"
-              :data-expired="sd(selectedDay) < today ? 'true' : 'false'"
+              :data-expired="sd(activeDay) < today ? 'true' : 'false'"
               :class="[theme.main.colBase, 'min-w-0']"
-              @click.self="emitDate(selectedDay)"
+              @click.self="emitDate(activeDay)"
             >
 
               <div class="absolute z-[0] inset-0 pointer-events-none">
@@ -666,15 +669,15 @@
               <div class="relative z-[0]" data-cal-scroll
                 :style="{ height: gridMetrics.totalHeight + 'px' }">
                 <template v-for="ev in eventsForEventColumn(column)" :key="ev.id||ev.title+ev.start">
-                  <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="selectedDay" :view="effectiveView"
-                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
-                  <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="selectedDay" :view="effectiveView"
-                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
-                  <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="selectedDay" :view="effectiveView"
-                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
-                  <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="selectedDay" :view="effectiveView"
-                    :style="styleBlock(ev, selectedDay)" :onClick="dispatchEventClick"></slot>
-                  <slot v-else name="event" :event="ev" :day="selectedDay" :view="effectiveView" :style="styleBlock(ev, selectedDay)"
+                  <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="activeDay" :view="effectiveView"
+                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="activeDay" :view="effectiveView"
+                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="activeDay" :view="effectiveView"
+                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="activeDay" :view="effectiveView"
+                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                  <slot v-else name="event" :event="ev" :day="activeDay" :view="effectiveView" :style="styleBlock(ev, activeDay)"
                     :onClick="dispatchEventClick"></slot>
                 </template>
               </div>
@@ -786,11 +789,12 @@
         <div v-for="(row, rowIndex) in monthRows" :key="'row-' + rowIndex" class="contents">
 
           <div class="grid min-h-0 grid-cols-7 flex-1 overflow-hidden" data-test="calendar-month-week-row">
-            <button v-for="(d, i) in row" :key="'m-' + i" :ref="(element) => setMonthCellRef(formatLocalDateKey(d), element)" type="button" :data-date="d.toISOString().slice(0, 10)" @click="handleMonthDateClick(d)" :class="[
+            <button v-for="(d, i) in row" :key="'m-' + i" :ref="(element) => setMonthCellRef(formatLocalDateKey(d), element)" type="button" :data-date="d.toISOString().slice(0, 10)" :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'" @click="handleMonthDateClick(d)" :class="[
               theme.month.cellBase,
               'min-h-0 overflow-hidden',
               d.getMonth() !== cursor.getMonth() ? theme.month.outside : '',
               (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '',
+              sameDay(d, selectedDay) ? theme.month.selected : '',
               d.getDay() === 0 ? 'text-red-400' : '',
               expandedDate && sameDay(d, expandedDate) ? 'bg-slate-50' : ''
             ]">
@@ -1170,6 +1174,7 @@ import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
 const props = defineProps({
   variant: { type: String, default: 'default' },
   focusDate: { type: Date, required: true },
+  selectedDate: { type: Date, default: undefined },
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   eventsData: { type: Array, default: () => [] },
@@ -1232,7 +1237,7 @@ const dropdownFilters = ref({
   audio: true,
   groupCall: true,
   showSchedule: true,
-  showCompleted: false,
+  showCompleted: true,
   showAnalytics: false,
 });
 const calendarPopupOpen = ref(false);
@@ -1501,9 +1506,19 @@ function formatLocalDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-const selectedDay = computed(() => new Date(cursor.value));
-const selectedDayIso = computed(() => formatLocalDateKey(selectedDay.value));
-const dayModeTitle = computed(() => selectedDay.value.toLocaleDateString(locale.value, {
+const activeDay = computed(() => new Date(cursor.value));
+const activeDayIso = computed(() => formatLocalDateKey(activeDay.value));
+const selectedDay = computed(() => {
+  if (props.selectedDate === undefined) return new Date(cursor.value);
+  if (!props.selectedDate) return null;
+
+  const date = new Date(props.selectedDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+const selectedDayIso = computed(() => (
+  selectedDay.value ? formatLocalDateKey(selectedDay.value) : ''
+));
+const dayModeTitle = computed(() => activeDay.value.toLocaleDateString(locale.value, {
   month: 'long',
   day: 'numeric',
   year: 'numeric',
@@ -1539,7 +1554,7 @@ const selectedWeekContainsToday = computed(() => (
 const mobileDayStripDays = computed(() => {
   if (!isMobileDayEventColumnMode.value) return [];
 
-  const s = startOfWeek(selectedDay.value);
+  const s = startOfWeek(activeDay.value);
   return Array.from({ length: 7 }, (_, i) => addDays(s, i));
 });
 
@@ -1819,7 +1834,7 @@ function buildEventColumnsForDay(day) {
 
 const eventColumnDays = computed(() => {
   if (!isEventColumnMode.value) return [];
-  return isWeekEventColumnMode.value ? weekDays.value : [selectedDay.value];
+  return isWeekEventColumnMode.value ? weekDays.value : [activeDay.value];
 });
 
 const eventColumnsByDay = computed(() => {
@@ -1837,7 +1852,7 @@ const eventColumnsForDay = (day) => (
 
 const dayEventColumns = computed(() => {
   if (!isDayEventColumnMode.value) return [];
-  return eventColumnsForDay(selectedDay.value);
+  return eventColumnsForDay(activeDay.value);
 });
 
 const weekEventDayGroups = computed(() => {
@@ -1948,7 +1963,7 @@ watch(() => props.focusDate, (v) => {
   }
   cursor.value = new Date(v);
 });
-watch([isMobileDayEventColumnMode, selectedDayIso], () => {
+watch([isMobileDayEventColumnMode, activeDayIso, selectedDayIso], () => {
   centerMobileDayStrip();
 }, { flush: 'post' });
 function formatTime(time) {
@@ -2021,7 +2036,7 @@ const sd = (d) => SOD(d);
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const shouldShowCurrentTimeForView = () => {
   const todayStart = SOD(new Date());
-  if (isDayEventColumnMode.value) return sameDay(selectedDay.value, todayStart);
+  if (isDayEventColumnMode.value) return sameDay(activeDay.value, todayStart);
   if (isWeekEventColumnMode.value) return selectedWeekContainsToday.value;
   return sameDay(cursor.value, todayStart);
 };
@@ -2771,7 +2786,7 @@ const eventsForBodyDay = (day) => {
   return eventsForDay(day);
 };
 
-const eventsForEventColumn = (column, day = selectedDay.value) => {
+const eventsForEventColumn = (column, day = activeDay.value) => {
   if (!column || column.isEmpty) return [];
 
   return eventsForDay(day).filter((event) => (
@@ -2869,8 +2884,7 @@ const shift = (n) => {
     // day view
     cursor.value = addDays(cursor.value, n);
   }
-  // NEW: Emit the updated date so Mini Calendar can sync
-  emit('date-selected', new Date(cursor.value));
+  emit('update:focus-date', new Date(cursor.value));
 };
 
 const goToday = () => {
@@ -3000,30 +3014,86 @@ const resetScrollToTop = () => {
   calendarRootRef.value?.querySelectorAll?.('[data-cal-scroll]').forEach(resetElementScroll);
 };
 
-const scrollToCurrentTime = async ({ behavior = 'smooth' } = {}) => {
-  await nextTick();
+const findVerticalScrollOwner = (element) => {
+  let candidate = element;
+  while (candidate) {
+    const overflowY = typeof window !== 'undefined'
+      ? window.getComputedStyle(candidate).overflowY
+      : '';
+    const allowsVerticalScroll = ['auto', 'scroll', 'overlay'].includes(overflowY);
+    if (allowsVerticalScroll && candidate.scrollHeight - candidate.clientHeight > 1) {
+      return candidate;
+    }
+    candidate = candidate.parentElement;
+  }
+  return element;
+};
 
-  const element = timeGridScrollRef.value;
-  if (!element || !showNowLine.value) return false;
+const scrollGridOffsetIntoView = (gridOffset, {
+  behavior = 'smooth',
+  viewportOffset = 0.4,
+} = {}) => {
+  const timeGrid = timeGridScrollRef.value;
+  if (!timeGrid || !Number.isFinite(gridOffset)) return false;
 
-  const viewportHeight = element.clientHeight || 0;
-  const maxScrollTop = Math.max(0, element.scrollHeight - viewportHeight);
+  const scrollOwner = findVerticalScrollOwner(timeGrid);
+  if (!scrollOwner) return false;
+
+  const viewportHeight = scrollOwner.clientHeight || 0;
+  const maxScrollTop = Math.max(0, scrollOwner.scrollHeight - viewportHeight);
+  const safeViewportOffset = Math.max(0, Math.min(1, Number(viewportOffset) || 0));
+  let gridTopInScrollContent = 0;
+
+  if (scrollOwner !== timeGrid) {
+    const ownerRect = scrollOwner.getBoundingClientRect();
+    const gridRect = timeGrid.getBoundingClientRect();
+    gridTopInScrollContent = gridRect.top - ownerRect.top + scrollOwner.scrollTop;
+  }
+
   const targetTop = Math.max(
     0,
-    Math.min(maxScrollTop, nowLineTopPx.value - viewportHeight * 0.4),
+    Math.min(
+      maxScrollTop,
+      gridTopInScrollContent + gridOffset - viewportHeight * safeViewportOffset,
+    ),
   );
 
-  if (typeof element.scrollTo === 'function') {
-    element.scrollTo({
+  if (typeof scrollOwner.scrollTo === 'function') {
+    scrollOwner.scrollTo({
       top: targetTop,
-      left: element.scrollLeft || 0,
+      left: scrollOwner.scrollLeft || 0,
       behavior,
     });
   } else {
-    element.scrollTop = targetTop;
+    scrollOwner.scrollTop = targetTop;
   }
 
   return true;
+};
+
+const scrollToCurrentTime = async ({ behavior = 'smooth' } = {}) => {
+  await nextTick();
+
+  if (!timeGridScrollRef.value || !showNowLine.value) return false;
+  return scrollGridOffsetIntoView(nowLineTopPx.value, { behavior });
+};
+
+const scrollToTime = async (time, { behavior = 'smooth', viewportOffset = 0.4 } = {}) => {
+  await nextTick();
+
+  const element = timeGridScrollRef.value;
+  const normalizedTime = String(time || '').trim();
+  if (!/^\d{1,2}:\d{2}$/.test(normalizedTime)) return false;
+
+  const minute = timeToMinutes(normalizedTime);
+  if (!element || !Number.isFinite(minute)) return false;
+
+  const { sMin, eMin } = range.value;
+  const clampedMinute = Math.max(sMin, Math.min(eMin, minute));
+  return scrollGridOffsetIntoView(minuteToGridOffset(clampedMinute), {
+    behavior,
+    viewportOffset,
+  });
 };
 
 defineExpose({
@@ -3031,6 +3101,7 @@ defineExpose({
   closeEventDetails,
   resetScrollToTop,
   scrollToCurrentTime,
+  scrollToTime,
   revealSelectedWeekDay,
   recalculateMonthAvailabilityLayout,
 });

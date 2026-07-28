@@ -320,7 +320,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
-import { getBookingJoinState } from '@/utils/bookingJoinUtils.js'
+import { getBookingJoinState, openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
 import { showToast }           from '@/utils/toastBus.js'
 import MessageTextIconBlue from '@/assets/images/icons/messageblue.webp'
 import ArrowRightIcon     from '@/assets/images/icons/arrow-up-right.webp'
@@ -534,6 +534,7 @@ function handleJoin() {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
+  if (openScheduledMeetingOverlay(joinState.value.joinUrl, { source: 'chat_booking_detail' })) return
   window.open(joinState.value.joinUrl, '_top')
 }
 

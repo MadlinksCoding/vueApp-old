@@ -185,6 +185,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils.js'
+import { openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
 
 const props = defineProps({
   message:   { type: Object,  required: true },
@@ -209,7 +210,8 @@ const hasAcceptedPrevNotification = computed(() => props.message?.prev_notificat
 const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
 // ── Join ──────────────────────────────────────────────────────────────────────
 function handleJoin() {
-  if (!sessionLink.value || isExpired.value || !isJoinable.value) return
+  if (!sessionLink.value || isExpired.value) return
+  if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
   window.open(sessionLink.value, '_top')
 }
 

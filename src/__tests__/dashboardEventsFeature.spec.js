@@ -68,8 +68,8 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode"],
-    emits: ["create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode"],
+    emits: ["date-selected", "update:focus-date", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
@@ -569,6 +569,35 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledTimes(1);
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledWith({ behavior: "smooth" });
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
+  });
+
+  it("updates the visible range without changing the dashboard selection", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialSelectedDate = mainCalendar.props("selectedDate");
+    const callsAfterMount = callFlow.mock.calls.length;
+    const nextWeekFocus = new Date(2026, 2, 30, 9, 0, 0);
+
+    mainCalendar.vm.$emit("update:focus-date", nextWeekFocus);
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(mainCalendar.props("focusDate").toDateString()).toBe(nextWeekFocus.toDateString());
+    expect(mainCalendar.props("selectedDate").toDateString()).toBe(initialSelectedDate.toDateString());
+    expect(callFlow).toHaveBeenCalledTimes(callsAfterMount + 1);
+
+    const manuallySelectedDate = new Date(2026, 3, 2, 9, 0, 0);
+    mainCalendar.vm.$emit("date-selected", manuallySelectedDate);
+    mainCalendar.vm.$emit("update:focus-date", manuallySelectedDate);
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(mainCalendar.props("focusDate").toDateString()).toBe(manuallySelectedDate.toDateString());
+    expect(mainCalendar.props("selectedDate").toDateString()).toBe(manuallySelectedDate.toDateString());
+    expect(callFlow).toHaveBeenCalledTimes(callsAfterMount + 2);
   });
 
   it("resets embedded mobile dashboard and calendar scroll through the exposed method", async () => {

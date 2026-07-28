@@ -35,10 +35,10 @@ vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
           group off
         </button>
         <button
-          data-test="show-completed"
-          @click="$emit('update:modelValue', { ...modelValue, showCompleted: true })"
+          data-test="hide-completed"
+          @click="$emit('update:modelValue', { ...modelValue, showCompleted: false })"
         >
-          completed
+          hide completed
         </button>
         <button
           data-test="show-schedule-off"
@@ -537,6 +537,73 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("smoothly scrolls an edited schedule start time into the time-grid viewport", async () => {
+    const wrapper = await mountCalendar([], {
+      focusDate: new Date(2026, 3, 23),
+      initialView: "week",
+      dayColumnMode: "events",
+      rowHeightPx: 120,
+    });
+    const timeScroller = wrapper.get("[data-cal-time-scroll]").element;
+    Object.defineProperty(timeScroller, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(timeScroller, "scrollHeight", { configurable: true, value: 2880 });
+    Object.defineProperty(timeScroller, "scrollLeft", { configurable: true, value: 0, writable: true });
+    timeScroller.scrollTo = vi.fn();
+
+    await expect(wrapper.vm.scrollToTime("13:25", {
+      behavior: "smooth",
+      viewportOffset: 0.25,
+    })).resolves.toBe(true);
+
+    expect(timeScroller.scrollTo).toHaveBeenCalledWith({
+      top: 1510,
+      left: 0,
+      behavior: "smooth",
+    });
+  });
+
+  it("scrolls the nearest ancestor when the time grid itself fills its content", async () => {
+    const scrollHost = document.createElement("div");
+    scrollHost.style.overflowY = "auto";
+    document.body.appendChild(scrollHost);
+
+    const wrapper = await mountCalendar(
+      [],
+      {
+        focusDate: new Date(2026, 3, 23),
+        initialView: "week",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+      },
+      { attachTo: scrollHost },
+    );
+    const timeScroller = wrapper.get("[data-cal-time-scroll]").element;
+    Object.defineProperty(timeScroller, "clientHeight", { configurable: true, value: 2880 });
+    Object.defineProperty(timeScroller, "scrollHeight", { configurable: true, value: 2880 });
+    timeScroller.getBoundingClientRect = vi.fn(() => ({ top: 283 }));
+
+    Object.defineProperty(scrollHost, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(scrollHost, "scrollHeight", { configurable: true, value: 3500 });
+    Object.defineProperty(scrollHost, "scrollTop", { configurable: true, value: 0, writable: true });
+    Object.defineProperty(scrollHost, "scrollLeft", { configurable: true, value: 0, writable: true });
+    scrollHost.getBoundingClientRect = vi.fn(() => ({ top: 0 }));
+    scrollHost.scrollTo = vi.fn();
+
+    await expect(wrapper.vm.scrollToTime("13:25", {
+      behavior: "smooth",
+      viewportOffset: 0.25,
+    })).resolves.toBe(true);
+
+    expect(scrollHost.scrollTo).toHaveBeenCalledWith({
+      top: 1793,
+      left: 0,
+      behavior: "smooth",
+    });
+
+    wrapper.unmount();
+    scrollHost.remove();
+  });
+
   it("counts one video event once across multiple availability entries and bookings", async () => {
     const wrapper = await mountCalendar([
       makeEvent({ eventId: "video_1", start: "2026-04-23T10:00:00Z", end: "2026-04-23T11:00:00Z" }),
@@ -572,7 +639,7 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
   });
 
-  it("hides completed and ended bookings until the completed filter is enabled", async () => {
+  it("shows completed and ended bookings by default and allows hiding them", async () => {
     const wrapper = await mountCalendar([
       makeEvent({
         id: "completed_status",
@@ -607,12 +674,12 @@ describe("MainCalendar all events count", () => {
       }),
     ]);
 
-    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("4");
 
     await openFilters(wrapper);
-    await wrapper.get("[data-test='show-completed']").trigger("click");
+    await wrapper.get("[data-test='hide-completed']").trigger("click");
 
-    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("4");
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
   });
 
   it("updates ended-booking visibility on the existing minute timer", async () => {
@@ -628,6 +695,9 @@ describe("MainCalendar all events count", () => {
     ]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+
+    await openFilters(wrapper);
+    await wrapper.get("[data-test='hide-completed']").trigger("click");
 
     await vi.advanceTimersByTimeAsync(60000);
     await wrapper.vm.$nextTick();
@@ -1016,6 +1086,113 @@ describe("MainCalendar all events count", () => {
 
     expect(selectedGroup.attributes("data-date")).toBe(localDateKey(targetDate));
     expect(targetColumn.attributes("data-event-id")).toBe("evt_target");
+  });
+
+  it("moves between weeks without selecting the same weekday in the destination week", async () => {
+    const wrapper = await mountCalendar(
+      [],
+      {
+        focusDate: new Date(2026, 3, 23),
+        selectedDate: new Date(2026, 3, 23),
+        initialView: "week",
+        dayColumnMode: "events",
+      },
+    );
+
+    await wrapper.get("[data-main-next]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted("date-selected")).toBeUndefined();
+    expect(localDateKey(wrapper.emitted("update:focus-date")?.at(-1)?.[0])).toBe("2026-04-30");
+    expect(wrapper.find("[data-test='calendar-week-event-day-group'][data-selected='true']").exists()).toBe(false);
+
+    await wrapper.get("[data-main-prev]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get("[data-test='calendar-week-event-day-group'][data-selected='true']").attributes("data-date")).toBe("2026-04-23");
+  });
+
+  it("keeps an explicitly selected date while it is outside the visible week", async () => {
+    const selectedDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "week",
+        dayColumnMode: "events",
+      },
+    );
+
+    expect(wrapper.get("[data-test='calendar-week-event-day-group'][data-selected='true']").attributes("data-date")).toBe("2026-04-24");
+
+    await wrapper.get("[data-main-next]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("[data-test='calendar-week-event-day-group'][data-selected='true']").exists()).toBe(false);
+
+    await wrapper.get("[data-main-prev]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get("[data-test='calendar-week-event-day-group'][data-selected='true']").attributes("data-date")).toBe("2026-04-24");
+  });
+
+  it("moves Day view data without moving its retained selection", async () => {
+    const todayDate = new Date(2026, 3, 23);
+    const nextDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          eventId: "evt_next_day",
+          start: new Date(2026, 3, 24, 10, 0, 0),
+          end: new Date(2026, 3, 24, 11, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      {
+        focusDate: todayDate,
+        selectedDate: todayDate,
+        initialView: "day",
+        dayColumnMode: "events",
+      },
+    );
+
+    await wrapper.get("[data-main-next]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const dayHeader = wrapper.get("[data-test='calendar-day-event-header']");
+    const bodyColumn = wrapper.get(`[data-cal-time-grid] div[data-date='${localDateKey(nextDate)}'][data-event-id='evt_next_day']`);
+
+    expect(dayHeader.attributes("data-date")).toBe(localDateKey(nextDate));
+    expect(dayHeader.attributes("data-selected")).toBe("false");
+    expect(bodyColumn.exists()).toBe(true);
+    expect(wrapper.emitted("date-selected")).toBeUndefined();
+    expect(localDateKey(wrapper.emitted("update:focus-date")?.at(-1)?.[0])).toBe(localDateKey(nextDate));
+  });
+
+  it("moves between months without selecting the same day number", async () => {
+    const selectedDate = new Date(2026, 3, 23);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "month",
+      },
+    );
+
+    await wrapper.get("[data-main-next]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted("date-selected")).toBeUndefined();
+    expect(localDateKey(wrapper.emitted("update:focus-date")?.at(-1)?.[0])).toBe("2026-05-23");
+    expect(wrapper.find("[data-test='calendar-month-view'] [data-selected='true']").exists()).toBe(false);
+
+    await wrapper.get("[data-main-prev]").trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get("[data-test='calendar-month-view'] [data-selected='true']").attributes("data-date")).toBe(calendarDateAttr(selectedDate));
   });
 
   it("scrolls the week date header horizontally with wheel gestures", async () => {

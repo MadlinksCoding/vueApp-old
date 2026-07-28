@@ -85,7 +85,7 @@ function mountOptions(translations = {}) {
       CustomDropdown: {
         name: "CustomDropdown",
         props: ["modelValue", "options", "placeholder", "multiple", "hasCheckboxes", "searchable", "searchPlaceholder", "disabled", "optionFactory"],
-        emits: ["update:modelValue"],
+        emits: ["update:modelValue", "focus"],
         template: "<div :data-disabled='disabled ? \"true\" : \"false\"'><span v-for='option in options' :key='option.value'>{{ option.label }}</span></div>",
       },
       InputComponentDashbaord: {
@@ -954,6 +954,229 @@ describe("one-on-one booking step translations", () => {
 
     expect(slot.startTime).toBe("16:00");
     expect(slot.endTime).toBe("16:05");
+  });
+
+  it("requests calendar focus for edited weekly, monthly, and one-time slots", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "weekly",
+          weeklyAvailability: [{
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            slots: [{ startTime: "13:25", endTime: "14:25" }],
+          }],
+          monthlyAvailability: [{ startTime: "09:15", endTime: "10:15" }],
+          oneTimeAvailability: [{
+            id: "date_focus",
+            date: "2026-08-12",
+            slots: [{ startTime: "18:30", endTime: "19:30" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.onWeeklySlotChanged(0, 0, "start", "13:30");
+    unrefPublic(wrapper.vm.formData).repeatRule = "monthly";
+    wrapper.vm.onMonthlySlotChanged(0, "start", "09:20");
+    unrefPublic(wrapper.vm.formData).repeatRule = "doesNotRepeat";
+    wrapper.vm.onOneTimeSlotChanged(0, 0, "start", "18:35");
+    await nextTick();
+
+    expect(wrapper.emitted("schedule-preview-focus")).toEqual([
+      [{
+        repeatRule: "weekly",
+        weekday: 0,
+        date: "",
+        startTime: "13:30",
+      }],
+      [{
+        repeatRule: "monthly",
+        weekday: null,
+        date: "",
+        startTime: "09:20",
+      }],
+      [{
+        repeatRule: "doesNotRepeat",
+        weekday: null,
+        date: "2026-08-12",
+        startTime: "18:35",
+      }],
+    ]);
+  });
+
+  it("requests calendar focus when either schedule time dropdown is opened", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "weekly",
+          weeklyAvailability: [{
+            key: "sun",
+            name: "Sun",
+            unavailable: false,
+            slots: [{ startTime: "13:25", endTime: "14:25" }],
+          }],
+          monthlyAvailability: [{ startTime: "09:15", endTime: "10:15" }],
+          oneTimeAvailability: [{
+            id: "date_focus",
+            date: "2026-08-12",
+            slots: [{ startTime: "18:30", endTime: "19:30" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    const openTimeDropdown = async (modelValue) => {
+      const dropdown = wrapper
+        .findAllComponents({ name: "CustomDropdown" })
+        .find((candidate) => candidate.props("modelValue") === modelValue);
+      expect(dropdown).toBeTruthy();
+      dropdown.vm.$emit("focus");
+      await nextTick();
+    };
+
+    await openTimeDropdown("13:25");
+    await openTimeDropdown("14:25");
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "monthly";
+    await nextTick();
+    await openTimeDropdown("09:15");
+    await openTimeDropdown("10:15");
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "doesNotRepeat";
+    await nextTick();
+    await openTimeDropdown("18:30");
+    await openTimeDropdown("19:30");
+
+    expect(wrapper.emitted("schedule-preview-focus")).toEqual([
+      [{
+        repeatRule: "weekly",
+        weekday: 0,
+        date: "",
+        startTime: "13:25",
+        interaction: "field-focus",
+      }],
+      [{
+        repeatRule: "weekly",
+        weekday: 0,
+        date: "",
+        startTime: "13:25",
+        interaction: "field-focus",
+      }],
+      [{
+        repeatRule: "monthly",
+        weekday: null,
+        date: "",
+        startTime: "09:15",
+        interaction: "field-focus",
+      }],
+      [{
+        repeatRule: "monthly",
+        weekday: null,
+        date: "",
+        startTime: "09:15",
+        interaction: "field-focus",
+      }],
+      [{
+        repeatRule: "doesNotRepeat",
+        weekday: null,
+        date: "2026-08-12",
+        startTime: "18:30",
+        interaction: "field-focus",
+      }],
+      [{
+        repeatRule: "doesNotRepeat",
+        weekday: null,
+        date: "2026-08-12",
+        startTime: "18:30",
+        interaction: "field-focus",
+      }],
+    ]);
+  });
+
+  it("requests calendar focus as soon as a new schedule slot or date is added", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "weekly",
+          weeklyAvailability: [{
+            key: "sun",
+            name: "Sun",
+            unavailable: true,
+            slots: [],
+          }],
+          monthlyAvailability: [{ startTime: "09:15", endTime: "10:15" }],
+          oneTimeAvailability: [{
+            id: "date_focus",
+            date: "2026-08-12",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    const latestFocusRequest = () => wrapper.emitted("schedule-preview-focus")?.at(-1)?.[0];
+
+    wrapper.vm.addDayAvailability(0);
+    expect(latestFocusRequest()).toEqual({
+      repeatRule: "weekly",
+      weekday: 0,
+      date: "",
+      startTime: unrefPublic(wrapper.vm.weekDays)[0].slots[0].startTime,
+    });
+
+    wrapper.vm.addWeeklySlot(0);
+    expect(latestFocusRequest()).toEqual({
+      repeatRule: "weekly",
+      weekday: 0,
+      date: "",
+      startTime: unrefPublic(wrapper.vm.weekDays)[0].slots.at(-1).startTime,
+    });
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "monthly";
+    wrapper.vm.addMonthlySlot();
+    expect(latestFocusRequest()).toEqual({
+      repeatRule: "monthly",
+      weekday: null,
+      date: "",
+      startTime: unrefPublic(wrapper.vm.monthlySlots).at(-1).startTime,
+    });
+
+    unrefPublic(wrapper.vm.formData).repeatRule = "doesNotRepeat";
+    wrapper.vm.addOneTimeSlot(0);
+    expect(latestFocusRequest()).toEqual({
+      repeatRule: "doesNotRepeat",
+      weekday: null,
+      date: "2026-08-12",
+      startTime: unrefPublic(wrapper.vm.oneTimeDates)[0].slots.at(-1).startTime,
+    });
+
+    wrapper.vm.addOneTimeDate();
+    const addedDate = unrefPublic(wrapper.vm.oneTimeDates).at(-1).date;
+    expect(latestFocusRequest()).toEqual({
+      repeatRule: "doesNotRepeat",
+      weekday: null,
+      date: addedDate,
+      startTime: "",
+    });
   });
 
   it("does not cap the start date with a stale past end date", async () => {
