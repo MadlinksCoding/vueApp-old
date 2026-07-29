@@ -30,7 +30,7 @@
           <span class="text-sm font-semibold text-[#0C111D] uppercase">
             {{ tab.label }}
           </span>
-          <span
+          <span v-if="tab.count > 0"
             class="absolute right-[-12px] top-[-12px] text-[#667085] inline-flex items-center justify-center min-w-[1.125rem] px-1 rounded-full text-[0.625rem] font-bold"
           >
             {{ tab.count }}
@@ -46,7 +46,18 @@
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto min-h-0 p-3">
+      <BookingScheduleList
+        v-if="activeTab === 'schedule'"
+        class="px-2 pb-2"
+        :events="bookingScheduleEvents"
+        :booked-slots-index="bookingScheduleBookedSlotsIndex"
+        @edit="$emit('edit-schedule-event', $event)"
+        @delete="$emit('delete-schedule-event', $event)"
+        @view-card="$emit('view-schedule-card', $event)"
+      />
+
       <EventsWidget
+        v-else
         :sections="activeSections"
         :user-role="userRole"
         @join-click="$emit('join-click', $event)"
@@ -62,6 +73,7 @@
 import { ref, computed } from 'vue';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import EventsWidget from './EventsWidget.vue';
+import BookingScheduleList from './BookingScheduleList.vue';
 
 const { t } = useBookingTranslations();
 
@@ -74,11 +86,19 @@ const props = defineProps({
     type: String,
     default: 'creator',
   },
+  bookingScheduleEvents: {
+    type: Array,
+    default: () => [],
+  },
+  bookingScheduleBookedSlotsIndex: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
-defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action']);
+defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 
-const activeTab = ref('confirmed');
+const activeTab = ref('schedule');
 
 // Split eventsData into confirmed vs pending based on section title
 const confirmedSections = computed(() =>
@@ -102,6 +122,7 @@ const pendingCount = computed(() =>
 );
 
 const tabs = computed(() => [
+  { key: 'schedule',  label: 'Schedule',  count: props.bookingScheduleEvents?.length || 0 },
   { key: 'confirmed', label: 'Confirmed', count: confirmedCount.value },
   { key: 'pending',   label: 'Pending',   count: pendingCount.value },
 ]);

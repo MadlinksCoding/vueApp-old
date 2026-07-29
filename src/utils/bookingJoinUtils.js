@@ -77,6 +77,62 @@ export function buildScheduledGroupMeetingUrl({ eventId, startIso } = {}, baseUr
   return `${normalizedBaseUrl}/scheduled-meeting/?${params.toString()}`;
 }
 
+export function openScheduledMeetingOverlay(
+  value,
+  {
+    source = 'frontend',
+    browserWindow = typeof window !== 'undefined' ? window : null,
+  } = {},
+) {
+  if (!browserWindow || typeof value !== 'string' || !value.trim()) return false;
+
+  let url;
+  try {
+    url = new URL(value, browserWindow.location?.href);
+  } catch (_error) {
+    return false;
+  }
+
+  const pathname = String(url.pathname || '').replace(/\/+$/, '') || '/';
+  const bookingId = String(url.searchParams.get('booking_id') || '').trim();
+  const eventId = String(url.searchParams.get('event_id') || '').trim();
+  const startIso = String(url.searchParams.get('start_iso') || '').trim();
+  if (
+    url.origin !== browserWindow.location?.origin
+    || pathname !== '/scheduled-meeting'
+    || (!bookingId && !(eventId && startIso))
+  ) {
+    return false;
+  }
+
+  const candidateWindows = [browserWindow];
+  try {
+    if (
+      browserWindow.top
+      && browserWindow.top !== browserWindow
+      && browserWindow.top.location?.origin === browserWindow.location?.origin
+    ) {
+      candidateWindows.push(browserWindow.top);
+    }
+  } catch (_error) {
+    // Cross-origin top windows cannot host the same-origin WordPress overlay.
+  }
+
+  for (const candidateWindow of candidateWindows) {
+    try {
+      const overlay = candidateWindow?.FSScheduledCallOverlay;
+      if (overlay && typeof overlay.open === 'function') {
+        overlay.open(url.toString(), { source });
+        return true;
+      }
+    } catch (_error) {
+      // Continue to the normal top-level navigation fallback.
+    }
+  }
+
+  return false;
+}
+
 export function getBookingJoinState({
   bookingId,
   startAt,

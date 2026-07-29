@@ -1,17 +1,35 @@
 <template>
   <div
-    class="border-l-[4px] border-[#5549FF] bg-[#F9FAFB] shadow-sm font-['Poppins'] w-full"
-    :class="pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded'"
+    class="border-l-[4px] shadow-sm font-['Poppins'] w-full"
+    :class="[
+      pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded',
+      isPassCall ? 'border-gray-400 bg-[#F2F4F7]' : 'border-[#5549FF] bg-[#F9FAFB]'
+    ]"
   >
     <div class="p-2 flex flex-col gap-2 h-full">
 
       <!-- Title + expand icon -->
       <div class="flex justify-between items-start gap-1">
-        <div class="text-gray-700 text-base font-semibold leading-snug">
+        <div class="text-base font-semibold leading-snug" :class="isPassCall ? 'text-gray-400' : 'text-gray-700'">
           {{ resolvedTitle }}
         </div>
         <!-- {{ resolvedAction }} -->
-        <div v-if="isPinned && isCreator && ! ['pending', 'declined', 'cancelled'].includes(resolvedAction)" class="relative">
+        
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Join call button -->
+          <button
+            v-if="showJoinButton"
+            type="button"
+            class="px-2 py-[3px] rounded flex items-center gap-1 cursor-pointer bg-[#5549FF]"
+            @click.stop="handleJoin"
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</span>
+          </button>
+
+          <div v-if="isPinned && isCreator && ! ['pending', 'declined', 'cancelled'].includes(resolvedAction)" class="relative">
           <button
             type="button"
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
@@ -76,14 +94,15 @@
             </button>
           </div>
         </div>
-        <button
+        <!-- <button
           v-else
           type="button"
           class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
           @click.stop="$emit('view-details')"
         >
           <img :src="ExpandIcon" class="w-4 h-4" alt="" />
-        </button>
+        </button> -->
+        </div>
       </div>
 
       <!-- Slot date + time range (skeleton while loading) -->
@@ -95,7 +114,7 @@
           <span class="text-[#5549FF] font-semibold text-xs">{{ counterSlotDate }}</span>
         </div>
         <!-- Normal date row -->
-        <div v-else class="text-slate-700 text-sm font-medium">
+        <div v-else class="text-sm font-medium" :class="isPassCall ? 'text-gray-400' : 'text-slate-700'">
           {{ resolvedDateTime }}
         </div>
       </template>
@@ -134,7 +153,8 @@
             <button
               type="button"
               :disabled="disabled || isPassCall"
-              class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
+              class="px-3 py-1 rounded text-xs font-semibold transition-opacity"
+              :class="isPassCall ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50'"
               @click.stop="!(disabled || isPassCall) && $emit('accept')"
             >
               Accept
@@ -142,7 +162,8 @@
             <button
               type="button"
               :disabled="disabled || isPassCall"
-              class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
+              class="px-3 py-1 rounded text-xs font-semibold bg-white border transition-colors"
+              :class="isPassCall ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'text-[#EE3400] border-[#EE3400] hover:bg-red-50 disabled:opacity-50'"
               @click.stop="!(disabled || isPassCall) && $emit('decline')"
             >
               Decline
@@ -151,10 +172,11 @@
           <button
             type="button"
             :disabled="disabled || isPassCall"
-            class="flex items-center gap-1 text-xs text-[#5549FF] hover:opacity-80 disabled:opacity-50"
+            class="flex items-center gap-1 text-xs transition-colors"
+            :class="isPassCall ? 'text-gray-400 cursor-not-allowed' : 'text-[#5549FF] hover:opacity-80 disabled:opacity-50'"
             @click.stop="!(disabled || isPassCall) && $emit('adjust')"
           >
-            <img :src="EditIcon" class="w-3 h-3" alt="" />
+            <img :src="EditIcon" class="w-3 h-3" :class="isPassCall ? 'opacity-40 grayscale' : ''" alt="" />
             Adjust request and price
           </button>
         </div>
@@ -164,8 +186,8 @@
       <template v-else-if="isCreator && resolvedAction === 'counter_offer'">
         <div class="mt-auto flex items-center justify-between gap-1">
           <div class="flex items-center gap-1">
-            <img :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
-            <span class="text-gray-400 text-xs">waiting for response</span>
+            <img v-if="!isPassCall" :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
+            <span class="text-gray-400 text-xs">{{ isPassCall ? 'Request expired' : 'waiting for fan response' }}</span>
           </div>
           <button
             type="button"
@@ -244,11 +266,15 @@
 
       <!-- Accepted / declined badge + action button -->
       <template v-else-if="resolvedAction === 'accepted' || resolvedAction === 'cancelled' || resolvedAction === 'declined'">
+        <div v-if="noShowLabelText" class="flex items-center gap-1.5 mb-2 mt-1">
+          <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+          <span class="text-gray-500 font-medium text-[13px]">{{ noShowLabelText }}</span>
+        </div>
         <div class="mt-auto flex items-center justify-between gap-2 flex-wrap">
           <!-- Badge -->
           <div
             class="flex items-center gap-1 text-sm font-semibold"
-            :style="{ color: resolvedAction === 'accepted' ? '#15B79E' : '#DC2626' }"
+            :style="{ color: isPassCall ? '#9CA3AF' : (resolvedAction === 'accepted' ? '#15B79E' : '#DC2626') }"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"  viewBox="0 0 16 16" fill="none">
               <g clip-path="url(#clip0_1117_172996)">
@@ -261,8 +287,7 @@
               </defs>
             </svg>
             {{ resolvedAction === 'accepted' ? 'Accepted' : '' }}
-            {{ resolvedAction === 'declined' ? 'Declined' : '' }}
-            {{ resolvedAction.startsWith('cancel') || resolvedAction.startsWith('reject') ? 'Cancelled' : '' }}
+            {{ (resolvedAction === 'declined' || resolvedAction.startsWith('cancel') || resolvedAction.startsWith('reject')) ? resolvedCancelledText : '' }}
           </div>
 
           <!-- View in Calendar (accepted) / View Details (declined) -->
@@ -273,11 +298,11 @@
           >
             <template v-if="resolvedAction === 'accepted'">
               <!-- Calendar icon -->
-              <svg class="w-5 h-5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <!-- <svg class="w-5 h-5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" />
                 <path stroke-linecap="round" d="M1.5 6h13M5 1.5v2M11 1.5v2" />
-              </svg>
-              View in Calendar
+              </svg> -->
+              View Details
             </template>
             <template v-else>
               View Details
@@ -291,8 +316,8 @@
       <template v-else>
         <div class="mt-auto flex items-center justify-between gap-1">
           <div class="flex items-center gap-1">
-            <img :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
-            <span class="text-gray-400 text-xs">waiting for response</span>
+            <img v-if="!isPassCall" :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
+            <span class="text-gray-400 text-xs">{{ isPassCall ? 'Request expired' : 'waiting for creator response' }}</span>
           </div>
           <button
             type="button"
@@ -317,6 +342,8 @@ import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
 import EditIcon        from '@/assets/images/icons/edit-05.webp'
+import { getBookingJoinState } from '@/utils/bookingJoinUtils.js'
+import { showToast } from '@/utils/toastBus.js'
 
 const chatStore = useChatStore()
 
@@ -365,6 +392,7 @@ function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value =
 function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking') }
 
 function goToCalendar() {
+  emit('view-details');return;
   try {
     const topPath = window.top?.location?.pathname
     if (topPath && topPath.includes('/dashboard/events')) {
@@ -418,6 +446,41 @@ function parseDate(iso) {
   if (!iso) return null
   const d = new Date(iso)
   return isNaN(d.getTime()) ? null : d
+}
+
+const startDate = computed(() => {
+  const raw = booking.value
+  return parseDate(raw?.startIso || raw?.startAtIso || content.value?.slot_date)
+})
+
+const endDate = computed(() => {
+  const raw = booking.value
+  return parseDate(raw?.endIso || raw?.endAtIso)
+})
+
+const bookingIdComputed = computed(() => booking.value?.bookingId || content.value?.booking_id || null)
+
+const joinState = computed(() => getBookingJoinState({
+  bookingId:                       bookingIdComputed.value,
+  startAt:                         startDate.value,
+  endAt:                           endDate.value,
+  status:                          booking.value?.status || resolvedAction.value,
+  enableCallReminderMinutesBefore: booking.value?.enableCallReminderMinutesBefore ?? booking.value?.setReminders,
+  callReminderMinutesBefore:       booking.value?.callReminderMinutesBefore ?? booking.value?.reminderMinutes,
+  reminderMinutes:                 booking.value?.reminderMinutes,
+  extensions:                      booking.value?.extensions ?? [],
+}))
+
+const showJoinButton = computed(() => joinState.value.canJoin && !isPassCall.value)
+
+function handleJoin() {
+  menuOpen.value = false
+  if (!joinState.value.canJoin || !joinState.value.joinUrl) {
+    showToast({ type: 'error', message: 'Call is not available to join yet.' })
+    return
+  }
+  if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
+  window.open(joinState.value.joinUrl, '_top')
 }
 
 function fmtTime(d) {
@@ -510,16 +573,38 @@ function deriveAction(apiStatus) {
 }
 
 const resolvedAction = computed(() => {
-  // Chat-level action (accepted / declined / counter_offer) always takes priority —
-  // these are set explicitly via PATCH and override the bookings API status.
   const chatAction = content.value.action
-  if (chatAction && chatAction !== 'pending') return chatAction
-
-  // Fall back to bookings API status (maps confirmed→accepted, cancelled→declined, etc.)
+  
+  // Allow bookings API status to override chat action if chatAction is pending or accepted
+  const skipOverride = chatAction && chatAction !== 'pending' && chatAction !== 'accepted'
   const fromApi = deriveAction(booking.value?.status)
-  if (fromApi && fromApi !== 'pending') return fromApi
+
+  if (!skipOverride && fromApi && fromApi !== 'pending') {
+    return fromApi
+  }
 
   return chatAction || 'pending'
+})
+
+const cancelledReason = computed(() => booking.value?.meta?.cancelled?.reason)
+const bookingStatus = computed(() => booking.value?.status || content.value?.action || '')
+
+const noShowLabelText = computed(() => {
+  if (cancelledReason.value === 'creator_no_show_auto_cancel' && !props.isCreator) {
+    return 'Fully refunded'
+  }
+  if (cancelledReason.value === 'fan_no_show_auto_cancel' && props.isCreator) {
+    return 'Fan Forfeited'
+  }
+  return null
+})
+
+const resolvedCancelledText = computed(() => {
+  const statusStr = bookingStatus.value.toLowerCase()
+  if (statusStr.startsWith('cancel') || statusStr.startsWith('reject')) {
+    return 'Cancelled'
+  }
+  return 'Declined'
 })
 
 watch([counterRemarks, resolvedAction], checkClamped, { flush: 'post' })

@@ -178,6 +178,10 @@ function normalizeEventItem(item = {}) {
     item.firstTimeDiscountTokens ?? item.firstTimeDiscount,
     0,
   );
+  normalizedRaw.offHourSurchargeTokens = normalizeNumber(
+    item.offHourSurchargeTokens ?? item.offHourSurchargePercent,
+    0,
+  );
   if (String(normalizedRaw.repeatRule || "") === "doesNotRepeat") {
     if (!Array.isArray(normalizedRaw.slots) && Array.isArray(normalizedRaw.dates)) {
       normalizedRaw.slots = normalizedRaw.dates;
@@ -212,6 +216,7 @@ function normalizeEventItem(item = {}) {
     enableFirstTimeDiscount: normalizeBoolean(item.enableFirstTimeDiscount, false),
     firstTimeDiscountTokens: normalizeNumber(item.firstTimeDiscountTokens ?? item.firstTimeDiscount, 0),
     firstTimeDiscount: normalizeNumber(item.firstTimeDiscountTokens ?? item.firstTimeDiscount, 0),
+    offHourSurchargeTokens: normalizeNumber(item.offHourSurchargeTokens ?? item.offHourSurchargePercent, 0),
     eventImageUrl: normalizeString(item.eventImageUrl, ""),
     eventColorSkin: item.eventColorSkin || "#5549FF",
     start,

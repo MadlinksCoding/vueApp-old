@@ -409,8 +409,36 @@
     };
   }
 
+  function isScheduledMeetingUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return false;
+
+    try {
+      var url = new URL(value, global.location.href);
+      var pathname = String(url.pathname || "").replace(/\/+$/, "") || "/";
+      var bookingId = String(url.searchParams.get("booking_id") || "").trim();
+      var eventId = String(url.searchParams.get("event_id") || "").trim();
+      var startIso = String(url.searchParams.get("start_iso") || "").trim();
+      return url.origin === global.location.origin
+        && pathname === "/scheduled-meeting"
+        && Boolean(bookingId || (eventId && startIso));
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function openUrl(payload, options) {
     if (!payload || !payload.url) return;
+
+    if (
+      isScheduledMeetingUrl(payload.url)
+      && global.FSScheduledCallOverlay
+      && typeof global.FSScheduledCallOverlay.open === "function"
+    ) {
+      global.FSScheduledCallOverlay.open(payload.url, {
+        source: "events_embed",
+      });
+      return;
+    }
 
     if (typeof options.onOpenUrl === "function") {
       options.onOpenUrl(payload);

@@ -150,7 +150,7 @@
             <!-- <span class="text-xs font-semibold text-gray-500">{{ event.dayName }} {{ event.time }}</span> -->
 
             <div class="flex gap-1.5 items-start">
-              <span class="flex flex-1" >
+              <span class="flex flex-1 min-w-0" >
                 
                 <template v-if="shouldShowSingleProfile(event)">
                   <span

@@ -2088,8 +2088,8 @@ const allMessages = computed(() => activeChatId.value ? chatStore.getMessagesByC
 // Exclude from scroll list while pinned — show in banner instead.
 // booking_request and requestJoinCallNotification: excluded only while still pinned (is_pinned !== false); once unpinned they appear in chat.
 const messages = computed(() => allMessages.value.filter(m => {
-  if (m.content_type === 'requestJoinCallNotification' && m.is_pinned !== false) return false
-  if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
+  // if (m.content_type === 'requestJoinCallNotification' && m.is_pinned !== false) return false
+  // if (m.content_type === 'booking_request' && m.is_pinned !== false) return false
 
   // Hide kick activity logs from other members
   if (m.content_type === 'activity_log') {
@@ -2986,7 +2986,11 @@ onUnmounted(() => {
           :booking="chatStore.getBookingById(message?.content?.booking_id)"
           :is-creator="isCreatorAccount"
           @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
-          @ask-to-reschedule="activeBookingMessage = message; showReschedulePopup = true"
+          @reschedule="activeBookingMessage = message; showReschedulePopup = true"
+          @cancel="activeBookingMessage = message; showCancelCallPopup = true"
+          @accept-counter="onAcceptCounter(message)"
+          @reject-counter="onRejectCounter(message)"
+          @view-details="openBookingDetail(message)"
         />
         <BookingRequestBubble
           v-else-if="message.content_type === 'booking_request'"

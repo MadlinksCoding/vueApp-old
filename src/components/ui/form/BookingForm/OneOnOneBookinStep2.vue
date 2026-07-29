@@ -62,6 +62,7 @@ const STEP2_FIELD_LABEL_KEYS = Object.freeze({
   advanceVoid: "booking_field_advance_cancellation_window",
   advanceCancelWindowQuantity: "booking_field_advance_cancellation_window",
   advanceCancelWindowUnit: "booking_field_advance_cancellation_unit",
+  offHourSurchargeTokens: "booking_field_off_hour_surcharge",
   offHourSurcharge: "booking_field_off_hour_surcharge",
   offHourSurchargePercent: "booking_field_off_hour_surcharge",
   extendSessionMax: "booking_field_extend_session_max",
@@ -109,6 +110,7 @@ const STEP2_FIELD_LABEL_FALLBACKS = Object.freeze({
   advanceVoid: "Advance cancellation window",
   advanceCancelWindowQuantity: "Advance cancellation window",
   advanceCancelWindowUnit: "Advance cancellation unit",
+  offHourSurchargeTokens: "Off-hour surcharge",
   offHourSurcharge: "Off-hour surcharge",
   offHourSurchargePercent: "Off-hour surcharge",
   extendSessionMax: "Extension session maximum",
@@ -169,7 +171,7 @@ const emit = defineEmits(["created", "preview-schedule", "reveal-step1-validatio
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
-const X_REPOST_ALLOWED_CREATOR_ID = 566;
+const X_REPOST_ALLOWED_CREATOR_IDS = [566, 1407, 793];
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -178,7 +180,7 @@ const isGroupBooking = computed(() => (
 const submitButtonText = computed(() => (props.isEditMode ? t("booking_update_publish") : t("common_create_event")));
 
 function isCreatorAllowedForXRepost(creatorId = resolveCreatorId()) {
-  return Number(creatorId) === X_REPOST_ALLOWED_CREATOR_ID;
+  return X_REPOST_ALLOWED_CREATOR_IDS.includes(Number(creatorId));
 }
 
 const isXRepostAllowed = computed(() => isCreatorAllowedForXRepost());
@@ -1550,7 +1552,7 @@ const createEvent = async () => {
               wrapperClass="flex items-center gap-2" />
             <TooltipIcon :text="t('booking_recording_tooltip')" />
           </div>
-          <div class="inline-flex gap-2">
+          <div class="inline-flex">
             <div class="w-6" />
             <div :class="['inline-flex flex-col',!formData.allowRecording ? 'opacity-50':'opacity-100']">
               <div class="inline-flex justify-end items-center gap-2">

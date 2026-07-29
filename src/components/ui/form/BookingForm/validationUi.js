@@ -10,7 +10,8 @@ export const BOOKING_VALIDATION_FIELD_ALIASES = Object.freeze({
   firstTimeDiscount: "firstTimeDiscountTokens",
   maxSessionMinutes: "maxSessionDuration",
   minEventsForRecurringDiscount: "discountEventsCount",
-  offHourSurchargePercent: "offHourSurcharge",
+  offHourSurchargePercent: "offHourSurchargeTokens",
+  offHourSurcharge: "offHourSurchargeTokens",
   recurringDiscountPercentOfBase: "discountPercentage",
   rescheduleFeeTokens: "rescheduleFee",
 });

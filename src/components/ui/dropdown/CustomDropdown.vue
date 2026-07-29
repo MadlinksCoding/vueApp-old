@@ -17,7 +17,7 @@ const props = defineProps({
   optionFactory: { type: Function, default: null },
 });
 
-const emit = defineEmits(['update:modelValue', 'change']);
+const emit = defineEmits(['update:modelValue', 'change', 'focus']);
 const isOpen = ref(false);
 const dropdownRef = ref(null);
 const searchInputRef = ref(null);
@@ -62,6 +62,7 @@ const toggleDropdown = () => {
   if (props.disabled) return;
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
+    emit('focus');
     clearSearch();
     if (props.searchable) nextTick(() => searchInputRef.value?.focus());
   } else {

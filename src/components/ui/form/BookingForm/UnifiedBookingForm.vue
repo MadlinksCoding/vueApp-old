@@ -18,6 +18,7 @@ import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookin
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { resolveVisibleBookedSlotRange } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
@@ -28,6 +29,8 @@ import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from 
 import { showToast } from "@/utils/toastBus.js";
 import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
+import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
+import arrowPinkIcon from "@/assets/images/icons/arrow-up-right-pink.svg";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
@@ -64,13 +67,14 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["created", "back", "scroll-top-request", "edit-event", "open-url"]);
+const emit = defineEmits(["created", "back", "scroll-top-request", "edit-event", "open-url", "preview-schedule"]);
 const route = useRoute();
 const router = useRouter();
 const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
+const RESCHEDULE_FEE_SETTING_ENABLED = false;
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -171,7 +175,7 @@ const bookingFlow = createFlowStateEngine({
         waitlistSpots: "",
         advanceVoid: "",
         advanceCancelWindowUnit: "day",
-        offHourSurcharge: "",
+        offHourSurchargeTokens: "",
         calendarDuration: "",
         lateStartAction: "reschedule",
         lateStartDiscountPercent: "",
@@ -189,7 +193,7 @@ const bookingFlow = createFlowStateEngine({
         enableBookingFee: false,
         allowInstantBooking: false,
         disableChatBeforeCall: false,
-        enableRescheduleFee: false,
+        enableRescheduleFee: RESCHEDULE_FEE_SETTING_ENABLED,
         enableCancellationFee: false,
         allowAdvanceCancellation: false,
         addOffHourSurcharge: false,
@@ -636,8 +640,15 @@ const clearRefreshQueryFlag = async () => {
     });
 };
 
-const fetchCreatorBookedSlots = async (forceRefresh = false) => {
+let creatorBookedSlotsFetchGeneration = 0;
+
+const fetchCreatorBookedSlots = async (forceRefresh = false, { scrollToCurrentTime = true } = {}) => {
     const creatorId = resolveCreatorId();
+    const fetchGeneration = ++creatorBookedSlotsFetchGeneration;
+    const visibleRange = resolveVisibleBookedSlotRange({
+        focusDate: state.focus,
+        view: "week",
+    });
     calendarLoading.value = true;
     calendarError.value = null;
     bookingFlow.setState("creatorId", creatorId, { reason: "calendar-booked-slots", silent: true });
@@ -646,7 +657,8 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         "bookings.fetchCreatorBookingContext",
         {
             creatorId,
-            periodMonths: 6,
+            fromIso: visibleRange.fromIso,
+            toIso: visibleRange.toIso,
             slotLimit: 1000,
             statusIn: "pending,pending_hold,confirmed,completed",
         },
@@ -660,15 +672,12 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
         },
     );
 
+    if (fetchGeneration !== creatorBookedSlotsFetchGeneration) return;
+
     if (!result?.ok) {
         calendarError.value = result?.meta?.uiErrors?.[0]
             || result?.error?.message
             || t("booking_load_creator_booked_slots_failed");
-        calendarBookedSlots.value = [];
-        calendarAvailabilitySlots.value = [];
-        creatorEventsForCalendar.value = [];
-        bookedSlotsRawForCalendar.value = [];
-        bookedSlotsIndexForCalendar.value = {};
     } else {
         const creatorEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
         const bookedSlotsRaw = Array.isArray(result?.data?.bookedSlots) ? result.data.bookedSlots : [];
@@ -692,7 +701,9 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
 
     calendarLoading.value = false;
     await nextTick();
-    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    if (scrollToCurrentTime) {
+        await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    }
 };
 
 function normalizeHydratedAudienceState(formState = {}) {
@@ -718,6 +729,9 @@ function normalizeHydratedAudienceState(formState = {}) {
 
 function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
     const normalizedState = normalizeHydratedAudienceState(formState);
+    if (!RESCHEDULE_FEE_SETTING_ENABLED) {
+        normalizedState.enableRescheduleFee = false;
+    }
     Object.entries(normalizedState).forEach(([key, value]) => {
         bookingFlow.setState(key, value, { reason, silent: true });
     });
@@ -1231,6 +1245,75 @@ function resolveDraftCalendarFocusDate(stateSnapshot = {}) {
     return anchorDate;
 }
 
+function resolveSchedulePreviewFocusDate(payload = {}, stateSnapshot = {}) {
+    const repeatRule = String(payload.repeatRule || stateSnapshot.repeatRule || "weekly");
+    const exactDate = dateFromIso(String(payload.date || "").slice(0, 10));
+    if (repeatRule === "doesNotRepeat") return exactDate;
+
+    const rangeStart = dateFromIso(String(stateSnapshot.dateFrom || stateSnapshot.selectedDate || "").slice(0, 10));
+    const rangeEnd = dateFromIso(String(stateSnapshot.dateTo || "").slice(0, 10));
+    let referenceDate = dateFromIso(formatDateIso(todayForCalendar));
+    if (rangeStart && referenceDate < rangeStart) referenceDate = rangeStart;
+    if (!referenceDate || (rangeEnd && referenceDate > rangeEnd)) return null;
+
+    if (repeatRule === "daily") return referenceDate;
+
+    if (repeatRule === "monthly") {
+        const anchorDate = rangeStart || exactDate;
+        if (!anchorDate) return null;
+
+        for (let monthOffset = 0; monthOffset < 120; monthOffset += 1) {
+            const monthStart = new Date(
+                referenceDate.getFullYear(),
+                referenceDate.getMonth() + monthOffset,
+                1,
+            );
+            const candidate = new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                Math.min(anchorDate.getDate(), getLastDayOfMonth(monthStart.getFullYear(), monthStart.getMonth())),
+            );
+            if (candidate < referenceDate || candidate < anchorDate) continue;
+            if (rangeEnd && candidate > rangeEnd) return null;
+            return candidate;
+        }
+
+        return null;
+    }
+
+    const weekday = Number(payload.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+        return rangeStart || referenceDate;
+    }
+
+    const anchorDateIso = formatDateIso(rangeStart || referenceDate);
+    const repeatX = Number(stateSnapshot.repeatX);
+    const maxSearchDays = repeatRule === "everyXWeeks"
+        ? Math.max(14, (Number.isFinite(repeatX) && repeatX > 0 ? repeatX : 2) * 14)
+        : 7;
+
+    for (let offset = 0; offset <= maxSearchDays; offset += 1) {
+        const candidate = addDays(referenceDate, offset);
+        const candidateIso = formatDateIso(candidate);
+        if (candidate.getDay() !== weekday) continue;
+        if (rangeStart && candidate < rangeStart) continue;
+        if (rangeEnd && candidate > rangeEnd) return null;
+        if (
+            repeatRule === "everyXWeeks"
+            && !shouldIncludeEveryXWeeksDate({
+                candidateDateIso: candidateIso,
+                anchorDateIso,
+                repeatX,
+            })
+        ) {
+            continue;
+        }
+        return candidate;
+    }
+
+    return null;
+}
+
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
@@ -1386,7 +1469,65 @@ const state = reactive({
 const onSelectFromMain = (date) => {
     state.selected = new Date(date);
     state.focus = new Date(date);
+    fetchCreatorBookedSlots(false);
+};
+
+const onFocusFromMain = (date) => {
+    const nextFocus = asDate(date);
+    const nextDateKey = formatDateIso(nextFocus);
+    if (!nextDateKey || nextDateKey === formatDateIso(state.focus)) return;
+
+    state.focus = nextFocus;
+    fetchCreatorBookedSlots(false);
+};
+
+let schedulePreviewFocusGeneration = 0;
+
+const waitForDropdownPaint = () => new Promise((resolve) => {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        setTimeout(resolve, 0);
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        window.setTimeout(resolve, 0);
+    });
+});
+
+const scrollEditedScheduleTimeIntoView = async (startTime, focusGeneration) => {
+    await nextTick();
+    if (focusGeneration !== schedulePreviewFocusGeneration) return;
+
+    await mainCalendarRef.value?.revealSelectedWeekDay?.({ behavior: "smooth" });
+    await mainCalendarRef.value?.scrollToTime?.(startTime, {
+        behavior: "smooth",
+        viewportOffset: 0.32,
+    });
+};
+
+const focusEditedSchedulePreview = async (payload = {}) => {
+    const focusGeneration = ++schedulePreviewFocusGeneration;
+    const isFieldFocus = payload.interaction === "field-focus";
+    if (isFieldFocus) {
+        await waitForDropdownPaint();
+    } else {
+        await nextTick();
+    }
+    if (focusGeneration !== schedulePreviewFocusGeneration) return;
+
+    const targetDate = resolveSchedulePreviewFocusDate(payload, bookingFlow.state || {});
+    const targetDateIso = formatDateIso(targetDate);
+    if (!targetDateIso) return;
+
+    const focusChanged = targetDateIso !== formatDateIso(state.focus);
+    state.focus = new Date(targetDate);
+    state.selected = new Date(targetDate);
     rebuildAvailabilityPreview();
+    await scrollEditedScheduleTimeIntoView(payload.startTime, focusGeneration);
+
+    if (focusChanged && !isFieldFocus) {
+        void fetchCreatorBookedSlots(false, { scrollToCurrentTime: false });
+    }
 };
 
 function rebuildAvailabilityPreview() {
@@ -1859,6 +2000,14 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         <div class="justify-start text-slate-700 text-base font-semibold leading-6 truncate">
                             {{ formTitle }}
                         </div>
+                        <ButtonComponent
+                            @click="previewSchedule = true"
+                            :text="t('common_preview')"
+                            :customClass="'inline-flex lg:hidden text-[#FF0464] py-1 px-4 !rounded-[48px] !border !border-[#FB5BA2] gap-1 items-center'"
+                            :btnBg="'bg-white/20'"
+                            :rightIcon="arrowPinkIcon"
+                            variant="outline"
+                        />
                     </div>
                     <div data-test="booking-form-close" @click="requestFormExit" class="w-2.5 h-2.5 relative overflow-hidden cursor-pointer">
                         <img :src="closeIcon" alt="" />
@@ -1887,8 +2036,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :schedule-locked="false"
                             :pricing-locked="false"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
+                            @schedule-preview-focus="focusEditedSchedulePreview"
                         />
 
                         <OneOnOneBookinStep2
@@ -1912,8 +2063,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
+                            @schedule-preview-focus="focusEditedSchedulePreview"
                         />
 
                         <OneOnOneBookinStep2
@@ -1935,15 +2088,22 @@ useBodyOverflowHidden({ minWidth: 1010 });
             <div
                 :class="[
                     embedded
-                        ? 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
-                        : 'w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
+                        ? 'hidden lg:block w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
+                        : 'hidden lg:block w-full lg:overflow-y-auto lg:no-scrollbar lg:h-dvh lg:max-h-dvh lg:pb-4'
                 ]">
                 <NotificationCard variant="alert" :showIcon="false" :title="t('booking_personal_calendar_notice')"
                     :description="t('booking_calendar_notice_description')"  />
-                <div v-if="calendarError" class="mx-6 mt-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
-                    {{ calendarError }}
+                <div v-if="calendarError" class="mx-6 mt-3 flex items-center justify-between gap-3 px-3 py-2 rounded bg-red-50 text-red-700 text-xs font-medium">
+                    <span>{{ calendarError }}</span>
+                    <button
+                        type="button"
+                        class="shrink-0 font-semibold underline underline-offset-2"
+                        @click="fetchCreatorBookedSlots(true)"
+                    >
+                        {{ t("common_retry") }}
+                    </button>
                 </div>
-                <div v-else-if="calendarLoading" class="px-2 md:px-4 lg:px-6 pt-6">
+                <div v-if="calendarLoading && events2.length === 0" class="px-2 md:px-4 lg:px-6 pt-6">
                     <div class="overflow-hidden rounded-[1rem] border border-[#EAECF0] bg-white shadow-sm animate-pulse">
                         <div class="border-b border-[#EAECF0] px-4 py-4">
                             <div class="flex items-center justify-between gap-4">
@@ -1992,11 +2152,12 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </div>
                 </div>
-                <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :selected-date="state.selected" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
                     day-column-mode="events" :row-height-px="120" :min-event-height-px="0"
                     @date-selected="onSelectFromMain"
+                    @update:focus-date="onFocusFromMain"
                     @preview-schedule="previewSchedule = true"
                     @join-call="handleJoinCall"
                     @approve-booking="handleApproveBooking"

@@ -13,6 +13,8 @@ const mock = vi.hoisted(() => ({
   getBookingJoinState: vi.fn(() => ({ canJoin: true, joinUrl: "https://example.com/private-call" })),
   buildScheduledGroupMeetingUrl: vi.fn(() => "https://example.com/group-call"),
   showToast: vi.fn(),
+  revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
+  scrollToTime: vi.fn(() => Promise.resolve(true)),
   mapEventToBookingFormState: vi.fn(() => ({
     eventType: "1on1-call",
     eventTitle: "Edited Preview",
@@ -151,7 +153,25 @@ vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
   default: {
     name: "OneOnOneBookinStep1",
     props: ["engine", "embedded", "bookingType", "scheduleLocked", "pricingLocked"],
-    template: "<div data-test='step-1'>Step 1<input data-test='step-1-input' /></div>",
+    emits: ["schedule-preview-focus"],
+    template: `
+      <div data-test="step-1">
+        Step 1
+        <input data-test="step-1-input" />
+        <button
+          data-test="focus-weekly-sunday"
+          @click="$emit('schedule-preview-focus', { repeatRule: 'weekly', weekday: 0, startTime: '13:25', interaction: 'field-focus' })"
+        >
+          focus
+        </button>
+        <button
+          data-test="focus-weekly-wednesday"
+          @click="$emit('schedule-preview-focus', { repeatRule: 'weekly', weekday: 3, startTime: '09:15', interaction: 'field-focus' })"
+        >
+          focus Wednesday
+        </button>
+      </div>
+    `,
   },
 }));
 
@@ -174,13 +194,15 @@ vi.mock("@/components/ui/form/BookingForm/GroupBookingStep2.vue", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "variant", "dayColumnMode", "rowHeightPx", "focusDate"],
-    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events"],
+    props: ["events", "variant", "dayColumnMode", "rowHeightPx", "focusDate", "selectedDate"],
+    emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events", "date-selected"],
     methods: {
       noop() {},
       scrollToCurrentTime() {
         return Promise.resolve(true);
       },
+      revealSelectedWeekDay: mock.revealSelectedWeekDay,
+      scrollToTime: mock.scrollToTime,
     },
     template: `
       <div data-test="calendar">
@@ -189,6 +211,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
         <button data-test="calendar-cancel" @click="$emit('cancel-booking', { bookingId: 'booking_action', event: { title: 'Action event', start: '2026-05-07T10:00:00', end: '2026-05-07T11:00:00' } })">cancel</button>
         <button data-test="calendar-join" @click="$emit('join-call', { event: { bookingId: 'booking_action', eventId: 'evt_action', status: 'confirmed', start: '2026-05-07T10:00:00', end: '2026-05-07T11:00:00', eventType: '1on1-call' } })">join</button>
         <button data-test="calendar-refresh" @click="$emit('refresh-events')">refresh</button>
+        <button data-test="calendar-next-week" @click="$emit('date-selected', new Date(2026, 4, 14))">next week</button>
         <template v-for="event in events || []" :key="event.id || event.eventId || event.title">
           <slot
             v-if="event.slot === 'availability'"
@@ -295,6 +318,8 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     mock.buildScheduledGroupMeetingUrl.mockReset();
     mock.buildScheduledGroupMeetingUrl.mockReturnValue("https://example.com/group-call");
     mock.showToast.mockReset();
+    mock.revealSelectedWeekDay.mockClear();
+    mock.scrollToTime.mockClear();
     originalScrollTo = window.scrollTo;
     window.scrollTo = vi.fn();
     setWindowWidth(500);
@@ -339,6 +364,60 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(scrollContainer.scrollTo).not.toHaveBeenCalled();
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(wrapper.emitted("scroll-top-request")).toBeUndefined();
+  });
+
+  it("anchors each edited weekday to its next occurrence from today", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+    mock.revealSelectedWeekDay.mockClear();
+    mock.scrollToTime.mockClear();
+    const fetchCountBeforeFocus = mock.engine.callFlow.mock.calls.length;
+    const nextWeekdayFromToday = (weekday) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() + ((weekday - date.getDay() + 7) % 7));
+      return date;
+    };
+    const expectedSunday = nextWeekdayFromToday(0);
+    const expectedWednesday = nextWeekdayFromToday(3);
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    await wrapper.get("[data-test='focus-weekly-sunday']").trigger("click");
+    await vi.waitFor(() => {
+      expect(mock.scrollToTime).toHaveBeenCalledTimes(1);
+    });
+    expect(calendar.props("focusDate")).toEqual(expectedSunday);
+    expect(calendar.props("selectedDate")).toEqual(expectedSunday);
+
+    await wrapper.get("[data-test='focus-weekly-wednesday']").trigger("click");
+    await vi.waitFor(() => {
+      expect(mock.scrollToTime).toHaveBeenCalledTimes(2);
+    });
+    expect(calendar.props("focusDate")).toEqual(expectedWednesday);
+    expect(calendar.props("selectedDate")).toEqual(expectedWednesday);
+
+    await wrapper.get("[data-test='focus-weekly-sunday']").trigger("click");
+    await vi.waitFor(() => {
+      expect(mock.scrollToTime).toHaveBeenCalledTimes(3);
+    });
+    expect(calendar.props("focusDate")).toEqual(expectedSunday);
+    expect(calendar.props("selectedDate")).toEqual(expectedSunday);
+
+    expect(mock.revealSelectedWeekDay).toHaveBeenCalledTimes(3);
+    expect(mock.scrollToTime).toHaveBeenNthCalledWith(1, "13:25", {
+      behavior: "smooth",
+      viewportOffset: 0.32,
+    });
+    expect(mock.scrollToTime).toHaveBeenNthCalledWith(2, "09:15", {
+      behavior: "smooth",
+      viewportOffset: 0.32,
+    });
+    expect(mock.scrollToTime).toHaveBeenNthCalledWith(3, "13:25", {
+      behavior: "smooth",
+      viewportOffset: 0.32,
+    });
+    expect(mock.engine.callFlow).toHaveBeenCalledTimes(fetchCountBeforeFocus);
   });
 
   it("does not scroll for unrelated mobile step changes", async () => {
@@ -804,6 +883,36 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
     ).length;
     expect(fetchCountAfterRefresh).toBeGreaterThan(fetchCountBeforeRefresh);
+  });
+
+  it("loads only the visible week and refetches when the selected week changes", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    const initialFetch = mock.engine.callFlow.mock.calls.find(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    );
+    expect(initialFetch?.[1]).toEqual(expect.objectContaining({
+      fromIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    }));
+    expect(initialFetch?.[1]).not.toHaveProperty("periodMonths");
+
+    const fetchCountBeforeNavigation = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    ).length;
+    await wrapper.get("[data-test='calendar-next-week']").trigger("click");
+    await flushPromises();
+    const creatorFetches = mock.engine.callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchCreatorBookingContext",
+    );
+
+    expect(creatorFetches).toHaveLength(fetchCountBeforeNavigation + 1);
+    expect(creatorFetches.at(-1)?.[1]).toEqual(expect.objectContaining({
+      fromIso: "2026-05-09",
+      toIso: "2026-05-16",
+    }));
   });
 
   it("opens saved availability actions, emits confirmed edit navigation, and deletes through the flow engine", async () => {

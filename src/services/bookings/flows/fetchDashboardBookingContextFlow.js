@@ -2,6 +2,11 @@ import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus, getEtag, isApiNotModified } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getBookingsApiBaseUrl, asFlowError, toNumber } from "@/services/bookings/bookingsApiUtils.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
+import {
+  buildBookedSlotStats,
+  fetchAllBookedSlotPages,
+  mergeBookedSlotCollections,
+} from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 
 function buildCreatorEventParams(payload = {}) {
   return {
@@ -36,6 +41,19 @@ function buildBookedSlotParams(payload = {}, { includeEventId = false } = {}) {
   }
 
   return params;
+}
+
+function buildWidgetBookedSlotParams(payload = {}, statusIn = payload.widgetStatusIn) {
+  return {
+    fromIso: payload.widgetFromIso,
+    toIso: payload.widgetToIso,
+    limit: payload.slotLimit,
+    statusIn,
+  };
+}
+
+function shouldFetchWidgetBookedSlots(payload = {}) {
+  return Boolean(payload.widgetFromIso && payload.widgetToIso);
 }
 
 function resolveBookedSlotsEndpoint(baseUrl, payload = {}) {
@@ -78,6 +96,68 @@ function extractUniqueEventIdsFromSlots(slots = []) {
   return ids;
 }
 
+async function fetchBookedSlots({ api, url, params, context }) {
+  const result = await fetchAllBookedSlotPages({
+    api,
+    url,
+    params,
+    signal: context.signal,
+    timeoutMs: context.requestTimeoutMs,
+  });
+
+  if (!result.ok || result.response?.ok === false) {
+    return {
+      ok: false,
+      response: result.response,
+    };
+  }
+
+  return {
+    ok: true,
+    response: result.response,
+  };
+}
+
+async function fetchWidgetBookedSlots({ api, url, payload, context, creatorMode }) {
+  if (!shouldFetchWidgetBookedSlots(payload)) {
+    return { ok: true, response: null };
+  }
+
+  const normalizedStatuses = String(payload.widgetStatusIn || "")
+    .split(",")
+    .map((status) => status.trim())
+    .filter(Boolean);
+  const statusStreams = creatorMode && normalizedStatuses.length > 0
+    ? normalizedStatuses
+    : [payload.widgetStatusIn];
+  const results = await Promise.all(
+    statusStreams.map((statusIn) => fetchBookedSlots({
+      api,
+      url,
+      params: buildWidgetBookedSlotParams(payload, statusIn),
+      context,
+    })),
+  );
+  const failed = results.find((result) => !result.ok);
+  if (failed) return failed;
+
+  const slots = mergeBookedSlotCollections(
+    ...results.map((result) => result.response?.slots || []),
+  );
+
+  return {
+    ok: true,
+    response: {
+      ...(results.at(-1)?.response || {}),
+      slots,
+      stats: buildBookedSlotStats(slots),
+      next: null,
+      hasMore: false,
+      truncated: false,
+    },
+  };
+}
+
 async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, headers }) {
   if (payload?.creatorId == null || payload?.creatorId === "") {
     return fail({
@@ -109,17 +189,37 @@ async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, he
     ? readCachedRawEvents(context)
     : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
-  const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
-    params: buildBookedSlotParams(payload, { includeEventId: true }),
-    signal: context.signal,
-    timeoutMs: context.requestTimeoutMs,
-  });
+  const bookedSlotsUrl = resolveBookedSlotsEndpoint(baseUrl, payload);
+  const [bookedSlotsResult, widgetBookedSlotsResult] = await Promise.all([
+    fetchBookedSlots({
+      api,
+      url: bookedSlotsUrl,
+      params: buildBookedSlotParams(payload, { includeEventId: true }),
+      context,
+    }),
+    fetchWidgetBookedSlots({
+      api,
+      url: bookedSlotsUrl,
+      payload,
+      context,
+      creatorMode: true,
+    }),
+  ]);
+  const bookedSlotsResponse = bookedSlotsResult.response;
+  const widgetBookedSlotsResponse = widgetBookedSlotsResult.response;
 
-  if (bookedSlotsResponse?.ok === false) {
+  if (!bookedSlotsResult.ok || bookedSlotsResponse?.ok === false) {
     return fail({
       code: "FETCH_DASHBOARD_BOOKED_SLOTS_FAILED",
       message: bookedSlotsResponse?.error || "Failed to fetch dashboard booked slots.",
       details: bookedSlotsResponse,
+    });
+  }
+  if (!widgetBookedSlotsResult.ok || widgetBookedSlotsResponse?.ok === false) {
+    return fail({
+      code: "FETCH_DASHBOARD_WIDGET_BOOKED_SLOTS_FAILED",
+      message: widgetBookedSlotsResponse?.error || "Failed to fetch dashboard widget booked slots.",
+      details: widgetBookedSlotsResponse,
     });
   }
 
@@ -127,7 +227,11 @@ async function fetchCreatorDashboardContext({ payload, context, api, baseUrl, he
     {
       rawEvents,
       bookedSlots: Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [],
+      widgetBookedSlots: widgetBookedSlotsResponse
+        ? (Array.isArray(widgetBookedSlotsResponse.slots) ? widgetBookedSlotsResponse.slots : [])
+        : null,
       stats: bookedSlotsResponse?.stats || {},
+      widgetStats: widgetBookedSlotsResponse?.stats || {},
     },
     {
       flow: "bookings.fetchDashboardBookingContext",
@@ -148,29 +252,56 @@ async function fetchFanDashboardContext({ payload, context, api, baseUrl }) {
     });
   }
 
-  const bookedSlotsResponse = await api.get(resolveBookedSlotsEndpoint(baseUrl, payload), {
-    params: buildBookedSlotParams(payload),
-    signal: context.signal,
-    timeoutMs: context.requestTimeoutMs,
-  });
+  const bookedSlotsUrl = resolveBookedSlotsEndpoint(baseUrl, payload);
+  const [bookedSlotsResult, widgetBookedSlotsResult] = await Promise.all([
+    fetchBookedSlots({
+      api,
+      url: bookedSlotsUrl,
+      params: buildBookedSlotParams(payload),
+      context,
+    }),
+    fetchWidgetBookedSlots({
+      api,
+      url: bookedSlotsUrl,
+      payload,
+      context,
+      creatorMode: false,
+    }),
+  ]);
+  const bookedSlotsResponse = bookedSlotsResult.response;
+  const widgetBookedSlotsResponse = widgetBookedSlotsResult.response;
 
-  if (bookedSlotsResponse?.ok === false) {
+  if (!bookedSlotsResult.ok || bookedSlotsResponse?.ok === false) {
     return fail({
       code: "FETCH_DASHBOARD_BOOKED_SLOTS_FAILED",
       message: bookedSlotsResponse?.error || "Failed to fetch fan booked slots.",
       details: bookedSlotsResponse,
     });
   }
+  if (!widgetBookedSlotsResult.ok || widgetBookedSlotsResponse?.ok === false) {
+    return fail({
+      code: "FETCH_DASHBOARD_WIDGET_BOOKED_SLOTS_FAILED",
+      message: widgetBookedSlotsResponse?.error || "Failed to fetch fan widget booked slots.",
+      details: widgetBookedSlotsResponse,
+    });
+  }
 
   const bookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
-  const eventIds = extractUniqueEventIdsFromSlots(bookedSlots);
+  const widgetBookedSlots = widgetBookedSlotsResponse
+    ? (Array.isArray(widgetBookedSlotsResponse.slots) ? widgetBookedSlotsResponse.slots : [])
+    : null;
+  const eventIds = extractUniqueEventIdsFromSlots(
+    mergeBookedSlotCollections(bookedSlots, widgetBookedSlots || []),
+  );
 
   if (eventIds.length === 0) {
     return ok(
       {
         rawEvents: [],
         bookedSlots,
+        widgetBookedSlots,
         stats: bookedSlotsResponse?.stats || {},
+        widgetStats: widgetBookedSlotsResponse?.stats || {},
       },
       {
         flow: "bookings.fetchDashboardBookingContext",
@@ -210,7 +341,9 @@ async function fetchFanDashboardContext({ payload, context, api, baseUrl }) {
     {
       rawEvents,
       bookedSlots,
+      widgetBookedSlots,
       stats: bookedSlotsResponse?.stats || {},
+      widgetStats: widgetBookedSlotsResponse?.stats || {},
     },
     {
       flow: "bookings.fetchDashboardBookingContext",

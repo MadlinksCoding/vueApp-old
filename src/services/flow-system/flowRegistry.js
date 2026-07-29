@@ -492,6 +492,13 @@ export const flowRegistry = {
         },
         {
           type: "stateEngine",
+          key: "events.widgetBookedSlotsRaw",
+          mode: "set",
+          select: "widgetBookedSlots",
+          hydrateOnReadHit: true,
+        },
+        {
+          type: "stateEngine",
           key: "events.meta",
           mode: "set",
           select: "meta",
@@ -529,6 +536,8 @@ export const flowRegistry = {
         FETCH_DASHBOARD_EVENTS_FAILED: "Could not load events right now.",
         FETCH_DASHBOARD_BOOKED_SLOTS_FAILED:
           "Could not load booked slots right now.",
+        FETCH_DASHBOARD_WIDGET_BOOKED_SLOTS_FAILED:
+          "Could not load booking widgets right now.",
       },
     },
   },

@@ -346,7 +346,7 @@ describe("create booking mapper", () => {
         priceSetting: "fixedPricePerUser",
         basePriceTokens: 100,
         offHourSurcharge: true,
-        offHourSurchargePercent: 8,
+        offHourSurchargeTokens: 8,
       },
     };
 
@@ -360,13 +360,13 @@ describe("create booking mapper", () => {
 
     expect(preview.payment.lines).toContainEqual({
       code: "off_hour_surcharge",
-      label: "Off-hour Surcharge (8%)",
+      label: "Off-hour Surcharge",
       amount: 8,
     });
     expect(preview.payment.total).toBe(108);
   });
 
-  it("ceils fractional off-hour surcharge tokens", () => {
+  it("multiplies and ceils fixed off-hour tokens for private base sessions", () => {
     const event = {
       eventId: "evt_private_off_hour_ceil",
       creatorId: 1407,
@@ -377,13 +377,13 @@ describe("create booking mapper", () => {
         basePriceTokens: 15,
         sessionDurationMinutes: 30,
         offHourSurcharge: true,
-        offHourSurchargePercent: 30,
+        offHourSurchargeTokens: 4.5,
       },
     };
 
     const preview = buildBookingPaymentPreview(
       event,
-      30,
+      60,
       [],
       { offHours: true },
       {},
@@ -391,10 +391,10 @@ describe("create booking mapper", () => {
 
     expect(preview.payment.lines).toContainEqual({
       code: "off_hour_surcharge",
-      label: "Off-hour Surcharge (30%)",
-      amount: 5,
+      label: "Off-hour Surcharge",
+      amount: 9,
     });
-    expect(preview.payment.total).toBe(20);
+    expect(preview.payment.total).toBe(39);
   });
 
   it("maps event-goal group contribution into preview and request payload", () => {
@@ -413,15 +413,18 @@ describe("create booking mapper", () => {
         enableDiscountForRecurring: true,
         minEventsForRecurringDiscount: 2,
         recurringDiscountPercentOfBase: 25,
+        offHourSurcharge: true,
+        offHourSurchargeTokens: 12,
       },
     };
 
-    const preview = buildBookingPaymentPreview(event, 180, [], {}, { contributionTokens: 250, priorEventBookingCount: 3 });
+    const preview = buildBookingPaymentPreview(event, 180, [], { offHours: true }, { contributionTokens: 250, priorEventBookingCount: 3 });
     expect(preview.contributionTokens).toBe(250);
     expect(preview.payment.lines).toEqual([
       { code: "event_goal_contribution", label: "Event Goal Contribution", amount: 250 },
+      { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 12 },
     ]);
-    expect(preview.payment.total).toBe(250);
+    expect(preview.payment.total).toBe(262);
 
     const mapped = mapCreateBookingToRequest({
       fanBooking: {
@@ -442,6 +445,7 @@ describe("create booking mapper", () => {
           startHm: "10:00",
           endHm: "13:00",
           value: "10:00",
+          offHours: true,
         },
         selectedDuration: { value: 180, price: 0 },
         contributionTokens: 250,
@@ -451,8 +455,55 @@ describe("create booking mapper", () => {
     expect(mapped.contributionTokens).toBe(250);
     expect(mapped.payment.lines).toEqual([
       { code: "event_goal_contribution", label: "Event Goal Contribution", amount: 250 },
+      { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 12 },
     ]);
-    expect(mapped.payment.total).toBe(250);
+    expect(mapped.payment.total).toBe(262);
+  });
+
+  it("treats the legacy percent field as the same fixed token amount", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 20,
+      sessionDurationMinutes: 30,
+      offHourSurcharge: true,
+      offHourSurchargePercent: 7,
+    }, 60, [], { offHours: true });
+
+    expect(preview.payment.lines).toContainEqual({
+      code: "off_hour_surcharge",
+      label: "Off-hour Surcharge",
+      amount: 14,
+    });
+    expect(preview.payment.total).toBe(54);
+  });
+
+  it.each([
+    ["the feature is disabled", false, true],
+    ["the selected slot is normal hours", true, false],
+  ])("does not add the off-hour surcharge when %s", (_label, enabled, offHours) => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 20,
+      sessionDurationMinutes: 30,
+      offHourSurcharge: enabled,
+      offHourSurchargeTokens: 10,
+    }, 60, [], { offHours });
+
+    expect(preview.payment.lines.some((line) => line.code === "off_hour_surcharge")).toBe(false);
+    expect(preview.payment.total).toBe(40);
+  });
+
+  it("prefers canonical off-hour tokens when the legacy alias is also present", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 20,
+      sessionDurationMinutes: 30,
+      offHourSurcharge: true,
+      offHourSurchargeTokens: 3,
+      offHourSurchargePercent: 99,
+    }, 30, [], { offHours: true });
+
+    expect(preview.payment.lines.find((line) => line.code === "off_hour_surcharge")?.amount).toBe(3);
   });
 
   it("floors event-goal contribution preview at minimum without capping at goal", () => {

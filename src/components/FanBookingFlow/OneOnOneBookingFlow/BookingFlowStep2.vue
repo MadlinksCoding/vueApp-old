@@ -7,7 +7,10 @@ import { addMonths } from '@/utils/calendarHelpers.js';
 import { showToast } from '@/utils/toastBus.js';
 import TokenHandler from '@/utils/TokenHandler.js';
 import { getBackendJwtToken } from '@/utils/backendJwt.js';
-import { buildBookingPaymentPreview } from '@/services/bookings/mappers/createBookingMapper.js';
+import {
+  buildBookingPaymentPreview,
+  resolveOffHourSurchargeTokens,
+} from '@/services/bookings/mappers/createBookingMapper.js';
 import {
   buildCandidateSlotsForEventDate,
   computeNextAvailableSlot,
@@ -787,6 +790,20 @@ function formatSlotRange(slot = {}) {
   return `${hmToLabel(slot.startHm)}-${hmToLabel(slot.endHm)}`;
 }
 
+function resolveTotalPriceWithoutBookingFee(preview = null) {
+  const payment = preview?.payment && typeof preview.payment === 'object'
+    ? preview.payment
+    : {};
+  const total = Number(payment.total || 0);
+  const lines = Array.isArray(payment.lines) ? payment.lines : [];
+  const bookingFeeLine = lines.find((line) => String(line?.code || '') === 'booking_fee');
+  const bookingFee = Number(bookingFeeLine?.amount || 0);
+  const safeTotal = Number.isFinite(total) ? total : 0;
+  const safeBookingFee = Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0;
+
+  return Math.max(0, safeTotal - safeBookingFee);
+}
+
 async function autoSelectGroupAndGoToPayment() {
   if (!isGroupEvent.value || groupAutoRedirecting.value) return;
   groupAutoRedirecting.value = true;
@@ -829,6 +846,9 @@ async function autoSelectGroupAndGoToPayment() {
     isFirstBookingForCreator: isFirstBookingForCreator.value,
     contributionTokens: contribution,
   });
+  const offHourSurchargeLine = pricingPreview.payment.lines.find(
+    (line) => line.code === 'off_hour_surcharge',
+  );
   const dateDisplay = formatGroupDate(next.dateIso);
   const bookingData = {
     selectedDate,
@@ -839,13 +859,15 @@ async function autoSelectGroupAndGoToPayment() {
     formattedTimeRange: formatSlotRange(next.slot),
     selectedDateDisplay: dateDisplay,
     headerDateDisplay: dateDisplay,
-    totalPrice: Number(pricingPreview?.payment?.total || 0),
+    totalPrice: resolveTotalPriceWithoutBookingFee(pricingPreview),
     contributionTokens: contribution,
     longerDiscountAmount: 0,
     firstTimeDiscountAmount: 0,
     discountRows: [],
-    offHourSurchargeAmount: 0,
-    offHourSurchargePercent: 0,
+    offHourSurchargeAmount: Number(offHourSurchargeLine?.amount || 0),
+    offHourSurchargeTokens: offHourSurchargeLine
+      ? resolveOffHourSurchargeTokens(event)
+      : 0,
     isOffHours: Boolean(next.slot?.offHours),
     walletBalance: Number(walletBalance.value || props.engine.getState('bookingDetails.walletBalance') || 0),
     displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
@@ -980,22 +1002,24 @@ const timeSlotHourColumns = computed(() => {
   return columns;
 });
 
-const configuredOffHourSurchargePercent = computed(() => {
+const configuredOffHourSurchargeTokens = computed(() => {
   const raw = selectedEvent.value?.raw || {};
   const enabled = toBoolean(
     raw.offHourSurcharge ?? selectedEvent.value?.offHourSurcharge,
     false,
   );
-  const percent = Number(
-    raw.offHourSurchargePercent
+  const tokens = Number(
+    raw.offHourSurchargeTokens
+      ?? selectedEvent.value?.offHourSurchargeTokens
+      ?? raw.offHourSurchargePercent
       ?? selectedEvent.value?.offHourSurchargePercent
       ?? 0,
   );
-  return enabled && Number.isFinite(percent) && percent > 0 ? percent : 0;
+  return enabled && Number.isFinite(tokens) && tokens > 0 ? tokens : 0;
 });
 
 const showOffHourSurchargeIndicator = computed(() => (
-  configuredOffHourSurchargePercent.value > 0
+  configuredOffHourSurchargeTokens.value > 0
   && timeSlots.value.some((slot) => slot.isOffHours)
 ));
 
@@ -1372,11 +1396,11 @@ function selectDefaultDuration() {
 
 const selectedAddons = computed(() => addons.value.filter((item) => item.selected));
 
-const offHourSurchargePercent = computed(() => {
+const offHourSurchargeTokens = computed(() => {
   if (!selectedTime.value?.offHours) {
     return 0;
   }
-  return configuredOffHourSurchargePercent.value;
+  return configuredOffHourSurchargeTokens.value;
 });
 
 const pricingPreview = computed(() => {
@@ -1407,6 +1431,13 @@ const offHourSurchargeAmount = computed(() => {
   return Number(line?.amount || 0);
 });
 
+const bookingFeeAmount = computed(() => {
+  const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
+  const line = lines.find((row) => String(row?.code) === 'booking_fee');
+  const amount = Number(line?.amount || 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+});
+
 const discountRows = computed(() => {
   const rows = [];
   if (longerDiscountAmount.value > 0) {
@@ -1427,7 +1458,7 @@ const discountRows = computed(() => {
 });
 
 const totalPrice = computed(() => {
-  return Number(pricingPreview.value?.payment?.total || 0);
+  return resolveTotalPriceWithoutBookingFee(pricingPreview.value);
 });
 
 const canProceedToPayment = computed(() => {
@@ -1815,7 +1846,7 @@ const goToNextStep = async () => {
     firstTimeDiscountAmount: firstTimeDiscountAmount.value,
     discountRows: discountRows.value,
     offHourSurchargeAmount: offHourSurchargeAmount.value,
-    offHourSurchargePercent: offHourSurchargePercent.value,
+    offHourSurchargeTokens: offHourSurchargeTokens.value,
     isOffHours: Boolean(selectedTime.value?.offHours),
     walletBalance: Number(walletBalance.value || 0),
     displayTimezoneOffsetMinutes: displayTimezoneOffsetMinutes.value,
@@ -2398,14 +2429,16 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               
 
               <div
-                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0)"
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
                 class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
+                data-testid="booking-flow-price-breakdown"
               >
                 <div class="flex flex-col gap-2">
                   <div
                     v-for="row in discountRows"
                     :key="row.code"
                     class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="discount"
                   >
                     <p class="text-[#EAECF0]">{{ row.label }}</p>
                     <div class="flex items-center gap-1 text-[#07F468]">
@@ -2418,6 +2451,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                   <div
                     v-if="offHourSurchargeAmount > 0"
                     class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="off-hour-surcharge"
                   >
                     <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
                     <div class="flex items-center gap-1 text-[#FF9F43]">
@@ -2427,7 +2461,11 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                     </div>
                   </div>
 
-                  <div class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white">
+                  <div
+                    class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
+                    data-row-kind="current-total"
+                    data-testid="booking-flow-current-total-row"
+                  >
                     <p>{{ t("fan_booking_current_total") }}</p>
                     <div class="flex items-center gap-1">
                       <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
