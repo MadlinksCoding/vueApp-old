@@ -3573,13 +3573,6 @@
 
     </form>
     <div :class="footerClass">
-      <div class="md:hidden">
-        <ButtonComponent
-          @click="emit('preview-schedule')"
-          :text="t('common_preview')"
-          variant="polygonRight"
-        />
-      </div>
       <SoftDisabledBookingButton
         @click="goToNext"
         @tooltip-select="goToStep1ValidationField"
