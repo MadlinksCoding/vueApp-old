@@ -2403,10 +2403,8 @@
         </div>
       </BookingSectionsWrapper>
       
-      <BookingSectionsWrapper :title="t('booking_booking_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"
-        accordionIcon="https://i.ibb.co/MD46QRZS/Frame-1410099649.png"   :is-open="sectionsState.bookingSettings"
-        @toggle="toggleSection('bookingSettings')">
-        <div v-show="sectionsState.bookingSettings" class="flex flex-col justify-start items-start gap-5 mt-5">
+      <BookingSectionsWrapper :title="t('booking_booking_settings')" leftIcon="https://i.ibb.co/nNmmvwnf/Icon-1.png"   :is-open="true">
+        <div class="flex flex-col justify-start items-start gap-5 mt-5">
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
