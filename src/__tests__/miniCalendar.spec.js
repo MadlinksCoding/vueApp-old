@@ -156,5 +156,32 @@ describe("MiniCalendar", () => {
     const dot = pastButton.find('[data-has-events="true"]');
     expect(dot.exists()).toBe(false);
   });
+
+  it("respects todayUsesSelectedDot=false and applies normal dot style to unselected today date", () => {
+    const today = new Date();
+    const otherDate = new Date(Date.now() + 86400000);
+    const wrapper = mountCalendar({
+      monthDate: today,
+      selectedDate: otherDate,
+      events: [{ start: today, end: today }],
+      todayUsesSelectedDot: false,
+      theme: {
+        mini: {
+          dot: "green-dot",
+          selectedDot: "black-dot",
+        },
+      },
+    });
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    const dateKey = `${year}-${month}-${day}`;
+
+    const todayButton = wrapper.findAll("button").find((button) => button.attributes("data-date") === dateKey);
+    const dot = todayButton.find('[data-has-events="true"]');
+    expect(dot.classes()).toContain("green-dot");
+    expect(dot.classes()).not.toContain("black-dot");
+  });
 });
 
