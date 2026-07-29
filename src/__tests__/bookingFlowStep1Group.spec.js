@@ -171,6 +171,31 @@ describe("BookingFlowStep1 group cards", () => {
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
   });
 
+  it("stores fixed off-hour token pricing when a group card routes directly to payment", async () => {
+    const dateIso = localDateOffset(1);
+    const event = groupEvent(dateIso, {
+      offHourSurcharge: true,
+      offHourSurchargeTokens: 10,
+      raw: {
+        offHourSurcharge: true,
+        offHourSurchargeTokens: 10,
+        slots: [{
+          date: dateIso,
+          times: [{ startTime: "10:00", endTime: "13:00", offHours: true }],
+        }],
+      },
+    });
+    const { engine, wrapper } = await mountStep1({ event });
+
+    const cta = wrapper.findAll("button").find((button) => button.text().includes("JOIN EVENT"));
+    await cta.trigger("click");
+
+    expect(engine.state.bookingDetails.offHourSurchargeTokens).toBe(10);
+    expect(engine.state.bookingDetails.offHourSurchargeAmount).toBe(10);
+    expect(engine.state.bookingDetails.totalPrice).toBe(510);
+    expect(engine.state.fanBooking.selection.selectedSlot.offHours).toBe(true);
+  });
+
   it("refreshes selected-event availability before navigating", async () => {
     const dateIso = localDateOffset(1);
     const event = groupEvent(dateIso);

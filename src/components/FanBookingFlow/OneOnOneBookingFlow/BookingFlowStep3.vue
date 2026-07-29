@@ -2223,7 +2223,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                               </div>
                               <div class="flex justify-center items-center gap-0.5">
                                 <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                                <p class="text-base text-white font-normal">{{ sessionTotalUsdDisplay }}</p>
+                                <p class="text-base text-white font-normal">{{ formatTokenCompact(bookingFeeAmount) }}</p>
                               </div>
                             </div>
                           </div>

@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
+import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 
 let engine;
 const callFlow = vi.fn();
@@ -68,8 +69,8 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode"],
-    emits: ["date-selected", "update:focus-date", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
@@ -598,6 +599,71 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("focusDate").toDateString()).toBe(manuallySelectedDate.toDateString());
     expect(mainCalendar.props("selectedDate").toDateString()).toBe(manuallySelectedDate.toDateString());
     expect(callFlow).toHaveBeenCalledTimes(callsAfterMount + 2);
+  });
+
+  it("keeps early month availability when month navigation preserves a late focus day", async () => {
+    vi.setSystemTime(new Date("2026-07-29T09:00:00"));
+    const sundayStart = localDateTimeToHkt("2026-08-02", "10:00");
+    const sundayEnd = localDateTimeToHkt("2026-08-02", "11:00");
+    const rangeAnchor = localDateTimeToHkt("2026-07-29", "12:00");
+    const recurringEvent = {
+      eventId: "evt_late_month_focus",
+      type: "1on1-call",
+      status: "active",
+      title: "Weekly Sunday event",
+      dateFrom: "2026-07-29",
+      raw: {
+        type: "1on1-call",
+        repeatRule: "weekly",
+        dateFrom: rangeAnchor.dateIso,
+        sessionDurationMinutes: 60,
+        slots: [{
+          day: sundayStart.weekday,
+          startTime: sundayStart.hm,
+          endTime: sundayEnd.hm,
+          endDayOffset: 0,
+        }],
+      },
+    };
+    callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        events: [recurringEvent],
+        bookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "month");
+    await flushPromises();
+    mainCalendar.vm.$emit("update:focus-date", new Date("2026-08-29T09:00:00"));
+    await flushPromises();
+
+    const availabilityDates = mainCalendar.props("events")
+      .filter((event) => event?.isAvailabilityBlock)
+      .map((event) => new Date(event.start))
+      .map((date) => (
+        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      ));
+    const dashboardFetchCalls = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    );
+
+    expect(availabilityDates).toEqual(expect.arrayContaining([
+      "2026-08-02",
+      "2026-08-09",
+      "2026-08-16",
+    ]));
+    expect(dashboardFetchCalls.at(-1)?.[1]).toEqual(expect.objectContaining({
+      fromIso: "2026-07-25",
+      toIso: "2026-09-05",
+    }));
   });
 
   it("resets embedded mobile dashboard and calendar scroll through the exposed method", async () => {
@@ -1862,6 +1928,7 @@ describe("DashboardEventsFeature", () => {
     });
 
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    expect(mainCalendar.props("fitDayEventColumns")).toBe(true);
     expect(mainCalendar.props("bookingScheduleEvents")).toEqual([
       expect.objectContaining({
         eventId: "evt_mobile_schedule",

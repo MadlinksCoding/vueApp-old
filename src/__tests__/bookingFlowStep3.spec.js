@@ -192,7 +192,7 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
           lines: [
             { code: "base", label: "Base Price", amount: 100 },
             { code: "recurring_event_discount", label: "Recurring Event Discount (25%)", amount: -25 },
-            { code: "off_hour_surcharge", label: "Off-hour Surcharge (50%)", amount: 38 },
+            { code: "off_hour_surcharge", label: "Off-hour Surcharge", amount: 38 },
           ],
           total: 113,
         },
@@ -1211,11 +1211,11 @@ describe("BookingFlowStep3", () => {
 
     const text = wrapper.text();
     expect(text).toContain("Recurring Event Discount (25%)");
-    expect(text).toContain("Off-hour Surcharge (50%)");
+    expect(text).toContain("Off-hour Surcharge");
     expect(text).toContain("113");
     expect(text).toContain("USD$ 6.78");
-    expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge (50%)"));
-    expect(text.indexOf("Off-hour Surcharge (50%)")).toBeLessThan(text.indexOf("Session Total"));
+    expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge"));
+    expect(text.indexOf("Off-hour Surcharge")).toBeLessThan(text.indexOf("Session Total"));
   });
 
   it("continues rendering longer-session and first-time discount payment lines", async () => {

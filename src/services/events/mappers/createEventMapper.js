@@ -707,7 +707,10 @@ function mapBasePayload(payload = {}, context = {}) {
     enableRescheduleFee: asBoolean(payload.enableRescheduleFee, false),
     enableCancellationFee: asBoolean(payload.enableCancellationFee, false),
     allowAdvanceCancelToAvoidMinCharge: asBoolean(payload.allowAdvanceCancellation, false),
-    offHourSurcharge: asBoolean(payload.addOffHourSurcharge, false),
+    offHourSurcharge: asBoolean(
+      payload.addOffHourSurcharge ?? payload.offHourSurcharge,
+      false,
+    ),
     enableBufferTime: asBoolean(payload.setBufferTime, false),
 
     socialAutoPost: buildSocialAutoPost(payload),
@@ -771,7 +774,16 @@ function mapBasePayload(payload = {}, context = {}) {
   }
 
   if (mapped.offHourSurcharge) {
-    withOptionalField(mapped, "offHourSurchargePercent", pickNumeric(payload.offHourSurchargePercent || payload.offHourSurcharge, 0));
+    withOptionalField(
+      mapped,
+      "offHourSurchargeTokens",
+      pickNumeric(
+        payload.offHourSurchargeTokens
+          ?? payload.offHourSurchargePercent
+          ?? payload.offHourSurcharge,
+        0,
+      ),
+    );
   }
 
   if (type !== "group-event" && mapped.fanCanRequestExtend) {
