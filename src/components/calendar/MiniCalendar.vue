@@ -38,12 +38,12 @@
             :class="[
               'absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
               dotMap[localDateKey(d)].hasPending
-                ? ((sameDay(d, selectedDate) || sameDay(d, today))
+                ? ((sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today)))
                     ? 'w-1 h-1 !bg-transparent border border-white'
                     : (theme.mini?.pendingDot || 'w-1 h-1 !bg-transparent border border-[#101828]'))
                 : [
                     theme.mini?.dot || 'w-1 h-1 bg-[#101828]',
-                    (sameDay(d, selectedDate) || sameDay(d, today)) ? (theme.mini?.selectedDot || '!bg-white') : ''
+                    (sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today))) ? (theme.mini?.selectedDot || '!bg-white') : ''
                   ]
             ]"
             data-has-events="true"
@@ -73,6 +73,7 @@ export default {
     selectedDate: { type: Date, default: null },
     events: { type: Array, default: () => [] },
     hidePastDots: { type: Boolean, default: false },
+    todayUsesSelectedDot: { type: Boolean, default: true },
     theme: { type: Object, default: () => ({}) },
     dataAttrs: { type: Object, default: () => ({}) },
     minDate: { type: [Date, String], default: null },

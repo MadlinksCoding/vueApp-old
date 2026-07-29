@@ -2168,6 +2168,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-y-auto md:over
               :max-date="maxSelectableDate"
               :events="events1"
               :theme="theme1"
+              :today-uses-selected-dot="false"
               :data-attrs="{ 'data-calendar':'mini' }"
               @date-selected="onSelectFromMini"
             />
