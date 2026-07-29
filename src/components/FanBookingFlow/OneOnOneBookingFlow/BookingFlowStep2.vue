@@ -2061,13 +2061,13 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="isGroupEvent"
-    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden bg-black/80"
+    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden bg-black/80"
   ></div>
 
   <div
     v-else
-    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[852px] overflow-hidden">
-    <div :class="['h-full lg:rounded-[20px] md:px-[10px] md:py-6 md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
+    class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden">
+    <div :class="['h-full lg:rounded-[20px] md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
         <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] bg-[rgba(12,17,29,0.5)] flex flex-col md:flex-row before:content-['']
 before:absolute
@@ -2075,7 +2075,7 @@ before:inset-0
 before:z-[-1]
 before:bg-[rgba(0,0,0,0.75)]
 before:backdrop-blur-sm
-md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
         <OneOnOneBookingFlowLeftSideBar
           :time-display="formattedTimeRange"
@@ -2094,12 +2094,12 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
           :price-setting="groupPriceSetting"
         />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-2 pt-2 lg:px-3 lg:pt-3 pb-0 bg-[rgba(12,17,29,0.5)]">
+        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[rgba(12,17,29,0.5)]">
 
-          <div class="flex-none lg:flex-1 flex-col w-full pt-5 lg:p-5">
+          <div class="flex-none lg:flex-1 flex-col w-full pt-1 md:pt-5 px-3 md:p-5">
              <div class="flex items-center justify-between w-full mb-2">
               <div class="flex items-center">
-                <div :class="theme1.mini.header">{{ header }}</div>
+                <div :class="theme1.mini.header" class="!text-base !font-medium">{{ header }}</div>
                 <div class="flex items-center gap-1">
                   <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(-1)">
                     <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.13092 11.4181L1.21289 6.50006L6.13092 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2173,7 +2173,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
             />
           </div>
 
-          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 lg:p-5 h-full">
+          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 md:p-5 h-full">
             <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
               {{ t("fan_booking_select_date_prompt") }}
             </p>
@@ -2181,7 +2181,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
           <div
             v-else
-            class="flex-1 flex flex-col lg:px-5 gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
+            class="flex-1 flex flex-col gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
           >
             <div
               v-if="!hasAvailableSlots"
@@ -2195,10 +2195,10 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
             <template v-else>
             <div class="flex flex-col gap-2 md:mt-0 mt-5">
               <div
-                class="flex w-full min-w-0 flex-nowrap items-center gap-x-3"
+                class="flex w-full min-w-0 flex-nowrap items-center gap-x-3 px-3 md:px-5"
                 data-testid="booking-flow-time-slots-header"
               >
-                <h3 class="shrink-0 text-sm text-[#98A2B3]">
+                <h3 class="shrink-0 text-sm font-semibold leading-5 text-[#22CCEE]">
                   {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
                 </h3>
                 <div class="flex shrink-0 items-center gap-1">
@@ -2243,7 +2243,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               </div>
               <div
                 ref="timeSlotScrollContainer"
-                class="flex w-full gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                class="flex w-full gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-3 md:px-5"
                 data-testid="booking-flow-time-slots-scroll"
                 @scroll="updateTimeSlotScrollControls"
               >
@@ -2295,7 +2295,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               </div>
             </div>
 
-            <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5">
+            <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
               <div class="flex items-center gap--2 justify-between">
                 <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
                 <span
@@ -2387,14 +2387,14 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
                   <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
                 </p>
 
-                <div class="flex items-center gap-1">
+                <div class="flex items-start gap-1">
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
                   <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
                 </div>
                 
                 <div
                   v-if="showFirstTimeDiscountNotice"
-                  class="flex items-center gap-1"
+                  class="flex items-start gap-1"
                   data-testid="booking-flow-first-time-discount-notice"
                 >
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
@@ -2405,7 +2405,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
                 <div
                   v-if="hasAvailableLongerSessionDiscount"
-                  class="flex items-center gap-1"
+                  class="flex items-start gap-1"
                   data-testid="booking-flow-longer-discount-notice"
                 >
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
@@ -2476,7 +2476,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               </div>
             </div>
 
-            <div class="flex flex-col gap-2 md:mt-0 mt-5" v-if="!isGroupEvent && addons.length > 0">
+            <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
               <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
               <div class="flex flex-col w-full gap-2">
                 <div
@@ -2505,7 +2505,7 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
               </div>
             </div>
 
-            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5">
+            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
               <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
               <div class="desc">
                 <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
