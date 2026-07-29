@@ -589,6 +589,47 @@ describe("booking slot utilities", () => {
     }));
   });
 
+  it("uses explicit visible bounds instead of clipping early month occurrences around a late focus date", () => {
+    const sundayStart = localDateTimeToHkt("2026-08-02", "10:00");
+    const sundayEnd = localDateTimeToHkt("2026-08-02", "11:00");
+    const rangeAnchor = localDateTimeToHkt("2026-07-29", "12:00");
+    const blocks = mapAvailabilityToCalendarEvents([{
+      eventId,
+      type: "1on1-call",
+      status: "active",
+      dateFrom: "2026-07-29",
+      raw: {
+        type: "1on1-call",
+        repeatRule: "weekly",
+        dateFrom: rangeAnchor.dateIso,
+        sessionDurationMinutes: 60,
+        slots: [{
+          day: sundayStart.weekday,
+          startTime: sundayStart.hm,
+          endTime: sundayEnd.hm,
+          endDayOffset: 0,
+        }],
+      },
+    }], {
+      bookedSlotsIndex: {},
+      focusDate: new Date("2026-08-29T12:00:00"),
+      rangeStartDate: "2026-07-26",
+      rangeEndDate: "2026-09-05",
+      rangeDaysBefore: 0,
+      rangeDaysAfter: 0,
+      mode: "scheduleWindow",
+    });
+
+    const occurrenceDates = blocks.map((block) => dateIsoFromDate(new Date(block.start)));
+
+    expect(occurrenceDates).toEqual(expect.arrayContaining([
+      "2026-08-02",
+      "2026-08-09",
+      "2026-08-16",
+    ]));
+    expect(occurrenceDates[0]).toBe("2026-08-02");
+  });
+
   it("respects recurring event dateFrom and dateTo when building monthly candidate slots", () => {
     const event = {
       eventId,

@@ -1230,7 +1230,10 @@ export function mapBookedSlotsToCalendarEvents(slots = [], options = {}) {
 }
 
 function startOfDay(date) {
-  const value = new Date(date);
+  const dateIso = typeof date === "string"
+    ? extractDateIso(date, null)
+    : null;
+  const value = new Date(dateIso ? `${dateIso}T00:00:00` : date);
   value.setHours(0, 0, 0, 0);
   return value;
 }
@@ -1292,14 +1295,20 @@ export function mapAvailabilityToCalendarEvents(events = [], options = {}) {
   const {
     bookedSlotsIndex = {},
     focusDate = new Date(),
+    rangeStartDate = null,
+    rangeEndDate = null,
     rangeDaysBefore = 14,
     rangeDaysAfter = 56,
     mode = "freeSlots",
   } = options;
   const showScheduleWindows = mode === "scheduleWindow";
 
-  const start = addDaysToDate(startOfDay(focusDate), -Math.max(0, Number(rangeDaysBefore) || 0));
-  const end = addDaysToDate(startOfDay(focusDate), Math.max(0, Number(rangeDaysAfter) || 0));
+  const start = rangeStartDate
+    ? startOfDay(rangeStartDate)
+    : addDaysToDate(startOfDay(focusDate), -Math.max(0, Number(rangeDaysBefore) || 0));
+  const end = rangeEndDate
+    ? startOfDay(rangeEndDate)
+    : addDaysToDate(startOfDay(focusDate), Math.max(0, Number(rangeDaysAfter) || 0));
 
   const blocks = [];
   const dedupe = new Set();

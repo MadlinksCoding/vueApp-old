@@ -26,6 +26,7 @@
         variant="default"
         :is-sticky-card-visible="isStickyCardVisible"
         :focus-date="state.focus"
+        :selected-date="state.selected"
         :events="events1"
         :events-data="eventsData"
         :booking-schedule-events="bookingScheduleEvents"
@@ -38,13 +39,15 @@
         :console-overlaps="true"
         :highlight-today-column="true"
         day-column-mode="events"
+        :fit-day-event-columns="true"
         time-start="00:00"
         time-end="24:00"
         :slot-minutes="60"
         :row-height-px="120"
         :min-event-height-px="0"
         @date-selected="onSelectFromMain"
-        @view-changed="state.view = $event"
+        @update:focus-date="onFocusFromMain"
+        @view-changed="onViewChanged"
         @join-call="handleJoin"
         @approve-booking="onApprovePendingBooking"
         @reject-booking="onRejectPendingBooking"
@@ -843,7 +846,7 @@ const deleteEventPopupConfig = {
 
 const state = reactive({
   focus: new Date(),
-  selected: null,
+  selected: new Date(),
   view: "week",
 });
 
@@ -1469,6 +1472,7 @@ function buildCalendarSlotsFromContext({
   bookedSlotsRaw = [],
   bookedSlotsIndex = {},
   focusDate = new Date(),
+  view = "week",
 }) {
   const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
     includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
@@ -1539,11 +1543,15 @@ function buildCalendarSlotsFromContext({
     });
   };
 
+  const visibleRange = resolveVisibleBookedSlotRange({
+    focusDate,
+    view,
+  });
   const availabilitySlots = mapAvailabilityToCalendarEvents(catalogEvents, {
     bookedSlotsIndex,
     focusDate,
-    rangeDaysBefore: 14,
-    rangeDaysAfter: 56,
+    rangeStartDate: visibleRange.visibleFromIso,
+    rangeEndDate: visibleRange.visibleToIso,
     mode: "scheduleWindow",
   }).map((slot) => {
     const eventId = String(slot?.eventId || "");
@@ -1586,6 +1594,7 @@ const rebuildAvailabilityForFocusDate = () => {
     bookedSlotsRaw,
     bookedSlotsIndex: bookedSlotsIndex || {},
     focusDate: state.focus,
+    view: state.view,
   });
 
   dashboardEventsEngine.setState("events.bookedList", bookedCalendarSlots, { reason: "events-focus", silent: true });
@@ -1680,6 +1689,7 @@ const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = tr
       bookedSlotsRaw,
       bookedSlotsIndex,
       focusDate: state.focus,
+      view: state.view,
     });
     dashboardEventsEngine.setState("events.bookedList", bookedCalendarSlots, { reason: "events-fetch", silent: true });
     dashboardEventsEngine.setState("events.list", calendarSlots, { reason: "events-fetch", silent: true });
@@ -1689,6 +1699,7 @@ const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = tr
         bookedSlotsRaw: widgetBookedSlotsRaw,
         bookedSlotsIndex: {},
         focusDate: state.focus,
+        view: state.view,
       });
       dashboardEventsEngine.setState("events.widgetBookedSlotsRaw", widgetBookedSlotsRaw, { reason: "events-fetch", silent: true });
       dashboardEventsEngine.setState("events.widgetBookedList", widgetBookedList, { reason: "events-fetch", silent: true });
@@ -2307,6 +2318,22 @@ const onSelectFromMini = (date) => {
 const onSelectFromMain = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
+  fetchDashboardContext(false, { refreshWidgets: false });
+};
+
+const onFocusFromMain = (date) => {
+  const nextFocus = asDate(date);
+  if (!nextFocus || sameDay(nextFocus, state.focus)) return;
+
+  state.focus = nextFocus;
+  fetchDashboardContext(false, { refreshWidgets: false });
+};
+
+const onViewChanged = (view) => {
+  const nextView = String(view || "").toLowerCase();
+  if (!nextView || nextView === state.view) return;
+
+  state.view = nextView;
   fetchDashboardContext(false, { refreshWidgets: false });
 };
 

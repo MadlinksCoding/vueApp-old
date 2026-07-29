@@ -74,6 +74,7 @@ const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
+const RESCHEDULE_FEE_SETTING_ENABLED = false;
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -174,7 +175,7 @@ const bookingFlow = createFlowStateEngine({
         waitlistSpots: "",
         advanceVoid: "",
         advanceCancelWindowUnit: "day",
-        offHourSurcharge: "",
+        offHourSurchargeTokens: "",
         calendarDuration: "",
         lateStartAction: "reschedule",
         lateStartDiscountPercent: "",
@@ -192,7 +193,7 @@ const bookingFlow = createFlowStateEngine({
         enableBookingFee: false,
         allowInstantBooking: false,
         disableChatBeforeCall: false,
-        enableRescheduleFee: false,
+        enableRescheduleFee: RESCHEDULE_FEE_SETTING_ENABLED,
         enableCancellationFee: false,
         allowAdvanceCancellation: false,
         addOffHourSurcharge: false,
@@ -641,7 +642,7 @@ const clearRefreshQueryFlag = async () => {
 
 let creatorBookedSlotsFetchGeneration = 0;
 
-const fetchCreatorBookedSlots = async (forceRefresh = false) => {
+const fetchCreatorBookedSlots = async (forceRefresh = false, { scrollToCurrentTime = true } = {}) => {
     const creatorId = resolveCreatorId();
     const fetchGeneration = ++creatorBookedSlotsFetchGeneration;
     const visibleRange = resolveVisibleBookedSlotRange({
@@ -700,7 +701,9 @@ const fetchCreatorBookedSlots = async (forceRefresh = false) => {
 
     calendarLoading.value = false;
     await nextTick();
-    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    if (scrollToCurrentTime) {
+        await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    }
 };
 
 function normalizeHydratedAudienceState(formState = {}) {
@@ -726,6 +729,9 @@ function normalizeHydratedAudienceState(formState = {}) {
 
 function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
     const normalizedState = normalizeHydratedAudienceState(formState);
+    if (!RESCHEDULE_FEE_SETTING_ENABLED) {
+        normalizedState.enableRescheduleFee = false;
+    }
     Object.entries(normalizedState).forEach(([key, value]) => {
         bookingFlow.setState(key, value, { reason, silent: true });
     });
@@ -1239,6 +1245,75 @@ function resolveDraftCalendarFocusDate(stateSnapshot = {}) {
     return anchorDate;
 }
 
+function resolveSchedulePreviewFocusDate(payload = {}, stateSnapshot = {}) {
+    const repeatRule = String(payload.repeatRule || stateSnapshot.repeatRule || "weekly");
+    const exactDate = dateFromIso(String(payload.date || "").slice(0, 10));
+    if (repeatRule === "doesNotRepeat") return exactDate;
+
+    const rangeStart = dateFromIso(String(stateSnapshot.dateFrom || stateSnapshot.selectedDate || "").slice(0, 10));
+    const rangeEnd = dateFromIso(String(stateSnapshot.dateTo || "").slice(0, 10));
+    let referenceDate = dateFromIso(formatDateIso(todayForCalendar));
+    if (rangeStart && referenceDate < rangeStart) referenceDate = rangeStart;
+    if (!referenceDate || (rangeEnd && referenceDate > rangeEnd)) return null;
+
+    if (repeatRule === "daily") return referenceDate;
+
+    if (repeatRule === "monthly") {
+        const anchorDate = rangeStart || exactDate;
+        if (!anchorDate) return null;
+
+        for (let monthOffset = 0; monthOffset < 120; monthOffset += 1) {
+            const monthStart = new Date(
+                referenceDate.getFullYear(),
+                referenceDate.getMonth() + monthOffset,
+                1,
+            );
+            const candidate = new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                Math.min(anchorDate.getDate(), getLastDayOfMonth(monthStart.getFullYear(), monthStart.getMonth())),
+            );
+            if (candidate < referenceDate || candidate < anchorDate) continue;
+            if (rangeEnd && candidate > rangeEnd) return null;
+            return candidate;
+        }
+
+        return null;
+    }
+
+    const weekday = Number(payload.weekday);
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+        return rangeStart || referenceDate;
+    }
+
+    const anchorDateIso = formatDateIso(rangeStart || referenceDate);
+    const repeatX = Number(stateSnapshot.repeatX);
+    const maxSearchDays = repeatRule === "everyXWeeks"
+        ? Math.max(14, (Number.isFinite(repeatX) && repeatX > 0 ? repeatX : 2) * 14)
+        : 7;
+
+    for (let offset = 0; offset <= maxSearchDays; offset += 1) {
+        const candidate = addDays(referenceDate, offset);
+        const candidateIso = formatDateIso(candidate);
+        if (candidate.getDay() !== weekday) continue;
+        if (rangeStart && candidate < rangeStart) continue;
+        if (rangeEnd && candidate > rangeEnd) return null;
+        if (
+            repeatRule === "everyXWeeks"
+            && !shouldIncludeEveryXWeeksDate({
+                candidateDateIso: candidateIso,
+                anchorDateIso,
+                repeatX,
+            })
+        ) {
+            continue;
+        }
+        return candidate;
+    }
+
+    return null;
+}
+
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
@@ -1395,6 +1470,64 @@ const onSelectFromMain = (date) => {
     state.selected = new Date(date);
     state.focus = new Date(date);
     fetchCreatorBookedSlots(false);
+};
+
+const onFocusFromMain = (date) => {
+    const nextFocus = asDate(date);
+    const nextDateKey = formatDateIso(nextFocus);
+    if (!nextDateKey || nextDateKey === formatDateIso(state.focus)) return;
+
+    state.focus = nextFocus;
+    fetchCreatorBookedSlots(false);
+};
+
+let schedulePreviewFocusGeneration = 0;
+
+const waitForDropdownPaint = () => new Promise((resolve) => {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        setTimeout(resolve, 0);
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        window.setTimeout(resolve, 0);
+    });
+});
+
+const scrollEditedScheduleTimeIntoView = async (startTime, focusGeneration) => {
+    await nextTick();
+    if (focusGeneration !== schedulePreviewFocusGeneration) return;
+
+    await mainCalendarRef.value?.revealSelectedWeekDay?.({ behavior: "smooth" });
+    await mainCalendarRef.value?.scrollToTime?.(startTime, {
+        behavior: "smooth",
+        viewportOffset: 0.32,
+    });
+};
+
+const focusEditedSchedulePreview = async (payload = {}) => {
+    const focusGeneration = ++schedulePreviewFocusGeneration;
+    const isFieldFocus = payload.interaction === "field-focus";
+    if (isFieldFocus) {
+        await waitForDropdownPaint();
+    } else {
+        await nextTick();
+    }
+    if (focusGeneration !== schedulePreviewFocusGeneration) return;
+
+    const targetDate = resolveSchedulePreviewFocusDate(payload, bookingFlow.state || {});
+    const targetDateIso = formatDateIso(targetDate);
+    if (!targetDateIso) return;
+
+    const focusChanged = targetDateIso !== formatDateIso(state.focus);
+    state.focus = new Date(targetDate);
+    state.selected = new Date(targetDate);
+    rebuildAvailabilityPreview();
+    await scrollEditedScheduleTimeIntoView(payload.startTime, focusGeneration);
+
+    if (focusChanged && !isFieldFocus) {
+        void fetchCreatorBookedSlots(false, { scrollToCurrentTime: false });
+    }
 };
 
 function rebuildAvailabilityPreview() {
@@ -1903,8 +2036,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :schedule-locked="false"
                             :pricing-locked="false"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
+                            @schedule-preview-focus="focusEditedSchedulePreview"
                         />
 
                         <OneOnOneBookinStep2
@@ -1928,8 +2063,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
+                            @schedule-preview-focus="focusEditedSchedulePreview"
                         />
 
                         <OneOnOneBookinStep2
@@ -2015,11 +2152,12 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </div>
                 </div>
-                <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :events="events2"
+                <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :selected-date="state.selected" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
                     day-column-mode="events" :row-height-px="120" :min-event-height-px="0"
                     @date-selected="onSelectFromMain"
+                    @update:focus-date="onFocusFromMain"
                     @preview-schedule="previewSchedule = true"
                     @join-call="handleJoinCall"
                     @approve-booking="handleApproveBooking"

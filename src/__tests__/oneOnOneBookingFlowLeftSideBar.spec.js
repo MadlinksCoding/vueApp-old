@@ -53,7 +53,7 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
           allowLongerSessions: true,
           maxSessionMinutes: 6,
           offHourSurcharge: true,
-          offHourSurchargePercent: 50,
+          offHourSurchargeTokens: 50,
           enableFirstTimeDiscount: true,
           firstTimeDiscountTokens: 100,
           enableDiscountForLonger: true,
@@ -64,7 +64,7 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
     });
 
     expect(wrapper.get("[data-testid='booking-sidebar-normal-hour']").text()).toContain("300/10 min.");
-    expect(wrapper.get("[data-testid='booking-sidebar-off-hour']").text()).toContain("450/10 min.");
+    expect(wrapper.get("[data-testid='booking-sidebar-off-hour']").text()).toContain("350/10 min.");
     expect(wrapper.get("[data-testid='booking-sidebar-maximum-session']").text()).toContain(
       "60 min. (6 sessions)",
     );

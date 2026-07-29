@@ -46,4 +46,23 @@ describe("fetchCreatorEventsMapper", () => {
       createdAt: "2030-01-15T05:30:00.000Z",
     }).createdAt).toBe("2030-01-15T05:30:00.000Z");
   });
+
+  it("prefers canonical off-hour tokens and falls back to the legacy alias", () => {
+    const canonical = mapSingleEventFromResponse({
+      ...baseEvent,
+      offHourSurcharge: true,
+      offHourSurchargeTokens: 12,
+      offHourSurchargePercent: 25,
+    });
+    const legacy = mapSingleEventFromResponse({
+      ...baseEvent,
+      offHourSurcharge: true,
+      offHourSurchargePercent: 25,
+    });
+
+    expect(canonical.offHourSurchargeTokens).toBe(12);
+    expect(canonical.raw.offHourSurchargeTokens).toBe(12);
+    expect(legacy.offHourSurchargeTokens).toBe(25);
+    expect(legacy.raw.offHourSurchargeTokens).toBe(25);
+  });
 });

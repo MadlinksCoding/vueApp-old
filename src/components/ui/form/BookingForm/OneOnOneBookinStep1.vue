@@ -58,6 +58,7 @@
     advanceVoid: "booking_field_advance_cancellation_window",
     advanceCancelWindowQuantity: "booking_field_advance_cancellation_window",
     advanceCancelWindowUnit: "booking_field_advance_cancellation_unit",
+    offHourSurchargeTokens: "booking_field_off_hour_surcharge",
     offHourSurcharge: "booking_field_off_hour_surcharge",
     offHourSurchargePercent: "booking_field_off_hour_surcharge",
     extendSessionMax: "booking_field_extend_session_max",
@@ -99,6 +100,7 @@
     advanceVoid: "Advance cancellation window",
     advanceCancelWindowQuantity: "Advance cancellation window",
     advanceCancelWindowUnit: "Advance cancellation unit",
+    offHourSurchargeTokens: "Off-hour surcharge",
     offHourSurcharge: "Off-hour surcharge",
     offHourSurchargePercent: "Off-hour surcharge",
     extendSessionMax: "Extension session maximum",
@@ -135,6 +137,7 @@
     maxSessionDuration: "sessionDuration",
     minContributionPerUser: "groupPricing",
     monthlyAvailability: "calendarAvailability",
+    offHourSurchargeTokens: "offHourSurcharge",
     offHourSurcharge: "offHourSurcharge",
     oneTimeAvailability: "calendarAvailability",
     remindMeTime: "bookingSettings",
@@ -257,12 +260,16 @@
       type: Boolean,
       default: false,
     },
+    rescheduleFeeSettingEnabled: {
+      type: Boolean,
+      default: false,
+    },
     validationRevealRequest: {
       type: Object,
       default: null,
     },
   });
-  const emit = defineEmits(["preview-schedule"]);
+  const emit = defineEmits(["preview-schedule", "schedule-preview-focus"]);
   const DEFAULT_VUE_CREATOR_ID = 1407;
   const isGroupBooking = computed(() => props.bookingType === "group");
   const scheduleLockTooltip = computed(() => t("booking_schedule_locked_tooltip"));
@@ -342,7 +349,10 @@
     bookingFee: props.engine.state.bookingFee || "",
     waitlistSpots: props.engine.state.waitlistSpots || "",
     advanceVoid: props.engine.state.advanceVoid || "",
-    offHourSurcharge: props.engine.state.offHourSurcharge || "",
+    offHourSurchargeTokens: props.engine.state.offHourSurchargeTokens
+      ?? props.engine.state.offHourSurchargePercent
+      ?? props.engine.state.offHourSurcharge
+      ?? "",
     calendarDuration: props.engine.state.calendarDuration || "",
     remindMeTime: props.engine.state.remindMeTime || "",
     bufferTime: props.engine.state.bufferTime || "",
@@ -359,7 +369,7 @@
     enableBookingFee: props.engine.state.enableBookingFee || false,
     allowInstantBooking: props.engine.state.allowInstantBooking || false,
     disableChatBeforeCall: props.engine.state.disableChatBeforeCall || false,
-    enableRescheduleFee: props.engine.state.enableRescheduleFee || false,
+    enableRescheduleFee: props.rescheduleFeeSettingEnabled && Boolean(props.engine.state.enableRescheduleFee),
     enableCancellationFee: props.engine.state.enableCancellationFee || false,
     allowAdvanceCancellation: props.engine.state.allowAdvanceCancellation || false,
     addOffHourSurcharge: props.engine.state.addOffHourSurcharge || false,
@@ -430,7 +440,7 @@
     if (field === "cancellationFee") {
       return isGroupBooking.value ? "groupPricing" : "privatePricing";
     }
-    if (field === "offHourSurcharge") {
+    if (["offHourSurchargeTokens", "offHourSurcharge", "offHourSurchargePercent"].includes(field)) {
       return isGroupBooking.value ? "groupPricing" : "privatePricing";
     }
     return STEP1_FIELD_SECTION_MAP[field] || "";
@@ -518,14 +528,6 @@
       autoClose: false,
     });
   }
-
-  const offHourSurchargePreviewTokens = computed(() => {
-    if (!formData.value.addOffHourSurcharge) return 0;
-    const basePrice = Number(formData.value.basePrice);
-    const percent = Number(formData.value.offHourSurcharge);
-    if (!Number.isFinite(basePrice) || !Number.isFinite(percent) || basePrice <= 0 || percent <= 0) return 0;
-    return Math.ceil(basePrice * percent / 100);
-  });
 
   // Watch for changes and update engine state
   // Watch for changes and update engine state
@@ -917,6 +919,7 @@
   ];
   const timeOptionValues = timeOptions.map((option) => option.value);
   const endTimeOptionValues = endTimeOptions.map((option) => option.value);
+  const offHoursBoundaryAdjustments = new WeakMap();
 
   function timeToMinutes(value) {
     const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
@@ -925,6 +928,56 @@
     const minutes = Number(match[2]);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
     return (hours * 60) + minutes;
+  }
+
+  function focusSchedulePreview({
+    day = null,
+    date = "",
+    startTime = "",
+    interaction = "",
+  } = {}) {
+    const weekday = day
+      ? DAY_KEY_TO_INDEX[String(day.key || day.name || "").toLowerCase()]
+      : null;
+
+    emit("schedule-preview-focus", {
+      repeatRule: formData.value.repeatRule,
+      weekday: Number.isFinite(weekday) ? weekday : null,
+      date: isIsoDate(date) ? date : "",
+      startTime,
+      ...(interaction ? { interaction } : {}),
+    });
+  }
+
+  function focusWeeklySlot(dayIndex, slotIndex) {
+    const day = weekDays.value?.[dayIndex];
+    const slot = day?.slots?.[slotIndex];
+    if (!day || !slot) return;
+    focusSchedulePreview({
+      day,
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
+  }
+
+  function focusMonthlySlot(slotIndex) {
+    const slot = monthlySlots.value?.[slotIndex];
+    if (!slot) return;
+    focusSchedulePreview({
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
+  }
+
+  function focusOneTimeSlot(entryIndex, slotIndex) {
+    const dateEntry = oneTimeDates.value?.[entryIndex];
+    const slot = dateEntry?.slots?.[slotIndex];
+    if (!dateEntry || !slot) return;
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: slot.startTime,
+      interaction: "field-focus",
+    });
   }
 
   function getOrderedEndTimesAfter(startTime = "") {
@@ -941,6 +994,140 @@
     const hours = Math.floor(normalized / 60);
     const minutes = normalized % 60;
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  function withCurrentTimeOption(options = [], currentValue = "") {
+    if (timeToMinutes(currentValue) === null || options.some((option) => option.value === currentValue)) {
+      return options;
+    }
+
+    return [
+      ...options,
+      { value: currentValue, label: to12HourLabel(currentValue) },
+    ].sort((first, second) => timeToMinutes(first.value) - timeToMinutes(second.value));
+  }
+
+  function getSlotStartOptions(slot = {}, siblingSlots = [], slotIndex = null) {
+    const options = withCurrentTimeOption(timeOptions, slot?.startTime);
+    if (!slot?.offHours || !Array.isArray(siblingSlots)) return options;
+
+    const sharedBoundaryValues = new Set(
+      siblingSlots
+        .filter((_otherSlot, otherIndex) => otherIndex !== slotIndex)
+        .map((otherSlot) => otherSlot?.endTime)
+        .filter(Boolean),
+    );
+
+    return options.filter((option) => (
+      option.value === slot.startTime
+      || !sharedBoundaryValues.has(option.value)
+    ));
+  }
+
+  function getSlotEndOptions(slot = {}) {
+    return withCurrentTimeOption(endTimeOptions, slot?.endTime);
+  }
+
+  function canUseSlotRange(slots = [], slotIndex = null, startTime = "", endTime = "") {
+    return isValidSlotCandidate(
+      getExistingSlotRanges(slots, slotIndex),
+      startTime,
+      endTime,
+    );
+  }
+
+  function normalizeOffHoursSlotBoundary(slots = [], slotIndex = null) {
+    const slot = slots?.[slotIndex];
+    if (!slot?.offHours) return false;
+
+    const hasSharedBoundary = slots.some((otherSlot, otherIndex) => (
+      otherIndex !== slotIndex
+      && otherSlot?.endTime === slot.startTime
+    ));
+    if (!hasSharedBoundary) return false;
+
+    const startMinutes = timeToMinutes(slot.startTime);
+    const endMinutes = timeToMinutes(slot.endTime);
+    const duration = getSlotDurationMinutesFromTimes(slot.startTime, slot.endTime);
+    if (startMinutes === null || endMinutes === null || duration === null) return false;
+
+    const nextStartTime = minutesToTime(startMinutes + 1);
+    let nextEndTime = slot.endTime;
+
+    if (duration === MIN_SLOT_DURATION_MINUTES) {
+      if (endMinutes >= MINUTES_PER_DAY - 1) return false;
+      nextEndTime = minutesToTime(endMinutes + 1);
+    }
+
+    if (!canUseSlotRange(slots, slotIndex, nextStartTime, nextEndTime)) return false;
+
+    if (!offHoursBoundaryAdjustments.has(slot)) {
+      offHoursBoundaryAdjustments.set(slot, {
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    }
+
+    slot.startTime = nextStartTime;
+    slot.endTime = nextEndTime;
+    return true;
+  }
+
+  function normalizeOffHoursBoundaries(slots = []) {
+    if (!Array.isArray(slots)) return false;
+    return slots.reduce((changed, _slot, slotIndex) => (
+      normalizeOffHoursSlotBoundary(slots, slotIndex) || changed
+    ), false);
+  }
+
+  function restoreOffHoursSlotBoundary(slots = [], slotIndex = null) {
+    const slot = slots?.[slotIndex];
+    if (!slot) return false;
+
+    const candidates = [];
+    const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
+    if (recordedAdjustment) candidates.push(recordedAdjustment);
+
+    const startMinutes = timeToMinutes(slot.startTime);
+    const endMinutes = timeToMinutes(slot.endTime);
+    if (startMinutes !== null && startMinutes > 0) {
+      const inferredStartTime = minutesToTime(startMinutes - 1);
+      const hasMatchingPreviousBoundary = slots.some((otherSlot, otherIndex) => (
+        otherIndex !== slotIndex
+        && otherSlot?.endTime === inferredStartTime
+      ));
+
+      if (hasMatchingPreviousBoundary) {
+        const currentDuration = getSlotDurationMinutesFromTimes(slot.startTime, slot.endTime);
+        const inferredEndTime = (
+          endMinutes !== null
+          && currentDuration === MIN_SLOT_DURATION_MINUTES
+          && endMinutes > 0
+        )
+          ? minutesToTime(endMinutes - 1)
+          : slot.endTime;
+        candidates.push({
+          startTime: inferredStartTime,
+          endTime: inferredEndTime,
+        });
+      }
+    }
+
+    const restored = candidates.find((candidate) => (
+      canUseSlotRange(slots, slotIndex, candidate.startTime, candidate.endTime)
+    ));
+    offHoursBoundaryAdjustments.delete(slot);
+    if (!restored) return false;
+
+    slot.startTime = restored.startTime;
+    slot.endTime = restored.endTime;
+    return true;
+  }
+
+  function normalizeAllOffHoursBoundaries() {
+    weekDays.value.forEach((day) => normalizeOffHoursBoundaries(day?.slots));
+    normalizeOffHoursBoundaries(monthlySlots.value);
+    oneTimeDates.value.forEach((entry) => normalizeOffHoursBoundaries(entry?.slots));
   }
 
   function getOneTimeSlotKey(slot = {}) {
@@ -1041,6 +1228,12 @@
     ));
   }
 
+  function hasValidEndTimeForStartRanges(existingRanges = [], startTime = "") {
+    return endTimeOptionValues.some((endTime) => (
+      isValidSlotCandidate(existingRanges, startTime, endTime)
+    ));
+  }
+
   function getValidEndTimesForStartRanges(existingRanges = [], startTime = "") {
     return endTimeOptionValues.filter((endTime) => (
       isValidSlotCandidate(existingRanges, startTime, endTime)
@@ -1135,9 +1328,15 @@
       );
   }
 
-  function getRecurringStartOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
-    return timeOptions.map((option) => {
-      const disabled = getValidEndTimesForStartRanges(existingRanges, option.value).length === 0;
+  function getRecurringStartOptionsFromRanges(
+    existingRanges = [],
+    slot = {},
+    uniqueKey,
+    uniqueFallback,
+    candidateOptions = getSlotStartOptions(slot),
+  ) {
+    return candidateOptions.map((option) => {
+      const disabled = !hasValidEndTimeForStartRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -1148,8 +1347,14 @@
     });
   }
 
-  function getRecurringEndOptionsFromRanges(existingRanges = [], slot = {}, uniqueKey, uniqueFallback) {
-    return endTimeOptions.map((option) => {
+  function getRecurringEndOptionsFromRanges(
+    existingRanges = [],
+    slot = {},
+    uniqueKey,
+    uniqueFallback,
+    candidateOptions = getSlotEndOptions(slot),
+  ) {
+    return candidateOptions.map((option) => {
       const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
       const disabled = hasStartTime
         ? !isValidSlotCandidate(existingRanges, slot.startTime, option.value)
@@ -1269,8 +1474,9 @@
 
   function getOneTimeStartOptions(dateEntry = {}, slotIndex = null) {
     const slot = dateEntry?.slots?.[slotIndex] || {};
-    return timeOptions.map((option) => {
-      const disabled = getValidEndTimesForStart(dateEntry, slotIndex, option.value).length === 0;
+    const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
+    return getSlotStartOptions(slot, dateEntry?.slots, slotIndex).map((option) => {
+      const disabled = !hasValidEndTimeForStartRanges(existingRanges, option.value);
       return {
         ...option,
         disabled,
@@ -1282,7 +1488,7 @@
   function getOneTimeEndOptions(dateEntry = {}, slotIndex = null) {
     const slot = dateEntry?.slots?.[slotIndex] || {};
     const existingRanges = getExistingOneTimeRanges(dateEntry, slotIndex);
-    return endTimeOptions.map((option) => {
+    return getSlotEndOptions(slot).map((option) => {
       const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
       const disabled = hasStartTime
         ? !isValidSlotCandidate(existingRanges, slot.startTime, option.value)
@@ -1306,6 +1512,7 @@
       slot,
       "booking_validation_monthly_slot_unique",
       "Each monthly time slot must be unique and cannot overlap another monthly slot.",
+      getSlotStartOptions(slot, monthlySlots.value, slotIndex),
     );
   }
 
@@ -1392,11 +1599,28 @@
 
   function doesWeeklySlotConflict(dayIndex = -1, candidateSlot = {}, excludeSlotIndex = null) {
     if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
+    const existingWeeklyRanges = getExistingWeeklyRanges(dayIndex, excludeSlotIndex);
+    const existingSameDayRanges = getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex);
+    return doesWeeklySlotConflictWithRanges(
+      dayIndex,
+      candidateSlot,
+      existingWeeklyRanges,
+      existingSameDayRanges,
+    );
+  }
+
+  function doesWeeklySlotConflictWithRanges(
+    dayIndex = -1,
+    candidateSlot = {},
+    existingWeeklyRanges = [],
+    existingSameDayRanges = [],
+  ) {
+    if (!hasMinimumSlotDuration(candidateSlot?.startTime, candidateSlot?.endTime)) return true;
     return weeklyRangeOverlapsExisting(
-      getExistingWeeklyRanges(dayIndex, excludeSlotIndex),
+      existingWeeklyRanges,
       getWeeklySlotRange(dayIndex, candidateSlot),
     ) || oneTimeRangeOverlapsExisting(
-      getExistingWeeklySameDayRanges(dayIndex, excludeSlotIndex),
+      existingSameDayRanges,
       getSlotRange(candidateSlot),
     );
   }
@@ -1417,8 +1641,17 @@
 
   function getWeeklyStartOptions(dayIndex = -1, slotIndex = null) {
     const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
-    return timeOptions.map((option) => {
-      const disabled = getValidWeeklyEndTimesForStart(dayIndex, slotIndex, option.value).length === 0;
+    const existingWeeklyRanges = getExistingWeeklyRanges(dayIndex, slotIndex);
+    const existingSameDayRanges = getExistingWeeklySameDayRanges(dayIndex, slotIndex);
+    return getSlotStartOptions(slot, weekDays.value?.[dayIndex]?.slots, slotIndex).map((option) => {
+      const disabled = !endTimeOptionValues.some((endTime) => (
+        !doesWeeklySlotConflictWithRanges(
+          dayIndex,
+          { startTime: option.value, endTime },
+          existingWeeklyRanges,
+          existingSameDayRanges,
+        )
+      ));
       return {
         ...option,
         disabled,
@@ -1435,7 +1668,7 @@
 
   function getWeeklyEndOptions(dayIndex = -1, slotIndex = null) {
     const slot = weekDays.value?.[dayIndex]?.slots?.[slotIndex] || {};
-    return endTimeOptions.map((option) => {
+    return getSlotEndOptions(slot).map((option) => {
       const hasStartTime = typeof slot?.startTime === "string" && slot.startTime;
       const disabled = hasStartTime
         ? !hasMinimumSlotDuration(slot.startTime, option.value)
@@ -1623,6 +1856,7 @@
     day.slots = [nextSlot];
     day.offHours = false;
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
 
   function addWeeklySlot(dayIndex) {
@@ -1640,6 +1874,7 @@
     day.unavailable = false;
     day.slots.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
 
   function removeWeeklySlot(dayIndex, slotIndex) {
@@ -1664,7 +1899,13 @@
     if (!day || isWeeklyDayLocked(day.key || day.name)) return;
     const slot = day.slots?.[slotIndex];
     if (!slot) return;
-    slot.offHours = !slot.offHours;
+    if (slot.offHours) {
+      restoreOffHoursSlotBoundary(day.slots, slotIndex);
+      slot.offHours = false;
+    } else {
+      slot.offHours = true;
+      normalizeOffHoursSlotBoundary(day.slots, slotIndex);
+    }
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
   }
@@ -1674,11 +1915,15 @@
     syncAvailabilityToForm();
   }
 
-  function onWeeklySlotChanged(dayIndex, slotIndex, changedField = null) {
+  function onWeeklySlotChanged(dayIndex, slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const day = weekDays.value[dayIndex];
     const slot = day?.slots?.[slotIndex];
     if (!day || !slot || isWeeklyDayLocked(day.key || day.name)) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      offHoursBoundaryAdjustments.delete(slot);
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getSlotRange(slot)) {
       const nextEndTime = pickValidWeeklyEndTime(dayIndex, slotIndex, slot.startTime, slot.endTime);
@@ -1710,8 +1955,10 @@
       );
     }
 
+    normalizeOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
+    focusSchedulePreview({ day, startTime: slot.startTime });
   }
 
   function showScheduleValidationToast(messageKey, fallback) {
@@ -1735,6 +1982,7 @@
     }
     monthlySlots.value.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({ startTime: nextSlot.startTime });
   }
 
   function removeMonthlySlot(slotIndex) {
@@ -1748,14 +1996,24 @@
     if (isScheduleLocked.value) return;
     const slot = monthlySlots.value?.[slotIndex];
     if (!slot) return;
-    slot.offHours = !slot.offHours;
+    if (slot.offHours) {
+      restoreOffHoursSlotBoundary(monthlySlots.value, slotIndex);
+      slot.offHours = false;
+    } else {
+      slot.offHours = true;
+      normalizeOffHoursSlotBoundary(monthlySlots.value, slotIndex);
+    }
     syncAvailabilityToForm();
   }
 
-  function onMonthlySlotChanged(slotIndex, changedField = null) {
+  function onMonthlySlotChanged(slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const slot = monthlySlots.value?.[slotIndex];
     if (!slot) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      offHoursBoundaryAdjustments.delete(slot);
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getSlotRange(slot)) {
       const nextEndTime = pickValidEndTimeFromRanges(getMonthlyExistingRanges(slotIndex), slot.startTime, slot.endTime);
@@ -1787,15 +2045,19 @@
       );
     }
 
+    normalizeOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
+    focusSchedulePreview({ startTime: slot.startTime });
   }
 
   function addOneTimeDate() {
     if (isScheduleLocked.value) return;
     const nextDate = getNextAvailableOneTimeDate(getTodayIsoDate());
     if (!nextDate) return;
-    oneTimeDates.value.push(createOneTimeDate(nextDate));
+    const dateEntry = createOneTimeDate(nextDate);
+    oneTimeDates.value.push(dateEntry);
     syncAvailabilityToForm();
+    focusSchedulePreview({ date: dateEntry.date });
   }
 
   function removeOneTimeDate(dateIndex) {
@@ -1819,6 +2081,10 @@
     }
     dateEntry.slots.push(nextSlot);
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: nextSlot.startTime,
+    });
   }
 
   function onOneTimeDateChanged(entryIndex) {
@@ -1837,13 +2103,21 @@
     }
 
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: dateEntry.slots?.[0]?.startTime || formData.value.selectedStartTime,
+    });
   }
 
-  function onOneTimeSlotChanged(entryIndex, slotIndex, changedField = null) {
+  function onOneTimeSlotChanged(entryIndex, slotIndex, changedField = null, selectedValue = null) {
     if (isScheduleLocked.value) return;
     const dateEntry = oneTimeDates.value[entryIndex];
     const slot = dateEntry?.slots?.[slotIndex];
     if (!dateEntry || !slot) return;
+    if (typeof selectedValue === "string" && ["start", "end"].includes(changedField)) {
+      offHoursBoundaryAdjustments.delete(slot);
+      slot[changedField === "start" ? "startTime" : "endTime"] = selectedValue;
+    }
 
     if (!getOneTimeSlotRange(slot)) {
       const nextEndTime = pickValidEndTime(dateEntry, slotIndex, slot.startTime, slot.endTime);
@@ -1875,14 +2149,26 @@
       );
     }
 
+    normalizeOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
+    focusSchedulePreview({
+      date: dateEntry.date,
+      startTime: slot.startTime,
+    });
   }
 
   function toggleOneTimeSlotOffHours(entryIndex, slotIndex) {
     if (isScheduleLocked.value) return;
-    const slot = oneTimeDates.value?.[entryIndex]?.slots?.[slotIndex];
-    if (!slot) return;
-    slot.offHours = !slot.offHours;
+    const slots = oneTimeDates.value?.[entryIndex]?.slots;
+    const slot = slots?.[slotIndex];
+    if (!slot || !Array.isArray(slots)) return;
+    if (slot.offHours) {
+      restoreOffHoursSlotBoundary(slots, slotIndex);
+      slot.offHours = false;
+    } else {
+      slot.offHours = true;
+      normalizeOffHoursSlotBoundary(slots, slotIndex);
+    }
     syncAvailabilityToForm();
   }
 
@@ -1969,6 +2255,7 @@
     }
   );
 
+  normalizeAllOffHoursBoundaries();
   syncAvailabilityToForm();
 </script>
 
@@ -2294,11 +2581,15 @@
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
-              <div class="flex gap-2 items-center">
-                <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')"  
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              <div
+                class="flex gap-2 items-center"
+                :class="{ 'opacity-50': !rescheduleFeeSettingEnabled }"
+              >
+                <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')"
+                  :disabled="!rescheduleFeeSettingEnabled"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox disabled:cursor-not-allowed disabled:bg-gray-100 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
-                  wrapperClass="flex items-center gap-2" />
+                  :wrapper-class="rescheduleFeeSettingEnabled ? 'flex items-center gap-2' : 'flex items-center gap-2 !cursor-not-allowed'" />
 
                 <TooltipIcon :text="t('booking_reschedule_fee_tooltip')" />
               </div>
@@ -2309,7 +2600,7 @@
                   <div class="inline-flex justify-end items-center gap-2">
                     <BaseInput type="number" placeholder="" v-model="formData.rescheduleFee"
                       data-booking-validation-input-field="rescheduleFee"
-                      :disabled="!formData.enableRescheduleFee"
+                      :disabled="!rescheduleFeeSettingEnabled || !formData.enableRescheduleFee"
                       inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
 
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
@@ -2600,19 +2891,19 @@
               checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="!w-auto flex-none flex items-center gap-2" />
             <div class="flex min-w-0 w-full flex-1 items-center gap-2" data-test="off-hour-surcharge-controls">
-              <BaseInput type="number" placeholder="" v-model="formData.offHourSurcharge"
-                data-booking-validation-input-field="offHourSurcharge"
+              <BaseInput type="number" placeholder="" v-model="formData.offHourSurchargeTokens"
+                data-booking-validation-input-field="offHourSurchargeTokens"
+                :min="1"
                 :disabled="!formData.addOffHourSurcharge"
                 inputClass="px-3.5 min-w-0 w-full sm:w-36 md:w-44 sm:flex-none text-gray-900 placeholder:text-gray-900 text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" />
               <div class="h-10 min-w-[8.75rem] shrink-0 inline-flex flex-col justify-center items-center">
-                <div class="whitespace-nowrap text-black text-base font-medium leading-normal" data-test="off-hour-surcharge-suffix">{{ t("booking_percent_from_base_price") }}</div>
-                <div v-if="offHourSurchargePreviewTokens > 0" class="justify-center text-black text-xs font-medium leading-none">({{ t("booking_tokens_per_session", { tokens: offHourSurchargePreviewTokens }) }})</div>
+                <div class="whitespace-nowrap text-black text-base font-medium leading-normal" data-test="off-hour-surcharge-suffix">{{ t("booking_tokens_per_session_suffix") }}</div>
               </div>
             </div>
           </div>
           <ValidationInlineWarning
-            :messages="fieldValidationMessages('offHourSurcharge')"
-            field="offHourSurcharge"
+            :messages="fieldValidationMessages('offHourSurchargeTokens')"
+            field="offHourSurchargeTokens"
             spacing-class="mt-0"
           />
         </div>
@@ -2746,12 +3037,13 @@
                       <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                         <CustomDropdown
                           v-model="slot.startTime"
-                          :options="timeOptions"
+                          :options="getSlotStartOptions(slot, day.slots, sIdx)"
                           :option-factory="() => getWeeklyStartOptions(index, sIdx)"
                           :searchable="true"
                           :searchPlaceholder="timeSearchPlaceholder"
                           :disabled="isWeeklyDayLocked(day.key || day.name)"
-                          @update:modelValue="onWeeklySlotChanged(index, sIdx, 'start')"
+                          @focus="focusWeeklySlot(index, sIdx)"
+                          @update:modelValue="onWeeklySlotChanged(index, sIdx, 'start', $event)"
                           buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                           dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                         />
@@ -2765,12 +3057,13 @@
                     <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                       <CustomDropdown
                         v-model="slot.endTime"
-                        :options="endTimeOptions"
+                        :options="getSlotEndOptions(slot)"
                         :option-factory="() => getWeeklyEndOptions(index, sIdx)"
                         :searchable="true"
                         :searchPlaceholder="timeSearchPlaceholder"
                         :disabled="isWeeklyDayLocked(day.key || day.name)"
-                        @update:modelValue="onWeeklySlotChanged(index, sIdx, 'end')"
+                        @focus="focusWeeklySlot(index, sIdx)"
+                        @update:modelValue="onWeeklySlotChanged(index, sIdx, 'end', $event)"
                         buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                         dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                       />
@@ -2849,11 +3142,12 @@
                 <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
                   <CustomDropdown
                     v-model="slot.startTime"
-                    :options="timeOptions"
+                    :options="getSlotStartOptions(slot, monthlySlots, slotIndex)"
                     :option-factory="() => getMonthlyStartOptions(slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onMonthlySlotChanged(slotIndex, 'start')"
+                    @focus="focusMonthlySlot(slotIndex)"
+                    @update:modelValue="onMonthlySlotChanged(slotIndex, 'start', $event)"
                     buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                   />
@@ -2867,11 +3161,12 @@
               <div class="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
                 <CustomDropdown
                   v-model="slot.endTime"
-                  :options="endTimeOptions"
+                  :options="getSlotEndOptions(slot)"
                   :option-factory="() => getMonthlyEndOptions(slotIndex)"
                   :searchable="true"
                   :searchPlaceholder="timeSearchPlaceholder"
-                  @update:modelValue="onMonthlySlotChanged(slotIndex, 'end')"
+                  @focus="focusMonthlySlot(slotIndex)"
+                  @update:modelValue="onMonthlySlotChanged(slotIndex, 'end', $event)"
                   buttonClass="self-stretch px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300 outline-none text-gray-900 text-base font-normal font-['Poppins'] leading-normal w-full"
                   dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white"
                 />
@@ -2985,22 +3280,24 @@
                   class="flex items-center gap-1">
                   <CustomDropdown
                     v-model="slot.startTime"
-                    :options="timeOptions"
+                    :options="getSlotStartOptions(slot, entry.slots, slotIndex)"
                     :option-factory="() => getOneTimeStartOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'start')"
+                    @focus="focusOneTimeSlot(entryIndex, slotIndex)"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'start', $event)"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />
                   <div class="text-gray-500">-</div>
                   <CustomDropdown
                     v-model="slot.endTime"
-                    :options="endTimeOptions"
+                    :options="getSlotEndOptions(slot)"
                     :option-factory="() => getOneTimeEndOptions(entry, slotIndex)"
                     :searchable="true"
                     :searchPlaceholder="timeSearchPlaceholder"
-                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'end')"
+                    @focus="focusOneTimeSlot(entryIndex, slotIndex)"
+                    @update:modelValue="onOneTimeSlotChanged(entryIndex, slotIndex, 'end', $event)"
                     buttonClass="flex-1 px-3 py-2 bg-white/50 rounded-tl-sm rounded-tr-sm border-b border-gray-300 outline-none w-full h-full"
                     dropdownClass="max-h-60 overflow-y-auto w-full z-50 bg-white min-w-[max-content]"
                   />

@@ -132,6 +132,33 @@ describe("createEventMapper", () => {
     expect(mapped.firstTimeDiscount).toBeUndefined();
   });
 
+  it("maps the off-hour surcharge to the canonical fixed token field", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "50",
+      addOffHourSurcharge: true,
+      offHourSurchargeTokens: "125",
+    });
+
+    expect(mapped.offHourSurcharge).toBe(true);
+    expect(mapped.offHourSurchargeTokens).toBe(125);
+    expect(mapped.offHourSurchargePercent).toBeUndefined();
+  });
+
+  it("accepts API-shaped legacy off-hour fields without confusing the enable flag for one token", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      basePrice: "50",
+      offHourSurcharge: true,
+      offHourSurchargePercent: "25",
+    });
+
+    expect(mapped.offHourSurcharge).toBe(true);
+    expect(mapped.offHourSurchargeTokens).toBe(25);
+  });
+
   it("preserves private-only call settings for private events", () => {
     const mapped = createEventMapper({
       ...baseDraft,

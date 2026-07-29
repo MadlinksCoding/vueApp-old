@@ -41,7 +41,7 @@ describe("EventDropdownContent", () => {
     expect(wrapper.get("[data-test='show-analytics-filter']").text()).toContain("Show earning analytics");
     expect(wrapper.get("[data-test='show-completed-filter'] img").exists()).toBe(true);
     expect(wrapper.get("[data-test='show-analytics-filter'] img").exists()).toBe(true);
-    expect(wrapper.get("[data-test='show-completed-filter'] input").element.checked).toBe(false);
+    expect(wrapper.get("[data-test='show-completed-filter'] input").element.checked).toBe(true);
     expect(wrapper.get("[data-test='show-analytics-filter'] input").element.checked).toBe(false);
     expect(wrapper.get("[data-test='show-analytics-filter'] input").element.disabled).toBe(true);
 
@@ -53,19 +53,19 @@ describe("EventDropdownContent", () => {
         audio: true,
         groupCall: true,
         showSchedule: true,
-        showCompleted: false,
+        showCompleted: true,
         showAnalytics: false,
       }],
     ]);
 
-    await wrapper.get("[data-test='show-completed-filter'] input").setValue(true);
+    await wrapper.get("[data-test='show-completed-filter'] input").setValue(false);
 
     expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([{
       video: true,
       audio: true,
       groupCall: true,
       showSchedule: true,
-      showCompleted: true,
+      showCompleted: false,
       showAnalytics: false,
     }]);
 

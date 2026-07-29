@@ -353,7 +353,11 @@ export function mapEventToBookingFormState(event = {}) {
     bookingFee: fieldNumber(event.bookingFeeTokens, ""),
     advanceVoid: fieldNumber(event.advanceCancelWindowQuantity, ""),
     advanceCancelWindowUnit: stringValue(event.advanceCancelWindowUnit, "day"),
-    offHourSurcharge: fieldNumber(event.offHourSurchargePercent, ""),
+    offHourSurchargeTokens: fieldNumber(
+      event.offHourSurchargeTokens
+        ?? event.offHourSurchargePercent,
+      "",
+    ),
     remindMeTime: fieldNumber(event.callReminderMinutesBefore, ""),
     bufferTime: fieldNumber(event.bookingBufferMinutes, ""),
     bufferUnit: "minutes",

@@ -35,6 +35,17 @@ function toSurchargeTokens(value) {
   return Math.ceil(Math.max(0, numeric));
 }
 
+export function resolveOffHourSurchargeTokens(event = {}) {
+  const raw = event?.raw || {};
+  return safeNumber(
+    raw.offHourSurchargeTokens
+      ?? event.offHourSurchargeTokens
+      ?? raw.offHourSurchargePercent
+      ?? event.offHourSurchargePercent,
+    0,
+  );
+}
+
 function toDiscountTokens(value) {
   const numeric = safeNumber(value, 0);
   return Math.floor(Math.max(0, numeric));
@@ -309,19 +320,33 @@ export function buildBookingPaymentPreview(
     label: eventGoalGroup ? "Event Goal Contribution" : "Base Price",
     amount: sessionSubtotal,
   }];
+  const offHoursSelected = toBoolean(selectedSlot?.offHours, false);
+  const offHourSurchargeEnabled = toBoolean(
+    raw.offHourSurcharge ?? event.offHourSurcharge,
+    false,
+  );
+  const offHourSurchargeTokens = resolveOffHourSurchargeTokens(event);
 
   if (eventGoalGroup) {
+    if (offHoursSelected && offHourSurchargeEnabled && offHourSurchargeTokens > 0) {
+      lines.push({
+        code: "off_hour_surcharge",
+        label: "Off-hour Surcharge",
+        amount: toSurchargeTokens(offHourSurchargeTokens),
+      });
+    }
+
     return {
       payment: {
         currency: "TOKENS",
         lines,
-        total: contributionTokens,
+        total: toWholeTokens(lines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0)),
       },
       contributionTokens,
       requestedAddOns: [],
       additionalRequests: {
         recording: false,
-        offHours: false,
+        offHours: offHoursSelected,
       },
       discounts: {
         longerDiscount: { amountTokens: 0, discountTokens: 0 },
@@ -414,16 +439,18 @@ export function buildBookingPaymentPreview(
     });
   }
 
-  const offHoursSelected = toBoolean(selectedSlot?.offHours, false);
-  const offHourSurchargeEnabled = toBoolean(raw.offHourSurcharge, false);
-  const offHourSurchargePercent = safeNumber(raw.offHourSurchargePercent, 0);
-  if (offHoursSelected && offHourSurchargeEnabled && offHourSurchargePercent > 0) {
-    const subtotalBeforeSurcharge = Number(lines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0).toFixed(2));
-    const surcharge = toSurchargeTokens(subtotalBeforeSurcharge * offHourSurchargePercent / 100);
+  if (offHoursSelected && offHourSurchargeEnabled && offHourSurchargeTokens > 0) {
+    const sessionCount = isGroupEvent(event)
+      ? 1
+      : Math.max(
+        1,
+        Math.round(safeNumber(durationMinutes, baseSessionMinutes) / Math.max(1, baseSessionMinutes)),
+      );
+    const surcharge = toSurchargeTokens(offHourSurchargeTokens * sessionCount);
     if (surcharge > 0) {
       lines.push({
         code: "off_hour_surcharge",
-        label: `Off-hour Surcharge (${offHourSurchargePercent}%)`,
+        label: "Off-hour Surcharge",
         amount: surcharge,
       });
     }

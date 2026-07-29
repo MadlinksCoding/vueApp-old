@@ -9,7 +9,10 @@ import {
   resolveGroupCapacity,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
-import { buildBookingPaymentPreview } from "@/services/bookings/mappers/createBookingMapper.js";
+import {
+  buildBookingPaymentPreview,
+  resolveOffHourSurchargeTokens,
+} from "@/services/bookings/mappers/createBookingMapper.js";
 import {
   bookingFlowArrowUpRightIcon,
   bookingFlowBackgroundImage,
@@ -397,6 +400,9 @@ async function selectEvent(event) {
       isFirstBookingForCreator: props.engine.getState("fanBooking.context.isFirstBookingForCreator"),
       contributionTokens,
     });
+    const offHourSurchargeLine = pricingPreview.payment.lines.find(
+      (line) => line.code === "off_hour_surcharge",
+    );
     const dateDisplay = formatGroupDate(selected.dateIso);
     const timeRange = formatGroupTime(selected.slot);
     const bookingData = {
@@ -413,8 +419,10 @@ async function selectEvent(event) {
       longerDiscountAmount: 0,
       firstTimeDiscountAmount: 0,
       discountRows: [],
-      offHourSurchargeAmount: 0,
-      offHourSurchargePercent: 0,
+      offHourSurchargeAmount: Number(offHourSurchargeLine?.amount || 0),
+      offHourSurchargeTokens: offHourSurchargeLine
+        ? resolveOffHourSurchargeTokens(event)
+        : 0,
       isOffHours: Boolean(selected.slot?.offHours),
       walletBalance: Number(props.engine.getState("bookingDetails.walletBalance") || 0),
     };

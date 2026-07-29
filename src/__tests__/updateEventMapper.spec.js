@@ -92,4 +92,18 @@ describe("updateEventMapper", () => {
     expect(mapped.eventId).toBe("evt_group_locked");
     expect(mapped.description).toBeNull();
   });
+
+  it("uses canonical fixed off-hour tokens in update payloads", () => {
+    const mapped = updateEventMapper(makeGroupEditPayload({
+      addOffHourSurcharge: true,
+      offHourSurchargeTokens: "18",
+    }), {
+      creatorId: 1407,
+      isGroupPricingLocked: false,
+    });
+
+    expect(mapped.offHourSurcharge).toBe(true);
+    expect(mapped.offHourSurchargeTokens).toBe(18);
+    expect(mapped.offHourSurchargePercent).toBeUndefined();
+  });
 });
