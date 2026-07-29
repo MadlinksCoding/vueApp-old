@@ -273,6 +273,28 @@ describe("BookingFlowStep2", () => {
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
   });
 
+  it("excludes the booking fee from the auto-selected group totalPrice", async () => {
+    const dateIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso,
+      selectedEvent: createGroupEvent(dateIso, {
+        enableBookingFee: true,
+        bookingFeeTokens: 15,
+        raw: {
+          enableBookingFee: true,
+          bookingFeeTokens: 15,
+        },
+      }),
+    });
+    await wrapperPromise;
+    await nextTick();
+    await nextTick();
+    await nextTick();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.bookingDetails.totalPrice).toBe(50);
+  });
+
   it("auto-selects an ongoing group event session before a later session", async () => {
     const today = setFixedStepClock();
     const { engine, wrapperPromise } = createMountedStep({
@@ -561,6 +583,121 @@ describe("BookingFlowStep2", () => {
     const normalWrapper = await normalWrapperPromise;
     await flushStep2();
     expect(normalWrapper.find("[data-testid='booking-flow-off-hour-surcharge-indicator']").exists()).toBe(false);
+  });
+
+  it("excludes the booking fee from private totalPrice", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { engine, wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        enableBookingFee: true,
+        bookingFeeTokens: 15,
+        raw: {
+          ...baseEvent.raw,
+          enableBookingFee: true,
+          bookingFeeTokens: 15,
+        },
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-current-total-row']").text()).toContain("60");
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.state.bookingDetails.totalPrice).toBe(60);
+  });
+
+  it.each([
+    {
+      name: "disabled",
+      enableBookingFee: false,
+      bookingFeeTokens: 15,
+    },
+    {
+      name: "zero",
+      enableBookingFee: true,
+      bookingFeeTokens: 0,
+    },
+  ])("does not show a booking fee row when the fee is $name", async ({ enableBookingFee, bookingFeeTokens }) => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        enableBookingFee,
+        bookingFeeTokens,
+        raw: {
+          ...baseEvent.raw,
+          enableBookingFee,
+          bookingFeeTokens,
+        },
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    expect(wrapper.find("[data-testid='booking-flow-booking-fee-row']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='booking-flow-price-breakdown']").exists()).toBe(false);
+  });
+
+  it("orders discounts, surcharge, and the fee-excluded current total", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        localEndHm: "12:00",
+        maxSessionMinutes: 3,
+        enableDiscountForLonger: true,
+        discountMinSessions: 2,
+        longerSessionDiscountTokens: 10,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscountTokens: 5,
+        enableBookingFee: true,
+        bookingFeeTokens: 15,
+        offHourSurcharge: true,
+        offHourSurchargePercent: 25,
+        raw: {
+          ...baseEvent.raw,
+          maxSessionMinutes: 3,
+          enableDiscountForLonger: true,
+          discountMinSessions: 2,
+          longerSessionDiscountTokens: 10,
+          enableFirstTimeDiscount: true,
+          firstTimeDiscountTokens: 5,
+          enableBookingFee: true,
+          bookingFeeTokens: 15,
+          offHourSurcharge: true,
+          offHourSurchargePercent: 25,
+          slots: [{
+            date: "2030-01-15",
+            times: [{ startTime: "10:00", endTime: "12:00", offHours: true }],
+          }],
+        },
+      },
+      isFirstBookingForCreator: true,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+
+    const rowKinds = wrapper.get("[data-testid='booking-flow-price-breakdown']")
+      .findAll("[data-row-kind]")
+      .map((row) => row.attributes("data-row-kind"));
+    expect(rowKinds).toEqual([
+      "discount",
+      "discount",
+      "off-hour-surcharge",
+      "current-total",
+    ]);
   });
 
   it("periodically refreshes private availability but not group auto-routing", async () => {

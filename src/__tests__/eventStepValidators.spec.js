@@ -550,7 +550,7 @@ describe("event step validators", () => {
       enableCancellationFee: true,
       cancellationFee: "",
       addOffHourSurcharge: true,
-      offHourSurcharge: "",
+      offHourSurchargeTokens: "",
       requestExtendSession: true,
       extendSessionMax: "",
       setReminders: true,
@@ -569,7 +569,7 @@ describe("event step validators", () => {
       expect.objectContaining({ field: "bookingFee", conditional: true }),
       expect.objectContaining({ field: "rescheduleFee", conditional: true }),
       expect.objectContaining({ field: "cancellationFee", conditional: true }),
-      expect.objectContaining({ field: "offHourSurcharge", conditional: true }),
+      expect.objectContaining({ field: "offHourSurchargeTokens", conditional: true }),
       expect.objectContaining({ field: "extendSessionMax", conditional: true }),
       expect.objectContaining({ field: "remindMeTime", conditional: true }),
       expect.objectContaining({ field: "bookingBufferMinutes", conditional: true }),
@@ -596,7 +596,7 @@ describe("event step validators", () => {
       enableCancellationFee: true,
       cancellationFee: "0",
       addOffHourSurcharge: true,
-      offHourSurcharge: "0",
+      offHourSurchargeTokens: "0",
     });
 
     expect(result.errors).toEqual(expect.arrayContaining([
@@ -605,7 +605,7 @@ describe("event step validators", () => {
       expect.objectContaining({ field: "bookingFee", conditional: false }),
       expect.objectContaining({ field: "rescheduleFee", conditional: false }),
       expect.objectContaining({ field: "cancellationFee", conditional: false }),
-      expect.objectContaining({ field: "offHourSurcharge", conditional: false }),
+      expect.objectContaining({ field: "offHourSurchargeTokens", conditional: false }),
     ]));
   });
 
@@ -628,7 +628,7 @@ describe("event step validators", () => {
       enableCancellationFee: true,
       cancellationFee: "1",
       addOffHourSurcharge: true,
-      offHourSurcharge: "1",
+      offHourSurchargeTokens: "1",
     });
     const fields = result.errors.map((error) => error.field);
 
@@ -637,7 +637,7 @@ describe("event step validators", () => {
     expect(fields).not.toContain("bookingFee");
     expect(fields).not.toContain("rescheduleFee");
     expect(fields).not.toContain("cancellationFee");
-    expect(fields).not.toContain("offHourSurcharge");
+    expect(fields).not.toContain("offHourSurchargeTokens");
   });
 
   it("ignores optional fees, discounts, and surcharges when their toggles are disabled", () => {
@@ -658,7 +658,7 @@ describe("event step validators", () => {
       enableCancellationFee: false,
       cancellationFee: "0",
       addOffHourSurcharge: false,
-      offHourSurcharge: "0",
+      offHourSurchargeTokens: "0",
     });
     const fields = result.errors.map((error) => error.field);
 
@@ -667,7 +667,21 @@ describe("event step validators", () => {
     expect(fields).not.toContain("bookingFee");
     expect(fields).not.toContain("rescheduleFee");
     expect(fields).not.toContain("cancellationFee");
-    expect(fields).not.toContain("offHourSurcharge");
+    expect(fields).not.toContain("offHourSurchargeTokens");
+  });
+
+  it("accepts fixed off-hour surcharges above the old percentage maximum", () => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      addOffHourSurcharge: true,
+      offHourSurchargeTokens: "150",
+    });
+
+    expect(result.errors.map((error) => error.field)).not.toContain("offHourSurchargeTokens");
   });
 
   it("validates cancellation and advance-cancel values only when enabled", () => {

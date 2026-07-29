@@ -74,6 +74,7 @@ const { t } = useBookingTranslations();
 const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
+const RESCHEDULE_FEE_SETTING_ENABLED = false;
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -174,7 +175,7 @@ const bookingFlow = createFlowStateEngine({
         waitlistSpots: "",
         advanceVoid: "",
         advanceCancelWindowUnit: "day",
-        offHourSurcharge: "",
+        offHourSurchargeTokens: "",
         calendarDuration: "",
         lateStartAction: "reschedule",
         lateStartDiscountPercent: "",
@@ -192,7 +193,7 @@ const bookingFlow = createFlowStateEngine({
         enableBookingFee: false,
         allowInstantBooking: false,
         disableChatBeforeCall: false,
-        enableRescheduleFee: false,
+        enableRescheduleFee: RESCHEDULE_FEE_SETTING_ENABLED,
         enableCancellationFee: false,
         allowAdvanceCancellation: false,
         addOffHourSurcharge: false,
@@ -728,6 +729,9 @@ function normalizeHydratedAudienceState(formState = {}) {
 
 function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") {
     const normalizedState = normalizeHydratedAudienceState(formState);
+    if (!RESCHEDULE_FEE_SETTING_ENABLED) {
+        normalizedState.enableRescheduleFee = false;
+    }
     Object.entries(normalizedState).forEach(([key, value]) => {
         bookingFlow.setState(key, value, { reason, silent: true });
     });
@@ -2032,6 +2036,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :schedule-locked="false"
                             :pricing-locked="false"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                             @schedule-preview-focus="focusEditedSchedulePreview"
@@ -2058,6 +2063,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
+                            :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                             @schedule-preview-focus="focusEditedSchedulePreview"

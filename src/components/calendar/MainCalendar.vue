@@ -628,7 +628,11 @@
         <div
           ref="weekBodyScrollRef"
           class="flex-1 min-w-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          :class="(isWeekEventColumnMode || isDayEventColumnMode) ? 'overflow-x-auto overscroll-x-contain touch-pan-x' : 'overflow-x-hidden'"
+          :class="shouldFitDayEventColumns
+            ? 'overflow-x-hidden'
+            : ((isWeekEventColumnMode || isDayEventColumnMode)
+              ? 'overflow-x-auto overscroll-x-contain touch-pan-x'
+              : 'overflow-x-hidden')"
           data-test="calendar-week-event-body-scroll"
           :style="{ height: gridMetrics.totalHeight + 'px' }"
           @scroll="syncWeekHorizontalScroll('body')"
@@ -1193,6 +1197,7 @@ const props = defineProps({
   rowHeightPx: { type: Number, default: 64 },
   minEventHeightPx: { type: Number, default: 0 },
   dayColumnMode: { type: String, default: 'dates' },
+  fitDayEventColumns: { type: Boolean, default: false },
   isStickyCardVisible: { type: Boolean, default: false }
 });
 
@@ -1486,6 +1491,10 @@ const isEventColumnMode = computed(() => (
 
 const isDayEventColumnMode = computed(() => (
   isEventColumnMode.value && effectiveView.value === 'day'
+));
+
+const shouldFitDayEventColumns = computed(() => (
+  isDayEventColumnMode.value && props.fitDayEventColumns
 ));
 
 const isWeekEventColumnMode = computed(() => (
@@ -1908,7 +1917,9 @@ const timeGridColumnStyle = computed(() => {
   if (!isDayEventColumnMode.value) return {};
 
   const count = Math.max(1, dayEventColumns.value.length);
-  const trackWidthPercent = Math.max(100, count * 50);
+  const trackWidthPercent = props.fitDayEventColumns
+    ? 100
+    : Math.max(100, count * 50);
 
   return {
     gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,

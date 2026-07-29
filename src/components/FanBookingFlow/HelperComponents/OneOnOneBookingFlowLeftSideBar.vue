@@ -198,18 +198,16 @@ const maximumSessionDurationLabel = computed(() => {
   });
 });
 
-const offHourSurchargePercent = computed(() => (
+const offHourSurchargeTokens = computed(() => (
   normalizeBoolean(eventField("offHourSurcharge"))
-    ? positiveNumber(eventField("offHourSurchargePercent"), 0)
+    ? positiveNumber(eventField("offHourSurchargeTokens", "offHourSurchargePercent"), 0)
     : 0
 ));
 
-const showOffHourPricing = computed(() => offHourSurchargePercent.value > 0);
+const showOffHourPricing = computed(() => offHourSurchargeTokens.value > 0);
 
 const offHourSessionPriceTokens = computed(() => {
-  const surcharge = Math.ceil(
-    baseSessionPriceTokens.value * offHourSurchargePercent.value / 100,
-  );
+  const surcharge = Math.ceil(offHourSurchargeTokens.value);
   return baseSessionPriceTokens.value + surcharge;
 });
 

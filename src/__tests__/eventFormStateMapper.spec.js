@@ -37,6 +37,8 @@ describe("eventFormStateMapper", () => {
       rescheduleFeeTokens: 13,
       enableCancellationFee: true,
       cancellationFeeTokens: 21,
+      offHourSurcharge: true,
+      offHourSurchargeTokens: 14,
       whoCanBook: "inviteOnly",
       invitedUsers: [{ id: 1, name: "Ava" }],
       spendingRequirement: "mustOwnProducts",
@@ -79,6 +81,8 @@ describe("eventFormStateMapper", () => {
       rescheduleFee: "13",
       enableCancellationFee: true,
       cancellationFee: "21",
+      addOffHourSurcharge: true,
+      offHourSurchargeTokens: "14",
       whoCanBook: "inviteOnly",
       spendingRequirement: "mustOwnProducts",
       xPostLive: true,
@@ -110,5 +114,18 @@ describe("eventFormStateMapper", () => {
 
     expect(state.repeatRule).toBe("doesNotRepeat");
     expect(state.oneTimeAvailability[0].slots.map((slot) => slot.offHours)).toEqual([true, false]);
+  });
+
+  it("hydrates the legacy off-hour numeric field as fixed tokens", () => {
+    const state = mapEventToBookingFormState({
+      eventId: "evt_legacy_surcharge",
+      type: "1on1-call",
+      title: "Legacy surcharge",
+      offHourSurcharge: true,
+      offHourSurchargePercent: 25,
+    });
+
+    expect(state.addOffHourSurcharge).toBe(true);
+    expect(state.offHourSurchargeTokens).toBe("25");
   });
 });

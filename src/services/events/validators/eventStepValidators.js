@@ -472,12 +472,11 @@ export function step1Validator(state = {}) {
   }
 
   if (state?.addOffHourSurcharge || state?.offHourSurcharge === true) {
-    addRequiredNumberError(errors, [state?.offHourSurcharge, state?.offHourSurchargePercent], {
-      field: "offHourSurcharge",
+    addRequiredNumberError(errors, [state?.offHourSurchargeTokens, state?.offHourSurchargePercent, state?.offHourSurcharge], {
+      field: "offHourSurchargeTokens",
       translationKey: "booking_validation_off_hour_surcharge_range",
-      message: "Off-hour surcharge must be between 1 and 100 percent.",
+      message: "Off-hour surcharge must be at least 1 token per session.",
       min: 1,
-      max: 100,
     });
   }
 

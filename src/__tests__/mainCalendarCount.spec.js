@@ -797,7 +797,7 @@ describe("MainCalendar all events count", () => {
           isAvailabilityBlock: true,
         }),
       ],
-      { initialView: "day", dayColumnMode: "events" },
+      { initialView: "day", dayColumnMode: "events", fitDayEventColumns: true },
       {
         slots: {
           "event-availability": `
@@ -1497,7 +1497,7 @@ describe("MainCalendar all events count", () => {
 
     const wrapper = await mountCalendar(
       events,
-      { initialView: "day", dayColumnMode: "events" },
+      { initialView: "day", dayColumnMode: "events", fitDayEventColumns: true },
       {
         slots: {
           "event-availability": `
@@ -1529,9 +1529,9 @@ describe("MainCalendar all events count", () => {
     expect(bodyColumns).toHaveLength(5);
     expect(bodyColumns.every((column) => column.classes().includes("min-w-0"))).toBe(true);
     expect(track.attributes("style")).toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
-    expect(track.attributes("style")).toContain("width: 250%");
-    expect(track.attributes("style")).toContain("min-width: 250%");
-    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-auto");
+    expect(track.attributes("style")).toContain("width: 100%");
+    expect(track.attributes("style")).toContain("min-width: 100%");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-hidden");
     expect(wrapper.findAll("[data-test='mobile-availability']")).toHaveLength(5);
     expect(wrapper.findAll("[data-test='mobile-booking']")).toHaveLength(5);
 
@@ -1692,14 +1692,19 @@ describe("MainCalendar all events count", () => {
           isAvailabilityBlock: true,
         }),
       ],
-      { initialView: "day", dayColumnMode: "events" },
+      { initialView: "day", dayColumnMode: "events", fitDayEventColumns: true },
     );
 
+    const track = wrapper.get("[data-cal-time-grid] span.grid");
     const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
 
     expect(bodyColumns).toHaveLength(1);
     expect(bodyColumns[0].attributes("data-date")).toBe(calendarDateAttr(baseDate));
     expect(bodyColumns[0].attributes("data-empty-column")).toBe("true");
+    expect(track.attributes("style")).toContain("grid-template-columns: repeat(1, minmax(0, 1fr))");
+    expect(track.attributes("style")).toContain("width: 100%");
+    expect(track.attributes("style")).toContain("min-width: 100%");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-hidden");
   });
 
   it("does not stack same-time bookings that belong to different event columns", async () => {
