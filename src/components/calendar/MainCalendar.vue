@@ -1432,11 +1432,11 @@ const eventDetailsPopupConfig = computed(() => {
     && window.matchMedia("(orientation: portrait)").matches;
 
   return {
-    actionType: isIpadPortraitLarge ? "slidein" : "popup",
-    from: isIpadPortraitLarge ? "right" : undefined,
-    position: "center",
-    verticalAlign: isIpadPortraitLarge ? "stretch" : undefined,
-    customEffect: "scale",
+    actionType: width.value < 1024 ? "slidein" : (isIpadPortraitLarge ? "slidein" : "popup"),
+    from: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "right" : undefined),
+    position: width.value >= 1024 && !isIpadPortraitLarge ? "center" : undefined,
+    verticalAlign: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "stretch" : undefined),
+    customEffect: width.value >= 1024 && !isIpadPortraitLarge ? "scale" : undefined,
     offset: "0px",
     speed: "250ms",
     effect: "ease-in-out",
@@ -3216,7 +3216,6 @@ defineExpose({
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    transform: translateY(0) !important;
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
