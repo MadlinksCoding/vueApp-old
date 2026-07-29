@@ -757,6 +757,7 @@ export const bookingMessages = {
   fan_booking_change_edit: "Edit",
   fan_booking_date: "DATE",
   fan_booking_session_cost: "SESSION COST",
+  fan_booking_total_session_cost: "Total Session Cost",
   fan_booking_Non_Refundable: "NON-REFUNDABLE",
   fan_booking_booking_fee_included: "booking fee included",
   fan_booking_non_refundable: "A non-refundable",

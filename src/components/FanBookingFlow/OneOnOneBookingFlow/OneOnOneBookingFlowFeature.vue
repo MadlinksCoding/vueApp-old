@@ -896,7 +896,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
 </script>
 
 <template>
-  <div data-test="booking-flow-shell" class="relative flex min-h-dvh w-full items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:h-auto md:min-h-0 md:-translate-x-1/2 md:-translate-y-1/2 lg:w-[852px]">
+  <div data-test="booking-flow-shell" class="relative flex min-h-dvh w-full items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:h-auto md:min-h-0 md:-translate-x-1/2 md:-translate-y-1/2 lg:w-[57.563rem]">
     <div
       v-if="showStepOnePreviewCloseButton"
       data-test="booking-flow-step-one-close-anchor"
@@ -917,7 +917,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
         v-if="showWrapperCloseButton"
         @click="emit('close-request')"
         data-test="booking-flow-close-button"
-        class="absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
+        class="absolute top-2 right-2 md:top-1 md:right-2 lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
         <img :src="bookingFlowCrossWhiteIcon" :alt="t('fan_booking_close_popup')" class="w-4 h-4" />
       </div>

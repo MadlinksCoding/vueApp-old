@@ -11,6 +11,8 @@ import {
 } from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
 
 const showAllPolicy = ref(false);
+const showSessionCostDetails = ref(false);
+const showBookingPolicyDetails = ref(false);
 const { t, locale } = useBookingTranslations();
 
 const props = defineProps({
@@ -384,8 +386,8 @@ const groupPolicyItems = computed(() => {
               </div>
             </div>
           
-            <div class="flex flex-col text-white w-full gap-2 px-2 pt-2 md:p-0 lg:p-0">
-              <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px]">{{ titleDisplay }}</h1>
+            <div class="flex flex-col text-white w-full gap-2 px-3 pt-8 md:p-0 lg:p-0">
+              <h1 class="no-underline text-xl md:text-2xl font-semibold text-[#F2F4F7] leading-[32px] w-80 truncate">{{ titleDisplay }}</h1>
               <div class="flex flex-row items-center gap-2">
                 <template v-if="props.creatorLoading">
                   <div class="w-6 h-6 rounded-full bg-white/20 animate-skeleton-loading"></div>
@@ -412,10 +414,32 @@ const groupPolicyItems = computed(() => {
           <!-- /User details section -->
 
           <!-- Session Cost -->
-          <div class="flex flex-col gap-2 md:gap-4 px-2 lg:px-0" data-testid="booking-sidebar-session-cost">
+          <div class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0" data-testid="booking-sidebar-session-cost">
             <div class="flex flex-col gap-2">
-              <h3 class="text-sm font-semibold text-[#2CE]">{{ t("fan_booking_session_cost") }}</h3>
-              <div class="flex flex-col md:gap-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-[#2CE]">{{ t("fan_booking_session_cost") }}</h3>
+                <span
+                  class="cursor-pointer md:hidden"
+                  v-tooltip.top="t('fan_booking_total_session_cost')"
+                  @click="showSessionCostDetails = !showSessionCostDetails"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    class="transition-transform duration-200"
+                    :class="{ 'rotate-180': showSessionCostDetails }"
+                  >
+                    <path d="M5.83325 10.8333L9.99992 15L14.1666 10.8333M5.83325 5L9.99992 9.16667L14.1666 5" stroke="#22CCEE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </div>
+              <div
+                class="flex-col md:gap-2"
+                :class="[showSessionCostDetails ? 'flex' : 'hidden md:flex']"
+              >
                 <div class="flex flex-row justify-between items-center text-white" data-testid="booking-sidebar-normal-hour">
                   <div class="flex items-center">
                     <p class="text-xs font-medium md:font-normal md:text-base text-white uppercase">{{ t("fan_booking_normal_hour") }}</p>
@@ -458,7 +482,7 @@ const groupPolicyItems = computed(() => {
               </div>
             </div>
 
-            <div v-if="showFirstTimeOffer || showLongSessionOffer" class="flex flex-col gap-1 md:gap-4">
+            <div v-if="showFirstTimeOffer || showLongSessionOffer" class="flex flex-col gap-1 md:gap-4" :class="[showSessionCostDetails ? 'flex' : 'hidden md:flex']">
               <div v-if="showFirstTimeOffer" class="flex items-start gap-1" data-testid="booking-sidebar-first-time-offer">
                 <div class="w-4 h-4 md:w-5 md:h-5 flex justify-center items-center flex-none">
                   <img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" class="filter [filter:brightness(0)_saturate(100%)_invert(84%)_sepia(21%)_saturate(3990%)_hue-rotate(80deg)_brightness(95%)_contrast(106%)]" />
@@ -486,34 +510,55 @@ const groupPolicyItems = computed(() => {
           <!-- /Session Cost -->
         </div>
 
-        <div class="flex flex-col w-full gap-1 md:gap-3 px-2 pb-2 md:p-0 lg:p-0">
-            <div class="flex gap-1 md:gap-2">
+        <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0">
+            <div class="flex gap-1 md:gap-2 items-center justify-between">
               <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy") }}</h3>
+              <span
+                class="cursor-pointer md:hidden"
+                @click="showBookingPolicyDetails = !showBookingPolicyDetails"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  class="transition-transform duration-200"
+                  :class="{ 'rotate-180': showBookingPolicyDetails }"
+                >
+                  <path d="M5.83325 10.8333L9.99992 15L14.1666 10.8333M5.83325 5L9.99992 9.16667L14.1666 5" stroke="#22CCEE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
             </div>
-            <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
-              <li class="flex items-start gap-2">
-                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                {{ t("fan_booking_policy_hold_fee") }}
-              </li>
-              <li class="flex items-start gap-2">
-                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                {{ t("fan_booking_policy_creator_late_partial", { creator: props.creatorName }) }}
-              </li>
-              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
-                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                {{ t("fan_booking_policy_creator_late_full", { creator: props.creatorName }) }}
-              </li>
-              <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
-                <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
-                {{ t("fan_booking_policy_fan_late") }}
-              </li>
-            </ul>
-            <span
-              class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
-              @click="showAllPolicy = !showAllPolicy"
+            <div
+              class="flex-col gap-1 md:gap-3"
+              :class="[showBookingPolicyDetails ? 'flex' : 'hidden md:flex']"
             >
-              {{ showAllPolicy ? t('fan_booking_show_less') : t('fan_booking_show_more') }}
-            </span>
+              <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_policy_hold_fee") }}
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_policy_creator_late_partial", { creator: props.creatorName }) }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_policy_creator_late_full", { creator: props.creatorName }) }}
+                </li>
+                <li class="items-start gap-2" :class="[!showAllPolicy ? 'hidden md:flex' : 'flex']">
+                  <span class="flex-none w-1 h-1 bg-[#EAECF0] rounded-full mt-2"></span>
+                  {{ t("fan_booking_policy_fan_late") }}
+                </li>
+              </ul>
+              <span
+                class="text-[#2CE] text-xs leading-[18px] md:hidden pl-4 md:pl-5 cursor-pointer select-none"
+                @click="showAllPolicy = !showAllPolicy"
+              >
+                {{ showAllPolicy ? t('fan_booking_show_less') : t('fan_booking_show_more') }}
+              </span>
+            </div>
           </div>
       </div>
     </div>

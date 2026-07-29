@@ -769,6 +769,7 @@
   "fan_booking_top_up_complete_booking_spaced": "TOP UP & COMPLETE BOOKING",
   "fan_booking_top_up_payment": "Top up payment",
   "fan_booking_total": "Total",
+  "fan_booking_total_session_cost": "Total Session Cost",
   "fan_booking_total_tokens": "Total: {tokens} tokens",
   "fan_booking_untitled_event": "Untitled Event",
   "fan_booking_validation_booking_buffer_after_booked_required": "This slot has already been booked. Try booking a different slot",

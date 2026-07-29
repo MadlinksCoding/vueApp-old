@@ -227,4 +227,53 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
     expect(wrapper.text()).toContain("If funds do not reach the event goal");
     expect(progress.find(".bg-\\[\\#FFED29\\]").attributes("style")).toContain("width: 15%");
   });
+
+  it("toggles the session cost details section on click while maintaining desktop visibility class", async () => {
+    const wrapper = await mountSidebar({
+      selectedEvent: {
+        raw: {
+          basePriceTokens: 100,
+          sessionDurationMinutes: 15,
+        },
+      },
+    });
+
+    const toggleSpan = wrapper.find("[data-testid='booking-sidebar-session-cost'] span.cursor-pointer");
+    const detailsContainer = wrapper.get("[data-testid='booking-sidebar-normal-hour']").element.parentElement;
+
+    // Initially hidden on mobile (hidden md:flex)
+    expect(detailsContainer.className).toContain("hidden");
+    expect(detailsContainer.className).toContain("md:flex");
+
+    // Click to expand
+    await toggleSpan.trigger("click");
+    expect(detailsContainer.className).toContain("flex");
+    expect(detailsContainer.className).not.toContain("hidden");
+
+    // Click again to collapse
+    await toggleSpan.trigger("click");
+    expect(detailsContainer.className).toContain("hidden");
+    expect(detailsContainer.className).toContain("md:flex");
+  });
+
+  it("toggles the booking policy details section on click while maintaining desktop visibility class", async () => {
+    const wrapper = await mountSidebar({
+      titleDisplay: "Private Session",
+      creatorName: "Creator Name",
+    });
+
+    const policyHeader = wrapper.findAll("h3").find((h) => h.text().includes("BOOKING POLICY"));
+    const policyHeaderContainer = policyHeader.element.parentElement;
+    const toggleSpan = policyHeaderContainer.querySelector("span.cursor-pointer");
+    const policyDetailsContainer = policyHeaderContainer.nextElementSibling;
+
+    // Initially hidden on mobile (hidden md:flex)
+    expect(policyDetailsContainer.className).toContain("hidden");
+    expect(policyDetailsContainer.className).toContain("md:flex");
+
+    // Click header icon to expand
+    await toggleSpan.dispatchEvent(new Event("click"));
+    expect(policyDetailsContainer.className).toContain("flex");
+    expect(policyDetailsContainer.className).not.toContain("hidden");
+  });
 });
