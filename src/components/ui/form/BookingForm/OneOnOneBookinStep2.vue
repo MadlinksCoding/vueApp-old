@@ -2172,13 +2172,6 @@ const createEvent = async () => {
     @confirm="onConfirmSpendingProducts"
   />
   <div class="absolute right-0 bottom-0 flex items-end justify-end gap-2">
-    <div class="md:hidden">
-      <ButtonComponent
-        @click="emit('preview-schedule')"
-        :text="t('common_preview')"
-        variant="polygonRight"
-      />
-    </div>
     <SoftDisabledBookingButton
       @click="createEvent"
       @tooltip-select="goToStep2ValidationField"
