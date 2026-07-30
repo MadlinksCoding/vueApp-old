@@ -69,10 +69,12 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns"],
+    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
+        availabilityTestView: "month",
+        bookingTestView: "month",
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
         monthExpandedEvents: [
           {
@@ -198,7 +200,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           :event="monthBookedEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="bookingTestView"
         />
         <slot
           name="event"
@@ -212,21 +214,21 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           :event="monthPendingEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="bookingTestView"
         />
         <slot
           name="event-alt"
           :event="monthDeclinedEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="bookingTestView"
         />
         <slot
           name="event-availability"
           :event="monthAvailabilityEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="availabilityTestView"
         />
         <slot
           v-for="event in dynamicBookedEvents"
@@ -260,6 +262,8 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
 vi.mock("@/components/calendar/MiniCalendar.vue", () => ({
   default: {
     name: "MiniCalendar",
+    props: ["allowPastDates", "events"],
+    emits: ["date-selected"],
     template: "<div class='mini-calendar-stub' />",
   },
 }));
@@ -544,7 +548,7 @@ describe("DashboardEventsFeature", () => {
   it("loads booking context from the creatorId prop", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
-    mount(DashboardEventsFeature, {
+    const wrapper = mount(DashboardEventsFeature, {
       props: {
         creatorId: 99,
         userRole: "creator",
@@ -561,6 +565,7 @@ describe("DashboardEventsFeature", () => {
         toIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         widgetFromIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         widgetToIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        statusIn: "pending,pending_hold,confirmed,completed,cancelled_user,cancelled_creator,cancelled_system",
         widgetStatusIn: "pending,pending_hold,confirmed",
       }),
       expect.objectContaining({
@@ -569,7 +574,69 @@ describe("DashboardEventsFeature", () => {
     );
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledTimes(1);
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledWith({ behavior: "smooth" });
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("showCurrentTimeAcrossDates")).toBe(true);
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+  });
+
+  it("selects past dates from the dashboard mini calendar and loads their range", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const miniCalendar = wrapper.getComponent({ name: "MiniCalendar" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const fetchCallsAfterMount = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+    const pastDate = new Date("2026-02-15T09:00:00");
+
+    miniCalendar.vm.$emit("date-selected", pastDate);
+    await flushPromises();
+
+    expect(mainCalendar.props("focusDate").getTime()).toBe(pastDate.getTime());
+    expect(mainCalendar.props("selectedDate").getTime()).toBe(pastDate.getTime());
+    expect(callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    )).toHaveLength(fetchCallsAfterMount + 1);
+  });
+
+  it("scrolls to the current time on Day and Week view changes without changing the selected date", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialFocusDate = new Date(mainCalendar.props("focusDate"));
+    const initialSelectedDate = new Date(mainCalendar.props("selectedDate"));
+
+    mainCalendarScrollToCurrentTime.mockClear();
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "smooth" });
+    expect(mainCalendar.props("focusDate").getTime()).toBe(initialFocusDate.getTime());
+    expect(mainCalendar.props("selectedDate").getTime()).toBe(initialSelectedDate.getTime());
+
+    mainCalendar.vm.$emit("view-changed", "week");
+    await flushPromises();
+
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(2);
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "smooth" });
+    expect(mainCalendar.props("focusDate").getTime()).toBe(initialFocusDate.getTime());
+    expect(mainCalendar.props("selectedDate").getTime()).toBe(initialSelectedDate.getTime());
+
+    mainCalendar.vm.$emit("view-changed", "month");
+    await flushPromises();
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(2);
+    expect(mainCalendar.props("focusDate").getTime()).toBe(initialFocusDate.getTime());
+    expect(mainCalendar.props("selectedDate").getTime()).toBe(initialSelectedDate.getTime());
   });
 
   it("updates the visible range without changing the dashboard selection", async () => {
@@ -582,6 +649,7 @@ describe("DashboardEventsFeature", () => {
     const callsAfterMount = callFlow.mock.calls.length;
     const nextWeekFocus = new Date(2026, 2, 30, 9, 0, 0);
 
+    mainCalendarScrollToCurrentTime.mockClear();
     mainCalendar.vm.$emit("update:focus-date", nextWeekFocus);
     await wrapper.vm.$nextTick();
     await flushPromises();
@@ -599,6 +667,39 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("focusDate").toDateString()).toBe(manuallySelectedDate.toDateString());
     expect(mainCalendar.props("selectedDate").toDateString()).toBe(manuallySelectedDate.toDateString());
     expect(callFlow).toHaveBeenCalledTimes(callsAfterMount + 2);
+    expect(mainCalendarScrollToCurrentTime).not.toHaveBeenCalled();
+  });
+
+  it("does not scroll when moving between dates in Day view", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    mainCalendarScrollToCurrentTime.mockClear();
+
+    const nextDayFocus = new Date(2026, 2, 24, 9, 0, 0);
+    mainCalendar.vm.$emit("update:focus-date", nextDayFocus);
+    await flushPromises();
+
+    expect(mainCalendar.props("focusDate").getTime()).toBe(nextDayFocus.getTime());
+    expect(mainCalendarScrollToCurrentTime).not.toHaveBeenCalled();
+  });
+
+  it("does not scroll when dashboard context is refreshed after initial load", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+
+    mainCalendarScrollToCurrentTime.mockClear();
+    await wrapper.setProps({ refreshSignal: "refresh-current-view" });
+    await flushPromises();
+
+    expect(mainCalendarScrollToCurrentTime).not.toHaveBeenCalled();
   });
 
   it("keeps early month availability when month navigation preserves a late focus day", async () => {
@@ -780,6 +881,8 @@ describe("DashboardEventsFeature", () => {
         creatorId: null,
         fanId: 2615,
         userRole: "fan",
+        statusIn: "pending,pending_hold,confirmed,completed,cancelled_user,cancelled_creator,cancelled_system",
+        widgetStatusIn: "pending,pending_hold,confirmed",
       }),
       expect.any(Object),
     );
@@ -884,6 +987,83 @@ describe("DashboardEventsFeature", () => {
     ]);
   });
 
+  it("shows cancelled and creator-declined bookings only in the main calendar", async () => {
+    callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [
+          {
+            bookingId: "booking_cancelled_user",
+            eventId: "event_cancelled_user",
+            eventTitle: "Fan Cancelled",
+            eventType: "1on1-call",
+            startIso: isoTodayAt(10),
+            endIso: isoTodayAt(10, 30),
+            status: "cancelled_user",
+          },
+          {
+            bookingId: "booking_cancelled_creator",
+            eventId: "event_cancelled_creator",
+            eventTitle: "Creator Declined",
+            eventType: "1on1-call",
+            startIso: isoTodayAt(11),
+            endIso: isoTodayAt(11, 30),
+            status: "cancelled_creator",
+            approvalStatus: "manual_rejected",
+          },
+          {
+            bookingId: "booking_cancelled_system",
+            eventId: "event_cancelled_system",
+            eventTitle: "System Cancelled",
+            eventType: "1on1-call",
+            startIso: isoTodayAt(12),
+            endIso: isoTodayAt(12, 30),
+            status: "cancelled_system",
+          },
+        ],
+        widgetBookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+    await flushPromises();
+
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const cancelledEvents = mainCalendar.props("events")
+      .filter((event) => event.bookingId?.startsWith("booking_cancelled"));
+
+    expect(cancelledEvents).toHaveLength(3);
+    expect(cancelledEvents.map((event) => event.status)).toEqual([
+      "cancelled_user",
+      "cancelled_creator",
+      "cancelled_system",
+    ]);
+    expect(cancelledEvents.every((event) => event.slot === "alt")).toBe(true);
+    expect(cancelledEvents.find((event) => event.bookingId === "booking_cancelled_creator")?.raw)
+      .toEqual(expect.objectContaining({ approvalStatus: "manual_rejected" }));
+
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events"))
+      .not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ bookingId: "booking_cancelled_user" }),
+        expect.objectContaining({ bookingId: "booking_cancelled_creator" }),
+        expect.objectContaining({ bookingId: "booking_cancelled_system" }),
+      ]));
+    expect(mainCalendar.props("eventsData").flatMap((section) => section.items))
+      .not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ bookingId: "booking_cancelled_user" }),
+        expect.objectContaining({ bookingId: "booking_cancelled_creator" }),
+        expect.objectContaining({ bookingId: "booking_cancelled_system" }),
+      ]));
+  });
+
   it("renders expanded month events through widget items and opens the source event", async () => {
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
 
@@ -935,6 +1115,7 @@ describe("DashboardEventsFeature", () => {
     expect(pastBookingMarker).toBeTruthy();
     expect(pendingMarker).toBeTruthy();
     expect(declinedMarker).toBeTruthy();
+    expect(declinedMarker.classes()).toContain("min-h-[2.5rem]");
 
     expect(bookingMarker.text()).toContain("Month Booked Slot");
     expect(bookingMarker.text()).toContain("12:00pm");
@@ -953,6 +1134,7 @@ describe("DashboardEventsFeature", () => {
     expect(bookingIcon.get("path").attributes("stroke")).toBe("currentColor");
     expect(bookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("confirmed");
     expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text()).toBe("12:00pm");
+    expect(bookingMarker.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
 
     bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
       left: 120,
@@ -1084,6 +1266,402 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.element.style.backgroundImage).toBe("");
     expect(availabilityMarker.attributes("style")).not.toContain("repeating-linear-gradient");
     expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
+  });
+
+  it.each(["day", "week"])("replaces a joinable booking's time with the Join call CTA in %s view", async (view) => {
+    getBookingJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/calendar-booking",
+    });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({ bookingTestView: view });
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+    const joinButton = bookingMarker.get("[data-test='dashboard-calendar-join-call']");
+
+    expect(joinButton.text()).toBe("Join call");
+    expect(joinButton.classes()).toEqual(expect.arrayContaining([
+      "mx-1",
+      "w-[calc(100%_-_0.5rem)]",
+      "justify-center",
+      "bg-[#07F468]",
+    ]));
+    expect(bookingMarker.classes()).toContain("min-h-[3rem]");
+    expect(bookingMarker.classes()).not.toContain("min-h-[2.5rem]");
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-time']").exists()).toBe(false);
+
+    await joinButton.trigger("click");
+
+    expect(wrapper.emitted("open-url")).toEqual([
+      [{
+        url: "https://example.com/join/calendar-booking",
+        target: "_self",
+      }],
+    ]);
+    expect(mainCalendar.emitted("month-event-click")).toBeUndefined();
+  });
+
+  it("uses the existing group meeting URL and exposes the CTA to fan dashboards", async () => {
+    getBookingJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/private-booking",
+    });
+    const creatorWrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const creatorCalendar = creatorWrapper.getComponent({ name: "MainCalendar" });
+    await creatorCalendar.setData({
+      bookingTestView: "week",
+      monthBookedEvent: {
+        ...creatorCalendar.vm.monthBookedEvent,
+        type: "group-event",
+        eventType: "group-event",
+      },
+    });
+
+    await creatorWrapper.get("[data-test='dashboard-calendar-join-call']").trigger("click");
+    expect(creatorWrapper.emitted("open-url")?.[0]?.[0]).toEqual({
+      url: "https://example.com/scheduled-meeting/?event_id=evt_month_booked&start_iso=2026-03-23T12%3A00%3A00",
+      target: "_self",
+    });
+
+    const fanWrapper = await mountDashboardEventsFeature({
+      creatorId: null,
+      fanId: 2615,
+      userRole: "fan",
+    });
+    const fanCalendar = fanWrapper.getComponent({ name: "MainCalendar" });
+    await fanCalendar.setData({ bookingTestView: "day" });
+
+    await fanWrapper.get("[data-test='dashboard-calendar-join-call']").trigger("click");
+    expect(fanWrapper.emitted("open-url")?.[0]?.[0]).toEqual({
+      url: "https://example.com/join/private-booking",
+      target: "_self",
+    });
+  });
+
+  it.each([
+    {
+      label: "outside the join window",
+      status: "confirmed",
+      joinState: { canJoin: false, joinUrl: "https://example.com/join/calendar-booking" },
+    },
+    {
+      label: "without a join URL",
+      status: "confirmed",
+      joinState: { canJoin: true, joinUrl: null },
+    },
+    {
+      label: "after completion",
+      status: "completed",
+      joinState: { canJoin: true, joinUrl: "https://example.com/join/calendar-booking" },
+    },
+  ])("keeps the time row for a booking $label", async ({ status, joinState }) => {
+    getBookingJoinState.mockReturnValue(joinState);
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: "day",
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        status,
+      },
+    });
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(bookingMarker.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text())
+      .toBe("12:00pm - 12:30pm");
+    expect(bookingMarker.classes()).toContain("min-h-[2.5rem]");
+    expect(bookingMarker.classes()).not.toContain("min-h-[3rem]");
+    expect(wrapper.findAll("[data-test='dashboard-calendar-join-call']")).toHaveLength(0);
+  });
+
+  it("updates the calendar CTA as the reactive clock enters and leaves the join window", async () => {
+    const joinWindowStart = new Date("2026-03-23T09:01:00").getTime();
+    const joinWindowEnd = new Date("2026-03-23T09:02:00").getTime();
+    getBookingJoinState.mockImplementation(({ now }) => {
+      const nowMs = new Date(now).getTime();
+      return {
+        canJoin: nowMs >= joinWindowStart && nowMs < joinWindowEnd,
+        joinUrl: "https://example.com/join/calendar-booking",
+      };
+    });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({ bookingTestView: "day" });
+
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    vi.advanceTimersByTime(60 * 1000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(true);
+    vi.advanceTimersByTime(60 * 1000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+  });
+
+  it("shows an interactive schedule-title hover card in every main calendar view", async () => {
+    const selectedSlot = {
+      bookingId: "booking_schedule_hover",
+      eventId: "evt_month_availability",
+      startIso: "2026-03-23T10:00:00",
+      endIso: "2026-03-23T10:30:00",
+      status: "confirmed",
+    };
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_month_availability",
+          title: "Month Availability Window",
+          status: "active",
+          type: "group-event",
+          eventColorSkin: "#0EA5E9",
+        }],
+        bookedSlots: [selectedSlot],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+      apiBaseUrl: "https://api.example.test",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    for (const view of ["month", "week", "day"]) {
+      await mainCalendar.setData({ availabilityTestView: view });
+      const title = wrapper.get("[data-test='dashboard-calendar-availability-title-text']");
+      title.element.getBoundingClientRect = vi.fn(() => ({
+        left: 120,
+        right: 260,
+        top: 120,
+        bottom: 150,
+        width: 140,
+        height: 30,
+        x: 120,
+        y: 120,
+        toJSON: () => ({}),
+      }));
+
+      await title.trigger("mouseenter");
+
+      const tooltip = wrapper.get("[data-test='dashboard-schedule-title-tooltip']");
+      expect(tooltip.text()).toContain("Month Availability Window");
+      const viewScheduleButton = tooltip.get("[data-test='dashboard-schedule-title-tooltip-view']");
+      expect(viewScheduleButton.text()).toContain("View Booking Schedule");
+      expect(viewScheduleButton.text()).toContain("↗");
+
+      await title.trigger("mouseleave");
+      vi.advanceTimersByTime(121);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+    }
+
+    const title = wrapper.get("[data-test='dashboard-calendar-availability-title-text']");
+    await title.trigger("mouseenter");
+    await title.trigger("click");
+    expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
+    document.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
+
+    await title.trigger("focusin");
+    expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+
+    await title.trigger("mouseenter");
+    await title.trigger("mouseleave");
+    const interactiveTooltip = wrapper.get("[data-test='dashboard-schedule-title-tooltip']");
+    await interactiveTooltip.trigger("mouseenter");
+    vi.advanceTimersByTime(121);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(true);
+
+    await wrapper.get("[data-test='dashboard-schedule-title-tooltip-view']").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+    const previewPopup = wrapper.getComponent({ name: "OneOnOneBookingFlowPopup" });
+    expect(previewPopup.props("modelValue")).toBe(true);
+    expect(previewPopup.props("previewEvent")).toEqual(expect.objectContaining({
+      eventId: "evt_month_availability",
+      title: "Month Availability Window",
+      type: "group",
+    }));
+    expect(previewPopup.props("previewBookedSlots")).toEqual([selectedSlot]);
+  });
+
+  it.each([
+    {
+      label: "short title near the left edge",
+      title: "Short",
+      tooltipWidth: 192,
+      titleLeft: 20,
+      titleWidth: 40,
+      expectedTooltipCenter: 108,
+      expectedArrowX: 28,
+      viewportHeight: 768,
+      titleTop: 100,
+      expectedPlacement: "bottom",
+    },
+    {
+      label: "long title near the right edge",
+      title: "A very long booking schedule title",
+      tooltipWidth: 260,
+      titleLeft: 250,
+      titleWidth: 40,
+      expectedTooltipCenter: 158,
+      expectedArrowX: 242,
+      viewportHeight: 768,
+      titleTop: 100,
+      expectedPlacement: "bottom",
+    },
+    {
+      label: "centered title with top placement",
+      title: "Centered schedule",
+      tooltipWidth: 224,
+      titleLeft: 130,
+      titleWidth: 40,
+      expectedTooltipCenter: 150,
+      expectedArrowX: 112,
+      viewportHeight: 190,
+      titleTop: 150,
+      expectedPlacement: "top",
+    },
+  ])("aligns the tooltip arrow with a $label", async ({
+    title,
+    tooltipWidth,
+    titleLeft,
+    titleWidth,
+    expectedTooltipCenter,
+    expectedArrowX,
+    viewportHeight,
+    titleTop,
+    expectedPlacement,
+  }) => {
+    setWindowWidth(300);
+    setWindowHeight(viewportHeight);
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function getBoundingClientRectMock() {
+        if (this.matches?.("[data-test='dashboard-schedule-title-tooltip']")) {
+          return {
+            left: 0,
+            right: tooltipWidth,
+            top: 0,
+            bottom: 72,
+            width: tooltipWidth,
+            height: 72,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          };
+        }
+        return originalGetBoundingClientRect.call(this);
+      });
+
+    try {
+      const wrapper = await mountDashboardEventsFeature({
+        creatorId: 77,
+        userRole: "creator",
+      });
+      const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+      await mainCalendar.setData({
+        monthAvailabilityEvent: {
+          ...mainCalendar.vm.monthAvailabilityEvent,
+          title,
+        },
+      });
+      const titleElement = wrapper.get("[data-test='dashboard-calendar-availability-title-text']");
+      titleElement.element.getBoundingClientRect = vi.fn(() => ({
+        left: titleLeft,
+        right: titleLeft + titleWidth,
+        top: titleTop,
+        bottom: titleTop + 30,
+        width: titleWidth,
+        height: 30,
+        x: titleLeft,
+        y: titleTop,
+        toJSON: () => ({}),
+      }));
+
+      await titleElement.trigger("mouseenter");
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      const tooltip = wrapper.get("[data-test='dashboard-schedule-title-tooltip']");
+      const arrow = tooltip.get("span.absolute");
+      expect(tooltip.element.style.left).toBe(`${expectedTooltipCenter}px`);
+      expect(arrow.element.style.left).toBe(`${expectedArrowX}px`);
+      expect(tooltip.attributes("data-placement")).toBe(expectedPlacement);
+    } finally {
+      rectSpy.mockRestore();
+    }
+  });
+
+  it("limits schedule-title hover cards to visible creator schedule titles", async () => {
+    const creatorWrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const availabilityMarker = creatorWrapper.get("[data-test='dashboard-month-availability-marker']");
+    const bookingMarker = creatorWrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    await availabilityMarker.trigger("mouseenter");
+    expect(creatorWrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+
+    await bookingMarker.trigger("mouseenter");
+    expect(creatorWrapper.find("[data-test='dashboard-booking-tooltip']").exists()).toBe(true);
+    expect(creatorWrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+
+    const mainCalendar = creatorWrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      availabilityTestView: "week",
+      monthAvailabilityEvent: {
+        ...mainCalendar.vm.monthAvailabilityEvent,
+        hideAvailabilityTitle: true,
+      },
+    });
+    expect(creatorWrapper.find("[data-test='dashboard-calendar-availability-title']").exists()).toBe(false);
+
+    const fanWrapper = await mountDashboardEventsFeature({
+      creatorId: null,
+      fanId: 2615,
+      userRole: "fan",
+    });
+    const fanTitle = fanWrapper.get("[data-test='dashboard-calendar-availability-title-text']");
+    await fanTitle.trigger("mouseenter");
+    await fanTitle.trigger("focusin");
+    expect(fanWrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
+
+    setNavigatorTouchPoints(1);
+    const touchWrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const touchTitle = touchWrapper.get("[data-test='dashboard-calendar-availability-title-text']");
+    await touchTitle.trigger("mouseenter");
+    await touchTitle.trigger("focusin");
+    expect(touchWrapper.find("[data-test='dashboard-schedule-title-tooltip']").exists()).toBe(false);
   });
 
   it.each([
@@ -2079,6 +2657,7 @@ describe("DashboardEventsFeature", () => {
       dashboard_delete_booking_schedule_action: "Eliminar agenda",
     });
 
+    mainCalendarScrollToCurrentTime.mockClear();
     await wrapper.get("button[aria-label='Open options for Maid cafe simulator']").trigger("click");
     const deleteMenuButton = wrapper
       .find("[data-test='booking-schedule-menu']")
@@ -2105,6 +2684,7 @@ describe("DashboardEventsFeature", () => {
       }),
     );
     expect(callFlow.mock.calls.filter(([flowName]) => flowName === "bookings.fetchDashboardBookingContext")).toHaveLength(2);
+    expect(mainCalendarScrollToCurrentTime).not.toHaveBeenCalled();
   });
 
   it("passes group availability windows and fan bookings into the main calendar events", async () => {

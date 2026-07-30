@@ -16,6 +16,7 @@ describe("bookingTranslations", () => {
 
     expect(t("common_submit")).toBe("Enviar");
     expect(t("booking_who_can_book")).toBe("Who can book");
+    expect(t("dashboard_booking_schedule_view_schedule")).toBe("View Booking Schedule");
   });
 
   it("interpolates translated and fallback messages", () => {

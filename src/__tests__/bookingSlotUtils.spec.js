@@ -126,7 +126,15 @@ describe("booking slot utilities", () => {
     },
   );
 
-  it.each(["cancelled", "canceled", "cancelled_by_creator", "Creator_Cancelled"])(
+  it.each([
+    "cancelled",
+    "canceled",
+    "cancelled_by_creator",
+    "Creator_Cancelled",
+    "cancelled_user",
+    "cancelled_creator",
+    "cancelled_system",
+  ])(
     "keeps overlapping slots available for cancelled status %s",
     (status) => {
       const bookedSlotsIndex = makeIndex(status);
@@ -1162,5 +1170,71 @@ describe("booking slot utilities", () => {
       expect.objectContaining({ bookingId: "booking_group_1", userId: 2615, name: "Ava", avatarUrl: "https://example.test/ava.png" }),
       expect.objectContaining({ bookingId: "booking_group_2", userId: 2616, name: "Ben" }),
     ]);
+  });
+
+  it("keeps an all-cancelled group session grouped and marks it as declined", () => {
+    const events = mapBookedSlotsToCalendarEvents([
+      {
+        bookingId: "booking_group_cancelled_creator",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "cancelled_creator",
+        approvalStatus: "manual_rejected",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_group_cancelled_user",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "cancelled_user",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+    ], { includeStatuses: ["cancelled_creator", "cancelled_user"] });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      status: "cancelled_creator",
+      slot: "alt",
+      raw: {
+        participantCount: 2,
+        approvalStatus: "manual_rejected",
+      },
+    });
+  });
+
+  it("prefers an active booking when a grouped session has mixed statuses", () => {
+    const events = mapBookedSlotsToCalendarEvents([
+      {
+        bookingId: "booking_group_cancelled",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "cancelled_creator",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_group_confirmed",
+        eventId,
+        startIso: `${localDateIso}T10:00:00`,
+        endIso: `${localDateIso}T13:00:00`,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+      },
+    ], { includeStatuses: ["cancelled_creator", "confirmed"] });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      status: "confirmed",
+      slot: "event",
+      raw: {
+        participantCount: 2,
+      },
+    });
   });
 });

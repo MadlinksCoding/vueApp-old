@@ -537,6 +537,45 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("shows, advances, and scrolls to the current time on an opted-in non-current day", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 23, 12, 15, 0));
+
+    const wrapper = await mountCalendar([], {
+      focusDate: new Date(2026, 4, 1),
+      initialView: "day",
+      dayColumnMode: "events",
+      rowHeightPx: 120,
+      showCurrentTimeAcrossDates: true,
+    });
+    const nowLine = wrapper.get("[data-test='calendar-now-line']");
+    const initialTop = Number.parseFloat(nowLine.attributes("style").match(/top:\s*([\d.]+)px/)?.[1]);
+    const currentTimeLabels = wrapper.findAll("[data-test='calendar-time-label'][data-current-time='true']");
+
+    expect(currentTimeLabels.map((label) => label.text())).toEqual(["12pm"]);
+
+    const timeScroller = wrapper.get("[data-cal-time-scroll]").element;
+    Object.defineProperty(timeScroller, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(timeScroller, "scrollHeight", { configurable: true, value: 2880 });
+    Object.defineProperty(timeScroller, "scrollLeft", { configurable: true, value: 0, writable: true });
+    timeScroller.scrollTo = vi.fn();
+
+    await expect(wrapper.vm.scrollToCurrentTime()).resolves.toBe(true);
+    expect(timeScroller.scrollTo).toHaveBeenCalledWith({
+      top: 1310,
+      left: 0,
+      behavior: "smooth",
+    });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await wrapper.vm.$nextTick();
+
+    const updatedTop = Number.parseFloat(
+      wrapper.get("[data-test='calendar-now-line']").attributes("style").match(/top:\s*([\d.]+)px/)?.[1],
+    );
+    expect(updatedTop).toBe(initialTop + 2);
+  });
+
   it("smoothly scrolls an edited schedule start time into the time-grid viewport", async () => {
     const wrapper = await mountCalendar([], {
       focusDate: new Date(2026, 3, 23),
@@ -1415,6 +1454,21 @@ describe("MainCalendar all events count", () => {
       );
       await otherWeek.vm.$nextTick();
       expect(otherWeek.find("[data-test='calendar-now-line']").exists()).toBe(false);
+
+      const optedInOtherWeek = await mountCalendar(
+        [],
+        {
+          focusDate: new Date(2026, 4, 1),
+          initialView: "week",
+          dayColumnMode: "events",
+          showCurrentTimeAcrossDates: true,
+        },
+      );
+      await optedInOtherWeek.vm.$nextTick();
+      expect(optedInOtherWeek.find("[data-test='calendar-now-line']").exists()).toBe(true);
+      expect(
+        optedInOtherWeek.findAll("[data-test='calendar-time-label'][data-current-time='true']"),
+      ).toHaveLength(1);
     } finally {
       window.HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     }

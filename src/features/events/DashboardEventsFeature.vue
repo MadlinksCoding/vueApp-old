@@ -40,6 +40,7 @@
         :highlight-today-column="true"
         day-column-mode="events"
         :fit-day-event-columns="true"
+        :show-current-time-across-dates="true"
         time-start="00:00"
         time-end="24:00"
         :slot-minutes="60"
@@ -68,7 +69,10 @@
               view === 'month' ? 'month-booking-row overflow-hidden' : '',
               view === 'month'
                 ? 'hidden lg:flex text-xs leading-3 w-full shadow-sm'
-                : 'text-xs min-h-[1.25rem] w-full overflow-hidden'
+                : [
+                    'text-xs w-full overflow-hidden',
+                    isCalendarEventJoinable(event) ? 'min-h-[3rem]' : 'min-h-[2.5rem]'
+                  ]
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
@@ -95,7 +99,28 @@
                   <span class="min-w-0 truncate">{{ event.title }}</span>
                 </div>
               </div>
-              <div class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1" data-test="dashboard-calendar-booking-time">
+              <button
+                v-if="view !== 'month' && isCalendarEventJoinable(event)"
+                type="button"
+                class="mx-1 flex h-[1.5rem] w-[calc(100%_-_0.5rem)] items-center justify-center gap-1 rounded-[0.25rem] bg-[#07F468] px-2 py-[0.1875rem] text-[#0C111D] outline-none transition-colors blink-border-effect"
+                data-test="dashboard-calendar-join-call"
+                :aria-label="t('common_join_call')"
+                @click.stop="handleJoin(event)"
+              >
+                <span class="h-4 w-4 shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="whitespace-nowrap text-[0.75rem] font-semibold leading-[1.125rem]">
+                  {{ t("common_join_call") }}
+                </span>
+              </button>
+              <div
+                v-else
+                class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1"
+                data-test="dashboard-calendar-booking-time"
+              >
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -107,20 +132,6 @@
                   {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                 </span>
               </div>
-              <button 
-                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed bg-[#07F468] blink-border-effect"
-                >
-                  <span class="w-[1rem] h-[1rem]">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                  <p
-                    class="text-[0.75rem] font-semibold leading-[1.125rem] text-black whitespace-nowrap"
-                  >
-                    {{ t("common_join_call") }}
-                  </p>
-                </button>
             </template>
           </div>
         </template>
@@ -133,7 +144,7 @@
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
-              'py-[0.125rem] px-[0.25rem] text-xs shadow-custom'
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-custom min-h-[2.5rem]'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
@@ -182,7 +193,7 @@
               !event?.isAvailabilityBlock ? 'cursor-pointer' : '',
               !event?.isAvailabilityBlock ? 'rounded-lg' : '',
               view === 'month' ? 'month-booking-row flex overflow-hidden' : '',
-              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[1.25rem] overflow-hidden'
+              'py-[0.125rem] px-[0.25rem] text-xs shadow-md min-h-[2.5rem] overflow-hidden'
             ]"
             :style="[style, getCalendarEventStyle(event)]"
             data-test="dashboard-month-booking-marker"
@@ -306,7 +317,20 @@
                   'h-4 w-4'
                 ]"
               />
-              <span class="min-w-0 truncate">{{ event.title }}</span>
+              <span
+                class="min-w-0 truncate"
+                data-test="dashboard-calendar-availability-title-text"
+                :tabindex="isCreator ? 0 : undefined"
+                :aria-expanded="isCreator ? isScheduleTitleTooltipVisibleFor(event) : undefined"
+                :aria-controls="isCreator ? 'dashboard-schedule-title-tooltip' : undefined"
+                @mouseenter="showScheduleTitleTooltip(event, $event)"
+                @mouseleave="scheduleScheduleTitleTooltipClose"
+                @focusin="showScheduleTitleTooltip(event, $event)"
+                @focusout="scheduleScheduleTitleTooltipClose"
+                @keydown.esc.stop="hideScheduleTitleTooltip"
+              >
+                {{ event.title }}
+              </span>
             </span>
           </div>
         </template>
@@ -335,6 +359,7 @@
           :events="miniEvents"
           :theme="theme1"
           :hide-past-dots="true"
+          :allow-past-dates="true"
           :data-attrs="{ 'data-calendar': 'mini' }"
           @date-selected="onSelectFromMini"
         />
@@ -592,6 +617,47 @@
     />
 
     <div
+      v-if="isCreator && scheduleTitleTooltip.visible"
+      ref="scheduleTitleTooltipRef"
+      id="dashboard-schedule-title-tooltip"
+      class="fixed z-[1601] w-max min-w-[12rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
+      :style="scheduleTitleTooltipStyle"
+      :data-placement="scheduleTitleTooltip.placement"
+      data-test="dashboard-schedule-title-tooltip"
+      role="group"
+      :aria-label="scheduleTitleTooltip.title"
+      @mouseenter="cancelScheduleTitleTooltipClose"
+      @mouseleave="scheduleScheduleTitleTooltipClose"
+      @focusin="cancelScheduleTitleTooltipClose"
+      @focusout="scheduleScheduleTitleTooltipClose"
+    >
+      <span
+        class="absolute h-3.5 w-3.5 -translate-x-1/2 rotate-45 bg-[#454158]"
+        :style="{ left: `${scheduleTitleTooltip.arrowX}px` }"
+        :class="scheduleTitleTooltip.placement === 'top'
+          ? 'bottom-0 translate-y-1/2'
+          : 'top-0 -translate-y-1/2'"
+      />
+      <div class="relative flex flex-col gap-1">
+        <div
+          class="break-words text-sm font-semibold leading-5"
+          data-test="dashboard-schedule-title-tooltip-title"
+        >
+          {{ scheduleTitleTooltip.title }}
+        </div>
+        <button
+          type="button"
+          class="flex items-center gap-1 text-left text-sm font-semibold uppercase leading-5 hover:text-[#07F468] focus-visible:text-[#07F468] focus-visible:outline-none"
+          data-test="dashboard-schedule-title-tooltip-view"
+          @click.stop="handleScheduleTitleTooltipView"
+        >
+          <span>{{ t("dashboard_booking_schedule_view_schedule") }}</span>
+          <span aria-hidden="true">↗</span>
+        </button>
+      </div>
+    </div>
+
+    <div
       v-if="calendarTooltip.visible"
       class="pointer-events-none fixed z-[1600] w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-1.5rem))] rounded-[0.625rem] bg-[#454158]/95 px-3.5 py-2.5 text-white shadow-[0_12px_28px_rgba(16,24,40,0.22)]"
       :style="calendarTooltipStyle"
@@ -711,6 +777,18 @@ const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
 const scheduleCardPreviewOpen = ref(false);
 const scheduleCardPreviewEvent = ref(null);
+const scheduleTitleTooltipCloseTimer = ref(null);
+const scheduleTitleTooltipRef = ref(null);
+const scheduleTitleTooltip = reactive({
+  visible: false,
+  title: "",
+  event: null,
+  anchorX: 0,
+  arrowX: 96,
+  x: 0,
+  y: 0,
+  placement: "bottom",
+});
 const availabilityScheduleMenu = reactive({
   open: false,
   event: null,
@@ -740,6 +818,14 @@ const calendarTooltipStyle = computed(() => ({
   left: `${calendarTooltip.x}px`,
   top: `${calendarTooltip.y}px`,
   transform: calendarTooltip.placement === "top"
+    ? "translate(-50%, -100%)"
+    : "translate(-50%, 0)",
+}));
+
+const scheduleTitleTooltipStyle = computed(() => ({
+  left: `${scheduleTitleTooltip.x}px`,
+  top: `${scheduleTitleTooltip.y}px`,
+  transform: scheduleTitleTooltip.placement === "top"
     ? "translate(-50%, -100%)"
     : "translate(-50%, 0)",
 }));
@@ -886,6 +972,25 @@ const theme1 = computed(() => ({
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
 const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
+const MAIN_CALENDAR_BOOKING_STATUSES = Object.freeze([
+  "pending",
+  "pending_hold",
+  "confirmed",
+  "completed",
+  "cancelled_user",
+  "cancelled_creator",
+  "cancelled_system",
+]);
+const WIDGET_BOOKING_STATUSES = Object.freeze([
+  "pending",
+  "pending_hold",
+  "confirmed",
+]);
+const CANCELLED_BOOKING_STATUSES = new Set([
+  "cancelled_user",
+  "cancelled_creator",
+  "cancelled_system",
+]);
 
 const toggleFloatingPopup = () => {
   isFloatingPopupOpen.value = !isFloatingPopupOpen.value;
@@ -909,6 +1014,7 @@ const togglePopup = () => {
 const handlePositionUpdate = () => {
   if (isCreatePopupOpen.value) updatePopupPosition();
   if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
+  hideScheduleTitleTooltip();
 };
 
 const handleClickOutside = (event) => {
@@ -928,6 +1034,9 @@ const handleClickOutside = (event) => {
 const handleDocumentKeydown = (event) => {
   if (event.key === "Escape" && availabilityScheduleMenu.open) {
     closeAvailabilityScheduleMenu();
+  }
+  if (event.key === "Escape" && scheduleTitleTooltip.visible) {
+    hideScheduleTitleTooltip();
   }
 };
 
@@ -1015,6 +1124,22 @@ const PENDING_BOOKING_STATUSES = new Set(["pending", "pending_hold"]);
 function resolveBookingStatus(event = {}) {
   const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
   return String(event?.status || raw.status || raw.bookingStatus || "").toLowerCase();
+}
+
+function isCancelledOrDeclinedBooking(event = {}) {
+  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
+  const status = resolveBookingStatus(event);
+  const approvalStatus = String(
+    event?.approvalStatus
+      || raw.approvalStatus
+      || "",
+  ).toLowerCase();
+
+  return CANCELLED_BOOKING_STATUSES.has(status)
+    || status.includes("cancel")
+    || status.includes("declin")
+    || status.includes("reject")
+    || approvalStatus === "manual_rejected";
 }
 
 function isApprovedBookingStatus(event = {}) {
@@ -1206,6 +1331,126 @@ function hideCalendarEventTooltip() {
   calendarTooltip.visible = false;
 }
 
+function cancelScheduleTitleTooltipClose() {
+  if (scheduleTitleTooltipCloseTimer.value == null || typeof window === "undefined") return;
+  window.clearTimeout(scheduleTitleTooltipCloseTimer.value);
+  scheduleTitleTooltipCloseTimer.value = null;
+}
+
+function hideScheduleTitleTooltip() {
+  cancelScheduleTitleTooltipClose();
+  scheduleTitleTooltip.visible = false;
+  scheduleTitleTooltip.event = null;
+}
+
+function scheduleScheduleTitleTooltipClose() {
+  cancelScheduleTitleTooltipClose();
+  if (typeof window === "undefined") {
+    hideScheduleTitleTooltip();
+    return;
+  }
+
+  scheduleTitleTooltipCloseTimer.value = window.setTimeout(() => {
+    scheduleTitleTooltipCloseTimer.value = null;
+    scheduleTitleTooltip.visible = false;
+    scheduleTitleTooltip.event = null;
+  }, 120);
+}
+
+function positionScheduleTitleTooltipHorizontally({
+  anchorX,
+  tooltipWidth,
+  viewportWidth,
+}) {
+  const margin = 12;
+  const arrowInset = 16;
+  const availableWidth = Math.max(0, viewportWidth - (margin * 2));
+  const width = Math.min(Math.max(Number(tooltipWidth) || 0, 1), availableWidth || 1);
+  const minCenterX = margin + (width / 2);
+  const maxCenterX = viewportWidth - margin - (width / 2);
+  const centerX = Math.min(Math.max(anchorX, minCenterX), maxCenterX);
+  const tooltipLeft = centerX - (width / 2);
+  const maximumArrowX = Math.max(arrowInset, width - arrowInset);
+
+  scheduleTitleTooltip.anchorX = anchorX;
+  scheduleTitleTooltip.x = centerX;
+  scheduleTitleTooltip.arrowX = Math.min(
+    Math.max(anchorX - tooltipLeft, arrowInset),
+    maximumArrowX,
+  );
+}
+
+function showScheduleTitleTooltip(event = {}, domEvent = null) {
+  if (
+    !isCreator.value
+    || !event?.isAvailabilityBlock
+    || !event?.title
+    || !canShowCalendarEventTooltip()
+  ) {
+    hideScheduleTitleTooltip();
+    return;
+  }
+
+  const scheduleEvent = resolveAvailabilityScheduleEvent(event);
+  const target = domEvent?.currentTarget;
+  if (
+    !scheduleEvent
+    || !target
+    || typeof target.getBoundingClientRect !== "function"
+    || typeof window === "undefined"
+  ) {
+    hideScheduleTitleTooltip();
+    return;
+  }
+
+  cancelScheduleTitleTooltipClose();
+  const rect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || 1024;
+  const viewportHeight = window.innerHeight || 768;
+  const margin = 12;
+  const gap = 12;
+  const estimatedTooltipWidth = Math.min(272, Math.max(192, viewportWidth - (margin * 2)));
+  const tooltipHeightEstimate = 72;
+  const hasBottomSpace = (viewportHeight - rect.bottom) >= (tooltipHeightEstimate + gap + margin);
+  const placement = hasBottomSpace ? "bottom" : "top";
+  const anchorX = rect.left + (rect.width / 2);
+
+  scheduleTitleTooltip.title = String(event.title);
+  scheduleTitleTooltip.event = scheduleEvent;
+  scheduleTitleTooltip.y = placement === "top" ? rect.top - gap : rect.bottom + gap;
+  scheduleTitleTooltip.placement = placement;
+  positionScheduleTitleTooltipHorizontally({
+    anchorX,
+    tooltipWidth: estimatedTooltipWidth,
+    viewportWidth,
+  });
+  scheduleTitleTooltip.visible = true;
+
+  const scheduleEventId = getScheduleEventId(scheduleEvent);
+  void nextTick(() => {
+    if (
+      !scheduleTitleTooltip.visible
+      || getScheduleEventId(scheduleTitleTooltip.event) !== scheduleEventId
+    ) {
+      return;
+    }
+
+    const measuredWidth = scheduleTitleTooltipRef.value?.getBoundingClientRect?.().width;
+    if (!Number.isFinite(measuredWidth) || measuredWidth <= 0) return;
+
+    positionScheduleTitleTooltipHorizontally({
+      anchorX,
+      tooltipWidth: measuredWidth,
+      viewportWidth,
+    });
+  });
+}
+
+function isScheduleTitleTooltipVisibleFor(event = {}) {
+  if (!scheduleTitleTooltip.visible || !scheduleTitleTooltip.event) return false;
+  return getScheduleEventId(scheduleTitleTooltip.event) === getScheduleEventId(event);
+}
+
 const DEFAULT_AVATAR_URL = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
 
 function isGroupCalendarEvent(event = {}) {
@@ -1332,6 +1577,7 @@ function resolveJoinStateForEvent(event = {}) {
     startAt: event?.start,
     endAt: event?.end,
     status: event?.status || event?.raw?.status || "",
+    now: currentTime.value,
     ...getJoinOptionsFromEvent(event),
   });
 
@@ -1347,6 +1593,12 @@ function resolveJoinStateForEvent(event = {}) {
     joinUrl: creatorJoinUrl || joinState.joinUrl,
     canJoin: joinState.canJoin && Boolean(creatorJoinUrl || joinState.joinUrl),
   };
+}
+
+function isCalendarEventJoinable(event = {}) {
+  if (resolveBookingStatus(event) !== "confirmed") return false;
+  const joinState = resolveJoinStateForEvent(event);
+  return Boolean(joinState.canJoin && joinState.joinUrl);
 }
 
 function shouldShowJoinButtonForEvent(event = {}, joinState = {}, options = {}) {
@@ -1475,7 +1727,7 @@ function buildCalendarSlotsFromContext({
   view = "week",
 }) {
   const calendarSlots = mapBookedSlotsToCalendarEvents(bookedSlotsRaw, {
-    includeStatuses: ["pending", "pending_hold", "confirmed", "completed"],
+    includeStatuses: MAIN_CALENDAR_BOOKING_STATUSES,
     titleFallback: t("dashboard_booked_slot"),
   });
 
@@ -1603,7 +1855,10 @@ const rebuildAvailabilityForFocusDate = () => {
 
 let dashboardFetchGeneration = 0;
 
-const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = true } = {}) => {
+const fetchDashboardContext = async (
+  forceRefresh = false,
+  { refreshWidgets = true, scrollToCurrentTime = false } = {},
+) => {
   const creatorId = normalizedCreatorId.value;
   const fanId = normalizedFanId.value;
   const fetchGeneration = ++dashboardFetchGeneration;
@@ -1637,12 +1892,12 @@ const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = tr
       fromIso: visibleRange.fromIso,
       toIso: visibleRange.toIso,
       slotLimit: 1000,
-      statusIn: "pending,pending_hold,confirmed,completed",
+      statusIn: MAIN_CALENDAR_BOOKING_STATUSES.join(","),
       ...(widgetRange
         ? {
             widgetFromIso: widgetRange.fromIso,
             widgetToIso: widgetRange.toIso,
-            widgetStatusIn: "pending,pending_hold,confirmed",
+            widgetStatusIn: WIDGET_BOOKING_STATUSES.join(","),
           }
         : {}),
     },
@@ -1730,7 +1985,9 @@ const fetchDashboardContext = async (forceRefresh = false, { refreshWidgets = tr
     initialWeekDateRevealed.value = true;
     mainCalendarRef.value.revealSelectedWeekDay({ behavior: "smooth" });
   }
-  await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+  if (scrollToCurrentTime) {
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+  }
 };
 
 const resolveBookingIdFromPayload = (payload) => {
@@ -1874,8 +2131,16 @@ const openScheduleCardPreview = (event) => {
   const normalizedEvent = normalizeScheduleEventPayload(event);
   if (!normalizedEvent) return;
 
+  hideScheduleTitleTooltip();
   scheduleCardPreviewEvent.value = normalizedEvent;
   scheduleCardPreviewOpen.value = true;
+};
+
+const handleScheduleTitleTooltipView = () => {
+  const scheduleEvent = scheduleTitleTooltip.event;
+  hideScheduleTitleTooltip();
+  closeAvailabilityScheduleMenu();
+  openScheduleCardPreview(scheduleEvent);
 };
 
 const closeAvailabilityScheduleMenu = () => {
@@ -1931,6 +2196,7 @@ const openAvailabilityScheduleMenu = (event, domEvent) => {
   const scheduleEvent = resolveAvailabilityScheduleEvent(event);
   if (!scheduleEvent) return;
 
+  hideScheduleTitleTooltip();
   availabilityScheduleMenu.event = scheduleEvent;
   positionAvailabilityScheduleMenu(domEvent);
   availabilityScheduleMenu.open = true;
@@ -2189,7 +2455,10 @@ const allEvents = computed(() => {
   const list = dashboardEventsEngine.state?.events?.widgetBookedList;
   if (!Array.isArray(list)) return [];
   const now = currentTime.value;
-  return list.filter((event) => hasNotEnded(event, now)).sort((left, right) => {
+  return list.filter((event) => (
+    !isCancelledOrDeclinedBooking(event)
+    && hasNotEnded(event, now)
+  )).sort((left, right) => {
     const leftStart = asDate(left.start)?.getTime() || 0;
     const rightStart = asDate(right.start)?.getTime() || 0;
     return leftStart - rightStart;
@@ -2208,11 +2477,9 @@ const calendarEvents = computed(() => {
 
 const events1 = computed(() => {
   const now = currentTime.value;
-  return calendarEvents.value.filter((event) => {
-    const status = resolveBookingStatus(event);
-    return !status.startsWith("cancelled")
-      && (!props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now));
-  });
+  return calendarEvents.value.filter((event) => (
+    !props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now)
+  ));
 });
 const miniEvents = computed(() => {
   const combined = [
@@ -2226,8 +2493,7 @@ const miniEvents = computed(() => {
     const id = String(event.id || event.eventId || event.bookingId || `${event.start}-${event.title}`);
     if (seen.has(id)) return false;
     seen.add(id);
-    const status = String(event.status || resolveBookingStatus(event) || "").toLowerCase();
-    return !status.startsWith("cancelled");
+    return !isCancelledOrDeclinedBooking(event);
   });
 });
 
@@ -2334,7 +2600,6 @@ const onViewChanged = (view) => {
   if (!nextView || nextView === state.view) return;
 
   state.view = nextView;
-  fetchDashboardContext(false, { refreshWidgets: false });
 };
 
 const onCalendarEventClick = (event) => {
@@ -2491,7 +2756,7 @@ onMounted(() => {
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
   if (hasDashboardContext.value) {
-    fetchDashboardContext(true);
+    fetchDashboardContext(true, { scrollToCurrentTime: true });
   } else {
     resetEventsState();
   }
@@ -2539,17 +2804,32 @@ watch(dashboardRole, (nextRole) => {
     isFloatingPopupOpen.value = false;
     newEventsPopupOpen.value = false;
     closeAvailabilityScheduleMenu();
+    hideScheduleTitleTooltip();
   }
 });
 
-watch(() => state.view, () => {
+watch(() => state.view, async (nextView, previousView) => {
   closeAvailabilityScheduleMenu();
+  hideScheduleTitleTooltip();
+  const shouldScrollToCurrentTime = (
+    (previousView === "day" && nextView === "week")
+    || (previousView === "week" && nextView === "day")
+  );
+
+  if (shouldScrollToCurrentTime) {
+    await nextTick();
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+  }
+
   if (isMounted.value && hasDashboardContext.value) {
-    fetchDashboardContext(false, { refreshWidgets: false });
+    await fetchDashboardContext(false, {
+      refreshWidgets: false,
+    });
   }
 });
 
 onUnmounted(() => {
+  hideScheduleTitleTooltip();
   if (currentTimeTimer.value) {
     window.clearInterval(currentTimeTimer.value);
     currentTimeTimer.value = null;

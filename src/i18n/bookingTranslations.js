@@ -137,6 +137,7 @@ export const bookingMessages = {
   dashboard_booking_schedule_toggle_aria: "Toggle booking schedule",
   dashboard_booking_schedule_untitled_event: "Untitled Event",
   dashboard_booking_schedule_view_card: "View schedule card",
+  dashboard_booking_schedule_view_schedule: "View Booking Schedule",
   dashboard_booking_schedule_view_profile: "View in profile",
   dashboard_booking_schedule_share_booking_page: "Share booking page",
   dashboard_booking_schedule_edit_cta: "EDIT BOOKING SCHEDULE",

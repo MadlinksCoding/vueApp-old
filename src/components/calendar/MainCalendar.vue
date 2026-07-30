@@ -618,8 +618,10 @@
         data-cal-time-scroll
         class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row">
         <div class="flex flex-col shrink-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
-          <div v-for="(t, idx) in range.labels" :key="'slot-label-' + t"
-            :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(t) ? ' !text-[#F06] !font-semibold' : '']"
+          <div v-for="(t, idx) in range.labels" :key="'slot-label-' + idx + '-' + t"
+            :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(idx) ? ' !text-[#F06] !font-semibold' : '']"
+            data-test="calendar-time-label"
+            :data-current-time="isNowLabel(idx) ? 'true' : 'false'"
             :style="idx < gridMetrics.rows.length ? { height: gridMetrics.rows[idx].height + 'px' } : {}">
             {{ formatTime(t) }}
           </div>
@@ -1198,6 +1200,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 },
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
+  showCurrentTimeAcrossDates: { type: Boolean, default: false },
   isStickyCardVisible: { type: Boolean, default: false }
 });
 
@@ -2046,23 +2049,24 @@ function formatEventStatus(status) {
 const sd = (d) => SOD(d);
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const shouldShowCurrentTimeForView = () => {
+  if (
+    props.showCurrentTimeAcrossDates
+    && isEventColumnMode.value
+    && ['day', 'week'].includes(effectiveView.value)
+  ) {
+    return true;
+  }
+
   const todayStart = SOD(new Date());
   if (isDayEventColumnMode.value) return sameDay(activeDay.value, todayStart);
   if (isWeekEventColumnMode.value) return selectedWeekContainsToday.value;
   return sameDay(cursor.value, todayStart);
 };
-const isNowLabel = (label) => {
-  const now = new Date();
+const isNowLabel = (index) => {
+  const now = new Date(currentTimeMs.value);
   if (!shouldShowCurrentTimeForView()) return false;
-  if (typeof label !== 'string') return false;
-  const match = label.match(/^(\d{1,2}):(\d{2})\s?(am|pm)$/i);
-  if (!match) return false;
-  let h = parseInt(match[1], 10);
-  const m = parseInt(match[2], 10);
-  const ampm = match[3].toLowerCase();
-  if (ampm === 'pm' && h !== 12) h += 12;
-  if (ampm === 'am' && h === 12) h = 0;
-  const labelMinutes = h * 60 + m;
+  if (!Number.isInteger(index)) return false;
+  const labelMinutes = range.value.sMin + index * props.slotMinutes;
   const cur = now.getHours() * 60 + now.getMinutes();
   return cur >= labelMinutes && cur < labelMinutes + props.slotMinutes;
 };
@@ -2843,7 +2847,7 @@ const styleBlock = (ev, day = null) => {
 };
 
 const currentMinute = () => {
-  const now = new Date();
+  const now = new Date(currentTimeMs.value);
   return now.getHours() * 60 + now.getMinutes();
 };
 
