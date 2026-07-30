@@ -23,6 +23,11 @@ import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormStateMapper.js";
+import {
+    fetchEventXPostSettings,
+    isCreatorAllowedForXRepost,
+    mergeEventXPostSettingsIntoFormState,
+} from "@/services/events/eventsXPostSettingsApi.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
@@ -755,18 +760,24 @@ async function hydrateEditEventIfNeeded() {
     editError.value = "";
 
     try {
-        const result = await bookingFlow.callFlow(
-            "events.fetchEvent",
-            { eventId },
-            {
-                forceRefresh: true,
-                context: {
-                    stateEngine: bookingFlow,
-                    creatorId: resolveCreatorId(),
-                    apiBaseUrl: props.apiBaseUrl || undefined,
+        const creatorId = resolveCreatorId();
+        const [result, xPostSettings] = await Promise.all([
+            bookingFlow.callFlow(
+                "events.fetchEvent",
+                { eventId },
+                {
+                    forceRefresh: true,
+                    context: {
+                        stateEngine: bookingFlow,
+                        creatorId,
+                        apiBaseUrl: props.apiBaseUrl || undefined,
+                    },
                 },
-            },
-        );
+            ),
+            isCreatorAllowedForXRepost(creatorId)
+                ? fetchEventXPostSettings({ eventId, creatorId })
+                : Promise.resolve(null),
+        ]);
 
         if (!result?.ok) {
             editError.value = result?.meta?.uiErrors?.[0]
@@ -781,9 +792,19 @@ async function hydrateEditEventIfNeeded() {
             return;
         }
 
-        const formState = mapEventToBookingFormState(event);
+        const eventFormState = mapEventToBookingFormState(event);
+        const formState = xPostSettings
+            ? mergeEventXPostSettingsIntoFormState(eventFormState, xPostSettings)
+            : eventFormState;
         editEventType.value = formState.eventType === "group-event" ? "group" : "private";
         applyFormStateToEngine(formState);
+        if (dirtyTrackingStarted.value) {
+            await nextTick();
+            await nextTick();
+            resetDirtyTracking();
+        }
+    } catch (error) {
+        editError.value = error?.message || t("booking_edit_load_failed");
     } finally {
         editLoading.value = false;
         editFormReady.value = true;
@@ -2024,8 +2045,15 @@ useBodyOverflowHidden({ minWidth: 1010 });
                         </div>
                     </div>
 
-                    <div v-else-if="editError" class="mx-6 mt-6 rounded bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                        {{ editError }}
+                    <div v-else-if="editError" class="mx-6 mt-6 flex items-center justify-between gap-3 rounded bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                        <span>{{ editError }}</span>
+                        <button
+                            type="button"
+                            class="shrink-0 font-semibold underline underline-offset-2"
+                            @click="hydrateEditEventIfNeeded"
+                        >
+                            {{ t("common_retry") }}
+                        </button>
                     </div>
 
                     <!-- Private Form -->
@@ -2051,6 +2079,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
                             @reveal-step1-validation="revealStep1Validation"
+                            @x-settings-save-failed="setUnsavedChanges(true)"
                         />
                     </template>
 
@@ -2079,6 +2108,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
                             @reveal-step1-validation="revealStep1Validation"
+                            @x-settings-save-failed="setUnsavedChanges(true)"
                         />
                     </template>
                 </div>

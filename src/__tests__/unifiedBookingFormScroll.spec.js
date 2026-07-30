@@ -13,6 +13,9 @@ const mock = vi.hoisted(() => ({
   getBookingJoinState: vi.fn(() => ({ canJoin: true, joinUrl: "https://example.com/private-call" })),
   buildScheduledGroupMeetingUrl: vi.fn(() => "https://example.com/group-call"),
   showToast: vi.fn(),
+  fetchEventXPostSettings: vi.fn(),
+  isCreatorAllowedForXRepost: vi.fn(() => true),
+  mergeEventXPostSettingsIntoFormState: vi.fn((formState) => formState),
   revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
   scrollToTime: vi.fn(() => Promise.resolve(true)),
   mapEventToBookingFormState: vi.fn(() => ({
@@ -65,9 +68,9 @@ function createMockEngine() {
 }
 
 async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let pass = 0; pass < 8; pass += 1) {
+    await Promise.resolve();
+  }
 }
 
 function setWindowWidth(width) {
@@ -106,6 +109,12 @@ vi.mock("@/services/events/mappers/mapDraftEventToFanBookingPreview.js", () => (
 
 vi.mock("@/services/events/mappers/eventFormStateMapper.js", () => ({
   mapEventToBookingFormState: mock.mapEventToBookingFormState,
+}));
+
+vi.mock("@/services/events/eventsXPostSettingsApi.js", () => ({
+  fetchEventXPostSettings: mock.fetchEventXPostSettings,
+  isCreatorAllowedForXRepost: mock.isCreatorAllowedForXRepost,
+  mergeEventXPostSettingsIntoFormState: mock.mergeEventXPostSettingsIntoFormState,
 }));
 
 vi.mock("@/services/bookings/utils/bookingSlotUtils.js", () => ({
@@ -296,6 +305,16 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       repeatRule: "doesNotRepeat",
       eventColorSkin: "#FF00AA",
     });
+    mock.fetchEventXPostSettings.mockReset();
+    mock.fetchEventXPostSettings.mockResolvedValue({
+      success: true,
+      eventId: "",
+      settings: {},
+    });
+    mock.isCreatorAllowedForXRepost.mockReset();
+    mock.isCreatorAllowedForXRepost.mockReturnValue(true);
+    mock.mergeEventXPostSettingsIntoFormState.mockReset();
+    mock.mergeEventXPostSettingsIntoFormState.mockImplementation((formState) => formState);
     mock.mapAvailabilityToCalendarEvents.mockReset();
     mock.mapAvailabilityToCalendarEvents.mockReturnValue([]);
     mock.mapBookedSlotsToCalendarEvents.mockReset();
@@ -625,6 +644,159 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       expect.arrayContaining([expect.objectContaining({ status: "completed" })]),
       expect.objectContaining({ includeStatuses: expect.arrayContaining(["completed"]) }),
     );
+  });
+
+  it("hydrates edit-mode X messages and media before establishing a clean baseline", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_x_settings" };
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_settings",
+      eventTitle: "Hydrated Event",
+      xPostLive: false,
+      on_schedule_live: false,
+      xPostBooked: true,
+      on_booking_received: true,
+    });
+    mock.fetchEventXPostSettings.mockResolvedValue({
+      success: true,
+      eventId: "evt_x_settings",
+      settings: {
+        on_schedule_live: {
+          enabled: true,
+          message: "Custom live message",
+          mediaUrl: "https://cdn.example.com/live.jpg",
+          source: "event",
+        },
+        on_booking_received: {
+          enabled: false,
+          message: "",
+          mediaUrl: "",
+          source: "missing",
+        },
+      },
+    });
+    mock.mergeEventXPostSettingsIntoFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_settings",
+      eventTitle: "Hydrated Event",
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Custom live message",
+      on_schedule_live_media_url: "https://cdn.example.com/live.jpg",
+      xPostBooked: true,
+      on_booking_received: true,
+      on_booking_received_message: "",
+      on_booking_received_media_url: "",
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_settings",
+              title: "Hydrated Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(mock.fetchEventXPostSettings).toHaveBeenCalledWith({
+      eventId: "evt_x_settings",
+      creatorId: 1407,
+    });
+    expect(mock.mergeEventXPostSettingsIntoFormState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        xPostLive: false,
+        xPostBooked: true,
+      }),
+      expect.objectContaining({ eventId: "evt_x_settings" }),
+    );
+    expect(mock.engine.state).toEqual(expect.objectContaining({
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Custom live message",
+      on_schedule_live_media_url: "https://cdn.example.com/live.jpg",
+      xPostBooked: true,
+      on_booking_received: true,
+      on_booking_received_message: "",
+      on_booking_received_media_url: "",
+    }));
+    await expect(mock.routeLeaveGuard()).resolves.toBe(true);
+    expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(false);
+  });
+
+  it("blocks edit readiness when X settings fail to load and retries cleanly", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_x_retry" };
+    mock.fetchEventXPostSettings
+      .mockRejectedValueOnce(new Error("Could not load X post settings."))
+      .mockResolvedValueOnce({
+        success: true,
+        eventId: "evt_x_retry",
+        settings: {},
+      });
+    mock.mergeEventXPostSettingsIntoFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_retry",
+      eventTitle: "Retry Event",
+      on_schedule_live_message: "Restored after retry",
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_retry",
+              title: "Retry Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Could not load X post settings.");
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(false);
+
+    const retryButton = wrapper.findAll("button")
+      .find((button) => button.text() === "common_retry");
+    expect(retryButton).toBeTruthy();
+    await retryButton.trigger("click");
+    await flushPromises();
+
+    expect(mock.fetchEventXPostSettings).toHaveBeenCalledTimes(2);
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
+    expect(mock.engine.state.on_schedule_live_message).toBe("Restored after retry");
+    await expect(mock.routeLeaveGuard()).resolves.toBe(true);
   });
 
   it("skips only the edited persisted event while keeping other events and the draft preview", async () => {

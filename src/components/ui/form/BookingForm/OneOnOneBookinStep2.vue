@@ -27,6 +27,10 @@ import {
   fetchActiveSubscriptionTiers,
   searchInvitableUsers,
 } from "@/services/events/eventsAudienceApi.js";
+import {
+  isCreatorAllowedForXRepost as isXRepostCreatorAllowed,
+  saveEventXPostSettings,
+} from "@/services/events/eventsXPostSettingsApi.js";
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 import {
@@ -167,11 +171,15 @@ const props = defineProps({
     default: "",
   },
 });
-const emit = defineEmits(["created", "preview-schedule", "reveal-step1-validation"]);
+const emit = defineEmits([
+  "created",
+  "preview-schedule",
+  "reveal-step1-validation",
+  "x-settings-save-failed",
+]);
 const route = useRoute();
 const isCreating = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
-const X_REPOST_ALLOWED_CREATOR_IDS = [566, 1407, 793];
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -180,7 +188,7 @@ const isGroupBooking = computed(() => (
 const submitButtonText = computed(() => (props.isEditMode ? t("booking_update_publish") : t("common_create_event")));
 
 function isCreatorAllowedForXRepost(creatorId = resolveCreatorId()) {
-  return X_REPOST_ALLOWED_CREATOR_IDS.includes(Number(creatorId));
+  return isXRepostCreatorAllowed(creatorId);
 }
 
 const isXRepostAllowed = computed(() => isCreatorAllowedForXRepost());
@@ -275,11 +283,11 @@ const formData = ref({
   spendingRequirement: initialSpendingRequirement,
   minSpendTokens: props.engine.state.minSpendTokens || "",
   requiredProducts: normalizeRequiredProducts(props.engine.state.requiredProducts),
-  xPostLive: props.engine.state.xPostLive || false,
-  xPostBooked: props.engine.state.xPostBooked || false,
-  xPostInSession: props.engine.state.xPostInSession || false,
-  xPostTipped: props.engine.state.xPostTipped || false,
-  xPostPurchase: props.engine.state.xPostPurchase || false,
+  xPostLive: props.engine.state.xPostLive ?? props.engine.state.on_schedule_live ?? false,
+  xPostBooked: props.engine.state.xPostBooked ?? props.engine.state.on_booking_received ?? false,
+  xPostInSession: props.engine.state.xPostInSession ?? props.engine.state.on_in_session ?? false,
+  xPostTipped: props.engine.state.xPostTipped ?? props.engine.state.on_tipped_session ?? false,
+  xPostPurchase: props.engine.state.xPostPurchase ?? props.engine.state.on_purchased ?? false,
   on_schedule_live: props.engine.state.on_schedule_live ?? props.engine.state.xPostLive ?? false,
   on_booking_received: props.engine.state.on_booking_received ?? props.engine.state.xPostBooked ?? false,
   on_in_session: props.engine.state.on_in_session ?? props.engine.state.xPostInSession ?? false,
@@ -1479,7 +1487,30 @@ const createEvent = async () => {
         return;
       }
 
-      if (!props.isEditMode) {
+      if (props.isEditMode && isCreatorAllowedForXRepost(creatorId)) {
+        const eventId = flowResult?.data?.eventId
+          || flowResult?.data?.item?.eventId
+          || props.editEventId
+          || props.engine.getState("eventId")
+          || "";
+
+        try {
+          await saveEventXPostSettings({
+            eventId,
+            creatorId,
+            state: formData.value,
+          });
+        } catch (error) {
+          emit("x-settings-save-failed");
+          showToast({
+            type: "error",
+            title: "Event updated, but X settings were not saved",
+            message: error?.message || "Retry the update to save your X post settings.",
+            autoClose: false,
+          });
+          return;
+        }
+      } else if (!props.isEditMode) {
         const notifyResult = await notifyEventCreated({
           creatorId,
           eventName: resolveCreatedEventName(flowResult),
