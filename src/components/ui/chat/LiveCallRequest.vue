@@ -184,6 +184,8 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import FlowHandler from '@/services/flow-system/FlowHandler'
+import { useChatStore } from '@/stores/useChatStore'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils.js'
 import { openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
 
@@ -195,6 +197,7 @@ const props = defineProps({
 
 const emit = defineEmits(['ask-more-time', 'reschedule', 'cancel', 'accept-counter', 'reject-counter', 'view-details'])
 
+const chatStore = useChatStore()
 const content = computed(() => props.message?.content || {})
 
 const eventName    = computed(() => content.value.event_name   || 'Upcoming Session')
@@ -228,7 +231,20 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 // ── Countdown clock ───────────────────────────────────────────────────────────
 const now   = ref(Date.now())
 let _ticker = null
-onMounted(()   => { _ticker = setInterval(() => { now.value = Date.now() }, 1000) })
+onMounted(()   => { 
+  _ticker = setInterval(() => { now.value = Date.now() }, 1000) 
+
+  // Auto-fetch booking if missing
+  if (!props.booking && content.value?.booking_id) {
+    FlowHandler.run('bookings.fetchBooking', { bookingId: content.value.booking_id }).then(res => {
+      if (res?.ok && res.data?.item) {
+        chatStore.setBooking(content.value.booking_id, res.data.item)
+      }
+    }).catch(err => {
+      console.error('Failed to fetch missing booking in LiveCallRequest:', err)
+    })
+  }
+})
 onUnmounted(() => clearInterval(_ticker))
 
 function parseStartMs() {

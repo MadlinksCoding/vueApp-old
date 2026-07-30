@@ -9,6 +9,7 @@
 
 #### `src/components/ui/chat/LiveCallRequest.vue`
 - **Session Expiration Event Dispatching** — Verified that the component dynamically updates `isExpired` using its pre-existing interval ticker, ensuring the session status remains reactive.
+- **Auto-Fetch Missing Bookings** — Implemented an `onMounted` fallback to automatically fetch booking data (`bookings.fetchBooking`) if `props.booking` is absent but `content.booking_id` is available. Once fetched, the data is pushed to `chatStore` (`chatStore.setBooking`), allowing the parent `ChatWindow.vue` to reactively provide the missing `props.booking` back down.
 
 ## 2026-07-28 — Live Call & Booking Request Chat UI Fixes
 
