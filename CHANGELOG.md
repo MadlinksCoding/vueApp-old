@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-30 — Fans Interacted With You UI & Pagination Fixes
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Fans Interacted With You Section** — Added a new UI block directly above the "Top Followers" section, dynamically displaying users who recently interacted with the creator.
+- **Interaction Labels** — Implemented small tag labels (`text-[10px]`, `text-black`) next to each fan's display name to visually indicate their specific interaction types (e.g. `PPV`, `Tip`, `Call`).
+- **Support Group Chat Integration** — Updated the "Message All" flow to recognize the `fans_interacted_with_you` group, allowing creators to seamlessly initialize broadcast support group chats for this audience.
+- **Pagination Logic Fix** — Refactored the "View more" button display logic (`canLoadMoreInteracted`, `canLoadMoreTop`, `canLoadMoreUnsub`, `canLoadMoreMissed`) to strictly rely on the backend's explicit `has_more` boolean flag. This resolves a bug where the "View more" button would incorrectly remain visible due to deduplication length mismatches when `has_more` was actually `false`.
+
+
 ## 2026-07-30 — Dynamic Session Expiration Reactivity
 
 ### Changed

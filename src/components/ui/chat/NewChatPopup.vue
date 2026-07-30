@@ -215,6 +215,67 @@
                     </div>
                 </div>
 
+                <!-- Fans Interacted With You -->
+                <div v-if="data.fans_interacted_with_you && (data.fans_interacted_with_you.users?.length || data.fans_interacted_with_you.length || interactedFansList.length || data.fans_interacted_with_you.total)" class="flex flex-col gap-2">
+                    <div class="self-stretch py-1 inline-flex justify-between items-center">
+                        <div class="flex-1 text-gray-500 text-sm font-semibold font-['Poppins'] leading-5">Fans interacted with you
+                        </div>
+                        <button @click="messageAll('Fans interacted with you', 'fans_interacted_with_you')"
+                            :disabled="!!loadingGroupType"
+                            class="min-w-14 px-2 py-1 bg-[#F06] flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-opacity hover:opacity-90">
+                            <svg v-if="loadingGroupType === 'fans_interacted_with_you'" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                            <img v-else :src="MessageCircleIcon" alt="" class="w-4 h-4" />
+                            <div class="h-4 flex justify-start items-center gap-1">
+                                <span class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">
+                                    {{ loadingGroupType === 'fans_interacted_with_you' ? '...' : 'Message All' }}
+                                </span>
+                                <span v-if="loadingGroupType !== 'fans_interacted_with_you'" class="text-center text-white text-xs font-semibold font-['Poppins'] capitalize tracking-tight">{{ data.fans_interacted_with_you.total }}</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2 self-stretch">
+                        <div v-for="user in interactedFansList" :key="user.id"
+                            class="self-stretch px-1 inline-flex justify-between items-center">
+                            <div class="flex justify-start items-center gap-2">
+                                <div class="relative overflow-hidden rounded-[25%_62%_38%_60%/21%_39%_61%_75%]">
+                                    <img :src="user.avatar || SmilingPeachIcon"
+                                        onerror="this.src='https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png'" alt=""
+                                        class="w-12 h-12 object-cover" />
+                                </div>
+                                <div class="inline-flex flex-col justify-center items-start gap-1">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <div class="text-gray-900 text-base font-medium font-['Poppins'] leading-6 line-clamp-1">
+                                            {{ user.display_name }}
+                                        </div>
+                                        <div class="flex items-center gap-1" v-if="user.interaction_types && user.interaction_types.length">
+                                            <span v-for="type in user.interaction_types" :key="type" class="px-1.5 py-0.5 rounded bg-gray-200 text-black text-[12px] font-medium capitalize font-['Poppins'] leading-4">
+                                                {{ type === '1on1-call' ? 'Call' : type }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4 max-w-[150px] truncate">
+                                        @{{ user.username }}
+                                    </div>
+                                </div>
+                            </div>
+                            <button @click="onMessage(user)"
+                                class="min-w-14 px-2 py-1 outline outline-[1.50px] outline-offset-[-1.50px] outline-rose-600 flex justify-center items-center gap-2 cursor-pointer">
+                                <img :src="MessageCircleIconPink" alt="" class="w-4 h-4" />
+                                <span class="text-center text-rose-600 text-xs font-semibold font-['Poppins'] capitalize tracking-tight">Message</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="data.fans_interacted_with_you.has_more || interactedFansPage > 1">
+                        <button v-if="canLoadMoreInteracted" @click="loadMoreInteractedFans" :disabled="loadingMoreInteracted"
+                            class="self-stretch text-center text-pink-500 text-xs font-bold font-['Poppins'] leading-4 w-full">
+                            {{ loadingMoreInteracted ? 'Loading...' : 'View more' }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Top Followers -->
                 <div v-if="data.top_followers && (data.top_followers.users?.length || data.top_followers.length || topFollowersList.length || data.top_followers.total)" class="flex flex-col gap-2">
                     <div class="self-stretch py-1 inline-flex justify-between items-center">
@@ -354,6 +415,7 @@ const loading = ref(false)
 const data = ref({
     missed_call_users: null,
     subscribers: [],
+    fans_interacted_with_you: null,
     top_followers: null,
     unsubscribed: null,
 })
@@ -362,6 +424,9 @@ const searchQuery = ref('')
 const searchResults = ref([])
 const searchLoading = ref(false)
 
+const interactedFansPage = ref(1)
+const interactedFansList = ref([])
+const loadingMoreInteracted = ref(false)
 
 const topFollowersPage = ref(1)
 const topFollowersList = ref([])
@@ -378,28 +443,27 @@ const loadingMoreMissed = ref(false)
 const loadingGroupType = ref(null)
 
 // --- Computed ---
+const canLoadMoreInteracted = computed(() => {
+    return !!data.value.fans_interacted_with_you?.has_more
+})
+
 const canLoadMoreTop = computed(() => {
-    if (!data.value.top_followers) return false
-    const loaded = topFollowersList.value.length
-    return loaded < data.value.top_followers.total
+    return !!data.value.top_followers?.has_more
 })
 
 const canLoadMoreUnsub = computed(() => {
-    if (!data.value.unsubscribed) return false
-    const loaded = unsubscribedList.value.length
-    return loaded < data.value.unsubscribed.total
+    return !!data.value.unsubscribed?.has_more
 })
 
 const canLoadMoreMissed = computed(() => {
-    if (!data.value.missed_call_users || !data.value.missed_call_users.total) return false
-    const loaded = missedCallUsersList.value.length
-    return loaded < data.value.missed_call_users.total
+    return !!data.value.missed_call_users?.has_more
 })
 
 // --- Methods ---
 async function fetchData() {
     loading.value = true
     missedCallUsersPage.value = 1
+    interactedFansPage.value = 1
     topFollowersPage.value = 1
     unsubscribedPage.value = 1
     try {
@@ -411,6 +475,7 @@ async function fetchData() {
         if (res?.ok) {
             data.value = res.data
             missedCallUsersList.value = res.data.missed_call_users?.users || (Array.isArray(res.data.missed_call_users) ? res.data.missed_call_users : [])
+            interactedFansList.value = res.data.fans_interacted_with_you?.users || []
             topFollowersList.value = res.data.top_followers?.users || []
             unsubscribedList.value = res.data.unsubscribed?.users || []
         }
@@ -458,6 +523,30 @@ function getFanViewUid(user = {}) {
         || user?.encryptedUID
         || user?.encrypted_uid
         || ''
+}
+
+async function loadMoreInteractedFans() {
+    if (loadingMoreInteracted.value) return
+    loadingMoreInteracted.value = true
+    try {
+        const nextPage = interactedFansPage.value + 1
+        const res = await fetchNewMessageUsersFlow({
+            payload: { creatorId: props.creatorId, section: 'fans_interacted_with_you', page: nextPage, perPage: 4 },
+            context: {},
+            api: buildApi(),
+        })
+        if (res?.ok) {
+            interactedFansPage.value = nextPage
+            interactedFansList.value = [...interactedFansList.value, ...(res.data.users || [])]
+            data.value.fans_interacted_with_you = {
+                ...data.value.fans_interacted_with_you,
+                has_more: res.data.has_more,
+                total: res.data.total,
+            }
+        }
+    } finally {
+        loadingMoreInteracted.value = false
+    }
 }
 
 async function loadMoreTopFollowers() {
@@ -555,6 +644,8 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
     let apiSection = groupType
     if (groupType.startsWith('subscribers-') || groupType.startsWith('subscribers_')) {
         apiSection = 'subscribers'
+    } else if (groupType === 'fans_interacted_with_you' || groupType === 'fans-interacted-with-you') {
+        apiSection = 'fans_interacted_with_you'
     } else if (groupType === 'top-followers' || groupType === 'fop-followers' || groupType === 'top_followers') {
         apiSection = 'top_followers'
     } else if (groupType === 'unsubscribed' || groupType === 'unsubscribed-users') {
@@ -570,7 +661,7 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
             api: buildApi(),
         })
         if (res?.ok) {
-            const isUserScopedGroup = ['subscribers', 'top_followers', 'subscription', 'unsubscribed', 'missed_call_users'].includes(apiSection)
+            const isUserScopedGroup = ['subscribers', 'fans_interacted_with_you', 'top_followers', 'subscription', 'unsubscribed', 'missed_call_users'].includes(apiSection)
             const chatVisibility = isUserScopedGroup ? 'userScoped' : null
             
             let chatSubtype = 'standard'
@@ -581,7 +672,7 @@ async function messageAll(name, groupType, tierId = null, coverImage = null) {
                 chatSubtype = 'subscription'
                 contextFlags = ['subscription']
                 if (tierId) metadata.tierId = tierId
-            } else if (apiSection === 'top_followers' || apiSection === 'unsubscribed') {
+            } else if (apiSection === 'fans_interacted_with_you' || apiSection === 'top_followers' || apiSection === 'unsubscribed') {
                 chatSubtype = 'support_group'
                 contextFlags = ['support']
             }
