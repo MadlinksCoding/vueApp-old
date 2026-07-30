@@ -2634,7 +2634,7 @@ describe("one-on-one booking step translations", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it("submits update flow in edit mode and skips create notification", async () => {
+  it("submits update flow in edit mode and persists X settings without a create notification", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
     );
@@ -2645,6 +2645,9 @@ describe("one-on-one booking step translations", () => {
       eventType: "1on1-call",
       isGroupScheduleLocked: false,
       isGroupPricingLocked: false,
+      on_schedule_live: true,
+      on_schedule_live_message: "Edited live message",
+      on_schedule_live_media_url: "https://cdn.example.com/edited-live.jpg",
     });
     engine.callFlow.mockResolvedValue({
       ok: true,
@@ -2668,9 +2671,8 @@ describe("one-on-one booking step translations", () => {
     const submitButton = wrapper.findAll("button").find((button) => button.text() === "Actualizar y publicar");
     expect(submitButton).toBeTruthy();
 
-    await submitButton.trigger("click");
-    await Promise.resolve();
-    await Promise.resolve();
+    await wrapper.vm.createEvent();
+    await settleValidation();
 
     expect(engine.callFlow).toHaveBeenCalledWith(
       "events.updateEvent",
@@ -2684,7 +2686,85 @@ describe("one-on-one booking step translations", () => {
         }),
       }),
     );
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [settingsUrl, settingsOptions] = fetch.mock.calls[0];
+    expect(settingsUrl).toContain("/wp-json/api/event/evt_edit/x-post-settings");
+    expect(settingsUrl).not.toContain("/wp-json/api/event/create");
+    expect(settingsOptions.method).toBe("PUT");
+    expect(JSON.parse(settingsOptions.body)).toEqual(expect.objectContaining({
+      creator_id: 1407,
+      settings: expect.objectContaining({
+        on_schedule_live: {
+          enabled: true,
+          message: "Edited live message",
+          mediaUrl: "https://cdn.example.com/edited-live.jpg",
+        },
+      }),
+    }));
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+  });
+
+  it("keeps edit mode open when X settings fail and allows a safe retry", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventId: "evt_edit_retry",
+      eventTitle: "Edited Event",
+      eventType: "1on1-call",
+      on_schedule_live: true,
+      on_schedule_live_message: "Keep this message",
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: { eventId: "evt_edit_retry" },
+    });
+    fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({
+          success: false,
+          message: "WordPress settings write failed.",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ success: true, eventId: "evt_edit_retry", settings: {} }),
+      });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_edit_retry",
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(wrapper.emitted("created")).toBeUndefined();
+    expect(wrapper.emitted("x-settings-save-failed")).toHaveLength(1);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Event updated, but X settings were not saved",
+      message: "WordPress settings write failed.",
+      autoClose: false,
+    }));
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls.every(([url]) => !url.includes("/wp-json/api/event/create"))).toBe(true);
     expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
       mode: "edit",
     }));
