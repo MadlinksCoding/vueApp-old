@@ -13,6 +13,8 @@
 
 #### `src/components/ui/chat/BookingRequestBubble.vue`
 - **Cancelled Status Icon** — Resolved a visual bug where cancelled or declined requests incorrectly displayed a green checkmark. Conditionally rendered the checkmark strictly for accepted requests and restored the appropriate 'phone cancel' icon for cancelled/declined states.
+- **Missing Imports Fix** — Fixed a `ReferenceError: openScheduledMeetingOverlay is not defined` runtime error by explicitly importing `openScheduledMeetingOverlay` and `getBookingJoinState` from `@/utils/bookingJoinUtils.js`.
+- **Join Call Runtime Error Fix** — Resolved a `ReferenceError: sessionLink is not defined` bug in the `handleJoin` function by utilizing the correct internal reactive property (`joinState.value.joinUrl`) when opening the meeting overlay.
 
 ## 2026-07-30 — Dynamic Session Expiration Reactivity
 

@@ -347,7 +347,8 @@ import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
 import EditIcon        from '@/assets/images/icons/edit-05.webp'
-import { getBookingJoinState } from '@/utils/bookingJoinUtils.js'
+import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
+import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { showToast } from '@/utils/toastBus.js'
 
 const chatStore = useChatStore()
@@ -494,7 +495,7 @@ function handleJoin() {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
-  if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
+  if (openScheduledMeetingOverlay(joinState.value.joinUrl, { source: 'chat_booking_request' })) return
   window.open(joinState.value.joinUrl, '_top')
 }
 
