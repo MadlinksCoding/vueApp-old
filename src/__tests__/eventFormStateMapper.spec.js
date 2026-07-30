@@ -116,6 +116,43 @@ describe("eventFormStateMapper", () => {
     expect(state.oneTimeAvailability[0].slots.map((slot) => slot.offHours)).toEqual([true, false]);
   });
 
+  it("normalizes disabled and below-minimum legacy booking settings", () => {
+    const state = mapEventToBookingFormState({
+      eventId: "evt_legacy_settings",
+      type: "1on1-call",
+      enableCallReminderMinutesBefore: false,
+      callReminderMinutesBefore: 30,
+      enableBufferTime: true,
+      bookingBufferMinutes: 2,
+    });
+
+    expect(state).toEqual(expect.objectContaining({
+      setReminders: true,
+      remindMeTime: "10",
+      setBufferTime: true,
+      bufferTime: "5",
+      bufferUnit: "minutes",
+    }));
+  });
+
+  it("preserves valid required booking settings while editing", () => {
+    const state = mapEventToBookingFormState({
+      eventId: "evt_valid_settings",
+      type: "group-event",
+      enableCallReminderMinutesBefore: true,
+      callReminderMinutesBefore: 45,
+      enableBufferTime: true,
+      bookingBufferMinutes: 20,
+    });
+
+    expect(state).toEqual(expect.objectContaining({
+      setReminders: true,
+      remindMeTime: "45",
+      setBufferTime: true,
+      bufferTime: "20",
+    }));
+  });
+
   it("hydrates the legacy off-hour numeric field as fixed tokens", () => {
     const state = mapEventToBookingFormState({
       eventId: "evt_legacy_surcharge",

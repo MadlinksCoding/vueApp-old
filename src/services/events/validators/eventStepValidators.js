@@ -490,22 +490,19 @@ export function step1Validator(state = {}) {
     });
   }
 
-  if (state?.setReminders || state?.enableCallReminderMinutesBefore) {
-    addRequiredNumberError(errors, [state?.remindMeTime, state?.callReminderMinutesBefore], {
-      field: "remindMeTime",
-      translationKey: "booking_validation_reminder_time_min",
-      message: "Reminder time must be at least 1 minute.",
-      min: 1,
-      integer: true,
-    });
-  }
+  addRequiredNumberError(errors, [state?.remindMeTime, state?.callReminderMinutesBefore], {
+    field: "remindMeTime",
+    translationKey: "booking_validation_reminder_time_min",
+    message: "Reminder time must be at least 10 minutes.",
+    min: 10,
+    integer: true,
+    conditional: false,
+  });
 
-  if (state?.setBufferTime || state?.enableBufferTime) {
-    const rawBufferTime = firstNonBlank(state?.bufferTime, state?.bookingBufferMinutes);
-    const bookingBufferMinutes = normalizeBookingBufferMinutes(rawBufferTime, state?.bufferUnit);
-    if (bookingBufferMinutes == null || bookingBufferMinutes < 5) {
-      errors.push(asError("bookingBufferMinutes", "booking_validation_buffer_time_min", "Buffer time must be at least 5 minutes.", {}, { conditional: isBlank(rawBufferTime) }));
-    }
+  const rawBufferTime = firstNonBlank(state?.bufferTime, state?.bookingBufferMinutes);
+  const bookingBufferMinutes = normalizeBookingBufferMinutes(rawBufferTime, state?.bufferUnit);
+  if (bookingBufferMinutes == null || bookingBufferMinutes < 5) {
+    errors.push(asError("bookingBufferMinutes", "booking_validation_buffer_time_min", "Buffer time must be at least 5 minutes.", {}, { conditional: false }));
   }
 
   if (!isGroupEvent && (state?.setMaxBookings || state?.enableMaxBookingsPerDay)) {

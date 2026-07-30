@@ -106,4 +106,21 @@ describe("updateEventMapper", () => {
     expect(mapped.offHourSurchargeTokens).toBe(18);
     expect(mapped.offHourSurchargePercent).toBeUndefined();
   });
+
+  it("always includes enabled reminder and buffer settings in edit payloads", () => {
+    const mapped = updateEventMapper(makeGroupEditPayload({
+      setReminders: false,
+      remindMeTime: "5",
+      setBufferTime: false,
+      bufferTime: "2",
+      bufferUnit: "minutes",
+    }), {
+      creatorId: 1407,
+    });
+
+    expect(mapped.enableCallReminderMinutesBefore).toBe(true);
+    expect(mapped.callReminderMinutesBefore).toBe(10);
+    expect(mapped.enableBufferTime).toBe(true);
+    expect(mapped.bookingBufferMinutes).toBe(5);
+  });
 });
