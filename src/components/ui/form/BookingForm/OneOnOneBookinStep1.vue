@@ -2434,9 +2434,9 @@
                 <TooltipIcon class="ml-1" :text="t('booking_reminders_tooltip')" />
               </div>
               <div class="self-stretch flex flex-col justify-start items-start">
-                <div class="w-full inline-flex justify-end items-center gap-2">
+                <div class="w-full inline-flex justify-start items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
-                  <BaseInput class="flex-1" type="number" placeholder="" v-model="formData.remindMeTime"
+                  <BaseInput class="" type="number" placeholder="" v-model="formData.remindMeTime"
                     data-booking-validation-input-field="remindMeTime"
                     :min="10"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
