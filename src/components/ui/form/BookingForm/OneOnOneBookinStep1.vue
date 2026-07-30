@@ -2428,7 +2428,8 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="self-stretch inline-flex justify-start items-center gap-1">
-                <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
+                  <div class="justify-start text-gray-700 text-base font-normal leading-normal">{{ t("booking_call_reminder") }}</div>
+                  <span class="text-[#F06] text-xs italic font-normal leading-none mt-[2px]">{{ t("required_title") }}</span>
                  
                 <TooltipIcon class="ml-1" :text="t('booking_reminders_tooltip')" />
               </div>
@@ -2439,14 +2440,13 @@
                     data-booking-validation-input-field="remindMeTime"
                     :min="10"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate hidden md:flex">{{ t("booking_minutes_before_a") }}</div>
+                  <div class="flex-1 justify-start text-slate-700 text-base font-normal leading-normal truncate hidden md:flex">{{ t("booking_minutes_before_a") }}</div>
                 </div>
                 <div class="inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal hidden md:flex">{{ t("booking_scheduled_call") }}</div>
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate flex md:hidden">{{ t("booking_minutes_before_a") }} {{ t("booking_scheduled_call") }}</div>
                 </div>
               </div>
-              <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('remindMeTime')"
                 field="remindMeTime"
@@ -2457,11 +2457,14 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex flex-col gap-1">
               <div class="flex items-center gap-1 text-slate-700 text-base font-normal leading-normal">
-                <span>{{ t("booking_set_buffer_time") }}</span>
+                <div class="flex flex-col items-start gap-1">
+                  <span>{{ t("booking_set_buffer_time") }}</span>
+                  <span class="text-[#F06] text-xs italic font-normal leading-none mt-[2px]">{{ t("required_title") }}</span>
+                </div>
                 <TooltipIcon
                   :text="t('booking_buffer_time_tooltip')"
                   tooltipClass="!max-w-[12rem] right-auto lg:translate-x-[-90%]"
-                  class="ml-1 !mt-0"
+                  class="ml-1 !mt-0 mb-3"
                 />
               </div>
             </div>
@@ -2478,7 +2481,6 @@
                 </div>
               </div>
             </div>
-            <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             <ValidationInlineWarning
               :messages="fieldValidationMessages('bufferTime')"
               field="bufferTime"

@@ -350,7 +350,7 @@
       </MainCalendar>
 
       <div
-        :class="['hidden ipad-portrait:hidden lg:flex lg:w-[22vw] lg:min-w-[20.375rem] lg:max-w-[28rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
+        :class="['hidden ipad-portrait:hidden ipad-portrait-large:hidden lg:flex lg:w-[22vw] lg:min-w-[25rem] lg:max-w-[28rem] xl:max-w-[30rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
       >
         <MiniCalendar
           class="md:col-span-1"
@@ -479,11 +479,11 @@
 
       <div v-if="isCreator" :class="[
         'fixed right-2 md:right-5 z-[95] transition-all duration-300',
-        isStickyCardVisible ? 'bottom-[7rem] md:bottom-5' : 'bottom-2 md:bottom-5'
+        isStickyCardVisible ? 'bottom-[7rem] ipad-portrait-small:bottom-2 ipad-portrait-small:right-3 md:bottom-5' : 'bottom-2 md:bottom-5'
       ]" ref="floatingPopupTrigger">
         <!-- For Tablet and Mobile-->
         <button
-          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform"
+          class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform h-14 w-14"
           @click="toggleFloatingPopup"
         >
           <img
@@ -938,7 +938,7 @@ const state = reactive({
 
 const theme1 = computed(() => ({
   mini: {
-    wrapper: "flex flex-col w-full font-medium text-[#0C111D] mt-0 gap-[0.625rem] rounded-xl w-[17.375rem]",
+    wrapper: "flex flex-col w-full font-medium text-[#0C111D] mt-0 gap-[0.625rem] rounded-xl w-[17.375rem] p-2",
     header: "font-semibold",
     dayBase: "relative w-[2rem] h-[2rem] rounded-full flex flex-col items-center justify-center focus:outline-none focus:ring-0 focus:ring-inset focus:ring-emerald-500 text-xs leading-[18px] font-medium text-[#0C111D]",
     outside: "opacity-0",
@@ -950,7 +950,7 @@ const theme1 = computed(() => ({
     pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {
-    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full p-0 ipad-portrait-small:p-0 ipad-portrait-large:p-0 ipad-portrait-large:pt-6 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 ${props.embedded ? '' : ''}`,
+    wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full p-0 ipad-portrait-small:p-0 ipad-portrait-large:p-0 ipad-portrait-large:pt-6 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 bg-[rgba(242,244,247,0.5)] md:bg-transparent ${props.embedded ? '' : ''}`,
     title: "text-[1.5rem] md:text-base font-semibold text-[#344054]",
     xHeader: "text-xs uppercase tracking-wide text-slate-500 top-0 sticky w-full backdrop-blur-md z-10 flex-row-reverse md:flex-row",
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",
@@ -1176,7 +1176,7 @@ function getCalendarEventStyle(event) {
     const endsAtMidnight = isMidnightDateTime(event?.end);
 
     return {
-      backgroundColor: rgba(color, 0.08),
+      backgroundColor: rgba(color, 0.10),
       borderTop: startsAtMidnight ? "0" : `1px solid ${color}`,
       borderBottom: endsAtMidnight ? "0" : `1px solid ${color}`,
       borderRadius: "0px",
