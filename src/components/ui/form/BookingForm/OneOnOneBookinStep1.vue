@@ -313,6 +313,21 @@
     ? "weekly"
     : initialRepeatRuleRaw;
 
+  function requiredIntegerOrDefault(value, minimum, fallback) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= minimum ? value : fallback;
+  }
+
+  const requestedBufferUnit = props.engine.state.bufferUnit || "minutes";
+  const requestedBufferMinimum = requestedBufferUnit === "hours" ? 1 : 5;
+  const requestedBufferTime = requiredIntegerOrDefault(
+    props.engine.state.bufferTime,
+    requestedBufferMinimum,
+    null,
+  );
+  const initialBufferUnit = requestedBufferTime == null ? "minutes" : requestedBufferUnit;
+  const initialBufferTime = requestedBufferTime == null ? 5 : requestedBufferTime;
+
   const formData = ref({
     eventTitle: props.engine.state.eventTitle || "",
     eventDescription: props.engine.state.eventDescription || "",
@@ -336,10 +351,10 @@
       ? JSON.parse(JSON.stringify(props.engine.state.oneTimeAvailability))
       : [],
     advanceCancelWindowUnit: props.engine.state.advanceCancelWindowUnit || "day",
-    bufferUnit: props.engine.state.bufferUnit || "minutes",
+    bufferUnit: initialBufferUnit,
     lateStartAction: props.engine.state.lateStartAction || "reschedule",
     lateStartDiscountPercent: props.engine.state.lateStartDiscountPercent || "",
-    setReminders: props.engine.state.setReminders || false,
+    setReminders: true,
     duration: props.engine.state.duration || "",
     maxSessionDuration: props.engine.state.maxSessionDuration || "",
     basePrice: props.engine.state.basePrice || "",
@@ -354,8 +369,8 @@
       ?? props.engine.state.offHourSurcharge
       ?? "",
     calendarDuration: props.engine.state.calendarDuration || "",
-    remindMeTime: props.engine.state.remindMeTime || "",
-    bufferTime: props.engine.state.bufferTime || "",
+    remindMeTime: requiredIntegerOrDefault(props.engine.state.remindMeTime, 10, 10),
+    bufferTime: initialBufferTime,
     maxBookingsPerDay: props.engine.state.maxBookingsPerDay || "",
     waitlistSlots: props.engine.state.waitlistSlots || "",
     rescheduleFee: props.engine.state.rescheduleFee || "",
@@ -377,7 +392,7 @@
     disableChatAllowEmoji: props.engine.state.disableChatAllowEmoji || false,
     disableChatDuringCallAllowEmoji: props.engine.state.disableChatDuringCallAllowEmoji || false,
     requestExtendSession: props.engine.state.requestExtendSession || false,
-    setBufferTime: props.engine.state.setBufferTime || false,
+    setBufferTime: true,
     setMaxBookings: props.engine.state.setMaxBookings || false,
     allowWaitlist: props.engine.state.allowWaitlist || false,
     eventImageUrl: props.engine.state.eventImageUrl || "",
@@ -605,6 +620,11 @@
 
   onMounted(() => {
     ensureVueCreatorIdFallback();
+    props.engine.setState("setReminders", true, { silent: true });
+    props.engine.setState("remindMeTime", formData.value.remindMeTime, { silent: true });
+    props.engine.setState("setBufferTime", true, { silent: true });
+    props.engine.setState("bufferTime", formData.value.bufferTime, { silent: true });
+    props.engine.setState("bufferUnit", formData.value.bufferUnit, { silent: true });
     void validateStep1();
   });
 
@@ -2412,16 +2432,12 @@
                  
                 <TooltipIcon class="ml-1" :text="t('booking_reminders_tooltip')" />
               </div>
-              <CheckboxGroup v-model="formData.setReminders" :label="t('booking_enable_reminder')"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal"
-                wrapperClass="flex items-center gap-2 mb-2 mt-2" />
-              <div :class="['self-stretch flex flex-col justify-start items-start', !formData.setReminders ? 'opacity-50':'opacity-100']">
+              <div class="self-stretch flex flex-col justify-start items-start">
                 <div class="w-full inline-flex justify-end items-center gap-2">
                   <div class="justify-center text-slate-700 text-base font-normal leading-normal">{{ t("booking_remind_me") }}</div>
                   <BaseInput class="flex-1" type="number" placeholder="" v-model="formData.remindMeTime"
                     data-booking-validation-input-field="remindMeTime"
-                    :disabled="!formData.setReminders"
+                    :min="10"
                     inputClass="bg-white/50 w-40 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate hidden md:flex">{{ t("booking_minutes_before_a") }}</div>
                 </div>
@@ -2430,6 +2446,7 @@
                   <div class="flex-1 justify-center text-slate-700 text-base font-normal leading-normal truncate flex md:hidden">{{ t("booking_minutes_before_a") }} {{ t("booking_scheduled_call") }}</div>
                 </div>
               </div>
+              <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('remindMeTime')"
                 field="remindMeTime"
@@ -2438,42 +2455,25 @@
             </div>
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
-            <!-- <div class="flex gap-2">
-              <CheckboxGroup v-model="formData.setBufferTime" :label="t('booking_set_buffer_time')"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal"
-                wrapperClass="flex items-center gap-2" />
-              <TooltipIcon :text="t('booking_buffer_time_tooltip')" tooltipClass="translate-x-[-90%] sm:translate-x-[-90%]" class="ml-1 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-6" />
-            </div> -->
             <div class="flex flex-col gap-1">
-              <div class="flex gap-2">
-                <CheckboxGroup
-                  v-model="formData.setBufferTime"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
-                  labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal flex items-center !inline-block relative"
-                  wrapperClass="flex items-center gap-2"
-                >
-                  <template #label>
-                    <span>{{ t("booking_set_buffer_time") }}</span>
-                    <TooltipIcon
-                    :text="t('booking_buffer_time_tooltip')"
-                    tooltipClass="!max-w-[12rem] right-auto lg:translate-x-[-90%]" 
-                    class="ml-1 !mt-0 !absolute z-[9] md:top-1/2 md:-translate-y-1/2 right-auto md:-right-8"
-                    />
-                  </template>
-                </CheckboxGroup>
+              <div class="flex items-center gap-1 text-slate-700 text-base font-normal leading-normal">
+                <span>{{ t("booking_set_buffer_time") }}</span>
+                <TooltipIcon
+                  :text="t('booking_buffer_time_tooltip')"
+                  tooltipClass="!max-w-[12rem] right-auto lg:translate-x-[-90%]"
+                  class="ml-1 !mt-0"
+                />
               </div>
             </div>
             <div class="inline-flex justify-start items-center gap-2">
-              <!-- <div class="w-6 h-6" /> -->
-              <div :class="['flex justify-start items-end gap-2',!formData.setBufferTime? 'opacity-50 pointer-events-none':'opacity-100']">
+              <div class="flex justify-start items-end gap-2">
                 <BaseInput type="number" placeholder="" v-model="formData.bufferTime"
                   data-booking-validation-input-field="bufferTime"
-                  :disabled="!formData.setBufferTime"
+                  :min="formData.bufferUnit === 'hours' ? 1 : 5"
                   inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
                 <div class="w-44 inline-flex flex-col justify-start items-start gap-1.5">
                   <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
-                    <CustomDropdown :options="bufferUnitOptions" v-model="formData.bufferUnit" :disabled="!formData.setBufferTime" />
+                    <CustomDropdown :options="bufferUnitOptions" v-model="formData.bufferUnit" />
                   </div>
                 </div>
               </div>

@@ -66,8 +66,8 @@ function mountOptions(translations = {}) {
         template: "<section><h2>{{ title }}</h2><slot /></section>",
       },
       BaseInput: {
-        props: ["placeholder", "disabled"],
-        template: "<input :placeholder='placeholder' :disabled='disabled' />",
+        props: ["placeholder", "disabled", "min", "modelValue", "type"],
+        template: "<input :type='type' :placeholder='placeholder' :disabled='disabled' :min='min' :value='modelValue' :modelvalue='modelValue' />",
       },
       ButtonComponent: {
         props: ["text", "disabled", "customClass"],
@@ -314,6 +314,7 @@ describe("one-on-one booking step translations", () => {
     const engine = createEngine({ eventType: "1on1-call" });
     engine.goToStep.mockRejectedValue({
       errors: [
+        { field: "remindMeTime", translationKey: "booking_validation_reminder_time_min", conditional: false },
         { field: "bookingBufferMinutes", translationKey: "booking_validation_buffer_time_min", conditional: false },
       ],
     });
@@ -330,6 +331,7 @@ describe("one-on-one booking step translations", () => {
     await settleValidation();
 
     expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='remindMeTime']").text()).toContain("Reminder time must be at least 10 minutes.");
     expect(wrapper.get("[data-booking-validation-tooltip-field='bufferTime']").text()).toContain("Buffer time must be at least 5 minutes.");
   });
 
@@ -613,6 +615,47 @@ describe("one-on-one booking step translations", () => {
     await previewButton.trigger("click");
 
     expect(wrapper.emitted("preview-schedule")).toHaveLength(1);
+  });
+
+  it.each(["private", "group"])("renders required reminder and buffer defaults without enable checkboxes for %s events", async (bookingType) => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: bookingType === "group" ? "group-event" : "1on1-call",
+      setReminders: false,
+      remindMeTime: "",
+      setBufferTime: false,
+      bufferTime: "",
+      bufferUnit: "minutes",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType,
+      },
+      global: mountOptions(),
+    });
+    await nextTick();
+
+    const reminderInput = wrapper.get("[data-booking-validation-input-field='remindMeTime']");
+    const bufferInput = wrapper.get("[data-booking-validation-input-field='bufferTime']");
+
+    expect(reminderInput.attributes("value")).toBe("10");
+    expect(reminderInput.attributes("min")).toBe("10");
+    expect(reminderInput.attributes("disabled")).toBeUndefined();
+    expect(bufferInput.attributes("value")).toBe("5");
+    expect(bufferInput.attributes("min")).toBe("5");
+    expect(bufferInput.attributes("disabled")).toBeUndefined();
+    expect(wrapper.findAll("label").some((label) => label.text().includes("Enable reminder"))).toBe(false);
+    expect(wrapper.findAll("label").some((label) => label.text().includes("Set buffer time between booked appointments"))).toBe(false);
+    expect(engine.state).toEqual(expect.objectContaining({
+      setReminders: true,
+      remindMeTime: 10,
+      setBufferTime: true,
+      bufferTime: 5,
+      bufferUnit: "minutes",
+    }));
   });
 
   it("offers searchable five-minute availability time options", async () => {

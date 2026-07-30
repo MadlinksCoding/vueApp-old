@@ -211,18 +211,22 @@ describe("createEventMapper", () => {
     expect(mapped.bookingBufferMinutes).toBe(120);
   });
 
-  it("omits booking buffer minutes when buffer time is disabled", () => {
+  it("always enables required reminder and buffer settings with minimum defaults", () => {
     const mapped = createEventMapper({
       ...baseDraft,
       eventType: "1on1-call",
       basePrice: "120",
+      setReminders: false,
+      remindMeTime: "2",
       setBufferTime: false,
       bufferUnit: "minutes",
       bufferTime: "2",
     });
 
-    expect(mapped.enableBufferTime).toBe(false);
-    expect(mapped).not.toHaveProperty("bookingBufferMinutes");
+    expect(mapped.enableCallReminderMinutesBefore).toBe(true);
+    expect(mapped.callReminderMinutesBefore).toBe(10);
+    expect(mapped.enableBufferTime).toBe(true);
+    expect(mapped.bookingBufferMinutes).toBe(5);
   });
 
   it("derives custom event date bounds from generated HKT slot dates", () => {
