@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-30 — Dynamic Session Expiration Reactivity
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue` & `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Dynamic Session Expiration Tracking** — Introduced a reactive `now` reference using `setInterval` to continuously update the current time every second. Replaced static `Date.now()` calls within the `isPassCall` computed properties with this reactive reference. This ensures the UI instantly transitions to the "Expired" state (hiding action buttons, updating text) immediately when the session end time is reached, without requiring a page reload.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Session Expiration Event Dispatching** — Verified that the component dynamically updates `isExpired` using its pre-existing interval ticker, ensuring the session status remains reactive.
+
 ## 2026-07-28 — Live Call & Booking Request Chat UI Fixes
 
 ### Changed
