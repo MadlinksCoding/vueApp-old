@@ -131,6 +131,7 @@ describe("event X post settings API", () => {
     expect(options).toEqual(expect.objectContaining({
       method: "PUT",
       credentials: "include",
+      keepalive: true,
     }));
     expect(body.creator_id).toBe(1407);
     expect(body.uid).toBe("creator-uid");

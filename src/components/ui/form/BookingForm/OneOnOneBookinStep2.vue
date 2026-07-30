@@ -170,12 +170,14 @@ const props = defineProps({
     type: [String, Number],
     default: "",
   },
+  xPostSettingsHydrationPromise: {
+    default: null,
+  },
 });
 const emit = defineEmits([
   "created",
   "preview-schedule",
   "reveal-step1-validation",
-  "x-settings-save-failed",
 ]);
 const route = useRoute();
 const isCreating = ref(false);
@@ -304,6 +306,17 @@ const formData = ref({
   on_tipped_session_media_url: props.engine.state.on_tipped_session_media_url || "",
   on_purchased_media_url: props.engine.state.on_purchased_media_url || "",
 });
+
+const removeXPostSettingsHydrationListener = props.engine?.on?.(
+  "x-post-settings:hydrated",
+  ({ fields } = {}) => {
+    Object.entries(fields || {}).forEach(([field, value]) => {
+      if (Object.prototype.hasOwnProperty.call(formData.value, field)) {
+        formData.value[field] = value;
+      }
+    });
+  },
+);
 
 const audienceSelectionModel = computed({
   get() {
@@ -1189,6 +1202,7 @@ watch(blockedUserSearchQuery, (query) => {
 });
 
 onBeforeUnmount(() => {
+  removeXPostSettingsHydrationListener?.();
   if (subscriptionTierAbortController) subscriptionTierAbortController.abort();
   if (inviteSearchAbortController) inviteSearchAbortController.abort();
   if (blockedUserSearchAbortController) blockedUserSearchAbortController.abort();
@@ -1347,6 +1361,28 @@ function resolveCreatedEventName(flowResult = {}) {
   ) || t("dashboard_booked_slot");
 }
 
+function queueBackgroundXPostSettingsSave({ eventId, creatorId }) {
+  const hydrationPromise = props.xPostSettingsHydrationPromise;
+  if (!hydrationPromise || typeof hydrationPromise.then !== "function") return;
+
+  void hydrationPromise
+    .then((hydrationResult) => {
+      if (hydrationResult?.status !== "loaded") return null;
+
+      return saveEventXPostSettings({
+        eventId,
+        creatorId,
+        state: props.engine.state || {},
+      });
+    })
+    .catch((error) => {
+      console.warn("Background X post settings save failed", {
+        eventId,
+        error: error?.message || String(error || ""),
+      });
+    });
+}
+
 async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) {
   console.error("Event created:", { creatorId, eventName, eventType, eventId });
   const canUseXRepost = isCreatorAllowedForXRepost(creatorId);
@@ -1494,22 +1530,7 @@ const createEvent = async () => {
           || props.engine.getState("eventId")
           || "";
 
-        try {
-          await saveEventXPostSettings({
-            eventId,
-            creatorId,
-            state: formData.value,
-          });
-        } catch (error) {
-          emit("x-settings-save-failed");
-          showToast({
-            type: "error",
-            title: "Event updated, but X settings were not saved",
-            message: error?.message || "Retry the update to save your X post settings.",
-            autoClose: false,
-          });
-          return;
-        }
+        queueBackgroundXPostSettingsSave({ eventId, creatorId });
       } else if (!props.isEditMode) {
         const notifyResult = await notifyEventCreated({
           creatorId,

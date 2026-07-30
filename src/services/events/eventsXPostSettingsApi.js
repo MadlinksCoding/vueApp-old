@@ -145,12 +145,16 @@ export function normalizeEventXPostSettings(payload = {}) {
   };
 }
 
-export function mergeEventXPostSettingsIntoFormState(formState = {}, response = {}) {
+export function mergeEventXPostSettingsIntoFormState(formState = {}, response = {}, options = {}) {
   const nextState = { ...formState };
   const normalized = normalizeEventXPostSettings(response);
+  const shouldApplyAction = typeof options.shouldApplyAction === "function"
+    ? options.shouldApplyAction
+    : () => true;
 
   Object.entries(EVENT_X_POST_ACTIONS).forEach(([actionKey, fields]) => {
     const setting = normalized.settings[actionKey];
+    if (!shouldApplyAction(actionKey, setting, fields)) return;
 
     if (setting.source !== "missing") {
       nextState[fields.enabledField] = setting.enabled;
@@ -234,6 +238,7 @@ export async function saveEventXPostSettings({
     {
       method: "PUT",
       credentials: "include",
+      keepalive: true,
       signal,
       headers: {
         Accept: "application/json",
