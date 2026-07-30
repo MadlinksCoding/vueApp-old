@@ -1,14 +1,14 @@
 <template>
   <div
-    class="relative w-full h-full flex flex-col border-l-4 border-b border-b-[#E5E7EB] font-['Poppins']"
-    :class="isExpired ? 'border-gray-400 bg-gray-50' : 'border-[#4F46E5] bg-white'"
+    class="relative w-full h-full flex flex-col border-l-[4px] border-b border-b-[#E5E7EB] font-['Poppins']"
+    :class="isExpired ? 'border-gray-400 bg-[#F2F4F7]' : 'border-[#5549FF] bg-[#F9FAFB]'"
     @click.self="closeDropdown"
   >
     <div class="px-4 py-3 flex flex-col gap-1.5 h-full">
 
       <!-- Header row: title + 3-dot menu -->
       <div class="flex items-start justify-between gap-2">
-        <span class="text-sm font-semibold leading-5 line-clamp-2" :class="isExpired ? 'text-gray-400' : 'text-[#111827]'">
+        <span class="text-base font-semibold leading-snug line-clamp-2" :class="isExpired ? 'text-gray-400' : 'text-gray-700'">
           {{ eventName }}
         </span>
         <button
@@ -24,28 +24,26 @@
 
       <!-- ── Cancelled / declined state ───────────────────────────────────── -->
       <template v-if="isCancelled">
-        <div v-if="formattedDateTime" class="text-gray-500 text-xs leading-4">
+        <div v-if="formattedDateTime" class="text-sm font-medium" :class="isExpired ? 'text-gray-400' : 'text-slate-700'">
           {{ formattedDateTime }}
         </div>
         <div class="flex items-center justify-between mt-1">
-          <div class="flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 shrink-0" :class="isExpired ? 'text-gray-500' : 'text-red-500'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="flex items-center gap-1">
+            <svg class="w-4 h-4 shrink-0" :class="isExpired ? 'text-gray-500' : 'text-red-500'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"
               />
             </svg>
-            <span class="text-xs font-semibold" :class="isExpired ? 'text-gray-500' : 'text-red-500'">Canceled</span>
+            <span class="text-sm font-semibold" :class="isExpired ? 'text-gray-500' : 'text-red-500'">Canceled</span>
           </div>
           <button
-            class="text-gray-500 text-xs font-medium flex items-center gap-0.5 hover:text-gray-700 transition-colors relative z-10 cursor-pointer"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0 relative z-10 cursor-pointer"
             @mousedown.stop
             @touchstart.stop
             @click.stop="$emit('view-details')"
           >
             View Details
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
           </button>
         </div>
       </template>
@@ -54,7 +52,7 @@
       <template v-else-if="!isCounterOffer">
 
         <!-- Date / time -->
-        <div v-if="formattedDateTime" class="text-gray-500 text-xs leading-4">
+        <div v-if="formattedDateTime" class="text-sm font-medium" :class="isExpired ? 'text-gray-400' : 'text-slate-700'">
           {{ formattedDateTime }}
         </div>
 
@@ -188,6 +186,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils.js'
 import { openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
+import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 
 const props = defineProps({
   message:   { type: Object,  required: true },
