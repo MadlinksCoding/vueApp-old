@@ -40,6 +40,7 @@ function setByPath(target, path, value) {
 }
 
 function createEngine(state = {}) {
+  const listeners = new Map();
   const engine = {
     state,
     getState: vi.fn((path) => {
@@ -51,6 +52,14 @@ function createEngine(state = {}) {
     forceStep: vi.fn(),
     callFlow: vi.fn(),
     validate: vi.fn(() => Promise.resolve({ valid: true, errors: [] })),
+    on: vi.fn((eventName, handler) => {
+      if (!listeners.has(eventName)) listeners.set(eventName, new Set());
+      listeners.get(eventName).add(handler);
+      return () => listeners.get(eventName)?.delete(handler);
+    }),
+    emit: vi.fn((eventName, payload) => {
+      listeners.get(eventName)?.forEach((handler) => handler(payload));
+    }),
   };
   return engine;
 }
@@ -2634,10 +2643,51 @@ describe("one-on-one booking step translations", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it("submits update flow in edit mode and persists X settings without a create notification", async () => {
+  it("updates a mounted step 2 when background X settings arrive", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
     );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventType: "1on1-call",
+      xPostLive: false,
+      on_schedule_live: false,
+      on_schedule_live_message: "",
+      on_schedule_live_media_url: "",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_late_ui",
+      },
+      global: mountOptions(),
+    });
+
+    const hydratedFields = {
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Background message",
+      on_schedule_live_media_url: "https://cdn.example.com/background.jpg",
+    };
+    Object.entries(hydratedFields).forEach(([field, value]) => {
+      engine.setState(field, value);
+    });
+    engine.emit("x-post-settings:hydrated", { fields: hydratedFields });
+    await settleValidation();
+
+    expect(wrapper.vm.formData).toEqual(expect.objectContaining(hydratedFields));
+  });
+
+  it("emits edit success before the queued X settings save completes", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    let resolveHydration;
+    const hydrationPromise = new Promise((resolve) => {
+      resolveHydration = resolve;
+    });
     const engine = createEngine({
       creatorId: 1407,
       eventId: "evt_edit",
@@ -2662,6 +2712,7 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit",
+        xPostSettingsHydrationPromise: hydrationPromise,
       },
       global: mountOptions({
         booking_update_publish: "Actualizar y publicar",
@@ -2686,11 +2737,20 @@ describe("one-on-one booking step translations", () => {
         }),
       }),
     );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+
+    resolveHydration({ status: "loaded" });
+    await settleValidation();
+
     expect(fetch).toHaveBeenCalledTimes(1);
     const [settingsUrl, settingsOptions] = fetch.mock.calls[0];
     expect(settingsUrl).toContain("/wp-json/api/event/evt_edit/x-post-settings");
     expect(settingsUrl).not.toContain("/wp-json/api/event/create");
     expect(settingsOptions.method).toBe("PUT");
+    expect(settingsOptions.keepalive).toBe(true);
     expect(JSON.parse(settingsOptions.body)).toEqual(expect.objectContaining({
       creator_id: 1407,
       settings: expect.objectContaining({
@@ -2701,15 +2761,13 @@ describe("one-on-one booking step translations", () => {
         },
       }),
     }));
-    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
-      mode: "edit",
-    }));
   });
 
-  it("keeps edit mode open when X settings fail and allows a safe retry", async () => {
+  it("does not block edit success when the background X settings PUT fails", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
     );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const engine = createEngine({
       creatorId: 1407,
       eventId: "evt_edit_retry",
@@ -2722,20 +2780,14 @@ describe("one-on-one booking step translations", () => {
       ok: true,
       data: { eventId: "evt_edit_retry" },
     });
-    fetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({
-          success: false,
-          message: "WordPress settings write failed.",
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true, eventId: "evt_edit_retry", settings: {} }),
-      });
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({
+        success: false,
+        message: "WordPress settings write failed.",
+      }),
+    });
 
     const wrapper = shallowMount(OneOnOneBookinStep2, {
       props: {
@@ -2743,6 +2795,7 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit_retry",
+        xPostSettingsHydrationPromise: Promise.resolve({ status: "loaded" }),
       },
       global: mountOptions(),
     });
@@ -2750,24 +2803,56 @@ describe("one-on-one booking step translations", () => {
     await wrapper.vm.createEvent();
     await settleValidation();
 
-    expect(wrapper.emitted("created")).toBeUndefined();
-    expect(wrapper.emitted("x-settings-save-failed")).toHaveLength(1);
-    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
-      type: "error",
-      title: "Event updated, but X settings were not saved",
-      message: "WordPress settings write failed.",
-      autoClose: false,
-    }));
-
-    await wrapper.vm.createEvent();
-    await settleValidation();
-
-    expect(engine.callFlow).toHaveBeenCalledTimes(2);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(engine.callFlow).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls.every(([url]) => !url.includes("/wp-json/api/event/create"))).toBe(true);
     expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
       mode: "edit",
     }));
+    expect(showToast).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Background X post settings save failed",
+        expect.objectContaining({ eventId: "evt_edit_retry" }),
+      );
+    });
+  });
+
+  it("skips the background X settings PUT when hydration failed", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventId: "evt_edit_get_failed",
+      eventTitle: "Edited Event",
+      eventType: "1on1-call",
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: { eventId: "evt_edit_get_failed" },
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_edit_get_failed",
+        xPostSettingsHydrationPromise: Promise.resolve({ status: "failed" }),
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("uses the engine event title for create notification names", async () => {

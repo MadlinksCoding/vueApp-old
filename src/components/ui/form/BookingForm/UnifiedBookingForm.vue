@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, reactive, ref, computed, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, computed, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import DashboardWrapperTwoColContainer from "@/components/dashboard/DashboardWrapperTwoColContainer.vue";
 import { createFlowStateEngine, attachEngineLogging } from "@/utils/flowStateEngine.js"; // Adjust path if needed
@@ -24,6 +24,7 @@ import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
 import { mapDraftEventToFanBookingPreview } from "@/services/events/mappers/mapDraftEventToFanBookingPreview.js";
 import { mapEventToBookingFormState } from "@/services/events/mappers/eventFormStateMapper.js";
 import {
+    EVENT_X_POST_ACTIONS,
     fetchEventXPostSettings,
     isCreatorAllowedForXRepost,
     mergeEventXPostSettingsIntoFormState,
@@ -80,6 +81,7 @@ const DEFAULT_VUE_CREATOR_ID = 1407;
 const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
 const RESCHEDULE_FEE_SETTING_ENABLED = false;
+const X_POST_SETTINGS_LOAD_TIMEOUT_MS = 10_000;
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -95,6 +97,7 @@ const dirtyTrackingStarted = ref(false);
 const dirtyBaselineSignature = ref("");
 const unsavedLeaveDialogOpen = ref(false);
 const suppressUnsavedLeaveWarning = ref(false);
+const xPostSettingsHydrationPromise = shallowRef(Promise.resolve({ status: "skipped" }));
 let pendingUnsavedLeaveResolve = null;
 let pendingUnsavedLeavePromise = null;
 
@@ -404,6 +407,23 @@ async function startDirtyTrackingFromCurrentState() {
     dirtyBaselineSignature.value = stableStringify(createBookingFormDirtySnapshot());
     dirtyTrackingStarted.value = true;
     setUnsavedChanges(hasUnsavedChanges.value || hasDirtyChangesComparedToBaseline());
+}
+
+function rebaseDirtyBaselineFields(fields = [], preserveDirty = false) {
+    if (!dirtyTrackingStarted.value || !dirtyBaselineSignature.value || fields.length === 0) return;
+
+    let baseline;
+    try {
+        baseline = JSON.parse(dirtyBaselineSignature.value);
+    } catch (_) {
+        return;
+    }
+
+    fields.forEach((field) => {
+        baseline[field] = normalizeDirtyValue(getBookingFormStateValueForDirty(field));
+    });
+    dirtyBaselineSignature.value = stableStringify(baseline);
+    setUnsavedChanges(Boolean(preserveDirty) || hasDirtyChangesComparedToBaseline());
 }
 
 function markFormDirtyFromUserInteraction(event) {
@@ -743,6 +763,104 @@ function applyFormStateToEngine(formState = {}, reason = "edit-form-hydration") 
     bookingFlow.initializeFromState?.();
 }
 
+const X_POST_BOOLEAN_FIELDS = new Set(
+    Object.values(EVENT_X_POST_ACTIONS).flatMap((fields) => [
+        fields.enabledField,
+        fields.modelField,
+    ]),
+);
+
+function normalizeXPostFieldValue(field, value) {
+    return X_POST_BOOLEAN_FIELDS.has(field) ? Boolean(value) : String(value || "");
+}
+
+function captureXPostActionSnapshot(state = {}) {
+    return Object.entries(EVENT_X_POST_ACTIONS).reduce((snapshot, [actionKey, fields]) => {
+        snapshot[actionKey] = Object.fromEntries(
+            [fields.enabledField, fields.modelField, fields.messageField, fields.mediaField]
+                .map((field) => [field, normalizeXPostFieldValue(field, state[field])]),
+        );
+        return snapshot;
+    }, {});
+}
+
+function startBackgroundXPostSettingsRequest({ eventId, creatorId }) {
+    if (!isCreatorAllowedForXRepost(creatorId)) {
+        return Promise.resolve({ status: "skipped" });
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), X_POST_SETTINGS_LOAD_TIMEOUT_MS);
+
+    return fetchEventXPostSettings({
+        eventId,
+        creatorId,
+        signal: controller.signal,
+    })
+        .then((settings) => ({ status: "loaded", settings }))
+        .catch((error) => {
+            const status = controller.signal.aborted ? "timed_out" : "failed";
+            console.warn("Background X post settings load failed", {
+                eventId,
+                status,
+                error: error?.message || String(error || ""),
+            });
+            return { status, error };
+        })
+        .finally(() => window.clearTimeout(timeoutId));
+}
+
+function applyBackgroundXPostSettings(requestResult, initialSnapshot) {
+    if (requestResult?.status !== "loaded") return requestResult;
+
+    const wasDirty = hasUnsavedChanges.value;
+    const currentState = bookingFlow.state || {};
+    const applicableActions = new Set(
+        Object.entries(EVENT_X_POST_ACTIONS)
+            .filter(([actionKey, fields]) => (
+                [fields.enabledField, fields.modelField, fields.messageField, fields.mediaField]
+                    .every((field) => (
+                        normalizeXPostFieldValue(field, currentState[field])
+                        === initialSnapshot[actionKey]?.[field]
+                    ))
+            ))
+            .map(([actionKey]) => actionKey),
+    );
+    const mergedState = mergeEventXPostSettingsIntoFormState(
+        currentState,
+        requestResult.settings,
+        {
+            shouldApplyAction: (actionKey) => applicableActions.has(actionKey),
+        },
+    );
+    const appliedState = {};
+
+    applicableActions.forEach((actionKey) => {
+        const fields = EVENT_X_POST_ACTIONS[actionKey];
+        [fields.enabledField, fields.modelField, fields.messageField, fields.mediaField]
+            .forEach((field) => {
+                const value = normalizeXPostFieldValue(field, mergedState[field]);
+                appliedState[field] = value;
+                bookingFlow.setState(field, value, {
+                    reason: "background-x-post-settings-hydration",
+                    silent: true,
+                });
+            });
+    });
+
+    const appliedFields = Object.keys(appliedState);
+    if (appliedFields.length > 0) {
+        bookingFlow.emit?.("x-post-settings:hydrated", { fields: appliedState });
+        rebaseDirtyBaselineFields(appliedFields, wasDirty);
+    }
+
+    return {
+        status: "loaded",
+        settings: requestResult.settings,
+        appliedFields,
+    };
+}
+
 async function hydrateEditEventIfNeeded() {
     if (!isEditMode.value) {
         editFormReady.value = true;
@@ -761,23 +879,19 @@ async function hydrateEditEventIfNeeded() {
 
     try {
         const creatorId = resolveCreatorId();
-        const [result, xPostSettings] = await Promise.all([
-            bookingFlow.callFlow(
-                "events.fetchEvent",
-                { eventId },
-                {
-                    forceRefresh: true,
-                    context: {
-                        stateEngine: bookingFlow,
-                        creatorId,
-                        apiBaseUrl: props.apiBaseUrl || undefined,
-                    },
+        const xPostSettingsRequest = startBackgroundXPostSettingsRequest({ eventId, creatorId });
+        const result = await bookingFlow.callFlow(
+            "events.fetchEvent",
+            { eventId },
+            {
+                forceRefresh: true,
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId,
+                    apiBaseUrl: props.apiBaseUrl || undefined,
                 },
-            ),
-            isCreatorAllowedForXRepost(creatorId)
-                ? fetchEventXPostSettings({ eventId, creatorId })
-                : Promise.resolve(null),
-        ]);
+            },
+        );
 
         if (!result?.ok) {
             editError.value = result?.meta?.uiErrors?.[0]
@@ -793,11 +907,12 @@ async function hydrateEditEventIfNeeded() {
         }
 
         const eventFormState = mapEventToBookingFormState(event);
-        const formState = xPostSettings
-            ? mergeEventXPostSettingsIntoFormState(eventFormState, xPostSettings)
-            : eventFormState;
-        editEventType.value = formState.eventType === "group-event" ? "group" : "private";
-        applyFormStateToEngine(formState);
+        editEventType.value = eventFormState.eventType === "group-event" ? "group" : "private";
+        applyFormStateToEngine(eventFormState);
+        const initialXPostSnapshot = captureXPostActionSnapshot(bookingFlow.state || {});
+        xPostSettingsHydrationPromise.value = xPostSettingsRequest.then((requestResult) => (
+            applyBackgroundXPostSettings(requestResult, initialXPostSnapshot)
+        ));
         if (dirtyTrackingStarted.value) {
             await nextTick();
             await nextTick();
@@ -2076,10 +2191,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             :is-edit-mode="isEditMode"
                             :edit-event-id="resolvedEditEventId"
+                            :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
                             @reveal-step1-validation="revealStep1Validation"
-                            @x-settings-save-failed="setUnsavedChanges(true)"
                         />
                     </template>
 
@@ -2105,10 +2220,10 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             bookingType="group"
                             :is-edit-mode="isEditMode"
                             :edit-event-id="resolvedEditEventId"
+                            :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"
                             @preview-schedule="previewSchedule = true"
                             @reveal-step1-validation="revealStep1Validation"
-                            @x-settings-save-failed="setUnsavedChanges(true)"
                         />
                     </template>
                 </div>
