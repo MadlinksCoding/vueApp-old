@@ -317,7 +317,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import { getBookingJoinState, openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
@@ -356,6 +356,15 @@ const menuOpen      = ref(false)
 const messageContent = computed(() => props.message?.content || {})
 const currentAction  = ref(messageContent.value.action || 'pending')
 
+const now = ref(Date.now())
+let _ticker = null
+onMounted(() => {
+  _ticker = setInterval(() => { now.value = Date.now() }, 1000)
+})
+onUnmounted(() => {
+  if (_ticker) clearInterval(_ticker)
+})
+
 const isPassCall = computed(() => {
   const startIso = booking.value?.startAtIso || messageContent.value?.event_date || messageContent.value?.eventDate;
   const endIso = booking.value?.endAtIso;
@@ -365,14 +374,14 @@ const isPassCall = computed(() => {
   const start = parseDate(startIso);
   const end = parseDate(endIso);
 
-  const now = Date.now()
+  const currentMs = now.value
   if (start) {
     const startMs = start.getTime();
     if (end) {
       const endMs = end.getTime();
-      if (now >= startMs && now < endMs) return false;
+      if (currentMs >= startMs && currentMs < endMs) return false;
     }
-    const msToStart = startMs - now
+    const msToStart = startMs - currentMs
     return msToStart < 0; 
   }
   return true;

@@ -335,7 +335,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue'
 import FlowHandler    from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
@@ -364,17 +364,27 @@ const remarksExpanded = ref(false)
 const remarksRef = ref(null)
 const isRemarksClamped = ref(false)
 const isPinned = computed(() => props.message?.is_pinned || false)
+
+const now = ref(Date.now())
+let _ticker = null
+onMounted(() => {
+  _ticker = setInterval(() => { now.value = Date.now() }, 1000)
+})
+onUnmounted(() => {
+  if (_ticker) clearInterval(_ticker)
+})
+
 const isPassCall = computed(() => {
   const start = parseDate( booking.value?.startAtIso );
   const end = parseDate( booking.value?.endAtIso );
 
   if (!start || !end) return true; // If no date info, assume passed to avoid showing action buttons
 
-  const now = Date.now()
+  const currentMs = now.value
   const startMs = start.getTime()
   const endMs = end.getTime()
-  if (now >= startMs && now < endMs) return false; // Currently within the scheduled time slot
-  const msToStart = startMs - now
+  if (currentMs >= startMs && currentMs < endMs) return false; // Currently within the scheduled time slot
+  const msToStart = startMs - currentMs
   if (msToStart > 0) return false; // Still have time before the slot starts
 
   return true;
