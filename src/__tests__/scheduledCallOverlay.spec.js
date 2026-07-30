@@ -88,18 +88,92 @@ describe("FSScheduledCallOverlay", () => {
 
   it("only exposes host close before joining and removes ended calls on a frame request", () => {
     const handle = window.FSScheduledCallOverlay.open("/scheduled-meeting/?booking_id=b_state");
-    const closeButton = handle.overlay.querySelector(".fs-scheduled-call-overlay__close");
+    const backButton = handle.overlay.querySelector(".fs-scheduled-call-overlay__back");
+    const enteringCover = handle.overlay.querySelector(".fs-scheduled-call-overlay__loading");
 
+    expect(enteringCover.textContent).toContain("Entering call");
+    expect(enteringCover.textContent).toContain("Scheduled Meeting");
+    expect(enteringCover.querySelector(".fs-scheduled-call-overlay__identity-loader").src)
+      .toContain("/wp-content/plugins/fansocial/assets/img/green-loader1.svg");
+    expect(enteringCover.querySelector(".fs-scheduled-call-overlay__avatar").src)
+      .toContain("/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png");
+    expect(enteringCover.querySelector("svg")).toBeNull();
+    expect(enteringCover.hidden).toBe(false);
+    expect(handle.iframe.style.opacity).toBe("0");
     postFromFrame(handle, "FS_SCHEDULED_CALL_FRAME_READY");
-    expect(closeButton.hidden).toBe(false);
+    expect(backButton.hidden).toBe(false);
+    expect(handle.getState()).toBe("loading");
+    expect(enteringCover.hidden).toBe(false);
 
     postFromFrame(handle, "FS_SCHEDULED_CALL_STATE", { state: "joining" });
-    expect(closeButton.hidden).toBe(true);
+    expect(backButton.hidden).toBe(true);
+    expect(enteringCover.hidden).toBe(true);
+    expect(handle.iframe.style.opacity).toBe("1");
     expect(window.FSScheduledCallOverlay.close("not_allowed")).toBe(false);
 
     postFromFrame(handle, "FS_SCHEDULED_CALL_STATE", { state: "ended" });
     expect(window.FSScheduledCallOverlay.isOpen()).toBe(true);
     postFromFrame(handle, "FS_SCHEDULED_CALL_CLOSE_REQUEST", { reason: "call_ended" });
+    expect(window.FSScheduledCallOverlay.isOpen()).toBe(false);
+  });
+
+  it("hydrates Entering metadata without accepting background imagery", () => {
+    const handle = window.FSScheduledCallOverlay.open("/scheduled-meeting/?booking_id=b_presentation");
+    const enteringCover = handle.overlay.querySelector(".fs-scheduled-call-overlay__loading");
+    const avatar = enteringCover.querySelector(".fs-scheduled-call-overlay__avatar");
+    const originalAvatar = avatar.src;
+
+    expect(enteringCover.style.backgroundImage).toBe("");
+    expect(enteringCover.style.backgroundColor).toBe("rgba(0, 0, 0, 0.75)");
+    expect(enteringCover.style.backdropFilter).toBe("blur(12px)");
+
+    postFromFrame(handle, "FS_SCHEDULED_CALL_PRESENTATION", {
+      backgroundUrl: "https://media.example/event-background.jpg",
+      avatarUrl: "/uploads/creator-avatar.jpg",
+      eventTitle: "Creator Session",
+      dateLabel: "Jul 29,",
+      timeLabel: "9:50pm-10:00pm",
+    });
+
+    expect(enteringCover.style.backgroundImage).toBe("");
+    expect(enteringCover.style.backgroundColor).toBe("rgba(0, 0, 0, 0.75)");
+    expect(enteringCover.style.backdropFilter).toBe("blur(12px)");
+    expect(avatar.src).toBe(`${window.location.origin}/uploads/creator-avatar.jpg`);
+    expect(enteringCover.querySelector(".fs-scheduled-call-overlay__event-title").textContent).toBe("Creator Session");
+    expect(enteringCover.querySelector(".fs-scheduled-call-overlay__event-date").textContent).toBe("Jul 29,");
+    expect(enteringCover.querySelector(".fs-scheduled-call-overlay__event-time").textContent).toBe("9:50pm-10:00pm");
+
+    postFromFrame(handle, "FS_SCHEDULED_CALL_PRESENTATION", {
+      avatarUrl: "data:image/svg+xml,bad",
+    });
+
+    expect(enteringCover.style.backgroundImage).toBe("");
+    expect(enteringCover.style.backgroundColor).toBe("rgba(0, 0, 0, 0.75)");
+    expect(enteringCover.style.backdropFilter).toBe("blur(12px)");
+    expect(avatar.src).not.toBe(originalAvatar);
+    expect(avatar.src).toBe(`${window.location.origin}/uploads/creator-avatar.jpg`);
+
+    avatar.dispatchEvent(new Event("error"));
+    expect(avatar.src)
+      .toContain("/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png");
+    finishTeardown(handle);
+  });
+
+  it("uses Back to dashboard to request acknowledged teardown", () => {
+    const handle = window.FSScheduledCallOverlay.open("/scheduled-meeting/?booking_id=b_back");
+    const backButton = handle.overlay.querySelector(".fs-scheduled-call-overlay__back");
+    const postMessageSpy = vi.spyOn(handle.iframe.contentWindow, "postMessage");
+
+    backButton.click();
+
+    expect(handle.getState()).toBe("closing");
+    expect(postMessageSpy).toHaveBeenCalledWith({
+      type: "FS_SCHEDULED_CALL_TEARDOWN_REQUEST",
+      payload: { reason: "back_to_dashboard" },
+    }, window.location.origin);
+    postFromFrame(handle, "FS_SCHEDULED_CALL_TEARDOWN_COMPLETE", {
+      reason: "back_to_dashboard",
+    });
     expect(window.FSScheduledCallOverlay.isOpen()).toBe(false);
   });
 

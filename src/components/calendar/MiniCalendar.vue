@@ -78,6 +78,7 @@ export default {
     dataAttrs: { type: Object, default: () => ({}) },
     minDate: { type: [Date, String], default: null },
     maxDate: { type: [Date, String], default: null },
+    allowPastDates: { type: Boolean, default: false },
   },
   emits: ['date-selected'],
   data() { return { today: SOD(new Date()), cursor: new Date(this.monthDate) }; },
@@ -202,7 +203,7 @@ export default {
       const day = SOD(d);
       const min = this.normalizedBound(this.minDate);
       const max = this.normalizedBound(this.maxDate);
-      if (day < this.today) return true;
+      if (!this.allowPastDates && day < this.today) return true;
       if (min && day < min) return true;
       if (max && day > max) return true;
       return false;

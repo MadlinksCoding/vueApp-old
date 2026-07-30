@@ -38,10 +38,10 @@ function findDayButton(wrapper, dayText) {
 describe("MiniCalendar", () => {
   it("disables dates outside minDate and maxDate and does not emit selection", async () => {
     const wrapper = mountCalendar({
-      minDate: new Date("2026-05-06T00:00:00"),
       monthDate: new Date("2030-05-01T00:00:00"),
       minDate: new Date("2030-05-06T00:00:00"),
       maxDate: new Date("2030-05-21T00:00:00"),
+      allowPastDates: true,
     });
 
     const before = findDayButton(wrapper, 5);
@@ -140,6 +140,25 @@ describe("MiniCalendar", () => {
     expect(pastButton.classes()).not.toContain("hover:bg-gray-300");
   });
 
+  it("allows past dates to be selected when allowPastDates is enabled", async () => {
+    const wrapper = mountCalendar({
+      monthDate: new Date("2020-01-01T00:00:00"),
+      selectedDate: new Date(),
+      allowPastDates: true,
+    });
+
+    const pastButton = wrapper.find("[data-date='2020-01-15']");
+    expect(pastButton.attributes("disabled")).toBeUndefined();
+    expect(pastButton.attributes("data-disabled")).toBe("false");
+    expect(pastButton.attributes("data-expired")).toBe("true");
+    expect(pastButton.classes()).toContain("hover:bg-gray-300");
+
+    await pastButton.trigger("click");
+
+    expect(wrapper.emitted("date-selected")).toHaveLength(1);
+    expect(wrapper.emitted("date-selected")[0][0]).toEqual(new Date("2020-01-15T00:00:00"));
+  });
+
   it("hides past date dots when hidePastDots is set to true", () => {
     const pastDate = new Date("2020-01-15T10:00:00");
     const wrapper = mountCalendar({
@@ -184,4 +203,3 @@ describe("MiniCalendar", () => {
     expect(dot.classes()).not.toContain("black-dot");
   });
 });
-

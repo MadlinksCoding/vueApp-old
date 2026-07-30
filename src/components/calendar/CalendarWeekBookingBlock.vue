@@ -110,7 +110,7 @@ const presentationStyle = computed(() => {
 });
 
 const blockClasses = computed(() => [
-  "absolute min-h-[1.25rem] w-full cursor-pointer overflow-hidden text-xs",
+  "absolute min-h-[3rem] w-full cursor-pointer overflow-hidden text-xs",
   props.event?.slot === "event" ? "rounded-[0.375rem]" : "rounded-lg shadow-md",
 ]);
 </script>
