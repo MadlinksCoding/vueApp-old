@@ -131,7 +131,15 @@ function pickBookingBufferMinutes(payload = {}) {
   const rawValue = hasBufferTime ? rawBufferTime : payload.bookingBufferMinutes;
   const normalized = normalizeBookingBufferMinutes(rawValue, payload.bufferUnit);
 
-  return normalized == null ? 5 : normalized;
+  return normalized == null || normalized < 5 ? 5 : normalized;
+}
+
+function pickRequiredReminderMinutes(payload = {}) {
+  const parsed = pickNumeric(
+    payload.remindMeTime ?? payload.callReminderMinutesBefore,
+    null,
+  );
+  return Number.isInteger(parsed) && parsed >= 10 ? parsed : 10;
 }
 
 function deriveEventType(payload = {}) {
@@ -711,7 +719,7 @@ function mapBasePayload(payload = {}, context = {}) {
       payload.addOffHourSurcharge ?? payload.offHourSurcharge,
       false,
     ),
-    enableBufferTime: asBoolean(payload.setBufferTime, false),
+    enableBufferTime: true,
 
     socialAutoPost: buildSocialAutoPost(payload),
     blockedUsers: stringToArray(payload.blockedUsers || payload.blockedUserSearch),
@@ -790,18 +798,9 @@ function mapBasePayload(payload = {}, context = {}) {
     withOptionalField(mapped, "extendMaxSessions", pickNumeric(payload.extendSessionMax ?? payload.extendMaxSessions, null));
   }
 
-  const reminderEnabled = asBoolean(payload.setReminders ?? payload.enableCallReminderMinutesBefore, false);
-  const reminderMinutes = pickNumeric(payload.remindMeTime || payload.callReminderMinutesBefore, null);
-  if (reminderEnabled && reminderMinutes != null) {
-    mapped.enableCallReminderMinutesBefore = true;
-    mapped.callReminderMinutesBefore = reminderMinutes;
-  } else {
-    mapped.enableCallReminderMinutesBefore = false;
-  }
-
-  if (mapped.enableBufferTime) {
-    withOptionalField(mapped, "bookingBufferMinutes", pickBookingBufferMinutes(payload));
-  }
+  mapped.enableCallReminderMinutesBefore = true;
+  mapped.callReminderMinutesBefore = pickRequiredReminderMinutes(payload);
+  mapped.bookingBufferMinutes = pickBookingBufferMinutes(payload);
 
   if (type !== "group-event") {
     mapped.enableMaxBookingsPerDay = asBoolean(payload.setMaxBookings, false);

@@ -15,7 +15,7 @@
     <div class="relative w-full">
       <input v-if="type !== 'textarea'" :type="type" :placeholder="placeholder"
         :class="[inputClass, type === 'number' ? 'pr-8' : '']" :value="modelValue" :maxlength="maxLength"
-        :disabled="disabled" @input="$emit('update:modelValue', $event.target.value)"
+        :min="min" :disabled="disabled" @input="$emit('update:modelValue', $event.target.value)"
         @wheel="type === 'number' ? $event.target.blur() : null" />
 
       <div v-if="type === 'number'" class="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 select-none">
@@ -94,6 +94,10 @@ export default {
       type: Number,
       default: 1,
     },
+    min: {
+      type: Number,
+      default: null,
+    },
     disabled: {
       type: Boolean,
       default: false,
@@ -109,14 +113,18 @@ export default {
     },
     stepUp() {
       if (this.disabled) return;
-      const currentVal = Number(this.modelValue) || 0;
-      this.$emit("update:modelValue", currentVal + 1);
+      const minimum = Number.isFinite(this.min) ? this.min : 0;
+      const parsed = Number(this.modelValue);
+      const currentVal = Number.isFinite(parsed) ? parsed : minimum;
+      this.$emit("update:modelValue", currentVal < minimum ? minimum : currentVal + 1);
     },
     stepDown() {
       if (this.disabled) return;
-      const currentVal = Number(this.modelValue) || 0;
-      if (currentVal > 0) {
-        this.$emit("update:modelValue", currentVal - 1);
+      const minimum = Number.isFinite(this.min) ? this.min : 0;
+      const parsed = Number(this.modelValue);
+      const currentVal = Number.isFinite(parsed) ? parsed : minimum;
+      if (currentVal > minimum) {
+        this.$emit("update:modelValue", Math.max(minimum, currentVal - 1));
       }
     }
   },
