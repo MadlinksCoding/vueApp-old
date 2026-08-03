@@ -400,6 +400,89 @@ describe("BookingFlowStep2", () => {
     ]);
   });
 
+  it("hides today's private slots that start before the current time", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T11:35:00"));
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      sessionDurationMinutes: 5,
+      localStartHm: "11:25",
+      localEndHm: "11:50",
+      raw: {
+        ...baseEvent.raw,
+        sessionDurationMinutes: 5,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "11:35am",
+      "11:40am",
+      "11:45am",
+    ]);
+  });
+
+  it("keeps all private slots visible for a future date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T11:35:00"));
+    const futureDate = "2030-01-16";
+    const baseEvent = createPrivateEvent(futureDate);
+    const selectedEvent = {
+      ...baseEvent,
+      localEndHm: "13:00",
+      raw: {
+        ...baseEvent.raw,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({
+      dateIso: futureDate,
+      selectedEvent,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "10:00am",
+      "10:30am",
+      "11:00am",
+      "11:30am",
+      "12:00pm",
+      "12:30pm",
+    ]);
+  });
+
+  it("removes a private slot after the clock passes its start time", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T11:29:00"));
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      localStartHm: "11:30",
+      localEndHm: "12:30",
+      raw: {
+        ...baseEvent.raw,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "11:30am",
+      "12:00pm",
+    ]);
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await flushStep2();
+
+    expect(wrapper.findAll("[data-testid='booking-flow-time-slot']").map((slot) => slot.text())).toEqual([
+      "12:00pm",
+    ]);
+  });
+
   it("opens the translated GMT selector and updates displayed slot times", async () => {
     const { wrapperPromise } = createMountedStep({
       selectedEvent: createPrivateEvent("2030-01-15"),
@@ -423,6 +506,15 @@ describe("BookingFlowStep2", () => {
     const initialSlotStartMs = Number(
       wrapper.get("[data-testid='booking-flow-time-slot']").attributes("data-start-ms"),
     );
+    const timeSlotScrollElement = wrapper.get("[data-testid='booking-flow-time-slots-scroll']").element;
+    Object.defineProperty(timeSlotScrollElement, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 136,
+    });
+    timeSlotScrollElement.dispatchEvent(new Event("scroll"));
+    await nextTick();
+
     await wrapper.get("[data-testid='booking-flow-timezone-option-840']").trigger("click");
     await flushStep2();
 
@@ -431,6 +523,33 @@ describe("BookingFlowStep2", () => {
     expect(Number(
       wrapper.get("[data-testid='booking-flow-time-slot']").attributes("data-start-ms"),
     )).toBe(initialSlotStartMs);
+    expect(timeSlotScrollElement.scrollLeft).toBe(0);
+  });
+
+  it("does not restore past slots after the display timezone changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T11:35:00"));
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      localEndHm: "13:00",
+      raw: {
+        ...baseEvent.raw,
+      },
+    };
+    const { wrapperPromise } = createMountedStep({ selectedEvent });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-timezone-trigger']").trigger("click");
+    await wrapper.get("[data-testid='booking-flow-timezone-option-60']").trigger("click");
+    await flushStep2();
+
+    const visibleSlotStartTimes = wrapper
+      .findAll("[data-testid='booking-flow-time-slot']")
+      .map((slot) => Number(slot.attributes("data-start-ms")));
+    expect(visibleSlotStartTimes.length).toBeGreaterThan(0);
+    expect(visibleSlotStartTimes.every((startMs) => startMs >= Date.now())).toBe(true);
   });
 
   it("scrolls the timezone menu to the selected GMT option when opened", async () => {
@@ -713,6 +832,25 @@ describe("BookingFlowStep2", () => {
     const privateWrapper = await privateMounted.wrapperPromise;
     await flushStep2();
 
+    const scrollElement = privateWrapper.get("[data-testid='booking-flow-time-slots-scroll']").element;
+    Object.defineProperty(scrollElement, "clientWidth", { configurable: true, value: 260 });
+    Object.defineProperty(scrollElement, "scrollWidth", { configurable: true, value: 536 });
+    Object.defineProperty(scrollElement, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 204,
+    });
+    scrollElement.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    privateRefresh.mockImplementationOnce(async () => {
+      await privateWrapper.setProps({
+        engine: {
+          ...privateMounted.engine,
+        },
+      });
+      return { ok: true };
+    });
+
     await vi.advanceTimersByTimeAsync(15000);
     await flushStep2();
 
@@ -720,6 +858,8 @@ describe("BookingFlowStep2", () => {
       silent: true,
       preserveSelectedEvent: true,
     });
+    expect(scrollElement.scrollLeft).toBe(204);
+    expect(privateWrapper.get("[data-testid='booking-flow-time-slots-previous']").attributes("disabled")).toBeUndefined();
     privateWrapper.unmount();
 
     vi.clearAllTimers();
@@ -738,6 +878,62 @@ describe("BookingFlowStep2", () => {
 
     expect(groupRefresh).not.toHaveBeenCalled();
     groupWrapper.unmount();
+  });
+
+  it("clamps the preserved scroll position when refreshed slot columns become narrower", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const baseEvent = createPrivateEvent("2030-01-15");
+    let mounted;
+    let wrapper;
+    let scrollElement;
+    const refreshBookingContext = vi.fn(async () => {
+      mounted.engine.state.fanBooking.context.selectedEvent = {
+        ...mounted.engine.state.fanBooking.context.selectedEvent,
+        localEndHm: "12:00",
+      };
+      Object.defineProperty(scrollElement, "scrollWidth", { configurable: true, value: 320 });
+      await wrapper.setProps({
+        engine: {
+          ...mounted.engine,
+        },
+      });
+      return { ok: true };
+    });
+    mounted = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        localEndHm: "14:00",
+        raw: {
+          ...baseEvent.raw,
+        },
+      },
+      componentProps: {
+        refreshBookingContext,
+      },
+    });
+    wrapper = await mounted.wrapperPromise;
+    await flushStep2();
+
+    scrollElement = wrapper.get("[data-testid='booking-flow-time-slots-scroll']").element;
+    Object.defineProperty(scrollElement, "clientWidth", { configurable: true, value: 260 });
+    Object.defineProperty(scrollElement, "scrollWidth", { configurable: true, value: 536 });
+    Object.defineProperty(scrollElement, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 276,
+    });
+    scrollElement.dispatchEvent(new Event("scroll"));
+    await nextTick();
+
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushStep2();
+
+    expect(refreshBookingContext).toHaveBeenCalled();
+    expect(scrollElement.scrollLeft).toBe(60);
+    expect(wrapper.get("[data-testid='booking-flow-time-slots-previous']").attributes("disabled")).toBeUndefined();
+    expect(wrapper.get("[data-testid='booking-flow-time-slots-next']").attributes("disabled")).toBeDefined();
+    wrapper.unmount();
   });
 
   it("keeps the selected private slot when Continue refresh still finds it available", async () => {
@@ -908,22 +1104,22 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.find("[data-testid='booking-flow-duration-max-warning']").exists()).toBe(false);
   });
 
-  it("disables duration increase and identifies the booked slot blocking the next session", async () => {
+  it("uses the highest contiguous duration as the effective maximum when a later slot is booked", async () => {
     const dateIso = "2030-01-15";
     const selectedEvent = {
       ...createPrivateEvent(dateIso),
       sessionDurationMinutes: 5,
       localStartHm: "10:00",
       localEndHm: "11:00",
-      maxSessionMinutes: 4,
+      maxSessionMinutes: 5,
       raw: {
         ...createPrivateEvent(dateIso).raw,
         sessionDurationMinutes: 5,
-        maxSessionMinutes: 4,
+        maxSessionMinutes: 5,
       },
     };
-    const bookedStart = new Date(`${dateIso}T10:10:00`);
-    const bookedEnd = new Date(`${dateIso}T10:15:00`);
+    const bookedStart = new Date(`${dateIso}T10:20:00`);
+    const bookedEnd = new Date(`${dateIso}T10:25:00`);
     const bookedSlotsIndex = buildBookedSlotsIndex([{
       bookingId: "booking_duration_boundary",
       eventId: selectedEvent.eventId,
@@ -939,31 +1135,29 @@ describe("BookingFlowStep2", () => {
     const wrapper = await wrapperPromise;
     await flushStep2();
 
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("5 SESSIONS MAX.");
+
     await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
-    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
     await nextTick();
 
     const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
     const minus = wrapper.get("[data-testid='booking-flow-duration-minus']");
-    expect(wrapper.get("[data-testid='booking-flow-duration-stepper']").text()).toContain("10 mins");
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("4 SESSIONS MAX.");
     expect(plus.attributes("disabled")).toBeUndefined();
     expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
 
     await plus.trigger("click");
+    await plus.trigger("click");
+    await plus.trigger("click");
     await nextTick();
 
-    const warning = wrapper.get("[data-testid='booking-flow-duration-overlap-warning']");
+    expect(wrapper.get("[data-testid='booking-flow-duration-stepper']").text()).toContain("20 mins");
     expect(plus.attributes("disabled")).toBeDefined();
     expect(minus.attributes("disabled")).toBeUndefined();
-    expect(warning.text()).toContain("Cannot book more because it overlaps with slot 10:10am");
-
-    const warningBeforeTimezoneChange = warning.text();
-    await wrapper.get("[data-testid='booking-flow-timezone-trigger']").trigger("click");
-    await wrapper.get("[data-testid='booking-flow-timezone-option--720']").trigger("click");
-    await flushStep2();
-    expect(wrapper.get("[data-testid='booking-flow-duration-overlap-warning']").text()).not.toBe(
-      warningBeforeTimezoneChange,
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "MAX SESSION LENGTH REACHED",
     );
+    expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
 
     const unblockedSlot = wrapper.findAll("[data-testid='booking-flow-time-slot']").find((slot) => (
       Number(slot.attributes("data-start-ms")) >= bookedEnd.getTime()
@@ -974,10 +1168,11 @@ describe("BookingFlowStep2", () => {
     await nextTick();
 
     expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("5 SESSIONS MAX.");
     expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeUndefined();
   });
 
-  it("disables duration increase at the schedule boundary without showing an overlap warning", async () => {
+  it("uses the event window boundary as the effective maximum", async () => {
     const dateIso = "2030-01-15";
     const baseEvent = createPrivateEvent(dateIso);
     const selectedEvent = {
@@ -997,9 +1192,19 @@ describe("BookingFlowStep2", () => {
     await flushStep2();
 
     const slots = wrapper.findAll("[data-testid='booking-flow-time-slot']");
-    await slots[1].trigger("click");
+    await slots[0].trigger("click");
     await nextTick();
 
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum']").text()).toBe("2 SESSIONS MAX.");
+    const plus = wrapper.get("[data-testid='booking-flow-duration-plus']");
+    expect(plus.attributes("disabled")).toBeUndefined();
+
+    await plus.trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
+      "MAX SESSION LENGTH REACHED",
+    );
     expect(wrapper.get("[data-testid='booking-flow-duration-plus']").attributes("disabled")).toBeDefined();
     expect(wrapper.find("[data-testid='booking-flow-duration-overlap-warning']").exists()).toBe(false);
   });
@@ -1176,7 +1381,10 @@ describe("BookingFlowStep2", () => {
     await nextTick();
 
     const notice = wrapper.get("[data-testid='booking-flow-longer-discount-notice']");
+    const noticeText = notice.get("p");
     expect(notice.text()).toContain("Add 2 appointments for the discount");
+    expect(noticeText.classes()).toContain("text-[#FCE40D]");
+    expect(noticeText.classes()).not.toContain("text-[#07F468]");
 
     await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
     await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
@@ -1186,6 +1394,8 @@ describe("BookingFlowStep2", () => {
     await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
     await nextTick();
     expect(notice.text()).toContain("Longer booking discount achieved!");
+    expect(noticeText.classes()).toContain("text-[#07F468]");
+    expect(noticeText.classes()).not.toContain("text-[#FCE40D]");
   });
 
   it.each([
@@ -1230,6 +1440,50 @@ describe("BookingFlowStep2", () => {
     const { wrapperPromise } = createMountedStep({ selectedEvent });
     const wrapper = await wrapperPromise;
     await nextTick();
+    await nextTick();
+
+    expect(wrapper.find("[data-testid='booking-flow-longer-discount-notice']").exists()).toBe(false);
+  });
+
+  it("hides an unattainable longer-session discount for the selected start time", async () => {
+    const dateIso = "2030-01-15";
+    const baseEvent = createPrivateEvent(dateIso);
+    const selectedEvent = {
+      ...baseEvent,
+      sessionDurationMinutes: 5,
+      localStartHm: "10:00",
+      localEndHm: "11:00",
+      maxSessionMinutes: 5,
+      enableDiscountForLonger: true,
+      discountMinSessions: 5,
+      longerSessionDiscountTokens: 20,
+      raw: {
+        ...baseEvent.raw,
+        sessionDurationMinutes: 5,
+        maxSessionMinutes: 5,
+        enableDiscountForLonger: true,
+        discountMinSessions: 5,
+        longerSessionDiscountTokens: 20,
+      },
+    };
+    const bookedSlotsIndex = buildBookedSlotsIndex([{
+      bookingId: "booking_discount_boundary",
+      eventId: selectedEvent.eventId,
+      startIso: new Date(`${dateIso}T10:20:00`).toISOString(),
+      endIso: new Date(`${dateIso}T10:25:00`).toISOString(),
+      status: "confirmed",
+    }]);
+    const { wrapperPromise } = createMountedStep({
+      dateIso,
+      selectedEvent,
+      bookedSlotsIndex,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.find("[data-testid='booking-flow-longer-discount-notice']").exists()).toBe(true);
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
     await nextTick();
 
     expect(wrapper.find("[data-testid='booking-flow-longer-discount-notice']").exists()).toBe(false);

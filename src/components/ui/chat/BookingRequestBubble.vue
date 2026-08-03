@@ -186,16 +186,16 @@
       <template v-else-if="isCreator && resolvedAction === 'counter_offer'">
         <div class="mt-auto flex items-center justify-between gap-1">
           <div class="flex items-center gap-1">
-            <img v-if="!isPassCall" :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
-            <span class="text-gray-400 text-xs">{{ isPassCall ? 'Request expired' : 'waiting for fan response' }}</span>
+            <img v-if="!isPassCall" :src="HourglassIcon" class="w-4 h-4" alt="" />
+            <span class="text-gray-400 text-sm font-medium">{{ isPassCall ? 'Request expired' : 'waiting for fan response' }}</span>
           </div>
           <button
             type="button"
-            class="flex items-center gap-0.5 text-[#5549FF] text-xs font-medium hover:opacity-80 shrink-0"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
             @click.stop="$emit('view-details')"
           >
             View Details
-            <img :src="ArrowRightIcon" class="w-3.5 h-3.5" alt="" />
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
           </button>
         </div>
       </template>
@@ -276,7 +276,7 @@
             class="flex items-center gap-1 text-sm font-semibold"
             :style="{ color: isPassCall ? '#9CA3AF' : (resolvedAction === 'accepted' ? '#15B79E' : '#DC2626') }"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"  viewBox="0 0 16 16" fill="none">
+            <svg v-if="resolvedAction === 'accepted'" xmlns="http://www.w3.org/2000/svg" width="16" height="16"  viewBox="0 0 16 16" fill="none">
               <g clip-path="url(#clip0_1117_172996)">
                 <path d="M14.6668 7.39113V8.00447C14.666 9.44208 14.2005 10.8409 13.3397 11.9924C12.4789 13.1438 11.269 13.9861 9.8904 14.3937C8.51178 14.8013 7.03834 14.7524 5.68981 14.2542C4.34128 13.756 3.18993 12.8352 2.40747 11.6292C1.62501 10.4232 1.25336 8.99651 1.34795 7.56201C1.44254 6.12751 1.9983 4.76202 2.93235 3.66918C3.8664 2.57635 5.12869 1.81472 6.53096 1.4979C7.93323 1.18107 9.40034 1.32602 10.7135 1.91113M14.6668 2.66732L8.00016 9.34065L6.00016 7.34065" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
               </g>
@@ -285,6 +285,11 @@
                   <rect width="16" height="16" fill="white"/>
                 </clipPath>
               </defs>
+            </svg>
+            <svg v-else class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"
+              />
             </svg>
             {{ resolvedAction === 'accepted' ? 'Accepted' : '' }}
             {{ (resolvedAction === 'declined' || resolvedAction.startsWith('cancel') || resolvedAction.startsWith('reject')) ? resolvedCancelledText : '' }}
@@ -316,16 +321,16 @@
       <template v-else>
         <div class="mt-auto flex items-center justify-between gap-1">
           <div class="flex items-center gap-1">
-            <img v-if="!isPassCall" :src="HourglassIcon" class="w-3.5 h-3.5" alt="" />
-            <span class="text-gray-400 text-xs">{{ isPassCall ? 'Request expired' : 'waiting for creator response' }}</span>
+            <img v-if="!isPassCall" :src="HourglassIcon" class="w-4 h-4" alt="" />
+            <span class="text-gray-400 text-sm font-medium">{{ isPassCall ? 'Request expired' : 'waiting for creator response' }}</span>
           </div>
           <button
             type="button"
-            class="flex items-center gap-0.5 text-[#5549FF] text-xs font-medium hover:opacity-80 shrink-0"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
             @click.stop="$emit('view-details')"
           >
             View Details
-            <img :src="ArrowRightIcon" class="w-3.5 h-3.5" alt="" />
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
           </button>
         </div>
       </template>
@@ -342,7 +347,8 @@ import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
 import EditIcon        from '@/assets/images/icons/edit-05.webp'
-import { getBookingJoinState } from '@/utils/bookingJoinUtils.js'
+import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
+import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { showToast } from '@/utils/toastBus.js'
 
 const chatStore = useChatStore()
@@ -489,7 +495,7 @@ function handleJoin() {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
-  if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
+  if (openScheduledMeetingOverlay(joinState.value.joinUrl, { source: 'chat_booking_request' })) return
   window.open(joinState.value.joinUrl, '_top')
 }
 

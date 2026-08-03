@@ -139,7 +139,7 @@ describe("event step validators", () => {
     expect(result.errors.some((error) => error.field === "bookingBufferMinutes")).toBe(false);
   });
 
-  it("does not validate buffer time while disabled", () => {
+  it("requires buffer time even when a legacy toggle is disabled", () => {
     const result = step1Validator({
       eventType: "1on1-call",
       eventTitle: "Private call",
@@ -149,9 +149,36 @@ describe("event step validators", () => {
       setBufferTime: false,
       bufferUnit: "minutes",
       bufferTime: "2",
+      remindMeTime: "10",
     });
 
-    expect(result.errors.some((error) => error.field === "bookingBufferMinutes")).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        field: "bookingBufferMinutes",
+        conditional: false,
+      }),
+    ]));
+  });
+
+  it.each([
+    ["", true],
+    ["9", true],
+    ["10.5", true],
+    ["10", false],
+  ])("validates required reminder time %s against the ten-minute minimum", (remindMeTime, hasError) => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration: 30,
+      basePrice: 100,
+      weeklyAvailability,
+      setReminders: false,
+      remindMeTime,
+      bufferUnit: "minutes",
+      bufferTime: "5",
+    });
+
+    expect(result.errors.some((error) => error.field === "remindMeTime")).toBe(hasError);
   });
 
   it("rejects duplicate one-time custom dates", () => {
@@ -571,8 +598,8 @@ describe("event step validators", () => {
       expect.objectContaining({ field: "cancellationFee", conditional: true }),
       expect.objectContaining({ field: "offHourSurchargeTokens", conditional: true }),
       expect.objectContaining({ field: "extendSessionMax", conditional: true }),
-      expect.objectContaining({ field: "remindMeTime", conditional: true }),
-      expect.objectContaining({ field: "bookingBufferMinutes", conditional: true }),
+      expect.objectContaining({ field: "remindMeTime", conditional: false }),
+      expect.objectContaining({ field: "bookingBufferMinutes", conditional: false }),
       expect.objectContaining({ field: "maxBookingsPerDay", conditional: true }),
     ]));
   });

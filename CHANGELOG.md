@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-30 — Unified Booking Chat UI Styles
+
+### Changed
+
+#### `src/components/ui/chat/LiveCallRequest.vue` & `src/components/ui/chat/BookingRequestBubble.vue`
+- **Typography Alignment** — Standardized font sizes and colors across both components for consistent UI rendering. Upgraded title font to `text-base text-gray-700` and date font to `text-sm text-slate-700`.
+- **View Details Buttons** — Consolidated "View Details" text to uniform size (`text-sm font-medium`) and swapped generic link icons for the branded purple `ArrowRightIcon`.
+- **Container Styling** — Unified container backgrounds (`bg-[#F9FAFB]`) and borders (`border-[#5549FF]`) to match across standard and live requests.
+
+### Fixed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Cancelled Status Icon** — Resolved a visual bug where cancelled or declined requests incorrectly displayed a green checkmark. Conditionally rendered the checkmark strictly for accepted requests and restored the appropriate 'phone cancel' icon for cancelled/declined states.
+- **Missing Imports Fix** — Fixed a `ReferenceError: openScheduledMeetingOverlay is not defined` runtime error by explicitly importing `openScheduledMeetingOverlay` and `getBookingJoinState` from `@/utils/bookingJoinUtils.js`.
+- **Join Call Runtime Error Fix** — Resolved a `ReferenceError: sessionLink is not defined` bug in the `handleJoin` function by utilizing the correct internal reactive property (`joinState.value.joinUrl`) when opening the meeting overlay.
+
 ## 2026-07-30 — Fans Interacted With You UI & Pagination Fixes
 
 ### Changed

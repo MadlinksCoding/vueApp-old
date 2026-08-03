@@ -40,6 +40,7 @@ function setByPath(target, path, value) {
 }
 
 function createEngine(state = {}) {
+  const listeners = new Map();
   const engine = {
     state,
     getState: vi.fn((path) => {
@@ -51,6 +52,14 @@ function createEngine(state = {}) {
     forceStep: vi.fn(),
     callFlow: vi.fn(),
     validate: vi.fn(() => Promise.resolve({ valid: true, errors: [] })),
+    on: vi.fn((eventName, handler) => {
+      if (!listeners.has(eventName)) listeners.set(eventName, new Set());
+      listeners.get(eventName).add(handler);
+      return () => listeners.get(eventName)?.delete(handler);
+    }),
+    emit: vi.fn((eventName, payload) => {
+      listeners.get(eventName)?.forEach((handler) => handler(payload));
+    }),
   };
   return engine;
 }
@@ -66,8 +75,8 @@ function mountOptions(translations = {}) {
         template: "<section><h2>{{ title }}</h2><slot /></section>",
       },
       BaseInput: {
-        props: ["placeholder", "disabled"],
-        template: "<input :placeholder='placeholder' :disabled='disabled' />",
+        props: ["placeholder", "disabled", "min", "modelValue", "type"],
+        template: "<input :type='type' :placeholder='placeholder' :disabled='disabled' :min='min' :value='modelValue' :modelvalue='modelValue' />",
       },
       ButtonComponent: {
         props: ["text", "disabled", "customClass"],
@@ -314,6 +323,7 @@ describe("one-on-one booking step translations", () => {
     const engine = createEngine({ eventType: "1on1-call" });
     engine.goToStep.mockRejectedValue({
       errors: [
+        { field: "remindMeTime", translationKey: "booking_validation_reminder_time_min", conditional: false },
         { field: "bookingBufferMinutes", translationKey: "booking_validation_buffer_time_min", conditional: false },
       ],
     });
@@ -330,6 +340,7 @@ describe("one-on-one booking step translations", () => {
     await settleValidation();
 
     expect(showToast).not.toHaveBeenCalled();
+    expect(wrapper.get("[data-booking-validation-tooltip-field='remindMeTime']").text()).toContain("Reminder time must be at least 10 minutes.");
     expect(wrapper.get("[data-booking-validation-tooltip-field='bufferTime']").text()).toContain("Buffer time must be at least 5 minutes.");
   });
 
@@ -613,6 +624,47 @@ describe("one-on-one booking step translations", () => {
     await previewButton.trigger("click");
 
     expect(wrapper.emitted("preview-schedule")).toHaveLength(1);
+  });
+
+  it.each(["private", "group"])("renders required reminder and buffer defaults without enable checkboxes for %s events", async (bookingType) => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: bookingType === "group" ? "group-event" : "1on1-call",
+      setReminders: false,
+      remindMeTime: "",
+      setBufferTime: false,
+      bufferTime: "",
+      bufferUnit: "minutes",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType,
+      },
+      global: mountOptions(),
+    });
+    await nextTick();
+
+    const reminderInput = wrapper.get("[data-booking-validation-input-field='remindMeTime']");
+    const bufferInput = wrapper.get("[data-booking-validation-input-field='bufferTime']");
+
+    expect(reminderInput.attributes("value")).toBe("10");
+    expect(reminderInput.attributes("min")).toBe("10");
+    expect(reminderInput.attributes("disabled")).toBeUndefined();
+    expect(bufferInput.attributes("value")).toBe("5");
+    expect(bufferInput.attributes("min")).toBe("5");
+    expect(bufferInput.attributes("disabled")).toBeUndefined();
+    expect(wrapper.findAll("label").some((label) => label.text().includes("Enable reminder"))).toBe(false);
+    expect(wrapper.findAll("label").some((label) => label.text().includes("Set buffer time between booked appointments"))).toBe(false);
+    expect(engine.state).toEqual(expect.objectContaining({
+      setReminders: true,
+      remindMeTime: 10,
+      setBufferTime: true,
+      bufferTime: 5,
+      bufferUnit: "minutes",
+    }));
   });
 
   it("offers searchable five-minute availability time options", async () => {
@@ -2591,10 +2643,51 @@ describe("one-on-one booking step translations", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it("submits update flow in edit mode and skips create notification", async () => {
+  it("updates a mounted step 2 when background X settings arrive", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
     );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventType: "1on1-call",
+      xPostLive: false,
+      on_schedule_live: false,
+      on_schedule_live_message: "",
+      on_schedule_live_media_url: "",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_late_ui",
+      },
+      global: mountOptions(),
+    });
+
+    const hydratedFields = {
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Background message",
+      on_schedule_live_media_url: "https://cdn.example.com/background.jpg",
+    };
+    Object.entries(hydratedFields).forEach(([field, value]) => {
+      engine.setState(field, value);
+    });
+    engine.emit("x-post-settings:hydrated", { fields: hydratedFields });
+    await settleValidation();
+
+    expect(wrapper.vm.formData).toEqual(expect.objectContaining(hydratedFields));
+  });
+
+  it("emits edit success before the queued X settings save completes", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    let resolveHydration;
+    const hydrationPromise = new Promise((resolve) => {
+      resolveHydration = resolve;
+    });
     const engine = createEngine({
       creatorId: 1407,
       eventId: "evt_edit",
@@ -2602,6 +2695,9 @@ describe("one-on-one booking step translations", () => {
       eventType: "1on1-call",
       isGroupScheduleLocked: false,
       isGroupPricingLocked: false,
+      on_schedule_live: true,
+      on_schedule_live_message: "Edited live message",
+      on_schedule_live_media_url: "https://cdn.example.com/edited-live.jpg",
     });
     engine.callFlow.mockResolvedValue({
       ok: true,
@@ -2616,6 +2712,7 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit",
+        xPostSettingsHydrationPromise: hydrationPromise,
       },
       global: mountOptions({
         booking_update_publish: "Actualizar y publicar",
@@ -2625,9 +2722,8 @@ describe("one-on-one booking step translations", () => {
     const submitButton = wrapper.findAll("button").find((button) => button.text() === "Actualizar y publicar");
     expect(submitButton).toBeTruthy();
 
-    await submitButton.trigger("click");
-    await Promise.resolve();
-    await Promise.resolve();
+    await wrapper.vm.createEvent();
+    await settleValidation();
 
     expect(engine.callFlow).toHaveBeenCalledWith(
       "events.updateEvent",
@@ -2645,6 +2741,118 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
       mode: "edit",
     }));
+
+    resolveHydration({ status: "loaded" });
+    await settleValidation();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [settingsUrl, settingsOptions] = fetch.mock.calls[0];
+    expect(settingsUrl).toContain("/wp-json/api/event/evt_edit/x-post-settings");
+    expect(settingsUrl).not.toContain("/wp-json/api/event/create");
+    expect(settingsOptions.method).toBe("PUT");
+    expect(settingsOptions.keepalive).toBe(true);
+    expect(JSON.parse(settingsOptions.body)).toEqual(expect.objectContaining({
+      creator_id: 1407,
+      settings: expect.objectContaining({
+        on_schedule_live: {
+          enabled: true,
+          message: "Edited live message",
+          mediaUrl: "https://cdn.example.com/edited-live.jpg",
+        },
+      }),
+    }));
+  });
+
+  it("does not block edit success when the background X settings PUT fails", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const engine = createEngine({
+      creatorId: 1407,
+      eventId: "evt_edit_retry",
+      eventTitle: "Edited Event",
+      eventType: "1on1-call",
+      on_schedule_live: true,
+      on_schedule_live_message: "Keep this message",
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: { eventId: "evt_edit_retry" },
+    });
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({
+        success: false,
+        message: "WordPress settings write failed.",
+      }),
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_edit_retry",
+        xPostSettingsHydrationPromise: Promise.resolve({ status: "loaded" }),
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls.every(([url]) => !url.includes("/wp-json/api/event/create"))).toBe(true);
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+    expect(showToast).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Background X post settings save failed",
+        expect.objectContaining({ eventId: "evt_edit_retry" }),
+      );
+    });
+  });
+
+  it("skips the background X settings PUT when hydration failed", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      creatorId: 1407,
+      eventId: "evt_edit_get_failed",
+      eventTitle: "Edited Event",
+      eventType: "1on1-call",
+    });
+    engine.callFlow.mockResolvedValue({
+      ok: true,
+      data: { eventId: "evt_edit_get_failed" },
+    });
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_edit_get_failed",
+        xPostSettingsHydrationPromise: Promise.resolve({ status: "failed" }),
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("uses the engine event title for create notification names", async () => {

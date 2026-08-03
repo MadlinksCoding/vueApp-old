@@ -13,6 +13,9 @@ const mock = vi.hoisted(() => ({
   getBookingJoinState: vi.fn(() => ({ canJoin: true, joinUrl: "https://example.com/private-call" })),
   buildScheduledGroupMeetingUrl: vi.fn(() => "https://example.com/group-call"),
   showToast: vi.fn(),
+  fetchEventXPostSettings: vi.fn(),
+  isCreatorAllowedForXRepost: vi.fn(() => true),
+  mergeEventXPostSettingsIntoFormState: vi.fn((formState) => formState),
   revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
   scrollToTime: vi.fn(() => Promise.resolve(true)),
   mapEventToBookingFormState: vi.fn(() => ({
@@ -52,6 +55,12 @@ function createMockEngine() {
     addValidator: vi.fn(),
     on: vi.fn((event, callback) => {
       mock.callbacks[event] = callback;
+      return () => {
+        if (mock.callbacks[event] === callback) delete mock.callbacks[event];
+      };
+    }),
+    emit: vi.fn((event, payload) => {
+      mock.callbacks[event]?.(payload);
     }),
     callFlow: vi.fn(() => Promise.resolve({
       ok: true,
@@ -65,9 +74,19 @@ function createMockEngine() {
 }
 
 async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let pass = 0; pass < 8; pass += 1) {
+    await Promise.resolve();
+  }
+}
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
 
 function setWindowWidth(width) {
@@ -106,6 +125,44 @@ vi.mock("@/services/events/mappers/mapDraftEventToFanBookingPreview.js", () => (
 
 vi.mock("@/services/events/mappers/eventFormStateMapper.js", () => ({
   mapEventToBookingFormState: mock.mapEventToBookingFormState,
+}));
+
+vi.mock("@/services/events/eventsXPostSettingsApi.js", () => ({
+  EVENT_X_POST_ACTIONS: {
+    on_schedule_live: {
+      enabledField: "on_schedule_live",
+      modelField: "xPostLive",
+      messageField: "on_schedule_live_message",
+      mediaField: "on_schedule_live_media_url",
+    },
+    on_booking_received: {
+      enabledField: "on_booking_received",
+      modelField: "xPostBooked",
+      messageField: "on_booking_received_message",
+      mediaField: "on_booking_received_media_url",
+    },
+    on_in_session: {
+      enabledField: "on_in_session",
+      modelField: "xPostInSession",
+      messageField: "on_in_session_message",
+      mediaField: "on_in_session_media_url",
+    },
+    on_tipped_session: {
+      enabledField: "on_tipped_session",
+      modelField: "xPostTipped",
+      messageField: "on_tipped_session_message",
+      mediaField: "on_tipped_session_media_url",
+    },
+    on_purchased_in_session: {
+      enabledField: "on_purchased",
+      modelField: "xPostPurchase",
+      messageField: "on_purchased_message",
+      mediaField: "on_purchased_media_url",
+    },
+  },
+  fetchEventXPostSettings: mock.fetchEventXPostSettings,
+  isCreatorAllowedForXRepost: mock.isCreatorAllowedForXRepost,
+  mergeEventXPostSettingsIntoFormState: mock.mergeEventXPostSettingsIntoFormState,
 }));
 
 vi.mock("@/services/bookings/utils/bookingSlotUtils.js", () => ({
@@ -178,7 +235,7 @@ vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
 vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue", () => ({
   default: {
     name: "OneOnOneBookinStep2",
-    props: ["engine", "embedded", "bookingType"],
+    props: ["engine", "embedded", "bookingType", "xPostSettingsHydrationPromise"],
     template: "<div data-test='step-2'>Step 2</div>",
   },
 }));
@@ -296,6 +353,16 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       repeatRule: "doesNotRepeat",
       eventColorSkin: "#FF00AA",
     });
+    mock.fetchEventXPostSettings.mockReset();
+    mock.fetchEventXPostSettings.mockResolvedValue({
+      success: true,
+      eventId: "",
+      settings: {},
+    });
+    mock.isCreatorAllowedForXRepost.mockReset();
+    mock.isCreatorAllowedForXRepost.mockReturnValue(true);
+    mock.mergeEventXPostSettingsIntoFormState.mockReset();
+    mock.mergeEventXPostSettingsIntoFormState.mockImplementation((formState) => formState);
     mock.mapAvailabilityToCalendarEvents.mockReset();
     mock.mapAvailabilityToCalendarEvents.mockReturnValue([]);
     mock.mapBookedSlotsToCalendarEvents.mockReset();
@@ -326,6 +393,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.scrollTo = originalScrollTo;
     setWindowWidth(1024);
   });
@@ -625,6 +693,365 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       expect.arrayContaining([expect.objectContaining({ status: "completed" })]),
       expect.objectContaining({ includeStatuses: expect.arrayContaining(["completed"]) }),
     );
+  });
+
+  it("renders the edit form without waiting for X settings", async () => {
+    const deferredSettings = createDeferred();
+    mock.route.query = { mode: "edit", eventId: "evt_x_pending" };
+    mock.fetchEventXPostSettings.mockReturnValue(deferredSettings.promise);
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_pending",
+              title: "Pending X Settings",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(mock.fetchEventXPostSettings).toHaveBeenCalledTimes(1);
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("booking_edit_load_failed");
+
+    deferredSettings.resolve({ success: true, eventId: "evt_x_pending", settings: {} });
+    await flushPromises();
+  });
+
+  it("hydrates edit-mode X messages and media in the background with a clean baseline", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_x_settings" };
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_settings",
+      eventTitle: "Hydrated Event",
+      xPostLive: false,
+      on_schedule_live: false,
+      xPostBooked: true,
+      on_booking_received: true,
+    });
+    mock.fetchEventXPostSettings.mockResolvedValue({
+      success: true,
+      eventId: "evt_x_settings",
+      settings: {
+        on_schedule_live: {
+          enabled: true,
+          message: "Custom live message",
+          mediaUrl: "https://cdn.example.com/live.jpg",
+          source: "event",
+        },
+        on_booking_received: {
+          enabled: false,
+          message: "",
+          mediaUrl: "",
+          source: "missing",
+        },
+      },
+    });
+    mock.mergeEventXPostSettingsIntoFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_settings",
+      eventTitle: "Hydrated Event",
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Custom live message",
+      on_schedule_live_media_url: "https://cdn.example.com/live.jpg",
+      xPostBooked: true,
+      on_booking_received: true,
+      on_booking_received_message: "",
+      on_booking_received_media_url: "",
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_settings",
+              title: "Hydrated Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(mock.fetchEventXPostSettings).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: "evt_x_settings",
+      creatorId: 1407,
+      signal: expect.any(AbortSignal),
+    }));
+    expect(mock.mergeEventXPostSettingsIntoFormState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        xPostBooked: true,
+      }),
+      expect.objectContaining({ eventId: "evt_x_settings" }),
+      expect.objectContaining({
+        shouldApplyAction: expect.any(Function),
+      }),
+    );
+    expect(mock.engine.state).toEqual(expect.objectContaining({
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Custom live message",
+      on_schedule_live_media_url: "https://cdn.example.com/live.jpg",
+      xPostBooked: true,
+      on_booking_received: true,
+      on_booking_received_message: "",
+      on_booking_received_media_url: "",
+    }));
+    await expect(mock.routeLeaveGuard()).resolves.toBe(true);
+    expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(false);
+  });
+
+  it("keeps the edit form available when X settings fail to load", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_x_failed" };
+    mock.fetchEventXPostSettings.mockRejectedValue(
+      new Error("Could not load X post settings."),
+    );
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_failed",
+      eventTitle: "Scylla Event",
+      xPostLive: true,
+      on_schedule_live: true,
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_failed",
+              title: "Scylla Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("Could not load X post settings.");
+    expect(mock.fetchEventXPostSettings).toHaveBeenCalledTimes(1);
+    expect(mock.engine.state.xPostLive).toBe(true);
+    expect(mock.engine.state.on_schedule_live).toBe(true);
+    expect(mock.engine.state.on_schedule_live_message).toBeUndefined();
+    await expect(mock.routeLeaveGuard()).resolves.toBe(true);
+  });
+
+  it("times out X settings loading after ten seconds without blocking the form", async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mock.route.query = { mode: "edit", eventId: "evt_x_timeout" };
+    mock.fetchEventXPostSettings.mockImplementation(({ signal }) => (
+      new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          const error = new Error("Aborted");
+          error.name = "AbortError";
+          reject(error);
+        });
+      })
+    ));
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_timeout",
+              title: "Timeout Event",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='step-1']").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("booking_edit_load_failed");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Background X post settings load failed",
+      expect.objectContaining({
+        eventId: "evt_x_timeout",
+        status: "timed_out",
+      }),
+    );
+  });
+
+  it("applies late X settings only to untouched rules and preserves other dirty changes", async () => {
+    const deferredSettings = createDeferred();
+    mock.route.query = { mode: "edit", eventId: "evt_x_late" };
+    mock.fetchEventXPostSettings.mockReturnValue(deferredSettings.promise);
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_x_late",
+      eventTitle: "Original title",
+      xPostLive: false,
+      on_schedule_live: false,
+      on_schedule_live_message: "",
+      on_schedule_live_media_url: "",
+      xPostBooked: false,
+      on_booking_received: false,
+      on_booking_received_message: "",
+      on_booking_received_media_url: "",
+    });
+    mock.mergeEventXPostSettingsIntoFormState.mockImplementation((state, response, options) => {
+      const next = { ...state };
+      const mappings = {
+        on_schedule_live: {
+          enabledField: "on_schedule_live",
+          modelField: "xPostLive",
+          messageField: "on_schedule_live_message",
+          mediaField: "on_schedule_live_media_url",
+        },
+        on_booking_received: {
+          enabledField: "on_booking_received",
+          modelField: "xPostBooked",
+          messageField: "on_booking_received_message",
+          mediaField: "on_booking_received_media_url",
+        },
+      };
+
+      Object.entries(mappings).forEach(([actionKey, fields]) => {
+        const setting = response.settings[actionKey];
+        if (!setting || !options.shouldApplyAction(actionKey)) return;
+        next[fields.enabledField] = setting.enabled;
+        next[fields.modelField] = setting.enabled;
+        next[fields.messageField] = setting.message;
+        next[fields.mediaField] = setting.mediaUrl;
+      });
+      return next;
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_x_late",
+              title: "Original title",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    mock.engine.setState("eventTitle", "User title");
+    mock.engine.setState("xPostLive", true);
+    mock.engine.setState("on_schedule_live", true);
+    mock.engine.setState("on_schedule_live_message", "User live message");
+    await flushPromises();
+
+    deferredSettings.resolve({
+      success: true,
+      eventId: "evt_x_late",
+      settings: {
+        on_schedule_live: {
+          enabled: false,
+          message: "WordPress live message",
+          mediaUrl: "https://cdn.example.com/wp-live.jpg",
+          source: "event",
+        },
+        on_booking_received: {
+          enabled: true,
+          message: "WordPress booking message",
+          mediaUrl: "https://cdn.example.com/wp-booking.jpg",
+          source: "event",
+        },
+      },
+    });
+    await flushPromises();
+
+    expect(mock.engine.state).toEqual(expect.objectContaining({
+      eventTitle: "User title",
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "User live message",
+      xPostBooked: true,
+      on_booking_received: true,
+      on_booking_received_message: "WordPress booking message",
+      on_booking_received_media_url: "https://cdn.example.com/wp-booking.jpg",
+    }));
+
+    const leavePromise = mock.routeLeaveGuard();
+    await flushPromises();
+    expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(true);
+    await wrapper.get("[data-test='unsaved-leave-stay']").trigger("click");
+    await expect(leavePromise).resolves.toBe(false);
   });
 
   it("skips only the edited persisted event while keeping other events and the draft preview", async () => {
