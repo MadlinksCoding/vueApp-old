@@ -12,6 +12,7 @@
 ### Fixed
 
 #### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Expired Request State UI** — Updated the pending and counter-offer states to conditionally hide disabled action buttons (e.g., "Accept", "Decline") when a request has expired (`isPassCall` is true). Replaced the hidden buttons with a clean "Request expired" message and a "View Details" button to match the user's intended design.
 - **Cancelled Status Icon** — Resolved a visual bug where cancelled or declined requests incorrectly displayed a green checkmark. Conditionally rendered the checkmark strictly for accepted requests and restored the appropriate 'phone cancel' icon for cancelled/declined states.
 - **Missing Imports Fix** — Fixed a `ReferenceError: openScheduledMeetingOverlay is not defined` runtime error by explicitly importing `openScheduledMeetingOverlay` and `getBookingJoinState` from `@/utils/bookingJoinUtils.js`.
 - **Join Call Runtime Error Fix** — Resolved a `ReferenceError: sessionLink is not defined` bug in the `handleJoin` function by utilizing the correct internal reactive property (`joinState.value.joinUrl`) when opening the meeting overlay.
