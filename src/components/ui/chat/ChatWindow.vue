@@ -338,6 +338,13 @@ function getSenderInitial(message) {
   return name.charAt(0).toUpperCase()
 }
 
+const formatTime = (ts) => {
+  if (!ts) return ''
+  const date = new Date(Number(ts))
+  if (isNaN(date.getTime())) return ts
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '')
+}
+
 // ── Topup flow state (iframe → parent communication) ─────────────────────────
 const _pendingTopupBookingId = ref(null)
 const _pendingTopupMessage   = ref(null)
@@ -2980,185 +2987,198 @@ onUnmounted(() => {
 
       <!-- Booking request & other system messages -->
       <template #message.system="{ message }">
-        <LiveCallRequest
-          v-if="message.content_type === 'requestJoinCallNotification'"
-          :message="message"
-          :booking="chatStore.getBookingById(message?.content?.booking_id)"
-          :is-creator="isCreatorAccount"
-          @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
-          @reschedule="activeBookingMessage = message; showReschedulePopup = true"
-          @cancel="activeBookingMessage = message; showCancelCallPopup = true"
-          @accept-counter="onAcceptCounter(message)"
-          @reject-counter="onRejectCounter(message)"
-          @view-details="openBookingDetail(message)"
-        />
-        <BookingRequestBubble
-          v-else-if="message.content_type === 'booking_request'"
-          :message="message"
-          :is-creator="isCreatorAccount"
-          :disabled="bookingActionLoading"
-          :sender-name="bookingSenderName"
-          @view-details="openBookingDetail(message)"
-          @accept="onDirectAccept(message)"
-          @decline="onDirectDecline(message)"
-          @adjust="openAdjustPopup(message)"
-          @confirm-counter="onConfirmCounter(message)"
-          @cancel-booking="onCancelBooking(message)"
-          @accept-counter="onAcceptCounter(message)"
-          @reject-counter="onRejectCounter(message)"
-          @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
-          @ask-to-reschedule="activeBookingMessage = message; showReschedulePopup = true"
-        />
-        <!-- Product Recommendation -->
-        <div
-          v-else-if="message.content_type === 'product_recommendation' && productForMessage(message)"
-          class="w-full overflow-hidden bg-[#1A1A1A] border-l-[3px] border-[#FF0080] text-left shadow-lg transition mb-1 flex flex-col gap-2.5 p-3 bg-gradient-to-r from-pink-500/20 via-pink-500/10 to-transparent"
-          :class="{ '': !shouldShowProductCardCta(message) }"
-          @click.stop="onProductShellClick(message)"
-        >
-          <!-- Header -->
-          <div class="flex items-center gap-1.5 text-[13px]">
-            <div class="">
-              <img :src="pinkStarIcon" alt="pink star icon">
-            </div>
-            <span class="text-[#FB5BA2] text-sm font-bold italic truncate">{{ getSenderName(message) }}</span>
-            <span class="text-gray-300 text-sm shrink-0">shared a {{ productForMessage(message).type || 'media' }}:</span>
-          </div>
-
-          <!-- Media -->
-          <div class="relative bg-black w-full">
-            <video
-              v-if="productForMessage(message).preview?.type === 'video' && productForMessage(message).preview?.url"
-              :src="productForMessage(message).preview.url"
-              :poster="productForMessage(message).preview.posterUrl || productForMessage(message).thumbnailUrl"
-              class="w-full aspect-video object-cover"
-              muted
-              playsinline
-              controls
-              controlslist="nodownload"
-              @click.stop
-            />
-            <audio
-              v-else-if="productForMessage(message).preview?.type === 'audio' && productForMessage(message).preview?.url"
-              :src="productForMessage(message).preview.url"
-              class="w-full h-10 px-2 bg-black"
-              controls
-              controlslist="nodownload"
-              @click.stop
-            />
-            <img
-              v-else-if="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
-              :src="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
-              :alt="productForMessage(message).title"
-              class="w-full aspect-video object-cover"
-            />
-
-            <div
-              v-if="productMediaBadgeForMessage(message)"
-              class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]"
-            >
-              <component
-                :is="productMediaBadgeIconComponents[productMediaBadgeForMessage(message).icon] || ChatGalleryIconComponent"
-                class="w-3 h-3 text-white"
-                aria-hidden="true"
-              />
-              <span v-if="productMediaBadgeForMessage(message).label" class="text-white text-xs">
-                {{ productMediaBadgeForMessage(message).label }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Title -->
-          <div class=" text-[14px] font-medium leading-5 text-white line-clamp-2">
-            {{ productForMessage(message).title }}
-          </div>
-
-          <!-- Buttons -->
-          <div class="flex items-center w-full gap-1">
-            <template v-if="productCardButtonsLoading(message)">
-              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
-              <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
-            </template>
-            <span
-              v-else-if="shouldShowProductSubscribeButton(message)"
-              class="relative flex-1 group/product-cta"
-              :class="productCardButtonDisabled(message, 'subscribe') ? 'cursor-not-allowed' : ''"
-              :tabindex="productCardButtonDisabled(message, 'subscribe') ? 0 : -1"
-              :aria-label="productCardDisabledReason(message, 'subscribe') || undefined"
-            >
-              <button
-                type="button"
-                class="w-full h-9 flex items-center bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
-                :class="[
-                  isProductActionPending(message, 'subscribe') ? 'justify-center cursor-not-allowed' : 'justify-between',
-                  productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : '',
-                ]"
-                :disabled="productCardButtonDisabled(message, 'subscribe')"
-                :aria-disabled="productCardButtonDisabled(message, 'subscribe') ? 'true' : undefined"
-                :tabindex="productCardButtonDisabled(message, 'subscribe') ? -1 : 0"
-                @click.stop="onProductCtaClick(message, 'subscribe')"
-              >
-                <span
-                  v-if="isProductActionPending(message, 'subscribe')"
-                  class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                  aria-label="Processing subscription"
-                ></span>
-                <template v-else>
-                  <span>{{ productSubscribeActionLabel(message) }}</span>
-                  <span>{{ productSubscribePriceLabel(message) }}</span>
-                </template>
-              </button>
-              <span
-                v-if="productCardButtonDisabled(message, 'subscribe') && productCardDisabledReason(message, 'subscribe')"
-                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
-              >
-                {{ productCardDisabledReason(message, 'subscribe') }}
-              </span>
-            </span>
-            <span
-              v-if="shouldShowProductBuyButton(message)"
-              class="relative flex-1 group/product-cta"
-              :class="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'cursor-not-allowed' : ''"
-              :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 0 : -1"
-              :aria-label="productCardDisabledReason(message, productBuyButtonAction(message)) || undefined"
-            >
-              <button
-                type="button"
-                class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition"
-                :class="[
-                  productBuyButtonThemeClass(message),
-                  productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'pointer-events-none' : '',
-                ]"
-                :disabled="productCardButtonDisabled(message, productBuyButtonAction(message))"
-                :aria-disabled="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'true' : undefined"
-                :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? -1 : 0"
-                @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
-              >
-                <span>{{ productBuyButtonLabel(message) }}</span>
-                <span v-if="shouldShowProductBuyButtonPrice(message)">${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
-              </button>
-              <span
-                v-if="productCardButtonDisabled(message, productBuyButtonAction(message)) && productCardDisabledReason(message, productBuyButtonAction(message))"
-                class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
-              >
-                {{ productCardDisabledReason(message, productBuyButtonAction(message)) }}
-              </span>
-            </span>
-          </div>
-
-          <!-- Error Status -->
+        <div class="flex flex-col w-full">
+          <LiveCallRequest
+            v-if="message.content_type === 'requestJoinCallNotification'"
+            :message="message"
+            :booking="chatStore.getBookingById(message?.content?.booking_id)"
+            :is-creator="isCreatorAccount"
+            @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
+            @reschedule="activeBookingMessage = message; showReschedulePopup = true"
+            @cancel="activeBookingMessage = message; showCancelCallPopup = true"
+            @accept-counter="onAcceptCounter(message)"
+            @reject-counter="onRejectCounter(message)"
+            @view-details="openBookingDetail(message)"
+          />
+          <BookingRequestBubble
+            v-else-if="message.content_type === 'booking_request'"
+            :message="message"
+            :is-creator="isCreatorAccount"
+            :disabled="bookingActionLoading"
+            :sender-name="bookingSenderName"
+            @view-details="openBookingDetail(message)"
+            @accept="onDirectAccept(message)"
+            @decline="onDirectDecline(message)"
+            @adjust="openAdjustPopup(message)"
+            @confirm-counter="onConfirmCounter(message)"
+            @cancel-booking="onCancelBooking(message)"
+            @accept-counter="onAcceptCounter(message)"
+            @reject-counter="onRejectCounter(message)"
+            @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
+            @ask-to-reschedule="activeBookingMessage = message; showReschedulePopup = true"
+          />
+          <!-- Product Recommendation -->
           <div
-            v-if="productCardStatus(message)?.error"
-            class="px-3 pb-2 text-[11px] leading-tight text-red-400"
+            v-else-if="message.content_type === 'product_recommendation' && productForMessage(message)"
+            class="w-full overflow-hidden bg-[#1A1A1A] border-l-[3px] border-[#FF0080] text-left shadow-lg transition mb-1 flex flex-col gap-2.5 p-3 bg-gradient-to-r from-pink-500/20 via-pink-500/10 to-transparent"
+            :class="{ '': !shouldShowProductCardCta(message) }"
+            @click.stop="onProductShellClick(message)"
           >
-            {{ productCardStatus(message).error }}
+            <!-- Header -->
+            <div class="flex items-center gap-1.5 text-[13px]">
+              <div class="">
+                <img :src="pinkStarIcon" alt="pink star icon">
+              </div>
+              <span class="text-[#FB5BA2] text-sm font-bold italic truncate">{{ getSenderName(message) }}</span>
+              <span class="text-gray-300 text-sm shrink-0">shared a {{ productForMessage(message).type || 'media' }}:</span>
+            </div>
+
+            <!-- Media -->
+            <div class="relative bg-black w-full">
+              <video
+                v-if="productForMessage(message).preview?.type === 'video' && productForMessage(message).preview?.url"
+                :src="productForMessage(message).preview.url"
+                :poster="productForMessage(message).preview.posterUrl || productForMessage(message).thumbnailUrl"
+                class="w-full aspect-video object-cover"
+                muted
+                playsinline
+                controls
+                controlslist="nodownload"
+                @click.stop
+              />
+              <audio
+                v-else-if="productForMessage(message).preview?.type === 'audio' && productForMessage(message).preview?.url"
+                :src="productForMessage(message).preview.url"
+                class="w-full h-10 px-2 bg-black"
+                controls
+                controlslist="nodownload"
+                @click.stop
+              />
+              <img
+                v-else-if="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
+                :src="productForMessage(message).thumbnailUrl || productForMessage(message).imageUrl"
+                :alt="productForMessage(message).title"
+                class="w-full aspect-video object-cover"
+              />
+
+              <div
+                v-if="productMediaBadgeForMessage(message)"
+                class="absolute top-1 left-1 flex px-1 py-[1px] gap-[3px] items-center justify-center bg-[rgba(24,34,48,0.50)]"
+              >
+                <component
+                  :is="productMediaBadgeIconComponents[productMediaBadgeForMessage(message).icon] || ChatGalleryIconComponent"
+                  class="w-3 h-3 text-white"
+                  aria-hidden="true"
+                />
+                <span v-if="productMediaBadgeForMessage(message).label" class="text-white text-xs">
+                  {{ productMediaBadgeForMessage(message).label }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Title -->
+            <div class=" text-[14px] font-medium leading-5 text-white line-clamp-2">
+              {{ productForMessage(message).title }}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center w-full gap-1">
+              <template v-if="productCardButtonsLoading(message)">
+                <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+                <div class="h-9 flex-1 bg-white/15 animate-pulse" aria-hidden="true"></div>
+              </template>
+              <span
+                v-else-if="shouldShowProductSubscribeButton(message)"
+                class="relative flex-1 group/product-cta"
+                :class="productCardButtonDisabled(message, 'subscribe') ? 'cursor-not-allowed' : ''"
+                :tabindex="productCardButtonDisabled(message, 'subscribe') ? 0 : -1"
+                :aria-label="productCardDisabledReason(message, 'subscribe') || undefined"
+              >
+                <button
+                  type="button"
+                  class="w-full h-9 flex items-center bg-[#F06] px-2 py-1 text-white font-semibold text-xs transition"
+                  :class="[
+                    isProductActionPending(message, 'subscribe') ? 'justify-center cursor-not-allowed' : 'justify-between',
+                    productCardButtonDisabled(message, 'subscribe') ? 'pointer-events-none' : '',
+                  ]"
+                  :disabled="productCardButtonDisabled(message, 'subscribe')"
+                  :aria-disabled="productCardButtonDisabled(message, 'subscribe') ? 'true' : undefined"
+                  :tabindex="productCardButtonDisabled(message, 'subscribe') ? -1 : 0"
+                  @click.stop="onProductCtaClick(message, 'subscribe')"
+                >
+                  <span
+                    v-if="isProductActionPending(message, 'subscribe')"
+                    class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    aria-label="Processing subscription"
+                  ></span>
+                  <template v-else>
+                    <span>{{ productSubscribeActionLabel(message) }}</span>
+                    <span>{{ productSubscribePriceLabel(message) }}</span>
+                  </template>
+                </button>
+                <span
+                  v-if="productCardButtonDisabled(message, 'subscribe') && productCardDisabledReason(message, 'subscribe')"
+                  class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+                >
+                  {{ productCardDisabledReason(message, 'subscribe') }}
+                </span>
+              </span>
+              <span
+                v-if="shouldShowProductBuyButton(message)"
+                class="relative flex-1 group/product-cta"
+                :class="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'cursor-not-allowed' : ''"
+                :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 0 : -1"
+                :aria-label="productCardDisabledReason(message, productBuyButtonAction(message)) || undefined"
+              >
+                <button
+                  type="button"
+                  class="w-full h-9 flex items-center justify-between px-2 py-1 font-semibold text-xs transition"
+                  :class="[
+                    productBuyButtonThemeClass(message),
+                    productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'pointer-events-none' : '',
+                  ]"
+                  :disabled="productCardButtonDisabled(message, productBuyButtonAction(message))"
+                  :aria-disabled="productCardButtonDisabled(message, productBuyButtonAction(message)) ? 'true' : undefined"
+                  :tabindex="productCardButtonDisabled(message, productBuyButtonAction(message)) ? -1 : 0"
+                  @click.stop="onProductCtaClick(message, productBuyButtonAction(message))"
+                >
+                  <span>{{ productBuyButtonLabel(message) }}</span>
+                  <span v-if="shouldShowProductBuyButtonPrice(message)">${{ productForMessage(message).buyPrice > 0 ? productForMessage(message).buyPrice : productForMessage(message).price }}</span>
+                </button>
+                <span
+                  v-if="productCardButtonDisabled(message, productBuyButtonAction(message)) && productCardDisabledReason(message, productBuyButtonAction(message))"
+                  class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden w-max max-w-[11rem] -translate-x-1/2 whitespace-normal rounded bg-[#111827] px-2 py-1 text-center text-[11px] font-medium leading-snug text-white shadow-lg group-hover/product-cta:block group-focus-within/product-cta:block"
+                >
+                  {{ productCardDisabledReason(message, productBuyButtonAction(message)) }}
+                </span>
+              </span>
+            </div>
+
+            <!-- Error Status -->
+            <div
+              v-if="productCardStatus(message)?.error"
+              class="px-3 pb-2 text-[11px] leading-tight text-red-400"
+            >
+              {{ productCardStatus(message).error }}
+            </div>
+          </div>
+          <!-- Activity log: centered italic text + divider -->
+          <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
+            <span class="text-sm font-normal text-gray-700 italic text-center">{{ resolveActivityLogText(message) }}</span>
+          </div>
+          <div v-else class="text-xs text-zinc-400 text-center px-2 py-1 w-full">{{ message.text }}</div>
+
+          <!-- Footer mimicking receive message for specific system messages -->
+          <div v-if="['requestJoinCallNotification', 'booking_request', 'product_recommendation'].includes(message.content_type)"
+               class="flex items-center justify-start gap-2 mt-1.5 px-0.5 w-full">
+            <div class="flex shrink-0 items-end !mr-1">
+              <img src="https://fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/site-logo.svg" class="w-4 h-4 rounded-full object-cover" alt="System Avatar" />
+            </div>
+            <span class="text-xs text-gray-500 font-normal">
+              {{ message.time || formatTime(message.message_ts) }}
+            </span>
           </div>
         </div>
-        <!-- Activity log: centered italic text + divider -->
-        <div v-else-if="message.content_type === 'activity_log'" class="w-full flex flex-col items-center gap-1 ">
-          <span class="text-sm font-normal text-gray-700 italic text-center">{{ resolveActivityLogText(message) }}</span>
-        </div>
-        <div v-else class="text-xs text-zinc-400 text-center px-2 py-1 w-full">{{ message.text }}</div>
       </template>
 
       <!-- Message content -->

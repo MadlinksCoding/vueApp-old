@@ -54,12 +54,18 @@
               class="w-[1.375rem] h-[1.375rem] object-cover"
               alt="avatar"
             />
-            <div
+            <img
+              v-else
+              src="https://fansocial.app/wp-content/plugins/fansocial/assets/img/placeholder/placeholder-headshot-creator-trans-bg.png"
+              class="w-[1.375rem] h-[1.375rem] object-cover"
+              alt="avatar"
+            />
+            <!-- <div
               v-else
               class="w-[3.625rem] h-[3.625rem] bg-zinc-300 flex items-center justify-center text-zinc-600 text-base font-semibold uppercase"
             >
               {{ member.initials }}
-            </div>
+            </div> -->
           </div>
           <div class="inline-flex flex-col justify-center items-start gap-1 min-w-0">
             <div class="text-gray-900 text-xs font-medium font-['Poppins']  flex items-center gap-1.5">

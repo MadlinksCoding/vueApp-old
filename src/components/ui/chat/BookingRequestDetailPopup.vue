@@ -24,7 +24,7 @@
               {{ isCreator ? 'creator' : 'fan' }} -->
               <div v-if=" currentAction != 'declined' && currentAction != 'cancelled'" class="flex items-center gap-2 shrink-0">
                 <!-- Status hint -->
-                <div v-if="statusHint" class="flex items-center gap-1">
+                <div v-if="statusHint && !isPassCall" class="flex items-center gap-1">
                   <div class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
                   <div class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">{{ statusHint }}</div>
                 </div>
@@ -46,7 +46,9 @@
                 <div v-if="isCreator" class="relative">
                   <button
                     type="button"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-200/80"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded transition-opacity"
+                    :class="isPassCall ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-200/80'"
+                    :disabled="isPassCall"
                     :aria-expanded="menuOpen"
                     @click.stop="toggleMenu"
                   >
@@ -202,8 +204,15 @@
 
             </div>
 
+            <!-- Expired State (Global for pending / counter_offer) -->
+            <div v-if="!fetchLoading && isPassCall && (currentAction === 'pending' || currentAction === 'counter_offer')" class="pt-1">
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
+                Request expired
+              </div>
+            </div>
+
             <!-- Actions (creator + pending) -->
-            <div v-if="!fetchLoading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
+            <div v-else-if="!fetchLoading && isCreator && currentAction === 'pending'" class="w-full flex items-center flex-wrap gap-x-2 gap-y-3 pt-3">
               <button
                 type="button"
                 :disabled="loading || isPassCall"
@@ -281,8 +290,8 @@
             <!-- Creator + counter_offer: waiting -->
             <div v-else-if="!fetchLoading && ((isCreator && currentAction === 'counter_offer') || (!isCreator && currentAction === 'pending'))" class="pt-1">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500">
-                <img v-if="!isPassCall" :src="HourglassIcon" class="w-4 h-4" alt="" />
-                {{ isPassCall ? 'Request expired' : (isCreator ? 'Waiting for fan response' : 'Waiting for creator response') }}
+                <img :src="HourglassIcon" class="w-4 h-4" alt="" />
+                {{ isCreator ? 'Waiting for fan response' : 'Waiting for creator response' }}
               </div>
             </div>
 
