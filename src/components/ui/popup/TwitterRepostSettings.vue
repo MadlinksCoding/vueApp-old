@@ -11,6 +11,11 @@
       <CheckboxSwitch v-model="checkboxModel" :label="checkboxLabel" version="dashboard" wrapper-label="Dark Mode" />
       <input type="hidden" :name="inputName" :value="checkboxModel ? '1' : '0'" />
     </div>
+    <ValidationInlineWarning
+      :messages="editImpactMessages(checkboxModel, baselineModelValue)"
+      purpose="edit-impact"
+      spacing-class="-mt-4"
+    />
   </div>
   <div class="self-stretch flex flex-col justify-start items-start gap-6">
     <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
@@ -28,6 +33,11 @@
             </div>
             <div class="self-stretch justify-start text-slate-600 text-sm font-normal font-['Poppins'] leading-5">{{ localMessage.length }} characters</div>
         </div>
+        <ValidationInlineWarning
+          :messages="editImpactMessages(localMessage, baselineMessageValue)"
+          purpose="edit-impact"
+          spacing-class="mt-1.5"
+        />
     </div>
     
     <div class="self-stretch flex flex-col justify-start items-start gap-2">
@@ -121,6 +131,11 @@
           </div>
         </div>
       </div>
+      <ValidationInlineWarning
+        :messages="editImpactMessages(localMedia, baselineMediaValue)"
+        purpose="edit-impact"
+        spacing-class="mt-1.5"
+      />
     </div>
   </div>
   <div class="self-stretch flex fixed md:relative left-0 px-2 md:px-0 bottom-2 w-full md:w-auto">
@@ -140,6 +155,11 @@ import AiArtIcon from "@/assets/images/icons/ai-art.webp"
 import ChevronDownFill from "@/assets/images/icons/chevron-down-fill.webp"
 import EditPencilIcon from "@/assets/images/icons/edit-pencil.webp"
 import ThumbnailUploaderNay from "@/components/ui/global/media/uploader/HelperComponents/ThumbnailUploaderNay.vue"
+import ValidationInlineWarning from "@/components/ui/form/BookingForm/HelperComponents/ValidationInlineWarning.vue";
+import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { editWarningValuesEqual } from "@/components/ui/form/BookingForm/editWarningUtils.js";
+
+const { t } = useBookingTranslations();
 
 const props = defineProps({
   title: {
@@ -173,6 +193,22 @@ const props = defineProps({
   uploaderName: {
     type: String,
     default: ""
+  },
+  isEditMode: {
+    type: Boolean,
+    default: false,
+  },
+  baselineModelValue: {
+    type: Boolean,
+    default: false,
+  },
+  baselineMessageValue: {
+    type: String,
+    default: "",
+  },
+  baselineMediaValue: {
+    type: String,
+    default: "",
   }
 });
 
@@ -183,6 +219,12 @@ const localMedia = ref(String(props.mediaValue || ""));
 const messageTextareaRef = ref(null);
 
 const DEFAULT_PREVIEW_MESSAGE = "I have a new event coming up. Limited seats available. Join now!";
+
+function editImpactMessages(currentValue, baselineValue) {
+  return props.isEditMode && !editWarningValuesEqual(currentValue, baselineValue)
+    ? [t("booking_future_bookings_warning")]
+    : [];
+}
 
 const previewMessage = computed(() => {
   const message = String(localMessage.value || "").trim();

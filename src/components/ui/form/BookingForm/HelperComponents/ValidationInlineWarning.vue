@@ -14,6 +14,11 @@ const props = defineProps({
     type: String,
     default: "mt-1.5",
   },
+  purpose: {
+    type: String,
+    default: "validation",
+    validator: (value) => ["validation", "edit-impact"].includes(value),
+  },
 });
 
 const normalizedMessages = computed(() => {
@@ -37,8 +42,9 @@ const normalizedMessages = computed(() => {
       spacingClass,
       'w-full border-l-4 border-[#FDB022] bg-[#FFFAEB] px-3 py-3 text-sm font-semibold leading-5 text-[#C4320A]',
     ]"
-    data-booking-validation-warning="true"
-    :data-booking-validation-field="field || undefined"
+    :data-booking-validation-warning="purpose === 'validation' ? 'true' : undefined"
+    :data-booking-validation-field="purpose === 'validation' && field ? field : undefined"
+    :data-booking-edit-impact-warning="purpose === 'edit-impact' ? 'true' : undefined"
   >
     <p v-for="message in normalizedMessages" :key="message">
       {{ message }}

@@ -128,17 +128,25 @@ watch(
       data-booking-validation-tooltip="true"
     >
       <div aria-hidden="true" class="absolute bottom-[-0.75rem] left-0 h-3 w-full" />
-      <button
-        v-for="item in normalizedTooltipItems"
-        :key="item.id"
-        type="button"
-        class="flex w-full items-center justify-between gap-4 py-1 text-left text-sm font-medium leading-5 text-white hover:text-[#07F468] focus:outline-none focus-visible:text-[#07F468]"
-        :data-booking-validation-tooltip-field="item.field || undefined"
-        @click="handleTooltipSelect(item, $event)"
-      >
-        <span class="min-w-0 truncate">{{ item.label }}</span>
-        <span aria-hidden="true" class="shrink-0 text-lg leading-none">&nearr;</span>
-      </button>
+      <template v-for="item in normalizedTooltipItems" :key="item.id">
+        <button
+          v-if="item.field"
+          type="button"
+          class="flex w-full items-center justify-between gap-4 py-1 text-left text-sm font-medium leading-5 text-white hover:text-[#07F468] focus:outline-none focus-visible:text-[#07F468]"
+          :data-booking-validation-tooltip-field="item.field"
+          @click="handleTooltipSelect(item, $event)"
+        >
+          <span class="min-w-0 truncate">{{ item.label }}</span>
+          <span aria-hidden="true" class="shrink-0 text-lg leading-none">&nearr;</span>
+        </button>
+        <div
+          v-else
+          class="w-full py-1 text-left text-sm font-medium leading-5 text-white"
+          data-booking-informational-tooltip-row="true"
+        >
+          {{ item.label }}
+        </div>
+      </template>
       <div class="absolute bottom-[-0.55rem] right-[3.5rem] h-4 w-4 translate-x-1/2 rotate-45 bg-[#555C68]" />
     </div>
   </div>
