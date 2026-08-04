@@ -40,6 +40,7 @@ import arrowPinkIcon from "@/assets/images/icons/arrow-up-right-pink.svg";
 
 // Import Validators
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
+import { normalizeEditWarningValue } from "./editWarningUtils.js";
 
 const props = defineProps({
     type: {
@@ -95,6 +96,8 @@ const editEventType = ref("");
 const hasUnsavedChanges = ref(false);
 const dirtyTrackingStarted = ref(false);
 const dirtyBaselineSignature = ref("");
+const editWarningBaseline = ref({});
+const availabilityEditBaselineReady = ref(false);
 const unsavedLeaveDialogOpen = ref(false);
 const suppressUnsavedLeaveWarning = ref(false);
 const xPostSettingsHydrationPromise = shallowRef(Promise.resolve({ status: "skipped" }));
@@ -382,6 +385,42 @@ function createBookingFormDirtySnapshot() {
         snapshot[field] = getBookingFormStateValueForDirty(field);
         return snapshot;
     }, {});
+}
+
+function captureEditWarningBaseline() {
+    editWarningBaseline.value = normalizeEditWarningValue(createBookingFormDirtySnapshot());
+}
+
+function rebaseEditWarningFields(fields = []) {
+    if (!isEditMode.value || fields.length === 0) return;
+
+    const nextBaseline = {
+        ...editWarningBaseline.value,
+    };
+    fields.forEach((field) => {
+        nextBaseline[field] = normalizeEditWarningValue(getBookingFormStateValueForDirty(field));
+    });
+    editWarningBaseline.value = nextBaseline;
+}
+
+function handleAvailabilityEditBaselineReady(availability = {}) {
+    if (!isEditMode.value || availabilityEditBaselineReady.value) return;
+
+    const fields = [
+        "weeklyAvailability",
+        "monthlyAvailability",
+        "oneTimeAvailability",
+    ];
+    if (!fields.every((field) => Array.isArray(availability?.[field]))) return;
+
+    const nextBaseline = {
+        ...editWarningBaseline.value,
+    };
+    fields.forEach((field) => {
+        nextBaseline[field] = normalizeEditWarningValue(availability[field]);
+    });
+    editWarningBaseline.value = nextBaseline;
+    availabilityEditBaselineReady.value = true;
 }
 
 function hasDirtyChangesComparedToBaseline() {
@@ -851,6 +890,7 @@ function applyBackgroundXPostSettings(requestResult, initialSnapshot) {
     const appliedFields = Object.keys(appliedState);
     if (appliedFields.length > 0) {
         bookingFlow.emit?.("x-post-settings:hydrated", { fields: appliedState });
+        rebaseEditWarningFields(appliedFields);
         rebaseDirtyBaselineFields(appliedFields, wasDirty);
     }
 
@@ -876,6 +916,7 @@ async function hydrateEditEventIfNeeded() {
 
     editLoading.value = true;
     editError.value = "";
+    availabilityEditBaselineReady.value = false;
 
     try {
         const creatorId = resolveCreatorId();
@@ -909,6 +950,7 @@ async function hydrateEditEventIfNeeded() {
         const eventFormState = mapEventToBookingFormState(event);
         editEventType.value = eventFormState.eventType === "group-event" ? "group" : "private";
         applyFormStateToEngine(eventFormState);
+        captureEditWarningBaseline();
         const initialXPostSnapshot = captureXPostActionSnapshot(bookingFlow.state || {});
         xPostSettingsHydrationPromise.value = xPostSettingsRequest.then((requestResult) => (
             applyBackgroundXPostSettings(requestResult, initialXPostSnapshot)
@@ -2177,12 +2219,16 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             v-if="currentStep === 1"
                             :engine="bookingFlow"
                             :embedded="embedded"
+                            :is-edit-mode="isEditMode"
+                            :edit-baseline="editWarningBaseline"
+                            :availability-baseline-ready="availabilityEditBaselineReady"
                             :schedule-locked="false"
                             :pricing-locked="false"
                             :reschedule-fee-setting-enabled="RESCHEDULE_FEE_SETTING_ENABLED"
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                             @schedule-preview-focus="focusEditedSchedulePreview"
+                            @availability-baseline-ready="handleAvailabilityEditBaselineReady"
                         />
 
                         <OneOnOneBookinStep2
@@ -2190,6 +2236,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :engine="bookingFlow"
                             :embedded="embedded"
                             :is-edit-mode="isEditMode"
+                            :edit-baseline="editWarningBaseline"
                             :edit-event-id="resolvedEditEventId"
                             :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"
@@ -2204,6 +2251,9 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             v-if="currentStep === 1"
                             :engine="bookingFlow"
                             :embedded="embedded"
+                            :is-edit-mode="isEditMode"
+                            :edit-baseline="editWarningBaseline"
+                            :availability-baseline-ready="availabilityEditBaselineReady"
                             bookingType="group"
                             :schedule-locked="editScheduleLocked"
                             :pricing-locked="editPricingLocked"
@@ -2211,6 +2261,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :validation-reveal-request="step1ValidationRevealRequest"
                             @preview-schedule="previewSchedule = true"
                             @schedule-preview-focus="focusEditedSchedulePreview"
+                            @availability-baseline-ready="handleAvailabilityEditBaselineReady"
                         />
 
                         <OneOnOneBookinStep2
@@ -2219,6 +2270,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                             :embedded="embedded"
                             bookingType="group"
                             :is-edit-mode="isEditMode"
+                            :edit-baseline="editWarningBaseline"
                             :edit-event-id="resolvedEditEventId"
                             :x-post-settings-hydration-promise="xPostSettingsHydrationPromise"
                             @created="handleCreateFlowCreated"

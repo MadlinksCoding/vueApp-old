@@ -28,6 +28,7 @@
     scrollToFirstValidationWarning,
     scrollToValidationField,
   } from "./validationUi.js";
+  import { hasEditWarningChange } from "./editWarningUtils.js";
 
   import { showToast } from "@/utils/toastBus.js";
   import {
@@ -268,8 +269,24 @@
       type: Object,
       default: null,
     },
+    isEditMode: {
+      type: Boolean,
+      default: false,
+    },
+    editBaseline: {
+      type: Object,
+      default: () => ({}),
+    },
+    availabilityBaselineReady: {
+      type: Boolean,
+      default: false,
+    },
   });
-  const emit = defineEmits(["preview-schedule", "schedule-preview-focus"]);
+  const emit = defineEmits([
+    "preview-schedule",
+    "schedule-preview-focus",
+    "availability-baseline-ready",
+  ]);
   const DEFAULT_VUE_CREATOR_ID = 1407;
   const isGroupBooking = computed(() => props.bookingType === "group");
   const scheduleLockTooltip = computed(() => t("booking_schedule_locked_tooltip"));
@@ -448,6 +465,48 @@
     return getValidationMessages(validationErrorMap.value, fields);
   }
 
+  const editWarningCurrentState = computed(() => ({
+    ...(props.engine?.state || {}),
+    ...formData.value,
+  }));
+
+  function hasFieldEditWarningChange(fields) {
+    if (!props.isEditMode) return false;
+    return hasEditWarningChange(
+      props.editBaseline,
+      editWarningCurrentState.value,
+      fields,
+    );
+  }
+
+  function fieldEditWarningMessages(
+    fields,
+    messageKey = "booking_future_bookings_warning",
+  ) {
+    return hasFieldEditWarningChange(fields)
+      ? [t(messageKey)]
+      : [];
+  }
+
+  const activeAvailabilityField = computed(() => {
+    if (formData.value.repeatRule === "monthly") return "monthlyAvailability";
+    if (formData.value.repeatRule === "doesNotRepeat") return "oneTimeAvailability";
+    return "weeklyAvailability";
+  });
+
+  const calendarAvailabilityEditWarningFields = computed(() => {
+    const fields = ["repeatRule", activeAvailabilityField.value];
+    if (formData.value.repeatRule !== "doesNotRepeat") {
+      fields.push("dateFrom", "dateTo");
+    }
+    return fields;
+  });
+
+  function calendarAvailabilityEditWarningMessages() {
+    if (!props.availabilityBaselineReady) return [];
+    return fieldEditWarningMessages(calendarAvailabilityEditWarningFields.value);
+  }
+
   function resolveStep1SectionForField(field) {
     if (["advanceVoid", "advanceCancelWindowUnit"].includes(field)) {
       return isGroupBooking.value ? "groupPricing" : "privatePricing";
@@ -619,6 +678,13 @@
   ];
 
   onMounted(() => {
+    if (props.isEditMode && !props.availabilityBaselineReady) {
+      emit("availability-baseline-ready", {
+        weeklyAvailability: formData.value.weeklyAvailability,
+        monthlyAvailability: formData.value.monthlyAvailability,
+        oneTimeAvailability: formData.value.oneTimeAvailability,
+      });
+    }
     ensureVueCreatorIdFallback();
     props.engine.setState("setReminders", true, { silent: true });
     props.engine.setState("remindMeTime", formData.value.remindMeTime, { silent: true });
@@ -2202,17 +2268,51 @@
     syncAvailabilityToForm();
   }
 
+  const recurringDateRangeDraftKey = Symbol.for(
+    "fs-bookings.calendarAvailability.recurringDateRangeBeforeCustom",
+  );
+  const currentEventId = props.editBaseline?.eventId || props.engine.state.eventId || null;
+  const storedRecurringDateRange = props.engine[recurringDateRangeDraftKey];
+  const recurringDateRangeBeforeCustom = ref(
+    storedRecurringDateRange?.eventId === currentEventId
+      ? {
+        dateFrom: storedRecurringDateRange.dateFrom,
+        dateTo: storedRecurringDateRange.dateTo,
+      }
+      : null,
+  );
+
   function onRepeatRuleChange(newRepeatRule = formData.value.repeatRule, oldRepeatRule = null) {
-    if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "weekly") {
-      formData.value.dateFrom = "";
-      formData.value.dateTo = "";
+    if (
+      ["weekly", "monthly"].includes(oldRepeatRule)
+      && newRepeatRule === "doesNotRepeat"
+    ) {
+      recurringDateRangeBeforeCustom.value = {
+        dateFrom: formData.value.dateFrom,
+        dateTo: formData.value.dateTo,
+      };
+      props.engine[recurringDateRangeDraftKey] = {
+        eventId: currentEventId,
+        ...recurringDateRangeBeforeCustom.value,
+      };
     }
 
-    if (oldRepeatRule === "doesNotRepeat" && newRepeatRule === "monthly") {
-      if (!isIsoDate(formData.value.dateFrom) || formData.value.dateFrom < todayIsoDate) {
-        formData.value.dateFrom = todayIsoDate;
+    if (
+      oldRepeatRule === "doesNotRepeat"
+      && ["weekly", "monthly"].includes(newRepeatRule)
+    ) {
+      if (recurringDateRangeBeforeCustom.value) {
+        formData.value.dateFrom = recurringDateRangeBeforeCustom.value.dateFrom;
+        formData.value.dateTo = recurringDateRangeBeforeCustom.value.dateTo;
+      } else if (newRepeatRule === "weekly") {
+        formData.value.dateFrom = "";
+        formData.value.dateTo = "";
+      } else {
+        if (!isIsoDate(formData.value.dateFrom) || formData.value.dateFrom < todayIsoDate) {
+          formData.value.dateFrom = todayIsoDate;
+        }
+        formData.value.dateTo = "";
       }
-      formData.value.dateTo = "";
     }
 
     if (formData.value.repeatRule === "doesNotRepeat" && oneTimeDates.value.length === 0) {
@@ -2325,9 +2425,19 @@
             field="eventTitle"
             spacing-class="-mt-2"
           />
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages(['eventTitle', 'eventColorSkin'])"
+            purpose="edit-impact"
+            spacing-class="-mt-2"
+          />
           <QuillEditor
             v-model="formData.eventDescription"
             :placeholder="t('booking_event_description_placeholder')"
+          />
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('eventDescription')"
+            purpose="edit-impact"
+            spacing-class="-mt-2"
           />
           <div class="flex flex-col gap-1.5 w-full">
             <div class="flex flex-col gap-1.5">
@@ -2337,6 +2447,11 @@
                 :options="callTypeOptions"
               />
             </div>
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages('eventCallType')"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
           <div class="self-stretch flex flex-col justify-start items-start gap-1.5">
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span></div>
@@ -2377,6 +2492,11 @@
                 @media-uploaded="onEventImageUploaded"
               />
             </div>
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages('eventImageUrl')"
+              purpose="edit-impact"
+              spacing-class="mt-1.5"
+            />
           </div>
         </div>
       </div>
@@ -2392,6 +2512,11 @@
           <ValidationInlineWarning
             :messages="fieldValidationMessages('duration')"
             field="duration"
+            spacing-class="-mt-3"
+          />
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('duration')"
+            purpose="edit-impact"
             spacing-class="-mt-3"
           />
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
@@ -2419,6 +2544,11 @@
                 spacing-class="mt-2"
               />
             </div>
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['allowLongerSessions', 'maxSessionDuration'])"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
         </div>
       </BookingSectionsWrapper>
@@ -2450,6 +2580,11 @@
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('remindMeTime')"
                 field="remindMeTime"
+                spacing-class="-mt-1"
+              />
+              <ValidationInlineWarning
+                :messages="fieldEditWarningMessages('remindMeTime')"
+                purpose="edit-impact"
                 spacing-class="-mt-1"
               />
             </div>
@@ -2486,6 +2621,11 @@
               field="bufferTime"
               spacing-class="-mt-1"
             />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['bufferTime', 'bufferUnit'])"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+            />
           </div>
           <div v-if="isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
@@ -2505,6 +2645,11 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages('maxAttendees')"
               field="maxAttendees"
+              spacing-class="-mt-1"
+            />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableMaxAttendees', 'maxAttendees'])"
+              purpose="edit-impact"
               spacing-class="-mt-1"
             />
           </div>
@@ -2549,6 +2694,11 @@
               field="maxBookingsPerDay"
               spacing-class="-mt-1"
             />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['setMaxBookings', 'maxBookingsPerDay'])"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+            />
           </div>
         </div>
       </BookingSectionsWrapper>
@@ -2564,6 +2714,16 @@
               <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
                 {{ t("booking_base_price") }}
               </div>
+              <div
+                v-if="hasFieldEditWarningChange('basePrice')"
+                class="inline-flex items-center gap-1.5 text-[#FF4405]"
+                data-test="base-price-updated-indicator"
+              >
+                <span class="h-2 w-2 shrink-0 rounded-full bg-[#FF4405]"></span>
+                <span class="whitespace-nowrap text-sm font-medium leading-tight">
+                  {{ t("booking_updated_badge") }}
+                </span>
+              </div>
               <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             </div>
             <div class="flex items-center gap-2">
@@ -2578,6 +2738,11 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages('basePrice')"
               field="basePrice"
+              spacing-class="mt-0.5"
+            />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages('basePrice', 'booking_base_price_future_bookings_warning')"
+              purpose="edit-impact"
               spacing-class="mt-0.5"
             />
           </div>
@@ -2626,6 +2791,11 @@
               field="sessionMinimum"
               spacing-class="-mt-1"
             />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableLongerDiscount', 'sessionMinimum', 'longerSessionDiscountTokens'])"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+            />
           </div>
 
           
@@ -2660,6 +2830,11 @@
               field="firstTimeDiscountTokens"
               spacing-class="-mt-1"
             />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableFirstTimeDiscount', 'firstTimeDiscountTokens'])"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+            />
           </div>
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
@@ -2688,6 +2863,11 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages('bookingFee')"
               field="bookingFee"
+              spacing-class="-mt-1"
+            />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableBookingFee', 'bookingFee'])"
+              purpose="edit-impact"
               spacing-class="-mt-1"
             />
           </div>
@@ -2727,6 +2907,11 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['allowInstantBooking', 'disableChatBeforeCall'])"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
@@ -2764,6 +2949,11 @@
               field="rescheduleFee"
               spacing-class="-mt-1"
             />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableRescheduleFee', 'rescheduleFee'])"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+            />
           </div>
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
@@ -2793,6 +2983,11 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages(['cancellationFee', 'advanceVoid', 'advanceCancelWindowUnit'])"
               field="cancellationFee"
+              spacing-class="-mt-1"
+            />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['enableCancellationFee', 'cancellationFee'])"
+              purpose="edit-impact"
               spacing-class="-mt-1"
             />
 
@@ -2850,12 +3045,30 @@
               :disabled="isPricingLocked"
               :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
             />
+            <ValidationInlineWarning
+              v-if="!isPricingLocked"
+              :messages="fieldEditWarningMessages('priceSetting')"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
 
           <template v-if="formData.priceSetting === 'fixedPricePerUser'">
             <div class="flex flex-col justify-start items-start gap-1.5">
-              <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
-                {{ t("booking_group_event_price") }}
+              <div class="flex items-center gap-1.5">
+                <div class="justify-start text-gray-500 text-sm font-medium leading-tight">
+                  {{ t("booking_group_event_price") }}
+                </div>
+                <div
+                  v-if="!isPricingLocked && hasFieldEditWarningChange('basePrice')"
+                  class="inline-flex items-center gap-1.5 text-[#FF4405]"
+                  data-test="base-price-updated-indicator"
+                >
+                  <span class="h-2 w-2 shrink-0 rounded-full bg-[#FF4405]"></span>
+                  <span class="whitespace-nowrap text-sm font-medium leading-tight">
+                    {{ t("booking_updated_badge") }}
+                  </span>
+                </div>
               </div>
               <div class="flex items-center gap-2">
                 <BaseInput type="number" placeholder="" v-model="formData.basePrice"
@@ -2867,6 +3080,12 @@
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('basePrice')"
                 field="basePrice"
+                spacing-class="mt-0.5"
+              />
+              <ValidationInlineWarning
+                v-if="!isPricingLocked"
+                :messages="fieldEditWarningMessages('basePrice', 'booking_base_price_future_bookings_warning')"
+                purpose="edit-impact"
                 spacing-class="mt-0.5"
               />
             </div>
@@ -2906,6 +3125,12 @@
                 field="discountEventsCount"
                 spacing-class="-mt-1"
               />
+              <ValidationInlineWarning
+                v-if="!isPricingLocked"
+                :messages="fieldEditWarningMessages(['enableLongerDiscount', 'discountEventsCount', 'discountPercentage'])"
+                purpose="edit-impact"
+                spacing-class="-mt-1"
+              />
             </div>
           </template>
 
@@ -2924,6 +3149,12 @@
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('eventGoalTokens')"
                 field="eventGoalTokens"
+                spacing-class="mt-0.5"
+              />
+              <ValidationInlineWarning
+                v-if="!isPricingLocked"
+                :messages="fieldEditWarningMessages('eventGoalTokens')"
+                purpose="edit-impact"
                 spacing-class="mt-0.5"
               />
             </div>
@@ -2947,6 +3178,12 @@
                 field="minContributionPerUser"
                 spacing-class="-mt-1"
               />
+              <ValidationInlineWarning
+                v-if="!isPricingLocked"
+                :messages="fieldEditWarningMessages(['enableMinContributionPerUser', 'minContributionPerUser'])"
+                purpose="edit-impact"
+                spacing-class="-mt-1"
+              />
             </div>
 
             <div class="flex flex-col justify-start items-start gap-2 w-full">
@@ -2958,6 +3195,12 @@
                 :options="groupGoalNotMetOptions"
                 :disabled="isPricingLocked"
                 :buttonClass="'bg-white/50 w-full px-4 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 flex items-center justify-between cursor-pointer select-none'"
+              />
+              <ValidationInlineWarning
+                v-if="!isPricingLocked"
+                :messages="fieldEditWarningMessages('goalNotMet')"
+                purpose="edit-impact"
+                spacing-class="mt-0"
               />
             </div>
           </template>
@@ -2986,6 +3229,12 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages('cancellationFee')"
               field="cancellationFee"
+              spacing-class="-mt-1"
+            />
+            <ValidationInlineWarning
+              v-if="!isPricingLocked"
+              :messages="fieldEditWarningMessages(['enableCancellationFee', 'cancellationFee'])"
+              purpose="edit-impact"
               spacing-class="-mt-1"
             />
           </div>
@@ -3017,6 +3266,12 @@
             <ValidationInlineWarning
               :messages="fieldValidationMessages(['advanceVoid', 'advanceCancelWindowUnit'])"
               field="advanceVoid"
+              spacing-class="-mt-1"
+            />
+            <ValidationInlineWarning
+              v-if="!isPricingLocked"
+              :messages="fieldEditWarningMessages(['allowAdvanceCancellation', 'advanceVoid', 'advanceCancelWindowUnit'])"
+              purpose="edit-impact"
               spacing-class="-mt-1"
             />
           </div>
@@ -3053,6 +3308,11 @@
           <ValidationInlineWarning
             :messages="fieldValidationMessages('offHourSurchargeTokens')"
             field="offHourSurchargeTokens"
+            spacing-class="mt-0"
+          />
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages(['addOffHourSurcharge', 'offHourSurchargeTokens'])"
+            purpose="edit-impact"
             spacing-class="mt-0"
           />
         </div>
@@ -3133,6 +3393,13 @@
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              v-if="!isScheduleLocked"
+              :messages="calendarAvailabilityEditWarningMessages()"
+              purpose="edit-impact"
+              spacing-class="-mt-1"
+              data-test="availability-edit-impact-warning"
+            />
             <div v-if="dateRangeMessage" class="text-xs text-amber-600 mt-1">
               {{ dateRangeMessage }}
             </div>
