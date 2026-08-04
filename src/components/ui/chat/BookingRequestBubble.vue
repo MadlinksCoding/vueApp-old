@@ -2,7 +2,7 @@
   <div
     class="border-l-[4px] shadow-sm font-['Poppins'] w-full"
     :class="[
-      pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded',
+      pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'rounded',
       isPassCall ? 'border-gray-400 bg-[#F2F4F7]' : 'border-[#5549FF] bg-[#F9FAFB]'
     ]"
   >
