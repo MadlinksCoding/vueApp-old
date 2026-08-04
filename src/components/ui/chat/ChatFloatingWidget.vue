@@ -6,6 +6,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
+import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import MessageTextIcon from '@/assets/images/icons/message-text-square.svg'
 import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
@@ -17,6 +18,13 @@ const props = defineProps({
 })
 
 const chatStore = useChatStore()
+
+const isCreatorAccount = computed(() => {
+  const ud = resolveParentUserData()
+  return ud?.accountType === 'creator'
+    || window.userSpecifiData?.currentUser?.isCreator === true
+    || localStorage.getItem('isCreator') === 'true'
+})
 
 const isListOpen = ref(false)
 const currentUserId = ref(null)
@@ -567,6 +575,10 @@ onMounted(async () => {
     s.init()
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
+
+    // Pre-fetch global chat data
+    chatStore.fetchBlockedUsers(currentUserId.value, isCreatorAccount.value).catch(() => {})
+    chatStore.fetchChatBookingsAndEvents(currentUserId.value, isCreatorAccount.value).catch(() => {})
 
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [

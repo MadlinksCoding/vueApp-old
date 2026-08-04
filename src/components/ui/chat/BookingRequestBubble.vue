@@ -479,10 +479,25 @@ onMounted(async () => {
   const bookingId = content.value.booking_id
   if (!bookingId) return
 
-  // Already pre-fetched by ChatWindow watcher or socket handler — skip
-  if (chatStore.getBookingById(bookingId)) return
+  const existingBooking = chatStore.getBookingById(bookingId)
+
+  let needsFetch = true
+  if (existingBooking) {
+    const end = parseDate(existingBooking.endIso || existingBooking.endAtIso)
+    const currentMs = Date.now()
+    const isPassed = end && (currentMs > end.getTime())
+    if (isPassed) {
+      needsFetch = false
+    }
+  }
+
+  if (!needsFetch) {
+    checkClamped()
+    return
+  }
 
   loading.value = true
+  console.error("Fetching booking details for bookingId:", bookingId)
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
   loading.value = false
 

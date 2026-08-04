@@ -233,15 +233,28 @@ let _ticker = null
 onMounted(()   => { 
   _ticker = setInterval(() => { now.value = Date.now() }, 1000) 
 
-  // Auto-fetch booking if missing
-  if (!props.booking && content.value?.booking_id) {
-    FlowHandler.run('bookings.fetchBooking', { bookingId: content.value.booking_id }).then(res => {
-      if (res?.ok && res.data?.item) {
-        chatStore.setBooking(content.value.booking_id, res.data.item)
+  // Auto-fetch booking if missing or if it's upcoming
+  if (content.value?.booking_id) {
+    const bookingId = content.value.booking_id
+    const currentBooking = props.booking || chatStore.getBookingById(bookingId)
+    
+    let needsFetch = true
+    if (currentBooking) {
+      const explicitEnd = (parseDate(currentBooking.endIso || currentBooking.endAtIso) ?? parseHkt(content.value.end_at))?.getTime()
+      if (explicitEnd && Date.now() > explicitEnd) {
+        needsFetch = false
       }
-    }).catch(err => {
-      console.error('Failed to fetch missing booking in LiveCallRequest:', err)
-    })
+    }
+
+    if (needsFetch) {
+      FlowHandler.run('bookings.fetchBooking', { bookingId }).then(res => {
+        if (res?.ok && res.data?.item) {
+          chatStore.setBooking(bookingId, res.data.item)
+        }
+      }).catch(err => {
+        console.error('Failed to fetch missing booking in LiveCallRequest:', err)
+      })
+    }
   }
 })
 onUnmounted(() => clearInterval(_ticker))
