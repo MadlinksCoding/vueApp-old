@@ -135,13 +135,18 @@ const isRefreshingAvailability = ref(false);
 const timeSlotScrollContainer = ref(null);
 const canScrollTimeSlotsLeft = ref(false);
 const canScrollTimeSlotsRight = ref(false);
+const currentTimeMs = ref(Date.now());
 let availabilityRefreshTimerId = null;
+let currentTimeRefreshTimerId = null;
+let lastTimeSlotScrollLeft = 0;
+let timeSlotScrollContextVersion = 0;
 
 const AVAILABILITY_REFRESH_INTERVAL_MS = 15000;
+const MINUTE_MS = 60 * 1000;
 
 const selectedDateIso = computed(() => (state.selected ? formatLocalDateIso(state.selected) : null));
 const todayDateIso = computed(() => (
-  getFixedOffsetDateTimeParts(Date.now(), displayTimezoneOffsetMinutes.value)?.dateIso
+  getFixedOffsetDateTimeParts(currentTimeMs.value, displayTimezoneOffsetMinutes.value)?.dateIso
   || formatLocalDateIso(new Date())
 ));
 
@@ -434,6 +439,8 @@ function buildCandidateSlotsForDisplayDate(
     });
 
     slots.forEach((slot) => {
+      if (Number.isFinite(slot.startMs) && slot.startMs < currentTimeMs.value) return;
+
       const displayParts = getFixedOffsetDateTimeParts(
         slot.startMs,
         displayTimezoneOffsetMinutes.value,
@@ -634,6 +641,25 @@ function stopAvailabilityRefreshTimer() {
   availabilityRefreshTimerId = null;
 }
 
+function stopCurrentTimeRefreshTimer() {
+  if (!currentTimeRefreshTimerId) return;
+  clearTimeout(currentTimeRefreshTimerId);
+  currentTimeRefreshTimerId = null;
+}
+
+function startCurrentTimeRefreshTimer() {
+  stopCurrentTimeRefreshTimer();
+
+  const refreshAtMinuteBoundary = () => {
+    const nowMs = Date.now();
+    currentTimeMs.value = nowMs;
+    const delayMs = MINUTE_MS - (nowMs % MINUTE_MS);
+    currentTimeRefreshTimerId = setTimeout(refreshAtMinuteBoundary, delayMs);
+  };
+
+  refreshAtMinuteBoundary();
+}
+
 function startAvailabilityRefreshTimer() {
   if (!shouldAutoRefreshAvailability.value || availabilityRefreshTimerId) return;
   availabilityRefreshTimerId = setInterval(() => {
@@ -646,6 +672,7 @@ function startAvailabilityRefreshTimer() {
 
 function handleVisibilityRefresh() {
   if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+  startCurrentTimeRefreshTimer();
   refreshAvailabilityAndValidateSelection({
     notifyOnConflict: true,
     reason: 'step2-availability-refresh-visible',
@@ -1002,6 +1029,12 @@ const timeSlotHourColumns = computed(() => {
   return columns;
 });
 
+const timeSlotLayoutSignature = computed(() => (
+  timeSlotHourColumns.value.map((column) => (
+    `${column.key}:${column.slots.map((slot) => `${slot.startMs}:${slot.value}`).join(",")}`
+  )).join("|")
+));
+
 const configuredOffHourSurchargeTokens = computed(() => {
   const raw = selectedEvent.value?.raw || {};
   const enabled = toBoolean(
@@ -1031,6 +1064,7 @@ function updateTimeSlotScrollControls() {
     return;
   }
 
+  lastTimeSlotScrollLeft = Math.max(0, Number(container.scrollLeft) || 0);
   const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
   canScrollTimeSlotsLeft.value = container.scrollLeft > 1;
   canScrollTimeSlotsRight.value = container.scrollLeft < maxScrollLeft - 1;
@@ -1070,10 +1104,25 @@ function scrollTimeSlotColumns(direction) {
 }
 
 async function resetTimeSlotScroll() {
+  timeSlotScrollContextVersion += 1;
+  lastTimeSlotScrollLeft = 0;
   await nextTick();
   const container = timeSlotScrollContainer.value;
   if (!container) return;
   container.scrollLeft = 0;
+  updateTimeSlotScrollControls();
+}
+
+async function preserveTimeSlotScroll() {
+  const contextVersion = timeSlotScrollContextVersion;
+  const scrollLeft = lastTimeSlotScrollLeft;
+  await nextTick();
+  if (contextVersion !== timeSlotScrollContextVersion) return;
+
+  const container = timeSlotScrollContainer.value;
+  if (!container) return;
+  const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+  container.scrollLeft = Math.min(scrollLeft, maxScrollLeft);
   updateTimeSlotScrollControls();
 }
 
@@ -1146,10 +1195,31 @@ const durationOptions = computed(() => {
   }));
 });
 
+const effectivePrivateMaxSessionCount = computed(() => {
+  if (!selectedTime.value || selectedTime.value.disabled) {
+    return privateMaxSessionCount.value;
+  }
+
+  const highestEnabledDuration = durationOptions.value.reduce((highest, option) => {
+    if (option.disabled || !Number.isFinite(option.value)) return highest;
+    return Math.max(highest, option.value);
+  }, 0);
+  if (highestEnabledDuration <= 0) return 1;
+
+  return Math.max(
+    1,
+    Math.min(
+      privateMaxSessionCount.value,
+      Math.floor(highestEnabledDuration / baseSessionDurationMinutes.value),
+    ),
+  );
+});
+
 function formatDurationLabel(minutes) {
   const duration = Number(minutes || 0);
   if (!Number.isFinite(duration) || duration <= 0) return `0 ${t('fan_booking_min_short').toLowerCase()}`;
   if (duration <= 60) return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
+  return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
 
   const hours = Math.floor(duration / 60);
   const remainingMinutes = duration % 60;
@@ -1240,20 +1310,24 @@ const hasAvailableLongerSessionDiscount = computed(() => {
   const minimumSessions = longerDiscountMinimumSessionCount.value;
 
   return allowPrivateLongerSessions.value
-    && privateMaxSessionCount.value > 1
+    && effectivePrivateMaxSessionCount.value > 1
     && enabled
     && Number.isFinite(amount)
     && amount > 0
     && minimumSessions > 1
-    && minimumSessions <= privateMaxSessionCount.value;
+    && minimumSessions <= effectivePrivateMaxSessionCount.value;
 });
 
 const longerDiscountRemainingSessionCount = computed(() => (
   Math.max(0, longerDiscountMinimumSessionCount.value - selectedSessionCount.value)
 ));
 
+const isLongerDiscountAchieved = computed(() => (
+  longerDiscountRemainingSessionCount.value === 0
+));
+
 const longerDiscountNoticeLabel = computed(() => {
-  if (longerDiscountRemainingSessionCount.value === 0) {
+  if (isLongerDiscountAchieved.value) {
     return t('fan_booking_longer_discount_achieved');
   }
 
@@ -1264,10 +1338,10 @@ const longerDiscountNoticeLabel = computed(() => {
 });
 
 const maximumSessionCountLabel = computed(() => {
-  const translationKey = privateMaxSessionCount.value === 1
+  const translationKey = effectivePrivateMaxSessionCount.value === 1
     ? 'fan_booking_session_maximum'
     : 'fan_booking_sessions_maximum';
-  return t(translationKey, { count: privateMaxSessionCount.value });
+  return t(translationKey, { count: effectivePrivateMaxSessionCount.value });
 });
 
 const maxSessionDurationDisplayLabel = computed(() => (
@@ -1277,7 +1351,7 @@ const maxSessionDurationDisplayLabel = computed(() => (
 const isAtMaximumDuration = computed(() => (
   Boolean(selectedTime.value && !selectedTime.value.disabled)
   && Boolean(selectedDurationObj.value)
-  && selectedDurationDisplayMinutes.value >= privateMaxSessionDurationMinutes.value
+  && selectedSessionCount.value >= effectivePrivateMaxSessionCount.value
 ));
 
 const canAdjustDuration = computed(() => (
@@ -1958,14 +2032,21 @@ watch(
 );
 
 watch(
-  () => [
-    selectedDateIso.value,
-    timeSlotHourColumns.value.map((column) => (
-      `${column.key}:${column.slots.map((slot) => slot.value).join(",")}`
-    )).join("|"),
+  [
+    selectedDateIso,
+    displayTimezoneOffsetMinutes,
+    () => getEventIdentity(selectedEvent.value),
   ],
   () => {
     resetTimeSlotScroll();
+  },
+  { flush: "post" },
+);
+
+watch(
+  timeSlotLayoutSignature,
+  () => {
+    preserveTimeSlotScroll();
   },
   { flush: "post" },
 );
@@ -2041,12 +2122,14 @@ onMounted(() => {
   hydrateAddons();
   hydrateFromState();
   refreshWalletBalance();
+  startCurrentTimeRefreshTimer();
   startAvailabilityRefreshTimer();
   resetTimeSlotScroll();
 });
 
 onBeforeUnmount(() => {
   stopAvailabilityRefreshTimer();
+  stopCurrentTimeRefreshTimer();
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', handleVisibilityRefresh);
     document.removeEventListener('click', handleTimezoneOutsideClick);
@@ -2379,6 +2462,40 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     </div>
                   </div>
                 </div>
+
+                <div
+                  v-if="hasAvailableLongerSessionDiscount"
+                  class="flex items-center gap-1"
+                  data-testid="booking-flow-longer-discount-notice"
+                >
+                  <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                  <p
+                    class="text-sm font-normal leading-5"
+                    :class="isLongerDiscountAchieved ? 'text-[#07F468]' : 'text-[#FCE40D]'"
+                  >
+                    {{ longerDiscountNoticeLabel }}
+                  </p>
+                </div>
+                
+                <p
+                  v-if="showDurationMaxNotice"
+                  class="hidden items-center gap-1 text-sm font-normal leading-[18px]"
+                  :class="durationMaxNoticeClass"
+                  data-testid="booking-flow-duration-max-warning"
+                >
+                  <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                  <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
+                </p>
+                <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+                
+              </div>
+              
+
+              <div
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
+                data-testid="booking-flow-price-breakdown"
+              >
                 <div class="flex flex-col gap-2">
                   <p
                     v-if="showDurationOverlapNotice"

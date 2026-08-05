@@ -274,7 +274,7 @@
         <button
           :class="[
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
-            isStickyCardVisible ? 'bottom-[7rem] md:bottom-2' : 'bottom-2'
+            isStickyCardVisible ? 'bottom-[7rem] md:bottom-2 ipad-portrait-small:bottom-2 ipad-portrait-small:left-3' : 'bottom-2'
           ]"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
@@ -407,7 +407,7 @@
 
 
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div class="flex shrink-0" :class="[theme.main.xHeader]">
+      <div class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0" :class="[theme.main.xHeader]">
 
         <div :class="[theme.main.axisXLabel, 'shrink-0']">
           <div
@@ -475,7 +475,7 @@
               >
                 {{ d.getDate() }}
               </span>
-              <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+              <div class="px-2 py-[2px] flex items-center justify-end gap-[2px] hidden">
                 <span class="text-xs font-medium text-[#F06]">+</span>
                 <img :src="TokenIcon" alt="" class="w-4 h-4" />
                 <span class="text-xs font-medium text-[#F06]">3,800</span>
@@ -504,7 +504,7 @@
                 </button>
               </span>
             </div>
-            <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+            <div class="px-2 py-[2px] flex items-center justify-end gap-[2px] hidden">
               <span class="text-xs font-medium text-[#F06]">+</span>
               <img :src="TokenIcon" alt="" class="w-4 h-4" />
               <span class="text-xs font-medium text-[#F06]">3,800</span>
@@ -514,7 +514,7 @@
 
         <div
           v-else-if="isWeekEventColumnMode"
-          class="flex min-w-0 w-full items-center h-[6rem] pl-2"
+          class="flex min-w-0 w-full items-center pl-2"
           data-test="calendar-week-event-header"
         >
           <div
@@ -528,7 +528,7 @@
             @click.capture="handleWeekHeaderClickCapture"
           >
             <div
-              class="flex h-[6rem]"
+              class="flex"
               :style="weekEventTrackStyle"
               data-test="calendar-week-event-header-track"
             >
@@ -537,7 +537,7 @@
                 :key="'week-header-' + group.dateKey"
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
-                :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
+                :class="group.isSelected ? 'bg-white/50 opacity-100 rounded-t-[10px]' : 'opacity-30'"
                 :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"
@@ -564,7 +564,7 @@
                 >
                   {{ group.day.getDate() }}
                 </span>
-                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px] hidden">
                   <span class="text-xs font-medium" :class="sameDay(group.day, today) ? 'text-[#F06]' : 'text-[#344054]'">+</span>
                   <img :src="TokenIcon" alt="" class="w-4 h-4" />
                   <span class="text-xs font-medium" :class="sameDay(group.day, today) ? 'text-[#F06]' : 'text-[#344054]'">3,800</span>
@@ -616,8 +616,8 @@
       <div
         ref="timeGridScrollRef"
         data-cal-time-scroll
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row">
-        <div class="flex flex-col shrink-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row relative">
+        <div class="flex flex-col shrink-0 absolute ipad-portrait-small:absolute md:relative top-0 right-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + idx + '-' + t"
             :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(idx) ? ' !text-[#F06] !font-semibold' : '']"
             data-test="calendar-time-label"
@@ -809,7 +809,7 @@
                 {{ d.getDate() }}
                 </div>  
 
-                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px]">
+                <div class="px-2 py-[2px] flex items-center justify-end gap-[2px] hidden">
                   <span class="text-xs font-medium" :class="sameDay(d, today) ? 'text-[#F06]' : 'text-[#344054]'">+</span>
                   <img :src="TokenIcon" alt="" class="w-4 h-4" />
                   <span class="text-xs font-medium" :class="sameDay(d, today) ? 'text-[#F06]' : 'text-[#344054]'">3,800</span>
@@ -1387,7 +1387,7 @@ const calendarPopupConfig = {
   offset: "0px",
   speed: "250ms",
   effect: "ease-in-out",
-  showOverlay: true,
+  showOverlay: false,
   closeOnOutside: true,
   lockScroll: true,
   escToClose: true,
@@ -1443,7 +1443,7 @@ const eventDetailsPopupConfig = computed(() => {
     offset: "0px",
     speed: "250ms",
     effect: "ease-in-out",
-    showOverlay: true,
+    showOverlay: !(width.value >= 1024 && width.value <= 1279),
     closeOnOutside: true,
     lockScroll: true,
     escToClose: true,

@@ -25,13 +25,13 @@ export default {
           raw: '(max-width: 1366px) and (orientation: portrait)',
         },
         'ipad-portrait-large': {
-          raw: '(min-width: 1024px) and (max-width: 1279px) and (orientation: portrait)',
+          raw: '(min-width: 1024px) and (max-width: 1279px)',
         },
         'ipad-portrait-small': {
           raw: '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)',
         },
         'ipad-landscape-large': {
-          raw: '(min-width: 1024px) and (max-width: 1365px) and (orientation: landscape)',
+          raw: '(min-width: 1280px) and (max-width: 1365px) and (orientation: landscape)',
         },
       },
       fontFamily: {

@@ -499,7 +499,7 @@ export const bookingMessages = {
   booking_validation_advance_cancel_unit_required: "Advance cancellation unit is required.",
   booking_validation_off_hour_surcharge_range: "Off-hour surcharge must be at least 1 token per session.",
   booking_validation_extend_session_max_min: "Extension session maximum must be at least 1 session.",
-  booking_validation_reminder_time_min: "Reminder time must be at least 1 minute.",
+  booking_validation_reminder_time_min: "Reminder time must be at least 10 minutes.",
   booking_validation_max_bookings_per_day_min: "Maximum bookings per day must be at least 1.",
   booking_validation_max_attendees_min: "Maximum participants must be at least 1.",
   booking_validation_recurring_discount_min_events: "Recurring discount minimum must be at least 2 events.",

@@ -41,6 +41,11 @@ function fieldNumber(value, fallback = "") {
   return Number.isFinite(parsed) ? String(parsed) : fallback;
 }
 
+function requiredIntegerField(value, minimum, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= minimum ? String(parsed) : String(fallback);
+}
+
 function normalizeArray(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -320,6 +325,17 @@ export function mapEventToBookingFormState(event = {}) {
     : "private";
   const repeatRule = normalizeRepeatRule(event.repeatRule);
   const primary = derivePrimaryLocalSlot(event);
+  const reminderEnabled = bool(
+    event.enableCallReminderMinutesBefore ?? event.setReminders,
+    false,
+  );
+  const bufferEnabled = bool(event.enableBufferTime, false);
+  const remindMeTime = reminderEnabled
+    ? requiredIntegerField(event.callReminderMinutesBefore, 10, 10)
+    : "10";
+  const bufferTime = bufferEnabled
+    ? requiredIntegerField(event.bookingBufferMinutes, 5, 5)
+    : "5";
 
   return {
     editEventId: event.eventId || event.id || "",
@@ -358,8 +374,8 @@ export function mapEventToBookingFormState(event = {}) {
         ?? event.offHourSurchargePercent,
       "",
     ),
-    remindMeTime: fieldNumber(event.callReminderMinutesBefore, ""),
-    bufferTime: fieldNumber(event.bookingBufferMinutes, ""),
+    remindMeTime,
+    bufferTime,
     bufferUnit: "minutes",
     maxBookingsPerDay: fieldNumber(event.maxBookingsPerDay, ""),
     rescheduleFee: fieldNumber(event.rescheduleFeeTokens, ""),
@@ -379,7 +395,7 @@ export function mapEventToBookingFormState(event = {}) {
     disableChatDuringCall: bool(event.disableChatDuringCall, false),
     disableChatDuringCallAllowEmoji: bool(event.disableChatDuringCallAllowEmoji, false),
     requestExtendSession: bool(event.fanCanRequestExtend, false),
-    setBufferTime: bool(event.enableBufferTime, false),
+    setBufferTime: true,
     setMaxBookings: bool(event.enableMaxBookingsPerDay, false),
     eventGoalTokens: fieldNumber(event.eventGoalTokens, ""),
     enableMinContributionPerUser: event.minContributionPerUser !== null && event.minContributionPerUser !== undefined,
@@ -402,7 +418,7 @@ export function mapEventToBookingFormState(event = {}) {
     spendingRequirement: stringValue(event.spendingRequirement, "none"),
     minSpendTokens: fieldNumber(event.minSpendTokens, ""),
     requiredProducts: normalizeArray(event.requiredProducts),
-    setReminders: bool(event.enableCallReminderMinutesBefore ?? event.setReminders, false),
+    setReminders: true,
     status: stringValue(event.status, "active"),
     originalEvent: event,
     formMode: "edit",
