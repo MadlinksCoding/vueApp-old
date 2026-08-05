@@ -173,6 +173,29 @@
                 <div class="text-gray-950 text-sm font-normal leading-5">{{ reminderLabel }}</div>
               </div>
 
+               <!-- Session Cost -->
+                <!-- Minimum Charge -->
+              <div class="inline-flex items-start gap-4">
+                <div class="w-5 h-5 flex-shrink-0 relative overflow-hidden">
+                  <img :src="DollarIcon" alt="" class="filter invert-[0.6] sepia-[0.1] saturate-[0.1] hue-rotate-[180deg] object-contain w-full h-full opacity-70">
+                </div>
+                <div class="inline-flex flex-col items-start gap-1.5">
+                  <div class="text-gray-950 text-sm font-semibold leading-5">Session Cost</div>
+                  <div class="self-stretch inline-flex justify-start items-start gap-2">
+                    <div class="justify-start text-gray-900 text-base font-normal line-through leading-6 line-clamp-1">332 Tokens</div>
+                    <div class="flex-1 justify-start text-[#FF4405] text-base font-semibold leading-6 line-clamp-1">1,337 Tokens</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Remarks section -->
+               <div class="self-stretch p-4 bg-orange-50 rounded-[5px] inline-flex justify-start items-start gap-4">
+                  <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-2">
+                    <div class="justify-center text-[#BC1B06] text-sm font-semibold leading-5">@jennyhunny’s remarks:</div>
+                    <div class="self-stretch justify-center text-[#BC1B06] text-sm font-normal leading-5">I charge a flat rate of 500 tokens for each personal request. for you I need to charge USD 40 worth of tokens more for the special costume you requested on top of that.</div>
+                  </div>
+                </div>
+
             </div>
 
             <!-- Expired State (Global for pending / counter_offer) -->
@@ -289,15 +312,28 @@
             </div>
             <!-- {{ currentAction }} -->
 
+            <!-- Accepy And Pay -->
+            <div class="self-stretch inline-flex flex-col sm:flex-row justify-start items-center gap-1">
+              <div @click="showAcceptPayPopup = true" class="flex-1 px-3 py-2 bg-[#07F468] rounded-sm flex justify-center items-center gap-1 self-stretch cursor-pointer">
+                <div class="justify-start text-gray-900 text-sm font-semibold uppercase leading-5">Accept & pay</div>
+              </div>
+              <div class="flex-1 px-3 py-2 rounded-sm outline outline-1 outline-offset-[-1px] outline-[#EE3400] flex justify-center items-center gap-1 self-stretch cursor-pointer">
+                <div class="justify-start text-[#EE3400] text-sm font-semibold uppercase leading-5">cancel booking</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </Teleport>
+
+  <!-- Accept & Pay Dummy Popup -->
+  <AcceptAndPayPopup :show="showAcceptPayPopup" @close="showAcceptPayPopup = false" />
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue'
+import AcceptAndPayPopup from './AcceptAndPayPopup.vue'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import { getBookingJoinState, openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
@@ -332,6 +368,7 @@ const fetchLoading  = ref(true)
 const fetchError    = ref(null)
 const booking       = ref(props.booking || null)
 const menuOpen      = ref(false)
+const showAcceptPayPopup = ref(false)
 
 const messageContent = computed(() => props.message?.content || {})
 const currentAction  = ref(messageContent.value.action || 'pending')
