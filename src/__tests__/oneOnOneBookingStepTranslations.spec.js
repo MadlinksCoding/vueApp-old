@@ -103,7 +103,9 @@ function mountOptions(translations = {}) {
       },
       MagnifyingGlassIcon: true,
       PopupHandler: {
-        template: "<div><slot /></div>",
+        props: ["modelValue"],
+        emits: ["update:modelValue"],
+        template: "<div v-show='modelValue'><slot /></div>",
       },
       SpendingRequirementProductPopup: true,
       ThumbnailUploaderNay: {
@@ -409,6 +411,7 @@ describe("one-on-one booking step translations", () => {
     });
 
     expect(wrapper.find("[data-booking-validation-tooltip='true']").exists()).toBe(true);
+    expect(wrapper.get("[data-booking-validation-tooltip-field='duration']").text()).toContain("↗");
 
     await wrapper.get("[data-booking-validation-tooltip-field='duration']").trigger("click");
     await nextTick();
@@ -419,6 +422,30 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
 
     expect(wrapper.find("[data-booking-validation-tooltip='true']").exists()).toBe(true);
+  });
+
+  it("renders plain soft-disabled tooltip text without an action arrow", async () => {
+    const { default: SoftDisabledBookingButton } = await import(
+      "@/components/ui/form/BookingForm/HelperComponents/SoftDisabledBookingButton.vue"
+    );
+
+    const wrapper = mount(SoftDisabledBookingButton, {
+      props: {
+        text: "Update & Publish",
+        softDisabled: true,
+        tooltipText: "Your event settings haven’t changed.",
+      },
+    });
+
+    const tooltip = wrapper.get("[data-booking-validation-tooltip='true']");
+    expect(tooltip.get("[data-booking-informational-tooltip-row='true']").text())
+      .toBe("Your event settings haven’t changed.");
+    expect(tooltip.find("button").exists()).toBe(false);
+    expect(tooltip.find("[data-booking-validation-tooltip-field]").exists()).toBe(false);
+    expect(tooltip.text()).not.toContain("↗");
+
+    await tooltip.trigger("click");
+    expect(wrapper.emitted("tooltip-select")).toBeUndefined();
   });
 
   it("clicking a step 1 tooltip row reveals, scrolls, and focuses that field", async () => {
@@ -1605,6 +1632,81 @@ describe("one-on-one booking step translations", () => {
     expect(startDateInput.attributes("max")).toBeUndefined();
   });
 
+  it("restores recurring date bounds after a round trip through custom", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          repeatRule: "weekly",
+          dateFrom: "2026-08-01",
+          dateTo: "2026-08-31",
+          oneTimeAvailability: [{
+            id: "date_existing",
+            date: "2026-09-10",
+            slots: [{ startTime: "12:00", endTime: "15:00" }],
+          }],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.formData.repeatRule = "doesNotRepeat";
+    await nextTick();
+    expect(wrapper.vm.formData.dateFrom).toBe("2026-09-10");
+    expect(wrapper.vm.formData.dateTo).toBe("2026-09-10");
+
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+    expect(wrapper.vm.formData.dateFrom).toBe("2026-08-01");
+    expect(wrapper.vm.formData.dateTo).toBe("2026-08-31");
+  });
+
+  it("retains recurring date bounds while custom is remounted between steps", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventId: "evt_recurring_remount",
+      repeatRule: "weekly",
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      oneTimeAvailability: [{
+        id: "date_existing",
+        date: "2026-09-10",
+        slots: [{ startTime: "12:00", endTime: "15:00" }],
+      }],
+    });
+
+    let wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    wrapper.vm.formData.repeatRule = "doesNotRepeat";
+    await nextTick();
+    wrapper.unmount();
+
+    wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+
+    expect(wrapper.vm.formData.dateFrom).toBe("2026-08-01");
+    expect(wrapper.vm.formData.dateTo).toBe("2026-08-31");
+  });
+
   it("shows private fixed discount helper amounts", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -2680,6 +2782,254 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.vm.formData).toEqual(expect.objectContaining(hydratedFields));
   });
 
+  it("detects only current logical persisted edit differences", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const baseline = {
+      eventTitle: "Original event",
+      repeatRule: "weekly",
+      selectedDate: "2026-08-01",
+      selectedStartTime: "09:00",
+      selectedEndTime: "10:00",
+      weeklyAvailability: [{ key: "mon", slots: [{ startTime: "09:00", endTime: "10:00" }] }],
+      monthlyAvailability: [{ startTime: "12:00", endTime: "13:00" }],
+      oneTimeAvailability: [],
+      addOns: [],
+      blockedUsers: [],
+      xPostLive: false,
+      on_schedule_live: false,
+      blockedUserSearch: "",
+      coPerformerSearch: "",
+    };
+    const engine = createEngine(JSON.parse(JSON.stringify(baseline)));
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_logical_changes",
+        editBaseline: baseline,
+      },
+      global: mountOptions(),
+    });
+    let refreshIndex = 0;
+    async function refreshEditState() {
+      refreshIndex += 1;
+      wrapper.vm.formData.personalRequestNote = `refresh-${refreshIndex}`;
+      await nextTick();
+    }
+
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(false);
+
+    engine.setState("monthlyAvailability", [{ startTime: "14:00", endTime: "15:00" }]);
+    engine.setState("selectedDate", "2026-09-01");
+    engine.setState("blockedUserSearch", "temporary query");
+    await refreshEditState();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(false);
+
+    engine.setState("weeklyAvailability", [{ key: "mon", slots: [{ startTime: "09:30", endTime: "10:00" }] }]);
+    await refreshEditState();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(true);
+
+    engine.setState("weeklyAvailability", JSON.parse(JSON.stringify(baseline.weeklyAvailability)));
+    wrapper.vm.formData.addOns = [{ title: "Replay", description: "", priceTokens: "10" }];
+    await nextTick();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(true);
+
+    wrapper.vm.formData.addOns = [];
+    wrapper.vm.formData.blockedUsers = [1408];
+    await nextTick();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(true);
+
+    wrapper.vm.formData.blockedUsers = [];
+    wrapper.vm.formData.xPostLive = true;
+    await nextTick();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(true);
+
+    wrapper.vm.formData.xPostLive = false;
+    engine.setState("eventTitle", "Original event");
+    await nextTick();
+    expect(wrapper.vm.hasLogicalEditChanges).toBe(false);
+  });
+
+  it("validates edit submissions before confirmation and reports unchanged or reverted edits", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      allowPersonalRequest: false,
+      eventType: "1on1-call",
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_confirmation_validation",
+        editBaseline: { allowPersonalRequest: false },
+      },
+      global: mountOptions({
+        booking_edit_confirmation_message: "Translated confirmation message",
+        booking_edit_confirmation_back: "TRANSLATED BACK",
+        booking_edit_confirmation_save_changes: "TRANSLATED SAVE",
+        booking_nothing_to_update_message: "Translated unchanged message",
+      }),
+    });
+
+    await settleValidation();
+    const unchangedAction = wrapper.get("[data-booking-soft-disabled='true']");
+    expect(unchangedAction.get("[data-booking-validation-tooltip='true']").text())
+      .toContain("Translated unchanged message");
+    await unchangedAction.get("button").trigger("click");
+    await settleValidation();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(false);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+
+    wrapper.vm.formData.allowPersonalRequest = true;
+    await settleValidation();
+    expect(wrapper.get("[data-booking-soft-disabled]").attributes("data-booking-soft-disabled"))
+      .toBe("false");
+    await wrapper.vm.createEvent();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").text())
+      .toContain("Translated confirmation message");
+    expect(wrapper.get("[data-test='edit-submit-confirmation-back']").text())
+      .toContain("TRANSLATED BACK");
+    expect(wrapper.get("[data-test='edit-submit-confirmation-save']").text())
+      .toContain("TRANSLATED SAVE");
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+
+    await wrapper.get("[data-test='edit-submit-confirmation-back']").trigger("click");
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(false);
+
+    wrapper.vm.formData.allowPersonalRequest = false;
+    await settleValidation();
+    const revertedAction = wrapper.get("[data-booking-soft-disabled='true']");
+    expect(revertedAction.get("[data-booking-validation-tooltip='true']").text())
+      .toContain("Translated unchanged message");
+    await revertedAction.get("button").trigger("click");
+    await settleValidation();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(false);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+
+    wrapper.vm.formData.allowPersonalRequest = true;
+    engine.validate.mockResolvedValue({
+      valid: false,
+      errors: [{ field: "recordingPrice", translationKey: "booking_validation_recording_price_min" }],
+    });
+    await wrapper.vm.createEvent();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(false);
+    expect(wrapper.find("[data-booking-validation-warning='true']").exists()).toBe(true);
+    expect(wrapper.get("[data-booking-soft-disabled='true']").text()).toContain("Recording price");
+    expect(wrapper.get("[data-booking-soft-disabled='true']").text())
+      .not.toContain("Translated unchanged message");
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("disables confirmation dismissal while updating and closes after success", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    let resolveUpdate;
+    const engine = createEngine({
+      eventTitle: "Updated event",
+      eventType: "1on1-call",
+    });
+    engine.callFlow.mockReturnValue(new Promise((resolve) => {
+      resolveUpdate = resolve;
+    }));
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_confirmation_success",
+        editBaseline: { eventTitle: "Original event" },
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-save']").text())
+      .toContain("SAVE CHANGES");
+    expect(wrapper.find("[data-test='edit-submit-confirmation-spinner']").exists()).toBe(false);
+    const updatePromise = wrapper.vm.confirmEditChanges();
+    await nextTick();
+
+    expect(wrapper.get("[data-test='edit-submit-confirmation-back']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-save']").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-save']").text()).not.toContain("Loading");
+    expect(wrapper.get("[data-test='edit-submit-confirmation-spinner']").attributes("aria-label"))
+      .toBe("Loading");
+    expect(wrapper.vm.editConfirmationPopupConfig.closeOnOutside).toBe(false);
+    expect(wrapper.vm.editConfirmationPopupConfig.escToClose).toBe(false);
+
+    resolveUpdate({ ok: true, data: { eventId: "evt_confirmation_success" } });
+    await updatePromise;
+    await settleValidation();
+
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(false);
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+  });
+
+  it("keeps confirmation open after a failed update and allows retry", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({
+      eventTitle: "Updated event",
+      eventType: "1on1-call",
+    });
+    engine.callFlow
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { message: "Update failed" },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { eventId: "evt_confirmation_retry" },
+      });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        embedded: true,
+        isEditMode: true,
+        editEventId: "evt_confirmation_retry",
+        editBaseline: { eventTitle: "Original event" },
+      },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await wrapper.get("[data-test='edit-submit-confirmation-save']").trigger("click");
+    await settleValidation();
+
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(true);
+    expect(wrapper.find("[data-test='edit-submit-confirmation-spinner']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='edit-submit-confirmation-save']").text())
+      .toContain("SAVE CHANGES");
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Could not update event",
+    }));
+    expect(wrapper.emitted("created")).toBeUndefined();
+
+    await wrapper.vm.confirmEditChanges();
+    await settleValidation();
+
+    expect(engine.callFlow).toHaveBeenCalledTimes(2);
+    expect(wrapper.vm.editConfirmationPopupOpen).toBe(false);
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({
+      mode: "edit",
+    }));
+  });
+
   it("emits edit success before the queued X settings save completes", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
@@ -2712,6 +3062,7 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit",
+        editBaseline: { eventTitle: "Original Event" },
         xPostSettingsHydrationPromise: hydrationPromise,
       },
       global: mountOptions({
@@ -2723,6 +3074,9 @@ describe("one-on-one booking step translations", () => {
     expect(submitButton).toBeTruthy();
 
     await wrapper.vm.createEvent();
+    expect(wrapper.get("[data-test='edit-submit-confirmation-dialog']").isVisible()).toBe(true);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    await wrapper.vm.confirmEditChanges();
     await settleValidation();
 
     expect(engine.callFlow).toHaveBeenCalledWith(
@@ -2795,12 +3149,14 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit_retry",
+        editBaseline: { eventTitle: "Original Event" },
         xPostSettingsHydrationPromise: Promise.resolve({ status: "loaded" }),
       },
       global: mountOptions(),
     });
 
     await wrapper.vm.createEvent();
+    await wrapper.vm.confirmEditChanges();
     await settleValidation();
 
     expect(engine.callFlow).toHaveBeenCalledTimes(1);
@@ -2839,12 +3195,14 @@ describe("one-on-one booking step translations", () => {
         embedded: true,
         isEditMode: true,
         editEventId: "evt_edit_get_failed",
+        editBaseline: { eventTitle: "Original Event" },
         xPostSettingsHydrationPromise: Promise.resolve({ status: "failed" }),
       },
       global: mountOptions(),
     });
 
     await wrapper.vm.createEvent();
+    await wrapper.vm.confirmEditChanges();
     await settleValidation();
 
     expect(engine.callFlow).toHaveBeenCalledTimes(1);
@@ -2895,5 +3253,408 @@ describe("one-on-one booking step translations", () => {
     expect(payload.event_name).toBe("Creator Strategy Call");
     expect(payload.booking_name).toBe("Creator Strategy Call");
     expect(payload.event_name).not.toBe("Booked Slot");
+  });
+
+  it("uses one normalized edit warning for the active calendar availability schedule", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const initialState = {
+      eventTitle: "Original title",
+      eventType: "1on1-call",
+      repeatRule: "weekly",
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      weeklyAvailability: [{
+        key: "sun",
+        name: "Sun",
+        unavailable: false,
+        slots: [{ startTime: "09:00", endTime: "10:00", offHours: false }],
+      }],
+    };
+    const normalizationWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(initialState))),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    const rawBaseline = {
+      ...JSON.parse(JSON.stringify(normalizationWrapper.vm.formData)),
+      oneTimeAvailability: [],
+    };
+    normalizationWrapper.unmount();
+
+    const engine = createEngine(JSON.parse(JSON.stringify(rawBaseline)));
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+        isEditMode: true,
+        editBaseline: rawBaseline,
+        availabilityBaselineReady: false,
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(0);
+    const normalizedAvailability = wrapper.emitted("availability-baseline-ready")?.[0]?.[0];
+    expect(normalizedAvailability).toEqual({
+      weeklyAvailability: wrapper.vm.formData.weeklyAvailability,
+      monthlyAvailability: wrapper.vm.formData.monthlyAvailability,
+      oneTimeAvailability: wrapper.vm.formData.oneTimeAvailability,
+    });
+
+    const baseline = {
+      ...rawBaseline,
+      ...JSON.parse(JSON.stringify(normalizedAvailability)),
+    };
+    await wrapper.setProps({
+      editBaseline: baseline,
+      availabilityBaselineReady: true,
+    });
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(0);
+
+    wrapper.vm.formData.eventTitle = "Updated title";
+    await nextTick();
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(1);
+
+    wrapper.vm.formData.eventTitle = "Original title";
+    await nextTick();
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(0);
+
+    const originalMonthlyStart = wrapper.vm.formData.monthlyAvailability[0].startTime;
+    wrapper.vm.formData.monthlyAvailability[0].startTime = "00:30";
+    await nextTick();
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+
+    wrapper.vm.formData.weeklyAvailability[0].slots[0].startTime = "09:30";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(1);
+
+    wrapper.vm.formData.weeklyAvailability[0].slots[0].startTime = "09:00";
+    await nextTick();
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+
+    wrapper.vm.formData.dateFrom = "2026-08-02";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.dateFrom = "2026-08-01";
+    await nextTick();
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+
+    wrapper.vm.formData.repeatRule = "monthly";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.monthlyAvailability[0].startTime = "00:30";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.monthlyAvailability[0].startTime = originalMonthlyStart;
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+
+    const originalRecurringDateRange = {
+      dateFrom: wrapper.vm.formData.dateFrom,
+      dateTo: wrapper.vm.formData.dateTo,
+    };
+    wrapper.vm.formData.repeatRule = "doesNotRepeat";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+    expect(wrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(1);
+
+    wrapper.vm.formData.oneTimeAvailability[0].date = "2026-09-01";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+    expect(wrapper.vm.formData.dateFrom).toBe(originalRecurringDateRange.dateFrom);
+    expect(wrapper.vm.formData.dateTo).toBe(originalRecurringDateRange.dateTo);
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+  });
+
+  it("clears the calendar warning after an unchanged original custom schedule round trip", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const initialState = {
+      eventType: "1on1-call",
+      repeatRule: "doesNotRepeat",
+      oneTimeAvailability: [{
+        id: "date_original",
+        date: "2026-09-10",
+        slots: [{ startTime: "12:00", endTime: "15:00", offHours: false }],
+      }],
+    };
+    const normalizationWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(initialState))),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    const baseline = JSON.parse(JSON.stringify(normalizationWrapper.vm.formData));
+    normalizationWrapper.unmount();
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(baseline))),
+        bookingType: "private",
+        isEditMode: true,
+        editBaseline: baseline,
+        availabilityBaselineReady: true,
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+
+    wrapper.vm.formData.repeatRule = "weekly";
+    await nextTick();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+
+    wrapper.vm.formData.repeatRule = "doesNotRepeat";
+    await nextTick();
+    expect(wrapper.find("[data-test='availability-edit-impact-warning']").exists()).toBe(false);
+  });
+
+  it("preserves the normalized availability baseline when step 1 remounts", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const baseline = {
+      eventType: "1on1-call",
+      repeatRule: "weekly",
+      weeklyAvailability: [
+        {
+          key: "sun",
+          name: "Sun",
+          unavailable: false,
+          offHours: false,
+          slots: [{ startTime: "09:00", endTime: "10:00", offHours: false }],
+        },
+        ...["mon", "tue", "wed", "thu", "fri", "sat"].map((key) => ({
+          key,
+          name: key.charAt(0).toUpperCase() + key.slice(1),
+          unavailable: true,
+          offHours: false,
+          slots: [],
+        })),
+      ],
+      monthlyAvailability: [{ startTime: "00:00", endTime: "03:00", offHours: false }],
+      oneTimeAvailability: [{
+        id: "date_edit_0",
+        date: "2026-05-07",
+        slots: [{ startTime: "12:00", endTime: "15:00", offHours: false }],
+      }],
+    };
+    const engine = createEngine({
+      ...JSON.parse(JSON.stringify(baseline)),
+      weeklyAvailability: JSON.parse(JSON.stringify(baseline.weeklyAvailability)),
+    });
+    engine.state.weeklyAvailability[0].slots[0].startTime = "09:30";
+
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+        isEditMode: true,
+        editBaseline: baseline,
+        availabilityBaselineReady: true,
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.emitted("availability-baseline-ready")).toBeUndefined();
+    expect(wrapper.findAll("[data-test='availability-edit-impact-warning']")).toHaveLength(1);
+  });
+
+  it("uses the specialized translated edit warning for private and group base prices", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const translations = {
+      booking_base_price_future_bookings_warning: "Translated base-price warning",
+      booking_future_bookings_warning: "Translated general warning",
+      booking_updated_badge: "TRANSLATED UPDATED",
+    };
+
+    function createNormalizedBaseline(state, bookingType) {
+      const normalizationWrapper = shallowMount(OneOnOneBookinStep1, {
+        props: {
+          engine: createEngine(JSON.parse(JSON.stringify(state))),
+          bookingType,
+        },
+        global: mountOptions(translations),
+      });
+      const baseline = JSON.parse(JSON.stringify(normalizationWrapper.vm.formData));
+      normalizationWrapper.unmount();
+      return baseline;
+    }
+
+    const privateBaseline = createNormalizedBaseline({
+      eventType: "1on1-call",
+      eventTitle: "Private event",
+      basePrice: "100",
+    }, "private");
+    const privateWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(privateBaseline))),
+        bookingType: "private",
+        isEditMode: true,
+        editBaseline: privateBaseline,
+        availabilityBaselineReady: true,
+      },
+      global: mountOptions(translations),
+    });
+
+    expect(privateWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    privateWrapper.vm.formData.basePrice = "125";
+    await settleValidation();
+    await privateWrapper.vm.revealStep1ValidationErrors([
+      { field: "basePrice", translationKey: "booking_validation_base_price_required" },
+    ], { scroll: false });
+
+    expect(privateWrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(1);
+    expect(privateWrapper.get("[data-booking-edit-impact-warning='true']").text())
+      .toContain("Translated base-price warning");
+    expect(privateWrapper.get("[data-test='base-price-updated-indicator']").text())
+      .toContain("TRANSLATED UPDATED");
+    expect(privateWrapper.get("[data-booking-validation-warning='true']").text())
+      .toContain("Base price is required.");
+
+    privateWrapper.vm.formData.basePrice = "100";
+    await settleValidation();
+    expect(privateWrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
+    expect(privateWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    privateWrapper.vm.formData.eventTitle = "Updated private event";
+    await settleValidation();
+    expect(privateWrapper.get("[data-booking-edit-impact-warning='true']").text())
+      .toContain("Translated general warning");
+    expect(privateWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    const createWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(privateBaseline))),
+        bookingType: "private",
+      },
+      global: mountOptions(translations),
+    });
+    createWrapper.vm.formData.basePrice = "125";
+    await settleValidation();
+    expect(createWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    const groupBaseline = createNormalizedBaseline({
+      eventType: "group-event",
+      eventTitle: "Group event",
+      priceSetting: "fixedPricePerUser",
+      basePrice: "200",
+    }, "group");
+    const groupWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(groupBaseline))),
+        bookingType: "group",
+        isEditMode: true,
+        editBaseline: groupBaseline,
+        availabilityBaselineReady: true,
+      },
+      global: mountOptions(translations),
+    });
+
+    expect(groupWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    groupWrapper.vm.formData.basePrice = "250";
+    await settleValidation();
+    expect(groupWrapper.findAll("[data-booking-edit-impact-warning='true']")).toHaveLength(1);
+    expect(groupWrapper.get("[data-booking-edit-impact-warning='true']").text())
+      .toContain("Translated base-price warning");
+    expect(groupWrapper.get("[data-test='base-price-updated-indicator']").text())
+      .toContain("TRANSLATED UPDATED");
+
+    await groupWrapper.setProps({ pricingLocked: true });
+    expect(groupWrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
+    expect(groupWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+
+    await groupWrapper.setProps({ pricingLocked: false });
+    groupWrapper.vm.formData.priceSetting = "eventGoal";
+    await settleValidation();
+    expect(groupWrapper.find("[data-test='base-price-updated-indicator']").exists()).toBe(false);
+  });
+
+  it("adds step 2 edit-impact warnings without using validation markers", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({ eventType: "1on1-call", recordingPrice: "20" });
+    engine.validate = vi.fn(() => Promise.resolve({
+      valid: false,
+      errors: [
+        { field: "recordingPrice", translationKey: "booking_validation_recording_price_min" },
+      ],
+    }));
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions({
+        booking_future_bookings_warning: "Translated future-bookings warning",
+      }),
+    });
+    const baseline = JSON.parse(JSON.stringify(wrapper.vm.formData));
+    await wrapper.setProps({ isEditMode: true, editBaseline: baseline });
+
+    wrapper.vm.formData.recordingPrice = "25";
+    await nextTick();
+    await wrapper.vm.revealStep2ValidationErrors(
+      [{ field: "recordingPrice", translationKey: "booking_validation_recording_price_min" }],
+      { scroll: false },
+    );
+    await settleValidation();
+
+    const editWarning = wrapper.get("[data-booking-edit-impact-warning='true']");
+    expect(editWarning.text()).toContain("Translated future-bookings warning");
+    expect(editWarning.attributes("data-booking-validation-warning")).toBeUndefined();
+    expect(wrapper.get("[data-booking-validation-warning='true']").text())
+      .toContain("Recording price must be 0 or higher.");
+
+    wrapper.vm.formData.recordingPrice = "20";
+    await nextTick();
+    expect(wrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
+  });
+
+  it("shows and clears edit-impact warnings for popup-local X message changes", async () => {
+    const { default: TwitterRepostSettings } = await import(
+      "@/components/ui/popup/TwitterRepostSettings.vue"
+    );
+    const wrapper = mount(TwitterRepostSettings, {
+      props: {
+        isEditMode: true,
+        messageValue: "Original message",
+        baselineMessageValue: "Original message",
+      },
+      global: mountOptions({
+        booking_future_bookings_warning: "Translated future-bookings warning",
+      }),
+    });
+
+    expect(wrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
+
+    await wrapper.get("textarea").setValue("Updated message");
+    expect(wrapper.get("[data-booking-edit-impact-warning='true']").text())
+      .toContain("Translated future-bookings warning");
+
+    await wrapper.get("textarea").setValue("Original message");
+    expect(wrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
   });
 });

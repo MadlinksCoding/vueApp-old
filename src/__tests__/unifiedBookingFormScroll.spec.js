@@ -209,12 +209,37 @@ vi.mock("@/components/dashboard/DashboardWrapperTwoColContainer.vue", () => ({
 vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
   default: {
     name: "OneOnOneBookinStep1",
-    props: ["engine", "embedded", "bookingType", "scheduleLocked", "pricingLocked"],
-    emits: ["schedule-preview-focus"],
+    props: [
+      "engine",
+      "embedded",
+      "bookingType",
+      "scheduleLocked",
+      "pricingLocked",
+      "isEditMode",
+      "editBaseline",
+      "availabilityBaselineReady",
+    ],
+    emits: ["schedule-preview-focus", "availability-baseline-ready"],
     template: `
       <div data-test="step-1">
         Step 1
         <input data-test="step-1-input" />
+        <button
+          data-test="availability-baseline-ready"
+          @click="$emit('availability-baseline-ready', {
+            weeklyAvailability: [{
+              key: 'sun',
+              name: 'Sun',
+              unavailable: false,
+              offHours: false,
+              slots: [{ startTime: '09:00', endTime: '10:00', offHours: false }]
+            }],
+            monthlyAvailability: [{ startTime: '11:00', endTime: '12:00', offHours: false }],
+            oneTimeAvailability: []
+          })"
+        >
+          availability ready
+        </button>
         <button
           data-test="focus-weekly-sunday"
           @click="$emit('schedule-preview-focus', { repeatRule: 'weekly', weekday: 0, startTime: '13:25', interaction: 'field-focus' })"
@@ -235,7 +260,7 @@ vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue", () => ({
 vi.mock("@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue", () => ({
   default: {
     name: "OneOnOneBookinStep2",
-    props: ["engine", "embedded", "bookingType", "xPostSettingsHydrationPromise"],
+    props: ["engine", "embedded", "bookingType", "isEditMode", "editBaseline", "xPostSettingsHydrationPromise"],
     template: "<div data-test='step-2'>Step 2</div>",
   },
 }));
@@ -735,6 +760,83 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     await flushPromises();
   });
 
+  it("rebases normalized availability once and preserves it across step remounts", async () => {
+    mock.route.query = { mode: "edit", eventId: "evt_availability_baseline" };
+    mock.mapEventToBookingFormState.mockReturnValue({
+      eventType: "1on1-call",
+      eventId: "evt_availability_baseline",
+      eventTitle: "Availability Baseline",
+      repeatRule: "weekly",
+      weeklyAvailability: [],
+      monthlyAvailability: [],
+      oneTimeAvailability: [],
+    });
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "events.fetchEvent") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              eventId: "evt_availability_baseline",
+              title: "Availability Baseline",
+              type: "1on1-call",
+            },
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    let step1 = wrapper.getComponent({ name: "OneOnOneBookinStep1" });
+    expect(step1.props("availabilityBaselineReady")).toBe(false);
+
+    await wrapper.get("[data-test='availability-baseline-ready']").trigger("click");
+    await flushPromises();
+
+    step1 = wrapper.getComponent({ name: "OneOnOneBookinStep1" });
+    expect(step1.props("availabilityBaselineReady")).toBe(true);
+    expect(step1.props("editBaseline")).toEqual(expect.objectContaining({
+      weeklyAvailability: [{
+        key: "sun",
+        name: "Sun",
+        unavailable: false,
+        offHours: false,
+        slots: [{ startTime: "09:00", endTime: "10:00", offHours: false }],
+      }],
+      monthlyAvailability: [{ startTime: "11:00", endTime: "12:00", offHours: false }],
+      oneTimeAvailability: [],
+    }));
+
+    mock.engine.emit("step:changed", { prev: 1, next: 2 });
+    await flushPromises();
+    expect(wrapper.find("[data-test='step-2']").exists()).toBe(true);
+
+    mock.engine.emit("step:changed", { prev: 2, next: 1 });
+    await flushPromises();
+    step1 = wrapper.getComponent({ name: "OneOnOneBookinStep1" });
+    expect(step1.props("availabilityBaselineReady")).toBe(true);
+
+    step1.vm.$emit("availability-baseline-ready", {
+      weeklyAvailability: [],
+      monthlyAvailability: [],
+      oneTimeAvailability: [],
+    });
+    await flushPromises();
+    expect(step1.props("editBaseline").weeklyAvailability).toHaveLength(1);
+  });
+
   it("hydrates edit-mode X messages and media in the background with a clean baseline", async () => {
     mock.route.query = { mode: "edit", eventId: "evt_x_settings" };
     mock.mapEventToBookingFormState.mockReturnValue({
@@ -828,6 +930,15 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       on_booking_received: true,
       on_booking_received_message: "",
       on_booking_received_media_url: "",
+    }));
+    const step1 = wrapper.getComponent({ name: "OneOnOneBookinStep1" });
+    expect(step1.props("isEditMode")).toBe(true);
+    expect(step1.props("editBaseline")).toEqual(expect.objectContaining({
+      eventTitle: "Hydrated Event",
+      xPostLive: true,
+      on_schedule_live: true,
+      on_schedule_live_message: "Custom live message",
+      on_schedule_live_media_url: "https://cdn.example.com/live.jpg",
     }));
     await expect(mock.routeLeaveGuard()).resolves.toBe(true);
     expect(wrapper.find("[data-test='unsaved-leave-dialog']").exists()).toBe(false);

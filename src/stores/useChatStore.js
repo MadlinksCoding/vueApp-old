@@ -307,6 +307,42 @@ export const useChatStore = defineStore("chat", {
       }
     },
 
+    async fetchChatBookingsAndEvents(currentUserId, isCreator) {
+      const { default: FlowHandler } = await import('@/services/flow-system/FlowHandler');
+      
+      let res;
+      try {
+        if (isCreator) {
+          res = await FlowHandler.run('bookings.fetchCreatorBookingContext', { creatorId: currentUserId });
+        } else {
+          res = await FlowHandler.run('bookings.fetchDashboardBookingContext', { userRole: 'fan', fanId: currentUserId });
+        }
+
+        if (res?.ok) {
+          if (Array.isArray(res.data?.bookedSlots)) {
+            res.data.bookedSlots.forEach(slot => {
+              const bookingId = slot.id || slot.booking_id || slot.bookingId;
+              if (bookingId) {
+                this.setBooking(bookingId, slot);
+              }
+            });
+          }
+          
+          const events = res.data?.events || res.data?.rawEvents || [];
+          if (Array.isArray(events)) {
+            events.forEach(event => {
+              const eventId = event.id || event.eventId;
+              if (eventId) {
+                this.setEvent(eventId, event);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching chat bookings and events:", err);
+      }
+    },
+
     clearCache() {
       this.messages = {};
       this.pagingStates = {};

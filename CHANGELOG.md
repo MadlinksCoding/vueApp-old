@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-04 — Chat Booking API Optimizations & Event Sync
+
+### Changed
+
+#### `src/stores/useChatStore.js`
+- **Global Pre-fetching** — Renamed `fetchChatBookings` to `fetchChatBookingsAndEvents`. Implemented logic to extract the `events` (or `rawEvents`) array from the fetched dashboard/creator booking contexts and store them globally in the `chatEvents` state using the `setEvent` action.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Widget Initialization** — Integrated the global booking fetch call (`fetchChatBookingsAndEvents`) to trigger directly on widget mount (`onMounted`). This ensures context data is populated immediately upon initialization regardless of the chat entry point.
+
+### Fixed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue` & `src/components/ui/chat/LiveCallRequest.vue`
+- **API Optimization** — Refactored the `onMounted` auto-fetch logic to check the `chatStore` cache first. Conditionally aborts redundant `fetchBooking` API calls if the cached booking has already expired or passed, while still actively fetching updates for upcoming sessions.
+
+## 2026-08-03 — Chat UI Date Grouping & System Message Styling
+
+### Changed
+
+#### `src/components/ui/chat/FlexChat.vue`
+- **Date Headers** — Implemented chat message grouping by date. Added logic to dynamically render a date separator (e.g., "Today", "Sunday", "Friday, July 10", "Friday, July 10, 2025") when a message transitions to a new day.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **System Message Formatting** — Updated specific system messages (`Booking Request`, `Live Call Request`, `Product Recommendation`) to display a timestamp and avatar on the bottom left, matching the visual aesthetic of standard received messages.
+- **System Avatar Logo** — Updated the avatar for these system messages to use the dedicated app logo (`site-logo.svg`).
+
 ## 2026-07-30 — Unified Booking Chat UI Styles
 
 ### Changed
@@ -11,10 +37,26 @@
 
 ### Fixed
 
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Expired Request State UI** — Updated the popup to gracefully handle expired requests across all pending and counter-offer states by conditionally hiding disabled action buttons and replacing them with a non-clickable "Request expired" pill.
+- **Header Status Adjustments** — Disabled the 3-dot menu button and hid the top-right status hint ("Pending", etc.) when a request is expired (`isPassCall` is true) to prevent invalid actions and reduce visual clutter.
+
 #### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Expired Request State UI** — Updated the pending and counter-offer states to conditionally hide disabled action buttons (e.g., "Accept", "Decline") when a request has expired (`isPassCall` is true). Replaced the hidden buttons with a clean "Request expired" message and a "View Details" button to match the user's intended design.
 - **Cancelled Status Icon** — Resolved a visual bug where cancelled or declined requests incorrectly displayed a green checkmark. Conditionally rendered the checkmark strictly for accepted requests and restored the appropriate 'phone cancel' icon for cancelled/declined states.
 - **Missing Imports Fix** — Fixed a `ReferenceError: openScheduledMeetingOverlay is not defined` runtime error by explicitly importing `openScheduledMeetingOverlay` and `getBookingJoinState` from `@/utils/bookingJoinUtils.js`.
 - **Join Call Runtime Error Fix** — Resolved a `ReferenceError: sessionLink is not defined` bug in the `handleJoin` function by utilizing the correct internal reactive property (`joinState.value.joinUrl`) when opening the meeting overlay.
+
+## 2026-07-30 — Fans Interacted With You UI & Pagination Fixes
+
+### Changed
+
+#### `src/components/ui/chat/NewChatPopup.vue`
+- **Fans Interacted With You Section** — Added a new UI block directly above the "Top Followers" section, dynamically displaying users who recently interacted with the creator.
+- **Interaction Labels** — Implemented small tag labels (`text-[10px]`, `text-black`) next to each fan's display name to visually indicate their specific interaction types (e.g. `PPV`, `Tip`, `Call`).
+- **Support Group Chat Integration** — Updated the "Message All" flow to recognize the `fans_interacted_with_you` group, allowing creators to seamlessly initialize broadcast support group chats for this audience.
+- **Pagination Logic Fix** — Refactored the "View more" button display logic (`canLoadMoreInteracted`, `canLoadMoreTop`, `canLoadMoreUnsub`, `canLoadMoreMissed`) to strictly rely on the backend's explicit `has_more` boolean flag. This resolves a bug where the "View more" button would incorrectly remain visible due to deduplication length mismatches when `has_more` was actually `false`.
+
 
 ## 2026-07-30 — Dynamic Session Expiration Reactivity
 

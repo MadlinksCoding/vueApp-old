@@ -2,7 +2,7 @@
   <div
     class="border-l-[4px] shadow-sm font-['Poppins'] w-full"
     :class="[
-      pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'overflow-hidden rounded',
+      pinned ? 'w-full h-full flex flex-col rounded-none border-b border-b-[#E5E7EB]' : 'rounded',
       isPassCall ? 'border-gray-400 bg-[#F2F4F7]' : 'border-[#5549FF] bg-[#F9FAFB]'
     ]"
   >
@@ -148,35 +148,47 @@
 
       <!-- Creator + pending: action buttons -->
       <template v-if="isCreator && resolvedAction === 'pending'">
-        <div class="mt-auto flex flex-col gap-2 w-full items-start">
+        <!-- Expired state: show Request expired -->
+        <div v-if="isPassCall" class="mt-auto flex items-center justify-between gap-1">
+          <div class="flex items-center gap-1">
+            <span class="text-gray-400 text-sm font-medium">Request expired</span>
+          </div>
+          <button
+            type="button"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')"
+          >
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button>
+        </div>
+        <!-- Active state -->
+        <div v-else class="mt-auto flex flex-col gap-2 w-full items-start">
           <div class="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
-              :disabled="disabled || isPassCall"
-              class="px-3 py-1 rounded text-xs font-semibold transition-opacity"
-              :class="isPassCall ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50'"
-              @click.stop="!(disabled || isPassCall) && $emit('accept')"
+              :disabled="disabled"
+              class="px-3 py-1 rounded text-xs font-semibold transition-opacity text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50"
+              @click.stop="!disabled && $emit('accept')"
             >
               Accept
             </button>
             <button
               type="button"
-              :disabled="disabled || isPassCall"
-              class="px-3 py-1 rounded text-xs font-semibold bg-white border transition-colors"
-              :class="isPassCall ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'text-[#EE3400] border-[#EE3400] hover:bg-red-50 disabled:opacity-50'"
-              @click.stop="!(disabled || isPassCall) && $emit('decline')"
+              :disabled="disabled"
+              class="px-3 py-1 rounded text-xs font-semibold bg-white border transition-colors text-[#EE3400] border-[#EE3400] hover:bg-red-50 disabled:opacity-50"
+              @click.stop="!disabled && $emit('decline')"
             >
               Decline
             </button>
           </div>
           <button
             type="button"
-            :disabled="disabled || isPassCall"
-            class="flex items-center gap-1 text-xs transition-colors"
-            :class="isPassCall ? 'text-gray-400 cursor-not-allowed' : 'text-[#5549FF] hover:opacity-80 disabled:opacity-50'"
-            @click.stop="!(disabled || isPassCall) && $emit('adjust')"
+            :disabled="disabled"
+            class="flex items-center gap-1 text-xs transition-colors text-[#5549FF] hover:opacity-80 disabled:opacity-50"
+            @click.stop="!disabled && $emit('adjust')"
           >
-            <img :src="EditIcon" class="w-3 h-3" :class="isPassCall ? 'opacity-40 grayscale' : ''" alt="" />
+            <img :src="EditIcon" class="w-3 h-3" alt="" />
             Adjust request and price
           </button>
         </div>
@@ -202,20 +214,35 @@
 
       <!-- Fan + counter_offer: time-based (moretime / reschedule) -->
       <template v-else-if="!isCreator && resolvedAction === 'counter_offer' && isTimeBasedCounter">
-        <div class="mt-auto flex items-center gap-1.5 flex-wrap">
+        <!-- Expired state: show Request expired -->
+        <div v-if="isPassCall" class="mt-auto flex items-center justify-between gap-1">
+          <div class="flex items-center gap-1">
+            <span class="text-gray-400 text-sm font-medium">Request expired</span>
+          </div>
           <button
             type="button"
-            :disabled="disabled || isPassCall"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')"
+          >
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button>
+        </div>
+        <!-- Active state -->
+        <div v-else class="mt-auto flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click.stop="!(disabled || isPassCall) && $emit('accept-counter')"
+            @click.stop="!disabled && $emit('accept-counter')"
           >
             Accept New Time
           </button>
           <button
             type="button"
-            :disabled="disabled || isPassCall"
+            :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="!(disabled || isPassCall) && $emit('reject-counter')"
+            @click.stop="!disabled && $emit('reject-counter')"
           >
             Reject
           </button>
@@ -244,20 +271,35 @@
             </svg>
           </button>
         </div>
-        <div class="mt-auto flex items-center gap-1.5 flex-wrap">
+        <!-- Expired state: show Request expired -->
+        <div v-if="isPassCall" class="mt-auto flex items-center justify-between gap-1">
+          <div class="flex items-center gap-1">
+            <span class="text-gray-400 text-sm font-medium">Request expired</span>
+          </div>
           <button
             type="button"
-            :disabled="disabled || isPassCall"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')"
+          >
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button>
+        </div>
+        <!-- Active state -->
+        <div v-else class="mt-auto flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click.stop="!(disabled || isPassCall) && $emit('confirm-counter')"
+            @click.stop="!disabled && $emit('confirm-counter')"
           >
             Accept Changes
           </button>
           <button
             type="button"
-            :disabled="disabled || isPassCall"
+            :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="!(disabled || isPassCall) && $emit('cancel-booking')"
+            @click.stop="!disabled && $emit('cancel-booking')"
           >
             Cancel Booking
           </button>
@@ -437,10 +479,25 @@ onMounted(async () => {
   const bookingId = content.value.booking_id
   if (!bookingId) return
 
-  // Already pre-fetched by ChatWindow watcher or socket handler — skip
-  if (chatStore.getBookingById(bookingId)) return
+  const existingBooking = chatStore.getBookingById(bookingId)
+
+  let needsFetch = true
+  if (existingBooking) {
+    const end = parseDate(existingBooking.endIso || existingBooking.endAtIso)
+    const currentMs = Date.now()
+    const isPassed = end && (currentMs > end.getTime())
+    if (isPassed) {
+      needsFetch = false
+    }
+  }
+
+  if (!needsFetch) {
+    checkClamped()
+    return
+  }
 
   loading.value = true
+  console.error("Fetching booking details for bookingId:", bookingId)
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
   loading.value = false
 

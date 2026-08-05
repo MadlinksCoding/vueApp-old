@@ -42,6 +42,10 @@ import {
   scrollToFirstValidationWarning,
   scrollToValidationField,
 } from "./validationUi.js";
+import {
+  getEditWarningValue,
+  hasEditWarningChange,
+} from "./editWarningUtils.js";
 
 const { t } = useBookingTranslations();
 
@@ -172,6 +176,10 @@ const props = defineProps({
   },
   xPostSettingsHydrationPromise: {
     default: null,
+  },
+  editBaseline: {
+    type: Object,
+    default: () => ({}),
   },
 });
 const emit = defineEmits([
@@ -306,6 +314,93 @@ const formData = ref({
   on_tipped_session_media_url: props.engine.state.on_tipped_session_media_url || "",
   on_purchased_media_url: props.engine.state.on_purchased_media_url || "",
 });
+
+const editWarningCurrentState = computed(() => ({
+  ...(props.engine?.state || {}),
+  ...formData.value,
+}));
+const hasEditWarningBaseline = computed(() => (
+  props.editBaseline
+  && typeof props.editBaseline === "object"
+  && Object.keys(props.editBaseline).length > 0
+));
+const AVAILABILITY_EDIT_FIELDS = new Set([
+  "weeklyAvailability",
+  "monthlyAvailability",
+  "oneTimeAvailability",
+]);
+const DERIVED_EDIT_FIELDS = new Set([
+  "selectedDate",
+  "selectedStartTime",
+  "selectedEndTime",
+  "blockedUserSearch",
+  "coPerformerSearch",
+]);
+
+function getLogicalEditConfirmationFields(currentState = editWarningCurrentState.value) {
+  if (!hasEditWarningBaseline.value) return [];
+
+  const repeatRule = String(currentState.repeatRule || "weekly");
+  const activeAvailabilityField = repeatRule === "monthly"
+    ? "monthlyAvailability"
+    : repeatRule === "doesNotRepeat"
+      ? "oneTimeAvailability"
+      : "weeklyAvailability";
+
+  return Object.keys(props.editBaseline).filter((field) => {
+    if (DERIVED_EDIT_FIELDS.has(field)) return false;
+    if (AVAILABILITY_EDIT_FIELDS.has(field)) {
+      return field === activeAvailabilityField;
+    }
+    if (["dateFrom", "dateTo"].includes(field)) {
+      return repeatRule !== "doesNotRepeat";
+    }
+    return true;
+  });
+}
+
+const logicalEditConfirmationFields = computed(() => (
+  getLogicalEditConfirmationFields(editWarningCurrentState.value)
+));
+
+function hasCurrentLogicalEditChanges() {
+  if (!props.isEditMode) return false;
+
+  const currentState = {
+    ...(props.engine?.state || {}),
+    ...formData.value,
+  };
+  return hasEditWarningChange(
+    props.editBaseline,
+    currentState,
+    getLogicalEditConfirmationFields(currentState),
+  );
+}
+
+const hasLogicalEditChanges = computed(hasCurrentLogicalEditChanges);
+
+function fieldEditWarningMessages(fields) {
+  if (!props.isEditMode) return [];
+  return hasEditWarningChange(
+    props.editBaseline,
+    editWarningCurrentState.value,
+    fields,
+  )
+    ? [t("booking_future_bookings_warning")]
+    : [];
+}
+
+function editBaselineValue(field) {
+  return getEditWarningValue(props.editBaseline, field);
+}
+
+function addOnStructureEditWarningMessages() {
+  if (!props.isEditMode || !hasEditWarningBaseline.value) return [];
+  const baseline = editBaselineValue("addOns");
+  return (Array.isArray(baseline) ? baseline.length : 0) !== formData.value.addOns.length
+    ? [t("booking_future_bookings_warning")]
+    : [];
+}
 
 const removeXPostSettingsHydrationListener = props.engine?.on?.(
   "x-post-settings:hydrated",
@@ -541,6 +636,7 @@ const spendingRequirementErrorByType = computed(() => ({
 }));
 
 const xRepostPopupOpen = ref(false);
+const editConfirmationPopupOpen = ref(false);
 const xRepostPopupState = ref({
   title: t("booking_x_repost_settings"),
   checkboxLabel: t("booking_post_to_x"),
@@ -560,6 +656,19 @@ const xRepostPopupConfig = {
   customEffect: 'scale',
   speed: '200ms',
 };
+const editConfirmationPopupConfig = computed(() => ({
+  actionType: "popup",
+  position: "center",
+  width: { default: "504px", "<768": "90%" },
+  height: "auto",
+  showOverlay: true,
+  closeOnOutside: !isCreating.value,
+  escToClose: !isCreating.value,
+  lockScroll: true,
+  scrollable: false,
+  customEffect: "scale",
+  speed: "200ms",
+}));
 
 const xRepostPopupCheckboxModel = computed({
   get() {
@@ -687,16 +796,33 @@ const validationErrorMap = computed(() => (
 ));
 
 const submitButtonSoftDisabled = computed(() => (
-  !isCreating.value && (validationPending.value || !submitValidationValid.value)
+  !isCreating.value
+  && (
+    validationPending.value
+    || !submitValidationValid.value
+    || (props.isEditMode && !hasLogicalEditChanges.value)
+  )
 ));
 
 const submitButtonTooltip = computed(() => {
-  if (!combinedValidationErrors.value.length) return "";
-  const hasConditionalErrors = hasConditionalValidationError(combinedValidationErrors.value);
-  const messages = hasConditionalErrors
-    ? [formatConditionalValidationToastMessage(combinedValidationErrors.value)]
-    : formatValidationErrors(combinedValidationErrors.value);
-  return messages.filter(Boolean).join(hasConditionalErrors ? "\n" : " ");
+  if (combinedValidationErrors.value.length) {
+    const hasConditionalErrors = hasConditionalValidationError(combinedValidationErrors.value);
+    const messages = hasConditionalErrors
+      ? [formatConditionalValidationToastMessage(combinedValidationErrors.value)]
+      : formatValidationErrors(combinedValidationErrors.value);
+    return messages.filter(Boolean).join(hasConditionalErrors ? "\n" : " ");
+  }
+
+  if (
+    props.isEditMode
+    && !validationPending.value
+    && submitValidationValid.value
+    && !hasLogicalEditChanges.value
+  ) {
+    return t("booking_nothing_to_update_message");
+  }
+
+  return "";
 });
 
 const submitButtonTooltipItems = computed(() => (
@@ -1470,117 +1596,149 @@ async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) 
   }
 }
 
-const createEvent = async () => {
+function handleInvalidCreateEventResult(result) {
+  if (
+    Array.isArray(result.step1Errors)
+    && result.step1Errors.length > 0
+    && (!Array.isArray(result.step2Errors) || result.step2Errors.length === 0)
+  ) {
+    emit("reveal-step1-validation", {
+      errors: result.step1Errors,
+      field: "",
+      scroll: false,
+    });
+  }
+
+  if (SHOW_BOOKING_VALIDATION_TOASTS) {
+    const hasConditionalErrors = hasConditionalValidationError(result.errors);
+    const messages = hasConditionalErrors
+      ? [formatConditionalValidationToastMessage(result.errors)]
+      : formatValidationErrors(result.errors);
+    showToast({
+      type: "error",
+      title: hasConditionalErrors
+        ? translateWithFallback("booking_validation_required_fields_title", "Please fill these fields")
+        : t("common_validation_failed"),
+      message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
+      autoClose: false,
+    });
+  }
+}
+
+async function persistEvent() {
   if (isCreating.value) return;
 
-  const result = await validateCreateEventForm({ reveal: true, scroll: false });
+  isCreating.value = true;
+  const creatorId = resolveCreatorId();
+  const eventType = props.bookingType === "group" ? "group-event" : "1on1-call";
 
-  if (result.valid) {
-    isCreating.value = true;
-    const creatorId = resolveCreatorId();
-    const eventType = props.bookingType === "group" ? "group-event" : "1on1-call";
+  if (!isCreatorAllowedForXRepost(creatorId)) {
+    resetXRepostFields();
+  }
 
-    if (!isCreatorAllowedForXRepost(creatorId)) {
-      resetXRepostFields();
-    }
+  props.engine.setState("creatorId", creatorId, { reason: "create-event-flow", silent: true });
+  props.engine.setState(
+    "eventType",
+    eventType,
+    { reason: "create-event-flow", silent: true },
+  );
+  if (props.isEditMode) {
+    props.engine.setState("eventId", props.editEventId || props.engine.getState("eventId"), {
+      reason: "update-event-flow",
+      silent: true,
+    });
+    props.engine.setState("editEventId", props.editEventId || props.engine.getState("editEventId"), {
+      reason: "update-event-flow",
+      silent: true,
+    });
+  }
 
-    props.engine.setState("creatorId", creatorId, { reason: "create-event-flow", silent: true });
-    props.engine.setState(
-      "eventType",
-      eventType,
-      { reason: "create-event-flow", silent: true },
-    );
-    if (props.isEditMode) {
-      props.engine.setState("eventId", props.editEventId || props.engine.getState("eventId"), {
-        reason: "update-event-flow",
-        silent: true,
-      });
-      props.engine.setState("editEventId", props.editEventId || props.engine.getState("editEventId"), {
-        reason: "update-event-flow",
-        silent: true,
-      });
-    }
-
-    try {
-      const flowResult = await props.engine.callFlow(props.isEditMode ? "events.updateEvent" : "events.createEvent", null, {
-        context: {
-          stateEngine: props.engine,
-          creatorId,
-          apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
-          eventId: props.editEventId || props.engine.getState("eventId") || undefined,
-          isGroupScheduleLocked: !!props.engine.getState("isGroupScheduleLocked"),
-          isGroupPricingLocked: !!props.engine.getState("isGroupPricingLocked"),
-        },
-      });
-
-      if (!flowResult?.ok) {
-        showToast({
-          type: "error",
-          title: props.isEditMode ? "Could not update event" : t("common_create_event_failed"),
-          message: formatCreateEventFailureMessage(flowResult, t),
-          autoClose: false,
-        });
-        return;
-      }
-
-      if (props.isEditMode && isCreatorAllowedForXRepost(creatorId)) {
-        const eventId = flowResult?.data?.eventId
-          || flowResult?.data?.item?.eventId
-          || props.editEventId
-          || props.engine.getState("eventId")
-          || "";
-
-        queueBackgroundXPostSettingsSave({ eventId, creatorId });
-      } else if (!props.isEditMode) {
-        const notifyResult = await notifyEventCreated({
-          creatorId,
-          eventName: resolveCreatedEventName(flowResult),
-          eventType: props.engine.getState("eventType") || eventType,
-          eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
-        });
-
-        if (!notifyResult?.ok) {
-          console.error("Event create notification failed", notifyResult);
-        } else {
-          console.info("Event create notification status", notifyResult);
-        }
-      }
-      emit("created", {
+  try {
+    const flowResult = await props.engine.callFlow(props.isEditMode ? "events.updateEvent" : "events.createEvent", null, {
+      context: {
+        stateEngine: props.engine,
         creatorId,
-        flowResult,
-        mode: props.isEditMode ? "edit" : "create",
-      });
-    } finally {
-      isCreating.value = false;
-    }
-  } else {
-    if (
-      Array.isArray(result.step1Errors)
-      && result.step1Errors.length > 0
-      && (!Array.isArray(result.step2Errors) || result.step2Errors.length === 0)
-    ) {
-      emit("reveal-step1-validation", {
-        errors: result.step1Errors,
-        field: "",
-        scroll: false,
-      });
-    }
+        apiBaseUrl: props.engine.getState("apiBaseUrl") || undefined,
+        eventId: props.editEventId || props.engine.getState("eventId") || undefined,
+        isGroupScheduleLocked: !!props.engine.getState("isGroupScheduleLocked"),
+        isGroupPricingLocked: !!props.engine.getState("isGroupPricingLocked"),
+      },
+    });
 
-    if (SHOW_BOOKING_VALIDATION_TOASTS) {
-      const hasConditionalErrors = hasConditionalValidationError(result.errors);
-      const messages = hasConditionalErrors
-        ? [formatConditionalValidationToastMessage(result.errors)]
-        : formatValidationErrors(result.errors);
+    if (!flowResult?.ok) {
       showToast({
         type: "error",
-        title: hasConditionalErrors
-          ? translateWithFallback("booking_validation_required_fields_title", "Please fill these fields")
-          : t("common_validation_failed"),
-        message: messages.length ? messages.join(" ") : t("booking_create_failed_message"),
+        title: props.isEditMode ? "Could not update event" : t("common_create_event_failed"),
+        message: formatCreateEventFailureMessage(flowResult, t),
         autoClose: false,
       });
+      return false;
     }
+
+    if (props.isEditMode && isCreatorAllowedForXRepost(creatorId)) {
+      const eventId = flowResult?.data?.eventId
+        || flowResult?.data?.item?.eventId
+        || props.editEventId
+        || props.engine.getState("eventId")
+        || "";
+
+      queueBackgroundXPostSettingsSave({ eventId, creatorId });
+    } else if (!props.isEditMode) {
+      const notifyResult = await notifyEventCreated({
+        creatorId,
+        eventName: resolveCreatedEventName(flowResult),
+        eventType: props.engine.getState("eventType") || eventType,
+        eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
+      });
+
+      if (!notifyResult?.ok) {
+        console.error("Event create notification failed", notifyResult);
+      } else {
+        console.info("Event create notification status", notifyResult);
+      }
+    }
+    if (props.isEditMode) {
+      editConfirmationPopupOpen.value = false;
+    }
+    emit("created", {
+      creatorId,
+      flowResult,
+      mode: props.isEditMode ? "edit" : "create",
+    });
+    return true;
+  } finally {
+    isCreating.value = false;
   }
+}
+
+async function confirmEditChanges() {
+  if (isCreating.value) return false;
+  return persistEvent();
+}
+
+function closeEditConfirmation() {
+  if (isCreating.value) return;
+  editConfirmationPopupOpen.value = false;
+}
+
+const createEvent = async () => {
+  if (isCreating.value) return false;
+
+  const result = await validateCreateEventForm({ reveal: true, scroll: false });
+  if (!result.valid) {
+    handleInvalidCreateEventResult(result);
+    return false;
+  }
+
+  if (props.isEditMode) {
+    if (!hasCurrentLogicalEditChanges()) {
+      return false;
+    }
+    editConfirmationPopupOpen.value = true;
+    return false;
+  }
+
+  return persistEvent();
 };
 </script>
 
@@ -1623,6 +1781,11 @@ const createEvent = async () => {
               />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages(['allowRecording', 'recordingPrice'])"
+            purpose="edit-impact"
+            spacing-class="mt-1"
+          />
         </div>
         <div class="flex flex-col justify-center items-start gap-3">
           <div class="flex flex-col justify-center items-start gap-1">
@@ -1647,6 +1810,11 @@ const createEvent = async () => {
               </div>
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('allowPersonalRequest')"
+            purpose="edit-impact"
+            spacing-class="mt-1"
+          />
         </div>
         <div class="flex flex-col gap-4">
           <div class="justify-start text-gray-900 text-base font-normal leading-normal">
@@ -1693,12 +1861,22 @@ const createEvent = async () => {
                     :field="`addOns.${index}.title`"
                     spacing-class="mt-2"
                   />
+                  <ValidationInlineWarning
+                    :messages="fieldEditWarningMessages(`addOns.${index}.title`)"
+                    purpose="edit-impact"
+                    spacing-class="mt-2"
+                  />
 
                   <textarea
                     v-model="addOn.description"
                     rows="3"
                     :placeholder="t('common_description_optional')"
                     class="bg-white/75 w-full px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 text-slate-700 text-base resize-none"
+                  />
+                  <ValidationInlineWarning
+                    :messages="fieldEditWarningMessages(`addOns.${index}.description`)"
+                    purpose="edit-impact"
+                    spacing-class="mt-2"
                   />
                 </div>
                  <button
@@ -1729,6 +1907,11 @@ const createEvent = async () => {
                 :field="`addOns.${index}.priceTokens`"
                 spacing-class="mt-0"
               />
+              <ValidationInlineWarning
+                :messages="fieldEditWarningMessages(`addOns.${index}.priceTokens`)"
+                purpose="edit-impact"
+                spacing-class="mt-0"
+              />
             </div>
 
             <div class="inline-flex">
@@ -1745,6 +1928,11 @@ const createEvent = async () => {
                 <span>{{ t("booking_add_more_service") }}</span>
               </button>
             </div>
+            <ValidationInlineWarning
+              :messages="addOnStructureEditWarningMessages()"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
         </div>
       </div>
@@ -1764,6 +1952,11 @@ const createEvent = async () => {
             <CustomDropdown 
               v-model="audienceSelectionModel" 
               :options="whoCanBookOptions" 
+            />
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages(['whoCanBook', 'spendingRequirement'])"
+              purpose="edit-impact"
+              spacing-class="mt-0"
             />
 
             <div v-if="audienceSelectionModel === 'mustOwnProducts'" class="pt-1 flex flex-col gap-2">
@@ -1821,6 +2014,11 @@ const createEvent = async () => {
                 field="requiredProducts"
                 spacing-class="mt-0"
               />
+              <ValidationInlineWarning
+                :messages="fieldEditWarningMessages('requiredProducts')"
+                purpose="edit-impact"
+                spacing-class="mt-0"
+              />
             </div>
 
             <div v-if="formData.whoCanBook === 'subscribersOnly'" class=" flex flex-col gap-2 relative">
@@ -1845,6 +2043,11 @@ const createEvent = async () => {
               <ValidationInlineWarning
                 :messages="fieldValidationMessages('subscriptionTiers')"
                 field="subscriptionTiers"
+                spacing-class="mt-0"
+              />
+              <ValidationInlineWarning
+                :messages="fieldEditWarningMessages('subscriptionTiers')"
+                purpose="edit-impact"
                 spacing-class="mt-0"
               />
             </div>
@@ -2078,6 +2281,11 @@ const createEvent = async () => {
                 </div>
               </div>
             </div>
+            <ValidationInlineWarning
+              :messages="fieldEditWarningMessages('blockedUsers')"
+              purpose="edit-impact"
+              spacing-class="mt-0"
+            />
           </div>
         </div>
       </div>
@@ -2120,6 +2328,11 @@ const createEvent = async () => {
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('xPostLive')"
+            purpose="edit-impact"
+            spacing-class="-mt-3"
+          />
 
           <div class="inline-flex gap-2  justify-between">
             <CheckboxSwitch v-model="formData.xPostBooked" :label="t('booking_x_post_booked')"
@@ -2138,6 +2351,11 @@ const createEvent = async () => {
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('xPostBooked')"
+            purpose="edit-impact"
+            spacing-class="-mt-3"
+          />
 
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch v-model="formData.xPostInSession" :label="t('booking_x_post_in_session')" version="dashboard"
@@ -2156,6 +2374,11 @@ const createEvent = async () => {
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('xPostInSession')"
+            purpose="edit-impact"
+            spacing-class="-mt-3"
+          />
 
           <div class="inline-flex gap-2 justify-between">
             <CheckboxSwitch v-model="formData.xPostTipped" :label="t('booking_x_post_tipped')"
@@ -2174,6 +2397,11 @@ const createEvent = async () => {
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('xPostTipped')"
+            purpose="edit-impact"
+            spacing-class="-mt-3"
+          />
 
           <div class="inline-flex gap-2 justify-between w-full">
             <CheckboxSwitch v-model="formData.xPostPurchase" :label="t('booking_x_post_purchase')"
@@ -2192,6 +2420,11 @@ const createEvent = async () => {
               <img class="w-5 h-5 min-h-5 min-w-5" src="https://i.ibb.co/QFV4GNPF/Icon.png" alt="" />
             </div>
           </div>
+          <ValidationInlineWarning
+            :messages="fieldEditWarningMessages('xPostPurchase')"
+            purpose="edit-impact"
+            spacing-class="-mt-3"
+          />
         </div>
       </BookingSectionsWrapper>
     </template>
@@ -2199,6 +2432,54 @@ const createEvent = async () => {
     <div class="w-full bg-[#D0D5DD] h-[1px] mb-[80px]"></div>
 
   </div>
+  <PopupHandler
+    v-model="editConfirmationPopupOpen"
+    :config="editConfirmationPopupConfig"
+  >
+    <div
+      class="w-[31.5rem] max-w-[calc(100vw-2rem)] border border-[#EAECF0] bg-white p-5 shadow-xl"
+      data-test="edit-submit-confirmation-dialog"
+      role="document"
+    >
+      <p class="text-xl font-semibold leading-8 text-slate-700">
+        {{ t("booking_edit_confirmation_message") }}
+      </p>
+      <div class="mt-8 flex gap-3">
+        <button
+          type="button"
+          class="h-[3.375rem] flex-1 border-2 border-[#63E96D] bg-white px-4 text-lg font-semibold text-black transition hover:bg-[#F4FFF5] disabled:cursor-not-allowed disabled:opacity-60"
+          data-test="edit-submit-confirmation-back"
+          :disabled="isCreating"
+          @click="closeEditConfirmation"
+        >
+          {{ t("booking_edit_confirmation_back") }}
+        </button>
+        <button
+          type="button"
+          class="flex h-[3.375rem] flex-1 items-center justify-center bg-[#63E96D] px-4 text-lg font-semibold text-black transition hover:bg-[#52D95D] disabled:cursor-not-allowed disabled:opacity-60"
+          data-test="edit-submit-confirmation-save"
+          :disabled="isCreating"
+          @click="confirmEditChanges"
+        >
+          <span
+            v-if="isCreating"
+            class="inline-flex items-center justify-center"
+            data-test="edit-submit-confirmation-spinner"
+            role="status"
+            :aria-label="t('common_loading')"
+          >
+            <span
+              aria-hidden="true"
+              class="h-5 w-5 animate-spin rounded-full border-2 border-black/30 border-t-black"
+            />
+          </span>
+          <template v-else>
+            {{ t("booking_edit_confirmation_save_changes") }}
+          </template>
+        </button>
+      </div>
+    </div>
+  </PopupHandler>
   <PopupHandler v-if="isXRepostAllowed" v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
     <TwitterRepostSettings
       v-model="xRepostPopupCheckboxModel"
@@ -2209,6 +2490,10 @@ const createEvent = async () => {
       :input-name="xRepostPopupState.inputName"
       :textarea-name="xRepostPopupState.textareaName"
       :uploader-name="xRepostPopupState.uploaderName"
+      :is-edit-mode="isEditMode && hasEditWarningBaseline"
+      :baseline-model-value="editBaselineValue(xRepostPopupState.checkboxField)"
+      :baseline-message-value="editBaselineValue(xRepostPopupState.messageField)"
+      :baseline-media-value="editBaselineValue(xRepostPopupState.mediaField)"
     />
   </PopupHandler>
 

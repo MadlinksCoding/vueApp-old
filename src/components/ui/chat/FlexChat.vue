@@ -89,6 +89,43 @@ const isFirstInGroup = (msg, index) => {
     return false
 }
 
+const shouldShowDateHeader = (msg, index) => {
+    if (index === 0) return true
+    const prevMsg = props.messages[index - 1]
+    const currTs = msg.message_ts || msg.time
+    const prevTs = prevMsg.message_ts || prevMsg.time
+    if (!currTs || !prevTs) return false
+    
+    const currDate = new Date(Number(currTs))
+    const prevDate = new Date(Number(prevTs))
+    if (isNaN(currDate.getTime()) || isNaN(prevDate.getTime())) return false
+    
+    return currDate.toDateString() !== prevDate.toDateString()
+}
+
+const formatDateHeader = (ts) => {
+    if (!ts) return ''
+    const date = new Date(Number(ts))
+    if (isNaN(date.getTime())) return ''
+    
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    
+    const diffTime = today - targetDate
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) {
+        return 'Today'
+    } else if (diffDays > 0 && diffDays < 7) {
+        return date.toLocaleDateString('en-US', { weekday: 'long' })
+    } else if (targetDate.getFullYear() === today.getFullYear()) {
+        return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    } else {
+        return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    }
+}
+
 /* SCROLL LOGIC FOR CHAT (Reverse of FlexTable - we load more when scrolling UP) */
 function toPx(raw, el) {
     try { const v = window.ScrollEvents?.toPixelThreshold?.(raw, el); if (typeof v === 'number') return v } catch (e) { }
@@ -283,6 +320,11 @@ defineExpose({ bodyEl })
 
                 <!-- MESSAGES LOOP -->
                 <template v-for="(msg, rIdx) in messages" :key="msg[rowKey] ?? rIdx">
+
+                    <!-- DATE HEADER -->
+                    <div v-if="shouldShowDateHeader(msg, rIdx)" class="flex justify-center my-4 w-full">
+                        <span class="text-xs text-black font-bold">{{ formatDateHeader(msg.message_ts || msg.time) }}</span>
+                    </div>
 
                     <!-- ENTIRE MESSAGE ROW OVERRIDE SLOT -->
                     <slot name="message" :message="msg" :index="rIdx" :isMe="isMe(msg)" :isSystem="isSystem(msg, rIdx)">

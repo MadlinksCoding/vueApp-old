@@ -30,6 +30,41 @@ describe("bookingTranslations", () => {
     expect(t("dashboard_context_missing", { role: "creator" })).toBe("The events embed will load once a valid creator id is provided.");
   });
 
+  it("translates the future-bookings edit warning", () => {
+    const { t } = createBookingTranslator({
+      translations: {
+        booking_future_bookings_warning: "Translated future-bookings warning",
+        booking_base_price_future_bookings_warning: "Translated base-price warning",
+        booking_updated_badge: "TRANSLATED UPDATED",
+        booking_edit_confirmation_message: "Translated edit confirmation",
+        booking_edit_confirmation_back: "TRANSLATED BACK",
+        booking_edit_confirmation_save_changes: "TRANSLATED SAVE",
+        booking_nothing_to_update_message: "Translated unchanged message",
+      },
+    });
+
+    expect(createBookingTranslator().t("booking_future_bookings_warning"))
+      .toBe("This update will be effective for future bookings only");
+    expect(createBookingTranslator().t("booking_base_price_future_bookings_warning"))
+      .toBe("New base price will only take effect on all future bookings, all current confirmed bookings will not be affected.");
+    expect(createBookingTranslator().t("booking_updated_badge")).toBe("UPDATED");
+    expect(createBookingTranslator().t("booking_edit_confirmation_message"))
+      .toBe("Updated settings will only take effect on future bookings, all current confirmed bookings will not be affected.");
+    expect(createBookingTranslator().t("booking_edit_confirmation_back")).toBe("BACK");
+    expect(createBookingTranslator().t("booking_edit_confirmation_save_changes")).toBe("SAVE CHANGES");
+    expect(createBookingTranslator().t("booking_nothing_to_update_message"))
+      .toBe("Your event settings haven’t changed.");
+    expect(t("booking_future_bookings_warning"))
+      .toBe("Translated future-bookings warning");
+    expect(t("booking_base_price_future_bookings_warning"))
+      .toBe("Translated base-price warning");
+    expect(t("booking_updated_badge")).toBe("TRANSLATED UPDATED");
+    expect(t("booking_edit_confirmation_message")).toBe("Translated edit confirmation");
+    expect(t("booking_edit_confirmation_back")).toBe("TRANSLATED BACK");
+    expect(t("booking_edit_confirmation_save_changes")).toBe("TRANSLATED SAVE");
+    expect(t("booking_nothing_to_update_message")).toBe("Translated unchanged message");
+  });
+
   it("drops invalid translation values and normalizes locale", () => {
     expect(normalizeBookingTranslations({
       common_submit: "Enviar",
