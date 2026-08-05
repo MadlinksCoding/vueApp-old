@@ -18,7 +18,7 @@ export default {
       },
       screens: {
         sm: "480px",
-        md: "768px",
+        md: "678px",
         lg: "1010px",
         xl: "1365px",
         'ipad-portrait': {
@@ -28,7 +28,7 @@ export default {
           raw: '(min-width: 1024px) and (max-width: 1279px)',
         },
         'ipad-portrait-small': {
-          raw: '(min-width: 768px) and (max-width: 1023px) and (orientation: portrait)',
+          raw: '(min-width: 678px) and (max-width: 933px) and (orientation: portrait)',
         },
         'ipad-landscape-large': {
           raw: '(min-width: 1280px) and (max-width: 1365px) and (orientation: landscape)',
