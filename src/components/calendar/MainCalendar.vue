@@ -537,7 +537,7 @@
                 :key="'week-header-' + group.dateKey"
                 type="button"
                 class="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
-                :class="group.isSelected ? 'opacity-100' : 'opacity-30'"
+                :class="group.isSelected ? 'bg-white/50 opacity-100 rounded-t-[10px]' : 'opacity-30'"
                 :style="weekEventDayGroupStyle(group)"
                 :data-date="group.dateKey"
                 :data-selected="group.isSelected ? 'true' : 'false'"

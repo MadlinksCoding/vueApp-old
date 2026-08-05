@@ -2152,344 +2152,320 @@ onBeforeUnmount(() => {
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-full lg:h-auto md:rounded-t-[20px] bg-[rgba(12,17,29,0.5)] flex flex-col md:flex-row before:content-['']
+        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh max-h-dvh lg:h-auto md:rounded-t-[20px] bg-[rgba(12,17,29,0.5)] flex flex-col md:flex-row before:content-['']
 before:absolute
 before:inset-0
 before:z-[-1]
 before:bg-[rgba(0,0,0,0.75)]
 before:backdrop-blur-sm
-before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
 
-        <OneOnOneBookingFlowLeftSideBar
-          :time-display="formattedTimeRange"
-          :date-display="headerDateDisplay"
-          :subtotal="totalPrice"
-          :duration="currentDuration"
-          :selected-event="selectedEvent"
-          :is-first-booking-for-creator="isFirstBookingForCreator"
-          :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
-          :creator-avatar="creatorPresentation.avatar"
-          :creator-name="creatorPresentation.name"
-          :creator-is-verified="creatorPresentation.isVerified"
-          :creator-loading="creatorPresentationLoading"
-          :show-approval-needed="showApprovalNeeded"
-          :is-group-event="isGroupEvent"
-          :price-setting="groupPriceSetting"
-        />
+        <div class="w-full h-dvh max-h-dvh lg:h-auto flex flex-col md:flex-row overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+          <OneOnOneBookingFlowLeftSideBar
+            :time-display="formattedTimeRange"
+            :date-display="headerDateDisplay"
+            :subtotal="totalPrice"
+            :duration="currentDuration"
+            :selected-event="selectedEvent"
+            :is-first-booking-for-creator="isFirstBookingForCreator"
+            :title-display="selectedEvent?.title || t('fan_booking_untitled_event')"
+            :creator-avatar="creatorPresentation.avatar"
+            :creator-name="creatorPresentation.name"
+            :creator-is-verified="creatorPresentation.isVerified"
+            :creator-loading="creatorPresentationLoading"
+            :show-approval-needed="showApprovalNeeded"
+            :is-group-event="isGroupEvent"
+            :price-setting="groupPriceSetting"
+          />
 
-        <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[rgba(12,17,29,0.5)]">
+          <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[rgba(12,17,29,0.5)]">
 
-          <div class="flex-none lg:flex-1 flex-col w-full pt-1 md:pt-5 px-3 md:p-5">
-             <div class="flex items-center justify-between w-full mb-2">
-              <div class="flex items-center">
-                <div :class="theme1.mini.header" class="!text-base !font-medium">{{ header }}</div>
-                <div class="flex items-center gap-1">
-                  <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(-1)">
-                    <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.13092 11.4181L1.21289 6.50006L6.13092 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(1)">
-                    <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 11.4181L5.91803 6.50006L1 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
+            <div class="flex-none lg:flex-1 flex-col w-full pt-1 md:pt-5 px-3 md:p-5">
+              <div class="flex items-center justify-between w-full mb-2">
+                <div class="flex items-center">
+                  <div :class="theme1.mini.header" class="!text-base !font-medium">{{ header }}</div>
+                  <div class="flex items-center gap-1">
+                    <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(-1)">
+                      <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.13092 11.4181L1.21289 6.50006L6.13092 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="w-[2rem] h-[2rem] flex items-center justify-center rounded-full hover:bg-gray-100" @click="shiftMonth(1)">
+                      <svg width="7" height="13" viewBox="0 0 7 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 11.4181L5.91803 6.50006L1 1.58203" stroke="#6B7280" stroke-width="1.63934" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                  </div>
+                  <div
+                    class="ml-1 flex items-center gap-1.5 whitespace-nowrap text-xs font-normal text-[#EAECF0]"
+                    data-testid="booking-flow-slots-available-legend"
+                  >
+                    <span class="h-2 w-2 shrink-0 rounded-full bg-[#07F468]" aria-hidden="true"></span>
+                    <span>= {{ t("fan_booking_slots_available") }}</span>
+                  </div>
                 </div>
                 <div
-                  class="ml-1 flex items-center gap-1.5 whitespace-nowrap text-xs font-normal text-[#EAECF0]"
-                  data-testid="booking-flow-slots-available-legend"
-                >
-                  <span class="h-2 w-2 shrink-0 rounded-full bg-[#07F468]" aria-hidden="true"></span>
-                  <span>= {{ t("fan_booking_slots_available") }}</span>
-                </div>
-              </div>
-              <div
-                ref="timezoneMenuContainer"
-                class="relative flex text-[9.02px] text-gray-500 font-medium items-center"
-                data-testid="booking-flow-timezone-selector"
-              >
-                <button
-                  type="button"
-                  class="flex items-center gap-[6.56px]"
-                  :aria-label="t('fan_booking_select_timezone')"
-                  :aria-expanded="timezoneMenuOpen"
-                  aria-haspopup="listbox"
-                  data-testid="booking-flow-timezone-trigger"
-                  @click.stop="toggleTimezoneMenu"
-                >
-                  <span>{{ timezoneLabel }}</span>
-                  <span class="flex shrink-0 items-center justify-center w-[8.2px] h-[8.2px]">
-                    <svg width="6" height="3" viewBox="0 0 6 3" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.07373 0.472656L3.12291 2.52184L5.17209 0.472656" stroke="#9CA3AF" stroke-width="0.819672" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </span>
-                </button>
-                <div
-                  v-if="timezoneMenuOpen"
-                  class="absolute right-0 top-full z-[120] mt-2 max-h-64 min-w-[8.5rem] overflow-y-auto rounded-md border border-gray-700 bg-[#0C111D] py-1 shadow-xl"
-                  role="listbox"
-                  :aria-label="t('fan_booking_timezone_options')"
-                  data-testid="booking-flow-timezone-options"
+                  ref="timezoneMenuContainer"
+                  class="relative flex text-[9.02px] text-gray-500 font-medium items-center"
+                  data-testid="booking-flow-timezone-selector"
                 >
                   <button
-                    v-for="option in timezoneOptions"
-                    :key="option.offsetMinutes"
                     type="button"
-                    role="option"
-                    :aria-selected="option.offsetMinutes === displayTimezoneOffsetMinutes"
-                    class="flex w-full items-center justify-between px-3 py-2 text-left text-[11px] hover:bg-gray-800"
-                    :class="option.offsetMinutes === displayTimezoneOffsetMinutes ? 'text-[#07F468]' : 'text-gray-300'"
-                    :data-testid="`booking-flow-timezone-option-${option.offsetMinutes}`"
-                    @click.stop="selectDisplayTimezone(option.offsetMinutes)"
+                    class="flex items-center gap-[6.56px]"
+                    :aria-label="t('fan_booking_select_timezone')"
+                    :aria-expanded="timezoneMenuOpen"
+                    aria-haspopup="listbox"
+                    data-testid="booking-flow-timezone-trigger"
+                    @click.stop="toggleTimezoneMenu"
                   >
-                    <span>{{ option.label }}</span>
-                    <span v-if="option.offsetMinutes === displayTimezoneOffsetMinutes" aria-hidden="true">✓</span>
+                    <span>{{ timezoneLabel }}</span>
+                    <span class="flex shrink-0 items-center justify-center w-[8.2px] h-[8.2px]">
+                      <svg width="6" height="3" viewBox="0 0 6 3" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.07373 0.472656L3.12291 2.52184L5.17209 0.472656" stroke="#9CA3AF" stroke-width="0.819672" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
                   </button>
+                  <div
+                    v-if="timezoneMenuOpen"
+                    class="absolute right-0 top-full z-[120] mt-2 max-h-64 min-w-[8.5rem] overflow-y-auto rounded-md border border-gray-700 bg-[#0C111D] py-1 shadow-xl"
+                    role="listbox"
+                    :aria-label="t('fan_booking_timezone_options')"
+                    data-testid="booking-flow-timezone-options"
+                  >
+                    <button
+                      v-for="option in timezoneOptions"
+                      :key="option.offsetMinutes"
+                      type="button"
+                      role="option"
+                      :aria-selected="option.offsetMinutes === displayTimezoneOffsetMinutes"
+                      class="flex w-full items-center justify-between px-3 py-2 text-left text-[11px] hover:bg-gray-800"
+                      :class="option.offsetMinutes === displayTimezoneOffsetMinutes ? 'text-[#07F468]' : 'text-gray-300'"
+                      :data-testid="`booking-flow-timezone-option-${option.offsetMinutes}`"
+                      @click.stop="selectDisplayTimezone(option.offsetMinutes)"
+                    >
+                      <span>{{ option.label }}</span>
+                      <span v-if="option.offsetMinutes === displayTimezoneOffsetMinutes" aria-hidden="true">✓</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              <mini-calendar
+                class="w-full"
+                :month-date="state.focus"
+                :selected-date="state.selected"
+                :min-date="minSelectableDate"
+                :max-date="maxSelectableDate"
+                :events="events1"
+                :theme="theme1"
+                :today-uses-selected-dot="false"
+                :data-attrs="{ 'data-calendar':'mini' }"
+                @date-selected="onSelectFromMini"
+              />
             </div>
 
-            <mini-calendar
-              class="w-full"
-              :month-date="state.focus"
-              :selected-date="state.selected"
-              :min-date="minSelectableDate"
-              :max-date="maxSelectableDate"
-              :events="events1"
-              :theme="theme1"
-              :today-uses-selected-dot="false"
-              :data-attrs="{ 'data-calendar':'mini' }"
-              @date-selected="onSelectFromMini"
-            />
-          </div>
-
-          <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 md:p-5 h-full">
-            <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
-              {{ t("fan_booking_select_date_prompt") }}
-            </p>
-          </div>
-
-          <div
-            v-else
-            class="flex-1 flex flex-col gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
-          >
-            <div
-              v-if="!hasAvailableSlots"
-              class="h-full w-full flex items-center justify-center"
-            >
-              <p class="text-sm flex justify-center leading-20 text-center py-16 px-8 items-center text-gray-400">
-                {{ t("fan_booking_no_booking_on_date") }}
+            <div v-if="!state.selected" class="flex-1 flex flex-col justify-center items-center gap-8 md:p-5 h-full">
+              <p class="text-sm flex justify-center leading-20 text-center py-16 px-0 items-center text-gray-400">
+                {{ t("fan_booking_select_date_prompt") }}
               </p>
             </div>
 
-            <template v-else>
-            <div class="flex flex-col gap-2 md:mt-0 mt-5">
+            <div
+              v-else
+              class="flex-1 flex flex-col gap-6 pb-[6.25rem] md:pb-[4.5rem] bg-gray-950/10"
+            >
               <div
-                class="flex w-full min-w-0 flex-nowrap items-center gap-x-3 px-3 md:px-5"
-                data-testid="booking-flow-time-slots-header"
+                v-if="!hasAvailableSlots"
+                class="h-full w-full flex items-center justify-center"
               >
-                <h3 class="shrink-0 text-sm font-semibold leading-5 text-[#22CCEE]">
-                  {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
-                </h3>
-                <div class="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-                    data-testid="booking-flow-time-slots-previous"
-                    :aria-label="t('fan_booking_previous_time_slot_hours')"
-                    :disabled="!canScrollTimeSlotsLeft"
-                    @click="scrollTimeSlotColumns(-1)"
-                  >
-                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
-                      <path d="M8.5 1.5L1 9L8.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-                    data-testid="booking-flow-time-slots-next"
-                    :aria-label="t('fan_booking_next_time_slot_hours')"
-                    :disabled="!canScrollTimeSlotsRight"
-                    @click="scrollTimeSlotColumns(1)"
-                  >
-                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
-                      <path d="M1.5 1.5L9 9L1.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-                <div
-                  v-if="showOffHourSurchargeIndicator"
-                  class="ml-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-normal text-[#EAECF0]"
-                  data-testid="booking-flow-off-hour-surcharge-indicator"
-                >
-                  <img :src="bookingFlowCloudMoonIcon" alt="" class="h-5 w-5 shrink-0" />
-                  <span
-                    class="min-w-0 truncate whitespace-nowrap"
-                    data-testid="booking-flow-off-hour-surcharge-label"
-                  >
-                    = {{ t("fan_booking_off_hour_surcharge_applied") }}
-                  </span>
-                </div>
+                <p class="text-sm flex justify-center leading-20 text-center py-16 px-8 items-center text-gray-400">
+                  {{ t("fan_booking_no_booking_on_date") }}
+                </p>
               </div>
-              <div
-                ref="timeSlotScrollContainer"
-                class="flex w-full gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-3 md:px-5"
-                data-testid="booking-flow-time-slots-scroll"
-                @scroll="updateTimeSlotScrollControls"
-              >
+
+              <template v-else>
+              <div class="flex flex-col gap-2 md:mt-0 mt-5">
                 <div
-                  v-for="column in timeSlotHourColumns"
-                  :key="column.key"
-                  class="flex w-[calc((100%_-_1rem)/3)] min-w-32 flex-none flex-col gap-2"
-                  data-testid="booking-flow-time-slot-column"
-                  :data-hour="column.hour"
+                  class="flex w-full min-w-0 flex-nowrap items-center gap-x-3 px-3 md:px-5"
+                  data-testid="booking-flow-time-slots-header"
+                >
+                  <h3 class="shrink-0 text-sm font-semibold leading-5 text-[#22CCEE]">
+                    {{ t(isGroupEvent ? "fan_booking_select_event_time" : "fan_booking_select_call_start_time") }}
+                  </h3>
+                  <div class="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                      data-testid="booking-flow-time-slots-previous"
+                      :aria-label="t('fan_booking_previous_time_slot_hours')"
+                      :disabled="!canScrollTimeSlotsLeft"
+                      @click="scrollTimeSlotColumns(-1)"
+                    >
+                      <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
+                        <path d="M8.5 1.5L1 9L8.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                      data-testid="booking-flow-time-slots-next"
+                      :aria-label="t('fan_booking_next_time_slot_hours')"
+                      :disabled="!canScrollTimeSlotsRight"
+                      @click="scrollTimeSlotColumns(1)"
+                    >
+                      <svg width="10" height="18" viewBox="0 0 10 18" fill="none" aria-hidden="true">
+                        <path d="M1.5 1.5L9 9L1.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div
+                    v-if="showOffHourSurchargeIndicator"
+                    class="ml-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-normal text-[#EAECF0]"
+                    data-testid="booking-flow-off-hour-surcharge-indicator"
+                  >
+                    <img :src="bookingFlowCloudMoonIcon" alt="" class="h-5 w-5 shrink-0" />
+                    <span
+                      class="min-w-0 truncate whitespace-nowrap"
+                      data-testid="booking-flow-off-hour-surcharge-label"
+                    >
+                      = {{ t("fan_booking_off_hour_surcharge_applied") }}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  ref="timeSlotScrollContainer"
+                  class="flex w-full gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-3 md:px-5"
+                  data-testid="booking-flow-time-slots-scroll"
+                  @scroll="updateTimeSlotScrollControls"
                 >
                   <div
-                    v-for="slot in column.slots"
-                    :key="slot.value"
-                    data-testid="booking-flow-time-slot"
-                    :data-start-ms="slot.startMs"
-                    @click="selectTime(slot)"
-                    class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
-                    :class="[
-                      slot.disabled
-                        ? 'opacity-50 border border-white/30 cursor-not-allowed'
-                        : (
-                          selectedTime?.value === slot.value
-                            ? 'bg-[#07F468] border border-[#07F468] cursor-pointer'
-                            : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : 'border-[0.5px] border-white cursor-pointer')
-                        )
-                    ]"
+                    v-for="column in timeSlotHourColumns"
+                    :key="column.key"
+                    class="flex w-[calc((100%_-_1rem)/3)] min-w-32 flex-none flex-col gap-2"
+                    data-testid="booking-flow-time-slot-column"
+                    :data-hour="column.hour"
                   >
-                    <p
-                      class="text-sm font-normal leading-"
+                    <div
+                      v-for="slot in column.slots"
+                      :key="slot.value"
+                      data-testid="booking-flow-time-slot"
+                      :data-start-ms="slot.startMs"
+                      @click="selectTime(slot)"
+                      class="flex justify-center items-center p-[0.625rem] rounded-[0.625rem] relative transition-colors"
                       :class="[
                         slot.disabled
-                          ? 'text-white/70'
+                          ? 'opacity-50 border border-white/30 cursor-not-allowed'
                           : (
                             selectedTime?.value === slot.value
-                              ? 'text-black font-semibold'
-                              : (slot.isOffHours ? 'text-[#FF0066]' : 'text-[#F9FAFB]')
+                              ? 'bg-[#07F468] border border-[#07F468] cursor-pointer'
+                              : (slot.isOffHours ? 'border border-[#FF0066] cursor-pointer' : 'border-[0.5px] border-white cursor-pointer')
                           )
                       ]"
                     >
-                      {{ slot.label }}
-                    </p>
-
-                    <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
-                    <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
-                      <img :src="bookingFlowCloudMoonIcon" alt="" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
-              <div class="flex items-center gap--2 justify-between">
-                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
-                <span
-                  v-if="!isAtMaximumDuration"
-                  class="text-xs font-normal leading-[18px] text-[#EAECF0]"
-                  data-testid="booking-flow-session-maximum"
-                >
-                  {{ maximumSessionCountLabel }}
-                </span>
-                <div
-                  v-else
-                  class="flex items-center gap-1"
-                  data-testid="booking-flow-session-maximum-reached"
-                >
-                  <span class="w-4 h-4 flex items-center justify-center">
-                    <img :src="bookingFlowAlertHexagonIcon" alt="alert" />
-                  </span>
-                  <span class="text-xs font-normal leading-[18px] text-[#FCE40D]">
-                    {{ t("fan_booking_max_session_length_reached") }}
-                  </span>
-                </div>
-              </div>
-              <div
-                class=""
-                :class="durationStepperBorderClass"
-                data-testid="booking-flow-duration-stepper"
-              >
-                <div class="w-full min-h-[4rem] flex justify-between items-center gap-2 px-[1rem] py-[0.5rem] rounded-t-[8px] border-b border-b-white bg-[#0C111D] shadow-[0_4px_8px_rgba(255,255,255,0.05)]">
-                  <div class="flex items-center justify-between gap-2 flex-1">
-                    <div class="flex items-center gap-2">
-                      <div class="min-w-0 text-left text-base font-medium leading-6 text-white">
-                        {{ selectedDurationDisplayLabel }}
-                      </div>
-                      <span
-                        class="text-[#98A2B3] text-sm font-normal leading-5 font-[Poppins] uppercase"
-                        data-testid="booking-flow-session-count"
-                      >
-                        {{ selectedSessionCountLabel }}
-                      </span>
-                    </div>
-                    <div class="flex justify-end items-center gap-0.5">
-                      <p class="text-base text-[#07F468] font-normal">≈</p>
-                      <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                       <p
-                        class="text-base font-semibold text-[#07F468]"
-                        data-testid="booking-flow-duration-token-cost"
+                        class="text-sm font-normal leading-"
+                        :class="[
+                          slot.disabled
+                            ? 'text-white/70'
+                            : (
+                              selectedTime?.value === slot.value
+                                ? 'text-black font-semibold'
+                                : (slot.isOffHours ? 'text-[#FF0066]' : 'text-[#F9FAFB]')
+                            )
+                        ]"
                       >
-                        {{ selectedDurationTokenCost }}
+                        {{ slot.label }}
                       </p>
+
+                      <div v-if="false && slot.disabled" class="text-xs text-red-300">Booked</div>
+                      <div v-else-if="slot.isOffHours && selectedTime?.value !== slot.value" class="absolute right-[0] top-[-0.3rem]">
+                        <img :src="bookingFlowCloudMoonIcon" alt="" />
+                      </div>
                     </div>
-                  </div>
-                  <div class="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      data-testid="booking-flow-duration-minus"
-                      class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
-                      :class="(!canAdjustDuration || isAtMinimumDuration) ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
-                      :disabled="!canAdjustDuration || isAtMinimumDuration"
-                      :aria-label="t('fan_booking_decrease_length')"
-                      @click="decreaseDuration"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="2" viewBox="0 0 16 2" fill="none">
-    <path d="M0.75 0.75H14.75" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="booking-flow-duration-plus"
-                      class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
-                      :class="!canIncreaseDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
-                      :disabled="!canIncreaseDuration"
-                      :aria-label="t('fan_booking_increase_length')"
-                      @click="increaseDuration"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M12 5V19M5 12H19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-                    </button>
                   </div>
                 </div>
               </div>
-              <div class="flex flex-col gap-2">
-                <p
-                  v-if="showDurationOverlapNotice"
-                  class="flex items-center gap-1 text-sm font-normal leading-[18px] text-[#FF4D6D]"
-                  data-testid="booking-flow-duration-overlap-warning"
-                >
-                  <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
-                  <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
-                </p>
 
-                <div class="flex items-start gap-1">
-                  <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
-                  <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
+              <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
+                <div class="flex items-center gap--2 justify-between">
+                  <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
+                  <span
+                    v-if="!isAtMaximumDuration"
+                    class="text-xs font-normal leading-[18px] text-[#EAECF0]"
+                    data-testid="booking-flow-session-maximum"
+                  >
+                    {{ maximumSessionCountLabel }}
+                  </span>
+                  <div
+                    v-else
+                    class="flex items-center gap-1"
+                    data-testid="booking-flow-session-maximum-reached"
+                  >
+                    <span class="w-4 h-4 flex items-center justify-center">
+                      <img :src="bookingFlowAlertHexagonIcon" alt="alert" />
+                    </span>
+                    <span class="text-xs font-normal leading-[18px] text-[#FCE40D]">
+                      {{ t("fan_booking_max_session_length_reached") }}
+                    </span>
+                  </div>
                 </div>
-                
                 <div
-                  v-if="showFirstTimeDiscountNotice"
-                  class="flex items-start gap-1"
-                  data-testid="booking-flow-first-time-discount-notice"
+                  class=""
+                  :class="durationStepperBorderClass"
+                  data-testid="booking-flow-duration-stepper"
                 >
-                  <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
-                  <p class="text-sm font-normal leading-5 text-[#07F468]">
-                    {{ t("fan_booking_first_time_discount_received") }}
-                  </p>
+                  <div class="w-full min-h-[4rem] flex justify-between items-center gap-2 px-[1rem] py-[0.5rem] rounded-t-[8px] border-b border-b-white bg-[#0C111D] shadow-[0_4px_8px_rgba(255,255,255,0.05)]">
+                    <div class="flex items-center justify-between gap-2 flex-1">
+                      <div class="flex items-center gap-2">
+                        <div class="min-w-0 text-left text-base font-medium leading-6 text-white">
+                          {{ selectedDurationDisplayLabel }}
+                        </div>
+                        <span
+                          class="text-[#98A2B3] text-sm font-normal leading-5 font-[Poppins] uppercase"
+                          data-testid="booking-flow-session-count"
+                        >
+                          {{ selectedSessionCountLabel }}
+                        </span>
+                      </div>
+                      <div class="flex justify-end items-center gap-0.5">
+                        <p class="text-base text-[#07F468] font-normal">≈</p>
+                        <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                        <p
+                          class="text-base font-semibold text-[#07F468]"
+                          data-testid="booking-flow-duration-token-cost"
+                        >
+                          {{ selectedDurationTokenCost }}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        data-testid="booking-flow-duration-minus"
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
+                        :class="(!canAdjustDuration || isAtMinimumDuration) ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                        :disabled="!canAdjustDuration || isAtMinimumDuration"
+                        :aria-label="t('fan_booking_decrease_length')"
+                        @click="decreaseDuration"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="2" viewBox="0 0 16 2" fill="none">
+      <path d="M0.75 0.75H14.75" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="booking-flow-duration-plus"
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-transparent border border-white/50 transition-colors hover:bg-white/20 focus:ring-0 disabled:opacity-20"
+                        :class="!canIncreaseDuration ? 'cursor-not-allowed opacity-45 hover:bg-[#12840F]' : ''"
+                        :disabled="!canIncreaseDuration"
+                        :aria-label="t('fan_booking_increase_length')"
+                        @click="increaseDuration"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M12 5V19M5 12H19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div
                   v-if="hasAvailableLongerSessionDiscount"
-                  class="flex items-start gap-1"
+                  class="flex items-center gap-1"
                   data-testid="booking-flow-longer-discount-notice"
                 >
                   <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
@@ -2521,118 +2497,175 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-y-auto md:over
                 data-testid="booking-flow-price-breakdown"
               >
                 <div class="flex flex-col gap-2">
-                  <div
-                    v-for="row in discountRows"
-                    :key="row.code"
-                    class="flex items-center justify-between text-sm text-white"
-                    data-row-kind="discount"
+                  <p
+                    v-if="showDurationOverlapNotice"
+                    class="flex items-center gap-1 text-sm font-normal leading-[18px] text-[#FF4D6D]"
+                    data-testid="booking-flow-duration-overlap-warning"
                   >
-                    <p class="text-[#EAECF0]">{{ row.label }}</p>
-                    <div class="flex items-center gap-1 text-[#07F468]">
-                      <span>-</span>
-                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                      <span>{{ row.amount }}</span>
-                    </div>
+                    <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                    <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
+                  </p>
+
+                  <div class="flex items-start gap-1">
+                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
+                    <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
+                  </div>
+                  
+                  <div
+                    v-if="showFirstTimeDiscountNotice"
+                    class="flex items-start gap-1"
+                    data-testid="booking-flow-first-time-discount-notice"
+                  >
+                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
+                    <p class="text-sm font-normal leading-5 text-[#07F468]">
+                      {{ t("fan_booking_first_time_discount_received") }}
+                    </p>
                   </div>
 
                   <div
-                    v-if="offHourSurchargeAmount > 0"
-                    class="flex items-center justify-between text-sm text-white"
-                    data-row-kind="off-hour-surcharge"
+                    v-if="hasAvailableLongerSessionDiscount"
+                    class="flex items-start gap-1"
+                    data-testid="booking-flow-longer-discount-notice"
                   >
-                    <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
-                    <div class="flex items-center gap-1 text-[#FF9F43]">
-                      <span>+</span>
-                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                      <span>{{ offHourSurchargeAmount }}</span>
-                    </div>
+                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                    <p class="text-sm font-normal leading-5 text-[#FCE40D]">
+                      {{ longerDiscountNoticeLabel }}
+                    </p>
                   </div>
-
-                  <div
-                    class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
-                    data-row-kind="current-total"
-                    data-testid="booking-flow-current-total-row"
+                  
+                  <p
+                    v-if="showDurationMaxNotice"
+                    class="hidden items-center gap-1 text-sm font-normal leading-[18px]"
+                    :class="durationMaxNoticeClass"
+                    data-testid="booking-flow-duration-max-warning"
                   >
-                    <p>{{ t("fan_booking_current_total") }}</p>
-                    <div class="flex items-center gap-1">
-                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                      <span>{{ totalPrice }}</span>
-                    </div>
-                  </div>
+                    <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                    <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
+                  </p>
+                  <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+                  
                 </div>
-              </div>
-            </div>
+                
 
-            <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
-              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
-              <div class="flex flex-col w-full gap-2">
                 <div
-                  v-for="(addon, index) in addons"
-                  :key="addon.id"
-                  @click="toggleAddon(index)"
-                  class="flex flex-row justify-between text-white py-[0.25rem] cursor-pointer"
+                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                  class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
+                  data-testid="booking-flow-price-breakdown"
                 >
-                  <div class="flex flex-row items-center gap-2">
+                  <div class="flex flex-col gap-2">
                     <div
-                      class="flex justify-center items-center w-[0.9375rem] h-[0.9375rem] p-[0.15625rem] rounded-[0.25rem]"
-                      :class="addon.selected ? 'border border-[#07F468] bg-[#07F468]' : 'border-2 border-[#667085]'"
+                      v-for="row in discountRows"
+                      :key="row.code"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="discount"
                     >
-                      <img v-if="addon.selected" :src="bookingFlowCheckIcon" alt="check-icon" class="w-[0.46875rem] h-[0.3125rem]" />
+                      <p class="text-[#EAECF0]">{{ row.label }}</p>
+                      <div class="flex items-center gap-1 text-[#07F468]">
+                        <span>-</span>
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ row.amount }}</span>
+                      </div>
                     </div>
-                    <p class="text-sm leading-5 font-medium">{{ addon.name }}</p>
-                  </div>
-                  <div class="flex flex-row justify-end items-center gap-0.5">
-                    <p class="text-sm leading-5 font-semibold">+</p>
-                    <div class="flex justify-center items-center w-[1.25rem] h-[1.25rem]">
-                      <img :src="bookingFlowTokenIcon" alt="token-icon" />
+
+                    <div
+                      v-if="offHourSurchargeAmount > 0"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="off-hour-surcharge"
+                    >
+                      <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
+                      <div class="flex items-center gap-1 text-[#FF9F43]">
+                        <span>+</span>
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ offHourSurchargeAmount }}</span>
+                      </div>
                     </div>
-                    <p class="text-sm leading-5 font-semibold">{{ addon.price }}</p>
+
+                    <div
+                      class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
+                      data-row-kind="current-total"
+                      data-testid="booking-flow-current-total-row"
+                    >
+                      <p>{{ t("fan_booking_current_total") }}</p>
+                      <div class="flex items-center gap-1">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ totalPrice }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
+                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+                <div class="flex flex-col w-full gap-2">
+                  <div
+                    v-for="(addon, index) in addons"
+                    :key="addon.id"
+                    @click="toggleAddon(index)"
+                    class="flex flex-row justify-between text-white py-[0.25rem] cursor-pointer"
+                  >
+                    <div class="flex flex-row items-center gap-2">
+                      <div
+                        class="flex justify-center items-center w-[0.9375rem] h-[0.9375rem] p-[0.15625rem] rounded-[0.25rem]"
+                        :class="addon.selected ? 'border border-[#07F468] bg-[#07F468]' : 'border-2 border-[#667085]'"
+                      >
+                        <img v-if="addon.selected" :src="bookingFlowCheckIcon" alt="check-icon" class="w-[0.46875rem] h-[0.3125rem]" />
+                      </div>
+                      <p class="text-sm leading-5 font-medium">{{ addon.name }}</p>
+                    </div>
+                    <div class="flex flex-row justify-end items-center gap-0.5">
+                      <p class="text-sm leading-5 font-semibold">+</p>
+                      <div class="flex justify-center items-center w-[1.25rem] h-[1.25rem]">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                      </div>
+                      <p class="text-sm leading-5 font-semibold">{{ addon.price }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
+                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
+                <div class="desc">
+                  <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
+                    {{ t("fan_booking_other_request_body") }}
+                  </p>
+                </div>
+                <div class="example">
+                  <textarea
+                    v-model="otherRequest"
+                    class="leading-[24px] text-white break-words rounded-t-[0.25rem] bg-black/50 p-[0.75rem_0.675rem] border-b border-solid border-[#07F468] w-full"
+                  />
+                </div>
+              </div>
+              </template>
             </div>
 
-            <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
-              <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
-              <div class="desc">
-                <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
-                  {{ t("fan_booking_other_request_body") }}
-                </p>
-              </div>
-              <div class="example">
-                <textarea
-                  v-model="otherRequest"
-                  class="leading-[24px] text-white break-words rounded-t-[0.25rem] bg-black/50 p-[0.75rem_0.675rem] border-b border-solid border-[#07F468] w-full"
-                />
-              </div>
-            </div>
-            </template>
           </div>
 
-        </div>
-
-        <div v-if="state.selected && hasAvailableSlots" :class="actionFooterClass">
-          <button
-            :disabled="bottomActionDisabled"
-            @click="goToNextStep"
-          >
-            <div
-              class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
-              :class="!bottomActionDisabled
-                ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
-                : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
+          <div v-if="state.selected && hasAvailableSlots" :class="actionFooterClass">
+            <button
+              :disabled="bottomActionDisabled"
+              @click="goToNextStep"
             >
-              <p class="text-lg leading-[28px] text-black text-center font-medium">
-                {{ isPreviewReadOnly ? t('fan_booking_preview_only') : t('fan_booking_payment_summary') }}
-              </p>
-              <div class="w-6 h-6 flex justify-center items-center">
-                <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
+              <div
+                class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
+                :class="!bottomActionDisabled
+                  ? 'bg-[#07F468] after:border-r-[1rem] after:border-r-[#07F468]'
+                  : 'bg-[#6c7280] cursor-not-allowed after:border-r-[1rem] after:border-r-[#6c7280]'"
+              >
+                <p class="text-lg leading-[28px] text-black text-center font-medium">
+                  {{ isPreviewReadOnly ? t('fan_booking_preview_only') : t('fan_booking_payment_summary') }}
+                </p>
+                <div class="w-6 h-6 flex justify-center items-center">
+                  <img :src="bookingFlowArrowRightIcon" alt="arrow-right-icon" />
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
-
-      </div>
+        
+        </div>
       </div>
     </div>
   </div>
