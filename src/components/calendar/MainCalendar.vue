@@ -1236,7 +1236,7 @@ const currentTimeMs = ref(Date.now());
 // State for dropdown
 const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
-const availableViewOptions = computed(() => (width.value < 768 ? ['day'] : ['day', 'week', 'month']));
+const availableViewOptions = computed(() => (width.value < 678 ? ['day'] : ['day', 'week', 'month']));
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
 const showLegend = ref(false);
