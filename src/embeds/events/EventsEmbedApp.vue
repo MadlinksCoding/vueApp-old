@@ -27,12 +27,14 @@ import { RouterView, useRoute, useRouter } from "vue-router";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   announceEventsEmbedReady,
+  installEventsEmbedAuthUpdateListener,
   installEventsEmbedBootstrapListener,
   isEmbeddedIframe,
   notifyEventsEmbedResize,
 } from "@/embeds/events/bridge.js";
 import {
   applyEventsEmbedBootstrap,
+  applyEventsEmbedAuthUpdate,
   readEventsEmbedBootstrapFromUrl,
   useEventsEmbedBootstrap,
 } from "@/embeds/events/bootstrap.js";
@@ -54,6 +56,7 @@ const viewportRootStyle = computed(() => ({
 }));
 
 let removeBootstrapListener = () => {};
+let removeAuthUpdateListener = () => {};
 let resizeObserver = null;
 let viewportSyncTimers = [];
 
@@ -116,6 +119,9 @@ onMounted(async () => {
   removeBootstrapListener = installEventsEmbedBootstrapListener((payload) => {
     applyBootstrapAndRoute(payload);
   });
+  removeAuthUpdateListener = installEventsEmbedAuthUpdateListener((payload) => {
+    applyEventsEmbedAuthUpdate(payload);
+  });
 
   const fallbackBootstrap = readEventsEmbedBootstrapFromUrl();
   if (fallbackBootstrap) {
@@ -151,6 +157,7 @@ watch(() => route.fullPath, async () => {
 
 onBeforeUnmount(() => {
   removeBootstrapListener();
+  removeAuthUpdateListener();
   resizeObserver?.disconnect();
   viewportSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
   viewportSyncTimers = [];

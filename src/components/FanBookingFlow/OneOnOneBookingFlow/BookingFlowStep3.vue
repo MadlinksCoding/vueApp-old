@@ -28,6 +28,7 @@ import { getBackendJwtToken, setBackendJwtToken } from '@/utils/backendJwt.js';
 import { getBookingsApiBaseUrl } from '@/services/bookings/bookingsApiUtils.js';
 import { formatBookingValidationErrors, useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { extractBackendErrorMessage } from '@/utils/backendErrorMessage.js';
+import { presentBackendJwtAuthError } from '@/utils/backendJwtErrorToast.js';
 import {
   formatGmtOffsetLabel,
   getBrowserOffsetMinutes,
@@ -526,7 +527,12 @@ async function acceptInviteForAuthenticatedFan({ silent = false } = {}) {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok || payload?.ok === false) {
-      throw new Error(payload?.message || payload?.error || t('fan_booking_invite_accept_failed_message'));
+      const error = new Error(payload?.message || payload?.error || t('fan_booking_invite_accept_failed_message'));
+      error.backendJwtErrorPresented = presentBackendJwtAuthError(payload, {
+        token: jwtToken,
+        title: t('fan_booking_invite_accept_failed_title'),
+      });
+      throw error;
     }
 
     props.engine.setState('fanBooking.context.inviteAccepted', true, { reason: 'invite-accepted', silent: true });
@@ -548,7 +554,7 @@ async function acceptInviteForAuthenticatedFan({ silent = false } = {}) {
       message: error?.message || String(error),
       fanId,
     });
-    if (!silent) {
+    if (!silent && !error?.backendJwtErrorPresented) {
       showToast({
         type: 'error',
         title: t('fan_booking_invite_accept_failed_title'),
@@ -672,6 +678,8 @@ const BACKEND_BOOKING_ERROR_TRANSLATIONS = Object.freeze({
   missing_jwt_secret_key: 'fan_booking_error_missing_jwt_secret_key',
   invalid_jwt_issuer: 'fan_booking_error_invalid_jwt_issuer',
   invalid_jwt_audience: 'fan_booking_error_invalid_jwt_audience',
+  jwt_missing_exp: 'fan_booking_error_jwt_missing_exp',
+  jwt_invalid_exp: 'fan_booking_error_jwt_invalid_exp',
   jwt_expired: 'fan_booking_error_jwt_expired',
   invalid_jwt_user_id: 'fan_booking_error_invalid_jwt_user_id',
   invalid_jwt_token: 'fan_booking_error_invalid_jwt_token',
@@ -1686,11 +1694,13 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
         result,
         message: failureMessage,
       });
-      showToast({
-        type: 'error',
-        title: t('fan_booking_booking_failed_title'),
-        message: failureMessage,
-      });
+      if (!result?.meta?.backendJwtErrorPresented) {
+        showToast({
+          type: 'error',
+          title: t('fan_booking_booking_failed_title'),
+          message: failureMessage,
+        });
+      }
       if (staleSlotConflict) {
         await sendBackToScheduleAfterStaleSlot();
         return;

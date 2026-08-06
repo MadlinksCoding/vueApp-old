@@ -380,6 +380,41 @@ describe("chat product recommendations", () => {
     expect(embedSource).toContain("setRuntimeTokenHandlerApiUrl(tokenHandlerApiUrl)");
   });
 
+  it("broadcasts refreshed JWTs to active chat embeds", () => {
+    const hostSource = readFileSync(
+      resolve(process.cwd(), "public/bookings-embed/fs-chat-host.js"),
+      "utf8"
+    );
+    window.eval(hostSource);
+    const first = window.FSChatEmbed.mountChatEmbed(document.body, {
+      src: "/bookings-embed/chat.html",
+      currentUserId: "2615",
+    });
+    const secondTarget = document.createElement("div");
+    document.body.appendChild(secondTarget);
+    const second = window.FSChatEmbed.mountChatEmbed(secondTarget, {
+      src: "/bookings-embed/chat.html",
+      currentUserId: "2615",
+    });
+    const firstPostMessage = vi.spyOn(first.iframe.contentWindow, "postMessage");
+    const secondPostMessage = vi.spyOn(second.iframe.contentWindow, "postMessage");
+
+    expect(window.FSChatEmbed.updateAuth({ jwtToken: "jwt_fresh" })).toBe(2);
+    expect(firstPostMessage).toHaveBeenCalledWith({
+      type: "FS_CHAT_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, "*");
+    expect(secondPostMessage).toHaveBeenCalledWith({
+      type: "FS_CHAT_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, "*");
+
+    first.destroy();
+    firstPostMessage.mockClear();
+    window.FSChatEmbed.updateAuth({ jwtToken: "jwt_newer" });
+    expect(firstPostMessage).not.toHaveBeenCalled();
+  });
+
   it("resolves fan uid from iframe globals, query params, and host userData fallbacks", () => {
     expect(resolveChatFanUid({
       windowRef: { __fsChatFanUid: "global-fan-token" },

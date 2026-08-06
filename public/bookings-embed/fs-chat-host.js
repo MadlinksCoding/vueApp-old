@@ -1,6 +1,7 @@
 (function (global) {
   var CHAT_EMBED_WIDTH = 360;
   var CHAT_EMBED_HEIGHT = 600;
+  var activeChatEmbeds = [];
 
   function buildIframeSrcWithQuery(src, query) {
     var baseUrl = typeof src === "string" && src ? src : "";
@@ -658,7 +659,7 @@
       }).catch(function () { }); // silent fail — never crash the host page
     }
 
-    return {
+    var chatHandle = {
       iframe: iframe,
       container: chatContainer,
       updateAuth: updateAuth,
@@ -681,9 +682,24 @@
         if (chatContainer.parentNode) {
           chatContainer.parentNode.removeChild(chatContainer);
         }
+        activeChatEmbeds = activeChatEmbeds.filter(function (embed) {
+          return embed !== chatHandle;
+        });
       },
     };
+    activeChatEmbeds.push(chatHandle);
+    return chatHandle;
   }
 
-  global.FSChatEmbed = { mountChatEmbed: mountChatEmbed };
+  function updateAuth(authOptions) {
+    activeChatEmbeds.slice().forEach(function (embed) {
+      embed.updateAuth(authOptions || {});
+    });
+    return activeChatEmbeds.length;
+  }
+
+  global.FSChatEmbed = {
+    mountChatEmbed: mountChatEmbed,
+    updateAuth: updateAuth,
+  };
 })(window);

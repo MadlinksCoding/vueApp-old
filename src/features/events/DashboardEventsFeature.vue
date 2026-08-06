@@ -45,7 +45,7 @@
         time-end="24:00"
         :slot-minutes="60"
         :row-height-px="120"
-        :min-event-height-px="0"
+        :min-event-height-px="48"
         @date-selected="onSelectFromMain"
         @update:focus-date="onFocusFromMain"
         @view-changed="onViewChanged"

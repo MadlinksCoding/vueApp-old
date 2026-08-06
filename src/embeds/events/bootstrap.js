@@ -101,6 +101,14 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   return normalized;
 }
 
+export function applyEventsEmbedAuthUpdate(payload = {}) {
+  if (typeof payload.jwtToken !== "string") return bootstrapState.jwtToken;
+
+  bootstrapState.jwtToken = payload.jwtToken;
+  applyBackendJwtTokenSafely(payload.jwtToken);
+  return bootstrapState.jwtToken;
+}
+
 export function readEventsEmbedBootstrapFromUrl() {
   if (typeof window === "undefined") return null;
 

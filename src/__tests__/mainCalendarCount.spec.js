@@ -244,6 +244,22 @@ function localDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
+function stylePixels(wrapper, property) {
+  const match = wrapper.attributes("style")?.match(new RegExp(`${property}:\\s*([\\d.]+)px`));
+  return match ? Number(match[1]) : Number.NaN;
+}
+
+function denseFiveMinuteBookings() {
+  return [0, 10, 20].map((minute, index) => makeEvent({
+    id: `dense_booking_${index + 1}`,
+    eventId: "evt_dense",
+    title: `Dense booking ${index + 1}`,
+    start: new Date(2026, 3, 23, 13, minute, 0),
+    end: new Date(2026, 3, 23, 13, minute + 5, 0),
+    isAvailabilityBlock: false,
+  }));
+}
+
 async function mountCalendar(events, extraProps = {}, mountOptions = {}) {
   const { default: MainCalendar } = await import("@/components/calendar/MainCalendar.vue");
 
@@ -1359,7 +1375,12 @@ describe("MainCalendar all events count", () => {
           isAvailabilityBlock: false,
         }),
       ],
-      { initialView: "week", dayColumnMode: "events" },
+      {
+        initialView: "week",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
       {
         slots: {
           event: `
@@ -1378,6 +1399,7 @@ describe("MainCalendar all events count", () => {
     expect(blocks).toHaveLength(2);
     expect(blocks.map((block) => block.attributes("data-event-id"))).toEqual(["evt_a", "evt_b"]);
     expect(topValues[0]).toBe(topValues[1]);
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[12], "height")).toBe(120);
   });
 
   it("still stacks same-time week bookings in the same event column", async () => {
@@ -1418,6 +1440,45 @@ describe("MainCalendar all events count", () => {
 
     expect(blocks).toHaveLength(2);
     expect(topValues[1]).toBeGreaterThan(topValues[0]);
+  });
+
+  it("expands a week hour so short five-minute bookings retain their time positions", async () => {
+    const wrapper = await mountCalendar(
+      denseFiveMinuteBookings(),
+      {
+        initialView: "week",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="booking-block" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const selectedGroup = wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${localDateKey(baseDate)}']`);
+    const eventColumn = selectedGroup.get("[data-test='calendar-week-event-column'][data-event-id='evt_dense']");
+    const blocks = eventColumn.findAll("[data-test='booking-block']");
+    const tops = blocks.map((block) => stylePixels(block, "top"));
+    const heights = blocks.map((block) => stylePixels(block, "height"));
+    const axisRows = wrapper.findAll("[data-test='calendar-time-label']");
+    const gridRows = eventColumn.findAll(".pointer-events-none > div");
+
+    expect(blocks).toHaveLength(3);
+    expect(heights).toEqual([48, 48, 48]);
+    expect(tops).toEqual([1560, 1660, 1760]);
+    expect(tops[1]).toBeGreaterThanOrEqual(tops[0] + heights[0]);
+    expect(tops[2]).toBeGreaterThanOrEqual(tops[1] + heights[1]);
+    expect(stylePixels(axisRows[13], "height")).toBe(600);
+    expect(stylePixels(gridRows[13], "height")).toBe(stylePixels(axisRows[13], "height"));
+    expect(stylePixels(axisRows[12], "height")).toBe(120);
+    expect(stylePixels(axisRows[14], "height")).toBe(120);
   });
 
   it("keeps the week scroll position and shows the now line when the week includes today", async () => {
@@ -1781,7 +1842,12 @@ describe("MainCalendar all events count", () => {
           isAvailabilityBlock: false,
         }),
       ],
-      { initialView: "day", dayColumnMode: "events" },
+      {
+        initialView: "day",
+        dayColumnMode: "events",
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
       {
         slots: {
           event: `
@@ -1799,6 +1865,7 @@ describe("MainCalendar all events count", () => {
     expect(blocks).toHaveLength(2);
     expect(blocks.map((block) => block.attributes("data-event-id"))).toEqual(["evt_a", "evt_b"]);
     expect(topValues[0]).toBe(topValues[1]);
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[12], "height")).toBe(120);
   });
 
   it("still stacks same-time bookings within the same event column", async () => {
@@ -1839,6 +1906,132 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]")).toHaveLength(1);
     expect(blocks).toHaveLength(2);
     expect(topValues[1]).toBeGreaterThan(topValues[0]);
+  });
+
+  it("expands a day hour so short five-minute bookings retain their time positions", async () => {
+    vi.setSystemTime(new Date(2026, 3, 23, 13, 30, 0));
+    const wrapper = await mountCalendar(
+      denseFiveMinuteBookings(),
+      {
+        initialView: "day",
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+        showCurrentTimeAcrossDates: true,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="booking-block" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const eventColumn = wrapper.get(`[data-cal-time-grid] div[data-event-id='evt_dense']`);
+    const blocks = eventColumn.findAll("[data-test='booking-block']");
+    const tops = blocks.map((block) => stylePixels(block, "top"));
+    const heights = blocks.map((block) => stylePixels(block, "height"));
+    const axisRows = wrapper.findAll("[data-test='calendar-time-label']");
+    const gridRows = eventColumn.findAll(".pointer-events-none > div");
+
+    expect(blocks).toHaveLength(3);
+    expect(heights).toEqual([48, 48, 48]);
+    expect(tops).toEqual([1560, 1660, 1760]);
+    expect(tops[1]).toBeGreaterThanOrEqual(tops[0] + heights[0]);
+    expect(tops[2]).toBeGreaterThanOrEqual(tops[1] + heights[1]);
+    expect(stylePixels(axisRows[13], "height")).toBe(600);
+    expect(stylePixels(gridRows[13], "height")).toBe(stylePixels(axisRows[13], "height"));
+    expect(stylePixels(axisRows[12], "height")).toBe(120);
+    expect(stylePixels(axisRows[14], "height")).toBe(120);
+
+    const nowLine = wrapper.get("[data-test='calendar-now-line']");
+    expect(stylePixels(nowLine, "top")).toBe(1860);
+
+    const timeScroller = wrapper.get("[data-cal-time-scroll]").element;
+    Object.defineProperty(timeScroller, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(timeScroller, "scrollHeight", { configurable: true, value: 3360 });
+    Object.defineProperty(timeScroller, "scrollLeft", { configurable: true, value: 0, writable: true });
+    timeScroller.scrollTo = vi.fn();
+
+    await expect(wrapper.vm.scrollToTime("13:20", {
+      behavior: "auto",
+      viewportOffset: 0,
+    })).resolves.toBe(true);
+    expect(timeScroller.scrollTo).toHaveBeenCalledWith({
+      top: 1760,
+      left: 0,
+      behavior: "auto",
+    });
+  });
+
+  it("uses horizontal lanes for genuine overlaps and keeps availability full width", async () => {
+    const overlappingEvents = [
+      makeEvent({
+        id: "overlap_booking_1",
+        eventId: "evt_overlap_lanes",
+        title: "Overlap booking 1",
+        start: new Date(2026, 3, 23, 13, 0, 0),
+        end: new Date(2026, 3, 23, 13, 30, 0),
+        isAvailabilityBlock: false,
+      }),
+      makeEvent({
+        id: "overlap_booking_2",
+        eventId: "evt_overlap_lanes",
+        title: "Overlap booking 2",
+        start: new Date(2026, 3, 23, 13, 0, 0),
+        end: new Date(2026, 3, 23, 13, 30, 0),
+        isAvailabilityBlock: false,
+      }),
+      makeEvent({
+        id: "overlap_availability",
+        eventId: "evt_overlap_lanes",
+        title: "Overlap availability",
+        start: new Date(2026, 3, 23, 13, 0, 0),
+        end: new Date(2026, 3, 23, 14, 0, 0),
+        slot: "availability",
+        isAvailabilityBlock: true,
+      }),
+    ];
+    const wrapper = await mountCalendar(
+      overlappingEvents,
+      {
+        initialView: "day",
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        rowHeightPx: 120,
+        minEventHeightPx: 48,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="overlap-booking" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+          "event-availability": `
+            <template #event-availability="{ event, style }">
+              <div data-test="overlap-availability" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const bookings = wrapper.findAll("[data-test='overlap-booking']");
+    const availability = wrapper.get("[data-test='overlap-availability']");
+
+    expect(bookings).toHaveLength(2);
+    expect(bookings.map((booking) => stylePixels(booking, "top"))).toEqual([1560, 1560]);
+    expect(bookings[0].attributes("style")).toContain("left: calc(0% + 2px)");
+    expect(bookings[1].attributes("style")).toContain("left: calc(50% + 2px)");
+    expect(bookings.every((booking) => booking.attributes("style").includes("width: calc(50% - 4px)"))).toBe(true);
+    expect(availability.attributes("style")).toContain("left: 2px");
+    expect(availability.attributes("style")).toContain("right: 2px");
+    expect(availability.attributes("style")).not.toContain("width:");
   });
 
   it("emits view-changed when switching calendar views", async () => {
@@ -2132,7 +2325,18 @@ describe("MainCalendar all events count", () => {
     expect(summary.attributes("data-availability-count")).toBe("3");
     expect(summary.findAll("[data-test='month-availability']")).toHaveLength(1);
     expect(summary.get("[data-test='month-availability']").attributes("data-event-id")).toBe("event_1");
-    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toContain("2");
+    let availabilityRows = summary.findAll("[data-test='calendar-month-availability-row']");
+    expect(availabilityRows).toHaveLength(1);
+    expect(availabilityRows[0].classes()).toEqual(expect.arrayContaining([
+      "flex",
+      "h-[1.375rem]",
+      "w-full",
+      "items-center",
+    ]));
+    expect(availabilityRows[0].classes()).not.toContain("flex-col");
+    expect(availabilityRows[0].element.firstElementChild.classList.contains("flex-1")).toBe(true);
+    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toBe("+2");
+    expect(summary.find("[data-test='calendar-month-availability-more'] svg").exists()).toBe(false);
     const booking = wrapper.get("[data-test='month-booking']");
     expect(booking.text()).toBe("Month booking");
     expect(booking.element.closest("[data-test='calendar-month-bookings']")).not.toBeNull();
@@ -2157,7 +2361,10 @@ describe("MainCalendar all events count", () => {
       "event_1",
       "event_2",
     ]);
-    expect(summary.get("[data-test='calendar-month-availability-more']").text()).toContain("1");
+    availabilityRows = summary.findAll("[data-test='calendar-month-availability-row']");
+    expect(availabilityRows[0].find("[data-test='calendar-month-availability-more']").exists()).toBe(false);
+    expect(availabilityRows[0].element.firstElementChild.classList.contains("flex-1")).toBe(true);
+    expect(availabilityRows[1].get("[data-test='calendar-month-availability-more']").text()).toBe("+1");
   });
 
   it("shows hidden month booking counts on the last booking that fits", async () => {

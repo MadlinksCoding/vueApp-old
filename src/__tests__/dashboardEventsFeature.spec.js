@@ -69,7 +69,7 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates"],
+    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "minEventHeightPx"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
@@ -577,6 +577,7 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
     expect(wrapper.getComponent({ name: "MainCalendar" }).props("showCurrentTimeAcrossDates")).toBe(true);
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("minEventHeightPx")).toBe(48);
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
   });
 

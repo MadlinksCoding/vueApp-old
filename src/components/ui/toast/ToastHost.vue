@@ -12,6 +12,17 @@
           <div>
             <div class="text-xs font-semibold uppercase tracking-wide">{{ toast.title }}</div>
             <div class="text-sm leading-5 whitespace-pre-line">{{ toast.message }}</div>
+            <button
+              v-if="toast.action?.type === 'copy'"
+              class="mt-2 rounded border border-current px-2 py-1 text-xs font-semibold hover:bg-black/5 disabled:cursor-default disabled:opacity-70"
+              type="button"
+              :aria-label="toastActionLabel(toast)"
+              :disabled="toast.actionState === 'copied'"
+              @click="runToastAction(toast)"
+            >
+              {{ toastActionLabel(toast) }}
+            </button>
+            <span class="sr-only" aria-live="polite">{{ toast.actionAnnouncement }}</span>
           </div>
           <button
             class="text-xs opacity-70 hover:opacity-100"
@@ -53,8 +64,48 @@ function removeToast(id) {
   toasts.value = toasts.value.filter((toast) => toast.id !== id);
 }
 
+function toastActionLabel(toast) {
+  if (toast.actionState === "copied") return toast.action?.successLabel || "Copied";
+  if (toast.actionState === "failed") return toast.action?.failureLabel || "Copy failed";
+  return toast.action?.label || "Copy";
+}
+
+async function copyText(value) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Clipboard copy failed");
+}
+
+async function runToastAction(toast) {
+  if (toast.action?.type !== "copy" || toast.actionState === "copied") return;
+  try {
+    await copyText(String(toast.action.value || ""));
+    toast.actionState = "copied";
+    toast.actionAnnouncement = toast.action?.successLabel || "Copied";
+  } catch (_) {
+    toast.actionState = "failed";
+    toast.actionAnnouncement = toast.action?.failureLabel || "Copy failed";
+  }
+}
+
 function onToastEvent(event) {
   const detail = event?.detail || {};
+  if (detail.dedupeKey) {
+    const existing = toasts.value.find((toast) => toast.dedupeKey === detail.dedupeKey);
+    if (existing) removeToast(existing.id);
+  }
   const id = nextToastId;
   nextToastId += 1;
 
@@ -65,6 +116,10 @@ function onToastEvent(event) {
     message: detail.message || "Something went wrong.",
     duration: Number.isFinite(Number(detail.duration)) ? Number(detail.duration) : 4500,
     autoClose: detail.persistent === true ? false : detail.autoClose !== false,
+    action: detail.action && typeof detail.action === "object" ? { ...detail.action } : null,
+    actionState: "idle",
+    actionAnnouncement: "",
+    dedupeKey: typeof detail.dedupeKey === "string" ? detail.dedupeKey : "",
   };
 
   toasts.value = [...toasts.value, toast];

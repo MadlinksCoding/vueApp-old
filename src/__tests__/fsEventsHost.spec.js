@@ -330,6 +330,33 @@ describe("fs-events-host openFanBookingPopup", () => {
     );
   });
 
+  it("broadcasts auth updates to active events embeds and forgets destroyed embeds", () => {
+    const firstContainer = document.createElement("div");
+    const secondContainer = document.createElement("div");
+    document.body.append(firstContainer, secondContainer);
+    const first = window.FSEventsEmbed.mount(firstContainer, { creatorId: 1407 });
+    const second = window.FSEventsEmbed.mount(secondContainer, { creatorId: 1407 });
+    const firstPostMessage = vi.spyOn(first.iframe.contentWindow, "postMessage");
+    const secondPostMessage = vi.spyOn(second.iframe.contentWindow, "postMessage");
+
+    expect(window.FSEventsEmbed.updateAuth({ jwtToken: "jwt_fresh" })).toBe(2);
+    expect(firstPostMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, window.location.origin);
+    expect(secondPostMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, window.location.origin);
+
+    first.destroy();
+    firstPostMessage.mockClear();
+    secondPostMessage.mockClear();
+    expect(window.FSEventsEmbed.updateAuth({ jwtToken: "jwt_newer" })).toBe(1);
+    expect(firstPostMessage).not.toHaveBeenCalled();
+    expect(secondPostMessage).toHaveBeenCalledOnce();
+  });
+
   it("hides the loading layer when the child-ready message arrives", () => {
     const popup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,

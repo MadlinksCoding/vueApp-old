@@ -1093,6 +1093,15 @@
     ].sort((first, second) => timeToMinutes(first.value) - timeToMinutes(second.value));
   }
 
+  function hasRegularHoursBoundary(slots = [], slotIndex = null, boundaryTime = "") {
+    if (!boundaryTime || !Array.isArray(slots)) return false;
+    return slots.some((otherSlot, otherIndex) => (
+      otherIndex !== slotIndex
+      && !Boolean(otherSlot?.offHours)
+      && otherSlot?.endTime === boundaryTime
+    ));
+  }
+
   function getSlotStartOptions(slot = {}, siblingSlots = [], slotIndex = null) {
     const options = withCurrentTimeOption(timeOptions, slot?.startTime);
     if (!slot?.offHours || !Array.isArray(siblingSlots)) return options;
@@ -1100,6 +1109,7 @@
     const sharedBoundaryValues = new Set(
       siblingSlots
         .filter((_otherSlot, otherIndex) => otherIndex !== slotIndex)
+        .filter((otherSlot) => !Boolean(otherSlot?.offHours))
         .map((otherSlot) => otherSlot?.endTime)
         .filter(Boolean),
     );
@@ -1125,12 +1135,8 @@
   function normalizeOffHoursSlotBoundary(slots = [], slotIndex = null) {
     const slot = slots?.[slotIndex];
     if (!slot?.offHours) return false;
-
-    const hasSharedBoundary = slots.some((otherSlot, otherIndex) => (
-      otherIndex !== slotIndex
-      && otherSlot?.endTime === slot.startTime
-    ));
-    if (!hasSharedBoundary) return false;
+    if (offHoursBoundaryAdjustments.has(slot)) return false;
+    if (!hasRegularHoursBoundary(slots, slotIndex, slot.startTime)) return false;
 
     const startMinutes = timeToMinutes(slot.startTime);
     const endMinutes = timeToMinutes(slot.endTime);
@@ -1159,61 +1165,61 @@
     return true;
   }
 
-  function normalizeOffHoursBoundaries(slots = []) {
-    if (!Array.isArray(slots)) return false;
-    return slots.reduce((changed, _slot, slotIndex) => (
-      normalizeOffHoursSlotBoundary(slots, slotIndex) || changed
-    ), false);
-  }
-
-  function restoreOffHoursSlotBoundary(slots = [], slotIndex = null) {
+  function restoreOffHoursSlotBoundary(
+    slots = [],
+    slotIndex = null,
+    { discardOnFailure = true } = {},
+  ) {
     const slot = slots?.[slotIndex];
     if (!slot) return false;
 
-    const candidates = [];
     const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
-    if (recordedAdjustment) candidates.push(recordedAdjustment);
-
-    const startMinutes = timeToMinutes(slot.startTime);
-    const endMinutes = timeToMinutes(slot.endTime);
-    if (startMinutes !== null && startMinutes > 0) {
-      const inferredStartTime = minutesToTime(startMinutes - 1);
-      const hasMatchingPreviousBoundary = slots.some((otherSlot, otherIndex) => (
-        otherIndex !== slotIndex
-        && otherSlot?.endTime === inferredStartTime
-      ));
-
-      if (hasMatchingPreviousBoundary) {
-        const currentDuration = getSlotDurationMinutesFromTimes(slot.startTime, slot.endTime);
-        const inferredEndTime = (
-          endMinutes !== null
-          && currentDuration === MIN_SLOT_DURATION_MINUTES
-          && endMinutes > 0
-        )
-          ? minutesToTime(endMinutes - 1)
-          : slot.endTime;
-        candidates.push({
-          startTime: inferredStartTime,
-          endTime: inferredEndTime,
-        });
-      }
+    if (!recordedAdjustment) return false;
+    if (!canUseSlotRange(
+      slots,
+      slotIndex,
+      recordedAdjustment.startTime,
+      recordedAdjustment.endTime,
+    )) {
+      if (discardOnFailure) offHoursBoundaryAdjustments.delete(slot);
+      return false;
     }
 
-    const restored = candidates.find((candidate) => (
-      canUseSlotRange(slots, slotIndex, candidate.startTime, candidate.endTime)
-    ));
     offHoursBoundaryAdjustments.delete(slot);
-    if (!restored) return false;
-
-    slot.startTime = restored.startTime;
-    slot.endTime = restored.endTime;
+    slot.startTime = recordedAdjustment.startTime;
+    slot.endTime = recordedAdjustment.endTime;
     return true;
   }
 
-  function normalizeAllOffHoursBoundaries() {
-    weekDays.value.forEach((day) => normalizeOffHoursBoundaries(day?.slots));
-    normalizeOffHoursBoundaries(monthlySlots.value);
-    oneTimeDates.value.forEach((entry) => normalizeOffHoursBoundaries(entry?.slots));
+  function reconcileOffHoursBoundaries(slots = []) {
+    if (!Array.isArray(slots)) return false;
+    let changed = false;
+
+    slots.forEach((slot, slotIndex) => {
+      const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
+      if (!recordedAdjustment) return;
+
+      const stillQualifies = Boolean(slot?.offHours)
+        && hasRegularHoursBoundary(slots, slotIndex, recordedAdjustment.startTime);
+      if (!stillQualifies) {
+        changed = restoreOffHoursSlotBoundary(
+          slots,
+          slotIndex,
+          { discardOnFailure: false },
+        ) || changed;
+      }
+    });
+
+    slots.forEach((_slot, slotIndex) => {
+      changed = normalizeOffHoursSlotBoundary(slots, slotIndex) || changed;
+    });
+    return changed;
+  }
+
+  function reconcileAllOffHoursBoundaries() {
+    weekDays.value.forEach((day) => reconcileOffHoursBoundaries(day?.slots));
+    reconcileOffHoursBoundaries(monthlySlots.value);
+    oneTimeDates.value.forEach((entry) => reconcileOffHoursBoundaries(entry?.slots));
   }
 
   function getOneTimeSlotKey(slot = {}) {
@@ -1959,6 +1965,7 @@
     }
     day.unavailable = false;
     day.slots.push(nextSlot);
+    reconcileOffHoursBoundaries(day.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
@@ -1970,6 +1977,7 @@
     if (!Array.isArray(day.slots) || getTotalWeeklySlotCount() <= 1) return;
 
     day.slots.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(day.slots);
     if (day.slots.length === 0) {
       day.unavailable = true;
       day.offHours = false;
@@ -1990,8 +1998,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(day.slots, slotIndex);
     }
+    reconcileOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
   }
@@ -2041,7 +2049,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(day.slots);
+    reconcileOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
     focusSchedulePreview({ day, startTime: slot.startTime });
@@ -2067,6 +2075,7 @@
       return;
     }
     monthlySlots.value.push(nextSlot);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
     focusSchedulePreview({ startTime: nextSlot.startTime });
   }
@@ -2075,6 +2084,7 @@
     if (isScheduleLocked.value) return;
     if (getTotalMonthlySlotCount() <= 1) return;
     monthlySlots.value.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
   }
 
@@ -2087,8 +2097,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(monthlySlots.value, slotIndex);
     }
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
   }
 
@@ -2131,7 +2141,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(monthlySlots.value);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
     focusSchedulePreview({ startTime: slot.startTime });
   }
@@ -2166,6 +2176,7 @@
       return;
     }
     dateEntry.slots.push(nextSlot);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({
       date: dateEntry.date,
@@ -2235,7 +2246,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(dateEntry.slots);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({
       date: dateEntry.date,
@@ -2253,8 +2264,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(slots, slotIndex);
     }
+    reconcileOffHoursBoundaries(slots);
     syncAvailabilityToForm();
   }
 
@@ -2265,6 +2276,7 @@
     if (!Array.isArray(dateEntry.slots) || getTotalOneTimeSlotCount() <= 1) return;
 
     dateEntry.slots.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
   }
 
@@ -2375,7 +2387,7 @@
     }
   );
 
-  normalizeAllOffHoursBoundaries();
+  reconcileAllOffHoursBoundaries();
   syncAvailabilityToForm();
 </script>
 

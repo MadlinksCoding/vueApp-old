@@ -1001,6 +1001,105 @@ describe("one-on-one booking step translations", () => {
     );
   });
 
+  it("keeps adjoining off-hours boundaries shared and reconciles later status changes", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const today = getTodayIsoDate();
+    const engine = createEngine({
+      eventType: "1on1-call",
+      repeatRule: "monthly",
+      weeklyAvailability: [{
+        key: "sun",
+        name: "Sun",
+        unavailable: false,
+        offHours: true,
+        slots: [
+          { startTime: "00:00", endTime: "03:00", offHours: true },
+          { startTime: "03:00", endTime: "06:00", offHours: true },
+        ],
+      }],
+      monthlyAvailability: [
+        { startTime: "00:00", endTime: "03:00", offHours: true },
+        { startTime: "03:00", endTime: "06:00", offHours: true },
+      ],
+      oneTimeAvailability: [{
+        id: "date-1",
+        date: today,
+        slots: [
+          { startTime: "00:00", endTime: "03:00", offHours: true },
+          { startTime: "03:00", endTime: "06:00", offHours: true },
+        ],
+      }],
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    const weeklySlots = unrefPublic(wrapper.vm.weekDays)[0].slots;
+    const monthlySlots = unrefPublic(wrapper.vm.monthlySlots);
+    const oneTimeSlots = unrefPublic(wrapper.vm.oneTimeDates)[0].slots;
+
+    expect(weeklySlots[1].startTime).toBe("03:00");
+    expect(monthlySlots[1].startTime).toBe("03:00");
+    expect(oneTimeSlots[1].startTime).toBe("03:00");
+    expect(wrapper.vm.getWeeklyStartOptions(0, 1)).toContainEqual(
+      expect.objectContaining({ value: "03:00", disabled: false }),
+    );
+    expect(wrapper.vm.getMonthlyStartOptions(1)).toContainEqual(
+      expect.objectContaining({
+        value: "03:00",
+        label: "3:00 AM",
+        disabled: false,
+      }),
+    );
+    expect(wrapper.vm.getOneTimeStartOptions(
+      unrefPublic(wrapper.vm.oneTimeDates)[0],
+      1,
+    )).toContainEqual(
+      expect.objectContaining({ value: "03:00", disabled: false }),
+    );
+    expect(engine.state.weeklyAvailability[0].slots[1].startTime).toBe("03:00");
+    expect(engine.state.monthlyAvailability[1].startTime).toBe("03:00");
+    expect(engine.state.oneTimeAvailability[0].slots[1].startTime).toBe("03:00");
+
+    wrapper.vm.toggleSlotOffHours(0, 0);
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    await nextTick();
+
+    expect(weeklySlots[1].startTime).toBe("03:01");
+    expect(monthlySlots[1].startTime).toBe("03:01");
+    expect(oneTimeSlots[1].startTime).toBe("03:01");
+    expect(wrapper.vm.getWeeklyStartOptions(0, 1)).not.toContainEqual(
+      expect.objectContaining({ value: "03:00" }),
+    );
+    expect(wrapper.vm.getMonthlyStartOptions(1)).not.toContainEqual(
+      expect.objectContaining({ value: "03:00" }),
+    );
+    expect(wrapper.vm.getOneTimeStartOptions(
+      unrefPublic(wrapper.vm.oneTimeDates)[0],
+      1,
+    )).not.toContainEqual(
+      expect.objectContaining({ value: "03:00" }),
+    );
+
+    wrapper.vm.toggleSlotOffHours(0, 0);
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    wrapper.vm.toggleOneTimeSlotOffHours(0, 0);
+    await nextTick();
+
+    expect(weeklySlots[1].startTime).toBe("03:00");
+    expect(monthlySlots[1].startTime).toBe("03:00");
+    expect(oneTimeSlots[1].startTime).toBe("03:00");
+    expect(engine.state.weeklyAvailability[0].slots[1].startTime).toBe("03:00");
+    expect(engine.state.monthlyAvailability[1].startTime).toBe("03:00");
+    expect(engine.state.oneTimeAvailability[0].slots[1].startTime).toBe("03:00");
+  });
+
   it("maintains and restores monthly off-hours boundaries as times change", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -1022,6 +1121,14 @@ describe("one-on-one booking step translations", () => {
     });
     const slots = unrefPublic(wrapper.vm.monthlySlots);
 
+    expect(slots[1].startTime).toBe("03:00");
+
+    wrapper.vm.onMonthlySlotChanged(0, "end", "03:00");
+    await nextTick();
+    expect(slots[1].startTime).toBe("03:01");
+
+    wrapper.vm.onMonthlySlotChanged(0, "end", "02:55");
+    await nextTick();
     expect(slots[1].startTime).toBe("03:00");
 
     wrapper.vm.onMonthlySlotChanged(0, "end", "03:00");

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   notifyEventsEmbedResize: vi.fn(),
   announceEventsEmbedReady: vi.fn(),
   installEventsEmbedBootstrapListener: vi.fn(() => vi.fn()),
+  installEventsEmbedAuthUpdateListener: vi.fn(() => vi.fn()),
 }));
 
 vi.mock("vue-router", () => ({
@@ -27,12 +28,14 @@ vi.mock("vue-router", () => ({
 vi.mock("@/embeds/events/bridge.js", () => ({
   announceEventsEmbedReady: mocks.announceEventsEmbedReady,
   installEventsEmbedBootstrapListener: mocks.installEventsEmbedBootstrapListener,
+  installEventsEmbedAuthUpdateListener: mocks.installEventsEmbedAuthUpdateListener,
   isEmbeddedIframe: () => false,
   notifyEventsEmbedResize: mocks.notifyEventsEmbedResize,
 }));
 
 vi.mock("@/embeds/events/bootstrap.js", () => ({
   applyEventsEmbedBootstrap: vi.fn((payload = {}) => payload),
+  applyEventsEmbedAuthUpdate: vi.fn((payload = {}) => payload),
   readEventsEmbedBootstrapFromUrl: vi.fn(() => null),
   useEventsEmbedBootstrap: () => mocks.bootstrap,
 }));
@@ -79,6 +82,7 @@ describe("EventsEmbedApp viewport height sync", () => {
     mocks.notifyEventsEmbedResize.mockReset();
     mocks.announceEventsEmbedReady.mockReset();
     mocks.installEventsEmbedBootstrapListener.mockClear();
+    mocks.installEventsEmbedAuthUpdateListener.mockClear();
     mocks.route.name = "events-embed-events";
     mocks.route.fullPath = "/events";
     mocks.bootstrap.bootstrapped = true;

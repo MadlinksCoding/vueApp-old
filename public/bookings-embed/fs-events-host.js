@@ -1,5 +1,6 @@
 (function (global) {
   var FS_EVENTS_BOOTSTRAP = "FS_EVENTS_BOOTSTRAP";
+  var FS_EVENTS_AUTH_UPDATE = "FS_EVENTS_AUTH_UPDATE";
   var FS_EVENTS_CHILD_READY = "FS_EVENTS_CHILD_READY";
   var FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
@@ -15,6 +16,7 @@
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
   var activeOneOnOnePopup = null;
+  var activeEventsEmbeds = [];
   var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
   var EVENTS_EMBED_IFRAME_CONTENT_CLASS = "fs-events-embed__iframe--content";
@@ -546,6 +548,19 @@
       }, targetOrigin);
     }
 
+    function updateAuth(authOptions) {
+      var authSettings = authOptions || {};
+      if (typeof authSettings.jwtToken === "string") {
+        settings.jwtToken = authSettings.jwtToken;
+      }
+      if (!iframe.contentWindow) return;
+
+      iframe.contentWindow.postMessage({
+        type: FS_EVENTS_AUTH_UPDATE,
+        payload: { jwtToken: settings.jwtToken || "" },
+      }, targetOrigin);
+    }
+
     function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
 
@@ -594,10 +609,11 @@
     wrapper.appendChild(iframe);
     container.appendChild(wrapper);
 
-    return {
+    var embedHandle = {
       root: wrapper,
       iframe: iframe,
       sendBootstrap: sendBootstrap,
+      updateAuth: updateAuth,
       destroy: function () {
         window.removeEventListener("message", onMessage);
         window.removeEventListener("beforeunload", onBeforeUnload);
@@ -607,8 +623,13 @@
         if (wrapper.parentNode === container) {
           container.removeChild(wrapper);
         }
+        activeEventsEmbeds = activeEventsEmbeds.filter(function (embed) {
+          return embed !== embedHandle;
+        });
       },
     };
+    activeEventsEmbeds.push(embedHandle);
+    return embedHandle;
   }
 
   function openFanBookingPopup(options) {
@@ -905,8 +926,16 @@
     return true;
   }
 
+  function updateAuth(options) {
+    activeEventsEmbeds.slice().forEach(function (embed) {
+      embed.updateAuth(options || {});
+    });
+    return activeEventsEmbeds.length;
+  }
+
   global.FSEventsEmbed = {
     mount: mount,
+    updateAuth: updateAuth,
     openFanBookingPopup: openFanBookingPopup,
     updateFanBookingAuth: updateFanBookingAuth,
   };
