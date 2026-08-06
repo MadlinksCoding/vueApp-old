@@ -1829,6 +1829,8 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
   walletBalance.value = toppedUpBalance;
   props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
   try {
+    // Add 1s delay to ensure the wallet balance is updated before finalizing the booking
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     await finalizeBooking({
       isTopUpDone: true,
       nextWalletBalance: toppedUpBalance - totalPrice.value,
