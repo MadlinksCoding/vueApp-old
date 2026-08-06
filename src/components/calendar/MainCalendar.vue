@@ -855,7 +855,7 @@
                 <div
                   v-for="(availability, availabilityIndex) in visibleMonthAvailabilityEventsForDay(d)"
                   :key="'month-availability-' + (availability.eventId || availability.id || availabilityIndex)"
-                  class="flex h-[1.375rem] last:h-[2.6rem] w-full shrink-0 items-start gap-1 overflow-hidden flex-col"
+                  class="flex h-[1.375rem] w-full shrink-0 items-center gap-1 overflow-hidden"
                   data-test="calendar-month-availability-row"
                 >
                   <div class="min-w-0 flex-1 overflow-hidden">
@@ -869,12 +869,10 @@
                   </div>
                   <span
                     v-if="availabilityIndex === visibleMonthAvailabilityEventsForDay(d).length - 1 && monthHiddenAvailabilityCount(d) > 0"
-                    class="shrink-0 text-xs font-medium text-[#344054] flex items-center gap-1"
+                    class="shrink-0 text-[0.625rem] font-medium leading-4 text-[#344054]"
                     data-test="calendar-month-availability-more"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-  <path d="M7.99967 3.33337V12.6667M3.33301 8.00004H12.6663" stroke="#344054" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>{{ monthHiddenAvailabilityCount(d) }} MORE...
+                    +{{ monthHiddenAvailabilityCount(d) }}
                   </span>
                 </div>
               </div>
@@ -2440,6 +2438,74 @@ const getVisualBounds = (ev, sMin, eMin, step, minHeightPx, day = null) => {
   return { start: startPx, end: endPx, isValid: true };
 };
 
+const ADAPTIVE_EVENT_GAP_PX = 2;
+const usesAdaptiveEventLayout = computed(() => props.minEventHeightPx > 0);
+const roundLayoutPx = (value) => Math.round(value * 1000) / 1000;
+
+const assignAdaptiveOverlapLanes = (events = []) => {
+  const layoutByEvent = new Map();
+  const groups = new Map();
+
+  events.forEach((event) => {
+    if (event.isAvailabilityBlock) {
+      layoutByEvent.set(event, { overlapLane: 0, overlapLaneCount: 1 });
+      return;
+    }
+
+    const stackGroup = isEventColumnMode.value
+      ? (resolveDayColumnEventId(event) || '__eventless__')
+      : '__day__';
+    if (!groups.has(stackGroup)) groups.set(stackGroup, []);
+    groups.get(stackGroup).push(event);
+  });
+
+  const finalizeCluster = (cluster) => {
+    if (cluster.length === 0) return;
+
+    const laneEnds = [];
+    const laneByEvent = new Map();
+    cluster.forEach((event) => {
+      const startMs = event.start.getTime();
+      let lane = laneEnds.findIndex((endMs) => endMs <= startMs);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = event.end.getTime();
+      laneByEvent.set(event, lane);
+    });
+
+    const laneCount = Math.max(1, laneEnds.length);
+    cluster.forEach((event) => {
+      layoutByEvent.set(event, {
+        overlapLane: laneByEvent.get(event) || 0,
+        overlapLaneCount: laneCount,
+      });
+    });
+  };
+
+  groups.forEach((groupEvents) => {
+    let cluster = [];
+    let clusterEndMs = Number.NEGATIVE_INFINITY;
+
+    groupEvents.forEach((event) => {
+      const startMs = event.start.getTime();
+      if (cluster.length > 0 && startMs >= clusterEndMs) {
+        finalizeCluster(cluster);
+        cluster = [];
+        clusterEndMs = Number.NEGATIVE_INFINITY;
+      }
+
+      cluster.push(event);
+      clusterEndMs = Math.max(clusterEndMs, event.end.getTime());
+    });
+    finalizeCluster(cluster);
+  });
+
+  return events.map((event) => ({
+    ...event,
+    stackOrder: 0,
+    ...layoutByEvent.get(event),
+  }));
+};
+
 const processedEventsByDay = computed(() => {
   const eventsByDay = {};
   bodyDays.value.forEach(d => {
@@ -2465,6 +2531,11 @@ const processedEventsByDay = computed(() => {
     const dayKey = Number(dayKeyStr);
     const day = new Date(dayKey);
     const sorted = [...dayEvents].sort((a,b) => a.start - b.start || b.end - a.end);
+
+    if (usesAdaptiveEventLayout.value) {
+      processed[dayKey] = assignAdaptiveOverlapLanes(sorted);
+      continue;
+    }
     
     const stacked = [];
     sorted.forEach(ev => {
@@ -2502,10 +2573,43 @@ const processedEventsByDay = computed(() => {
 
 const gridMetrics = computed(() => {
   const rows = range.value.rowCount;
-  const metrics = [];
-  let currentOffset = 0;
   const { sMin, eMin, step } = range.value;
   const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+
+  if (usesAdaptiveEventLayout.value) {
+    const rowHeights = Array.from({ length: rows }, () => props.rowHeightPx);
+
+    Object.entries(processedEventsByDay.value).forEach(([dayKeyStr, dayEvents]) => {
+      const day = new Date(Number(dayKeyStr));
+      dayEvents.forEach((event) => {
+        if (event.isAvailabilityBlock) return;
+
+        const { startMin, endMin } = getEventMinutesForDay(event, day);
+        const clippedStart = Math.max(startMin, sMin);
+        const clippedEnd = Math.min(endMin, eMin);
+        const durationMinutes = clippedEnd - clippedStart;
+        if (durationMinutes <= 0) return;
+
+        const requiredRowHeight = ((minHeightPx + ADAPTIVE_EVENT_GAP_PX) * step) / durationMinutes;
+        const firstRow = Math.max(0, Math.floor((clippedStart - sMin) / step));
+        const lastRow = Math.min(rows - 1, Math.ceil((clippedEnd - sMin) / step) - 1);
+        for (let rowIndex = firstRow; rowIndex <= lastRow; rowIndex++) {
+          rowHeights[rowIndex] = Math.max(rowHeights[rowIndex], requiredRowHeight);
+        }
+      });
+    });
+
+    let adaptiveOffset = 0;
+    const adaptiveRows = rowHeights.map((height) => {
+      const metric = { height, offset: adaptiveOffset };
+      adaptiveOffset += height;
+      return metric;
+    });
+    return { rows: adaptiveRows, totalHeight: adaptiveOffset };
+  }
+
+  const metrics = [];
+  let currentOffset = 0;
   const pixelsPerMinute = props.rowHeightPx / step;
   
   // Use a smaller stacking offset to reduce gaps between overlapping events (2px gap).
@@ -2820,7 +2924,8 @@ const minuteToGridOffset = (minute) => {
   if (!rowMetric) return 0;
 
   const fraction = Math.max(0, Math.min(1, rowFloat - rowIndex));
-  return rowMetric.offset + fraction * rowMetric.height;
+  const offset = rowMetric.offset + fraction * rowMetric.height;
+  return usesAdaptiveEventLayout.value ? roundLayoutPx(offset) : offset;
 };
 
 const styleBlock = (ev, day = null) => {
@@ -2834,7 +2939,31 @@ const styleBlock = (ev, day = null) => {
   let topPx = baseTopPx;
   const endPx = minuteToGridOffset(clippedEnd);
   const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
-  const stackOffset = minHeightPx + 2;
+
+  if (usesAdaptiveEventLayout.value) {
+    if (ev.isAvailabilityBlock) {
+      const availabilityHeight = roundLayoutPx(Math.max(0, endPx - baseTopPx));
+      return `top:${roundLayoutPx(topPx)}px;height:${availabilityHeight}px;left:2px;right:2px;`;
+    }
+
+    const heightPx = roundLayoutPx(Math.max(
+      minHeightPx,
+      endPx - baseTopPx - ADAPTIVE_EVENT_GAP_PX,
+    ));
+    topPx = roundLayoutPx(topPx);
+    const laneCount = Math.max(1, Number(ev.overlapLaneCount) || 1);
+    const lane = Math.max(0, Math.min(laneCount - 1, Number(ev.overlapLane) || 0));
+
+    if (laneCount === 1) {
+      return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
+    }
+
+    const laneWidthPercent = 100 / laneCount;
+    const laneLeftPercent = lane * laneWidthPercent;
+    return `top:${topPx}px;height:${heightPx}px;left:calc(${laneLeftPercent}% + 2px);width:calc(${laneWidthPercent}% - 4px);right:auto;`;
+  }
+
+  const stackOffset = minHeightPx + ADAPTIVE_EVENT_GAP_PX;
 
   if (ev.stackOrder) {
      topPx += ev.stackOrder * stackOffset;

@@ -144,4 +144,26 @@ describe("events embed bootstrap", () => {
     expect(state.jwtToken).toBe("jwt_live");
     expect(state.bootstrapped).toBe(true);
   });
+
+  it("updates only the runtime JWT without resetting embed context", async () => {
+    const {
+      applyEventsEmbedAuthUpdate,
+      applyEventsEmbedBootstrap,
+      useEventsEmbedBootstrap,
+    } = await import("@/embeds/events/bootstrap.js");
+
+    applyEventsEmbedBootstrap({
+      creatorId: 55,
+      userRole: "creator",
+      initialRoute: "create-group",
+      jwtToken: "jwt_old",
+    });
+    applyEventsEmbedAuthUpdate({ jwtToken: "jwt_new" });
+
+    const state = useEventsEmbedBootstrap();
+    expect(state.jwtToken).toBe("jwt_new");
+    expect(state.creatorId).toBe(55);
+    expect(state.initialRoute).toBe("create-group");
+    expect(state.bootstrapped).toBe(true);
+  });
 });
