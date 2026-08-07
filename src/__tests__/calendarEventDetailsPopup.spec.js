@@ -57,16 +57,13 @@ describe("CalendarEventDetailsPopup", () => {
     }));
   });
 
-  it("keeps the join button visible but disabled until joining is allowed", async () => {
+  it("hides join buttons before the window, keeps the menu, and reveals Join reactively", async () => {
+    vi.setSystemTime(new Date("2026-05-01T09:54:00Z"));
+    getBookingJoinState.mockImplementation(({ now }) => ({
+      canJoin: now.getTime() >= Date.parse("2026-05-01T09:55:00Z"),
+      joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
+    }));
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
-    const joinAvailableLabel = new Date("2026-05-01T09:55:00.000Z").toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
 
     const wrapper = mount(CalendarEventDetailsPopup, {
       props: {
@@ -83,24 +80,22 @@ describe("CalendarEventDetailsPopup", () => {
       },
     });
 
-    const joinButton = wrapper.findAll("button").find((button) => button.text().includes("Join call"));
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-mobile-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(true);
 
-    expect(joinButton).toBeTruthy();
-    expect(joinButton.attributes("disabled")).toBeDefined();
-    expect(joinButton.element.style.backgroundColor).toBe("rgb(208, 213, 221)");
-    expect(joinButton.classes()).not.toContain("opacity-80");
-    expect(wrapper.find("[data-test='disabled-join-tooltip']").exists()).toBe(false);
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
 
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("mouseenter");
+    const desktopJoin = wrapper.get("[data-test='calendar-event-details-desktop-join-call']");
+    const mobileJoin = wrapper.get("[data-test='calendar-event-details-mobile-join-call']");
+    expect(desktopJoin.attributes("disabled")).toBeUndefined();
+    expect(mobileJoin.attributes("disabled")).toBeUndefined();
 
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").text())
-      .toBe(`This call can be joined at ${joinAvailableLabel}`);
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").classes().join(" "))
-      .toContain("top-[calc(100%+0.375rem)]");
-
-    await joinButton.trigger("click");
-
-    expect(wrapper.emitted("join-call")).toBeUndefined();
+    await desktopJoin.trigger("click");
+    expect(wrapper.emitted("join-call")).toEqual([[
+      expect.objectContaining({ bookingId: "booking_123" }),
+    ]]);
   });
 
   it("emits join-call when joining is allowed", async () => {
@@ -128,9 +123,7 @@ describe("CalendarEventDetailsPopup", () => {
       },
     });
 
-    const joinButton = wrapper.findAll("button").find((button) => button.text().includes("Join call"));
-
-    expect(joinButton).toBeTruthy();
+    const joinButton = wrapper.get("[data-test='calendar-event-details-desktop-join-call']");
     expect(joinButton.attributes("disabled")).toBeUndefined();
 
     await joinButton.trigger("click");
@@ -142,6 +135,30 @@ describe("CalendarEventDetailsPopup", () => {
         joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
       }),
     ]]);
+  });
+
+  it("does not show Join when the booking has no valid join URL", async () => {
+    getBookingJoinState.mockReturnValue({ canJoin: true, joinUrl: null });
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        event: {
+          bookingId: "booking_without_url",
+          start: "2026-05-01T10:00:00Z",
+          end: "2026-05-01T10:30:00Z",
+          status: "confirmed",
+          raw: {
+            bookingId: "booking_without_url",
+            status: "confirmed",
+          },
+        },
+      },
+    });
+
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-mobile-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(true);
   });
 
   it("hides the join button after the call end time has passed", async () => {
@@ -162,9 +179,9 @@ describe("CalendarEventDetailsPopup", () => {
       },
     });
 
-    const joinButton = wrapper.findAll("button").find((button) => button.text().includes("Join call"));
-    expect(joinButton).toBeUndefined();
-    expect(wrapper.find("[data-test='join-tooltip-trigger']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-mobile-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(false);
     expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
     expect(wrapper.get("[data-test='status-dot']").element.style.backgroundColor)
       .toBe("rgb(107, 114, 128)");
@@ -238,7 +255,7 @@ describe("CalendarEventDetailsPopup", () => {
     expect(wrapper.get("[data-test='status-hint']").text()).toBe("Pending");
   });
 
-  it("keeps the join button visible while an extension effective end time is still current", async () => {
+  it("keeps live status and booking actions during an extension without showing an ineligible Join", async () => {
     getBookingJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_extended",
@@ -265,9 +282,9 @@ describe("CalendarEventDetailsPopup", () => {
       },
     });
 
-    const joinButton = wrapper.findAll("button").find((button) => button.text().includes("Join call"));
-    expect(joinButton).toBeTruthy();
-    expect(joinButton.attributes("disabled")).toBeDefined();
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='calendar-event-details-mobile-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(true);
     expect(wrapper.get("[data-test='status-hint']").text()).toBe("live now");
     expect(wrapper.get("[data-test='status-dot']").element.style.backgroundColor)
       .toBe("rgb(34, 197, 94)");

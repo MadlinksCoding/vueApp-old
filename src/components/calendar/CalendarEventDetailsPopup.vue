@@ -15,21 +15,12 @@
                             <div data-test="status-dot" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
                             <div data-test="status-hint" class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">{{ statusHint }}</div>
                         </div>
-                        <span
-                            v-if="showJoinButton"
-                            class="relative inline-flex"
-                            data-test="join-tooltip-trigger"
-                            @mouseenter="showJoinTooltip(false)"
-                            @mouseleave="hideJoinTooltip"
-                            @touchstart.stop="showJoinTooltip(true)"
-                            @click.stop
-                        >
+                        <span v-if="canJoinCall" class="relative inline-flex">
                         <button
                             type="button"
-                            class="px-2 py-[3px] rounded hidden ipad-portrait-large:hidden lg:flex items-center gap-1 transition-colors disabled:cursor-not-allowed"
-                            :class="canJoinCall ? 'cursor-pointer' : ''"
-                            :disabled="!canJoinCall"
-                            :style="joinButtonStyle"
+                            class="hidden cursor-pointer items-center gap-1 rounded px-2 py-[3px] text-white transition-colors ipad-portrait-large:hidden lg:flex"
+                            :style="{ backgroundColor: eventColor }"
+                            data-test="calendar-event-details-desktop-join-call"
                             @click="handleJoin"
                         >
                             <div class="w-4 h-4 relative overflow-hidden">
@@ -37,30 +28,22 @@
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
                                         d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z"
-                                        :stroke="canJoinCall ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round" />
+                                        stroke="white" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </div>
                             <div
-                                class="text-xs font-semibold font-['Poppins'] leading-4"
-                                :class="canJoinCall ? 'text-white' : 'text-gray-600'"
+                                class="text-xs font-semibold font-['Poppins'] leading-4 text-white"
                             >
                                 {{ t("common_join_call") }}
                             </div>
                         </button>
-                            <span
-                                v-if="joinTooltipVisible"
-                                role="tooltip"
-                                data-test="disabled-join-tooltip"
-                                class="absolute right-0 top-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-4 text-white shadow-lg"
-                            >
-                                {{ disabledJoinTooltipText }}
-                            </span>
                         </span>
 
-                        <div v-if="showJoinButton" class="relative">
+                        <div v-if="showBookingMenu" class="relative">
                             <button
                                 type="button"
                                 class="inline-flex h-8 w-6 items-center justify-center rounded hover:bg-gray-200/80"
+                                data-test="calendar-event-details-menu-trigger"
                                 :aria-expanded="menuOpen"
                                 @click.stop="toggleMenu"
                             >
@@ -302,10 +285,10 @@
 
                 <!-- Add bg-[#07F468] for active button -->
                 <button
+                            v-if="canJoinCall"
                             type="button"
-                            class="px-2 py-3 rounded-full flex ipad-portrait-large:flex lg:hidden items-center justify-center flex-1 self-stretch gap-2 transition-colors disabled:cursor-not-allowed"
-                            :class="canJoinCall ? 'cursor-pointer bg-[#07F468]' : 'bg-gray-200'"
-                            :disabled="!canJoinCall"
+                            class="flex flex-1 cursor-pointer items-center justify-center gap-2 self-stretch rounded-full bg-[#07F468] px-2 py-3 transition-colors ipad-portrait-large:flex lg:hidden"
+                            data-test="calendar-event-details-mobile-join-call"
                             @click="handleJoin"
                         >
                             <div class="w-6 h-6 relative overflow-hidden">
@@ -313,12 +296,11 @@
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
                                         d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z"
-                                        :stroke="canJoinCall ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round" />
+                                        stroke="white" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </div>
                             <div
-                                class="text-base font-semibold font-['Poppins']"
-                                :class="canJoinCall ? 'text-white' : 'text-gray-600'"
+                                class="text-base font-semibold font-['Poppins'] text-white"
                             >
                                 {{ t("common_join_call") }}
                             </div>
@@ -364,8 +346,6 @@ const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 const currentTime = ref(new Date());
 const currentTimeTimer = ref(null);
-const joinTooltipVisible = ref(false);
-const joinTooltipTimer = ref(null);
 
 function normalizeHexColor(color, fallback = '#5549FF') {
     if (typeof color !== 'string') return fallback;
@@ -597,60 +577,10 @@ const callHasPassed = computed(() => (
     effectiveEndDate.value
     && currentTime.value.getTime() > effectiveEndDate.value.getTime()
 ));
-const showJoinButton = computed(() => Boolean(joinUrl.value || bookingId.value) && !callHasPassed.value);
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinUrl.value));
-const joinButtonStyle = computed(() => ({
-    backgroundColor: canJoinCall.value ? eventColor.value : '#D0D5DD',
-}));
-const joinAvailableAtIso = computed(() => (
-    joinState.value.joinAvailableAtIso
-    || (
-        startDate.value
-            ? new Date(startDate.value.getTime() - (5 * 60 * 1000)).toISOString()
-            : ''
-    )
+const showBookingMenu = computed(() => (
+    Boolean(joinUrl.value || bookingId.value) && !callHasPassed.value
 ));
-const joinAvailableAtLabel = computed(() => {
-    const date = joinAvailableAtIso.value ? new Date(joinAvailableAtIso.value) : null;
-    if (!date || Number.isNaN(date.getTime())) return '';
-
-    return date.toLocaleString(locale.value, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
-});
-const disabledJoinTooltipText = computed(() => (
-    `This call can be joined at ${joinAvailableAtLabel.value}`
-));
-
-function clearJoinTooltipTimer() {
-    if (!joinTooltipTimer.value) return;
-    window.clearTimeout(joinTooltipTimer.value);
-    joinTooltipTimer.value = null;
-}
-
-function hideJoinTooltip() {
-    clearJoinTooltipTimer();
-    joinTooltipVisible.value = false;
-}
-
-function showJoinTooltip(autoHide = false) {
-    if (canJoinCall.value) {
-        hideJoinTooltip();
-        return;
-    }
-
-    clearJoinTooltipTimer();
-    joinTooltipVisible.value = true;
-
-    if (autoHide) {
-        joinTooltipTimer.value = window.setTimeout(hideJoinTooltip, 2500);
-    }
-}
 
 function handleJoin() {
     if (!canJoinCall.value) return;
@@ -790,7 +720,6 @@ function cancelReject() {
 
 const handleDocumentClick = () => {
     menuOpen.value = false;
-    hideJoinTooltip();
 };
 
 onMounted(() => {
@@ -807,7 +736,6 @@ onBeforeUnmount(() => {
         window.clearInterval(currentTimeTimer.value);
         currentTimeTimer.value = null;
     }
-    clearJoinTooltipTimer();
     if (guestProfileAbortController) {
         guestProfileAbortController.abort();
         guestProfileAbortController = null;

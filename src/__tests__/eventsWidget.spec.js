@@ -121,15 +121,7 @@ describe("EventsWidget", () => {
     expect(wrapper.find("[data-test='pending-booking-actions']").exists()).toBe(false);
   });
 
-  it("shows disabled join calls until the join window opens", async () => {
-    const joinAvailableLabel = new Date("2026-05-01T09:55:00.000Z").toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+  it("hides join calls until the join window opens and reveals them reactively", async () => {
     const item = {
       title: "Upcoming booking",
       time: "10:00 AM",
@@ -137,7 +129,6 @@ describe("EventsWidget", () => {
       showJoin: true,
       canJoin: false,
       joinUrl: "https://example.com/join",
-      joinAvailableAtIso: "2026-05-01T09:55:00.000Z",
       avatars: [{ src: "/avatar.png", name: "Fan" }],
       titleColorClass: "text-gray-900",
       borderClass: "bg-gray-300",
@@ -150,31 +141,20 @@ describe("EventsWidget", () => {
       },
     });
 
-    const joinButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase() === "join call");
+    expect(wrapper.find("[data-test='events-widget-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("confirmed");
 
-    expect(joinButton).toBeTruthy();
-    expect(joinButton.attributes("disabled")).toBeDefined();
-    expect(joinButton.classes()).toContain("bg-[#D0D5DD]");
-    expect(joinButton.classes()).not.toContain("opacity-80");
-    expect(wrapper.find("[data-test='disabled-join-tooltip']").exists()).toBe(false);
+    const joinableItem = { ...item, canJoin: true, statusText: "in 5 mins" };
+    await wrapper.setProps({
+      sections: [{ title: "TODAY", items: [joinableItem] }],
+    });
 
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("mouseenter");
-
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").text())
-      .toBe(`This call can be joined at ${joinAvailableLabel}`);
-
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("mouseleave");
-    expect(wrapper.find("[data-test='disabled-join-tooltip']").exists()).toBe(false);
-
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("touchstart");
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").text())
-      .toBe(`This call can be joined at ${joinAvailableLabel}`);
+    const joinButton = wrapper.get("[data-test='events-widget-join-call']");
+    expect(joinButton.attributes("disabled")).toBeUndefined();
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("in 5 mins");
 
     await joinButton.trigger("click");
-
-    expect(wrapper.emitted("join-click")).toBeUndefined();
+    expect(wrapper.emitted("join-click")).toEqual([[joinableItem]]);
   });
 
   it("emits join calls when the join window is open", async () => {
@@ -197,17 +177,32 @@ describe("EventsWidget", () => {
       },
     });
 
-    const joinButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase() === "join call");
-
-    expect(joinButton).toBeTruthy();
+    const joinButton = wrapper.get("[data-test='events-widget-join-call']");
     expect(joinButton.attributes("disabled")).toBeUndefined();
     expect(wrapper.find("[data-test='pending-booking-actions']").exists()).toBe(false);
 
     await joinButton.trigger("click");
 
     expect(wrapper.emitted("join-click")).toEqual([[item]]);
+  });
+
+  it("does not show Join without a valid join URL", () => {
+    const item = {
+      title: "Booking without a URL",
+      statusText: "confirmed",
+      showJoin: true,
+      canJoin: true,
+      joinUrl: "",
+    };
+
+    wrapper = mount(EventsWidget, {
+      props: {
+        sections: [{ title: "TODAY", items: [item] }],
+      },
+    });
+
+    expect(wrapper.find("[data-test='events-widget-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("confirmed");
   });
 
   it("uses the status color for the urgent join status dot and text", () => {
