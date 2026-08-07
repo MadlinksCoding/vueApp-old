@@ -1217,13 +1217,21 @@ const effectivePrivateMaxSessionCount = computed(() => {
 
 function formatDurationLabel(minutes) {
   const duration = Number(minutes || 0);
-  if (!Number.isFinite(duration) || duration <= 0) return `0 ${t('fan_booking_min_short').toLowerCase()}`;
-  if (duration <= 60) return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
-  return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const minuteUnit = (count) => t(
+    count === 1 ? 'calendar_event_minute_short_one' : 'calendar_event_minute_short_other',
+  );
+  const hourUnit = (count) => t(
+    count === 1 ? 'calendar_event_hour_short_one' : 'calendar_event_hour_short_other',
+  );
+
+  if (!Number.isFinite(duration) || duration <= 0) return `0 ${minuteUnit(0)}`;
+  if (duration <= 60) return `${duration} ${minuteUnit(duration)}`;
 
   const hours = Math.floor(duration / 60);
   const remainingMinutes = duration % 60;
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainingMinutes} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const parts = [`${hours} ${hourUnit(hours)}`];
+  if (remainingMinutes > 0) parts.push(`${remainingMinutes} ${minuteUnit(remainingMinutes)}`);
+  return parts.join(' ');
 }
 
 const selectedDurationDisplayMinutes = computed(() => (
@@ -1482,7 +1490,7 @@ const pricingPreview = computed(() => {
   return buildBookingPaymentPreview(
     selectedEvent.value,
     Number(selectedDurationObj.value?.value || 0),
-    selectedAddons.value.map((item) => ({ title: item.name || item.title || '', price: Number(item.price || 0) })),
+    selectedAddons.value,
     selectedTime.value || {},
     {
       isFirstBookingForCreator: isFirstBookingForCreator.value,
@@ -1690,18 +1698,28 @@ function hydrateAddons() {
   const raw = selectedEvent.value?.raw || {};
   const addOnRows = Array.isArray(raw.addOns) ? raw.addOns : [];
 
-  const mapped = addOnRows.map((item, index) => ({
-    id: item?.id || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
-    name: item?.title || item?.name || t('fan_booking_add_on'),
-    price: Number(item?.priceTokens || item?.price || 0),
-    selected: false,
-  }));
+  const mapped = addOnRows.map((item, index) => {
+    const canonicalTitle = item?.title || item?.name || '';
+    const catalogId = item?.id ?? null;
+    return {
+      id: catalogId || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
+      kind: 'addon',
+      catalogId,
+      catalogTitle: canonicalTitle,
+      name: canonicalTitle || t('fan_booking_add_on'),
+      price: Number(item?.priceTokens ?? item?.price ?? 0),
+      selected: false,
+    };
+  });
 
-  if (raw.allowFanRecordingEnabled && !mapped.some((item) => String(item.name).toLowerCase().includes('record'))) {
+  if (toBoolean(raw.allowFanRecordingEnabled, false)) {
     mapped.unshift({
       id: `${selectedEvent.value?.eventId || 'event'}_recording`,
+      kind: 'recording',
+      catalogId: null,
+      catalogTitle: '',
       name: t('fan_booking_record_our_session'),
-      price: Number(raw.allowFanRecordingTokens || 0),
+      price: Number(raw.allowFanRecordingTokens ?? 0),
       selected: false,
     });
   }
@@ -1777,7 +1795,16 @@ function hydrateFromState() {
 
   if (!isGroupEvent.value && Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
-      const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
+      const addon = addons.value.find((a) => (
+        String(a.id) === String(savedAddon.id)
+        || (
+          a.kind === 'addon'
+          && savedAddon.kind === 'addon'
+          && a.catalogId != null
+          && String(a.catalogId) === String(savedAddon.catalogId)
+        )
+        || a.name === savedAddon.name
+      ));
       if (addon) addon.selected = true;
     });
   }
@@ -2602,6 +2629,10 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     v-for="(addon, index) in addons"
                     :key="addon.id"
                     @click="toggleAddon(index)"
+                    data-testid="booking-flow-addon"
+                    :data-addon-kind="addon.kind"
+                    :data-addon-id="addon.id"
+                    :data-selected="String(addon.selected)"
                     class="flex flex-row justify-between text-white py-[0.25rem] cursor-pointer"
                   >
                     <div class="flex flex-row items-center gap-2">
@@ -2647,6 +2678,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
             <button
               :disabled="bottomActionDisabled"
               @click="goToNextStep"
+              data-testid="booking-flow-payment-summary-button"
             >
               <div
                 class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"

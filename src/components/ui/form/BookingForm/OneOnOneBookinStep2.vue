@@ -394,14 +394,6 @@ function editBaselineValue(field) {
   return getEditWarningValue(props.editBaseline, field);
 }
 
-function addOnStructureEditWarningMessages() {
-  if (!props.isEditMode || !hasEditWarningBaseline.value) return [];
-  const baseline = editBaselineValue("addOns");
-  return (Array.isArray(baseline) ? baseline.length : 0) !== formData.value.addOns.length
-    ? [t("booking_future_bookings_warning")]
-    : [];
-}
-
 const removeXPostSettingsHydrationListener = props.engine?.on?.(
   "x-post-settings:hydrated",
   ({ fields } = {}) => {
@@ -1928,11 +1920,6 @@ const createEvent = async () => {
                 <span>{{ t("booking_add_more_service") }}</span>
               </button>
             </div>
-            <ValidationInlineWarning
-              :messages="addOnStructureEditWarningMessages()"
-              purpose="edit-impact"
-              spacing-class="mt-0"
-            />
           </div>
         </div>
       </div>

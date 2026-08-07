@@ -478,6 +478,142 @@ describe("create booking mapper", () => {
   });
 
   it.each([
+    ["English", "Record our session"],
+    ["Chinese", "录制我们的会话"],
+    ["Arabic", "سجّل جلستنا"],
+  ])("prices a %s recording selection by stable kind instead of its label", (_locale, label) => {
+    const event = {
+      type: "1on1-call",
+      basePriceTokens: 100,
+      sessionDurationMinutes: 30,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 50,
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(event, 30, [{
+      id: "evt_private_recording",
+      kind: "recording",
+      name: label,
+      price: 50,
+    }]);
+
+    expect(preview.additionalRequests.recording).toBe(true);
+    expect(preview.payment.lines).toContainEqual({
+      code: "recording",
+      label: "Recording",
+      amount: 50,
+    });
+    expect(preview.payment.total).toBe(150);
+  });
+
+  it("supports legacy recording ids without inspecting localized display text", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 20,
+      sessionDurationMinutes: 30,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 20,
+        sessionDurationMinutes: 30,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 7,
+      },
+    }, 30, [{ id: "evt_legacy_recording", name: "录制我们的会话", price: 7 }]);
+
+    expect(preview.additionalRequests.recording).toBe(true);
+    expect(preview.payment.total).toBe(27);
+  });
+
+  it("does not mistake a catalog add-on containing record for the recording request", () => {
+    const event = {
+      type: "1on1-call",
+      basePriceTokens: 100,
+      sessionDurationMinutes: 30,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 50,
+        addOns: [{ id: "addon_record_review", title: "Record review notes", priceTokens: 10 }],
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(event, 30, [{
+      id: "addon_record_review",
+      kind: "addon",
+      catalogId: "addon_record_review",
+      catalogTitle: "Record review notes",
+      name: "Record review notes",
+      price: 10,
+    }]);
+
+    expect(preview.additionalRequests.recording).toBe(false);
+    expect(preview.requestedAddOns).toEqual([{ title: "Record review notes" }]);
+    expect(preview.payment.lines.some((line) => line.code === "recording")).toBe(false);
+    expect(preview.payment.total).toBe(110);
+  });
+
+  it("maps translated recording and catalog-id selections into the canonical request payload", () => {
+    const state = baseBookingState();
+    state.fanBooking.context.selectedEvent.raw = {
+      type: "1on1-call",
+      basePriceTokens: 100,
+      sessionDurationMinutes: 30,
+      allowFanRecordingEnabled: true,
+      allowFanRecordingTokens: 50,
+      addOns: [{ id: "addon_eyes", title: "Eyes", priceTokens: 10 }],
+    };
+    state.bookingDetails.addons = [
+      {
+        id: "evt_private_recording",
+        kind: "recording",
+        name: "录制我们的会话",
+        price: 50,
+      },
+      {
+        id: "addon_eyes",
+        kind: "addon",
+        catalogId: "addon_eyes",
+        catalogTitle: "Stale display title",
+        name: "Localized display title",
+        price: 10,
+      },
+    ];
+
+    const mapped = mapCreateBookingToRequest(state);
+
+    expect(mapped.additionalRequests.recording).toBe(true);
+    expect(mapped.requestedAddOns).toEqual([{ title: "Eyes" }]);
+    expect(mapped.payment.lines.map((line) => line.code)).toEqual(["base", "recording", "addon"]);
+    expect(mapped.payment.total).toBe(160);
+  });
+
+  it("ignores selected recording metadata when the event setting is disabled", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 20,
+      sessionDurationMinutes: 30,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 20,
+        sessionDurationMinutes: 30,
+        allowFanRecordingEnabled: "false",
+        allowFanRecordingTokens: 99,
+      },
+    }, 30, [{ id: "evt_disabled_recording", kind: "recording", name: "Record", price: 99 }]);
+
+    expect(preview.additionalRequests.recording).toBe(false);
+    expect(preview.payment.lines.some((line) => line.code === "recording")).toBe(false);
+    expect(preview.payment.total).toBe(20);
+  });
+
+  it.each([
     ["the feature is disabled", false, true],
     ["the selected slot is normal hours", true, false],
   ])("does not add the off-hour surcharge when %s", (_label, enabled, offHours) => {

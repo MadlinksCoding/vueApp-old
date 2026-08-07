@@ -194,8 +194,8 @@ function createMountedStep({
               `,
             },
             OneOnOneBookingFlowLeftSideBar: {
-              props: ["timeDisplay", "duration", "isFirstBookingForCreator"],
-              template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)'>{{ timeDisplay }} {{ duration }}</aside>",
+              props: ["timeDisplay", "duration", "isFirstBookingForCreator", "subtotal"],
+              template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)' :data-subtotal='String(subtotal)'>{{ timeDisplay }} {{ duration }}</aside>",
             },
           },
         },
@@ -208,7 +208,7 @@ function dateIsoFromDate(date) {
 }
 
 function findPaymentSummaryButton(wrapper) {
-  return wrapper.findAll("button").find((button) => button.text().includes("PAYMENT SUMMARY"));
+  return wrapper.find("[data-testid='booking-flow-payment-summary-button']");
 }
 
 async function flushStep2() {
@@ -360,6 +360,66 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
     expect(wrapper.text()).toContain("OTHER REQUEST");
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it("prices and preserves translated recording selections by stable add-on kind", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      raw: {
+        ...baseEvent.raw,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 50,
+        addOns: [{
+          id: "addon_record_review",
+          title: "Record review notes",
+          priceTokens: 10,
+        }],
+      },
+    };
+    const translations = {
+      fan_booking_record_our_session: "录制我们的会话",
+    };
+    const { engine, wrapperPromise } = createMountedStep({ selectedEvent, translations });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const addOns = wrapper.findAll("[data-testid='booking-flow-addon']");
+    expect(addOns).toHaveLength(2);
+    expect(addOns[0].attributes("data-addon-kind")).toBe("recording");
+    expect(addOns[0].text()).toContain("录制我们的会话");
+    expect(addOns[1].attributes("data-addon-kind")).toBe("addon");
+
+    await addOns[0].trigger("click");
+    await addOns[1].trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='step2-sidebar']").attributes("data-subtotal")).toBe("120");
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.bookingDetails.totalPrice).toBe(120);
+    expect(engine.state.bookingDetails.addons).toEqual([
+      expect.objectContaining({ kind: "recording", id: "evt_private_1_recording", price: 50 }),
+      expect.objectContaining({ kind: "addon", catalogId: "addon_record_review", price: 10 }),
+    ]);
+
+    const { wrapperPromise: restoredWrapperPromise } = createMountedStep({
+      selectedEvent,
+      bookingDetails: engine.state.bookingDetails,
+      selection: engine.state.fanBooking.selection,
+      translations,
+    });
+    const restoredWrapper = await restoredWrapperPromise;
+    await flushStep2();
+    expect(restoredWrapper.findAll("[data-testid='booking-flow-addon']").map(
+      (row) => row.attributes("data-selected"),
+    )).toEqual(["true", "true"]);
   });
 
   it("passes first-booking eligibility to the sidebar", async () => {
@@ -1096,7 +1156,7 @@ describe("BookingFlowStep2", () => {
 
     await plus.trigger("click");
     await nextTick();
-    expect(stepper.text()).toContain("1 hour 30 mins");
+    expect(stepper.text()).toContain("1 hr 30 mins");
 
     await minus.trigger("click");
     await nextTick();
@@ -1321,6 +1381,9 @@ describe("BookingFlowStep2", () => {
     await nextTick();
     await nextTick();
 
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
     expect(wrapper.get("[data-testid='booking-flow-first-time-discount-notice']").text()).toContain(
       "Your welcome discount is ready!",
     );
@@ -1513,7 +1576,7 @@ describe("BookingFlowStep2", () => {
     await plus.trigger("click");
     await plus.trigger("click");
     await nextTick();
-    expect(stepper.text()).toContain("1 hour 30 mins");
+    expect(stepper.text()).toContain("1 hr 30 mins");
     expect(plus.attributes("disabled")).toBeDefined();
     expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
       "MAX SESSION LENGTH REACHED",

@@ -166,19 +166,45 @@ function resolvePersonalRequestText(state = {}) {
   return String(chosen).trim();
 }
 
+const ADD_ON_KIND_RECORDING = "recording";
+const ADD_ON_KIND_ADDON = "addon";
+
+function resolveAddOnKind(row = {}) {
+  if (row?.kind === ADD_ON_KIND_RECORDING) return ADD_ON_KIND_RECORDING;
+  if (row?.kind === ADD_ON_KIND_ADDON) return ADD_ON_KIND_ADDON;
+
+  const id = String(row?.id || "");
+  return id.endsWith("_recording") ? ADD_ON_KIND_RECORDING : ADD_ON_KIND_ADDON;
+}
+
+function normalizeAddOnSelection(row = {}) {
+  const kind = resolveAddOnKind(row);
+  const id = row?.id ?? null;
+  const catalogId = kind === ADD_ON_KIND_ADDON
+    ? (row?.catalogId ?? row?.addOnId ?? id)
+    : null;
+
+  return {
+    id,
+    kind,
+    catalogId,
+    title: row?.catalogTitle || row?.title || row?.name || "",
+    price: safeNumber(row?.price, 0),
+  };
+}
+
 function resolveAddOnSelections(state = {}) {
   const addOns = Array.isArray(state?.bookingDetails?.addons)
     ? state.bookingDetails.addons
     : (Array.isArray(state?.fanBooking?.selection?.selectedAddOns) ? state.fanBooking.selection.selectedAddOns : []);
 
-  return addOns.map((row) => ({
-    title: row?.name || row?.title || "",
-    price: safeNumber(row?.price, 0),
-  })).filter((row) => row.title);
+  return addOns
+    .map(normalizeAddOnSelection)
+    .filter((row) => row.kind === ADD_ON_KIND_RECORDING || row.title);
 }
 
 function isRecordingSelected(addons = []) {
-  return addons.some((row) => String(row.title).toLowerCase().includes("record"));
+  return addons.some((row) => resolveAddOnKind(row) === ADD_ON_KIND_RECORDING);
 }
 
 function toBoolean(value, fallback = false) {
@@ -365,7 +391,7 @@ export function buildBookingPaymentPreview(
   }
 
   const addOnCatalog = Array.isArray(raw.addOns) ? raw.addOns : [];
-  const recordingRequested = !!raw.allowFanRecordingEnabled && isRecordingSelected(selectedAddOns);
+  const recordingRequested = toBoolean(raw.allowFanRecordingEnabled, false) && isRecordingSelected(selectedAddOns);
   const requestedAddOns = [];
 
   if (recordingRequested) {
@@ -377,13 +403,24 @@ export function buildBookingPaymentPreview(
   }
 
   selectedAddOns.forEach((selection) => {
-    const match = addOnCatalog.find((item) => String(item?.title) === String(selection.title));
+    const normalizedSelection = normalizeAddOnSelection(selection);
+    if (normalizedSelection.kind === ADD_ON_KIND_RECORDING) return;
+
+    const catalogId = normalizedSelection.catalogId == null ? "" : String(normalizedSelection.catalogId);
+    const matchById = catalogId
+      ? addOnCatalog.find((item) => item?.id != null && String(item.id) === catalogId)
+      : null;
+    const match = matchById || addOnCatalog.find(
+      (item) => String(item?.title || item?.name || "") === String(normalizedSelection.title),
+    );
     if (!match) return;
-    requestedAddOns.push({ title: String(match.title) });
+    const canonicalTitle = String(match?.title || match?.name || "");
+    if (!canonicalTitle) return;
+    requestedAddOns.push({ title: canonicalTitle });
     lines.push({
       code: "addon",
-      label: `Add-on: ${match.title}`,
-      amount: safeNumber(match.priceTokens, 0),
+      label: `Add-on: ${canonicalTitle}`,
+      amount: safeNumber(match?.priceTokens ?? match?.price, 0),
     });
   });
 

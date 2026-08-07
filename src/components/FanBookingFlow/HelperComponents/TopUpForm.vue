@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="inline-flex justify-between w-full">
-          <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">Top up payment</div>
+          <div class="justify-start text-white text-sm font-semibold font-['Poppins'] leading-5">{{ t("fan_booking_top_up_payment") }}</div>
           <div class="flex justify-start items-center gap-1">
             <div class="justify-start text-white text-lg font-semibold font-['Poppins'] leading-7">USD$ {{ topUpUSD }}</div>
           </div>
