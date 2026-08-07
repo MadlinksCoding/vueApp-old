@@ -523,7 +523,7 @@
         'fixed right-2 md:right-5 z-[95] transition-all duration-300',
         isStickyCardVisible ? 'bottom-[7rem]' : 'bottom-2',
         'md:bottom-5',
-        hasTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:right-3' : ''
+        hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:right-3' : ''
       ]" :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }" ref="floatingPopupTrigger" data-test="dashboard-floating-create-event">
         <!-- For Tablet and Mobile-->
         <button
@@ -978,6 +978,8 @@ const deleteEventPopupConfig = {
 const initialDashboardView = (
   typeof window !== "undefined" && window.innerWidth < 1024
 ) ? "day" : "week";
+const dashboardViewportWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const dashboardViewportHeight = ref(typeof window !== "undefined" ? window.innerHeight : 768);
 
 const state = reactive({
   focus: new Date(),
@@ -1064,6 +1066,8 @@ const togglePopup = () => {
 };
 
 const handlePositionUpdate = () => {
+  dashboardViewportWidth.value = window.innerWidth;
+  dashboardViewportHeight.value = window.innerHeight;
   if (isCreatePopupOpen.value) updatePopupPosition();
   if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
   hideScheduleTitleTooltip();
@@ -2687,9 +2691,22 @@ const stickyCardEvent = computed(() => stickyCardEvents.value.find((item) => (
 )) || null);
 const isStickyCardVisible = computed(() => Boolean(stickyCardEvent.value));
 const hasTabletStickyCards = computed(() => stickyCardEvents.value.length > 0);
-const tabletStickyCardBottom = computed(() => (
-  `${8.25 + (Math.max(1, stickyCardEvents.value.length) - 1) * 7}rem`
+const isTabletPortraitViewport = computed(() => (
+  dashboardViewportWidth.value >= 678
+  && dashboardViewportWidth.value <= 1366
+  && dashboardViewportHeight.value >= dashboardViewportWidth.value
 ));
+const hasVisibleTabletStickyCards = computed(() => (
+  isTabletPortraitViewport.value && hasTabletStickyCards.value
+));
+const tabletStickyCardBottom = computed(() => {
+  const cardCount = hasVisibleTabletStickyCards.value
+    ? stickyCardEvents.value.length
+    : 0;
+  return cardCount > 0
+    ? `${8.25 + (cardCount - 1) * 7}rem`
+    : "0.5rem";
+});
 
 const events1 = computed(() => {
   const now = currentTime.value;

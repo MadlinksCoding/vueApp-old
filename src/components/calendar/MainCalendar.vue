@@ -276,7 +276,7 @@
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
             hasMobileStickyCard ? 'bottom-[7rem]' : 'bottom-2',
             'md:bottom-2',
-            hasTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:left-3' : ''
+            hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:left-3' : ''
           ]"
           :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }"
           @click="goToday" data-main-today>
@@ -1310,15 +1310,23 @@ const isTabletPortraitViewport = computed(() => (
   && width.value <= 1366
   && height.value >= width.value
 ));
+const hasVisibleTabletStickyCards = computed(() => (
+  isTabletPortraitViewport.value && hasTabletStickyCards.value
+));
 const visibleStickyCardEvents = computed(() => {
   if (width.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
   return isTabletPortraitViewport.value ? tabletStickyCardEvents.value : [];
 });
-const tabletStickyCardBottom = computed(() => (
-  `${8.25 + (Math.max(1, tabletStickyCardEvents.value.length) - 1) * 7}rem`
-));
+const tabletStickyCardBottom = computed(() => {
+  const cardCount = hasVisibleTabletStickyCards.value
+    ? tabletStickyCardEvents.value.length
+    : 0;
+  return cardCount > 0
+    ? `${8.25 + (cardCount - 1) * 7}rem`
+    : '0.5rem';
+});
 
 watch(
   () => normalizedStickyCardEvents.value.map((event) => stickyCardKey(event)),

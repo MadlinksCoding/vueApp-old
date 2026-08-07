@@ -2440,6 +2440,8 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("passes the earliest-starting currently joinable confirmed booking to the mobile sticky card", async () => {
+    setWindowWidth(768);
+    setWindowHeight(1024);
     const laterStartIso = isoTodayAt(9, 4);
     const earlierStartIso = isoTodayAt(9, 2);
     const endIso = isoTodayAt(9, 30);
@@ -2592,6 +2594,47 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("stickyCardEvent")?.title).toBe("Live Call");
   });
 
+  it("keeps tablet-only pending cards from moving phone controls and activates the offset in tablet portrait", async () => {
+    setWindowWidth(390);
+    setWindowHeight(844);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{ eventId: "evt_pending_mobile", type: "1on1-call", eventCallType: "video" }],
+        bookedSlots: [{
+          bookingId: "booking_pending_mobile",
+          eventId: "evt_pending_mobile",
+          startIso: isoTodayAt(9, 10),
+          endIso: isoTodayAt(9, 40),
+          status: "pending",
+          eventTitle: "Pending Mobile Request",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
+
+    expect(mainCalendar.props("stickyCardEvents")).toHaveLength(1);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
+    expect(floatingCreateControl.classes())
+      .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.vm.$nextTick();
+
+    expect(floatingCreateControl.classes())
+      .toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 8.25rem");
+  });
+
   it("excludes pending cards for fans and confirmed bookings outside five minutes", async () => {
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -2658,6 +2701,8 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(mainCalendar.props("stickyCardEvent")).toBeNull();
+    expect(wrapper.get("[data-test='dashboard-floating-create-event']").attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("does not pass a sticky card event when no confirmed booking has an active join URL", async () => {
@@ -2686,6 +2731,8 @@ describe("DashboardEventsFeature", () => {
     expect(floatingCreateControl.classes()).toContain("bottom-2");
     expect(floatingCreateControl.classes()).toContain("md:bottom-5");
     expect(floatingCreateControl.classes()).not.toContain("ipad-portrait:bottom-[7rem]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("shows confirmed widget status as minutes remaining in the event color skin inside five minutes", async () => {
