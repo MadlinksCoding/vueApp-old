@@ -3309,8 +3309,9 @@ describe("MainCalendar all events count", () => {
       .find((button) => button.classes().includes("bottom-[7rem]"));
     expect(floatingTodayButton).toBeTruthy();
     expect(floatingTodayButton.classes()).toContain("md:bottom-2");
-    expect(floatingTodayButton.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingTodayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 8.25rem");
+    expect(floatingTodayButton.classes())
+      .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingTodayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 0.5rem");
 
     await card.get("[data-test='mobile-join-card-join']").trigger("click");
     expect(wrapper.emitted("join-call")).toEqual([[stickyCardEvent]]);
@@ -3489,6 +3490,39 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
   });
 
+  it("resets the tablet floating-control offset when the final sticky card is removed", async () => {
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    const confirmed = {
+      title: "Offset Booking",
+      canJoin: true,
+      joinUrl: "https://example.com/join/offset",
+      statusText: "in 5 mins",
+      sourceEvent: {
+        bookingId: "booking_offset",
+        status: "confirmed",
+        start: "2026-04-23T10:00:00",
+        end: "2026-04-23T10:30:00",
+      },
+    };
+    const wrapper = await mountCalendar(
+      [],
+      { stickyCardEvents: [confirmed] },
+      { global: { stubs: { Teleport: true } } },
+    );
+    const todayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("fixed"));
+
+    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 8.25rem");
+    expect(todayButton.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+
+    await wrapper.setProps({ stickyCardEvents: [] });
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 0.5rem");
+    expect(todayButton.classes()).not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+  });
+
   it("does not mount creator pending cards on phone viewports", async () => {
     setWindowWidth(390);
     setWindowHeight(844);
@@ -3512,6 +3546,12 @@ describe("MainCalendar all events count", () => {
 
     expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
     expect(wrapper.find("[data-test='sticky-booking-card']").exists()).toBe(false);
+    const floatingTodayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("fixed"));
+    expect(floatingTodayButton.classes())
+      .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingTodayButton.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("hides the mobile join card and resets floating spacing without an eligible event", async () => {
@@ -3531,6 +3571,10 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
     expect(wrapper.findAll("[data-main-today]").some((button) => button.classes().includes("bottom-2")))
       .toBe(true);
+    const floatingTodayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("fixed"));
+    expect(floatingTodayButton.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("renders group participant context in the mobile join card for creators", async () => {
