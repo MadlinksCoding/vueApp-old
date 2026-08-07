@@ -274,8 +274,11 @@
         <button
           :class="[
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
-            isStickyCardVisible ? 'bottom-[7rem] md:bottom-2 ipad-portrait-small:bottom-2 ipad-portrait-small:left-3' : 'bottom-2'
+            hasMobileStickyCard ? 'bottom-[7rem]' : 'bottom-2',
+            'md:bottom-2',
+            hasTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:left-3' : ''
           ]"
+          :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
@@ -298,7 +301,7 @@
               stroke="#0C111D" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
-            <span class="text-white text-[10px] font-semibold">31</span>
+            <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
         </div>
          <div class="cursor-pointer flex lg:hidden p-2 relative" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
@@ -308,7 +311,7 @@
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
-            <span class="text-white text-[10px] font-semibold">31</span>
+            <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
         </div>
 
@@ -983,6 +986,7 @@
         :view="view"
         :events-data="props.eventsData"
         :can-create-events="canCreateEvents"
+        :user-role="props.userRole"
         :booking-schedule-events="props.bookingScheduleEvents"
         :booking-schedule-booked-slots-index="props.bookingScheduleBookedSlotsIndex"
         :show-booking-schedule-list="props.showBookingScheduleList"
@@ -991,6 +995,7 @@
         @reply-click="handleReply"
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
+        @approve-booking="handleApproveBooking"
         @open-new-events="handleOpenNewEvents"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
@@ -1011,6 +1016,7 @@
         @reply-click="handleReply"
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
+        @approve-booking="handleApproveBooking"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
         @view-schedule-card="handleMobileScheduleCardPreview"
@@ -1093,48 +1099,30 @@
       @close="adjustBookingState = null"
       @submitted="handleAdjustSubmitted"
     />
-    <!-- Mobile sticky bottom event card -->
+    <!-- Responsive sticky booking cards -->
     <Teleport to="body">
-      <div v-if="isStickyCardVisible" class="fixed bottom-0 left-0 right-0 z-[90] md:hidden">
-        <div class="w-full bg-white min-h-[80px] shadow-[0_0_12px_0_rgba(85,73,255,0.75),0_4px_8px_-2px_rgba(85,73,255,0.10),0_2px_4px_-2px_rgba(85,73,255,0.06)] border border-gray-100 p-3 flex gap-1.5">
-         
-          <div 
-            class="w-[0.25rem] h-[auto] rounded-[0.875rem] bg-[#5549FF]"
-          > </div>
-          <span class="text-xs py-2 text-gray-700 font-semibold leading-4 shrink-0 w-[54px]">12:30pm– 1:00pm</span>
-          <div class="flex flex-col gap-1 self-stretch flex-1">
-            <div class="flex items-center gap-2">
-              <div class="flex flex-1 items-center gap-1 min-w-0">
-                <PhoneIcon color="#5549FF"/>
-                <p class="text-[0.875rem] font-semibold text-[#5549FF] truncate leading-5">High School Simulator</p>
-                <img :src=GreenCheckIcon />
-              </div>
-              <button class="flex items-center justify-center w-5 h-5 shrink-0">
-                <img :src=ThreeDotsIcon />
-              </button>
-            </div>
-  
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <img
-                  src="https://i.pravatar.cc/32?img=5"
-                  alt="Guest"
-                  class="w-5 h-5 rounded-full object-cover shrink-0"
-                />
-                <p class="text-[0.6875rem] text-gray-500 font-medium flex-1 truncate">Apples</p>
-              </div>
-              <div class="flex flex-col items-end gap-1">
-                <span class="flex items-center gap-1 shrink-0">
-                  <IndicatorDot color="#FF4405" class="w-2 h-2" />
-                  <span class="text-[0.6875rem] font-medium text-[#FF4405]">in 5 min</span>
-                </span>
-                <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-[0.25rem] bg-[#5549FF] hover:bg-[#5549FF]/90 transition-colors shrink-0 blink-border-blue-effect">
-                  <img :src=PhoneIncoming02Icon />
-                  <span class="text-white text-[0.75rem] font-semibold">{{ t('common_join_call') }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
+      <div
+        v-if="visibleStickyCardEvents.length"
+        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-1 md:hidden ipad-portrait:flex"
+        data-test="tablet-sticky-card-list"
+      >
+        <div
+          v-for="event in visibleStickyCardEvents"
+          :key="stickyCardKey(event)"
+          class="sticky-booking-list-item md:hidden ipad-portrait:block"
+          :class="isPendingStickyCard(event) ? 'sticky-booking-list-item--pending' : 'sticky-booking-list-item--confirmed'"
+          :data-test="isPendingStickyCard(event) ? 'tablet-sticky-pending-card' : 'mobile-join-card'"
+        >
+          <StickyBookingCard
+            :event="event"
+            :user-role="userRole"
+            :menu-open="openStickyCardMenuKey === stickyCardKey(event)"
+            @toggle-menu="toggleStickyCardMenu(event)"
+            @menu-action="handleStickyCardMenuAction($event, event)"
+            @join-call="handleStickyCardJoin"
+            @review="handleStickyCardReview"
+            @approve-booking="handleApproveBooking"
+          />
         </div>
       </div>
     </Teleport>
@@ -1161,6 +1149,7 @@ import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
 import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
 import EventsRequestsPopup from './EventsRequestsPopup.vue';
+import StickyBookingCard from './StickyBookingCard.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
 import FlowHandler from '@/services/flow-system/FlowHandler';
@@ -1169,10 +1158,6 @@ import { useChatStore } from '@/stores/useChatStore';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 
 import MiniCalendar from './MiniCalendar.vue';
-import IndicatorDot from '../icons/IndicatorDot.vue';
-import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
-import PhoneIncoming02Icon from "@/assets/images/icons/phone-incoming-02.svg"
-import ThreeDotsIcon from "@/assets/images/icons/dots-vertical.svg"
 import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
 
 const props = defineProps({
@@ -1182,6 +1167,7 @@ const props = defineProps({
   initialView: { type: String, default: 'week' },
   events: { type: Array, default: () => [] },
   eventsData: { type: Array, default: () => [] },
+  bookedSlotsCount: { type: Number, default: null },
   bookingScheduleEvents: { type: Array, default: () => [] },
   bookingScheduleBookedSlotsIndex: { type: Object, default: () => ({}) },
   showBookingScheduleList: { type: Boolean, default: false },
@@ -1199,13 +1185,15 @@ const props = defineProps({
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
-  isStickyCardVisible: { type: Boolean, default: false }
+  stickyCardEvents: { type: Array, default: () => [] },
+  stickyCardEvent: { type: Object, default: null }
 });
 
 const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
+const height = ref(window.innerHeight);
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const calendarRootRef = ref(null);
@@ -1251,6 +1239,7 @@ const newEventsPopupOpen = ref(false);
 const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
 const adjustBookingState = ref(null);
+const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
 const isMobileCalendarOpen = ref(false);
 
@@ -1263,6 +1252,106 @@ const monthOverlayRef = ref(null);
 const monthOverlayStyle = ref({});
 const mobileCalendarRef = ref(null);
 const canCreateEvents = computed(() => props.userRole === 'creator');
+function stickyCardStatus(event = {}) {
+  const sourceEvent = event?.sourceEvent || event?.event || event;
+  const raw = sourceEvent?.raw && typeof sourceEvent.raw === 'object' ? sourceEvent.raw : {};
+  return String(sourceEvent?.status || raw.status || event?.status || '').trim().toLowerCase();
+}
+
+function isPendingStickyCard(event = {}) {
+  const status = stickyCardStatus(event);
+  return status === 'pending' || status === 'pending_hold' || (!status && event?.showReply === true);
+}
+
+function stickyCardKey(event = {}) {
+  const sourceEvent = event?.sourceEvent || event?.event || event;
+  const raw = sourceEvent?.raw && typeof sourceEvent.raw === 'object' ? sourceEvent.raw : {};
+  return String(
+    sourceEvent?.bookingId
+      || raw.bookingId
+      || event?.bookingId
+      || sourceEvent?.id
+      || `${sourceEvent?.eventId || event?.eventId || 'event'}:${sourceEvent?.start || event?.time || 'start'}`,
+  );
+}
+
+const normalizedStickyCardEvents = computed(() => {
+  const supplied = Array.isArray(props.stickyCardEvents) && props.stickyCardEvents.length
+    ? props.stickyCardEvents
+    : (props.stickyCardEvent ? [props.stickyCardEvent] : []);
+  const seen = new Set();
+
+  return supplied.filter((event) => {
+    if (!event) return false;
+    const key = stickyCardKey(event);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+});
+
+const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.find((event) => (
+  !isPendingStickyCard(event)
+  && event.canJoin === true
+  && Boolean(event.joinUrl)
+)) || null);
+
+const tabletStickyCardEvents = computed(() => normalizedStickyCardEvents.value.filter((event) => {
+  if (isPendingStickyCard(event)) {
+    return props.canReviewPending && String(props.userRole || '').toLowerCase() === 'creator';
+  }
+  return event.canJoin === true && Boolean(event.joinUrl);
+}).slice(0, 3));
+
+const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
+const hasTabletStickyCards = computed(() => tabletStickyCardEvents.value.length > 0);
+const isTabletPortraitViewport = computed(() => (
+  width.value >= 678
+  && width.value <= 1366
+  && height.value >= width.value
+));
+const visibleStickyCardEvents = computed(() => {
+  if (width.value < 678) {
+    return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
+  }
+  return isTabletPortraitViewport.value ? tabletStickyCardEvents.value : [];
+});
+const tabletStickyCardBottom = computed(() => (
+  `${8.25 + (Math.max(1, tabletStickyCardEvents.value.length) - 1) * 7}rem`
+));
+
+watch(
+  () => normalizedStickyCardEvents.value.map((event) => stickyCardKey(event)),
+  (keys) => {
+    if (openStickyCardMenuKey.value && !keys.includes(openStickyCardMenuKey.value)) {
+      openStickyCardMenuKey.value = null;
+    }
+  },
+);
+
+const toggleStickyCardMenu = (event) => {
+  const key = stickyCardKey(event);
+  openStickyCardMenuKey.value = openStickyCardMenuKey.value === key ? null : key;
+};
+
+const handleStickyCardMenuAction = (action, event) => {
+  emit('menu-action', { action, event });
+  openStickyCardMenuKey.value = null;
+};
+
+const handleStickyCardJoin = (event) => {
+  emit('join-call', event);
+};
+
+const handleStickyCardReview = (event) => {
+  handleMobileWidgetEventClick(event);
+};
+
+const handleStickyCardDocumentClick = (event) => {
+  if (!event.target?.closest?.('[data-sticky-card-menu]')) {
+    openStickyCardMenuKey.value = null;
+  }
+};
 
 const handleMobileCalendarClickOutside = (event) => {
   if (
@@ -1280,12 +1369,13 @@ const handleMobileCalendarClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleMobileCalendarClickOutside);
+  document.addEventListener('click', handleStickyCardDocumentClick);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleMobileCalendarClickOutside);
+  document.removeEventListener('click', handleStickyCardDocumentClick);
 });
-
 
 const toggleMobileCalendar = () => {
   isMobileCalendarOpen.value = !isMobileCalendarOpen.value;
@@ -1942,6 +2032,11 @@ const filteredBookedSlotsCount = computed(() => {
   return countedEventIds.size;
 });
 
+const calendarBadgeCount = computed(() => {
+  if (!Number.isFinite(props.bookedSlotsCount)) return filteredBookedSlotsCount.value;
+  return Math.max(0, Math.trunc(props.bookedSlotsCount));
+});
+
 const shortWeekdays = computed(() => [
   t("date_sun_short"),
   t("date_mon_short"),
@@ -2439,7 +2534,26 @@ const getVisualBounds = (ev, sMin, eMin, step, minHeightPx, day = null) => {
 };
 
 const ADAPTIVE_EVENT_GAP_PX = 2;
-const usesAdaptiveEventLayout = computed(() => props.minEventHeightPx > 0);
+const DEFAULT_EVENT_MIN_HEIGHT_PX = 20;
+const baseEventMinHeightPx = computed(() => {
+  const configuredHeight = Number(props.minEventHeightPx);
+  return Number.isFinite(configuredHeight) && configuredHeight > 0
+    ? configuredHeight
+    : DEFAULT_EVENT_MIN_HEIGHT_PX;
+});
+const resolveEventMinHeightPx = (event = {}) => {
+  const eventHeight = Number(event?.layoutMinHeightPx);
+  return Number.isFinite(eventHeight) && eventHeight > 0
+    ? eventHeight
+    : baseEventMinHeightPx.value;
+};
+const hasEventSpecificMinHeight = computed(() => normalized.value.some((event) => {
+  const eventHeight = Number(event?.layoutMinHeightPx);
+  return Number.isFinite(eventHeight) && eventHeight > 0;
+}));
+const usesAdaptiveEventLayout = computed(() => (
+  props.minEventHeightPx > 0 || hasEventSpecificMinHeight.value
+));
 const roundLayoutPx = (value) => Math.round(value * 1000) / 1000;
 
 const assignAdaptiveOverlapLanes = (events = []) => {
@@ -2524,7 +2638,7 @@ const processedEventsByDay = computed(() => {
   });
 
   const { sMin, eMin, step } = range.value;
-  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const minHeightPx = baseEventMinHeightPx.value;
   const processed = {};
   
   for (const [dayKeyStr, dayEvents] of Object.entries(eventsByDay)) {
@@ -2574,7 +2688,7 @@ const processedEventsByDay = computed(() => {
 const gridMetrics = computed(() => {
   const rows = range.value.rowCount;
   const { sMin, eMin, step } = range.value;
-  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const minHeightPx = baseEventMinHeightPx.value;
 
   if (usesAdaptiveEventLayout.value) {
     const rowHeights = Array.from({ length: rows }, () => props.rowHeightPx);
@@ -2590,7 +2704,8 @@ const gridMetrics = computed(() => {
         const durationMinutes = clippedEnd - clippedStart;
         if (durationMinutes <= 0) return;
 
-        const requiredRowHeight = ((minHeightPx + ADAPTIVE_EVENT_GAP_PX) * step) / durationMinutes;
+        const eventMinHeightPx = resolveEventMinHeightPx(event);
+        const requiredRowHeight = ((eventMinHeightPx + ADAPTIVE_EVENT_GAP_PX) * step) / durationMinutes;
         const firstRow = Math.max(0, Math.floor((clippedStart - sMin) / step));
         const lastRow = Math.min(rows - 1, Math.ceil((clippedEnd - sMin) / step) - 1);
         for (let rowIndex = firstRow; rowIndex <= lastRow; rowIndex++) {
@@ -2938,7 +3053,7 @@ const styleBlock = (ev, day = null) => {
   const baseTopPx = minuteToGridOffset(clippedStart);
   let topPx = baseTopPx;
   const endPx = minuteToGridOffset(clippedEnd);
-  const minHeightPx = props.minEventHeightPx > 0 ? props.minEventHeightPx : 20;
+  const minHeightPx = resolveEventMinHeightPx(ev);
 
   if (usesAdaptiveEventLayout.value) {
     if (ev.isAvailabilityBlock) {
@@ -2946,10 +3061,11 @@ const styleBlock = (ev, day = null) => {
       return `top:${roundLayoutPx(topPx)}px;height:${availabilityHeight}px;left:2px;right:2px;`;
     }
 
-    const heightPx = roundLayoutPx(Math.max(
-      minHeightPx,
-      endPx - baseTopPx - ADAPTIVE_EVENT_GAP_PX,
-    ));
+    const naturalHeightPx = Math.max(
+      0,
+      ((clippedEnd - clippedStart) * props.rowHeightPx) / step - ADAPTIVE_EVENT_GAP_PX,
+    );
+    const heightPx = roundLayoutPx(Math.max(minHeightPx, naturalHeightPx));
     topPx = roundLayoutPx(topPx);
     const laneCount = Math.max(1, Number(ev.overlapLaneCount) || 1);
     const lane = Math.max(0, Math.min(laneCount - 1, Number(ev.overlapLane) || 0));
@@ -2970,7 +3086,7 @@ const styleBlock = (ev, day = null) => {
   }
 
   let heightPx = endPx - baseTopPx;
-  heightPx = Math.max(props.minEventHeightPx, heightPx);
+  heightPx = Math.max(minHeightPx, heightPx);
 
   return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
 };
@@ -3052,6 +3168,7 @@ const updateNowLine = () => {
 const handleResize = () => {
   const previousWidth = width.value;
   width.value = window.innerWidth;
+  height.value = window.innerHeight;
   const enteredMobile = previousWidth >= 1024 && width.value < 1024;
 
   if ((previousWidth < 1024) !== (width.value < 1024)) {
@@ -3252,6 +3369,22 @@ defineExpose({
 </script>
 
 <style scoped>
+.sticky-booking-list-item {
+  display: none;
+}
+
+@media (max-width: 677px) {
+  .sticky-booking-list-item--confirmed:first-child {
+    display: block;
+  }
+}
+
+@media (min-width: 678px) and (max-width: 1366px) and (orientation: portrait) {
+  .sticky-booking-list-item {
+    display: block;
+  }
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

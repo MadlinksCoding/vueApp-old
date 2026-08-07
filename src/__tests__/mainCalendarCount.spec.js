@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
   default: {
@@ -96,8 +96,8 @@ vi.mock("@/components/calendar/NewEventsPopup.vue", () => ({
 vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
-    props: ["view", "eventsData", "canCreateEvents", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
-    emits: ["join-click", "event-click", "menu-action", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    props: ["view", "eventsData", "canCreateEvents", "userRole", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
+    emits: ["join-click", "event-click", "menu-action", "approve-booking", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     template: `
       <div data-test="mobile-popup">
         <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
@@ -112,6 +112,12 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
           @click="$emit('menu-action', { action: 'cancel_call', event: { sourceEvent: { id: 'mobile-source' } } })"
         >
           menu
+        </button>
+        <button
+          data-test="mobile-approve-booking"
+          @click="$emit('approve-booking', { bookingId: 'booking_mobile_pending', eventId: 'event_mobile_pending', decision: 'approve' })"
+        >
+          approve
         </button>
         <button
           data-test="mobile-schedule-edit"
@@ -202,6 +208,15 @@ function setWindowWidth(width) {
   window.dispatchEvent(new Event("resize"));
 }
 
+function setWindowHeight(height) {
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    writable: true,
+    value: height,
+  });
+  window.dispatchEvent(new Event("resize"));
+}
+
 function findMonthDayButton(wrapper, dayNumber) {
   return wrapper.findAll("button").find((button) => button.text().trim().startsWith(String(dayNumber)));
 }
@@ -220,6 +235,7 @@ function makeEvent(overrides = {}) {
     isAvailabilityBlock: overrides.isAvailabilityBlock ?? true,
     isDraftPreview: overrides.isDraftPreview || false,
     status: overrides.status,
+    layoutMinHeightPx: overrides.layoutMinHeightPx,
     raw: {
       eventId: overrides.eventId || "event_1",
       createdAt: overrides.createdAt || undefined,
@@ -286,6 +302,18 @@ async function openMobilePopup(wrapper) {
   await wrapper.get("[data-test='calendar-mobile-popup-trigger']").trigger("click");
 }
 
+function mobilePopupCounts(wrapper) {
+  return wrapper.findAll("[data-test='calendar-mobile-popup-count']")
+    .map((badge) => badge.text());
+}
+
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 3, 23, 9, 0, 0));
@@ -294,7 +322,9 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   setWindowWidth(1024);
+  setWindowHeight(768);
 });
 
 describe("MainCalendar all events count", () => {
@@ -673,6 +703,7 @@ describe("MainCalendar all events count", () => {
     ]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+    expect(mobilePopupCounts(wrapper)).toEqual(["1", "1"]);
   });
 
   it("counts video and audio events according to selected filters", async () => {
@@ -682,16 +713,47 @@ describe("MainCalendar all events count", () => {
     ]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
+    expect(mobilePopupCounts(wrapper)).toEqual(["2", "2"]);
 
     await openFilters(wrapper);
     await wrapper.get("[data-test='video-only']").trigger("click");
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+    expect(mobilePopupCounts(wrapper)).toEqual(["1", "1"]);
 
     await wrapper.get("[data-test='audio-only']").trigger("click");
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+    expect(mobilePopupCounts(wrapper)).toEqual(["1", "1"]);
 
     await wrapper.get("[data-test='video-audio']").trigger("click");
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("2");
+    expect(mobilePopupCounts(wrapper)).toEqual(["2", "2"]);
+  });
+
+  it("shows zero in both responsive popup badges when there are no events", async () => {
+    const wrapper = await mountCalendar([]);
+
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
+    expect(mobilePopupCounts(wrapper)).toEqual(["0", "0"]);
+  });
+
+  it("keeps the desktop event count separate from the iPad and phone booked-slot count", async () => {
+    const wrapper = await mountCalendar(
+      [makeEvent({ eventId: "current_day_event", eventCallType: "video" })],
+      { bookedSlotsCount: 3 },
+    );
+
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+    expect(mobilePopupCounts(wrapper)).toEqual(["3", "3"]);
+
+    await openFilters(wrapper);
+    await wrapper.get("[data-test='audio-only']").trigger("click");
+
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
+    expect(mobilePopupCounts(wrapper)).toEqual(["3", "3"]);
+
+    await wrapper.setProps({ bookedSlotsCount: 0 });
+    expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
+    expect(mobilePopupCounts(wrapper)).toEqual(["0", "0"]);
   });
 
   it("shows completed and ended bookings by default and allows hiding them", async () => {
@@ -1968,6 +2030,207 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("honors per-event minimum heights while preserving the configured fallback", async () => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "compact_booking",
+          eventId: "evt_compact",
+          title: "Compact booking",
+          start: new Date(2026, 3, 23, 13, 0, 0),
+          end: new Date(2026, 3, 23, 13, 5, 0),
+          isAvailabilityBlock: false,
+          layoutMinHeightPx: 40,
+        }),
+        makeEvent({
+          id: "joinable_booking",
+          eventId: "evt_joinable",
+          title: "Joinable booking",
+          start: new Date(2026, 3, 23, 14, 0, 0),
+          end: new Date(2026, 3, 23, 14, 5, 0),
+          isAvailabilityBlock: false,
+          layoutMinHeightPx: 64,
+        }),
+        makeEvent({
+          id: "fallback_booking",
+          eventId: "evt_fallback",
+          title: "Fallback booking",
+          start: new Date(2026, 3, 23, 15, 0, 0),
+          end: new Date(2026, 3, 23, 15, 5, 0),
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "long_booking",
+          eventId: "evt_long",
+          title: "Long booking",
+          start: new Date(2026, 3, 23, 16, 0, 0),
+          end: new Date(2026, 3, 23, 17, 0, 0),
+          isAvailabilityBlock: false,
+          layoutMinHeightPx: 40,
+        }),
+      ],
+      {
+        initialView: "day",
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        rowHeightPx: 120,
+        minEventHeightPx: 40,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="booking-block" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const blocks = wrapper.findAll("[data-test='booking-block']");
+    const heightByBooking = Object.fromEntries(blocks.map((block) => [
+      block.attributes("data-booking-id"),
+      stylePixels(block, "height"),
+    ]));
+
+    expect(heightByBooking).toEqual({
+      compact_booking: 40,
+      joinable_booking: 64,
+      fallback_booking: 40,
+      long_booking: 118,
+    });
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[13], "height")).toBe(504);
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[14], "height")).toBe(792);
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[15], "height")).toBe(504);
+    expect(stylePixels(wrapper.findAll("[data-test='calendar-time-label']")[16], "height")).toBe(120);
+  });
+
+  it.each([
+    ["day", "join-first"],
+    ["day", "compact-first"],
+    ["week", "join-first"],
+    ["week", "compact-first"],
+  ])("keeps mixed same-hour booking heights independent in %s view with %s ordering", async (view, ordering) => {
+    const joinFirst = ordering === "join-first";
+    const firstBooking = makeEvent({
+      id: joinFirst ? "join_booking" : "compact_booking",
+      eventId: "evt_mixed_heights",
+      title: joinFirst ? "Join booking" : "Compact booking",
+      start: new Date(2026, 3, 23, 13, 0, 0),
+      end: new Date(2026, 3, 23, 13, 5, 0),
+      isAvailabilityBlock: false,
+      layoutMinHeightPx: joinFirst ? 64 : 40,
+    });
+    const secondBooking = makeEvent({
+      id: joinFirst ? "compact_booking" : "join_booking",
+      eventId: "evt_mixed_heights",
+      title: joinFirst ? "Compact booking" : "Join booking",
+      start: new Date(2026, 3, 23, 13, 5, 0),
+      end: new Date(2026, 3, 23, 13, 10, 0),
+      isAvailabilityBlock: false,
+      layoutMinHeightPx: joinFirst ? 40 : 64,
+    });
+    const trailingCompactBooking = makeEvent({
+      id: "compact_booking_trailing",
+      eventId: "evt_mixed_heights",
+      title: "Trailing compact booking",
+      start: new Date(2026, 3, 23, 13, 10, 0),
+      end: new Date(2026, 3, 23, 13, 15, 0),
+      isAvailabilityBlock: false,
+      layoutMinHeightPx: 40,
+    });
+    const wrapper = await mountCalendar(
+      [firstBooking, secondBooking, trailingCompactBooking],
+      {
+        initialView: view,
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        rowHeightPx: 120,
+        minEventHeightPx: 40,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="mixed-height-booking" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const blocks = wrapper.findAll("[data-test='mixed-height-booking']");
+    const blockById = Object.fromEntries(blocks.map((block) => [
+      block.attributes("data-booking-id"),
+      block,
+    ]));
+
+    expect(stylePixels(blockById.join_booking, "height")).toBe(64);
+    expect(stylePixels(blockById.compact_booking, "height")).toBe(40);
+    expect(stylePixels(blockById.compact_booking_trailing, "height")).toBe(40);
+
+    for (let index = 1; index < blocks.length; index += 1) {
+      const previousTop = stylePixels(blocks[index - 1], "top");
+      const previousHeight = stylePixels(blocks[index - 1], "height");
+      const currentTop = stylePixels(blocks[index], "top");
+      expect(currentTop).toBeGreaterThanOrEqual(previousTop + previousHeight);
+    }
+  });
+
+  it.each(["day", "week"])("does not inflate compact bookings in other event columns in %s view", async (view) => {
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "compact_column_booking",
+          eventId: "evt_compact_column",
+          title: "Compact column booking",
+          start: new Date(2026, 3, 23, 13, 0, 0),
+          end: new Date(2026, 3, 23, 13, 5, 0),
+          isAvailabilityBlock: false,
+          layoutMinHeightPx: 40,
+        }),
+        makeEvent({
+          id: "join_column_booking",
+          eventId: "evt_join_column",
+          title: "Join column booking",
+          start: new Date(2026, 3, 23, 13, 0, 0),
+          end: new Date(2026, 3, 23, 13, 5, 0),
+          isAvailabilityBlock: false,
+          layoutMinHeightPx: 64,
+        }),
+      ],
+      {
+        initialView: view,
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        rowHeightPx: 120,
+        minEventHeightPx: 40,
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, style }">
+              <div data-test="column-height-booking" :data-booking-id="event.id" :style="style">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const blocks = wrapper.findAll("[data-test='column-height-booking']");
+    const heightByBooking = Object.fromEntries(blocks.map((block) => [
+      block.attributes("data-booking-id"),
+      stylePixels(block, "height"),
+    ]));
+
+    expect(heightByBooking).toEqual({
+      compact_column_booking: 40,
+      join_column_booking: 64,
+    });
+    expect(blocks.map((block) => stylePixels(block, "top")))
+      .toEqual([stylePixels(blocks[0], "top"), stylePixels(blocks[0], "top")]);
+  });
+
   it("uses horizontal lanes for genuine overlaps and keeps availability full width", async () => {
     const overlappingEvents = [
       makeEvent({
@@ -2594,6 +2857,7 @@ describe("MainCalendar all events count", () => {
     ]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("1");
+    expect(mobilePopupCounts(wrapper)).toEqual(["1", "1"]);
   });
 
   it("passes dynamic event sections to the mobile popup", async () => {
@@ -2775,6 +3039,7 @@ describe("MainCalendar all events count", () => {
 
     await openMobilePopup(wrapper);
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("canCreateEvents")).toBe(false);
+    expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("userRole")).toBe("fan");
 
     await wrapper.get("[data-test='mobile-open-new-events']").trigger("click");
     expect(wrapper.find("[data-test='new-events-popup']").exists()).toBe(false);
@@ -2800,6 +3065,510 @@ describe("MainCalendar all events count", () => {
       [{ action: "cancel_call", event: { sourceEvent: { id: "mobile-source" } } }],
     ]);
     expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
+  });
+
+  it("forwards mobile widget approval actions", async () => {
+    const wrapper = await mountCalendar([], { userRole: "creator" });
+
+    await openMobilePopup(wrapper);
+    await wrapper.get("[data-test='mobile-approve-booking']").trigger("click");
+
+    expect(wrapper.emitted("approve-booking")).toEqual([[
+      {
+        bookingId: "booking_mobile_pending",
+        eventId: "event_mobile_pending",
+        decision: "approve",
+      },
+    ]]);
+  });
+
+  it("fetches and displays the booked fan profile in the creator sticky card", async () => {
+    setWindowWidth(390);
+    let resolveFetch;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi.fn(() => fetchPromise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "creator",
+        stickyCardEvent: {
+          title: "Creator Office Hours",
+          canJoin: true,
+          joinUrl: "https://example.com/join/booking_1407",
+          statusText: "live now",
+          isGroup: false,
+          profile: { name: "Fallback Fan", avatar: "https://example.com/fallback.png" },
+          sourceEvent: {
+            start: "2026-04-23T09:55:00",
+            end: "2026-04-23T10:30:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='mobile-join-card-profile-skeleton']").exists()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(requestedUrl.pathname).toBe("/wp-json/api/users/get-profile-data");
+    expect(requestedUrl.searchParams.get("id")).toBe("1407");
+
+    resolveFetch({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        user: {
+          display_name: "Fetched Fan",
+          username: "fetchedfan",
+          avatar: "https://example.com/fetched-fan.png",
+        },
+      }),
+    });
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='mobile-join-card-profile-skeleton']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='mobile-join-card-profile-name']").text()).toBe("Fetched Fan");
+    expect(wrapper.get("[data-test='mobile-join-card-profile-avatar']").attributes("src"))
+      .toBe("https://example.com/fetched-fan.png");
+    wrapper.unmount();
+  });
+
+  it("fetches the creator profile for fan sticky cards", async () => {
+    setWindowWidth(390);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        user: {
+          displayName: "Fetched Creator",
+          avatarUrl: "https://example.com/fetched-creator.png",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "fan",
+        stickyCardEvent: {
+          title: "Fan Booking",
+          canJoin: true,
+          joinUrl: "https://example.com/join/booking_creator",
+          statusText: "live now",
+          isGroup: false,
+          sourceEvent: {
+            start: "2026-04-23T09:55:00",
+            end: "2026-04-23T10:30:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+    await flushPromises();
+
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(requestedUrl.searchParams.get("id")).toBe("2615");
+    expect(wrapper.get("[data-test='mobile-join-card-profile-name']").text()).toBe("Fetched Creator");
+    expect(wrapper.get("[data-test='mobile-join-card-profile-avatar']").attributes("src"))
+      .toBe("https://example.com/fetched-creator.png");
+    wrapper.unmount();
+  });
+
+  it("keeps sticky card fallback profile data when the WP request fails", async () => {
+    setWindowWidth(390);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "creator",
+        stickyCardEvent: {
+          title: "Fallback Booking",
+          canJoin: true,
+          joinUrl: "https://example.com/join/fallback",
+          statusText: "live now",
+          isGroup: false,
+          profile: { name: "Fallback Fan", avatar: "https://example.com/fallback.png" },
+          sourceEvent: {
+            start: "2026-04-23T09:55:00",
+            end: "2026-04-23T10:30:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+    await flushPromises();
+
+    expect(wrapper.get("[data-test='mobile-join-card-profile-name']").text()).toBe("Fallback Fan");
+    expect(wrapper.get("[data-test='mobile-join-card-profile-avatar']").attributes("src"))
+      .toBe("https://example.com/fallback.png");
+    wrapper.unmount();
+  });
+
+  it("aborts stale sticky card profile requests when the booking changes", async () => {
+    setWindowWidth(390);
+    const fetchMock = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    const makeStickyEvent = (userId) => ({
+      title: `Booking ${userId}`,
+      canJoin: true,
+      joinUrl: `https://example.com/join/${userId}`,
+      statusText: "live now",
+      isGroup: false,
+      sourceEvent: {
+        start: "2026-04-23T09:55:00",
+        end: "2026-04-23T10:30:00",
+        raw: { userId, creatorId: 2615 },
+      },
+    });
+
+    const wrapper = await mountCalendar(
+      [],
+      { userRole: "creator", stickyCardEvent: makeStickyEvent(1407) },
+      { global: { stubs: { Teleport: true } } },
+    );
+    await flushPromises();
+    const firstSignal = fetchMock.mock.calls[0][1].signal;
+
+    await wrapper.setProps({ stickyCardEvent: makeStickyEvent(1408) });
+    await flushPromises();
+
+    expect(firstSignal.aborted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondUrl = new URL(String(fetchMock.mock.calls[1][0]), "http://localhost");
+    expect(secondUrl.searchParams.get("id")).toBe("1408");
+    const secondSignal = fetchMock.mock.calls[1][1].signal;
+
+    wrapper.unmount();
+    expect(secondSignal.aborted).toBe(true);
+  });
+
+  it("renders the dynamic phone and tablet-portrait join card and emits its join and translated menu actions", async () => {
+    setWindowWidth(390);
+    const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
+    const stickyCardEvent = {
+      title: "Creator Office Hours",
+      canJoin: true,
+      joinUrl: "https://example.com/join/booking_1",
+      statusText: "en 4 min",
+      statusColor: "#FF4405",
+      accentColor: "#28C76F",
+      isGroup: false,
+      profile: {
+        name: "Ava",
+        avatar: "https://example.com/ava.png",
+      },
+      avatars: [{ src: "https://example.com/ava.png", name: "Ava" }],
+      sourceEvent: {
+        id: "booking_1",
+        start: "2026-04-23T09:55:00",
+        end: "2026-04-23T10:30:00",
+      },
+    };
+    const translations = {
+      common_join_call: "Unirse a la llamada",
+      dashboard_booking_menu_aria: "Abrir opciones para {title}",
+      dashboard_ask_for_more_time: "Pedir más tiempo",
+      dashboard_ask_to_reschedule: "Pedir reprogramar",
+      dashboard_cancel_call: "Cancelar llamada",
+    };
+    const wrapper = await mountCalendar(
+      [],
+      { stickyCardEvent, userRole: "creator" },
+      {
+        global: {
+          stubs: { Teleport: true },
+          provide: {
+            [bookingTranslationSymbol]: {
+              locale: ref("es-ES"),
+              t: (key, params = {}) => (translations[key] || key)
+                .replace(/\{title\}/g, params.title ?? "{title}"),
+            },
+          },
+        },
+      },
+    );
+
+    const card = wrapper.get("[data-test='mobile-join-card']");
+    expect(card.classes()).toContain("md:hidden");
+    expect(card.classes()).toContain("ipad-portrait:block");
+    expect(card.get("[data-test='mobile-join-card-title']").text()).toBe("Creator Office Hours");
+    expect(card.get("[data-test='mobile-join-card-time']").text()).toContain("9:55");
+    expect(card.get("[data-test='mobile-join-card-status']").text()).toBe("en 4 min");
+    expect(card.get("[data-test='mobile-join-card-profile-name']").text()).toBe("Ava");
+    expect(card.get("[data-test='mobile-join-card-menu-trigger']").attributes("aria-label"))
+      .toBe("Abrir opciones para Creator Office Hours");
+    expect(card.get("[data-test='mobile-join-card-join']").text()).toBe("Unirse a la llamada");
+    const floatingTodayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("bottom-[7rem]"));
+    expect(floatingTodayButton).toBeTruthy();
+    expect(floatingTodayButton.classes()).toContain("md:bottom-2");
+    expect(floatingTodayButton.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingTodayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 8.25rem");
+
+    await card.get("[data-test='mobile-join-card-join']").trigger("click");
+    expect(wrapper.emitted("join-call")).toEqual([[stickyCardEvent]]);
+
+    await wrapper.get("[data-test='mobile-join-card-menu-trigger']").trigger("click");
+    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toContain("Pedir más tiempo");
+    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toContain("Pedir reprogramar");
+
+    await wrapper.get("[data-test='mobile-join-card-cancel']").trigger("click");
+    expect(wrapper.emitted("menu-action")).toEqual([[
+      { action: "cancel_call", event: stickyCardEvent },
+    ]]);
+  });
+
+  it("renders a prioritized three-card tablet list with creator pending actions", async () => {
+    setWindowWidth(768);
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+    const confirmed = {
+      title: "Starting Soon",
+      canJoin: true,
+      joinUrl: "https://example.com/join/soon",
+      statusText: "in 5 mins",
+      isGroup: true,
+      groupText: "Group event (2)",
+      sourceEvent: {
+        bookingId: "booking_confirmed",
+        eventId: "event_confirmed",
+        status: "confirmed",
+        start: "2026-04-23T09:55:00",
+        end: "2026-04-23T10:30:00",
+      },
+    };
+    const pending = {
+      title: "Pending Request",
+      canJoin: false,
+      joinUrl: null,
+      showReply: true,
+      isGroup: true,
+      groupText: "Group event (1)",
+      sourceEvent: {
+        bookingId: "booking_pending",
+        eventId: "event_pending",
+        title: "Pending Request",
+        status: "pending",
+        start: "2026-04-23T10:35:00",
+        end: "2026-04-23T11:00:00",
+      },
+    };
+    const pendingHold = {
+      ...pending,
+      title: "Pending Hold",
+      sourceEvent: {
+        ...pending.sourceEvent,
+        bookingId: "booking_pending_hold",
+        eventId: "event_pending_hold",
+        title: "Pending Hold",
+        status: "pending_hold",
+        start: "2026-04-23T11:05:00",
+        end: "2026-04-23T11:30:00",
+      },
+    };
+    const wrapper = await mountCalendar(
+      [],
+      { stickyCardEvents: [confirmed, pending, pendingHold], userRole: "creator" },
+      { global: { stubs: { Teleport: true, TooltipIcon: true } } },
+    );
+
+    expect(wrapper.findAll("[data-test='sticky-booking-card']")).toHaveLength(3);
+    expect(wrapper.findAll("[data-test='mobile-join-card']")).toHaveLength(1);
+    expect(wrapper.findAll("[data-test='tablet-sticky-pending-card']")).toHaveLength(2);
+    expect(wrapper.findAll("[data-test='sticky-booking-card']").map((card) => card.attributes("data-booking-status")))
+      .toEqual(["confirmed", "pending", "pending_hold"]);
+
+    const todayButton = wrapper.findAll("[data-main-today]")
+      .find((button) => button.classes().includes("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]"));
+    expect(todayButton).toBeTruthy();
+    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 22.25rem");
+
+    const menuTriggers = wrapper.findAll("[data-test='mobile-join-card-menu-trigger']");
+    await menuTriggers[0].trigger("click");
+    expect(wrapper.findAll("[data-test='mobile-join-card-menu']")).toHaveLength(1);
+    await menuTriggers[1].trigger("click");
+    expect(wrapper.findAll("[data-test='mobile-join-card-menu']")).toHaveLength(1);
+
+    await wrapper.findAll("[data-test='sticky-card-review']")[0].trigger("click");
+    expect(wrapper.get("[data-test='event-details']").text()).toBe("Pending Request");
+
+    await wrapper.findAll("[data-test='sticky-card-accept']")[1].trigger("click");
+    expect(wrapper.emitted("approve-booking")).toEqual([[
+      {
+        bookingId: "booking_pending_hold",
+        eventId: "event_pending_hold",
+        decision: "approve",
+        event: pendingHold.sourceEvent,
+      },
+    ]]);
+  });
+
+  it("does not render pending sticky cards for fan viewers", async () => {
+    setWindowWidth(768);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "fan",
+        stickyCardEvents: [{
+          title: "Pending Request",
+          showReply: true,
+          sourceEvent: {
+            bookingId: "booking_pending",
+            status: "pending",
+            start: "2026-04-23T10:00:00",
+            end: "2026-04-23T10:30:00",
+          },
+        }],
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
+  });
+
+  it("renders sticky cards only at phone and tablet-portrait viewport shapes", async () => {
+    const confirmed = {
+      title: "Responsive Booking",
+      canJoin: true,
+      joinUrl: "https://example.com/join/responsive",
+      statusText: "in 5 mins",
+      isGroup: true,
+      groupText: "Group event",
+      sourceEvent: {
+        bookingId: "booking_responsive",
+        status: "confirmed",
+        start: "2026-04-23T10:00:00",
+        end: "2026-04-23T10:30:00",
+      },
+    };
+
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    const wrapper = await mountCalendar(
+      [],
+      { stickyCardEvents: [confirmed], userRole: "creator" },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
+
+    setWindowWidth(1024);
+    setWindowHeight(1366);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
+
+    setWindowWidth(1366);
+    setWindowHeight(1400);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
+
+    setWindowWidth(1366);
+    setWindowHeight(1024);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+
+    setWindowWidth(1024);
+    setWindowHeight(768);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+
+    setWindowWidth(1400);
+    setWindowHeight(1600);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+  });
+
+  it("does not mount creator pending cards on phone viewports", async () => {
+    setWindowWidth(390);
+    setWindowHeight(844);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "creator",
+        stickyCardEvents: [{
+          title: "Pending Phone Request",
+          showReply: true,
+          sourceEvent: {
+            bookingId: "booking_pending_phone",
+            status: "pending",
+            start: "2026-04-23T10:00:00",
+            end: "2026-04-23T10:30:00",
+          },
+        }],
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='sticky-booking-card']").exists()).toBe(false);
+  });
+
+  it("hides the mobile join card and resets floating spacing without an eligible event", async () => {
+    setWindowWidth(390);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        stickyCardEvent: {
+          title: "Unavailable call",
+          canJoin: false,
+          joinUrl: "https://example.com/join/later",
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
+    expect(wrapper.findAll("[data-main-today]").some((button) => button.classes().includes("bottom-2")))
+      .toBe(true);
+  });
+
+  it("renders group participant context in the mobile join card for creators", async () => {
+    setWindowWidth(390);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = await mountCalendar(
+      [],
+      {
+        userRole: "creator",
+        stickyCardEvent: {
+          title: "Group Workshop",
+          canJoin: true,
+          joinUrl: "https://example.com/join/group",
+          statusText: "live now",
+          accentColor: "#E11D48",
+          isGroup: true,
+          groupText: "Group event (2)",
+          avatars: [
+            { src: "https://example.com/ava.png", name: "Ava" },
+            { src: "https://example.com/ben.png", name: "Ben" },
+          ],
+          sourceEvent: {
+            start: "2026-04-23T10:00:00",
+            end: "2026-04-23T11:00:00",
+            raw: { userId: 1407, creatorId: 2615 },
+          },
+        },
+      },
+      { global: { stubs: { Teleport: true } } },
+    );
+
+    const card = wrapper.get("[data-test='mobile-join-card']");
+    expect(card.text()).toContain("Group event (2)");
+    expect(card.findAll("img[alt='Ava'], img[alt='Ben']")).toHaveLength(2);
+    expect(card.get("[data-test='mobile-join-card-type-icon']").exists()).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it("emits private create events from the mobile new events popup", async () => {

@@ -11,7 +11,7 @@
             {{ section.title }}
           </h3>
           <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
-                :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
+                :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
             <span class="text-sm font-semibold text-white">3</span>
           </div>
         </div>
@@ -42,13 +42,14 @@
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
+        data-test="events-widget-card"
         class="relative flex justify-end rounded-[10px] cursor-pointer shadow-purple-glow"
         :class="[
           event.bgClass || 'bg-customGrey',
-          section.title === 'PENDING EVENTS' &&
+          isPendingSection(section) &&
             'border-[1.5px] border-white bg-white/10 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.10),0_2px_4px_-2px_rgba(16,24,40,0.06)]'
         ]"
-        :style="section.title !== 'PENDING EVENTS' && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
+        :style="!isPendingSection(section) && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
         @click="$emit('event-click', event)"
       >
       
@@ -56,7 +57,7 @@
           <div 
             class="w-[0.25rem] h-full rounded-[0.875rem]"
             :class="event.borderClass"
-            :style="section.title === 'PENDING EVENTS'
+            :style="isPendingSection(section)
               ? { background: '#fff' }
               : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
           ></div>
@@ -76,16 +77,16 @@
                 <h3
                   class="text-[0.875rem] font-semibold leading-[1.25rem] max-w-[11.25rem] truncate pr-1"
                   :class="event.titleColorClass"
-                  :style="section.title === 'PENDING EVENTS'
+                  :style="isPendingSection(section)
                 ? { color: '#101828' }
                 : (event.accentColor ? { color: event.accentColor } : null)"
             >
               {{ event.title }}
             </h3>
             <div>
-              <img v-if="section.title !== 'PENDING EVENTS'" :src=GreenCheckIcon class="w-[14px] h-[14px]">
+              <img v-if="!isPendingSection(section)" :src=GreenCheckIcon class="w-[14px] h-[14px]">
             </div>
-            <TooltipIcon  v-if="section.title === 'PENDING EVENTS'" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('Lorem ipsum')" />
+            <TooltipIcon v-if="isPendingSection(section)" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('calendar_event_status_pending')" />
             </div>
             <span class="relative flex items-center justify-center w-[1rem] h-[1rem]">
               <button
@@ -198,7 +199,42 @@
                 </template>
               </span>
 
-              <div v-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
+              <div
+                v-if="shouldShowPendingActions(event)"
+                class="flex w-[5.4375rem] shrink-0 flex-col gap-2"
+                data-test="pending-booking-actions"
+              >
+                <button
+                  type="button"
+                  class="flex h-[1.6875rem] w-full items-center justify-center gap-1 rounded border border-[#FF4405] bg-white px-2 py-1"
+                  data-test="pending-booking-review"
+                  @click.stop="handleReview(event)"
+                >
+                  <span class="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <IndicatorDot color="#FF4405" size="7" class="absolute left-[-2px] top-[-2px]" />
+                    <img :src="fileSearchIcon" alt="" aria-hidden="true" />
+                  </span>
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#FF4405]">
+                    {{ t("calendar_event_review") }}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="flex h-7 w-full items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1"
+                  data-test="pending-booking-accept"
+                  @click.stop="handleApprove(event)"
+                >
+                  <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <img :src="GreenCheckIcon" alt="" aria-hidden="true" />
+                  </span>
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#079455]">
+                    {{ t("calendar_event_accept") }}
+                  </span>
+                </button>
+              </div>
+
+              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
@@ -252,22 +288,6 @@
               </span>
             </div>
 
-            <div class="hidden flex gap-2 flex-col">
-              <button class="flex h-[27px] w-full items-center justify-center gap-1 self-stretch rounded border border-[#FF4405] bg-white px-2 py-1">
-                 <div class="relative">
-                    <IndicatorDot color="#FF4405" size="7" class="absolute top-[-2px] left-[-2px]"/>
-                    <img class="" :src="fileSearchIcon"/>
-                 </div>
-                 <span class="text-[#FF4405] font-semibold text-xs leading-[18px] uppercase">Review</span>
-              </button>
-
-              <button class="flex h-7 items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1">
-                 <div class="relative">
-                    <img class="" :src="GreenCheckIcon"/>
-                 </div>
-                 <span class="text-[#079455] font-semibold text-xs leading-[18px] uppercase">Accept</span>
-              </button>
-            </div>
             </div>
             
           </span>
@@ -351,6 +371,12 @@ const toggleSection = (sIndex) => {
 };
 
 const { t } = useBookingTranslations();
+const isPendingSection = (section = {}) => {
+  if (typeof section.isPending === "boolean") return section.isPending;
+
+  return String(section.title || "").trim().toLocaleUpperCase()
+    === String(t("dashboard_pending_events")).trim().toLocaleUpperCase();
+};
 const profileStateById = reactive({});
 const profileAbortControllers = new Map();
 const DEFAULT_PROFILE_AVATAR = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
@@ -363,10 +389,11 @@ const toggleMenu = (menuId) => {
   openMenuId.value = openMenuId.value === menuId ? null : menuId;
 };
 
-const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
+const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking']);
 const CONFIRMED_STATUS_DOT_COLOR = "#07F468";
 const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === "fan");
+const isCreatorViewer = computed(() => viewerRole.value === "creator");
 
 const onMenuAction = (action, event) => {
   emit('menu-action', { action, event });
@@ -424,6 +451,34 @@ const getSourceEvent = (event = {}) => event?.sourceEvent || event?.event || eve
 const getRawEvent = (event = {}) => {
   const sourceEvent = getSourceEvent(event);
   return sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+};
+
+const getEventStatus = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  return String(sourceEvent?.status || raw.status || event?.status || "").trim().toLowerCase();
+};
+
+const isPendingEvent = (event = {}) => {
+  const status = getEventStatus(event);
+  return status === "pending" || status === "pending_hold" || (!status && event.showReply === true);
+};
+
+const shouldShowPendingActions = (event = {}) => isCreatorViewer.value && isPendingEvent(event);
+
+const handleReview = (event = {}) => {
+  emit("event-click", event);
+};
+
+const handleApprove = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  emit("approve-booking", {
+    bookingId: sourceEvent?.bookingId || raw.bookingId || event?.bookingId || null,
+    eventId: sourceEvent?.eventId || raw.eventId || event?.eventId || null,
+    decision: "approve",
+    event: sourceEvent,
+  });
 };
 
 const getCreatorUserId = (event = {}) => {
