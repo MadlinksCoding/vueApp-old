@@ -3740,6 +3740,90 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
   });
 
+  it("keeps add-on edit-impact warnings beside edited fields without a structural warning", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const initialState = {
+      eventType: "1on1-call",
+      addOns: [{ title: "VIP setup", description: "Original details", priceTokens: "25" }],
+    };
+    const normalizationWrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(initialState))),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    const baseline = JSON.parse(JSON.stringify(normalizationWrapper.vm.formData));
+    normalizationWrapper.unmount();
+
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(baseline))),
+        bookingType: "private",
+        isEditMode: true,
+        editBaseline: JSON.parse(JSON.stringify(baseline)),
+      },
+      global: mountOptions({
+        booking_future_bookings_warning: "Translated future-bookings warning",
+      }),
+    });
+
+    const editWarnings = () => wrapper.findAll("[data-booking-edit-impact-warning='true']");
+
+    expect(editWarnings()).toHaveLength(0);
+
+    wrapper.vm.formData.addOns[0].title = "Updated VIP setup";
+    await nextTick();
+    expect(editWarnings()).toHaveLength(1);
+    expect(editWarnings()[0].text()).toContain("Translated future-bookings warning");
+
+    wrapper.vm.formData.addOns[0].title = "VIP setup";
+    wrapper.vm.formData.addOns[0].description = "Updated details";
+    await nextTick();
+    expect(editWarnings()).toHaveLength(1);
+
+    wrapper.vm.formData.addOns[0].description = "Original details";
+    wrapper.vm.formData.addOns[0].priceTokens = "30";
+    await nextTick();
+    expect(editWarnings()).toHaveLength(1);
+
+    wrapper.vm.formData.addOns[0].priceTokens = "25";
+    await nextTick();
+    expect(editWarnings()).toHaveLength(0);
+
+    wrapper.vm.addAddOnService();
+    await nextTick();
+    expect(wrapper.vm.formData.addOns).toHaveLength(2);
+    expect(editWarnings()).toHaveLength(0);
+
+    wrapper.vm.formData.addOns[1].title = "New service";
+    await nextTick();
+    expect(editWarnings()).toHaveLength(1);
+
+    wrapper.vm.removeAddOnService(1);
+    await nextTick();
+    expect(wrapper.vm.formData.addOns).toHaveLength(1);
+    expect(editWarnings()).toHaveLength(0);
+
+    wrapper.vm.removeAddOnService(0);
+    await nextTick();
+    expect(wrapper.vm.formData.addOns).toHaveLength(0);
+    expect(editWarnings()).toHaveLength(0);
+
+    const createWrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine: createEngine(JSON.parse(JSON.stringify(baseline))),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    createWrapper.vm.formData.addOns[0].title = "Create-mode update";
+    await nextTick();
+    expect(createWrapper.find("[data-booking-edit-impact-warning='true']").exists()).toBe(false);
+  });
+
   it("shows and clears edit-impact warnings for popup-local X message changes", async () => {
     const { default: TwitterRepostSettings } = await import(
       "@/components/ui/popup/TwitterRepostSettings.vue"

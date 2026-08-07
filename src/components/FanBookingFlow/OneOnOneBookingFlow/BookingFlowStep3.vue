@@ -228,6 +228,22 @@ const discountLineCodes = new Set([
   'first_time_discount',
   'recurring_event_discount',
 ]);
+const translatedPaymentLineLabel = (code) => {
+  if (code === 'discount') return t('fan_booking_longer_session_discount');
+  if (code === 'first_time_discount') return t('fan_booking_first_time_discount');
+  if (code === 'recurring_event_discount') {
+    const raw = selectedEvent.value?.raw || {};
+    const percent = Number(
+      raw.recurringDiscountPercentOfBase
+        ?? selectedEvent.value?.recurringDiscountPercentOfBase
+        ?? 0,
+    );
+    return t('fan_booking_recurring_event_discount', {
+      percent: Number.isFinite(percent) ? percent : 0,
+    });
+  }
+  return t('common_discount');
+};
 const discountLines = computed(() => (
   mappedPaymentLines.value
     .filter((row) => {
@@ -236,7 +252,7 @@ const discountLines = computed(() => (
     })
     .map((row) => ({
       code: String(row?.code || ''),
-      label: String(row?.label || t('common_discount')),
+      label: translatedPaymentLineLabel(String(row?.code || '')),
       amount: Math.abs(Number(row?.amount || 0)),
     }))
 ));
@@ -252,8 +268,7 @@ const offHourSurchargeAmount = computed(() => {
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 const offHourSurchargeLabel = computed(() => {
-  const label = findPaymentLine("off_hour_surcharge")?.label;
-  return String(label || t("fan_booking_off_hour_surcharge"));
+  return t("fan_booking_off_hour_surcharge");
 });
 const baseTotalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
 const mappedPaymentTotal = computed(() => {
@@ -2165,7 +2180,13 @@ md:before:backdrop-blur-none lg:overflow-hidden">
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
-                            <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
+                            <div
+                              v-for="(addon, index) in selectedAddons"
+                              :key="addon.id || index"
+                              class="flex flex-row justify-between items-center text-white"
+                              data-testid="booking-flow-summary-addon"
+                              :data-addon-kind="addon.kind"
+                            >
                               <p class="text-base font-normal text-[#EAECF0]">{{ addon.name }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-base text-white font-normal">+</p>
@@ -2192,7 +2213,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                               <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
                               <TooltipIcon 
                               class="!w-4 !h-4 relative"
-                              :text="t('Creators can offer different discounts to their fans. This is optional and varies by creator.')" side="right" />
+                              :text="t('fan_booking_discount_tooltip')" side="right" />
                             </div>
                             <div
                               v-for="row in discountLines"
@@ -2226,7 +2247,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                               <TooltipIcon 
                                 tooltipClass="!max-w-[14rem] md:!max-w-[16rem]"
                                 class="!w-4 !h-4 relative !mt-0"
-                                :text="t('Creators may charge extra fees in certain cases (optional & varies by creator). These fees are non-refundable, even if the booking is rejected.')" side="right" />
+                                :text="t('fan_booking_extra_fee_tooltip')" side="right" />
                             </div>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
