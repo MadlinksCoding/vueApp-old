@@ -23,6 +23,7 @@ describe("CalendarEventDetailsPopup translations", () => {
           status: "pending",
           raw: {
             status: "pending",
+            userId: 123,
             guestCount: 2,
             payment: {
               total: 125,
