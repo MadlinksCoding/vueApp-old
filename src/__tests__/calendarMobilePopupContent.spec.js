@@ -5,14 +5,15 @@ import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookin
 vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
-    props: ["sections"],
-    emits: ["join-click", "reply-click", "event-click", "menu-action"],
+    props: ["sections", "userRole"],
+    emits: ["join-click", "reply-click", "event-click", "menu-action", "approve-booking"],
     template: `
       <div>
         <button data-test="join" @click="$emit('join-click', sections[0].items[0])">join</button>
         <button data-test="reply" @click="$emit('reply-click', sections[0].items[0])">reply</button>
         <button data-test="event" @click="$emit('event-click', sections[0].items[0])">event</button>
         <button data-test="menu" @click="$emit('menu-action', { action: 'cancel_call', event: sections[0].items[0] })">menu</button>
+        <button data-test="approve" @click="$emit('approve-booking', { bookingId: 'booking_1', decision: 'approve', event: sections[0].items[0].sourceEvent })">approve</button>
       </div>
     `,
   },
@@ -54,17 +55,20 @@ describe("CalendarMobilePopupContent", () => {
         view: "week",
         eventsData: [{ title: "Today", items: [item] }],
         canCreateEvents: true,
+        userRole: "fan",
       },
     });
 
     expect(wrapper.getComponent({ name: "EventsWidget" }).props("sections")).toEqual([
       { title: "Today", items: [item] },
     ]);
+    expect(wrapper.getComponent({ name: "EventsWidget" }).props("userRole")).toBe("fan");
 
     await wrapper.get("[data-test='join']").trigger("click");
     await wrapper.get("[data-test='reply']").trigger("click");
     await wrapper.get("[data-test='event']").trigger("click");
     await wrapper.get("[data-test='menu']").trigger("click");
+    await wrapper.get("[data-test='approve']").trigger("click");
 
     expect(wrapper.emitted("join-click")).toEqual([[item]]);
     expect(wrapper.emitted("reply-click")).toEqual([[item]]);
@@ -72,9 +76,12 @@ describe("CalendarMobilePopupContent", () => {
     expect(wrapper.emitted("menu-action")).toEqual([
       [{ action: "cancel_call", event: item }],
     ]);
+    expect(wrapper.emitted("approve-booking")).toEqual([[
+      { bookingId: "booking_1", decision: "approve", event: item.sourceEvent },
+    ]]);
   });
 
-  it("renders mobile calendar labels from booking translations", async () => {
+  it("renders the popup title and close label from booking translations", async () => {
     const { default: CalendarMobilePopupContent } = await import("@/components/calendar/CalendarMobilePopupContent.vue");
     const wrapper = mount(CalendarMobilePopupContent, {
       props: {
@@ -86,20 +93,16 @@ describe("CalendarMobilePopupContent", () => {
         provide: {
           [bookingTranslationSymbol]: createBookingTranslator({
             translations: {
-              common_day: "Dia",
-              common_week: "Semana",
-              common_month: "Mes",
-              dashboard_new_events: "Eventos nuevos",
+              common_close: "Cerrar",
+              dashboard_events_requests_title: "Eventos y solicitudes",
             },
           }),
         },
       },
     });
 
-    expect(wrapper.text()).toContain("Dia");
-    expect(wrapper.text()).toContain("Semana");
-    expect(wrapper.text()).toContain("Mes");
-    expect(wrapper.get("[data-test='new-events']").text()).toBe("Eventos nuevos");
+    expect(wrapper.get("h2").text()).toBe("Eventos y solicitudes");
+    expect(wrapper.get("button[aria-label='Cerrar']").exists()).toBe(true);
   });
 
   it("hides the new events button when creation is not allowed", async () => {

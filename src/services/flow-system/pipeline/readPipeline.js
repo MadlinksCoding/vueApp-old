@@ -117,6 +117,7 @@ function buildDestinationHitResult(snapshot, context, { stale, backgroundRefresh
     source: "destination",
     destinationType: snapshot.destinationType,
   });
+  writeFreshnessMetaToDestinations(context, snapshot.etag ?? null, snapshot.updatedAt ?? null);
 
   return ok(hydratedData, {
     flow: context.flowName,

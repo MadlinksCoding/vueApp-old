@@ -5,8 +5,13 @@
         <!-- Header with Close Button -->
         <div class="w-full px-2 flex justify-between items-center  flex-shrink-0">
             <div> </div>
-            <h2 class="text-sm font-semibold text-[#0C111D]">Events &amp; Requests</h2>
-            <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+            <h2 class="text-sm font-semibold text-[#0C111D]">{{ t("dashboard_events_requests_title") }}</h2>
+            <button
+                type="button"
+                :aria-label="t('common_close')"
+                class="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                @click="$emit('close')"
+            >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
@@ -82,9 +87,9 @@
         />
 
         <div class="w-full p-2 mb-[100px]">
-            <EventsWidget :sections="eventsData" @join-click="$emit('join-click', $event)"
+            <EventsWidget :sections="eventsData" :user-role="userRole" @join-click="$emit('join-click', $event)"
                 @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
-                @menu-action="$emit('menu-action', $event)" />
+                @menu-action="$emit('menu-action', $event)" @approve-booking="$emit('approve-booking', $event)" />
         </div>
 
         <!-- <div v-if="canCreateEvents" class="p-4 mt-auto flex-shrink-0">
@@ -117,6 +122,10 @@ defineProps({
         type: Boolean,
         default: false
     },
+    userRole: {
+        type: String,
+        default: 'creator'
+    },
     bookingScheduleEvents: {
         type: Array,
         default: () => []
@@ -131,5 +140,5 @@ defineProps({
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'close']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'close']);
 </script>

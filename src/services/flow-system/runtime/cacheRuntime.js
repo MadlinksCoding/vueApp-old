@@ -41,30 +41,42 @@ function readFromStorage(storage, key) {
   if (!storage) {
     return memoryCache.has(key) ? memoryCache.get(key) : null;
   }
-  const raw = storage.getItem(key);
-  if (!raw) return null;
 
   try {
+    const raw = storage.getItem(key);
+    if (!raw) return memoryCache.has(key) ? memoryCache.get(key) : null;
     return JSON.parse(raw);
   } catch (error) {
-    return null;
+    return memoryCache.has(key) ? memoryCache.get(key) : null;
   }
 }
 
 function writeToStorage(storage, key, value) {
   if (!storage) {
     memoryCache.set(key, value);
-    return;
+    return false;
   }
-  storage.setItem(key, JSON.stringify(value));
+
+  try {
+    storage.setItem(key, JSON.stringify(value));
+    memoryCache.delete(key);
+    return true;
+  } catch (error) {
+    memoryCache.set(key, value);
+    return false;
+  }
 }
 
 function removeFromStorage(storage, key) {
+  memoryCache.delete(key);
   if (!storage) {
-    memoryCache.delete(key);
     return;
   }
-  storage.removeItem(key);
+  try {
+    storage.removeItem(key);
+  } catch (error) {
+    // Cache cleanup is best-effort when browser storage is unavailable.
+  }
 }
 
 export function readCacheEntry({ storage, key, version }) {
