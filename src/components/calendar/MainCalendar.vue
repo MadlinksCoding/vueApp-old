@@ -1103,7 +1103,7 @@
     <Teleport to="body">
       <div
         v-if="visibleStickyCardEvents.length"
-        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-1 md:hidden ipad-portrait:flex"
+        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden ipad-portrait:flex"
         data-test="tablet-sticky-card-list"
       >
         <div

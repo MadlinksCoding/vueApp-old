@@ -47,9 +47,9 @@
         :class="[
           event.bgClass || 'bg-customGrey',
           isPendingSection(section) &&
-            'border-[1.5px] border-white bg-white/10 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.10),0_2px_4px_-2px_rgba(16,24,40,0.06)]'
+            'border-[1.5px] border-white bg-white/10 pending-blink-shadow'
         ]"
-        :style="!isPendingSection(section) && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
+        :style="getEventCardStyles(event, isPendingSection(section))"
         @click="$emit('event-click', event)"
       >
       
@@ -244,7 +244,7 @@
                 ></div>
                 <p
                   data-test="join-status-text"
-                  class="text-xs text-gray-500 font-medium leading-[1.125rem] uppercase"
+                  class="text-xs text-[#0E9384] font-medium leading-[1.125rem] uppercase"
                   :style="event.statusColor ? { color: event.statusColor } : null"
                 >{{ event.statusText }}</p>
               </span>
@@ -301,29 +301,45 @@ import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 
 
-const getDynamicBoxShadow = (color) => {
-  if (!color) return null;
+const getEventCardStyles = (event, isPending) => {
+  const styles = {};
+  let r = 16, g = 24, b = 40;
+  let hasValidColor = false;
   
-  let r, g, b;
-  
-  if (color.startsWith('rgb')) {
-    const match = color.match(/\d+(\.\d+)?/g);
-    if (!match || match.length < 3) return null;
-    [r, g, b] = match;
-  } else {
-    let hex = color.replace(/^#/, '');
-    if (hex.length === 3) {
-      hex = hex.split('').map(char => char + char).join('');
+  if (event.accentColor) {
+    let color = event.accentColor;
+    if (color.startsWith('rgb')) {
+      const match = color.match(/\d+(\.\d+)?/g);
+      if (match && match.length >= 3) {
+        r = match[0]; g = match[1]; b = match[2];
+        hasValidColor = true;
+      }
+    } else {
+      let hex = color.replace(/^#/, '');
+      if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
+      if (hex.length === 6 || hex.length === 8) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        hasValidColor = true;
+      }
     }
-    if (hex.length !== 6 && hex.length !== 8) return null;
-    r = parseInt(hex.substring(0, 2), 16);
-    g = parseInt(hex.substring(2, 4), 16);
-    b = parseInt(hex.substring(4, 6), 16);
   }
   
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    r = 16; g = 24; b = 40;
+    hasValidColor = false;
+  }
   
-  return `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+  if (isPending) {
+    styles['--shadow-color-75'] = `rgba(${r}, ${g}, ${b}, 0.75)`;
+    styles['--shadow-color-10'] = `rgba(${r}, ${g}, ${b}, 0.10)`;
+    styles['--shadow-color-06'] = `rgba(${r}, ${g}, ${b}, 0.06)`;
+  } else if (hasValidColor) {
+    styles.boxShadow = `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+  }
+  
+  return styles;
 };
 const props = defineProps({
   sections: {
@@ -622,5 +638,22 @@ onBeforeUnmount(() => {
 }
 .blink-border-effect {
   animation: blink-border 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-card-shadow {
+  0%, 100% {
+    box-shadow: 0 0 12px 0 var(--shadow-color-75),
+                0 4px 8px -2px var(--shadow-color-10),
+                0 2px 4px -2px var(--shadow-color-06);
+  }
+  50% {
+    box-shadow: 0 0 12px 0 transparent,
+                0 4px 8px -2px transparent,
+                0 2px 4px -2px transparent;
+  }
+}
+
+.pending-blink-shadow {
+  animation: blink-card-shadow 1.5s ease-in-out infinite;
 }
 </style>

@@ -2723,18 +2723,20 @@
         <div v-show="sectionsState.privatePricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="flex items-center gap-1">
-              <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                {{ t("booking_base_price") }}
-              </div>
-              <div
-                v-if="hasFieldEditWarningChange('basePrice')"
-                class="inline-flex items-center gap-1.5 text-[#FF4405]"
-                data-test="base-price-updated-indicator"
-              >
-                <span class="h-2 w-2 shrink-0 rounded-full bg-[#FF4405]"></span>
-                <span class="whitespace-nowrap text-sm font-medium leading-tight">
-                  {{ t("booking_updated_badge") }}
-                </span>
+              <div class="flex items-center gap-2"> 
+                <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                  {{ t("booking_base_price") }}
+                </div>
+                <div
+                  v-if="hasFieldEditWarningChange('basePrice')"
+                  class="inline-flex items-center gap-1.5 text-[#FF4405]"
+                  data-test="base-price-updated-indicator"
+                >
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF4405]"></span>
+                  <span class="whitespace-nowrap text-sm font-medium leading-tight">
+                    {{ t("booking_updated_badge") }}
+                  </span>
+                </div>
               </div>
               <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             </div>
