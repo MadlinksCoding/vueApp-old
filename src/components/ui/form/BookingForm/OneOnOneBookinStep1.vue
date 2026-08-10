@@ -2794,7 +2794,7 @@
                       {{ t("booking_tokens_off_session_price") }}
                     </div>
                     <div v-if="formData.longerSessionDiscountTokens" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_off_booking", { tokens: formData.longerSessionDiscountTokens }) }})
+                      ({{ t("booking_tokens_off_each_session", { tokens: formData.longerSessionDiscountTokens }) }})
                     </div>
                   </div>
                 </div>
@@ -3005,7 +3005,7 @@
               spacing-class="-mt-1"
             />
 
-            <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
+            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 :label="t('booking_allow_advance_cancellation')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"

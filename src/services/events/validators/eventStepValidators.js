@@ -457,6 +457,31 @@ export function step1Validator(state = {}) {
     });
   }
 
+  const componentHoldsEnabled = !["false", "0", "no", "off"].includes(
+    String(import.meta.env?.VITE_BOOKING_COMPONENT_HOLDS_ENABLED ?? "true").trim().toLowerCase(),
+  );
+  if (componentHoldsEnabled) {
+    const bookingAllocation = state?.enableBookingFee
+      ? Math.ceil(asNumber(firstNonBlank(state?.bookingFee, state?.bookingFeeTokens)) || 0)
+      : 0;
+    const cancellationAllocation = state?.enableCancellationFee
+      ? Math.ceil(asNumber(firstNonBlank(state?.cancellationFee, state?.cancellationFeeTokens)) || 0)
+      : 0;
+    const allocationTotal = bookingAllocation + cancellationAllocation;
+    const minimumPayable = isGroupEventGoal
+      ? Math.max(1, Math.ceil(asNumber(state?.minContributionPerUser) || 0))
+      : Math.max(0, Math.ceil(asNumber(firstNonBlank(state?.basePrice, state?.basePriceTokens)) || 0));
+    if (allocationTotal > minimumPayable) {
+      errors.push(asError(
+        isGroupEventGoal ? "minContributionPerUser" : "basePrice",
+        "booking_validation_fee_allocations_exceed_total",
+        "Booking and cancellation allocations cannot exceed the minimum booking total.",
+        { total: allocationTotal, minimum: minimumPayable },
+        { conditional: true },
+      ));
+    }
+  }
+
   if (state?.allowAdvanceCancellation || state?.allowAdvanceCancelToAvoidMinCharge) {
     addRequiredNumberError(errors, [state?.advanceVoid, state?.advanceCancelWindowQuantity], {
       field: "advanceVoid",

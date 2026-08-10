@@ -220,7 +220,8 @@ const sessionCost = computed(() => {
   return Number(bookingData.value.selectedDuration?.price || 0);
 });
 const bookingFeeAmount = computed(() => {
-  const amount = findLineAmount("booking_fee");
+  const allocated = Number(mappedPayment.value?.allocations?.bookingFee);
+  const amount = Number.isFinite(allocated) && allocated > 0 ? allocated : findLineAmount("booking_fee");
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 const discountLineCodes = new Set([
@@ -228,6 +229,22 @@ const discountLineCodes = new Set([
   'first_time_discount',
   'recurring_event_discount',
 ]);
+const translatedPaymentLineLabel = (code) => {
+  if (code === 'discount') return t('fan_booking_longer_session_discount');
+  if (code === 'first_time_discount') return t('fan_booking_first_time_discount');
+  if (code === 'recurring_event_discount') {
+    const raw = selectedEvent.value?.raw || {};
+    const percent = Number(
+      raw.recurringDiscountPercentOfBase
+        ?? selectedEvent.value?.recurringDiscountPercentOfBase
+        ?? 0,
+    );
+    return t('fan_booking_recurring_event_discount', {
+      percent: Number.isFinite(percent) ? percent : 0,
+    });
+  }
+  return t('common_discount');
+};
 const discountLines = computed(() => (
   mappedPaymentLines.value
     .filter((row) => {
@@ -236,7 +253,7 @@ const discountLines = computed(() => (
     })
     .map((row) => ({
       code: String(row?.code || ''),
-      label: String(row?.label || t('common_discount')),
+      label: translatedPaymentLineLabel(String(row?.code || '')),
       amount: Math.abs(Number(row?.amount || 0)),
     }))
 ));
@@ -252,8 +269,7 @@ const offHourSurchargeAmount = computed(() => {
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 const offHourSurchargeLabel = computed(() => {
-  const label = findPaymentLine("off_hour_surcharge")?.label;
-  return String(label || t("fan_booking_off_hour_surcharge"));
+  return t("fan_booking_off_hour_surcharge");
 });
 const baseTotalPrice = computed(() => Number(bookingData.value.totalPrice || 0));
 const mappedPaymentTotal = computed(() => {
@@ -262,9 +278,22 @@ const mappedPaymentTotal = computed(() => {
 });
 const totalPrice = computed(() => (
   mappedPaymentTotal.value == null
-    ? (baseTotalPrice.value + bookingFeeAmount.value)
+    ? baseTotalPrice.value
     : mappedPaymentTotal.value
 ));
+const cancellationReserveAmount = computed(() => {
+  const allocated = Number(mappedPayment.value?.allocations?.cancellationFee);
+  if (Number.isFinite(allocated) && allocated > 0) return allocated;
+  const hasMappedPayment = mappedPayment.value && typeof mappedPayment.value === 'object';
+  const usesV2Allocations = Number(mappedPayment.value?.paymentPolicyVersion || 0) === 2
+    || (!hasMappedPayment && toBoolean(import.meta.env?.VITE_BOOKING_COMPONENT_HOLDS_ENABLED, true));
+  if (!usesV2Allocations) return 0;
+  const raw = selectedEvent.value?.raw || {};
+  const enabled = toBoolean(raw.enableCancellationFee ?? selectedEvent.value?.enableCancellationFee, false);
+  const amount = Number(raw.cancellationFeeTokens ?? raw.cancellationFee ?? selectedEvent.value?.cancellationFeeTokens ?? 0);
+  return enabled && Number.isFinite(amount) && amount > 0 ? Math.ceil(amount) : 0;
+});
+const maximumHeldAmount = computed(() => totalPrice.value);
 
 function toWholeTokens(value) {
   const numeric = Number(value || 0);
@@ -434,18 +463,18 @@ const showApprovalNeeded = computed(() => {
 
 // --- TOP UP LOGIC ---
 const isTopUpNeeded = computed(() => {
-  return totalPrice.value > walletBalance.value;
+  return maximumHeldAmount.value > walletBalance.value;
 });
 
 const topUpAmount = computed(() => {
-  return isTopUpNeeded.value ? (totalPrice.value - walletBalance.value) : 0;
+  return isTopUpNeeded.value ? (maximumHeldAmount.value - walletBalance.value) : 0;
 });
 
 const remainingBalance = computed(() => {
-  return walletBalance.value - totalPrice.value;
+  return walletBalance.value - maximumHeldAmount.value;
 });
 
-const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - totalPrice.value);
+const remainingBalanceAfterBooking = computed(() => walletBalance.value + topUpAmount.value - maximumHeldAmount.value);
 const isTopUpSubstep = computed(() => paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP);
 const isGuestFlow = computed(() => resolveFanId() <= 0 || !getBackendJwtToken());
 const isInviteOnlyEvent = computed(() => {
@@ -1732,7 +1761,7 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
     const currentData = props.engine.getState('bookingDetails') || {};
     const walletAfterBooking = Number.isFinite(Number(nextWalletBalance))
       ? Number(nextWalletBalance)
-      : (walletBalance.value - totalPrice.value);
+      : (walletBalance.value - maximumHeldAmount.value);
     const finalBookingData = {
       ...currentData,
       formattedTimeRange: formattedTime.value,
@@ -1843,7 +1872,7 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await finalizeBooking({
       isTopUpDone: true,
-      nextWalletBalance: toppedUpBalance - totalPrice.value,
+      nextWalletBalance: toppedUpBalance - maximumHeldAmount.value,
     });
   } finally {
     topUpFormRef.value?.setProcessingPayment(false);
@@ -2165,7 +2194,13 @@ md:before:backdrop-blur-none lg:overflow-hidden">
 
                           <div v-if="selectedAddons.length > 0" class="flex flex-col gap-2">
                             <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h4>
-                            <div v-for="(addon, index) in selectedAddons" :key="index" class="flex flex-row justify-between items-center text-white">
+                            <div
+                              v-for="(addon, index) in selectedAddons"
+                              :key="addon.id || index"
+                              class="flex flex-row justify-between items-center text-white"
+                              data-testid="booking-flow-summary-addon"
+                              :data-addon-kind="addon.kind"
+                            >
                               <p class="text-base font-normal text-[#EAECF0]">{{ addon.name }}</p>
                               <div class="flex justify-center items-center gap-0.5">
                                 <p class="text-base text-white font-normal">+</p>
@@ -2192,7 +2227,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                               <h4 class="text-xs font-normal text-[#98A2B3]">{{ t("fan_booking_discount_heading") }}</h4>
                               <TooltipIcon 
                               class="!w-4 !h-4 relative"
-                              :text="t('Creators can offer different discounts to their fans. This is optional and varies by creator.')" side="right" />
+                              :text="t('fan_booking_discount_tooltip')" side="right" />
                             </div>
                             <div
                               v-for="row in discountLines"
@@ -2221,12 +2256,12 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                           </div>
 
                           <div v-if="bookingFeeAmount > 0" class="flex flex-col gap-2">
-                            <div class="flex gap-2 items-center">
-                              <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_Non_Refundable") }}</h4>
+                            <div class="_flex hidden gap-2 items-center">
+                              <h4 class="text-xs font-normal text-[#98A2B3] flex items-center gap-1">{{ t("fan_booking_conditionally_refundable") }}</h4>
                               <TooltipIcon 
                                 tooltipClass="!max-w-[14rem] md:!max-w-[16rem]"
                                 class="!w-4 !h-4 relative !mt-0"
-                                :text="t('Creators may charge extra fees in certain cases (optional & varies by creator). These fees are non-refundable, even if the booking is rejected.')" side="right" />
+                                :text="t('fan_booking_extra_fee_tooltip')" side="right" />
                             </div>
                             <div class="flex flex-row justify-between items-center text-white">
                               <div class="flex items-center">
@@ -2244,7 +2279,7 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                             <div class="flex flex-col gap-1">
                               <h4 class="text-base font-semibold text-white">{{ t("fan_booking_session_total") }}</h4>
                               <p v-if="bookingFeeAmount > 0" class="text-xs font-semibold leading-[18px] text-[#98A2B3] dn">
-                                <span class="whitespace-nowrap">{{ t("fan_booking_non_refundable") }}</span>
+                                <span class="whitespace-nowrap hidden">{{ t("fan_booking_conditionally_refundable_short") }}</span>
                                 <span class="flex items-center gap-[2px] mx-1">
                                   <img :src="bookingFlowTokenIcon" alt="token-icon" class="w-4 h-4" />
                                   <span class="">{{ formatTokenCompact(bookingFeeAmount) }}</span>
@@ -2264,6 +2299,14 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                         </div>
 
                         <hr class="border-[#F2F4F7] opacity-50" />
+
+                        <div v-if="false && cancellationReserveAmount > 0" class="flex flex-row justify-between items-start text-white">
+                          <div>
+                            <p class="text-base font-semibold">{{ t("fan_booking_cancellation_fee_included") }}</p>
+                            <p class="text-xs text-[#98A2B3]">{{ t("fan_booking_cancellation_allocation_help") }}</p>
+                          </div>
+                          <p class="text-base font-semibold">{{ formatTokenExact(cancellationReserveAmount) }}</p>
+                        </div>
 
                         <div class="flex flex-row justify-between items-start text-white">
                           <p class="text-xl font-semibold text-white">{{ t("fan_booking_amount_due_today") }}</p>

@@ -750,6 +750,7 @@ async function onRejectCounter(message) {
       const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
         bookingId,
         actor: 'user',
+		intent: 'decline_renegotiation',
       })
       if (!cancelRes?.ok) {
         showToast({ type: 'error', title: 'Failed', message: cancelRes?.error || 'Could not cancel booking.' })

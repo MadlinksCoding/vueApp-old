@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 const tokenGet = vi.fn();
 const showToast = vi.fn();
@@ -213,14 +214,33 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
       };
     }
 
+    if (selectedEvent.eventId === "evt_private_recording_summary") {
+      return {
+        ...requiredBookingFields,
+        additionalRequests: { recording: true },
+        requestedAddOns: [{ title: "Record review notes" }],
+        payment: {
+          lines: [
+            { code: "base", label: "Base Price", amount: 60 },
+            { code: "recording", label: "Recording", amount: 50 },
+            { code: "addon", label: "Add-on: Record review notes", amount: 10 },
+          ],
+          total: 120,
+        },
+      };
+    }
+
     return {
       ...requiredBookingFields,
       payment: {
-        lines: [
-          { code: "base", amount: 900 },
-          { code: "booking_fee", amount: 100 },
-        ],
+        paymentPolicyVersion: 2,
+        lines: [{ code: "base", amount: 1000 }],
         total: 1000,
+        allocations: {
+          service: 900 - (raw.enableCancellationFee ? Number(raw.cancellationFeeTokens || 0) : 0),
+          bookingFee: 100,
+          cancellationFee: raw.enableCancellationFee ? Number(raw.cancellationFeeTokens || 0) : 0,
+        },
       },
     };
   },
@@ -286,6 +306,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
 
 describe("BookingFlowStep3", () => {
   beforeEach(() => {
+	vi.unstubAllEnvs();
     tokenGet.mockReset();
     showToast.mockReset();
     backendJwtToken = "jwt_test";
@@ -506,6 +527,32 @@ describe("BookingFlowStep3", () => {
     expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
     expect(wrapper.text()).toContain("TOP UP NEEDED");
     expect(wrapper.text()).toContain("TOP-UP & PAY");
+  });
+
+  it("keeps the included cancellation allocation inside the maximum held balance", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        paidTokens: 1100,
+        freeTokensPerBeneficiary: {},
+        totalFreeTokens: 0,
+      },
+    });
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.raw.enableCancellationFee = true;
+    engine.state.fanBooking.context.selectedEvent.raw.cancellationFeeTokens = 200;
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+    });
+
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("Cancellation allocation included");
+    expect(wrapper.text()).not.toContain("Maximum temporarily held");
+    expect(wrapper.text()).toContain("1,000");
+    expect(wrapper.text()).not.toContain("1,200");
+    expect(wrapper.text()).not.toContain("TOP UP NEEDED");
   });
 
   it("creates guest temporary holds with guest session identity and no auth header", async () => {
@@ -1198,6 +1245,7 @@ describe("BookingFlowStep3", () => {
         priceSetting: "fixedPricePerUser",
         basePriceTokens: 100,
         sessionDurationMinutes: 180,
+        recurringDiscountPercentOfBase: 25,
       },
     };
 
@@ -1218,6 +1266,83 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("USD$ 6.78");
     expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge"));
     expect(text.indexOf("Off-hour Surcharge")).toBeLessThan(text.indexOf("Session Total"));
+  });
+
+  it("renders payment codes and active tooltips with locale translations", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.bookingDetails = {
+      ...engine.state.bookingDetails,
+      selectedTime: { value: "20:00", startHm: "20:00", endHm: "23:00", offHours: true },
+      selectedDuration: { value: 180, price: 100 },
+      totalPrice: 113,
+    };
+    engine.state.fanBooking.context.selectedEvent = {
+      eventId: "evt_group_step3_discount",
+      type: "group-event",
+      title: "Fixed Group",
+      priceSetting: "fixedPricePerUser",
+      raw: {
+        type: "group-event",
+        priceSetting: "fixedPricePerUser",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 180,
+        recurringDiscountPercentOfBase: 25,
+      },
+    };
+    const translator = createBookingTranslator({
+      locale: "zh",
+      translations: {
+        fan_booking_recurring_event_discount: "回头客活动折扣（{percent}%）",
+        fan_booking_off_hour_surcharge: "非工作时间附加费",
+        fan_booking_discount_tooltip: "创作者可以为粉丝提供不同折扣。",
+        fan_booking_extra_fee_tooltip: "部分创作者可能收取不可退还的附加费。",
+      },
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: translator,
+        },
+      },
+    });
+    await flushAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain("回头客活动折扣（25%）");
+    expect(text).toContain("非工作时间附加费");
+    expect(text).toContain("创作者可以为粉丝提供不同折扣。");
+    expect(text).not.toContain("Recurring Event Discount (25%)");
+    expect(text).not.toContain("Off-hour Surcharge");
+  });
+
+  it("translates the conditionally refundable booking-fee tooltip", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.raw.enableBookingFee = true;
+    engine.state.fanBooking.context.selectedEvent.raw.bookingFeeTokens = 25;
+    const translator = createBookingTranslator({
+      locale: "zh",
+      translations: {
+        fan_booking_extra_fee_tooltip: "部分创作者可能收取不可退还的附加费。",
+      },
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: translator,
+        },
+      },
+    });
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("部分创作者可能收取不可退还的附加费。");
   });
 
   it("continues rendering longer-session and first-time discount payment lines", async () => {
@@ -1261,6 +1386,44 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("First Time Discount");
     expect(text).toContain("140");
     expect(text).toContain("USD$ 8.40");
+  });
+
+  it("renders translated recording metadata while using the canonical mapped total", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.bookingDetails = {
+      ...engine.state.bookingDetails,
+      selectedDuration: { value: 30, price: 60 },
+      addons: [
+        { id: "evt_private_recording_summary_recording", kind: "recording", name: "录制我们的会话", price: 50 },
+        { id: "addon_record_review", kind: "addon", name: "Record review notes", price: 10 },
+      ],
+      totalPrice: 120,
+    };
+    engine.state.fanBooking.context.selectedEvent = {
+      eventId: "evt_private_recording_summary",
+      type: "1on1-call",
+      title: "Private Recording",
+      basePriceTokens: 60,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 60,
+        sessionDurationMinutes: 30,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 50,
+      },
+    };
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const addOns = wrapper.findAll("[data-testid='booking-flow-summary-addon']");
+    expect(addOns).toHaveLength(2);
+    expect(addOns[0].attributes("data-addon-kind")).toBe("recording");
+    expect(addOns[0].text()).toContain("录制我们的会话");
+    expect(wrapper.text()).toContain("120");
+    expect(wrapper.text()).toContain("USD$ 7.20");
   });
 
   it("shows the captured booking payment total on the success screen", async () => {

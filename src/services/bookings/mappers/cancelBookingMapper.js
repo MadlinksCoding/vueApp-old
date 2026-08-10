@@ -12,6 +12,8 @@ export function mapCancelBookingToRequest(input = {}) {
     args: input?.args && typeof input.args === "object" ? input.args : {},
   };
 
+	if (input?.intent) mapped.intent = input.intent;
+
   if (typeof input?.refund === "boolean") {
     mapped.refund = input.refund;
   }

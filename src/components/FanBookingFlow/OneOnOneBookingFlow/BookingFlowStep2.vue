@@ -822,13 +822,12 @@ function resolveTotalPriceWithoutBookingFee(preview = null) {
     ? preview.payment
     : {};
   const total = Number(payment.total || 0);
+  const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
+  if (Number(payment.paymentPolicyVersion || 0) === 2) return safeTotal;
   const lines = Array.isArray(payment.lines) ? payment.lines : [];
   const bookingFeeLine = lines.find((line) => String(line?.code || '') === 'booking_fee');
   const bookingFee = Number(bookingFeeLine?.amount || 0);
-  const safeTotal = Number.isFinite(total) ? total : 0;
-  const safeBookingFee = Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0;
-
-  return Math.max(0, safeTotal - safeBookingFee);
+  return Math.max(0, safeTotal - (Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0));
 }
 
 async function autoSelectGroupAndGoToPayment() {
@@ -1217,13 +1216,21 @@ const effectivePrivateMaxSessionCount = computed(() => {
 
 function formatDurationLabel(minutes) {
   const duration = Number(minutes || 0);
-  if (!Number.isFinite(duration) || duration <= 0) return `0 ${t('fan_booking_min_short').toLowerCase()}`;
-  if (duration <= 60) return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
-  return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const minuteUnit = (count) => t(
+    count === 1 ? 'calendar_event_minute_short_one' : 'calendar_event_minute_short_other',
+  );
+  const hourUnit = (count) => t(
+    count === 1 ? 'calendar_event_hour_short_one' : 'calendar_event_hour_short_other',
+  );
+
+  if (!Number.isFinite(duration) || duration <= 0) return `0 ${minuteUnit(0)}`;
+  if (duration <= 60) return `${duration} ${minuteUnit(duration)}`;
 
   const hours = Math.floor(duration / 60);
   const remainingMinutes = duration % 60;
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainingMinutes} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const parts = [`${hours} ${hourUnit(hours)}`];
+  if (remainingMinutes > 0) parts.push(`${remainingMinutes} ${minuteUnit(remainingMinutes)}`);
+  return parts.join(' ');
 }
 
 const selectedDurationDisplayMinutes = computed(() => (
@@ -1482,7 +1489,7 @@ const pricingPreview = computed(() => {
   return buildBookingPaymentPreview(
     selectedEvent.value,
     Number(selectedDurationObj.value?.value || 0),
-    selectedAddons.value.map((item) => ({ title: item.name || item.title || '', price: Number(item.price || 0) })),
+    selectedAddons.value,
     selectedTime.value || {},
     {
       isFirstBookingForCreator: isFirstBookingForCreator.value,
@@ -1490,6 +1497,7 @@ const pricingPreview = computed(() => {
     },
   );
 });
+const usesComponentAllocations = computed(() => Number(pricingPreview.value?.payment?.paymentPolicyVersion || 0) === 2);
 
 const longerDiscountAmount = computed(() => {
   return Number(pricingPreview.value?.discounts?.longerDiscount?.discountTokens || 0);
@@ -1506,9 +1514,15 @@ const offHourSurchargeAmount = computed(() => {
 });
 
 const bookingFeeAmount = computed(() => {
+  const allocated = Number(pricingPreview.value?.payment?.allocations?.bookingFee);
   const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
-  const line = lines.find((row) => String(row?.code) === 'booking_fee');
-  const amount = Number(line?.amount || 0);
+  const legacyLine = lines.find((row) => String(row?.code) === 'booking_fee');
+  const amount = Number.isFinite(allocated) && allocated > 0 ? allocated : Number(legacyLine?.amount || 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+});
+
+const cancellationFeeAmount = computed(() => {
+  const amount = Number(pricingPreview.value?.payment?.allocations?.cancellationFee || 0);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 
@@ -1690,18 +1704,28 @@ function hydrateAddons() {
   const raw = selectedEvent.value?.raw || {};
   const addOnRows = Array.isArray(raw.addOns) ? raw.addOns : [];
 
-  const mapped = addOnRows.map((item, index) => ({
-    id: item?.id || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
-    name: item?.title || item?.name || t('fan_booking_add_on'),
-    price: Number(item?.priceTokens || item?.price || 0),
-    selected: false,
-  }));
+  const mapped = addOnRows.map((item, index) => {
+    const canonicalTitle = item?.title || item?.name || '';
+    const catalogId = item?.id ?? null;
+    return {
+      id: catalogId || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
+      kind: 'addon',
+      catalogId,
+      catalogTitle: canonicalTitle,
+      name: canonicalTitle || t('fan_booking_add_on'),
+      price: Number(item?.priceTokens ?? item?.price ?? 0),
+      selected: false,
+    };
+  });
 
-  if (raw.allowFanRecordingEnabled && !mapped.some((item) => String(item.name).toLowerCase().includes('record'))) {
+  if (toBoolean(raw.allowFanRecordingEnabled, false)) {
     mapped.unshift({
       id: `${selectedEvent.value?.eventId || 'event'}_recording`,
+      kind: 'recording',
+      catalogId: null,
+      catalogTitle: '',
       name: t('fan_booking_record_our_session'),
-      price: Number(raw.allowFanRecordingTokens || 0),
+      price: Number(raw.allowFanRecordingTokens ?? 0),
       selected: false,
     });
   }
@@ -1777,7 +1801,16 @@ function hydrateFromState() {
 
   if (!isGroupEvent.value && Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
-      const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
+      const addon = addons.value.find((a) => (
+        String(a.id) === String(savedAddon.id)
+        || (
+          a.kind === 'addon'
+          && savedAddon.kind === 'addon'
+          && a.catalogId != null
+          && String(a.catalogId) === String(savedAddon.catalogId)
+        )
+        || a.name === savedAddon.name
+      ));
       if (addon) addon.selected = true;
     });
   }
@@ -2492,7 +2525,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
               
 
               <div
-                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                 class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
                 data-testid="booking-flow-price-breakdown"
               >
@@ -2527,8 +2560,10 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     class="flex items-start gap-1"
                     data-testid="booking-flow-longer-discount-notice"
                   >
-                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
-                    <p class="text-sm font-normal leading-5 text-[#FCE40D]">
+                    <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                    <p
+                    class="text-sm font-normal leading-5"
+                    :class="isLongerDiscountAchieved ? 'text-[#07F468]' : 'text-[#FCE40D]'">
                       {{ longerDiscountNoticeLabel }}
                     </p>
                   </div>
@@ -2548,7 +2583,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                 
 
                 <div
-                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                   class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
                   data-testid="booking-flow-price-breakdown"
                 >
@@ -2581,6 +2616,30 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     </div>
 
                     <div
+                      v-if="false && usesComponentAllocations && bookingFeeAmount > 0"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="booking-fee-allocation"
+                    >
+                      <p class="text-[#EAECF0]">{{ t("fan_booking_booking_fee_included") }}</p>
+                      <div class="flex items-center gap-1">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ bookingFeeAmount }}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="false && usesComponentAllocations && cancellationFeeAmount > 0"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="cancellation-fee-allocation"
+                    >
+                      <p class="text-[#EAECF0]">{{ t("fan_booking_cancellation_fee_included") }}</p>
+                      <div class="flex items-center gap-1">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ cancellationFeeAmount }}</span>
+                      </div>
+                    </div>
+
+                    <div
                       class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
                       data-row-kind="current-total"
                       data-testid="booking-flow-current-total-row"
@@ -2602,6 +2661,10 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     v-for="(addon, index) in addons"
                     :key="addon.id"
                     @click="toggleAddon(index)"
+                    data-testid="booking-flow-addon"
+                    :data-addon-kind="addon.kind"
+                    :data-addon-id="addon.id"
+                    :data-selected="String(addon.selected)"
                     class="flex flex-row justify-between text-white py-[0.25rem] cursor-pointer"
                   >
                     <div class="flex flex-row items-center gap-2">
@@ -2647,6 +2710,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
             <button
               :disabled="bottomActionDisabled"
               @click="goToNextStep"
+              data-testid="booking-flow-payment-summary-button"
             >
               <div
                 class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"
