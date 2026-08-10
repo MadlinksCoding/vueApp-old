@@ -53,7 +53,7 @@
         @click="$emit('event-click', event)"
       >
       
-      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full">
+      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[5rem]">
           <div 
             class="w-[0.25rem] h-full rounded-[0.875rem]"
             :class="event.borderClass"
@@ -150,7 +150,7 @@
             </div>
             <!-- <span class="text-xs font-semibold text-gray-500">{{ event.dayName }} {{ event.time }}</span> -->
 
-            <div class="flex gap-1.5 items-start">
+            <div class="flex gap-1.5 items-start flex-1">
               <span class="flex flex-1 min-w-0" >
                 
                 <template v-if="shouldShowSingleProfile(event)">
@@ -234,7 +234,7 @@
                 </button>
               </div>
 
-              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
+              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end w-[5.4375rem] self-stretch">
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
