@@ -21,6 +21,11 @@ html {
     -webkit-text-size-adjust: 100%;
 }
 
+.tooltip-blue-icon img {
+    filter: brightness(0) saturate(100%) invert(80%) sepia(23%) saturate(6137%) hue-rotate(149deg) brightness(97%) contrast(91%);
+    /* Inverts the SVG to white */
+}
+
 /* md breakpoint = min-width: 768px */
 @media (min-width: 768px) {
     .chat-panel-trigger {

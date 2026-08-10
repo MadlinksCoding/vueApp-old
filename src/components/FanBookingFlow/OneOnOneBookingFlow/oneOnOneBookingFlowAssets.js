@@ -29,3 +29,4 @@ export { default as bookingFlowDoubleDownIcon } from "@/assets/images/icons/doub
 export { default as bookingFlowHelpGreenIcon } from "@/assets/images/icons/help-green.webp";
 export { default as bookingFlowSuccessIcon } from "@/assets/images/icons/success.webp";
 export { default as bookingFlowBackarrowIcon } from "@/assets/images/icons/arrow-left.svg";
+export { default as bookingFlowTruckIcon } from "@/assets/images/icons/truck-02.svg";
