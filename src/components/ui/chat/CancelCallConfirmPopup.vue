@@ -29,7 +29,7 @@
         <!-- Body -->
         <div class="px-5 pb-2">
           <p class="text-gray-700 text-sm leading-relaxed">
-            Are you sure you want to cancel this event? Booking Fee will still be deducted from your wallet.
+            Are you sure you want to cancel this event? The already-held payment components will be paid or released according to the booking status and the creator's advance-cancellation cutoff.
           </p>
         </div>
 
@@ -77,6 +77,7 @@ async function handleConfirm() {
     const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
       bookingId,
       actor: props.isCreator ? 'creator' : 'fan',
+      intent: 'normal',
     })
     if (cancelRes?.ok) {
       const updateRes = await FlowHandler.run('chat.updateMessage', {

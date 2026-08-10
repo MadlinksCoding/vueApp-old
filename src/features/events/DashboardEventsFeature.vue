@@ -2153,6 +2153,7 @@ const resolveBookingIdFromPayload = (payload) => {
 
 const reviewPendingBooking = async (payload, decision) => {
   if (!isCreator.value) return;
+	if (isSettlementPendingEvent(payload?.event || payload)) return;
   const bookingId = resolveBookingIdFromPayload(payload);
   if (!bookingId) {
     showToast({
@@ -2504,12 +2505,20 @@ const getCancellationEventSources = (event = {}) => {
   ].filter((source) => source && typeof source === "object");
 };
 
+const isSettlementPendingEvent = (event = {}) => getCancellationEventSources(event).some((source) => (
+  String(source?.paymentStatus || source?.paymentSettlement?.status || "").trim().toLowerCase() === "settlement_pending"
+));
+
 const getPaymentSources = (event = {}) => {
   const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
   return [raw.payment, event.payment].filter((payment) => payment && typeof payment === "object");
 };
 
 const hasBookingFeeForCancelEvent = (event = {}) => {
+  const hasBookingFeeAllocation = getPaymentSources(event).some((payment) => (
+    toPositiveNumber(payment?.allocations?.bookingFee) > 0
+  ));
+  if (hasBookingFeeAllocation) return true;
   const hasBookingFeeLine = getPaymentSources(event).some((payment) => (
     Array.isArray(payment.lines)
     && payment.lines.some((line) => {
@@ -2562,8 +2571,12 @@ const isInsideAdvanceCancelWindow = (event = {}) => {
 const getCancellationFeeTokensForCancelEvent = (event = {}) => {
   const sources = getCancellationEventSources(event);
   const cancellationFeeEnabled = toBoolean(firstDefinedFromSources(sources, ["enableCancellationFee"]));
-  const cancellationFeeTokens = toPositiveNumber(firstDefinedFromSources(sources, ["cancellationFeeTokens", "cancellationFee"]));
-  if (!cancellationFeeEnabled || cancellationFeeTokens <= 0) return 0;
+  const allocatedCancellationFee = getPaymentSources(event).reduce((amount, payment) => (
+    amount || toPositiveNumber(payment?.allocations?.cancellationFee)
+  ), 0);
+  const cancellationFeeTokens = allocatedCancellationFee
+    || toPositiveNumber(firstDefinedFromSources(sources, ["cancellationFeeTokens", "cancellationFee"]));
+  if ((!cancellationFeeEnabled && allocatedCancellationFee <= 0) || cancellationFeeTokens <= 0) return 0;
 
   const status = String(event?.status || event?.raw?.status || "").trim().toLowerCase();
   if (status !== "confirmed") return 0;
@@ -2889,6 +2902,7 @@ const handleWidgetMenuAction = (payload) => {
   const event = payload?.event?.sourceEvent || payload?.event || null;
 
   if (action === "cancel_call") {
+	if (isSettlementPendingEvent(event)) return;
     const bookingId = resolveBookingIdFromPayload({ event });
     if (!bookingId) {
       showToast({
@@ -2915,6 +2929,7 @@ const handleWidgetMenuAction = (payload) => {
 const onCancelBookingFromCalendar = (payload) => {
   const bookingId = resolveBookingIdFromPayload(payload || {});
   const event = payload?.event || null;
+	if (isSettlementPendingEvent(event)) return;
   if (!bookingId) {
     showToast({
       type: "error",
@@ -2935,11 +2950,13 @@ const confirmCancelBooking = async () => {
     ? {
         bookingId,
         actor: "fan",
+		intent: "normal",
         reason: "fan_cancelled_from_events_widget",
       }
     : {
         bookingId,
         actor: "creator",
+		intent: "normal",
         reason: "creator_cancelled_from_events_widget",
       };
 

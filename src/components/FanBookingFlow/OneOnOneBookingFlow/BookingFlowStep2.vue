@@ -822,13 +822,12 @@ function resolveTotalPriceWithoutBookingFee(preview = null) {
     ? preview.payment
     : {};
   const total = Number(payment.total || 0);
+  const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
+  if (Number(payment.paymentPolicyVersion || 0) === 2) return safeTotal;
   const lines = Array.isArray(payment.lines) ? payment.lines : [];
   const bookingFeeLine = lines.find((line) => String(line?.code || '') === 'booking_fee');
   const bookingFee = Number(bookingFeeLine?.amount || 0);
-  const safeTotal = Number.isFinite(total) ? total : 0;
-  const safeBookingFee = Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0;
-
-  return Math.max(0, safeTotal - safeBookingFee);
+  return Math.max(0, safeTotal - (Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0));
 }
 
 async function autoSelectGroupAndGoToPayment() {
@@ -1498,6 +1497,7 @@ const pricingPreview = computed(() => {
     },
   );
 });
+const usesComponentAllocations = computed(() => Number(pricingPreview.value?.payment?.paymentPolicyVersion || 0) === 2);
 
 const longerDiscountAmount = computed(() => {
   return Number(pricingPreview.value?.discounts?.longerDiscount?.discountTokens || 0);
@@ -1514,9 +1514,15 @@ const offHourSurchargeAmount = computed(() => {
 });
 
 const bookingFeeAmount = computed(() => {
+  const allocated = Number(pricingPreview.value?.payment?.allocations?.bookingFee);
   const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
-  const line = lines.find((row) => String(row?.code) === 'booking_fee');
-  const amount = Number(line?.amount || 0);
+  const legacyLine = lines.find((row) => String(row?.code) === 'booking_fee');
+  const amount = Number.isFinite(allocated) && allocated > 0 ? allocated : Number(legacyLine?.amount || 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+});
+
+const cancellationFeeAmount = computed(() => {
+  const amount = Number(pricingPreview.value?.payment?.allocations?.cancellationFee || 0);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 
@@ -2519,7 +2525,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
               
 
               <div
-                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                 class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
                 data-testid="booking-flow-price-breakdown"
               >
@@ -2554,8 +2560,10 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     class="flex items-start gap-1"
                     data-testid="booking-flow-longer-discount-notice"
                   >
-                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
-                    <p class="text-sm font-normal leading-5 text-[#FCE40D]">
+                    <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                    <p
+                    class="text-sm font-normal leading-5"
+                    :class="isLongerDiscountAchieved ? 'text-[#07F468]' : 'text-[#FCE40D]'">
                       {{ longerDiscountNoticeLabel }}
                     </p>
                   </div>
@@ -2575,7 +2583,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                 
 
                 <div
-                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
+                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                   class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
                   data-testid="booking-flow-price-breakdown"
                 >
@@ -2604,6 +2612,30 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                         <span>+</span>
                         <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
                         <span>{{ offHourSurchargeAmount }}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="false && usesComponentAllocations && bookingFeeAmount > 0"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="booking-fee-allocation"
+                    >
+                      <p class="text-[#EAECF0]">{{ t("fan_booking_booking_fee_included") }}</p>
+                      <div class="flex items-center gap-1">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ bookingFeeAmount }}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="false && usesComponentAllocations && cancellationFeeAmount > 0"
+                      class="flex items-center justify-between text-sm text-white"
+                      data-row-kind="cancellation-fee-allocation"
+                    >
+                      <p class="text-[#EAECF0]">{{ t("fan_booking_cancellation_fee_included") }}</p>
+                      <div class="flex items-center gap-1">
+                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                        <span>{{ cancellationFeeAmount }}</span>
                       </div>
                     </div>
 
