@@ -23,6 +23,8 @@ export async function cancelBookingFlow({ payload, context, api }) {
       args: payload?.args && typeof payload.args === "object" ? payload.args : {},
     };
 
+	if (payload?.intent) requestBody.intent = payload.intent;
+
     if (typeof payload?.refund === "boolean") {
       requestBody.refund = payload.refund;
     }
@@ -52,6 +54,7 @@ export async function cancelBookingFlow({ payload, context, api }) {
         bookingId: response?.bookingId || response?.item?.bookingId || bookingId,
         item: response?.item || null,
         reverse: response?.reverse || null,
+		settlement: response?.settlement || response?.item?.paymentSettlement || null,
       },
       {
         flow: "bookings.cancelBooking",

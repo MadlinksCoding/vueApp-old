@@ -233,11 +233,14 @@ vi.mock("@/services/bookings/mappers/createBookingMapper.js", () => ({
     return {
       ...requiredBookingFields,
       payment: {
-        lines: [
-          { code: "base", amount: 900 },
-          { code: "booking_fee", amount: 100 },
-        ],
+        paymentPolicyVersion: 2,
+        lines: [{ code: "base", amount: 1000 }],
         total: 1000,
+        allocations: {
+          service: 900 - (raw.enableCancellationFee ? Number(raw.cancellationFeeTokens || 0) : 0),
+          bookingFee: 100,
+          cancellationFee: raw.enableCancellationFee ? Number(raw.cancellationFeeTokens || 0) : 0,
+        },
       },
     };
   },
@@ -303,6 +306,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
 
 describe("BookingFlowStep3", () => {
   beforeEach(() => {
+	vi.unstubAllEnvs();
     tokenGet.mockReset();
     showToast.mockReset();
     backendJwtToken = "jwt_test";
@@ -523,6 +527,32 @@ describe("BookingFlowStep3", () => {
     expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
     expect(wrapper.text()).toContain("TOP UP NEEDED");
     expect(wrapper.text()).toContain("TOP-UP & PAY");
+  });
+
+  it("keeps the included cancellation allocation inside the maximum held balance", async () => {
+    tokenGet.mockResolvedValue({
+      data: {
+        paidTokens: 1100,
+        freeTokensPerBeneficiary: {},
+        totalFreeTokens: 0,
+      },
+    });
+    const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.raw.enableCancellationFee = true;
+    engine.state.fanBooking.context.selectedEvent.raw.cancellationFeeTokens = 200;
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+    });
+
+    await flushAsync();
+
+    expect(wrapper.text()).toContain("Cancellation allocation included");
+    expect(wrapper.text()).not.toContain("Maximum temporarily held");
+    expect(wrapper.text()).toContain("1,000");
+    expect(wrapper.text()).not.toContain("1,200");
+    expect(wrapper.text()).not.toContain("TOP UP NEEDED");
   });
 
   it("creates guest temporary holds with guest session identity and no auth header", async () => {
@@ -1289,9 +1319,11 @@ describe("BookingFlowStep3", () => {
     expect(text).not.toContain("Off-hour Surcharge");
   });
 
-  it("translates the active non-refundable fee tooltip", async () => {
+  it("translates the conditionally refundable booking-fee tooltip", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 3000 } });
     const engine = createEngine();
+    engine.state.fanBooking.context.selectedEvent.raw.enableBookingFee = true;
+    engine.state.fanBooking.context.selectedEvent.raw.bookingFeeTokens = 25;
     const translator = createBookingTranslator({
       locale: "zh",
       translations: {

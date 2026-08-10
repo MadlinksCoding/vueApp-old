@@ -8,6 +8,59 @@ import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 describe("create booking mapper", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("defaults to v2 booking and cancellation allocations inside the commercial total", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 100,
+      sessionDurationMinutes: 30,
+      enableBookingFee: true,
+      bookingFeeTokens: 5,
+      enableCancellationFee: true,
+      cancellationFeeTokens: 10,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+        enableBookingFee: true,
+        bookingFeeTokens: 5,
+        enableCancellationFee: true,
+        cancellationFeeTokens: 10,
+      },
+    }, 30);
+
+    expect(preview.payment.total).toBe(100);
+    expect(preview.payment.lines.some((line) => line.code === "booking_fee")).toBe(false);
+    expect(preview.payment.allocations).toEqual({
+      service: 85,
+      bookingFee: 5,
+      cancellationFee: 10,
+    });
+  });
+
+  it("caps v2 discounts before they consume protected allocations", () => {
+    const preview = buildBookingPaymentPreview({
+      type: "1on1-call",
+      basePriceTokens: 100,
+      sessionDurationMinutes: 30,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 100,
+        sessionDurationMinutes: 30,
+        enableBookingFee: true,
+        bookingFeeTokens: 10,
+        enableCancellationFee: true,
+        cancellationFeeTokens: 20,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscountTokens: 200,
+      },
+    }, 30, [], {}, { paymentPolicyVersion: 2, isFirstBookingForCreator: true });
+
+    expect(preview.payment.total).toBe(30);
+    expect(preview.payment.allocations).toEqual({ service: 0, bookingFee: 10, cancellationFee: 20 });
+    expect(preview.discounts.firstTimeDiscount.discountTokens).toBe(70);
   });
 
   function mockBrowserTimezone(timeZone) {
@@ -300,6 +353,67 @@ describe("create booking mapper", () => {
     expect(preview.payment.total).toBe(40);
   });
 
+  it("applies the longer-session token discount to every session after reaching the threshold", () => {
+    const event = {
+      eventId: "evt_per_session_longer_discount",
+      type: "1on1-call",
+      basePriceTokens: 10,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 10,
+        sessionDurationMinutes: 30,
+        enableDiscountForLonger: true,
+        discountMinSessions: 3,
+        longerSessionDiscountTokens: 2,
+      },
+    };
+
+    const belowThreshold = buildBookingPaymentPreview(event, 60);
+    const threeSessions = buildBookingPaymentPreview(event, 90);
+    const fourSessions = buildBookingPaymentPreview(event, 120);
+
+    expect(belowThreshold.payment.lines.some((line) => line.code === "discount")).toBe(false);
+    expect(threeSessions.discounts.longerDiscount).toEqual({
+      amountTokens: 2,
+      discountTokens: 6,
+    });
+    expect(threeSessions.payment.lines).toContainEqual({
+      code: "discount",
+      label: "Longer Session Discount",
+      amount: -6,
+    });
+    expect(threeSessions.payment.total).toBe(24);
+    expect(fourSessions.discounts.longerDiscount).toEqual({
+      amountTokens: 2,
+      discountTokens: 8,
+    });
+    expect(fourSessions.payment.total).toBe(32);
+  });
+
+  it("applies the per-session discount when using the legacy minimum-minute threshold", () => {
+    const event = {
+      eventId: "evt_legacy_per_session_longer_discount",
+      type: "1on1-call",
+      basePriceTokens: 10,
+      raw: {
+        type: "1on1-call",
+        basePriceTokens: 10,
+        sessionDurationMinutes: 30,
+        enableDiscountForLonger: true,
+        discountMinSessionMinutes: 90,
+        longerSessionDiscountTokens: 2,
+      },
+    };
+
+    const preview = buildBookingPaymentPreview(event, 120);
+
+    expect(preview.discounts.longerDiscount).toEqual({
+      amountTokens: 2,
+      discountTokens: 8,
+    });
+    expect(preview.payment.total).toBe(32);
+  });
+
   it("caps combined fixed discounts at the session subtotal", () => {
     const event = {
       eventId: "evt_capped_fixed_discounts",
@@ -311,7 +425,7 @@ describe("create booking mapper", () => {
         sessionDurationMinutes: 30,
         enableDiscountForLonger: true,
         discountMinSessions: 2,
-        longerSessionDiscountTokens: 80,
+        longerSessionDiscountTokens: 40,
         enableFirstTimeDiscount: true,
         firstTimeDiscountTokens: 80,
       },

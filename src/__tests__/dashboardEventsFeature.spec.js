@@ -3842,8 +3842,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-booking-fee']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
-    expect(wrapper.text()).not.toContain("tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).toContain("The booking allocation already included in your total will be paid to the creator; the remaining amount will be released.");
+    expect(wrapper.text()).not.toContain("held cancellation reserve");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -3856,8 +3856,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-cancellation-fee']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("13 tokens will be deducted as cancellation fee.");
-    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).toContain("The 13-token cancellation allocation already included in your booking total will be paid to the creator.");
+    expect(wrapper.text()).not.toContain("The booking allocation already included in your total will be paid to the creator");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -3870,8 +3870,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-both-fees']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
-    expect(wrapper.text()).toContain("21 tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).toContain("The booking allocation already included in your total will be paid to the creator; the remaining amount will be released.");
+    expect(wrapper.text()).toContain("The 21-token cancellation allocation already included in your booking total will be paid to the creator.");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -3885,8 +3885,8 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("Cancelling this event will notify the host and remove it from your schedule.");
-    expect(wrapper.text()).not.toContain("34 tokens will be deducted as cancellation fee.");
-    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).not.toContain("held cancellation reserve of 34 tokens");
+    expect(wrapper.text()).not.toContain("The booking allocation already included in your total will be paid to the creator");
   });
 
   it("keeps current-week group sessions visible with group styling and join metadata", async () => {

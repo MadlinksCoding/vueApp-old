@@ -72,7 +72,7 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
       "100 tokens off entire booking",
     );
     expect(wrapper.get("[data-testid='booking-sidebar-long-session-offer']").text()).toContain(
-      "100 tokens off when you book 3+ sessions",
+      "100 tokens off each session when you book 3+ sessions",
     );
   });
 

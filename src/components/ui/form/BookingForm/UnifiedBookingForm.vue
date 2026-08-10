@@ -2042,7 +2042,7 @@ async function confirmCancelBooking() {
     try {
         const result = await bookingFlow.callFlow(
             "bookings.cancelBooking",
-            { bookingId, actor: "creator", reason: "creator_cancelled_from_booking_form_calendar" },
+			{ bookingId, actor: "creator", intent: "normal", reason: "creator_cancelled_from_booking_form_calendar" },
             {
                 context: {
                     stateEngine: bookingFlow,
