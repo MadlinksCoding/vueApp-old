@@ -104,12 +104,12 @@
               </div>
               <div
                 v-if="view !== 'month' && isCalendarEventJoinable(event)"
-                class="flex min-w-0 w-full flex-col pb-0.5"
+                class="flex min-w-0 w-full flex-col pb-1"
                 data-test="dashboard-calendar-join-area"
               >
                 <div
                   v-if="getCalendarBookingUrgencyText(event)"
-                  class="flex h-[0.875rem] w-full items-center justify-end gap-1 px-1 text-[0.625rem] leading-[0.875rem]"
+                  class="flex h-[0.875rem] w-full items-baseline justify-end gap-1 px-1 text-[0.625rem] leading-[0.875rem]"
                   data-test="dashboard-calendar-booking-countdown-row"
                 >
                   <IndicatorDot
@@ -126,7 +126,7 @@
                 </div>
                 <button
                   type="button"
-                  class="mx-1 flex h-[1.5rem] w-[calc(100%_-_0.5rem)] items-center justify-center gap-1 rounded-[0.25rem] bg-[#07F468] px-2 py-[0.1875rem] text-[#0C111D] outline-none transition-colors blink-border-effect"
+                  class="mx-1 flex h-[1.5rem] w-[calc(100%_-_0.5rem)] min-w-[5.25rem] items-center justify-center gap-1 rounded-[0.25rem] bg-[#07F468] px-2 py-[0.1875rem] text-[#0C111D] outline-none transition-colors blink-border-effect"
                   data-test="dashboard-calendar-join-call"
                   :aria-label="t('common_join_call')"
                   @click.stop="handleJoin(event)"
@@ -495,7 +495,7 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto pb-[6.5rem] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div class="flex-1 overflow-y-auto pb-[6.5rem] px-3 -mx-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <BookingScheduleList
             v-if="isCreator && !dashboardEventsEngine.state.events.loading"
             :events="bookingScheduleEvents"
@@ -996,8 +996,8 @@ const theme1 = computed(() => ({
     expired: "opacity-40",
     today: "bg-[#101828] !font-semibold text-white",
     selected: "bg-[#101828] !font-semibold text-white",
-    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#101828]",
-    selectedDot: "!bg-white",
+    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#ff4405]",
+    selectedDot: "!bg-[#ff4405]",
     pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {

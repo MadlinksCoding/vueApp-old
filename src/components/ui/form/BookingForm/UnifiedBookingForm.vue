@@ -2444,7 +2444,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :aria-label="t('booking_unsaved_changes_title')"
         @click.self="resolvePendingUnsavedLeave(false)"
     >
-        <div class="w-full max-w-[30.75rem] max-h-[8.5rem] rounded-[0.313rem] bg-white p-4 shadow-[0px_4px_8px_0px_rgba(0,0,0,0.2),0px_6px_20px_0px_rgba(0,0,0,0.19)] backdrop-blur-[50px] flex flex-col gap-6">
+        <div class="w-full max-w-[30.75rem] max-h-[8.5rem] rounded-t-[0.313rem] rounded-b-none md:rounded-b-[0.313rem] bg-white p-4 shadow-[0px_4px_8px_0px_rgba(0,0,0,0.2),0px_6px_20px_0px_rgba(0,0,0,0.19)] backdrop-blur-[50px] flex flex-col gap-6">
             <div class="hidden text-base font-semibold leading-6 text-slate-900">
                 {{ t("booking_unsaved_changes_title") }}
             </div>
