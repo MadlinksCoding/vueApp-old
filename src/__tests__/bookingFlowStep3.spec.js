@@ -299,6 +299,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowProfileImage: "/profile.webp",
   bookingFlowTokenIcon: "/token.webp",
   bookingFlowVerifiedIcon: "/verified.webp",
+  bookingFlowBackarrowIcon: "/backarrow.webp",
 }));
 
 describe("BookingFlowStep3", () => {
@@ -456,6 +457,26 @@ describe("BookingFlowStep3", () => {
     await wrapper.get("button").trigger("click");
 
     expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "change-schedule" });
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+  });
+
+  it("navigates back to previous step when back button is clicked", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+    });
+
+    await flushAsync();
+
+    const backButton = wrapper.findAll("button").find(b => b.text().includes("Back") || b.text().includes("fan_booking_back"));
+    expect(backButton.exists()).toBe(true);
+
+    await backButton.trigger("click");
+
+    expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "back" });
     expect(engine.goToStep).toHaveBeenCalledWith(2);
   });
 

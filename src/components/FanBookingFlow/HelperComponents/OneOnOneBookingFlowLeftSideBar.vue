@@ -314,7 +314,7 @@ const groupPolicyItems = computed(() => {
 
 <template>
   <div
-    class="flex-none md:max-w-[25.5rem] h-auto lg:h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
+    class="flex-none md:max-w-[25.5rem] h-auto lg:h-full w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
     :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-4 lg:p-5'"
   >
     <template v-if="props.isGroupEvent">

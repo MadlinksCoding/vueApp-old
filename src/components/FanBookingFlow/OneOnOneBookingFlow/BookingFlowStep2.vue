@@ -2409,7 +2409,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
 
               <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
                 <div class="flex items-center gap--2 justify-between">
-                  <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
+                  <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_select_length") }}</h3>
                   <span
                     v-if="!isAtMaximumDuration"
                     class="text-xs font-normal leading-[18px] text-[#EAECF0]"
@@ -2623,7 +2623,10 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
               </div>
 
               <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
-                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+                <div class="flex items-center gap-1">
+                  <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+                  <span class="text-xs text-[#EAECF0] italic">Optional</span>
+                </div>
                 <div class="flex flex-col w-full gap-2">
                   <div
                     v-for="(addon, index) in addons"
@@ -2656,8 +2659,14 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
               </div>
 
               <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
-                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
-                <div class="desc">
+                <div class="flex items-center justify-between">
+                  <div class="flex gap-1 items-center">
+                    <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
+                    <span class="text-xs text-[#EAECF0] italic">Optional</span>
+                  </div>
+                  <span class="text-xs text-[#EAECF0]">APPROVAL REQUIRED</span>
+                </div>
+                <div class="desc hidden">
                   <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
                     {{ t("fan_booking_other_request_body") }}
                   </p>
@@ -2665,8 +2674,59 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                 <div class="example">
                   <textarea
                     v-model="otherRequest"
-                    class="leading-[24px] text-white break-words rounded-t-[0.25rem] bg-black/50 p-[0.75rem_0.675rem] border-b border-solid border-[#07F468] w-full"
+                    class="flex min-h-[100px] items-start gap-4 self-stretch p-4 leading-5 text-sm text-white break-words rounded-t-lg border-b border-white bg-[#0C111D] shadow-[0_4px_8px_0_rgba(255,255,255,0.05)] w-full placeholder:text-[#98A2B3] placeholder:font-[Poppins] placeholder:text-sm placeholder:font-normal placeholder:italic placeholder:leading-5 focus:outline-none" :placeholder="t('fan_booking_other_request_body')"
                   />
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
+                <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">BOOKING SUMMARY</h3>
+                <div class="flex flex-col gap-3">
+                  <div class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-base text-white">10 Minute x 1 session</span>
+                      <div class="flex items-center gap-0.5">
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">300</p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                      <span class="text-base text-white">Add-on service</span>
+                      <div class="flex items-center gap-0.5">
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">50</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-base text-white">First time discount</span>
+                      <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#07F468]">-</span>
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#07F468]">50</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-lg font-medium text-white">SUBTOTAL</span>
+                      <div class="flex items-center gap-0.5">
+                        <div class="w-6 h-6 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-2xl font-medium text-white">300</p>
+                      </div>
+                    </div>
+                    <p class="text-sm italic text-[#EAECF0]">Token equivalent of your session fee will be on hold in your balance until the call starts. A non-refundable booking fee of 30 Tokens applied.</p>
+                  </div>
                 </div>
               </div>
               </template>
