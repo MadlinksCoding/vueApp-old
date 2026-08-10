@@ -1,13 +1,19 @@
 <template>
   <article
-    class="sticky-booking-card-row min-h-[5rem] w-full border border-gray-100 bg-white p-3 flex gap-1.5"
+    class="sticky-booking-card-row min-h-[5rem] sm:rounded-[10px] w-full p-3 flex gap-1.5"
+    :class="[
+      isPending
+        ? 'border-[1.5px] border-white bg-[#F3F5F8]'
+        : 'border border-gray-100 bg-white',
+      { 'pending-blink-shadow': isPending }
+    ]"
     :style="cardShadowStyle"
     data-test="sticky-booking-card"
     :data-booking-status="bookingStatus"
   >
     <div
       class="w-1 self-stretch rounded-[0.875rem]"
-      :style="{ backgroundColor: accentColor }"
+      :style="{ backgroundColor: isPending ? '#fff' : accentColor }"
       aria-hidden="true"
     ></div>
 
@@ -27,7 +33,7 @@
           />
           <p
             class="truncate text-[0.875rem] font-semibold leading-5"
-            :style="{ color: isPending ? '#101828' : accentColor }"
+            :style="{ color: accentColor }"
             data-test="mobile-join-card-title"
           >{{ event.title }}</p>
           <span
@@ -283,13 +289,21 @@ function rgba(color, alpha) {
   return `rgba(${Number.parseInt(red, 16)}, ${Number.parseInt(green, 16)}, ${Number.parseInt(blue, 16)}, ${alpha})`;
 }
 
-const cardShadowStyle = computed(() => ({
-  boxShadow: [
-    `0 0 12px 0 ${rgba(accentColor.value, 0.75)}`,
-    `0 4px 8px -2px ${rgba(accentColor.value, 0.10)}`,
-    `0 2px 4px -2px ${rgba(accentColor.value, 0.06)}`,
-  ].join(', '),
-}));
+const cardShadowStyle = computed(() => {
+  const cssVars = {
+    '--shadow-color-75': rgba(accentColor.value, 0.75),
+    '--shadow-color-10': rgba(accentColor.value, 0.10),
+    '--shadow-color-06': rgba(accentColor.value, 0.06),
+  };
+  if (!isPending.value) {
+    cssVars.boxShadow = [
+      `0 0 12px 0 var(--shadow-color-75)`,
+      `0 4px 8px -2px var(--shadow-color-10)`,
+      `0 2px 4px -2px var(--shadow-color-06)`,
+    ].join(', ');
+  }
+  return cssVars;
+});
 
 function normalizeProfile(user) {
   if (!user || typeof user !== 'object') return null;
@@ -352,6 +366,23 @@ onBeforeUnmount(() => {
   .sticky-booking-card-row {
     height: 6.75rem;
   }
+}
+
+@keyframes blink-card-shadow {
+  0%, 100% {
+    box-shadow: 0 0 12px 0 var(--shadow-color-75),
+                0 4px 8px -2px var(--shadow-color-10),
+                0 2px 4px -2px var(--shadow-color-06);
+  }
+  50% {
+    box-shadow: 0 0 12px 0 transparent,
+                0 4px 8px -2px transparent,
+                0 2px 4px -2px transparent;
+  }
+}
+
+.pending-blink-shadow {
+  animation: blink-card-shadow 1.5s ease-in-out infinite;
 }
 
 @keyframes blink-border-blue {

@@ -1840,7 +1840,7 @@ describe("one-on-one booking step translations", () => {
     wrapper.vm.formData.firstTimeDiscountTokens = "8";
     await nextTick();
 
-    expect(wrapper.text()).toContain("12 tokens off");
+    expect(wrapper.text()).toContain("12 tokens off each session");
     expect(wrapper.text()).toContain("8 tokens off");
   });
 

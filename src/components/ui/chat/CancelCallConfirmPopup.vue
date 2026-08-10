@@ -1,16 +1,16 @@
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-[10002] flex items-center justify-center p-4"
+      class="fixed inset-0 z-[10002] flex items-end md:items-center justify-center p-0 md:p-4"
       data-fs-chat-popup
       @click.self="$emit('close')"
     >
       <div class="absolute inset-0 bg-black/40" @click="$emit('close')" />
 
-      <div class="relative z-10 w-full max-w-[380px] bg-white rounded-2xl shadow-xl flex flex-col font-['Poppins'] overflow-hidden">
+      <div class="relative z-10 w-full max-w-full md:max-w-[380px] bg-white rounded-[0.313rem] rounded-b-none md:rounded-[0.313rem] shadow-xl flex flex-col font-['Poppins'] overflow-hidden">
 
         <!-- Header -->
-        <div class="flex items-center justify-between px-5 pt-5 pb-4">
+        <div class="flex items-center justify-between px-4 pt-4 pb-4">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
@@ -27,26 +27,26 @@
         </div>
 
         <!-- Body -->
-        <div class="px-5 pb-2">
+        <div class="px-4 pb-2">
           <p class="text-gray-700 text-sm leading-relaxed">
-            Are you sure you want to cancel this event? Booking Fee will still be deducted from your wallet.
+            Are you sure you want to cancel this booking? The already-held payment components will be paid or released according to the booking status and the creator's advance-cancellation cutoff.
           </p>
         </div>
 
         <!-- Footer -->
-        <div class="px-5 py-4 flex items-center gap-3">
+        <div class="px-4 py-4 flex items-center gap-3">
           <button
-            class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-700 border-2 border-gray-300 hover:bg-gray-50 transition-colors"
+            class="flex-1 py-2 text-base font-semibold text-gray-700 border-2 border-gray-300 hover:bg-gray-50 transition-colors"
             @click="$emit('close')"
           >
-            Back
+            BACK
           </button>
           <button
             :disabled="submitting"
-            class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="flex-1 py-2 text-base font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             @click="handleConfirm"
           >
-            {{ submitting ? 'Cancelling...' : 'Cancel Call' }}
+            {{ submitting ? 'Cancelling...' : 'CANCEL CALL' }}
           </button>
         </div>
 
@@ -77,6 +77,7 @@ async function handleConfirm() {
     const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
       bookingId,
       actor: props.isCreator ? 'creator' : 'fan',
+      intent: 'normal',
     })
     if (cancelRes?.ok) {
       const updateRes = await FlowHandler.run('chat.updateMessage', {

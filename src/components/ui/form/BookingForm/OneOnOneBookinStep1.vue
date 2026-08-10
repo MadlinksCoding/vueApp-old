@@ -2723,18 +2723,20 @@
         <div v-show="sectionsState.privatePricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="flex items-center gap-1">
-              <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                {{ t("booking_base_price") }}
-              </div>
-              <div
-                v-if="hasFieldEditWarningChange('basePrice')"
-                class="inline-flex items-center gap-1.5 text-[#FF4405]"
-                data-test="base-price-updated-indicator"
-              >
-                <span class="h-2 w-2 shrink-0 rounded-full bg-[#FF4405]"></span>
-                <span class="whitespace-nowrap text-sm font-medium leading-tight">
-                  {{ t("booking_updated_badge") }}
-                </span>
+              <div class="flex items-center gap-2"> 
+                <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                  {{ t("booking_base_price") }}
+                </div>
+                <div
+                  v-if="hasFieldEditWarningChange('basePrice')"
+                  class="inline-flex items-center gap-1.5 text-[#FF4405]"
+                  data-test="base-price-updated-indicator"
+                >
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF4405]"></span>
+                  <span class="whitespace-nowrap text-sm font-medium leading-tight">
+                    {{ t("booking_updated_badge") }}
+                  </span>
+                </div>
               </div>
               <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             </div>
@@ -2792,7 +2794,7 @@
                       {{ t("booking_tokens_off_session_price") }}
                     </div>
                     <div v-if="formData.longerSessionDiscountTokens" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_off_booking", { tokens: formData.longerSessionDiscountTokens }) }})
+                      ({{ t("booking_tokens_off_each_session", { tokens: formData.longerSessionDiscountTokens }) }})
                     </div>
                   </div>
                 </div>
@@ -3003,7 +3005,7 @@
               spacing-class="-mt-1"
             />
 
-            <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
+            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 :label="t('booking_allow_advance_cancellation')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
