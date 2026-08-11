@@ -73,6 +73,7 @@
           <button
             v-if="sessionLink"
             type="button"
+            data-test="chat-live-call-join-call"
             class="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold transition-colors"
             :class="(isExpired || !isJoinable)
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none opacity-60'
@@ -212,7 +213,7 @@ const hasAcceptedPrevNotification = computed(() => props.message?.prev_notificat
 const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
 // ── Join ──────────────────────────────────────────────────────────────────────
 function handleJoin() {
-  if (!sessionLink.value || isExpired.value) return
+  if (!sessionLink.value || !isJoinable.value || isExpired.value) return
   if (openScheduledMeetingOverlay(sessionLink.value, { source: 'chat_live_call_request' })) return
   window.open(sessionLink.value, '_top')
 }

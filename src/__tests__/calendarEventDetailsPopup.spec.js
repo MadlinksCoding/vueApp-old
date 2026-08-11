@@ -1,18 +1,19 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const getBookingJoinState = vi.fn();
+const getCalendarEventJoinState = vi.fn();
 
-vi.mock("@/utils/bookingJoinUtils.js", () => ({
-  getBookingJoinState,
+vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCalendarEventJoinState,
 }));
 
 describe("CalendarEventDetailsPopup", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T09:30:00Z"));
-    getBookingJoinState.mockReset();
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReset();
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
     });
@@ -48,20 +49,19 @@ describe("CalendarEventDetailsPopup", () => {
       },
     });
 
-    expect(getBookingJoinState).toHaveBeenCalledWith(expect.objectContaining({
-      bookingId: "booking_123",
-      status: "confirmed",
-      enableCallReminderMinutesBefore: true,
-      callReminderMinutesBefore: 15,
-      extensions: [{ status: "captured", endAtIso: "2026-05-01T10:45:00Z" }],
-    }));
+    expect(getCalendarEventJoinState).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: "booking_123" }),
+      expect.objectContaining({ viewerRole: "creator", now: expect.any(Date) }),
+    );
   });
 
   it("hides join buttons before the window, keeps the menu, and reveals Join reactively", async () => {
-    vi.setSystemTime(new Date("2026-05-01T09:54:00Z"));
-    getBookingJoinState.mockImplementation(({ now }) => ({
+    vi.setSystemTime(new Date("2026-05-01T09:54:59Z"));
+    getCalendarEventJoinState.mockImplementation((event, { now }) => ({
       canJoin: now.getTime() >= Date.parse("2026-05-01T09:55:00Z"),
       joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
+      bookingId: event.bookingId || event.raw?.bookingId,
+      eventId: event.eventId || event.raw?.eventId,
     }));
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
 
@@ -84,7 +84,11 @@ describe("CalendarEventDetailsPopup", () => {
     expect(wrapper.find("[data-test='calendar-event-details-mobile-join-call']").exists()).toBe(false);
     expect(wrapper.get("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(true);
 
-    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await vi.advanceTimersByTimeAsync(999);
+    await flushPromises();
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
     await flushPromises();
 
     const desktopJoin = wrapper.get("[data-test='calendar-event-details-desktop-join-call']");
@@ -98,10 +102,44 @@ describe("CalendarEventDetailsPopup", () => {
     ]]);
   });
 
+  it("uses an injected comparison time without starting an independent popup clock", async () => {
+    vi.setSystemTime(new Date("2026-05-01T09:54:59Z"));
+    getCalendarEventJoinState.mockImplementation((event, { now }) => ({
+      canJoin: now.getTime() >= Date.parse("2026-05-01T09:55:00Z"),
+      joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
+      bookingId: event.bookingId,
+    }));
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        comparisonTime: new Date("2026-05-01T09:54:59Z"),
+        event: {
+          bookingId: "booking_123",
+          start: "2026-05-01T10:00:00Z",
+          end: "2026-05-01T10:30:00Z",
+          status: "confirmed",
+        },
+      },
+    });
+
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+
+    vi.setSystemTime(new Date("2026-05-01T09:55:30Z"));
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(false);
+
+    await wrapper.setProps({ comparisonTime: new Date("2026-05-01T09:55:00Z") });
+    await flushPromises();
+    expect(wrapper.find("[data-test='calendar-event-details-desktop-join-call']").exists()).toBe(true);
+  });
+
   it("emits join-call when joining is allowed", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_123",
+      bookingId: "booking_123",
+      eventId: "evt_123",
     });
 
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
@@ -138,7 +176,11 @@ describe("CalendarEventDetailsPopup", () => {
   });
 
   it("does not show Join when the booking has no valid join URL", async () => {
-    getBookingJoinState.mockReturnValue({ canJoin: true, joinUrl: null });
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: null,
+      bookingId: "booking_without_url",
+    });
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
 
     const wrapper = mount(CalendarEventDetailsPopup, {
@@ -213,6 +255,81 @@ describe("CalendarEventDetailsPopup", () => {
     expect(wrapper.findAll("button").some((button) => button.text().includes("DECLINE"))).toBe(false);
   });
 
+  it.each(["pending", "pending_hold"])(
+    "expires %s approval controls at the exact booking start",
+    async (status) => {
+      vi.setSystemTime(new Date("2026-05-01T09:59:59Z"));
+      const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+      const wrapper = mount(CalendarEventDetailsPopup, {
+        props: {
+          comparisonTime: new Date("2026-05-01T09:59:59Z"),
+          event: {
+            bookingId: `booking_${status}`,
+            start: "2026-05-01T10:00:00Z",
+            end: "2026-05-01T10:30:00Z",
+            status,
+            eventType: status === "pending" ? "1on1-call" : "group-event",
+            raw: { status },
+          },
+          canReviewPending: true,
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find("[data-test='calendar-event-details-accept']").exists()).toBe(true);
+      expect(wrapper.find("[data-test='calendar-event-details-decline']").exists()).toBe(true);
+      expect(wrapper.get("[data-test='status-hint']").text()).not.toBe("Past booking");
+      expect(wrapper.get("[data-test='status-hint']").text()).not.toBe("live now");
+
+      await wrapper.get("[data-test='calendar-event-details-decline']").trigger("click");
+      expect(wrapper.find("[data-test='calendar-event-details-reject-confirm']").exists()).toBe(true);
+
+      await wrapper.setProps({ comparisonTime: new Date("2026-05-01T10:00:00Z") });
+      await flushPromises();
+
+      expect(wrapper.find("[data-test='calendar-event-details-accept']").exists()).toBe(false);
+      expect(wrapper.find("[data-test='calendar-event-details-decline']").exists()).toBe(false);
+      expect(wrapper.find("[data-test='calendar-event-details-adjust-request']").exists()).toBe(false);
+      expect(wrapper.find("[data-test='calendar-event-details-reject-confirm']").exists()).toBe(false);
+      expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
+      expect(wrapper.get("[data-test='status-dot']").element.style.backgroundColor)
+        .toBe("rgb(107, 114, 128)");
+
+      await wrapper.setProps({ comparisonTime: new Date("2026-05-01T10:15:00Z") });
+      await flushPromises();
+      expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
+
+      await wrapper.setProps({ comparisonTime: new Date("2026-05-01T10:30:01Z") });
+      await flushPromises();
+      expect(wrapper.get("[data-test='status-hint']").text()).toBe("Past booking");
+    },
+  );
+
+  it("rejects an approval click when the wall clock has crossed the start boundary", async () => {
+    vi.setSystemTime(new Date("2026-05-01T09:59:59Z"));
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        comparisonTime: new Date("2026-05-01T09:59:59Z"),
+        event: {
+          bookingId: "booking_stale_approval",
+          start: "2026-05-01T10:00:00Z",
+          end: "2026-05-01T10:30:00Z",
+          status: "pending",
+          raw: { status: "pending" },
+        },
+        canReviewPending: true,
+      },
+    });
+    await flushPromises();
+
+    const acceptButton = wrapper.get("[data-test='calendar-event-details-accept']");
+    vi.setSystemTime(new Date("2026-05-01T10:00:00Z"));
+    await acceptButton.trigger("click");
+
+    expect(wrapper.emitted("approve-booking")).toBeUndefined();
+  });
+
   it("shows confirmed instead of a full date for future confirmed bookings more than 24 hours away", async () => {
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
 
@@ -256,7 +373,7 @@ describe("CalendarEventDetailsPopup", () => {
   });
 
   it("keeps live status and booking actions during an extension without showing an ineligible Join", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_extended",
       effectiveEndDate: new Date("2026-05-01T10:00:00Z"),
