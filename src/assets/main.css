@@ -26,6 +26,10 @@ html {
     /* Inverts the SVG to white */
 }
 
+.bg--gd--blue-51-251 {
+    background: linear-gradient(0deg, rgba(1, 51, 251, 0.50) 0%, rgba(1, 51, 251, 0.50) 100%), rgba(12, 17, 29, 0.50);
+}
+
 /* md breakpoint = min-width: 768px */
 @media (min-width: 768px) {
     .chat-panel-trigger {

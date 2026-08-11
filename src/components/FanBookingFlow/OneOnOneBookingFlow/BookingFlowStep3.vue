@@ -2048,16 +2048,12 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-      class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-[41rem] lg:w-[852px] overflow-hidden"
+      class="relative lg:rounded-[20px] w-full h-full md:h-dvh lg:h-auto overflow-hidden"
       :style="popupBackgroundStyle"
     >
-      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-[10px] md:bg-black md:py-6 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
-      <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-black/75 before:content-['']
-before:absolute
-before:inset-0
-before:bg-[rgba(0,0,0,0.75)]
-before:backdrop-blur-sm
-md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+    <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(0deg,rgba(12,17,29,0.5)_0%,rgba(12,17,29,0.5)_100%)]"></div>
+      <div :class="['h-full md:h-dvh lg:h-full lg:rounded-[20px] md:px-0 md:bg-black md:py-0 lg:p-0 lg:bg-transparent', !embedded && 'md:bg-black']">
+      <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh md:h-full lg:overflow-visible lg:h-full md:rounded-t-[20px] flex flex-col md:flex-row md:backdrop-blur-[5px] bg-[#0C111D]/50 overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
             <OneOnOneBookingFlowLeftSideBar
               :time-display="formattedTime"
@@ -2083,13 +2079,9 @@ md:before:backdrop-blur-none md:backdrop-blur-sm overflow-y-auto md:overflow-hid
 
           <div class="relative flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
 
-            <div class="flex-1 h-full  flex-col px-2 lg:px-3 pt-2 lg:pt-3 lg:pb-0 gap-3 md:backdrop-blur-[5px] before:content-['']
-before:absolute
-before:inset-0
-before:backdrop-blur-sm
-md:before:backdrop-blur-none lg:overflow-hidden">
+            <div class="flex-1 h-full  flex-col px-2 lg:px-6 pt-2 lg:pt-3 lg:pb-0 gap-3 bg-[#0C111D]/50 lg:overflow-hidden h-auto md:max-h-none lg:h-[43.75rem]">
               <template v-if="!isTopUpSubstep">
-                <div class="flex flex-col gap-8 pt-12 px-6 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]">
+                <div class="flex flex-col gap-8 pt-12 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 hidden flex-col gap-3">
                     <div class="flex items-center justify-between gap-4">
                       <h3 class="text-sm text-[#2CE]">{{ t("fan_booking_booking_schedule") }}</h3>
@@ -2406,6 +2398,15 @@ md:before:backdrop-blur-none lg:overflow-hidden">
                             <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
                           </div>
                         </div>
+                        <!-- Available Balance after booking  -->
+                        <div class="_flex hidden justify-between items-center border-t border-[#F2F4F7]/50 pt-3">
+                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">Available Balance after booking</p></div>
+                          <div class="flex justify-center items-center gap-0.5">
+                            <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                            <p class="text-base font-semibold text-white">29,100</p>
+                          </div>
+                        </div>
+                        <!-- /Available Balance after booking  -->
                       </div>
                     </div>
 
