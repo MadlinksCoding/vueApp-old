@@ -1036,6 +1036,7 @@
         :event="selectedEvent"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
+        :comparison-time="props.joinComparisonTime"
         @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
@@ -1185,6 +1186,7 @@ const props = defineProps({
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
+  joinComparisonTime: { type: Date, default: null },
   stickyCardEvents: { type: Array, default: () => [] },
   stickyCardEvent: { type: Object, default: null }
 });

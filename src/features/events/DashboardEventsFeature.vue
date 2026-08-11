@@ -38,6 +38,7 @@
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
+        :join-comparison-time="currentTime"
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"
         :highlight-today-column="true"
@@ -768,7 +769,10 @@ import {
 } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { mergeBookedSlotCollections } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 import { showToast } from "@/utils/toastBus.js";
-import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import {
+  getCalendarEventApprovalState,
+  getCalendarEventJoinState,
+} from "@/utils/bookingJoinUtils.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
@@ -849,6 +853,30 @@ const initialDashboardLoadComplete = ref(false);
 const pendingCalendarContextRefresh = ref(false);
 const currentTime = ref(new Date());
 const currentTimeTimer = ref(null);
+const MINUTE_MS = 60 * 1000;
+
+function clearCurrentTimeTimer() {
+  if (currentTimeTimer.value == null) return;
+  window.clearTimeout(currentTimeTimer.value);
+  currentTimeTimer.value = null;
+}
+
+function scheduleCurrentTimeRefresh() {
+  clearCurrentTimeTimer();
+  const nowMs = Date.now();
+  const delay = MINUTE_MS - (nowMs % MINUTE_MS);
+  currentTimeTimer.value = window.setTimeout(refreshCurrentTime, Math.max(1, delay));
+}
+
+function refreshCurrentTime() {
+  currentTime.value = new Date();
+  scheduleCurrentTimeRefresh();
+}
+
+function handleCurrentTimeVisibilityChange() {
+  if (document.visibilityState === "hidden") return;
+  refreshCurrentTime();
+}
 const calendarTooltip = reactive({
   visible: false,
   title: "",
@@ -1214,6 +1242,11 @@ function isPastPendingBookedCalendarEvent(event = {}, comparisonDate = currentTi
     && isPastBookedCalendarEvent(event, comparisonDate);
 }
 
+function isApprovalExpiredPendingCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  const approvalState = getCalendarEventApprovalState(event, { now: comparisonDate });
+  return approvalState.isPending && approvalState.approvalWindowClosed;
+}
+
 function isMidnightDateTime(value) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return false;
@@ -1241,7 +1274,10 @@ function getCalendarEventStyle(event) {
     };
   }
 
-  if (isPastBookedCalendarEvent(event)) {
+  if (
+    isPastBookedCalendarEvent(event)
+    || isApprovalExpiredPendingCalendarEvent(event)
+  ) {
     return {
       backgroundColor: "#D9DCE6",
       border: "1px solid #C8CDD8",
@@ -1596,45 +1632,6 @@ function makeCounterpartProfile(event = {}) {
   };
 }
 
-function firstDefined(...values) {
-  return values.find((value) => value !== undefined && value !== null);
-}
-
-function getJoinOptionsFromEvent(event = {}) {
-  const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-  const eventCurrent = raw.eventCurrent && typeof raw.eventCurrent === "object" ? raw.eventCurrent : {};
-  const eventSnapshot = raw.eventSnapshot && typeof raw.eventSnapshot === "object" ? raw.eventSnapshot : {};
-
-  return {
-    enableCallReminderMinutesBefore: firstDefined(
-      event.enableCallReminderMinutesBefore,
-      raw.enableCallReminderMinutesBefore,
-      eventSnapshot.enableCallReminderMinutesBefore,
-      eventCurrent.enableCallReminderMinutesBefore,
-      event.setReminders,
-      raw.setReminders,
-      eventSnapshot.setReminders,
-      eventCurrent.setReminders,
-    ),
-    callReminderMinutesBefore: firstDefined(
-      event.callReminderMinutesBefore,
-      raw.callReminderMinutesBefore,
-      raw.reminderMinutes,
-      eventSnapshot.callReminderMinutesBefore,
-      eventSnapshot.reminderMinutes,
-      eventCurrent.callReminderMinutesBefore,
-      eventCurrent.reminderMinutes,
-    ),
-    reminderMinutes: firstDefined(
-      raw.reminderMinutes,
-      event.reminderMinutes,
-      eventSnapshot.reminderMinutes,
-      eventCurrent.reminderMinutes,
-    ),
-    extensions: firstDefined(event.extensions, raw.extensions, []),
-  };
-}
-
 function getGroupParticipantCount(event = {}) {
   const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
   const participants = Array.isArray(raw.participants) ? raw.participants : [];
@@ -1651,30 +1648,11 @@ function getWidgetGroupText(event = {}) {
   return count > 0 ? `${base} (${count})` : base;
 }
 
-function resolveJoinStateForEvent(event = {}) {
-  const isGroup = isGroupCalendarEvent(event);
-  const bookingId = event?.bookingId || event?.raw?.bookingId || null;
-  const joinState = getBookingJoinState({
-    bookingId,
-    startAt: event?.start,
-    endAt: event?.end,
-    status: event?.status || event?.raw?.status || "",
-    now: currentTime.value,
-    ...getJoinOptionsFromEvent(event),
+function resolveJoinStateForEvent(event = {}, now = currentTime.value) {
+  return getCalendarEventJoinState(event, {
+    viewerRole: isCreator.value ? "creator" : "fan",
+    now,
   });
-
-  if (!isGroup || !isCreator.value) return joinState;
-
-  const creatorJoinUrl = buildScheduledGroupMeetingUrl({
-    eventId: event?.eventId || event?.raw?.eventId || null,
-    startIso: event?.start || event?.raw?.startIso || event?.raw?.startAtIso || null,
-  });
-
-  return {
-    ...joinState,
-    joinUrl: creatorJoinUrl || joinState.joinUrl,
-    canJoin: joinState.canJoin && Boolean(creatorJoinUrl || joinState.joinUrl),
-  };
 }
 
 function isCalendarEventJoinable(event = {}) {
@@ -2165,6 +2143,21 @@ const reviewPendingBooking = async (payload, decision) => {
   }
 
   if (reviewPendingLoading.value) return;
+
+  const freshApprovalState = getCalendarEventApprovalState(payload?.event || payload, {
+    now: new Date(),
+  });
+  if (freshApprovalState.isPending && !freshApprovalState.canReview) {
+    refreshCurrentTime();
+    showToast({
+      type: "error",
+      title: t("dashboard_approval_window_closed_title"),
+      message: t("dashboard_approval_window_closed_message"),
+    });
+    await fetchDashboardContext(true);
+    return;
+  }
+
   reviewPendingLoading.value = true;
 
   const actionLabel = decision === "approve" ? "approved" : "rejected";
@@ -2188,6 +2181,25 @@ const reviewPendingBooking = async (payload, decision) => {
     );
 
     if (!result?.ok) {
+      const approvalWindowClosed = [
+        result?.error?.code,
+        result?.error?.message,
+        result?.error?.details?.error,
+        result?.error?.details?.code,
+        result?.meta?.error,
+      ].some((value) => String(value || "").trim().toLowerCase() === "approval_window_closed");
+
+      if (approvalWindowClosed) {
+        refreshCurrentTime();
+        showToast({
+          type: "error",
+          title: t("dashboard_approval_window_closed_title"),
+          message: t("dashboard_approval_window_closed_message"),
+        });
+        await fetchDashboardContext(true);
+        return;
+      }
+
       const message = result?.meta?.uiErrors?.[0]
         || result?.error?.message
         || t("dashboard_booking_action_update_failed");
@@ -2692,6 +2704,7 @@ const stickyCardEvents = computed(() => {
     }
 
     if (isCreator.value && PENDING_BOOKING_STATUSES.has(status)) {
+      if (!getCalendarEventApprovalState(candidate, { now: currentTime.value }).canReview) return;
       pendingItems.push(toWidgetItem(candidate, { layout: "today", showReply: true }));
     }
   });
@@ -2763,6 +2776,7 @@ const eventsData = computed(() => {
 
     const status = String(event.status || "").toLowerCase();
     if (status === "pending" || status === "pending_hold") {
+      if (!getCalendarEventApprovalState(event, { now }).canReview) return;
       pendingItems.push(toWidgetItem(event, { showReply: true }));
       return;
     }
@@ -2779,11 +2793,28 @@ const eventsData = computed(() => {
     }
   });
 
-  return [
-    { title: t("dashboard_pending_events"), items: pendingItems, isPending: true },
-    { title: t("dashboard_today_section"), items: todayItems, isPending: false },
-    { title: t("dashboard_week_section"), items: weekItems, isPending: false },
-  ];
+  const pendingSection = {
+    title: t("dashboard_pending_events"),
+    items: pendingItems,
+    isPending: true,
+  };
+  const todaySection = {
+    title: t("dashboard_today_section"),
+    items: todayItems,
+    isPending: false,
+  };
+  const weekSection = {
+    title: t("dashboard_week_section"),
+    items: weekItems,
+    isPending: false,
+  };
+  const hasJoinableTodayItem = todayItems.some((item) => (
+    item?.canJoin === true && Boolean(item?.joinUrl)
+  ));
+
+  return hasJoinableTodayItem
+    ? [todaySection, pendingSection, weekSection]
+    : [pendingSection, todaySection, weekSection];
 });
 
 const bookedSlotsCount = computed(() => {
@@ -2813,7 +2844,13 @@ const bookedSlotsCount = computed(() => {
 
 const buildExpandedMonthSections = (events = [], day = null) => {
   const now = currentTime.value;
-  const items = events.filter((event) => hasNotEnded(event, now)).map((event) => {
+  const items = events.filter((event) => (
+    hasNotEnded(event, now)
+    && (
+      !PENDING_BOOKING_STATUSES.has(resolveBookingStatus(event))
+      || getCalendarEventApprovalState(event, { now }).canReview
+    )
+  )).map((event) => {
     const status = String(event?.status || "").toLowerCase();
     return toWidgetItem(event, {
       layout: "today",
@@ -2861,7 +2898,7 @@ const onCalendarEventClick = (event) => {
 
 const handleJoin = (item) => {
   const sourceEvent = item?.sourceEvent || item?.event || item || null;
-  const joinState = resolveJoinStateForEvent(sourceEvent);
+  const joinState = resolveJoinStateForEvent(sourceEvent, new Date());
 
   if (!joinState.canJoin || !joinState.joinUrl) {
     showToast({
@@ -3000,14 +3037,13 @@ const confirmCancelBooking = async () => {
 
 onMounted(() => {
   isMounted.value = true;
-  currentTime.value = new Date();
-  currentTimeTimer.value = window.setInterval(() => {
-    currentTime.value = new Date();
-  }, 60 * 1000);
+  refreshCurrentTime();
   dashboardEventsEngine.initialize({ fromUrl: false });
 
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
+  window.addEventListener("focus", refreshCurrentTime);
+  document.addEventListener("visibilitychange", handleCurrentTimeVisibilityChange);
   document.addEventListener("click", handleClickOutside);
   document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
@@ -3086,12 +3122,11 @@ watch(() => state.view, async (nextView, previousView) => {
 
 onUnmounted(() => {
   hideScheduleTitleTooltip();
-  if (currentTimeTimer.value) {
-    window.clearInterval(currentTimeTimer.value);
-    currentTimeTimer.value = null;
-  }
+  clearCurrentTimeTimer();
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
+  window.removeEventListener("focus", refreshCurrentTime);
+  document.removeEventListener("visibilitychange", handleCurrentTimeVisibilityChange);
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("keydown", handleDocumentKeydown);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);

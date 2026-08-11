@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildScheduledGroupMeetingUrl,
+  getCalendarEventApprovalState,
+  getCalendarEventJoinState,
   getBookingJoinState,
   openScheduledMeetingOverlay,
 } from "@/utils/bookingJoinUtils.js";
@@ -112,6 +114,212 @@ describe("getBookingJoinState", () => {
       eventId: "evt_group",
       startIso: START_AT,
     }, BASE_URL)).toBe(`${BASE_URL}/scheduled-meeting/?event_id=evt_group&start_iso=2026-05-01T10%3A00%3A00Z`);
+  });
+});
+
+describe("getCalendarEventJoinState", () => {
+  const event = {
+    bookingId: "booking_calendar",
+    eventId: "evt_calendar",
+    start: START_AT,
+    end: END_AT,
+    status: "confirmed",
+    eventType: "1on1-call",
+    raw: {
+      bookingId: "booking_raw",
+      eventId: "evt_raw",
+      startIso: "2026-05-01T11:00:00Z",
+      endIso: "2026-05-01T11:30:00Z",
+      status: "cancelled_creator",
+    },
+  };
+
+  it("uses canonical calendar fields before stale raw fields", () => {
+    const state = getCalendarEventJoinState(event, {
+      viewerRole: "fan",
+      baseUrl: BASE_URL,
+      now: "2026-05-01T09:55:00Z",
+    });
+
+    expect(state).toEqual(expect.objectContaining({
+      canJoin: true,
+      bookingId: "booking_calendar",
+      eventId: "evt_calendar",
+      startAt: START_AT,
+      endAt: END_AT,
+      status: "confirmed",
+      joinUrl: `${BASE_URL}/scheduled-meeting/?booking_id=booking_calendar`,
+    }));
+  });
+
+  it("falls back through raw, snapshot, and current calendar data", () => {
+    const state = getCalendarEventJoinState({
+      raw: {
+        bookingId: "booking_fallback",
+        eventId: "evt_fallback",
+        startIso: START_AT,
+        endIso: END_AT,
+        status: "confirmed",
+        eventSnapshot: {
+          enableCallReminderMinutesBefore: true,
+          callReminderMinutesBefore: 15,
+        },
+        eventCurrent: {
+          eventType: "1on1-call",
+        },
+      },
+    }, {
+      viewerRole: "fan",
+      baseUrl: BASE_URL,
+      now: "2026-05-01T09:55:00Z",
+    });
+
+    expect(state).toEqual(expect.objectContaining({
+      canJoin: true,
+      bookingId: "booking_fallback",
+      eventId: "evt_fallback",
+      reminderMinutes: 15,
+      eventType: "1on1-call",
+    }));
+  });
+
+  it("uses event/start URLs for creators and booking URLs for fans in group sessions", () => {
+    const groupEvent = {
+      ...event,
+      eventType: "group-event",
+      raw: {},
+    };
+    const creatorState = getCalendarEventJoinState(groupEvent, {
+      viewerRole: "creator",
+      baseUrl: BASE_URL,
+      now: "2026-05-01T09:55:00Z",
+    });
+    const fanState = getCalendarEventJoinState(groupEvent, {
+      viewerRole: "fan",
+      baseUrl: BASE_URL,
+      now: "2026-05-01T09:55:00Z",
+    });
+
+    expect(creatorState.joinUrl).toBe(
+      `${BASE_URL}/scheduled-meeting/?event_id=evt_calendar&start_iso=2026-05-01T10%3A00%3A00Z`,
+    );
+    expect(fanState.joinUrl).toBe(
+      `${BASE_URL}/scheduled-meeting/?booking_id=booking_calendar`,
+    );
+  });
+
+  it.each([
+    ["before the window", { now: "2026-05-01T09:54:59Z" }],
+    ["at the exact end", { now: END_AT }],
+    ["while pending", { now: "2026-05-01T09:55:00Z", event: { status: "pending" } }],
+    ["after completion", { now: "2026-05-01T09:55:00Z", event: { status: "completed" } }],
+    ["after cancellation", { now: "2026-05-01T09:55:00Z", event: { status: "cancelled_user" } }],
+    ["without a booking id", { now: "2026-05-01T09:55:00Z", event: { bookingId: null } }],
+    ["with invalid dates", { now: "2026-05-01T09:55:00Z", event: { start: "invalid" } }],
+  ])("does not allow joining %s", (_label, options) => {
+    const eventOverrides = options.event || {};
+    const raw = eventOverrides.bookingId === null ? {} : event.raw;
+    const candidate = {
+      ...event,
+      ...eventOverrides,
+      raw,
+    };
+    if (eventOverrides.bookingId === null) delete candidate.bookingId;
+
+    expect(getCalendarEventJoinState(candidate, {
+      viewerRole: "fan",
+      baseUrl: BASE_URL,
+      now: options.now,
+    }).canJoin).toBe(false);
+  });
+
+  it("keeps held and captured extensions joinable until the effective end", () => {
+    const state = getCalendarEventJoinState({
+      ...event,
+      raw: {},
+      extensions: [
+        { status: "held", endAtIso: "2026-05-01T10:40:00Z" },
+        { status: "captured", endAtIso: "2026-05-01T10:45:00Z" },
+      ],
+    }, {
+      viewerRole: "fan",
+      baseUrl: BASE_URL,
+      now: "2026-05-01T10:44:59Z",
+    });
+
+    expect(state.canJoin).toBe(true);
+    expect(state.effectiveEndDate.toISOString()).toBe("2026-05-01T10:45:00.000Z");
+  });
+});
+
+describe("getCalendarEventApprovalState", () => {
+  it.each(["pending", "pending_hold"])(
+    "keeps %s reviewable strictly before the scheduled start",
+    (status) => {
+      const event = { status, start: START_AT };
+
+      expect(getCalendarEventApprovalState(event, {
+        now: "2026-05-01T09:59:59.999Z",
+      })).toEqual(expect.objectContaining({
+        isPending: true,
+        canReview: true,
+        approvalWindowClosed: false,
+      }));
+      expect(getCalendarEventApprovalState(event, { now: START_AT })).toEqual(expect.objectContaining({
+        isPending: true,
+        canReview: false,
+        approvalWindowClosed: true,
+      }));
+    },
+  );
+
+  it("uses canonical status and start fields before stale raw data", () => {
+    const state = getCalendarEventApprovalState({
+      status: "pending",
+      start: START_AT,
+      raw: {
+        status: "confirmed",
+        startIso: "2026-05-01T09:00:00Z",
+      },
+    }, { now: "2026-05-01T09:59:59Z" });
+
+    expect(state).toEqual(expect.objectContaining({
+      status: "pending",
+      startAt: START_AT,
+      canReview: true,
+    }));
+  });
+
+  it("unwraps widget items and falls back through raw calendar data", () => {
+    const state = getCalendarEventApprovalState({
+      sourceEvent: {
+        raw: {
+          status: "pending_hold",
+          startAtIso: START_AT,
+        },
+      },
+    }, { now: START_AT });
+
+    expect(state).toEqual(expect.objectContaining({
+      status: "pending_hold",
+      canReview: false,
+      approvalWindowClosed: true,
+    }));
+  });
+
+  it("keeps malformed or missing pending starts reviewable for compatibility", () => {
+    expect(getCalendarEventApprovalState({ status: "pending", start: "invalid" }, {
+      now: START_AT,
+    }).canReview).toBe(true);
+    expect(getCalendarEventApprovalState({ status: "pending_hold" }, {
+      now: START_AT,
+    }).canReview).toBe(true);
+  });
+
+  it("never marks non-pending bookings as reviewable", () => {
+    expect(getCalendarEventApprovalState({ status: "confirmed", start: START_AT }, {
+      now: "2026-05-01T09:00:00Z",
+    }).canReview).toBe(false);
   });
 });
 

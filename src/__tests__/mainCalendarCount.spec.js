@@ -145,8 +145,8 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
 vi.mock("@/components/calendar/CalendarEventDetailsPopup.vue", () => ({
   default: {
     name: "CalendarEventDetailsPopup",
-    props: ["event"],
-    template: "<div data-test='event-details'>{{ event.title }}</div>",
+    props: ["event", "comparisonTime"],
+    template: "<div data-test='event-details' :data-comparison-time='comparisonTime?.toISOString?.()'>{{ event.title }}</div>",
   },
 }));
 
@@ -1651,6 +1651,7 @@ describe("MainCalendar all events count", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 3, 23, 9, 0, 0));
     setWindowWidth(390);
+    const joinComparisonTime = new Date(2026, 3, 23, 9, 55, 0);
 
     const events = Array.from({ length: 5 }, (_, index) => [
       makeEvent({
@@ -1674,7 +1675,12 @@ describe("MainCalendar all events count", () => {
 
     const wrapper = await mountCalendar(
       events,
-      { initialView: "day", dayColumnMode: "events", fitDayEventColumns: true },
+      {
+        initialView: "day",
+        dayColumnMode: "events",
+        fitDayEventColumns: true,
+        joinComparisonTime,
+      },
       {
         slots: {
           "event-availability": `
@@ -1713,7 +1719,9 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.findAll("[data-test='mobile-booking']")).toHaveLength(5);
 
     await wrapper.get("[data-test='mobile-booking']").trigger("click");
-    expect(wrapper.findComponent({ name: "CalendarEventDetailsPopup" }).exists()).toBe(true);
+    const detailsPopup = wrapper.findComponent({ name: "CalendarEventDetailsPopup" });
+    expect(detailsPopup.exists()).toBe(true);
+    expect(detailsPopup.props("comparisonTime")).toBe(joinComparisonTime);
   });
 
   it("uses month and year for the mobile day calendar toggle title", async () => {
