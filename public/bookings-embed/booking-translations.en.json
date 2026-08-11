@@ -389,6 +389,8 @@
   "common_week": "Week",
   "common_yes": "Yes",
   "dashboard_all_events": "All Events",
+  "dashboard_approval_window_closed_message": "This booking request can no longer be reviewed because its scheduled start time has passed.",
+  "dashboard_approval_window_closed_title": "Approval Window Closed",
   "dashboard_ask_for_more_time": "Ask for more time",
   "dashboard_ask_to_reschedule": "Ask to reschedule",
   "dashboard_audio_call": "Audio Call",

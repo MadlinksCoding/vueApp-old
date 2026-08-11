@@ -10,8 +10,7 @@ const mock = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
   mapAvailabilityToCalendarEvents: vi.fn(() => []),
   mapBookedSlotsToCalendarEvents: vi.fn(() => []),
-  getBookingJoinState: vi.fn(() => ({ canJoin: true, joinUrl: "https://example.com/private-call" })),
-  buildScheduledGroupMeetingUrl: vi.fn(() => "https://example.com/group-call"),
+  getCalendarEventJoinState: vi.fn(() => ({ canJoin: true, joinUrl: "https://example.com/private-call" })),
   showToast: vi.fn(),
   fetchEventXPostSettings: vi.fn(),
   isCreatorAllowedForXRepost: vi.fn(() => true),
@@ -189,8 +188,7 @@ vi.mock("@/utils/toastBus.js", () => ({
 }));
 
 vi.mock("@/utils/bookingJoinUtils.js", () => ({
-  getBookingJoinState: mock.getBookingJoinState,
-  buildScheduledGroupMeetingUrl: mock.buildScheduledGroupMeetingUrl,
+  getCalendarEventJoinState: mock.getCalendarEventJoinState,
 }));
 
 vi.mock("@/i18n/bookingTranslations.js", () => ({
@@ -402,13 +400,11 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       slot: ["confirmed", "completed"].includes(slot.status) ? "event" : "custom",
       raw: slot,
     })));
-    mock.getBookingJoinState.mockReset();
-    mock.getBookingJoinState.mockReturnValue({
+    mock.getCalendarEventJoinState.mockReset();
+    mock.getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/private-call",
     });
-    mock.buildScheduledGroupMeetingUrl.mockReset();
-    mock.buildScheduledGroupMeetingUrl.mockReturnValue("https://example.com/group-call");
     mock.showToast.mockReset();
     mock.revealSelectedWeekDay.mockClear();
     mock.scrollToTime.mockClear();
@@ -1406,7 +1402,10 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     );
 
     await wrapper.get("[data-test='calendar-join']").trigger("click");
-    expect(mock.getBookingJoinState).toHaveBeenCalled();
+    expect(mock.getCalendarEventJoinState).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: "booking_action" }),
+      expect.objectContaining({ viewerRole: "creator", now: expect.any(Date) }),
+    );
     expect(wrapper.emitted("open-url")?.at(-1)).toEqual([{
       url: "https://example.com/private-call",
       target: "_blank",

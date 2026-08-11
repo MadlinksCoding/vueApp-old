@@ -176,6 +176,8 @@ export const bookingMessages = {
   dashboard_booking_action_failed_title: "Booking Action Failed",
   dashboard_booking_action_missing_id: "Could not find booking id for this request.",
   dashboard_booking_action_update_failed: "Could not update booking approval.",
+  dashboard_approval_window_closed_title: "Approval Window Closed",
+  dashboard_approval_window_closed_message: "This booking request can no longer be reviewed because its scheduled start time has passed.",
   dashboard_booking_updated_title: "Booking Updated",
   dashboard_booking_updated_message: "Booking {action} successfully.",
   dashboard_cancel_missing_id: "Could not find booking id for this call.",

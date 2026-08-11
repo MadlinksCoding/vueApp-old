@@ -20,6 +20,7 @@
           <button
             v-if="showJoinButton"
             type="button"
+            data-test="chat-booking-request-join-call"
             class="px-2 py-[3px] rounded flex items-center gap-1 cursor-pointer bg-[#5549FF]"
             @click.stop="handleJoin"
           >
@@ -533,27 +534,33 @@ const endDate = computed(() => {
 
 const bookingIdComputed = computed(() => booking.value?.bookingId || content.value?.booking_id || null)
 
-const joinState = computed(() => getBookingJoinState({
-  bookingId:                       bookingIdComputed.value,
-  startAt:                         startDate.value,
-  endAt:                           endDate.value,
-  status:                          booking.value?.status || resolvedAction.value,
-  enableCallReminderMinutesBefore: booking.value?.enableCallReminderMinutesBefore ?? booking.value?.setReminders,
-  callReminderMinutesBefore:       booking.value?.callReminderMinutesBefore ?? booking.value?.reminderMinutes,
-  reminderMinutes:                 booking.value?.reminderMinutes,
-  extensions:                      booking.value?.extensions ?? [],
-}))
+function resolveJoinState(comparisonTime) {
+  return getBookingJoinState({
+    bookingId: bookingIdComputed.value,
+    startAt: startDate.value,
+    endAt: endDate.value,
+    status: booking.value?.status || resolvedAction.value,
+    enableCallReminderMinutesBefore: booking.value?.enableCallReminderMinutesBefore ?? booking.value?.setReminders,
+    callReminderMinutesBefore: booking.value?.callReminderMinutesBefore ?? booking.value?.reminderMinutes,
+    reminderMinutes: booking.value?.reminderMinutes,
+    extensions: booking.value?.extensions ?? [],
+    now: comparisonTime,
+  })
+}
+
+const joinState = computed(() => resolveJoinState(new Date(now.value)))
 
 const showJoinButton = computed(() => joinState.value.canJoin && !isPassCall.value)
 
 function handleJoin() {
   menuOpen.value = false
-  if (!joinState.value.canJoin || !joinState.value.joinUrl) {
+  const freshJoinState = resolveJoinState(new Date())
+  if (!freshJoinState.canJoin || !freshJoinState.joinUrl) {
     showToast({ type: 'error', message: 'Call is not available to join yet.' })
     return
   }
-  if (openScheduledMeetingOverlay(joinState.value.joinUrl, { source: 'chat_booking_request' })) return
-  window.open(joinState.value.joinUrl, '_top')
+  if (openScheduledMeetingOverlay(freshJoinState.joinUrl, { source: 'chat_booking_request' })) return
+  window.open(freshJoinState.joinUrl, '_top')
 }
 
 function fmtTime(d) {

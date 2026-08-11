@@ -241,15 +241,16 @@
                     </div>
 
                     <div v-else-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
-                    <button type="button" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
+                    <button type="button" data-test="calendar-event-details-accept" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
                         {{ t("calendar_event_accept") }}
                     </button>
-                    <button type="button" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
+                    <button type="button" data-test="calendar-event-details-decline" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
                         {{ t("calendar_event_decline") }}
                     </button>
                     <button 
                         v-if="bookingData?.meta?.bookingMessageId && bookingData?.meta?.chatId"
-                        type="button" 
+                        type="button"
+                        data-test="calendar-event-details-adjust-request"
                         @click="handleAdjust" 
                         class="px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
                     >
@@ -260,7 +261,7 @@
                     </button>
                     </div>
 
-                    <div v-if="canReviewPending && showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
+                    <div v-if="canReviewPending && showRejectConfirm" data-test="calendar-event-details-reject-confirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
                         <div class="text-xs font-medium text-red-700 mb-2">
                             {{ t("calendar_event_reject_confirm") }}
                         </div>
@@ -313,7 +314,10 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
-import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+import {
+    getCalendarEventApprovalState,
+    getCalendarEventJoinState,
+} from '@/utils/bookingJoinUtils.js';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import alarmIcon from '@/assets/images/icons/alarmIcon.png';
 import userIcon from '@/assets/images/icons/profile.webp';
@@ -338,14 +342,54 @@ const props = defineProps({
     userRole: {
         type: String,
         default: 'creator'
+    },
+    comparisonTime: {
+        type: Date,
+        default: null
     }
 });
 
 const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking', 'close', 'adjust-booking', 'open-chat']);
 const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
-const currentTime = ref(new Date());
+const localCurrentTime = ref(new Date());
 const currentTimeTimer = ref(null);
+const MINUTE_MS = 60 * 1000;
+const hasExternalComparisonTime = computed(() => (
+    props.comparisonTime instanceof Date
+    && !Number.isNaN(props.comparisonTime.getTime())
+));
+const currentTime = computed(() => (
+    hasExternalComparisonTime.value ? props.comparisonTime : localCurrentTime.value
+));
+
+function clearCurrentTimeTimer() {
+    if (currentTimeTimer.value == null) return;
+    window.clearTimeout(currentTimeTimer.value);
+    currentTimeTimer.value = null;
+}
+
+function scheduleLocalCurrentTimeRefresh() {
+    clearCurrentTimeTimer();
+    if (hasExternalComparisonTime.value) return;
+    const nowMs = Date.now();
+    const delay = MINUTE_MS - (nowMs % MINUTE_MS);
+    currentTimeTimer.value = window.setTimeout(refreshLocalCurrentTime, Math.max(1, delay));
+}
+
+function refreshLocalCurrentTime() {
+    if (hasExternalComparisonTime.value) {
+        clearCurrentTimeTimer();
+        return;
+    }
+    localCurrentTime.value = new Date();
+    scheduleLocalCurrentTimeRefresh();
+}
+
+function handleCurrentTimeVisibilityChange() {
+    if (document.visibilityState === 'hidden') return;
+    refreshLocalCurrentTime();
+}
 
 function normalizeHexColor(color, fallback = '#5549FF') {
     if (typeof color !== 'string') return fallback;
@@ -479,6 +523,10 @@ function translateStatusLabel(label) {
     return key ? t(key) : titleCaseFromKey(normalized);
 }
 
+const approvalState = computed(() => getCalendarEventApprovalState(props.event, {
+    now: currentTime.value,
+}));
+
 const statusHint = computed(() => {
     if (!startDate.value || !endDate.value) return statusLabel.value ? translateStatusLabel(statusLabel.value) : '';
 
@@ -487,6 +535,7 @@ const statusHint = computed(() => {
     const statusEndDate = effectiveEndDate.value || endDate.value;
     const endMs = statusEndDate.getTime();
 
+    if (approvalState.value.approvalWindowClosed) return t('calendar_event_status_ended');
     if (now >= startMs && now < endMs) return t('calendar_event_live_now');
     if (now > endMs) return t('calendar_event_status_ended');
 
@@ -525,47 +574,13 @@ const statusDotColor = computed(() => {
     return '#6B7280';
 });
 
-const bookingId = computed(() => raw.value?.bookingId || props.event?.bookingId || null);
-const eventId = computed(() => raw.value?.eventId || props.event?.eventId || null);
-const joinState = computed(() => getBookingJoinState({
-    bookingId: bookingId.value,
-    startAt: startDate.value,
-    endAt: endDate.value,
-    status: statusLabel.value,
-    enableCallReminderMinutesBefore: firstDefined(
-        props.event?.enableCallReminderMinutesBefore,
-        raw.value?.enableCallReminderMinutesBefore,
-        eventSnapshot.value?.enableCallReminderMinutesBefore,
-        eventCurrent.value?.enableCallReminderMinutesBefore,
-        props.event?.setReminders,
-        raw.value?.setReminders,
-        eventSnapshot.value?.setReminders,
-        eventCurrent.value?.setReminders,
-    ),
-    callReminderMinutesBefore: firstDefined(
-        props.event?.callReminderMinutesBefore,
-        raw.value?.callReminderMinutesBefore,
-        raw.value?.reminderMinutes,
-        mergedEvent.value?.callReminderMinutesBefore,
-        mergedEvent.value?.reminderMinutes,
-        mergedEvent.value?.remindBeforeMinutes,
-    ),
-    reminderMinutes: firstDefined(
-        raw.value?.reminderMinutes,
-        props.event?.reminderMinutes,
-        mergedEvent.value?.reminderMinutes,
-    ),
-    extensions: firstDefined(props.event?.extensions, raw.value?.extensions, []),
+const joinState = computed(() => getCalendarEventJoinState(props.event, {
+    viewerRole: props.userRole,
     now: currentTime.value,
 }));
-const joinUrl = computed(() => (
-    joinState.value.joinUrl
-    || raw.value?.joinUrl
-    || raw.value?.callUrl
-    || mergedEvent.value?.joinUrl
-    || mergedEvent.value?.callUrl
-    || null
-));
+const bookingId = computed(() => joinState.value.bookingId);
+const eventId = computed(() => joinState.value.eventId);
+const joinUrl = computed(() => joinState.value.joinUrl);
 const effectiveEndDate = computed(() => {
     const parsedEffectiveEnd = joinState.value?.effectiveEndDate
         ? new Date(joinState.value.effectiveEndDate)
@@ -583,20 +598,22 @@ const showBookingMenu = computed(() => (
 ));
 
 function handleJoin() {
-    if (!canJoinCall.value) return;
+    const freshJoinState = getCalendarEventJoinState(props.event, {
+        viewerRole: props.userRole,
+        now: new Date(),
+    });
     menuOpen.value = false;
     emit('join-call', {
-        bookingId: bookingId.value,
-        eventId: eventId.value,
-        joinUrl: joinUrl.value,
+        bookingId: freshJoinState.bookingId,
+        eventId: freshJoinState.eventId,
+        joinUrl: freshJoinState.joinUrl,
         event: props.event,
     });
 }
 
 const canReviewPending = computed(() => (
     props.canReviewPending
-    && statusLabel.value === 'pending'
-    && !callHasPassed.value
+    && approvalState.value.canReview
     && !isWaitingForResponse.value
 ));
 const showRejectConfirm = ref(false);
@@ -693,19 +710,25 @@ function emitReviewAction(decision) {
     });
 }
 
+function canReviewAtClickTime() {
+    return props.canReviewPending
+        && getCalendarEventApprovalState(props.event, { now: new Date() }).canReview
+        && !isWaitingForResponse.value;
+}
+
 function handleApprove() {
-    if (!canReviewPending.value) return;
+    if (!canReviewAtClickTime()) return;
     showRejectConfirm.value = false;
     emitReviewAction('approve');
 }
 
 function handleReject() {
-    if (!canReviewPending.value) return;
+    if (!canReviewAtClickTime()) return;
     showRejectConfirm.value = true;
 }
 
 function confirmReject() {
-    if (!canReviewPending.value) {
+    if (!canReviewAtClickTime()) {
         showRejectConfirm.value = false;
         return;
     }
@@ -723,23 +746,33 @@ const handleDocumentClick = () => {
 };
 
 onMounted(() => {
-    currentTime.value = new Date();
-    currentTimeTimer.value = window.setInterval(() => {
-        currentTime.value = new Date();
-    }, 60 * 1000);
+    refreshLocalCurrentTime();
+    window.addEventListener('focus', refreshLocalCurrentTime);
+    document.addEventListener('visibilitychange', handleCurrentTimeVisibilityChange);
     document.addEventListener('click', handleDocumentClick);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleDocumentClick);
-    if (currentTimeTimer.value) {
-        window.clearInterval(currentTimeTimer.value);
-        currentTimeTimer.value = null;
-    }
+    window.removeEventListener('focus', refreshLocalCurrentTime);
+    document.removeEventListener('visibilitychange', handleCurrentTimeVisibilityChange);
+    clearCurrentTimeTimer();
     if (guestProfileAbortController) {
         guestProfileAbortController.abort();
         guestProfileAbortController = null;
     }
+});
+
+watch(hasExternalComparisonTime, (hasExternalTime) => {
+    if (hasExternalTime) {
+        clearCurrentTimeTimer();
+        return;
+    }
+    refreshLocalCurrentTime();
+});
+
+watch(canReviewPending, (canReview) => {
+    if (!canReview) showRejectConfirm.value = false;
 });
 
 const guestCount = computed(() => {

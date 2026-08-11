@@ -7,7 +7,7 @@ import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 let engine;
 const callFlow = vi.fn();
 const showToast = vi.fn();
-const getBookingJoinState = vi.fn();
+const getCalendarEventJoinState = vi.fn();
 const mainCalendarResetScrollToTop = vi.fn();
 const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
@@ -59,18 +59,16 @@ vi.mock("@/utils/toastBus.js", () => ({
   showToast,
 }));
 
-vi.mock("@/utils/bookingJoinUtils.js", () => ({
-  getBookingJoinState,
-  buildScheduledGroupMeetingUrl: vi.fn(({ eventId, startIso }) => (
-    `https://example.com/scheduled-meeting/?event_id=${encodeURIComponent(eventId)}&start_iso=${encodeURIComponent(startIso)}`
-  )),
+vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCalendarEventJoinState,
 }));
 
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
-    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "approve-booking", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
@@ -190,6 +188,19 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
     },
     template: `
       <div class='main-calendar-stub'>
+        <button
+          data-test="main-calendar-popup-join"
+          @click="$emit('join-call', {
+            event: {
+              bookingId: 'booking_popup_race',
+              eventId: 'evt_popup_race',
+              start: '2026-03-23T10:00:00',
+              end: '2026-03-23T10:30:00',
+              status: 'confirmed',
+              eventType: '1on1-call'
+            }
+          })"
+        >join popup call</button>
         <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
         <button data-test="main-calendar-schedule-edit" @click="emitScheduleEdit">edit schedule</button>
         <button data-test="main-calendar-schedule-delete" @click="emitScheduleDelete">delete schedule</button>
@@ -237,7 +248,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           :event="event"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="bookingTestView"
         />
         <slot
           v-for="event in dynamicAvailabilityEvents"
@@ -389,6 +400,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
             @click="$emit('event-click', event)"
           >
             {{ event.title }} {{ event.time }} {{ event.showReply ? 'reply' : '' }}
+            <span v-if="event.canJoin" data-test="widget-synchronized-join">Join</span>
           </button>
         </template>
         <template v-if="shouldRenderActionMocks">
@@ -517,7 +529,7 @@ describe("DashboardEventsFeature", () => {
 
     callFlow.mockReset();
     showToast.mockReset();
-    getBookingJoinState.mockReset();
+    getCalendarEventJoinState.mockReset();
     mainCalendarResetScrollToTop.mockReset();
     mainCalendarScrollToCurrentTime.mockReset();
     mainCalendarRevealSelectedWeekDay.mockReset();
@@ -531,9 +543,17 @@ describe("DashboardEventsFeature", () => {
       },
     });
 
-    getBookingJoinState.mockReturnValue({
-      canJoin: true,
-      joinUrl: "https://example.com/join/77",
+    getCalendarEventJoinState.mockImplementation((event, { viewerRole } = {}) => {
+      const raw = event?.raw || {};
+      const eventType = String(event?.eventType || event?.type || raw.eventType || raw.type || "");
+      const eventId = event?.eventId || raw.eventId;
+      const startIso = event?.start || raw.startIso || raw.startAtIso;
+      return {
+        canJoin: true,
+        joinUrl: viewerRole === "creator" && eventType.includes("group")
+          ? `https://example.com/scheduled-meeting/?event_id=${encodeURIComponent(eventId)}&start_iso=${encodeURIComponent(startIso)}`
+          : "https://example.com/join/77",
+      };
     });
 
     engine = createMockEngine();
@@ -1667,7 +1687,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it.each(["day", "week"])("shows the starting-soon countdown above Join call in %s view", async (view) => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/join/calendar-booking",
     });
@@ -1699,13 +1719,13 @@ describe("DashboardEventsFeature", () => {
       .toBe("true");
     expect(countdown.element.compareDocumentPosition(joinButton.element) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
-    expect(joinArea.classes()).toContain("pb-0.5");
+    expect(joinArea.classes()).toContain("pb-1");
     expect(bookingMarker.classes()).toContain("min-h-[4rem]");
     expect(joinButton.text()).toBe("Join call");
   });
 
   it.each(["day", "week"])("updates the %s countdown to live now while preserving the active Join action", async (view) => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/join/calendar-booking",
     });
@@ -1741,7 +1761,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("keeps live now through an effective paid extension and clears it at the extended end", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/join/calendar-booking",
       effectiveEndDate: new Date("2026-03-23T09:10:00"),
@@ -1772,7 +1792,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it.each(["day", "week"])("replaces a joinable booking's time with the Join call CTA in %s view", async (view) => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/join/calendar-booking",
     });
@@ -1788,7 +1808,7 @@ describe("DashboardEventsFeature", () => {
     const joinArea = bookingMarker.get("[data-test='dashboard-calendar-join-area']");
     const joinButton = bookingMarker.get("[data-test='dashboard-calendar-join-call']");
 
-    expect(joinArea.classes()).toContain("pb-0.5");
+    expect(joinArea.classes()).toContain("pb-1");
     expect(joinButton.text()).toBe("Join call");
     expect(joinButton.classes()).toEqual(expect.arrayContaining([
       "mx-1",
@@ -1819,7 +1839,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it.each(["day", "week"])("spaces a non-joinable booking's title and time apart in %s view", async (view) => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/join/calendar-booking",
     });
@@ -1846,10 +1866,12 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("uses the existing group meeting URL and exposes the CTA to fan dashboards", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockImplementation((event, { viewerRole }) => ({
       canJoin: true,
-      joinUrl: "https://example.com/join/private-booking",
-    });
+      joinUrl: viewerRole === "creator" && String(event?.eventType || event?.type || "").includes("group")
+        ? "https://example.com/scheduled-meeting/?event_id=evt_month_booked&start_iso=2026-03-23T12%3A00%3A00"
+        : "https://example.com/join/private-booking",
+    }));
     const creatorWrapper = await mountDashboardEventsFeature({
       creatorId: 77,
       userRole: "creator",
@@ -1912,7 +1934,7 @@ describe("DashboardEventsFeature", () => {
       joinState: { canJoin: true, joinUrl: "https://example.com/join/calendar-booking" },
     },
   ])("keeps the time row for a booking $label", async ({ status, joinState }) => {
-    getBookingJoinState.mockReturnValue(joinState);
+    getCalendarEventJoinState.mockReturnValue(joinState);
     const wrapper = await mountDashboardEventsFeature({
       creatorId: 77,
       userRole: "creator",
@@ -1940,8 +1962,31 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("updates the calendar CTA as the reactive clock enters and leaves the join window", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:00:59"));
     const joinWindowStart = new Date("2026-03-23T09:01:00").getTime();
     const joinWindowEnd = new Date("2026-03-23T09:02:00").getTime();
+    const widgetBookedSlots = [
+      {
+        bookingId: "booking_height_transition",
+        eventId: "evt_height_transition",
+        eventTitle: "Height Transition Call",
+        eventType: "1on1-call",
+        eventCallType: "video",
+        startIso: "2026-03-23T09:01:00",
+        endIso: "2026-03-23T09:30:00",
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_pending_during_transition",
+        eventId: "evt_pending_during_transition",
+        eventTitle: "Pending During Transition",
+        eventType: "1on1-call",
+        eventCallType: "video",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+      },
+    ];
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -1951,20 +1996,12 @@ describe("DashboardEventsFeature", () => {
           type: "1on1-call",
           eventCallType: "video",
         }],
-        bookedSlots: [{
-          bookingId: "booking_height_transition",
-          eventId: "evt_height_transition",
-          eventTitle: "Height Transition Call",
-          eventType: "1on1-call",
-          eventCallType: "video",
-          startIso: "2026-03-23T09:01:00",
-          endIso: "2026-03-23T09:30:00",
-          status: "confirmed",
-        }],
+        bookedSlots: widgetBookedSlots,
+        widgetBookedSlots,
         bookedSlotsIndex: {},
       },
     });
-    getBookingJoinState.mockImplementation(({ now }) => {
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => {
       const nowMs = new Date(now).getTime();
       return {
         canJoin: nowMs >= joinWindowStart && nowMs < joinWindowEnd,
@@ -1980,17 +2017,220 @@ describe("DashboardEventsFeature", () => {
     const layoutHeight = () => mainCalendar.props("events")
       .find((event) => event.bookingId === "booking_height_transition")
       ?.layoutMinHeightPx;
+    const sectionOrder = () => mainCalendar.props("eventsData").map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ));
+    const renderedWidgetSectionOrder = () => wrapper
+      .findAllComponents({ name: "EventsWidget" })
+      .find((component) => component.props("sections")?.some((section) => section.isPending))
+      ?.props("sections")
+      .map((section) => (
+        section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+      ));
 
     expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+    expect(sectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:00:59").getTime());
     expect(layoutHeight()).toBe(40);
-    vi.advanceTimersByTime(60 * 1000);
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(true);
-    expect(layoutHeight()).toBe(64);
-    vi.advanceTimersByTime(60 * 1000);
-    await wrapper.vm.$nextTick();
+    await vi.advanceTimersByTimeAsync(999);
+    await flushPromises();
     expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(true);
+    expect(sectionOrder()).toEqual(["today", "pending", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["today", "pending", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime()).toBe(joinWindowStart);
+    expect(layoutHeight()).toBe(64);
+
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+    expect(sectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime()).toBe(joinWindowEnd);
     expect(layoutHeight()).toBe(40);
+  });
+
+  it.each([
+    { label: "a private creator booking", userRole: "creator", eventType: "1on1-call" },
+    { label: "a group creator booking", userRole: "creator", eventType: "group-event" },
+    { label: "a private fan booking", userRole: "fan", eventType: "1on1-call" },
+    { label: "a group fan booking", userRole: "fan", eventType: "group-event" },
+  ])("promotes Today for $label with an enabled Join Call", async ({ userRole, eventType }) => {
+    const joinableSlot = {
+      bookingId: `booking_joinable_${userRole}_${eventType}`,
+      eventId: `evt_joinable_${userRole}_${eventType}`,
+      eventTitle: "Joinable Today",
+      eventType,
+      eventCallType: "video",
+      startIso: "2026-03-23T09:05:00",
+      endIso: "2026-03-23T09:35:00",
+      status: "confirmed",
+    };
+    const pendingSlot = {
+      bookingId: `booking_pending_${userRole}_${eventType}`,
+      eventId: `evt_pending_${userRole}_${eventType}`,
+      eventTitle: "Pending Today",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      startIso: "2026-03-23T10:00:00",
+      endIso: "2026-03-23T10:30:00",
+      status: "pending",
+    };
+    const laterTodaySlot = {
+      bookingId: `booking_later_${userRole}_${eventType}`,
+      eventId: `evt_later_${userRole}_${eventType}`,
+      eventTitle: "Later Today",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      startIso: "2026-03-23T09:30:00",
+      endIso: "2026-03-23T10:00:00",
+      status: "confirmed",
+    };
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/active-booking",
+    });
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: joinableSlot.eventId,
+          title: joinableSlot.eventTitle,
+          type: eventType,
+          eventCallType: "video",
+        }],
+        bookedSlots: [pendingSlot, laterTodaySlot, joinableSlot],
+        widgetBookedSlots: [pendingSlot, laterTodaySlot, joinableSlot],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: userRole === "creator" ? 77 : null,
+      fanId: userRole === "fan" ? 2615 : null,
+      userRole,
+    });
+    const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+
+    expect(sections.map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ))).toEqual(["today", "pending", "week"]);
+    expect(sections[0].items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Joinable Today",
+        canJoin: true,
+        joinUrl: "https://example.com/join/active-booking",
+      }),
+    ]));
+    expect(sections[0].items.map((item) => item.title))
+      .toEqual(["Joinable Today", "Later Today"]);
+  });
+
+  it.each([
+    {
+      label: "outside the join window",
+      joinState: { canJoin: false, joinUrl: "https://example.com/join/upcoming" },
+    },
+    {
+      label: "without a usable join URL",
+      joinState: { canJoin: true, joinUrl: null },
+    },
+  ])("keeps Pending first when a confirmed Today booking is $label", async ({ joinState }) => {
+    const slots = [
+      {
+        bookingId: "booking_not_enabled",
+        eventId: "evt_not_enabled",
+        eventTitle: "Not Enabled Today",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T09:05:00",
+        endIso: "2026-03-23T09:35:00",
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_pending_stays_first",
+        eventId: "evt_pending_stays_first",
+        eventTitle: "Pending Stays First",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending_hold",
+      },
+      {
+        bookingId: "booking_completed_ignored",
+        eventId: "evt_completed_ignored",
+        eventTitle: "Completed Ignored",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:30:00",
+        endIso: "2026-03-23T11:00:00",
+        status: "completed",
+      },
+      {
+        bookingId: "booking_cancelled_ignored",
+        eventId: "evt_cancelled_ignored",
+        eventTitle: "Cancelled Ignored",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T11:00:00",
+        endIso: "2026-03-23T11:30:00",
+        status: "cancelled_creator",
+      },
+    ];
+    getCalendarEventJoinState.mockReturnValue(joinState);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: slots,
+        widgetBookedSlots: slots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+
+    expect(sections.map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ))).toEqual(["pending", "today", "week"]);
+  });
+
+  it("refreshes the shared join clock immediately on visibility and focus recovery", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:54:10"));
+    const joinWindowStart = new Date("2026-03-23T09:55:00").getTime();
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => ({
+      canJoin: new Date(now).getTime() >= joinWindowStart,
+      joinUrl: "https://example.com/join/calendar-booking",
+    }));
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:54:10").getTime());
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:05"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:55:05").getTime());
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:20"));
+    window.dispatchEvent(new Event("focus"));
+    await flushPromises();
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:55:20").getTime());
   });
 
   it("shows an interactive schedule-title hover card in every main calendar view", async () => {
@@ -2446,10 +2686,13 @@ describe("DashboardEventsFeature", () => {
     const earlierStartIso = isoTodayAt(9, 2);
     const endIso = isoTodayAt(9, 30);
 
-    getBookingJoinState.mockImplementation(({ bookingId }) => ({
-      canJoin: bookingId !== "booking_without_url",
-      joinUrl: bookingId === "booking_without_url" ? null : `https://example.com/join/${bookingId}`,
-    }));
+    getCalendarEventJoinState.mockImplementation((event) => {
+      const bookingId = event?.bookingId || event?.raw?.bookingId;
+      return {
+        canJoin: bookingId !== "booking_without_url",
+        joinUrl: bookingId === "booking_without_url" ? null : `https://example.com/join/${bookingId}`,
+      };
+    });
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -2706,7 +2949,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("does not pass a sticky card event when no confirmed booking has an active join URL", async () => {
-    getBookingJoinState.mockReturnValue({ canJoin: true, joinUrl: null });
+    getCalendarEventJoinState.mockReturnValue({ canJoin: true, joinUrl: null });
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -2914,15 +3157,38 @@ describe("DashboardEventsFeature", () => {
         target: "_self",
       }],
     ]);
-    expect(getBookingJoinState).toHaveBeenCalledWith(expect.objectContaining({
-      enableCallReminderMinutesBefore: true,
-      callReminderMinutesBefore: 15,
-      extensions: [{ status: "held", endAtIso: "2026-03-23T10:45:00Z" }],
+    expect(getCalendarEventJoinState).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: 77 }),
+      expect.objectContaining({ viewerRole: "creator", now: expect.any(Date) }),
+    );
+  });
+
+  it("validates popup joins with the actual click time instead of the stale dashboard clock", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:54:30"));
+    const joinWindowStart = Date.parse("2026-03-23T09:55:00");
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => ({
+      canJoin: new Date(now).getTime() >= joinWindowStart,
+      joinUrl: "https://example.com/join/booking_popup_race",
     }));
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:01"));
+    await wrapper.get("[data-test='main-calendar-popup-join']").trigger("click");
+
+    const clickOptions = getCalendarEventJoinState.mock.calls.at(-1)?.[1];
+    expect(clickOptions.now.getTime()).toBe(Date.parse("2026-03-23T09:55:01"));
+    expect(wrapper.emitted("open-url")?.at(-1)).toEqual([{
+      url: "https://example.com/join/booking_popup_race",
+      target: "_self",
+    }]);
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("shows current unavailable copy when a confirmed booking cannot be joined", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/join/77",
     });
@@ -4148,5 +4414,186 @@ describe("DashboardEventsFeature", () => {
     expect(widgetSections.flatMap((section) => section.items).map((item) => item.title)).toEqual([
       "Boundary Today Hang",
     ]);
+  });
+
+  it("expires pending approval cards at the exact start while retaining the calendar marker", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:59"));
+    const boundaryRequests = [
+      {
+        bookingId: "booking_pending_boundary",
+        eventId: "evt_pending_boundary",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+        eventTitle: "Pending At Boundary",
+        eventType: "1on1-call",
+      },
+      {
+        bookingId: "booking_hold_boundary",
+        eventId: "evt_hold_boundary",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending_hold",
+        eventTitle: "Hold At Boundary",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_pending_future",
+        eventId: "evt_pending_future",
+        startIso: "2026-03-23T11:00:00",
+        endIso: "2026-03-23T11:30:00",
+        status: "pending",
+        eventTitle: "Future Pending",
+        eventType: "1on1-call",
+      },
+    ];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: boundaryRequests,
+        widgetBookedSlots: boundaryRequests,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const actionableTitles = () => mainCalendar.props("eventsData")
+      .find((section) => section.isPending)?.items.map((item) => item.title);
+    const stickyTitles = () => mainCalendar.props("stickyCardEvents").map((item) => item.title);
+    const calendarTitles = () => mainCalendar.props("events").map((event) => event.title);
+    const calendarMarkerFor = (title) => wrapper
+      .findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes(title));
+
+    expect(actionableTitles()).toEqual([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]);
+    expect(stickyTitles()).toEqual([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]);
+    expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
+      .toContain("Expanded Pending Event");
+    expect(calendarMarkerFor("Pending At Boundary")?.element.style.backgroundColor)
+      .toBe("transparent");
+    expect(calendarMarkerFor("Hold At Boundary")?.element.style.backgroundColor)
+      .toBe("transparent");
+
+    await vi.advanceTimersByTimeAsync(999);
+    await flushPromises();
+    expect(actionableTitles()).toContain("Pending At Boundary");
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+
+    expect(actionableTitles()).toEqual(["Future Pending"]);
+    expect(stickyTitles()).toEqual(["Future Pending"]);
+    expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
+      .not.toContain("Expanded Pending Event");
+    expect(calendarTitles()).toEqual(expect.arrayContaining([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]));
+    expect(mainCalendar.props("events")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: "Pending At Boundary", status: "pending" }),
+      expect.objectContaining({ title: "Hold At Boundary", status: "pending_hold" }),
+    ]));
+
+    for (const view of ["day", "week", "month"]) {
+      mainCalendar.vm.bookingTestView = view;
+      await wrapper.vm.$nextTick();
+
+      for (const title of ["Pending At Boundary", "Hold At Boundary"]) {
+        const markerStyle = calendarMarkerFor(title)?.element.style;
+        expect(markerStyle?.backgroundColor).toBe("rgb(217, 220, 230)");
+        expect(markerStyle?.borderColor).toBe("rgb(200, 205, 216)");
+        expect(markerStyle?.color).toBe("rgb(152, 162, 179)");
+        expect(markerStyle?.boxShadow).toBe("none");
+      }
+    }
+  });
+
+  it("blocks stale approval events locally and refreshes the dashboard context", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:59Z"));
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialFetchCount = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+
+    vi.setSystemTime(new Date("2026-03-23T10:00:00Z"));
+    mainCalendar.vm.$emit("approve-booking", {
+      bookingId: "booking_stale_dashboard",
+      event: {
+        bookingId: "booking_stale_dashboard",
+        start: "2026-03-23T10:00:00Z",
+        status: "pending",
+      },
+    });
+    await flushPromises();
+
+    expect(callFlow.mock.calls.some(
+      ([flowName]) => flowName === "bookings.reviewPendingBooking",
+    )).toBe(false);
+    expect(callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    )).toHaveLength(initialFetchCount + 1);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Approval Window Closed",
+      message: expect.not.stringContaining("approval_window_closed"),
+    }));
+  });
+
+  it("turns an approval_window_closed backend race into friendly copy and refreshes context", async () => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "REVIEW_BOOKING_FAILED",
+            message: "approval_window_closed",
+            details: { error: "approval_window_closed" },
+          },
+        };
+      }
+      return {
+        ok: true,
+        data: { events: [], bookedSlots: [], widgetBookedSlots: [], bookedSlotsIndex: {} },
+      };
+    });
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialFetchCount = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+
+    mainCalendar.vm.$emit("approve-booking", {
+      bookingId: "booking_raced_dashboard",
+      event: {
+        bookingId: "booking_raced_dashboard",
+        start: "2026-03-23T10:00:00Z",
+        status: "pending",
+      },
+    });
+    await flushPromises();
+
+    expect(callFlow.mock.calls.some(
+      ([flowName]) => flowName === "bookings.reviewPendingBooking",
+    )).toBe(true);
+    expect(callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    )).toHaveLength(initialFetchCount + 1);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Approval Window Closed",
+      message: expect.not.stringContaining("approval_window_closed"),
+    }));
   });
 });
