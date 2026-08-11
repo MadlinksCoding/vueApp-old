@@ -33,7 +33,7 @@ import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
 import { showToast } from "@/utils/toastBus.js";
-import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import { getCalendarEventJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import arrowPinkIcon from "@/assets/images/icons/arrow-up-right-pink.svg";
@@ -2074,28 +2074,11 @@ async function confirmCancelBooking() {
 
 function handleJoinCall(payload = {}) {
     const event = payload?.sourceEvent || payload?.event || payload;
-    const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-    const isGroup = String(event?.eventType || event?.type || raw?.eventType || raw?.type || "")
-        .toLowerCase()
-        .includes("group");
-    const joinState = getBookingJoinState({
-        bookingId: event?.bookingId || raw?.bookingId,
-        startAt: event?.start,
-        endAt: event?.end,
-        status: event?.status || raw?.status,
-        enableCallReminderMinutesBefore: raw?.enableCallReminderMinutesBefore,
-        callReminderMinutesBefore: raw?.callReminderMinutesBefore,
-        reminderMinutes: raw?.reminderMinutes,
-        extensions: raw?.extensions,
+    const joinState = getCalendarEventJoinState(event, {
+        viewerRole: "creator",
+        now: new Date(),
     });
-    const groupUrl = isGroup
-        ? buildScheduledGroupMeetingUrl({
-            eventId: getScheduleEventId(event),
-            startIso: event?.start || raw?.startIso || raw?.startAtIso,
-        })
-        : null;
-    const joinUrl = groupUrl || joinState.joinUrl;
-    if (!joinState.canJoin || !joinUrl) {
+    if (!joinState.canJoin || !joinState.joinUrl) {
         showToast({
             type: "error",
             title: t("dashboard_join_unavailable_title"),
@@ -2103,7 +2086,7 @@ function handleJoinCall(payload = {}) {
         });
         return;
     }
-    emit("open-url", { url: joinUrl, target: "_blank" });
+    emit("open-url", { url: joinState.joinUrl, target: "_blank" });
 }
 
 const onDebugSubmit = () => {
