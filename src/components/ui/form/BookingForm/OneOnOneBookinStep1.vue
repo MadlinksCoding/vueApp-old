@@ -2515,11 +2515,39 @@
 
       <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_duration')" :isRequired="true" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-5'>
-          <div class="flex items-center gap-2 mt-3 ">
-            <BaseInput type="number" placeholder="" v-model="formData.duration"
-              data-booking-validation-input-field="duration"
-              inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
-            <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2 mt-3 ">
+              <BaseInput type="number" placeholder="" v-model="formData.duration"
+                data-booking-validation-input-field="duration"
+                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
+              <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
+            </div>
+            <span class="txt-sm text-[#FF4405]">Session must be at least 10 minute long </span>
+            <div class="self-stretch min-h-16 border-b-[0.50px] border-gray-200 inline-flex justify-start items-start">
+              <div class="w-[3px] self-stretch bg-cyan-400"></div>
+              <div class="flex-1 px-2 py-3 inline-flex flex-col justify-start items-start gap-4" style="background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, rgba(255, 255, 255, 0.90) 100%), linear-gradient(0deg, rgba(34, 204, 238, 0.15) 0%, rgba(34, 204, 238, 0.15) 100%), rgba(255, 255, 255, 0.90);">
+                <div class="self-stretch inline-flex justify-end items-start gap-4">
+                  <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start">
+                    <div class="self-stretch pb-2 flex flex-col justify-start items-start gap-2">
+                      <div class="self-stretch inline-flex justify-between items-start">
+                        <div class="flex-1 pr-1 pt-1 flex justify-center items-center gap-2.5">
+                          <div class="flex-1 justify-start text-cyan-600 text-sm font-semibold leading-5">CALL ATTENDANCE POLICY</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="self-stretch flex flex-col justify-start items-start">
+                      <div class="self-stretch inline-flex justify-center items-center gap-2.5">
+                        <ul class="list-decimal ml-5">
+                          <li>A 5 minute grace period after start time for both sides.</li>
+                          <li>Creator no-show → booking cancelled, full refund to fan.</li>
+                          <li>Fan no-show → booking cancelled, full payment to creator (fan forfeit).</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <ValidationInlineWarning
             :messages="fieldValidationMessages('duration')"

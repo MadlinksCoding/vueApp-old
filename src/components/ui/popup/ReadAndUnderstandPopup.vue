@@ -1,0 +1,83 @@
+<template>
+  <PopupHandler
+    :modelValue="modelValue"
+    @update:modelValue="(val) => emit('update:modelValue', val)"
+    :config="config"
+  >
+    <div class="h-full w-full p-5 bg-gray-900/90 md:rounded-[10px] backdrop-blur-[50px] inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
+  <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center gap-6 pr-1">
+  <div class="self-stretch flex flex-col justify-start items-start gap-2">
+    <div class="self-stretch inline-flex justify-between items-start">
+      <div class="flex-1 justify-start text-gray-200 text-base font-semibold  leading-6">Before you submit your booking, please confirmed that you have read and understand below call attendance policy:</div>
+    </div>
+  </div>
+  <div class="size-28 relative overflow-hidden">
+    <div data-svg-wrapper class="">
+      <img :src="FileIconGreen" alt="File Icon Green" />
+    </div>
+  </div>
+  <div class="self-stretch flex flex-col justify-start items-start gap-2">
+    <div class="self-stretch text-center justify-start text-gray-200 text-lg font-semibold  leading-7">A 5-minute grace period applies after the scheduled start time:</div>
+    <div class="flex flex-col flex-col-reverse md:flex-row self-stretch">
+      <div class="flex flex-col self-stretch flex-1">
+        <div class="self-stretch p-2.5 bg-gray-400/20 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-center items-center gap-2.5">
+          <div class="flex-1 text-center justify-start text-gray-200 text-base font-semibold  leading-6">If creator doesn’t show up within grace period</div>
+        </div>
+        <div class="size-lf-stretch p-2.5 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-start items-start gap-2.5">
+          <ul class="list-disc ml-5">
+            <li class="flex-1 justify-start text-gray-200 text-base font-normal  leading-6">You will receive full refund</li>
+            <li class="flex-1 justify-start text-gray-200 text-base font-normal  leading-6">Booking cancelled</li>
+          </ul>
+        </div>
+      </div>
+      <div class="flex flex-col self-stretch flex-1">
+        <div class="self-stretch p-2.5 bg-gray-400/20 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-center items-center gap-2.5">
+          <div class="flex-1 text-center justify-start text-gray-200 text-base font-semibold  leading-6">If you don’t show up within grace period</div>
+        </div>
+        <div class="size-lf-stretch p-2.5 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-start items-start gap-2.5 flex-1">
+          <ul class="list-disc ml-5">
+            <li class="flex-1 justify-start text-gray-200 text-base font-normal  leading-6">Creator receive full payment from fan</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="self-stretch flex-shrink-0 mt-auto inline-flex justify-start items-center gap-2 flex-col flex-col-reverse md:flex-row pt-2">
+    <div class="flex-1 self-stretch h-10 min-w-24 px-6 py-2 bg-[#0C111D] flex justify-center items-center gap-2.5">
+      <div class="justify-start text-[#07F468] text-base font-medium  leading-6">Back</div>
+    </div>
+    <div class="flex-1 self-stretch h-10 min-w-24 px-6 py-2 bg-[#07F468] flex justify-center items-center gap-2.5">
+      <div class="justify-start text-[#0C111D] text-base font-medium  leading-6 whitespace-nowrap">Confirm & Submit</div>
+    </div>
+  </div>
+</div>
+  </PopupHandler>
+</template>
+
+<script setup>
+import { reactive } from 'vue';
+import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import FileIconGreen from "@/assets/images/icons/file-search-green.svg";
+
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const emit = defineEmits(["update:modelValue"]);
+
+const config = reactive({
+  width: {
+    default: '520px',
+    '<768': '100vw',
+  },
+  height: {
+    default: 'auto',
+    '<768': '100vh',
+  },
+  centered: true,
+});
+</script>
