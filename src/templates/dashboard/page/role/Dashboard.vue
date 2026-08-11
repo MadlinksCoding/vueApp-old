@@ -1,5 +1,21 @@
 <template>
   <DashboardWrapperTwoColContainer>
+
+    <button 
+          @click="isConfirmAndPublishScheduleOpen = true" 
+          class="mt-4 px-4 py-2 bg-blue-500 text-white rounded font-medium shadow-sm hover:bg-blue-600 focus:outline-none"
+        >
+          Open Confirm and Publish Schedule
+        </button>
+        <ConfirmAndPublishSchedule v-model="isConfirmAndPublishScheduleOpen" />
+
+     <button 
+          @click="isReadPopupOpen = true" 
+          class="mt-4 px-4 py-2 bg-blue-500 text-white rounded font-medium shadow-sm hover:bg-blue-600 focus:outline-none"
+        >
+          Open Read and Understand
+        </button>
+        <ReadAndUnderstandPopup v-model="isReadPopupOpen" />
   
     <div class="p-4 border border-gray-300 rounded-lg bg-white w-full max-w-sm mb-6 shadow-sm">
       <h3 class="font-bold mb-4 text-lg text-gray-800">Local Storage Config</h3>
@@ -322,9 +338,12 @@ import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";
 import PremiumOrdersPage from "../agent/PremiumOrdersPage.vue";
-
+import ReadAndUnderstandPopup from "@/components/ui/popup/ReadAndUnderstandPopup.vue";
+import ConfirmAndPublishSchedule from "@/components/ui/popup/ConfirmAndPublishSchedule.vue";
 const demoUserId = ref(localStorage.getItem("userId") || "");
 const demoIsCreator = ref(localStorage.getItem("isCreator") === "true");
+const isReadPopupOpen = ref(false);
+const isConfirmAndPublishScheduleOpen = ref(false);
 
 function saveToLocalStorage() {
   if (!demoUserId.value) {
