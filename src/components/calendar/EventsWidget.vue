@@ -53,7 +53,7 @@
         @click="$emit('event-click', event)"
       >
       
-      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[5rem]">
+      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[6.25rem] h-[6.25rem]">
           <div 
             class="w-[0.25rem] h-full rounded-[0.875rem]"
             :class="event.borderClass"
@@ -62,7 +62,7 @@
               : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
           ></div>
           
-          <span v-if="event.time" class="flex items-center justify-center w-[3.4375rem] h-auto shrink-0">
+          <span v-if="event.time" class="flex items-start justify-center w-[3.4375rem] h-auto shrink-0 py-2">
             <p class="text-[0.6875rem] text-gray-700 font-medium leading-[1rem]">{{ event.time }}</p>
           </span>
           
@@ -84,7 +84,7 @@
               {{ event.title }}
             </h3>
             <div>
-              <img v-if="!isPendingSection(section)" :src=GreenCheckIcon class="w-[14px] h-[14px]">
+              <img v-if="!isPendingSection(section)" :src=GreenCheckIcon class="w-[16px] h-[16px]">
             </div>
             <TooltipIcon v-if="isPendingSection(section)" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('calendar_event_status_pending')" />
             </div>
@@ -234,17 +234,17 @@
                 </button>
               </div>
 
-              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end w-[5.4375rem] self-stretch">
+              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end w-[5.4375rem] self-stretch gap-1">
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
-                  class="w-2 h-2 rounded-[50%]"
+                  class="w-[0.41669rem] h-[0.41669rem] rounded-[50%]"
                   :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
                   :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
                 ></div>
                 <p
                   data-test="join-status-text"
-                  class="text-xs text-[#0E9384] font-medium leading-[1.125rem] uppercase"
+                  class="text-xs text-[#0E9384] font-medium uppercase"
                   :style="joinStatusColor(event) ? { color: joinStatusColor(event) } : null"
                 >{{ event.statusText }}</p>
               </span>
