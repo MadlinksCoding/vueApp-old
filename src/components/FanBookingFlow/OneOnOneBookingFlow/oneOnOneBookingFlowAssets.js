@@ -28,3 +28,12 @@ export { default as bookingFlowAiArtImage } from "@/assets/images/icons/ai-art.w
 export { default as bookingFlowDoubleDownIcon } from "@/assets/images/icons/double-down.webp";
 export { default as bookingFlowHelpGreenIcon } from "@/assets/images/icons/help-green.webp";
 export { default as bookingFlowSuccessIcon } from "@/assets/images/icons/success.webp";
+export { default as bookingFlowBackarrowIcon } from "@/assets/images/icons/arrow-left.svg";
+export { default as bookingFlowTruckIcon } from "@/assets/images/icons/truck-02.svg";
+export { default as bookingFlowInfoCircleIcon } from "@/assets/images/icons/info-circle.svg";
+export { default as bookingFlowLightningIcon } from "@/assets/images/icons/lightning-02.svg";
+export { default as bookingFlowMessageGreenIconv2 } from "@/assets/images/icons/message-text-circle-01.svg";
+export { default as bookingFlowMapsTravelsIcon } from "@/assets/images/icons/maps-travels-icon.svg";
+export { default as bookingFlowArrowsDownIcon } from "@/assets/images/icons/arrows-down.svg";
+
+
