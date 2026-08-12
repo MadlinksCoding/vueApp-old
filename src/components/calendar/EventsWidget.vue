@@ -245,7 +245,7 @@
                 <p
                   data-test="join-status-text"
                   class="text-xs text-[#0E9384] font-medium leading-[1.125rem] uppercase"
-                  :style="event.statusColor ? { color: event.statusColor } : null"
+                  :style="joinStatusColor(event) ? { color: joinStatusColor(event) } : null"
                 >{{ event.statusText }}</p>
               </span>
 
@@ -410,12 +410,17 @@ const joinButtonEnabled = (event = {}) => (
 const normalizedStatusText = (event = {}) => String(event.statusText || "").trim().toLowerCase();
 
 const joinStatusColor = (event = {}) => {
-  if (event.statusColor) return event.statusColor;
-
   const statusText = normalizedStatusText(event);
+
   if (statusText === "confirmed" || statusText === "live now") {
     return CONFIRMED_STATUS_DOT_COLOR;
   }
+  
+  if (statusText.includes("in ") && statusText.includes("min")) {
+    return "#FF4405";
+  }
+
+  if (event.statusColor) return event.statusColor;
 
   return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
 };
