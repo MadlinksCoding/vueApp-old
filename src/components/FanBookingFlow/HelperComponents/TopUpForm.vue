@@ -8,6 +8,9 @@ import {
   bookingFlowCreditIcon,
   bookingFlowDoubleDropdownIcon,
   bookingFlowTokenIcon,
+  bookingFlowMapsTravelsIcon,
+  bookingFlowArrowsDownIcon,
+  bookingFlowTruckIcon,
 } from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { showToast } from '@/utils/toastBus.js';
@@ -15,6 +18,7 @@ import '@/utils/axcessGatewayFormHandler.js';
 import '@/assets/css/axcessGatewayForm.css';
 import GuestCheckoutForm from './GuestCheckoutForm.vue';
 import CardForm from './CardForm.vue';
+import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 
 const props = defineProps({
@@ -45,6 +49,7 @@ const { t } = useBookingTranslations();
 const AMOUNT_PRESETS = [500, 1000, 3000, 5000];
 
 const tipCheckoutPopup = ref(true);
+const isPaymentSummaryOpen = ref(true);
 const isProcessing     = ref(false);
 const isFormLoading    = ref(false);
 const paymentError     = ref('');
@@ -388,7 +393,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full lg:h-auto gap-3 lg:max-h-[36.5rem] relative z-[1]">
+  <div class="flex flex-col w-full h-full gap-3 lg:h-[calc(100dvh-13.2rem)] relative z-[1]">
 
     <div 
       class="inline-flex justify-start items-center gap-1 cursor-pointer"
@@ -402,7 +407,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="flex flex-col gap-4 py-2 lg:py-3 md:pb-14 md:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+    <div class="flex flex-col gap-4 md:gap-8 py-2 lg:py-3 md:!pb-[6rem] md:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
 
       <!-- Amount display + presets -->
       <div class="flex flex-col gap-1">
@@ -479,8 +484,63 @@ onBeforeUnmount(() => {
       <!-- Error message -->
       <p v-if="paymentError" class="text-xs text-red-400 font-medium">{{ paymentError }}</p>
 
-      <!-- Financial summary -->
-      <div v-if="1!=1" class="flex flex-col justify-center items-start gap-2">
+      <!-- Balance summary -->
+       <div v-if="1!=1" class="flex flex-col items-end gap-2 self-stretch rounded-[0.5rem]" style="background: linear-gradient(90deg, rgba(16, 24, 40, 0.00) 25%, rgba(16, 24, 40, 0.90) 75%), #182230;
+">
+          <div class="flex flex-col items-end gap-2 self-stretch bg-[rgba(24,34,48,0.1)] relative overflow-hidden">
+            <!-- bg -->
+            <div class="absolute right-4 bottom-1 z-[1]">
+              <svg xmlns="http://www.w3.org/2000/svg" width="108" height="134" viewBox="0 0 108 134" fill="none">
+                <path opacity="0.5" fill-rule="evenodd" clip-rule="evenodd" d="M9.28238 122.95L59.863 140.476C69.8881 143.954 79.8979 135.254 77.8907 124.857L73.0552 99.6994C71.5558 91.9111 77.13 84.6306 84.2 81.0254C93.7181 76.1961 101.459 67.7895 105.232 56.8939C112.981 34.501 101.137 10.1131 78.772 2.37147C56.4068 -5.37016 31.986 6.46362 24.2447 28.8258C20.3846 39.9607 21.3993 51.589 26.1288 61.4072C29.5935 68.671 29.5643 78.0545 23.4795 83.3084L4.76721 99.5165C-3.25772 106.466 -0.74977 119.503 9.28238 122.95Z" fill="#344054"/>
+              </svg>
+            </div>
+            <!-- Content -->
+             <div class="flex p-4 flex-col items-start gap-3 self-stretch relative z-[2]">
+                <div class="flex justify-between items-center self-stretch">
+                  <span class="text-sm font-medium text-white">Wallet Balance</span>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                    <p class="text-base text-white font-semibold">{{ walletBalance.toLocaleString() }}</p>
+                  </div>
+                </div>
+                <div class="flex justify-between items-center self-stretch">
+                  <span class="text-sm font-medium text-white">Subtotal</span>
+                  <div class="flex justify-center items-center gap-1">
+                    <p class="text-base text-white font-semibold">-</p>
+                    <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                    <p class="text-base text-white font-semibold">{{ totalPrice }}</p>
+                  </div>
+                </div>
+                <div class="flex justify-between items-center self-stretch border-t border-[#F2F4F7]/50 pt-3">
+                  <span class="text-sm font-medium text-white">Wallet Balance</span>
+                  <div class="flex justify-center items-center gap-1">
+                    <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                    <p class="text-base text-white font-semibold">{{ balanceAfterBooking.toLocaleString() }}</p>
+                  </div>
+                </div>
+              </div>
+          </div>
+       </div>
+      <!-- /Balance summary -->
+
+      <!-- Shipping Address -->
+      <div class="flex flex-col">
+          <div class="inline-flex justify-between items-center gap-2">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 relative overflow-hidden">
+                <img :src="bookingFlowMapsTravelsIcon" alt="">
+              </div>
+              <div class="justify-center text-[#F9FAFB] text-base font-semibold leading-5">SHIPPING ADDRESS</div>
+            </div>
+            <div>
+              <img :src="bookingFlowArrowsDownIcon" alt="">
+            </div>
+          </div>
+      </div>
+      <!-- /Shipping Address -->
+
+      <!-- Financial summary its hide now Prosenjit -->
+      <div v-if="1!=1" class="_flex hidden flex-col justify-center items-start gap-2">
 
         <div class="inline-flex justify-between w-full">
           <div class="justify-start text-white text-sm font-normal font-['Poppins'] leading-5">{{ t("fan_booking_original_balance") }}</div>
@@ -537,13 +597,19 @@ onBeforeUnmount(() => {
 
       </div>
 
-      <div class="rounded-lg bg-white/10 flex flex-col mb-[4rem]">
-        <div class="flex flex-col gap-3 w-full p-3 md:p-5">
-          <h3 class="text-sm font-normal text-[#2CE]">{{ t("fan_booking_payment_summary") }}</h3>
-          <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-3">
+      <div class="flex flex-col">
+        <div class="flex flex-col gap-3 w-full">
+          <div class="w-full flex items-center justify-between cursor-pointer" @click="isPaymentSummaryOpen = !isPaymentSummaryOpen">
+            <h3 class="text-sm font-semibold text-[#FB5BA2]">{{ t("fan_booking_payment_summary") }}</h3>
+            <span class="transition-transform duration-200" :class="{ 'rotate-180': !isPaymentSummaryOpen }">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M14.1668 15L10.0002 10.8333L5.8335 15M14.1668 9.16667L10.0002 5L5.8335 9.16667" stroke="#FB5BA2" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+          <div v-show="isPaymentSummaryOpen" class="flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
               <div class="flex flex-col gap-2">
-                <h4 class="text-xs font-normal leading-[18px] text-[#98A2B3]">{{ t("fan_booking_wallet_top_up") }}</h4>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
                     <p class="text-sm font-normal text-white">{{ t("fan_booking_original_balance") }}</p>
@@ -586,37 +652,71 @@ onBeforeUnmount(() => {
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">{{ t("fan_booking_balance_after_booking") }}</p>
+                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_balance_after_booking") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                    <p class="text-sm font-normal text-white">{{ remainingBalance.toLocaleString() }}</p>
+                    <p class="text-lg font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
                   </div>
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">{{ t("fan_booking_top_up_payment") }}</p>
+                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_top_up_payment") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"></div>
-                    <p class="text-sm font-normal text-white">USD$ {{ topUpUSD }}</p>
+                    <p class="text-lg font-semibold text-white">USD$ {{ topUpUSD }}</p>
                   </div>
                 </div>
+                <!-- Mandatory purchase -->
+                <div class="_flex hidden flex-col gap-2 border-t border-[#98A2B3]/50 pt-2">
+                  <div class="flex gap-2 items-center">
+                    <h4 class="text-sm font-medium text-white">MANDATORY PURCHASE</h4>
+                    <TooltipIcon 
+                    class="!w-4 !h-4 relative !mt-0"
+                    :text="'Dummy text'" side="right" />
+                  </div>
+                  <!-- Content -->
+                  <div class="flex items-center gap-2">
+                    <div class="w-[2.625rem] h-[2.625rem] rounded-[4px] overflow-hidden">
+                      <img src="https://media.istockphoto.com/id/1364991519/photo/feet-in-modern-finger-socks.jpg?s=1024x1024&w=is&k=20&c=yTa5WXlblYuJi2Hu_e2XJzNm8kvFovig_4vzKbFunJs=" alt="token-icon" />
+                    </div>
+                    <div class="flex-1 flex flex-col gap-1">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-white">Worn sock available</span>
+                        <span class="text-sm font-semibold text-white text-right">USD$ 25.99</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1">
+                          <span><img :src="bookingFlowTruckIcon" alt=""></span>
+                          <span class="text-xs text-[#FCE40D]">Ships to <a href="#" class="text-xs text-[#FCE40D] underline">Taiwan</a> only</span>
+                        </div>
+                        <span class="text-sm text-[#FCE40D] text-right">Free shipping</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- /Content -->
+                </div>
+                <!-- /Mandatory purchase -->
                 <hr class="border-[#F2F4F7] opacity-50" />
                 <div class="flex flex-row justify-between items-start text-white">
-                  <p class="text-xl font-bold text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
+                  <p class="text-xl font-semibold text-white">{{ t("fan_booking_amount_due_today_title") }}</p>
                   <div class="flex flex-col">
                     <div class="flex justify-end items-center gap-0.5">
                       <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                       <p class="text-xl font-semibold">{{ selectedAmount.toLocaleString() }}</p>
                     </div>
-                    <span class="text-sm font-normal text-[#98A2B3] whitespace-nowrap">=USD$ {{ topUpUSD }}</span>
+                    <span class="text-sm font-normal text-[#98A2B3] whitespace-nowrap hidden">=USD$ {{ topUpUSD }}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="w-full flex">
+        <p class="text-sm text-[#EAECF0] italic">Completing this booking means you agree to the event’s booking policy.</p>
       </div>
     </div>
     <!-- Submit button -->

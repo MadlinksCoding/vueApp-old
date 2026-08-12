@@ -1,5 +1,41 @@
 <template>
   <DashboardWrapperTwoColContainer>
+
+    <div class="flex w-full max-w-[510px] flex-col items-center gap-3 rounded-[15px] bg-black/50 p-4 md:p-5">
+      <p class="text-base font-normal leading-6 text-white">The merch you are about to purchase does not ship internationally, please confirmed you can provide address accordingly:</p>
+      <div class="flex items-center gap-5 self-stretch rounded-xl bg-[rgba(16,24,40,0.6)] p-3">
+        <div class="w-[7.5625rem] h-[7.5625rem] aspect-square rounded-[0.5rem] overflow-hidden bg-white">
+          <img src="https://i.ibb.co/d0B63B18/image.png" alt="" class="w-full h-full object-cover">
+        </div>
+        <div class="flex flex-col justify-center items-start gap-2 flex-1 self-stretch">
+          <h3 class="text-white text-[1.125rem] font-semibold leading-[1.75rem]">Worn Socks Available</h3>
+          <div class="flex items-center gap-[0.125rem]">
+            <span class="text-[#FCE40D] text-[1.25rem] font-bold leading-[1.875rem] text-shadow-[0_0_10px_rgba(0,0,0,0.10)]">USD$25</span>
+            <span class="text-white font-poppins text-[0.75rem] font-normal leading-[1.125rem] line-through text-shadow-[0_0_10px_rgba(0,0,0,0.10)]">$50</span>
+            <div class="flex justify-center items-center gap-[-0.5rem] rounded-[0.25rem] backdrop-blur-[10px] pl-2 relative">
+              <span class="flex absolute top-0 left-0 z-[1] pt-0 pr-0 pb-[0.125rem] pl-[0.125rem] justify-center items-center shadow-[3px_0_4px_0_rgba(0,0,0,0.25)]">
+                <img :src="bookingFlowLightningIcon" alt="">
+              </span>
+              <span class="flex py-[0.125rem] pr-[0.375rem] pl-[0.75rem] justify-center items-center gap-1 rounded-[0.25rem] bg-[#0133FB] backdrop-blur-[10px]">
+                <span class="text-white font-poppins text-[0.625rem] font-semibold leading-[0.9375rem]">50% off</span>
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <span><img :src="bookingFlowTruckIcon" alt=""></span>
+              <span class="text-xs text-[#FCE40D]">Ships to <a href="#" class="text-xs text-[#FCE40D] underline">Taiwan</a> only</span>
+            </div>
+        </div>
+      </div>
+      <div class="flex flex-col items-start gap-[0.75rem] self-stretch">
+        <button class="flex min-h-[2.5rem] min-w-[6.25rem] px-[1.5rem] py-[0.5rem] justify-center items-center gap-[0.625rem] self-stretch bg-[#07F468]">
+          <span class="text-[#0C111D] font-poppins text-[1rem] font-medium leading-[1.5rem] md:whitespace-nowrap">I confirm I can provide shipping address from Taiwan</span>
+        </button>
+        <button class="flex h-[2.5rem] min-w-[6.25rem] px-[1.5rem] py-[0.5rem] justify-center items-center gap-[0.625rem] self-stretch border-[1.5px] border-white bg-[#101828]">
+          <span class="text-white font-poppins text-[1rem] font-medium leading-[1.5rem] whitespace-nowrap">Go back</span>
+        </button>
+      </div>
+    </div>
   
     <div class="p-4 border border-gray-300 rounded-lg bg-white w-full max-w-sm mb-6 shadow-sm">
       <h3 class="font-bold mb-4 text-lg text-gray-800">Local Storage Config</h3>
@@ -322,6 +358,11 @@ import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";
 import PremiumOrdersPage from "../agent/PremiumOrdersPage.vue";
+
+import {
+  bookingFlowTruckIcon,
+  bookingFlowLightningIcon,
+} from '@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js';
 
 const demoUserId = ref(localStorage.getItem("userId") || "");
 const demoIsCreator = ref(localStorage.getItem("isCreator") === "true");

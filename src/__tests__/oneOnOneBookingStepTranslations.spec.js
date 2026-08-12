@@ -1001,6 +1001,140 @@ describe("one-on-one booking step translations", () => {
     );
   });
 
+  it("normalizes loaded off-hours-to-regular boundaries in every availability mode", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const today = getTodayIsoDate();
+    const engine = createEngine({
+      eventType: "1on1-call",
+      repeatRule: "weekly",
+      weeklyAvailability: [
+        {
+          key: "sun",
+          name: "Sun",
+          unavailable: false,
+          offHours: true,
+          slots: [
+            { startTime: "00:00", endTime: "03:00", offHours: true },
+            { startTime: "03:00", endTime: "06:00", offHours: false },
+          ],
+        },
+        {
+          key: "mon",
+          name: "Mon",
+          unavailable: false,
+          offHours: false,
+          slots: [
+            { startTime: "00:00", endTime: "03:00", offHours: false },
+            { startTime: "03:00", endTime: "06:00", offHours: false },
+          ],
+        },
+      ],
+      monthlyAvailability: [
+        { startTime: "00:00", endTime: "03:00", offHours: true },
+        { startTime: "03:00", endTime: "06:00", offHours: false },
+      ],
+      oneTimeAvailability: [{
+        id: "date-1",
+        date: today,
+        slots: [
+          { startTime: "00:00", endTime: "03:00", offHours: true },
+          { startTime: "03:00", endTime: "06:00", offHours: false },
+        ],
+      }],
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    await settleValidation();
+
+    const weeklyDays = unrefPublic(wrapper.vm.weekDays);
+    const oneTimeEntry = unrefPublic(wrapper.vm.oneTimeDates)[0];
+    expect(weeklyDays[0].slots[1].startTime).toBe("03:01");
+    expect(weeklyDays[1].slots[1].startTime).toBe("03:00");
+    expect(unrefPublic(wrapper.vm.monthlySlots)[1].startTime).toBe("03:01");
+    expect(oneTimeEntry.slots[1].startTime).toBe("03:01");
+    expect(engine.state.weeklyAvailability[0].slots[1].startTime).toBe("03:01");
+    expect(engine.state.monthlyAvailability[1].startTime).toBe("03:01");
+    expect(engine.state.oneTimeAvailability[0].slots[1].startTime).toBe("03:01");
+
+    const adjustedStartOptionSets = [
+      wrapper.vm.getWeeklyStartOptions(0, 1),
+      wrapper.vm.getMonthlyStartOptions(1),
+      wrapper.vm.getOneTimeStartOptions(oneTimeEntry, 1),
+    ];
+    adjustedStartOptionSets.forEach((options) => {
+      expect(options).toContainEqual(expect.objectContaining({
+        value: "03:01",
+        label: "3:01 AM",
+        disabled: false,
+      }));
+      expect(options).not.toContainEqual(expect.objectContaining({ value: "03:00" }));
+    });
+    expect(wrapper.vm.getWeeklyStartOptions(1, 1)).toContainEqual(
+      expect.objectContaining({ value: "03:00", disabled: false }),
+    );
+  });
+
+  it("restores and reapplies off-hours-to-regular boundaries as slot types and times change", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const engine = createEngine({
+      eventType: "1on1-call",
+      repeatRule: "monthly",
+      monthlyAvailability: [
+        { startTime: "00:00", endTime: "03:00", offHours: true },
+        { startTime: "03:00", endTime: "06:00", offHours: false },
+      ],
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: { engine, bookingType: "private" },
+      global: mountOptions(),
+    });
+    const slots = unrefPublic(wrapper.vm.monthlySlots);
+
+    expect(slots[1].startTime).toBe("03:01");
+
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    await nextTick();
+    expect(slots[1]).toEqual(expect.objectContaining({ startTime: "03:00", offHours: false }));
+
+    wrapper.vm.toggleMonthlySlotOffHours(0);
+    await nextTick();
+    expect(slots[1]).toEqual(expect.objectContaining({ startTime: "03:01", offHours: false }));
+
+    wrapper.vm.toggleMonthlySlotOffHours(1);
+    await nextTick();
+    expect(slots[1]).toEqual(expect.objectContaining({ startTime: "03:00", offHours: true }));
+
+    wrapper.vm.toggleMonthlySlotOffHours(1);
+    await nextTick();
+    expect(slots[1]).toEqual(expect.objectContaining({ startTime: "03:01", offHours: false }));
+
+    wrapper.vm.onMonthlySlotChanged(0, "end", "02:55");
+    await nextTick();
+    expect(slots[1].startTime).toBe("03:00");
+
+    wrapper.vm.onMonthlySlotChanged(0, "end", "03:00");
+    await nextTick();
+    expect(slots[1].startTime).toBe("03:01");
+
+    wrapper.vm.onMonthlySlotChanged(1, "start", "03:05");
+    await nextTick();
+    expect(slots[1].startTime).toBe("03:05");
+    expect(engine.state.monthlyAvailability[1]).toEqual(expect.objectContaining({
+      startTime: "03:05",
+      offHours: false,
+    }));
+  });
+
   it("keeps adjoining off-hours boundaries shared and reconciles later status changes", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
@@ -1212,6 +1346,67 @@ describe("one-on-one booking step translations", () => {
       startTime: "03:00",
       endTime: "03:05",
       offHours: true,
+    }));
+
+    const reverseWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "monthly",
+          monthlyAvailability: [
+            { startTime: "00:00", endTime: "03:00", offHours: true },
+            { startTime: "03:00", endTime: "03:05", offHours: false },
+          ],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    expect(unrefPublic(reverseWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
+      startTime: "03:01",
+      endTime: "03:06",
+      offHours: false,
+    }));
+
+    const reverseBlockedWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "monthly",
+          monthlyAvailability: [
+            { startTime: "00:00", endTime: "03:00", offHours: true },
+            { startTime: "03:00", endTime: "03:05", offHours: false },
+            { startTime: "03:05", endTime: "06:00", offHours: true },
+          ],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    expect(unrefPublic(reverseBlockedWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
+      startTime: "03:00",
+      endTime: "03:05",
+      offHours: false,
+    }));
+
+    const reverseEndOfDayWrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({
+          eventType: "1on1-call",
+          repeatRule: "monthly",
+          monthlyAvailability: [
+            { startTime: "21:00", endTime: "23:55", offHours: true },
+            { startTime: "23:55", endTime: "23:59", offHours: false },
+          ],
+        }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    expect(unrefPublic(reverseEndOfDayWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
+      startTime: "23:55",
+      endTime: "23:59",
+      offHours: false,
     }));
   });
 

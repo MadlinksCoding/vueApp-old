@@ -8,6 +8,7 @@ import {
   bookingFlowTokenIcon,
   bookingFlowSaleIcon,
   bookingFlowCloudMoon,
+  bookingFlowInfoCircleIcon,
 } from "../OneOnOneBookingFlow/oneOnOneBookingFlowAssets.js";
 
 const showAllPolicy = ref(false);
@@ -314,8 +315,9 @@ const groupPolicyItems = computed(() => {
 
 <template>
   <div
-    class="flex-none md:max-w-[25.5rem] h-auto lg:h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0"
-    :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-4 lg:p-5'"
+    class="flex-none md:max-w-[25.5rem] h-auto lg:max-h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0" style="background: linear-gradient(0deg, rgba(34, 204, 238, 0.20) 0%, rgba(34, 204, 238, 0.20) 100%), rgba(12, 17, 29, 0.50);
+"
+    :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-0 lg:p-0'"
   >
     <template v-if="props.isGroupEvent">
       <div class="absolute inset-0 bg-[#7A174A]/70 pointer-events-none"></div>
@@ -372,16 +374,16 @@ const groupPolicyItems = computed(() => {
     </template>
     <template v-else>
      <!-- Gradient overlay -->
-  <div class="absolute inset-0 bg-[#22ccee]/20 pointer-events-none"></div>
-    <div class="w-full flex flex-col h-full">
+  <div class="absolute inset-0 bg-[#22ccee]/20 pointer-events-none hidden"></div>
+    <div class="w-full flex flex-col h-full overflow-y-auto md:p-4 lg:p-5 md:!pt-12">
 
-      <div class="w-full flex flex-col justify-between items-stretch gap-3 md:gap-4 h-full">
+      <div class="w-full md:h-full flex flex-col justify-between items-stretch gap-3 md:gap-4 h-auto">
 
         <div class="flex flex-col gap-3 md:gap-4">
           <!-- User details section -->
           <div class="flex flex-col gap-0 md:gap-4 w-full">
-            <div class="flex flex-row items-center">
-              <div class="bg-[#22CCEE] rounded-br-[4px] md:rounded px-2 py-1 w-fit h-[22px] flex justify-center items-center">
+            <div class="flex flex-row items-center absolute left-0 top-0">
+              <div class="bg-[#22CCEE] rounded-br-[4px] md:rounded px-2 py-1 pl-4 w-fit h-[28px] flex justify-center items-center">
                 <p class="text-sm leading-[20px] text-[#0C111D] font-bold">{{ t("fan_booking_1on1_call") }}</p>
               </div>
             </div>
@@ -508,6 +510,45 @@ const groupPolicyItems = computed(() => {
             </div>
           </div>
           <!-- /Session Cost -->
+
+          <!-- Date and Time -->
+          <div class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0">
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-[#2CE]">DATE & TIME</h3>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-white text-base font-medium">Tuesday, April 16, 2026</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-white text-base font-medium">1:10pm-1:40pm</span>
+                  <span class="text-[#98A2B3] text-base font-medium">30 min.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /Date and Time -->
+
+          <!-- mandatory Purchase -->
+          <div class="w-full _flex hidden px-3 lg:px-0">
+            <div class="flex w-full items-center rounded-[0.625rem] bg--gd--blue-51-251 overflow-hidden">
+              <div class="w-[3.5rem] h-full aspect-square overflow-hidden bg-white">
+                <img src="https://i.ibb.co/d0B63B18/image.png" alt="" class="w-full h-full object-cover">
+              </div>
+              <div class="flex p-[0.5rem] flex-col items-start gap-2 flex-1">
+                <div class="flex items-center gap-2 self-stretch justify-between">
+                  <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-white text-[0.875rem] font-semibold leading-[1.25rem] max-w-[19ch]">Worn Socks (3 days)</span>
+                  <span class="text-[#FCE40D] text-shadow-[0_0_10px_rgba(0,0,0,0.1)] font-poppins text-[0.875rem] font-semibold leading-[1.25rem]">USD$25 <span class="font-normal">$50</span></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="w-3 h-3">
+                    <img :src="bookingFlowInfoCircleIcon" alt="">
+                  </span>
+                  <span class="text-[#FCE40D] text-[0.75rem] font-medium leading-[1.125rem] whitespace-nowrap">MANDATORY PURCHASE</span>
+                </div>
+            </div>
+            </div>
+          </div>
+          <!-- /Mandatory Purchase -->
         </div>
 
         <div class="flex flex-col w-full gap-1 md:gap-3 px-3 pb-2 md:p-0 lg:p-0">
