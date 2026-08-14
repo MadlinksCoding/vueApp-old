@@ -771,7 +771,7 @@
   "fan_booking_session_length_required_title": "Session Length Required",
   "fan_booking_session_maximum": "{count} SESSION MAX.",
   "fan_booking_session_total": "Session Total",
-  "fan_booking_session_total_label": "Session total",
+  "fan_booking_session_total_label": "Your Contribution",
   "fan_booking_session_will_be_on": "Your session will be on {date} {time}",
   "fan_booking_sessions": "sessions",
   "fan_booking_sessions_maximum": "{count} SESSIONS MAX.",
