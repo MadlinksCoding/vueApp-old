@@ -1093,23 +1093,25 @@
     ].sort((first, second) => timeToMinutes(first.value) - timeToMinutes(second.value));
   }
 
-  function hasRegularHoursBoundary(slots = [], slotIndex = null, boundaryTime = "") {
+  function hasContrastingHoursBoundary(slots = [], slotIndex = null, boundaryTime = "") {
     if (!boundaryTime || !Array.isArray(slots)) return false;
+    const slot = slots?.[slotIndex];
+    if (!slot) return false;
     return slots.some((otherSlot, otherIndex) => (
       otherIndex !== slotIndex
-      && !Boolean(otherSlot?.offHours)
       && otherSlot?.endTime === boundaryTime
+      && Boolean(otherSlot?.offHours) !== Boolean(slot?.offHours)
     ));
   }
 
   function getSlotStartOptions(slot = {}, siblingSlots = [], slotIndex = null) {
     const options = withCurrentTimeOption(timeOptions, slot?.startTime);
-    if (!slot?.offHours || !Array.isArray(siblingSlots)) return options;
+    if (!Array.isArray(siblingSlots)) return options;
 
     const sharedBoundaryValues = new Set(
       siblingSlots
         .filter((_otherSlot, otherIndex) => otherIndex !== slotIndex)
-        .filter((otherSlot) => !Boolean(otherSlot?.offHours))
+        .filter((otherSlot) => Boolean(otherSlot?.offHours) !== Boolean(slot?.offHours))
         .map((otherSlot) => otherSlot?.endTime)
         .filter(Boolean),
     );
@@ -1134,9 +1136,9 @@
 
   function normalizeOffHoursSlotBoundary(slots = [], slotIndex = null) {
     const slot = slots?.[slotIndex];
-    if (!slot?.offHours) return false;
+    if (!slot) return false;
     if (offHoursBoundaryAdjustments.has(slot)) return false;
-    if (!hasRegularHoursBoundary(slots, slotIndex, slot.startTime)) return false;
+    if (!hasContrastingHoursBoundary(slots, slotIndex, slot.startTime)) return false;
 
     const startMinutes = timeToMinutes(slot.startTime);
     const endMinutes = timeToMinutes(slot.endTime);
@@ -1199,8 +1201,11 @@
       const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
       if (!recordedAdjustment) return;
 
-      const stillQualifies = Boolean(slot?.offHours)
-        && hasRegularHoursBoundary(slots, slotIndex, recordedAdjustment.startTime);
+      const stillQualifies = hasContrastingHoursBoundary(
+        slots,
+        slotIndex,
+        recordedAdjustment.startTime,
+      );
       if (!stillQualifies) {
         changed = restoreOffHoursSlotBoundary(
           slots,

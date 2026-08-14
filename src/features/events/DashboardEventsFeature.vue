@@ -2460,6 +2460,7 @@ const confirmDeleteEvent = async () => {
       type: "success",
       title: t("dashboard_delete_booking_schedule_success_title"),
       message: t("dashboard_delete_booking_schedule_success_message"),
+      autoClose: false,
     });
     deleteEventPopupOpen.value = false;
     deleteEventCandidate.value = null;
