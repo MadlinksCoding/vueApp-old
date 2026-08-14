@@ -298,6 +298,20 @@ const normalizedEventGoalPercent = computed(() => {
 });
 const eventGoalProgressStyle = computed(() => ({ width: `${normalizedEventGoalPercent.value}%` }));
 
+const sidebarDateDisplay = computed(() => normalizeText(props.dateDisplay) || '-');
+const sidebarTimeDisplay = computed(() => normalizeText(props.timeDisplay) || '-');
+const sidebarDurationMinutes = computed(() => {
+  const duration = Number(props.duration);
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return Math.round(duration);
+});
+const sidebarDurationDisplay = computed(() => {
+  if (sidebarDurationMinutes.value <= 0) return '';
+  return t('fan_booking_duration_minutes_short', {
+    minutes: sidebarDurationMinutes.value.toLocaleString(locale.value),
+  });
+});
+
 const groupPolicyItems = computed(() => {
   const items = [
     t("fan_booking_group_policy_hold_contribution"),
@@ -512,16 +526,35 @@ const groupPolicyItems = computed(() => {
           <!-- /Session Cost -->
 
           <!-- Date and Time -->
-          <div class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0">
+          <div
+            class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0"
+            data-testid="booking-sidebar-date-time"
+          >
             <div class="flex flex-col gap-1">
               <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-[#2CE]">DATE & TIME</h3>
+                <h3 class="text-sm font-semibold text-[#2CE]">{{ t("fan_booking_date_time_heading") }}</h3>
               </div>
               <div class="flex flex-col">
-                <span class="text-white text-base font-medium">Tuesday, April 16, 2026</span>
+                <span
+                  class="text-white text-base font-medium"
+                  data-testid="booking-sidebar-date"
+                >
+                  {{ sidebarDateDisplay }}
+                </span>
                 <div class="flex items-center gap-2">
-                  <span class="text-white text-base font-medium">1:10pm-1:40pm</span>
-                  <span class="text-[#98A2B3] text-base font-medium">30 min.</span>
+                  <span
+                    class="text-white text-base font-medium"
+                    data-testid="booking-sidebar-time"
+                  >
+                    {{ sidebarTimeDisplay }}
+                  </span>
+                  <span
+                    v-if="sidebarDurationDisplay"
+                    class="text-[#98A2B3] text-base font-medium"
+                    data-testid="booking-sidebar-duration"
+                  >
+                    {{ sidebarDurationDisplay }}
+                  </span>
                 </div>
               </div>
             </div>

@@ -14,6 +14,7 @@ const DEFAULT_BOOTSTRAP = {
   tokenHandlerApiUrl: "",
   jwtToken: "",
   initialRoute: "events",
+  bookingId: "",
   creatorData: {
     avatar: null,
     name: null,
@@ -36,7 +37,7 @@ function applyBackendJwtTokenSafely(jwtToken = "") {
 
 function normalizeInitialRoute(value) {
   const normalized = String(value || "events").trim().toLowerCase();
-  if (["events", "create-private", "create-group"].includes(normalized)) {
+  if (["events", "create-private", "create-group", "booking-details"].includes(normalized)) {
     return normalized;
   }
   return "events";
@@ -72,6 +73,9 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     tokenHandlerApiUrl: normalizeRuntimeUrl(payload.tokenHandlerApiUrl),
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     initialRoute: normalizeInitialRoute(payload.initialRoute),
+    bookingId: typeof payload.bookingId === "string" || typeof payload.bookingId === "number"
+      ? String(payload.bookingId).trim()
+      : "",
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
       name: payload.creatorName,
@@ -91,6 +95,7 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.tokenHandlerApiUrl = applyTokenHandlerApiUrlSafely(normalized.tokenHandlerApiUrl);
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
+  bootstrapState.bookingId = normalized.bookingId;
   bootstrapState.creatorData = normalized.creatorData;
   bootstrapState.translations = normalized.translations;
   bootstrapState.locale = normalized.locale;
@@ -131,6 +136,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     tokenHandlerApiUrl: params.get("tokenHandlerApiUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
+    bookingId: params.get("bookingId") || "",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),

@@ -7,6 +7,9 @@
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
   var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
   var FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
+  var FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
+  var FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
+  var FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -16,6 +19,7 @@
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
   var activeOneOnOnePopup = null;
+  var activeBookingDetailsPopup = null;
   var activeEventsEmbeds = [];
   var EVENTS_EMBED_ROOT_CLASS = "fs-events-embed";
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
@@ -29,6 +33,11 @@
   var FAN_BOOKING_POPUP_LOADING_CLASS = "fs-fan-booking-popup__loading";
   var FAN_BOOKING_POPUP_LOADING_VISIBLE_CLASS = "fs-fan-booking-popup__loading--visible";
   var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
+  var BOOKING_DETAILS_POPUP_OVERLAY_CLASS = "fs-booking-details-popup__overlay";
+  var BOOKING_DETAILS_POPUP_PANEL_CLASS = "fs-booking-details-popup__panel";
+  var BOOKING_DETAILS_POPUP_IFRAME_CLASS = "fs-booking-details-popup__iframe";
+  var BOOKING_DETAILS_POPUP_LOADING_CLASS = "fs-booking-details-popup__loading";
+  var BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS = "fs-booking-details-popup__loading--hidden";
   var FAN_BOOKING_SKELETON_TEMPLATE_PATH = "fan-booking-loading-skeleton.html";
   var FAN_BOOKING_LOADING_FALLBACK_DELAY_MS = 180;
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
@@ -920,6 +929,209 @@
     return activeOneOnOnePopup;
   }
 
+  function openBookingDetailsPopup(options) {
+    if (activeBookingDetailsPopup) {
+      activeBookingDetailsPopup.destroy({ invokeOnClose: false });
+    }
+
+    var settings = Object.assign({
+      src: "/wp-content/plugins/fansocial/bookings-embed/dashboard.html",
+      bookingId: "",
+      creatorId: null,
+      fanId: null,
+      userRole: "creator",
+      apiBaseUrl: "",
+      tokenHandlerApiUrl: "",
+      jwtToken: "",
+      creatorData: null,
+      translations: {},
+      locale: "en",
+      targetOrigin: window.location.origin,
+      iframeTitle: "Booking details",
+      closeOnOverlayClick: true,
+      escToClose: true,
+      returnFocusElement: null,
+    }, options || {});
+
+    var bookingId = typeof settings.bookingId === "string" || typeof settings.bookingId === "number"
+      ? String(settings.bookingId).trim()
+      : "";
+    if (!bookingId) {
+      throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a bookingId.");
+    }
+
+    var normalizedRole = String(settings.userRole || "creator").trim().toLowerCase() === "fan" ? "fan" : "creator";
+    if (normalizedRole === "fan" && safePositiveNumber(settings.fanId, null) == null) {
+      throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a positive fanId for fan views.");
+    }
+    if (normalizedRole === "creator" && safePositiveNumber(settings.creatorId, null) == null) {
+      throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a positive creatorId for creator views.");
+    }
+
+    var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
+    var creatorData = normalizeCreatorData(settings.creatorData);
+    var translations = normalizeTranslations(settings.translations);
+    var locale = normalizeLocale(settings.locale);
+    var focusTarget = resolveElement(settings.returnFocusElement) || document.activeElement;
+    var unlockBodyScroll = lockBodyScroll();
+    var isDestroyed = false;
+    var closeInvoked = false;
+
+    var overlay = createElement("div", BOOKING_DETAILS_POPUP_OVERLAY_CLASS, {
+      role: "presentation",
+      "data-fs-booking-details-popup": "",
+    });
+    var panel = createElement("div", BOOKING_DETAILS_POPUP_PANEL_CLASS, {
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": settings.iframeTitle,
+    });
+    var iframe = createElement("iframe", BOOKING_DETAILS_POPUP_IFRAME_CLASS);
+    iframe.title = settings.iframeTitle;
+    iframe.loading = "eager";
+    iframe.setAttribute("scrolling", "no");
+
+    var loadingLayer = createElement("div", BOOKING_DETAILS_POPUP_LOADING_CLASS, {
+      "aria-label": "Loading booking details",
+    });
+    loadingLayer.innerHTML = '<span class="fs-booking-details-popup__spinner" aria-hidden="true"></span>';
+
+    function sendBootstrap() {
+      if (!iframe.contentWindow || isDestroyed) return;
+      iframe.contentWindow.postMessage({
+        type: FS_EVENTS_BOOTSTRAP,
+        payload: {
+          creatorId: safePositiveNumber(settings.creatorId, null),
+          fanId: safePositiveNumber(settings.fanId, null),
+          userRole: normalizedRole,
+          apiBaseUrl: settings.apiBaseUrl || "",
+          tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
+          jwtToken: settings.jwtToken || "",
+          initialRoute: "booking-details",
+          bookingId: bookingId,
+          creatorData: creatorData,
+          translations: translations,
+          locale: locale,
+        },
+      }, targetOrigin);
+    }
+
+    function updatePopupAuth(authOptions) {
+      var authSettings = authOptions || {};
+      settings.jwtToken = typeof authSettings.jwtToken === "string" ? authSettings.jwtToken : settings.jwtToken;
+      if (!iframe.contentWindow || isDestroyed) return;
+      iframe.contentWindow.postMessage({
+        type: FS_EVENTS_AUTH_UPDATE,
+        payload: { jwtToken: settings.jwtToken || "" },
+      }, targetOrigin);
+    }
+
+    function hideLoadingLayer() {
+      if (!loadingLayer.parentNode) return;
+      loadingLayer.classList.add(BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS);
+      global.setTimeout(function () {
+        if (loadingLayer.parentNode) loadingLayer.parentNode.removeChild(loadingLayer);
+      }, 180);
+    }
+
+    function invokeOnClose() {
+      if (closeInvoked) return;
+      closeInvoked = true;
+      if (typeof settings.onClose === "function") settings.onClose();
+    }
+
+    function restoreFocus() {
+      if (!focusTarget || typeof focusTarget.focus !== "function" || !document.contains(focusTarget)) return;
+      try {
+        focusTarget.focus({ preventScroll: true });
+      } catch (_error) {
+        focusTarget.focus();
+      }
+    }
+
+    function destroy(options) {
+      var destroyOptions = Object.assign({ invokeOnClose: true }, options || {});
+      if (isDestroyed) return;
+      isDestroyed = true;
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("keydown", onKeyDown);
+      iframe.removeEventListener("load", sendBootstrap);
+      unlockBodyScroll();
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (activeBookingDetailsPopup && activeBookingDetailsPopup.iframe === iframe) {
+        activeBookingDetailsPopup = null;
+      }
+      restoreFocus();
+      if (destroyOptions.invokeOnClose) invokeOnClose();
+    }
+
+    function close() {
+      destroy({ invokeOnClose: true });
+    }
+
+    function onMessage(event) {
+      if (event.source !== iframe.contentWindow) return;
+      var data = event.data || {};
+
+      if (data.type === FS_EVENTS_CHILD_READY) {
+        sendBootstrap();
+        return;
+      }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_READY) {
+        hideLoadingLayer();
+        return;
+      }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST) {
+        close();
+        return;
+      }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_UPDATED) {
+        var payload = data.payload || {};
+        destroy({ invokeOnClose: false });
+        if (typeof settings.onBookingUpdated === "function") {
+          settings.onBookingUpdated(payload);
+        }
+        return;
+      }
+      if (data.type === FS_EVENTS_OPEN_URL) {
+        openUrl(data.payload || {}, settings);
+      }
+    }
+
+    function onKeyDown(event) {
+      if (settings.escToClose && event.key === "Escape") close();
+    }
+
+    if (settings.closeOnOverlayClick) {
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) close();
+      });
+    }
+    panel.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+
+    panel.appendChild(iframe);
+    panel.appendChild(loadingLayer);
+    overlay.appendChild(panel);
+    window.addEventListener("message", onMessage);
+    window.addEventListener("keydown", onKeyDown);
+    iframe.addEventListener("load", sendBootstrap);
+    document.body.appendChild(overlay);
+
+    // Booking IDs and authentication remain in the postMessage bootstrap payload.
+    iframe.src = settings.src;
+
+    activeBookingDetailsPopup = {
+      iframe: iframe,
+      overlay: overlay,
+      close: close,
+      destroy: destroy,
+      updateAuth: updatePopupAuth,
+    };
+    return activeBookingDetailsPopup;
+  }
+
   function updateFanBookingAuth(options) {
     if (!activeOneOnOnePopup || typeof activeOneOnOnePopup.updateAuth !== "function") return false;
     activeOneOnOnePopup.updateAuth(options || {});
@@ -930,6 +1142,9 @@
     activeEventsEmbeds.slice().forEach(function (embed) {
       embed.updateAuth(options || {});
     });
+    if (activeBookingDetailsPopup && typeof activeBookingDetailsPopup.updateAuth === "function") {
+      activeBookingDetailsPopup.updateAuth(options || {});
+    }
     return activeEventsEmbeds.length;
   }
 
@@ -937,6 +1152,7 @@
     mount: mount,
     updateAuth: updateAuth,
     openFanBookingPopup: openFanBookingPopup,
+    openBookingDetailsPopup: openBookingDetailsPopup,
     updateFanBookingAuth: updateFanBookingAuth,
   };
 

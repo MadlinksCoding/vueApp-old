@@ -1256,6 +1256,20 @@ const selectedDurationTokenCost = computed(() => (
   Number(selectedDurationObj.value?.price || 0)
 ));
 
+const bookingSummarySessionLabel = computed(() => {
+  const baseMinutes = Math.round(Number(baseSessionDurationMinutes.value || 0)) || 15;
+  const totalMinutes = Math.round(Number(selectedDurationDisplayMinutes.value || 0)) || baseMinutes;
+  const count = Math.max(1, Number(selectedSessionCount.value || 1));
+  const sessionLabel = count === 1 ? t('fan_booking_session') : t('fan_booking_sessions');
+
+  return t('fan_booking_session_breakdown', {
+    base_minutes: baseMinutes,
+    count,
+    session_label: sessionLabel,
+    total_minutes: totalMinutes,
+  });
+});
+
 const showFirstTimeDiscountNotice = computed(() => {
   const event = selectedEvent.value || {};
   const raw = event.raw || {};
@@ -1496,6 +1510,18 @@ const pricingPreview = computed(() => {
       contributionTokens: isEventGoalGroupEvent.value ? normalizedContributionTokens.value : null,
     },
   );
+});
+const pricingPreviewLines = computed(() => (
+  Array.isArray(pricingPreview.value?.payment?.lines)
+    ? pricingPreview.value.payment.lines
+    : []
+));
+
+const bookingSummarySessionCost = computed(() => {
+  const baseLine = pricingPreviewLines.value.find((row) => String(row?.code || '') === 'base');
+  const baseAmount = Number(baseLine?.amount);
+  if (Number.isFinite(baseAmount) && baseAmount >= 0) return baseAmount;
+  return Math.max(0, Number(selectedDurationTokenCost.value || 0));
 });
 const usesComponentAllocations = computed(() => Number(pricingPreview.value?.payment?.paymentPolicyVersion || 0) === 2);
 
@@ -2562,7 +2588,7 @@ onBeforeUnmount(() => {
               <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
                 <div class="flex items-center gap-1">
                   <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_add_on_service_heading") }}</h3>
-                  <span class="text-xs text-[#EAECF0] italic">Optional</span>
+                  <span class="text-xs text-[#EAECF0] italic">{{ t("common_optional") }}</span>
                 </div>
                 <div class="flex flex-col w-full gap-2">
                   <div
@@ -2599,9 +2625,11 @@ onBeforeUnmount(() => {
                 <div class="flex items-center justify-between">
                   <div class="flex gap-1 items-center">
                     <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
-                    <span class="text-xs text-[#EAECF0] italic">Optional</span>
+                    <span class="text-xs text-[#EAECF0] italic">{{ t("common_optional") }}</span>
                   </div>
-                  <span class="text-xs text-[#EAECF0]">APPROVAL REQUIRED</span>
+                  <span v-if="showApprovalNeeded" class="text-xs text-[#EAECF0]">
+                    {{ t("fan_booking_approval_required") }}
+                  </span>
                 </div>
                 <div class="desc hidden">
                   <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
@@ -2616,7 +2644,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- Previous Bookign details -->
+              <!-- Previous Booking details -->
               <div
                 v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
                 class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 hidden"
@@ -2687,60 +2715,123 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </div>
-              <!-- /Previous Bookign details -->
+              <!-- /Previous Booking details -->
 
-              <!-- Bookign Summary -->
-              <div class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
-                <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">BOOKING SUMMARY</h3>
+              <!-- Booking Summary -->
+              <div
+                v-if="selectedDurationObj"
+                class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5"
+                data-testid="booking-flow-step2-summary"
+              >
+                <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">
+                  {{ t("fan_booking_booking_summary") }}
+                </h3>
                 <div class="flex flex-col gap-3">
                   <div class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3">
-                    <div class="flex items-center justify-between">
-                      <span class="text-base text-white">10 Minute x 1 session</span>
+                    <div
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-session"
+                    >
+                      <span class="text-base text-white">{{ bookingSummarySessionLabel }}</span>
                       <div class="flex items-center gap-0.5">
                         <div class="w-5 h-5 flex items-center justify-center">
                           <img :src="bookingFlowTokenIcon" alt="token-icon" />
                         </div>
-                        <p class="text-base font-medium text-[#EAECF0]">300</p>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(bookingSummarySessionCost) }}
+                        </p>
                       </div>
                     </div>
 
-                    <div class="flex items-center justify-between">
-                      <span class="text-base text-white">Add-on service</span>
+                    <div
+                      v-for="(addon, index) in selectedAddons"
+                      :key="addon.id || index"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-addon"
+                      :data-addon-kind="addon.kind"
+                    >
+                      <span class="text-base text-white">{{ addon.name }}</span>
                       <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#EAECF0]">+</span>
                         <div class="w-5 h-5 flex items-center justify-center">
                           <img :src="bookingFlowTokenIcon" alt="token-icon" />
                         </div>
-                        <p class="text-base font-medium text-[#EAECF0]">50</p>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(addon.price) }}
+                        </p>
                       </div>
                     </div>
                   </div>
-                  <div class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3">
-                    <div class="flex items-center justify-between">
-                      <span class="text-base text-white">First time discount</span>
+
+                  <div
+                    v-if="discountRows.length > 0 || offHourSurchargeAmount > 0"
+                    class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3"
+                  >
+                    <div
+                      v-for="row in discountRows"
+                      :key="row.code"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-discount"
+                      :data-discount-code="row.code"
+                    >
+                      <span class="text-base text-white">{{ row.label }}</span>
                       <div class="flex items-center gap-0.5">
                         <span class="text-base font-medium text-[#07F468]">-</span>
                         <div class="w-5 h-5 flex items-center justify-center">
                           <img :src="bookingFlowTokenIcon" alt="token-icon" />
                         </div>
-                        <p class="text-base font-medium text-[#07F468]">50</p>
+                        <p class="text-base font-medium text-[#07F468]">
+                          {{ formatTokens(row.amount) }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="offHourSurchargeAmount > 0"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-surcharge"
+                    >
+                      <span class="text-base text-white">{{ t("fan_booking_off_hour_surcharge") }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#EAECF0]">+</span>
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(offHourSurchargeAmount) }}
+                        </p>
                       </div>
                     </div>
                   </div>
+
                   <div class="flex flex-col gap-1">
-                    <div class="flex items-center justify-between">
-                      <span class="text-lg font-medium text-white">SUBTOTAL</span>
+                    <div
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-subtotal"
+                    >
+                      <span class="text-lg font-medium text-white">{{ t("fan_booking_subtotal") }}</span>
                       <div class="flex items-center gap-0.5">
                         <div class="w-6 h-6 flex items-center justify-center">
                           <img :src="bookingFlowTokenIcon" alt="token-icon" />
                         </div>
-                        <p class="text-2xl font-medium text-white">300</p>
+                        <p class="text-2xl font-medium text-white">{{ formatTokens(totalPrice) }}</p>
                       </div>
                     </div>
-                    <p class="text-sm italic text-[#EAECF0]">Token equivalent of your session fee will be on hold in your balance until the call starts. A non-refundable booking fee of 30 Tokens applied.</p>
+                    <p class="text-sm italic text-[#EAECF0]">
+                      <span data-testid="booking-flow-step2-summary-hold-notice">
+                        {{ t("fan_booking_session_fee_hold_notice") }}
+                      </span>
+                      <span
+                        v-if="bookingFeeAmount > 0"
+                        data-testid="booking-flow-step2-summary-booking-fee-notice"
+                      >
+                        {{ " " }}{{ t("fan_booking_non_refundable_booking_fee_applied", { tokens: formatTokens(bookingFeeAmount) }) }}
+                      </span>
+                    </p>
                   </div>
                 </div>
               </div>
-              <!-- /Bookign Summary -->
+              <!-- /Booking Summary -->
               </template>
             </div>
 

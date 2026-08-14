@@ -83,6 +83,11 @@ const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
 const RESCHEDULE_FEE_SETTING_ENABLED = false;
 const X_POST_SETTINGS_LOAD_TIMEOUT_MS = 10_000;
+const showBookingDebugPanel = computed(() => (
+    import.meta.env.DEV
+    && String(import.meta.env.VITE_SHOW_BOOKING_DEBUG || "").trim().toLowerCase() === "true"
+    && !props.embedded
+));
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -1495,7 +1500,7 @@ function resolveSchedulePreviewFocusDate(payload = {}, stateSnapshot = {}) {
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
-    const eventTitle = String(stateSnapshot.eventTitle || "").trim() || "New Event";
+    const eventTitle = String(stateSnapshot.eventTitle || "").trim() || t("booking_preview_new_event_title");
     const eventColor = normalizeHexColor(stateSnapshot.eventColorSkin, DEFAULT_EVENT_COLOR);
 
     const selectedDate = String(stateSnapshot.selectedDate || "").trim() || formatDateIso(state.focus);
@@ -2386,7 +2391,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
     </component>
 
     <!-- Debug Section (as requested) -->
-    <div v-if="!embedded" class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
+    <div v-if="showBookingDebugPanel" data-test="booking-debug-state-manager" class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Debug / State Manager</h3>
         </div>

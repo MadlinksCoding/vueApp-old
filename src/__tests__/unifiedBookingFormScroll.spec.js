@@ -15,6 +15,7 @@ const mock = vi.hoisted(() => ({
   fetchEventXPostSettings: vi.fn(),
   isCreatorAllowedForXRepost: vi.fn(() => true),
   mergeEventXPostSettingsIntoFormState: vi.fn((formState) => formState),
+  translations: {},
   revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
   scrollToTime: vi.fn(() => Promise.resolve(true)),
   mapEventToBookingFormState: vi.fn(() => ({
@@ -193,7 +194,12 @@ vi.mock("@/utils/bookingJoinUtils.js", () => ({
 
 vi.mock("@/i18n/bookingTranslations.js", () => ({
   useBookingTranslations: () => ({
-    t: (key) => key,
+    t: (key, params = {}) => {
+      const message = mock.translations[key] || key;
+      return String(message).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, paramKey) => (
+        Object.prototype.hasOwnProperty.call(params, paramKey) ? String(params[paramKey]) : match
+      ));
+    },
   }),
 }));
 
@@ -363,6 +369,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
   let originalScrollTo;
 
   beforeEach(() => {
+    vi.unstubAllEnvs();
     mock.engine = createMockEngine();
     mock.callbacks = {};
     mock.routeLeaveGuard = null;
@@ -376,6 +383,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       repeatRule: "doesNotRepeat",
       eventColorSkin: "#FF00AA",
     });
+    mock.translations = {};
     mock.fetchEventXPostSettings.mockReset();
     mock.fetchEventXPostSettings.mockResolvedValue({
       success: true,
@@ -415,6 +423,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
     window.scrollTo = originalScrollTo;
     setWindowWidth(1024);
   });
@@ -632,6 +641,49 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     expect(calendar.props("variant")).toBe("theme2");
     expect(calendar.props("dayColumnMode")).toBe("events");
     expect(calendar.props("rowHeightPx")).toBe(120);
+  });
+
+  it("shows the state manager only for opted-in non-embedded development forms", async () => {
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const defaultWrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(defaultWrapper.find("[data-test='booking-debug-state-manager']").exists()).toBe(false);
+    defaultWrapper.unmount();
+
+    vi.stubEnv("VITE_SHOW_BOOKING_DEBUG", "true");
+    const debugWrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    expect(debugWrapper.find("[data-test='booking-debug-state-manager']").exists()).toBe(true);
+    await debugWrapper.setProps({ embedded: true });
+    expect(debugWrapper.find("[data-test='booking-debug-state-manager']").exists()).toBe(false);
+  });
+
+  it("uses the translated fallback title for untitled draft previews", async () => {
+    mock.translations.booking_preview_new_event_title = "Nuevo evento";
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+
+    mock.engine.setState("weeklyAvailability", [{
+      key: "tue",
+      name: "Tue",
+      unavailable: false,
+      slots: [{ startTime: "10:00", endTime: "11:00" }],
+    }]);
+    mock.engine.setState("dateFrom", "2026-05-19");
+    await flushPromises();
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("events")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "draft_new_event",
+          isDraftPreview: true,
+          title: "Nuevo evento",
+        }),
+      ]),
+    );
   });
 
   it("moves the calendar to a future draft schedule edited after mount", async () => {
