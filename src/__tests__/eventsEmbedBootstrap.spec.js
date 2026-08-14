@@ -16,6 +16,7 @@ describe("events embed bootstrap", () => {
       creatorId: "123",
       userRole: "creator",
       apiBaseUrl: "https://api.example.com",
+      bookingId: "",
       tokenHandlerApiUrl: "https://tokens.example.com/dev/",
       initialRoute: "create-group",
       creatorData: {
@@ -52,6 +53,7 @@ describe("events embed bootstrap", () => {
       userRole: "fan",
       fanId: "2615",
       apiBaseUrl: "https://api.example.com",
+      bookingId: "",
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       initialRoute: "events",
     });
@@ -82,6 +84,7 @@ describe("events embed bootstrap", () => {
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "create-private",
+      bookingId: "",
       translations: {},
       locale: "en",
       creatorData: {
@@ -110,6 +113,7 @@ describe("events embed bootstrap", () => {
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "events",
+      bookingId: "",
       translations: {},
       locale: "en",
       creatorData: {
@@ -165,5 +169,23 @@ describe("events embed bootstrap", () => {
     expect(state.creatorId).toBe(55);
     expect(state.initialRoute).toBe("create-group");
     expect(state.bootstrapped).toBe(true);
+  });
+
+  it("accepts a booking-details route with a sanitized booking id", async () => {
+    const {
+      applyEventsEmbedBootstrap,
+      useEventsEmbedBootstrap,
+    } = await import("@/embeds/events/bootstrap.js");
+
+    applyEventsEmbedBootstrap({
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "booking-details",
+      bookingId: "  booking_123  ",
+    });
+
+    const state = useEventsEmbedBootstrap();
+    expect(state.initialRoute).toBe("booking-details");
+    expect(state.bookingId).toBe("booking_123");
   });
 });

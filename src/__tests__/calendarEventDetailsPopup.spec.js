@@ -24,6 +24,36 @@ describe("CalendarEventDetailsPopup", () => {
     vi.useRealTimers();
   });
 
+  it("fills a side panel and exposes the close control on desktop without refetching supplied booking data", async () => {
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+    const booking = {
+      bookingId: "booking_123",
+      status: "confirmed",
+      startAtIso: "2026-05-01T10:00:00Z",
+      endAtIso: "2026-05-01T10:30:00Z",
+    };
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        presentation: "side-panel",
+        booking,
+        event: {
+          bookingId: "booking_123",
+          start: booking.startAtIso,
+          end: booking.endAtIso,
+          status: booking.status,
+          raw: booking,
+        },
+      },
+    });
+
+    expect(wrapper.attributes("data-presentation")).toBe("side-panel");
+    expect(wrapper.classes()).toContain("h-full");
+    const close = wrapper.get("[data-popup-close]");
+    expect(close.classes()).toContain("block");
+    await close.trigger("click");
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
   it("passes reminder and extension data to the join state helper", async () => {
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
 
