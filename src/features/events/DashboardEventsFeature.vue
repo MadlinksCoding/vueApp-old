@@ -586,7 +586,7 @@
         <div class="mt-2 flex items-center justify-center gap-2">
           <button
             type="button"
-            class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50"
+            class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50 flex-1 md:flex-none"
             :disabled="cancelBookingLoading"
             @click="closeCancelBookingPopup"
           >
@@ -594,7 +594,7 @@
           </button>
           <button
             type="button"
-            class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60"
+            class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60 flex-1 md:flex-none"
             :disabled="cancelBookingLoading"
             @click="confirmCancelBooking"
           >
@@ -605,7 +605,7 @@
     </PopupHandler>
 
     <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
-      <div class="w-[32.875rem] max-w-[90vw] rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+      <div class="w-full md:w-[32.875rem] md:max-w-[90vw] rounded-t-[0.25rem] md:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
         <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
           {{ deleteEventConfirmTitle }}
         </h3>
