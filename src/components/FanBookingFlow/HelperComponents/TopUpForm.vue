@@ -268,7 +268,6 @@ function onAmountInput(event) {
 
 async function handlePaymentSuccess(_response) {
   console.error('Payment successful:', _response);
-  isProcessing.value = false;
 
   // payment_status
   // :
@@ -282,20 +281,35 @@ async function handlePaymentSuccess(_response) {
     || 
     (_response?.order_status && ( _response.order_status == 'completed' || _response.order_status == 'processing' )) 
   ) {
-    emit('success', normalizeAuthPayload(_response));
+    cardFormRef.value?.setProcessingPayment(true, 'balance-sync');
+    let successResponse = _response;
 
     // guestCheckout.checkGuestAuthAfterPayment
-    // guestCheckouth 
     if( !isLoggedIn.value && window?.parent?.guestCheckout ) {
       window.parent.preventReloadOnCheckoutClose = true;
-      let apiresponse = await window.parent.guestCheckout.checkGuestAuthAfterPayment( _response.order_id );
-      console.warn('checkGuestAuthAfterPayment response:', apiresponse);
-      if( apiresponse && apiresponse.success ) {
-        if( apiresponse.userData ) {
-          window.parent.isUserAuthChanged = true;
+      try {
+        const apiresponse = await window.parent.guestCheckout.checkGuestAuthAfterPayment(_response.order_id);
+        console.warn('checkGuestAuthAfterPayment response:', apiresponse);
+        if (apiresponse?.success) {
+          successResponse = {
+            ..._response,
+            ...apiresponse,
+            data: {
+              ...(_response?.data || {}),
+              ...(apiresponse?.data || {}),
+            },
+            userData: apiresponse.userData || _response?.userData,
+          };
+          if (apiresponse.userData) {
+            window.parent.isUserAuthChanged = true;
+          }
         }
+      } catch (error) {
+        console.error('[TopUpForm] Guest authentication after payment failed:', error);
       }
     }
+
+    emit('success', normalizeAuthPayload(successResponse));
   } else {
     handlePaymentError(_response?.error_message || '');
   }
@@ -394,7 +408,10 @@ async function handleGuestLogout(res = null) {
 }
 
 defineExpose({
-  setProcessingPayment(val) { cardFormRef.value?.setProcessingPayment(val); },
+  setProcessingPayment(val, mode = 'payment') {
+    isProcessing.value = Boolean(val);
+    cardFormRef.value?.setProcessingPayment(val, mode);
+  },
 });
 
 onMounted(() => {
@@ -403,6 +420,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearTimeout(amountDebounceTimer);
+  cardFormRef.value?.setProcessingPayment(false);
   handler?.destroy();
 });
 </script>

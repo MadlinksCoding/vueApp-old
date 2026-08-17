@@ -3,6 +3,7 @@ export const FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
 export const FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
 export const FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
 export const FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
+export const FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST";
 export const FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 export const FS_FAN_BOOKING_OPEN_CHAT = "FS_FAN_BOOKING_OPEN_CHAT";
 
@@ -38,6 +39,10 @@ export function notifyOneOnOneBookingCreated(payload = {}) {
 
 export function notifyOneOnOneBookingFailed(payload = {}) {
   postToParent(FS_FAN_BOOKING_FAILED, payload);
+}
+
+export function requestOneOnOneBookingBalanceRefresh(payload = {}) {
+  postToParent(FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST, payload);
 }
 
 export function requestFanBookingOpenChat(payload = {}) {

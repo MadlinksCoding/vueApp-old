@@ -122,7 +122,13 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close-request", "booking-created", "booking-failed", "edit-schedule"]);
+const emit = defineEmits([
+  "close-request",
+  "booking-created",
+  "booking-failed",
+  "edit-schedule",
+  "balance-refresh-request",
+]);
 const { t, locale } = useBookingTranslations();
 const isReleasingHold = ref(false);
 const hasScheduledStep3Prefetch = ref(false);
@@ -891,6 +897,18 @@ const currentStepComponent = computed(() => {
   }
 });
 
+function handleBalanceChanged(payload = {}) {
+  emit("balance-refresh-request", {
+    ...payload,
+    reason: payload?.reason || "top-up",
+  });
+}
+
+function handleBookingCreated(payload = {}) {
+  emit("balance-refresh-request", { reason: "booking" });
+  emit("booking-created", payload);
+}
+
 const showStepOnePreviewCloseButton = computed(() => props.previewMode && engine.step === 1);
 const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step === 3);
 </script>
@@ -930,7 +948,8 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       :refresh-booking-context="refreshBookingContext"
       @close-popup="emit('close-request')"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
-      @booking-created="emit('booking-created', $event)"
+      @balance-changed="handleBalanceChanged"
+      @booking-created="handleBookingCreated"
       @booking-failed="emit('booking-failed', $event)"
       @edit-schedule="emit('edit-schedule', $event)"
     />

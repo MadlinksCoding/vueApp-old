@@ -15,6 +15,7 @@
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
   var FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
   var FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
+  var FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST";
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
@@ -43,6 +44,30 @@
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
+  var tokenBalanceRefreshQueue = Promise.resolve();
+
+  function queueTokenBalanceUiRefresh(payload) {
+    tokenBalanceRefreshQueue = tokenBalanceRefreshQueue
+      .catch(function () {})
+      .then(async function () {
+        if (!global.tokenManager || typeof global.tokenManager.updateBalanceUIs !== "function") {
+          if (global.console && typeof global.console.warn === "function") {
+            global.console.warn("[FSEventsEmbed] tokenManager.updateBalanceUIs is unavailable", payload || {});
+          }
+          return;
+        }
+
+        try {
+          await global.tokenManager.updateBalanceUIs();
+        } catch (error) {
+          if (global.console && typeof global.console.error === "function") {
+            global.console.error("[FSEventsEmbed] Failed to refresh token balance UIs", error);
+          }
+        }
+      });
+
+    return tokenBalanceRefreshQueue;
+  }
 
   function isFanBookingDebugEnabled(options) {
     if (options && options.debug === true) return true;
@@ -836,7 +861,7 @@
       scheduleLoadingFallbackHide();
     }
 
-    function onMessage(event) {
+    async function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
 
       var data = event.data || {};
@@ -866,6 +891,11 @@
         if (typeof settings.onBookingCreated === "function") {
           settings.onBookingCreated(data.payload || {});
         }
+        return;
+      }
+
+      if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
+        await queueTokenBalanceUiRefresh(data.payload || {});
         return;
       }
 

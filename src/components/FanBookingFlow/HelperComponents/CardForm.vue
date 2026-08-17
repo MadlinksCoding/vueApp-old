@@ -16,7 +16,13 @@ const { t } = useBookingTranslations();
 const paymentContainer    = ref(null);
 const dropdownContainer   = ref(null);
 const changeCardBtn       = ref(null);
-const isProcessingPayment = ref(false); // TODO: set false after spinner design confirmed
+const isProcessingPayment = ref(false);
+const processingMode = ref('payment');
+
+function setProcessingPayment(active, mode = 'payment') {
+  isProcessingPayment.value = Boolean(active);
+  processingMode.value = mode === 'balance-sync' ? 'balance-sync' : 'payment';
+}
 
 // Card validity (used when paymentMethod === 'new_card')
 const isCardReady     = ref(false);
@@ -206,7 +212,7 @@ defineExpose({
   syncSavedCards,
   resetCardValidity,
   paymentContainer,
-  setProcessingPayment(val) { isProcessingPayment.value = val; },
+  setProcessingPayment,
 });
 </script>
 
@@ -336,9 +342,22 @@ defineExpose({
     <div
       v-if="isProcessingPayment"
       class="fixed inset-0 z-[9999999] flex items-center justify-center"
+      data-testid="payment-processing-overlay"
+      :data-processing-mode="processingMode"
     >
       <div class="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
-      <div class="relative z-10 flex flex-col items-center gap-3 bg-[#1C1C1E] rounded-3xl p-6 w-[22rem] shadow-2xl">
+      <div
+        v-if="processingMode === 'balance-sync'"
+        class="relative z-10 h-12 w-12 rounded-full border-4 border-white/30 border-t-white animate-spin"
+        data-testid="balance-sync-spinner"
+        aria-label="Loading"
+        role="status"
+      ></div>
+      <div
+        v-else
+        class="relative z-10 flex flex-col items-center gap-3 bg-[#1C1C1E] rounded-3xl p-6 w-[22rem] shadow-2xl"
+        data-testid="payment-processing-content"
+      >
         <iframe
           class="w-full aspect-square rounded-2xl"
           src="https://lottie.host/embed/22c282b9-8645-4ad1-ade1-9637d7727ad8/TzLPM6VQvn.lottie"

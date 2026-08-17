@@ -171,6 +171,15 @@ async function handleSubmit() {
         currentCounterOffer: 'moretime',
       },
       actor: 'creator',
+      args: {
+        negotiation: {
+          status: 'sent',
+          type: 'moretime',
+          proposal: {
+            startAtIso: slotDate,
+          },
+        },
+      },
     })
     if (metaRes?.ok) {
       // Store proposed values in booking meta for fan-side display + accept flow

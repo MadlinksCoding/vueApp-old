@@ -177,6 +177,15 @@ async function handleSubmit() {
         currentCounterOffer: 'reschedule',
       },
       actor: "creator",
+      args: {
+        negotiation: {
+          status: 'sent',
+          type: 'reschedule',
+          proposal: {
+            startAtIso: slotDate,
+          },
+        },
+      },
     })
     if (metaRes?.ok) {
       // Store proposed values in booking meta for fan-side display + accept flow

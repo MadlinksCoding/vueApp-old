@@ -12,6 +12,7 @@
         @close-request="handleCloseRequest"
         @booking-created="handleBookingCreated"
         @booking-failed="handleBookingFailed"
+        @balance-refresh-request="handleBalanceRefreshRequest"
       />
     </div>
 
@@ -42,6 +43,7 @@ import {
   isEmbeddedIframe,
   notifyOneOnOneBookingCreated,
   notifyOneOnOneBookingFailed,
+  requestOneOnOneBookingBalanceRefresh,
   requestOneOnOneBookingClose,
 } from "@/embeds/fanBooking/bridge.js";
 import { logFanBookingDebug, markFanBookingDebugEnabled } from "@/embeds/fanBooking/debug.js";
@@ -68,6 +70,11 @@ function handleBookingCreated(payload) {
 function handleBookingFailed(payload) {
   logFanBookingDebug("app", "booking-failed", payload || {});
   notifyOneOnOneBookingFailed(payload || {});
+}
+
+function handleBalanceRefreshRequest(payload) {
+  logFanBookingDebug("app", "balance-refresh-request", payload || {});
+  requestOneOnOneBookingBalanceRefresh(payload || {});
 }
 
 onMounted(() => {

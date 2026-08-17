@@ -6,6 +6,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     vi.useFakeTimers();
     document.body.innerHTML = "";
     delete window.FSScheduledCallOverlay;
+    delete window.tokenManager;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
       text: () => Promise.resolve(""),
@@ -554,6 +555,96 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.body.contains(popup.overlay)).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.__FSFanBookingActivePopup).toBeNull();
+  });
+
+  it("queues token balance UI refreshes requested by the active booking iframe", async () => {
+    let releaseFirstRefresh;
+    const firstRefresh = new Promise((resolve) => {
+      releaseFirstRefresh = resolve;
+    });
+    const updateBalanceUIs = vi.fn()
+      .mockReturnValueOnce(firstRefresh)
+      .mockResolvedValueOnce(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "top-up" } },
+      origin: window.location.origin,
+    }));
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    releaseFirstRefresh();
+    for (let index = 0; index < 10; index += 1) {
+      await Promise.resolve();
+    }
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores balance refresh messages from outside the active booking iframe", async () => {
+    const updateBalanceUIs = vi.fn();
+    window.tokenManager = { updateBalanceUIs };
+    window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).not.toHaveBeenCalled();
+  });
+
+  it("contains token balance refresh failures", async () => {
+    const refreshError = new Error("refresh failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    window.tokenManager = { updateBalanceUIs: vi.fn().mockRejectedValue(refreshError) };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[FSEventsEmbed] Failed to refresh token balance UIs",
+      refreshError,
+    );
+    consoleError.mockRestore();
+  });
+
+  it("contains balance refresh requests when the WordPress token manager is unavailable", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "top-up" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[FSEventsEmbed] tokenManager.updateBalanceUIs is unavailable",
+      { reason: "top-up" },
+    );
+    consoleWarn.mockRestore();
   });
 
   it("opens scheduled meeting URLs through the shared WordPress overlay", () => {

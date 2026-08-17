@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 const tokenGet = vi.fn();
@@ -321,6 +321,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowMessageGreenIcon: "/message.webp",
   bookingFlowMessageGreenIconv2: "/message-v2.webp",
   bookingFlowPendingIcon: "/pending.webp",
+  bookingFlowSuccessIcon: "/success.webp",
   bookingFlowProfileImage: "/profile.webp",
   bookingFlowTokenIcon: "/token.webp",
   bookingFlowVerifiedIcon: "/verified.webp",
@@ -329,6 +330,10 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
 }));
 
 describe("BookingFlowStep3", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
 	vi.unstubAllEnvs();
     tokenGet.mockReset();
@@ -1031,6 +1036,131 @@ describe("BookingFlowStep3", () => {
     expect(flowNames).not.toContain("bookings.getTemporaryHoldStatus");
     expect(topUpForm.props("beforeSubmit")()).toBe(true);
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("waits for the authoritative top-up balance before creating the booking", async () => {
+    tokenGet
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockRejectedValueOnce(new Error("temporary token service error"))
+      .mockResolvedValueOnce({ data: { balance: 500 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "booking_after_topup", eventId: "evt_123" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushAsync();
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
+    expect(wrapper.emitted("balance-changed")).toEqual([[{ reason: "top-up" }]]);
+  });
+
+  it("keeps a timed-out top-up retryable without requesting another payment", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "booking_after_delayed_topup", eventId: "evt_123" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+    expect(engine.forceSubstep).toHaveBeenCalledWith("summary", { intent: "topup-balance-sync-delayed" });
+    expect(showToast).toHaveBeenCalledWith({
+      type: "warning",
+      title: "Top-up Successful",
+      message: "Your payment succeeded, but your token balance is still updating. Please wait a moment, then complete your booking again. You will not be charged twice.",
+    });
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(500);
+    expect(wrapper.emitted("balance-changed")).toBeUndefined();
+
+    tokenGet.mockResolvedValue({ data: { balance: 500 } });
+    engine.substep = "summary";
+    await flushAsync();
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(wrapper.emitted("balance-changed")).toEqual([[{ reason: "top-up" }]]);
+  });
+
+  it("cancels top-up balance polling when the component unmounts", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
+      title: "Top-up Successful",
+    }));
   });
 
   it("translates all known direct create-booking backend error codes", async () => {

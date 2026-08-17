@@ -102,7 +102,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['booking-created', 'booking-failed']);
+const emit = defineEmits(['booking-created', 'booking-failed', 'balance-changed']);
 const { t } = useBookingTranslations();
 const isAcceptingInvite = ref(false);
 let inviteAcceptPromise = null;
@@ -136,9 +136,14 @@ const holdLoading = ref(false);
 const holdError = ref('');
 const secondsRemaining = ref(0);
 let holdTimerId = null;
+const pendingTopUpExpectedBalance = ref(null);
+let topUpBalanceSyncGeneration = 0;
+let hasNotifiedTopUpBalanceChange = false;
 
 const PAYMENT_SUBSTEP_SUMMARY = 'summary';
 const PAYMENT_SUBSTEP_TOPUP   = 'topup';
+const TOP_UP_BALANCE_SYNC_INTERVAL_MS = 1000;
+const TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS = 16;
 
 const popupBackgroundStyle = computed(() => ({
   backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
@@ -1680,6 +1685,92 @@ async function ensureTemporaryHold() {
   }
 }
 
+async function fetchAuthoritativeWalletBalance() {
+  const fanId = resolveFanId();
+  const creatorId = resolveCreatorId();
+
+  if (fanId <= 0 || !getBackendJwtToken()) return 0;
+
+  const response = await TokenHandler.get({
+    userId: fanId,
+    receiverId: Number.isFinite(Number(creatorId)) && Number(creatorId) > 0 ? Number(creatorId) : null,
+    defaultValue: null,
+  });
+
+  logFanBookingDebug('step3', 'fetchAuthoritativeWalletBalance:response', { response });
+
+  const parsedBalance = parseTokenBalance(response, creatorId);
+  if (!Number.isFinite(parsedBalance)) {
+    throw new Error(t('fan_booking_token_balance_failed'));
+  }
+
+  return parsedBalance;
+}
+
+function applyWalletBalance(balance, reason = 'token-balance-refresh') {
+  walletBalance.value = balance;
+  props.engine.setState('bookingDetails.walletBalance', balance, {
+    reason,
+    silent: true,
+  });
+}
+
+function cancelTopUpBalanceSync() {
+  topUpBalanceSyncGeneration += 1;
+}
+
+function notifyTopUpBalanceChanged() {
+  if (hasNotifiedTopUpBalanceChange) return;
+  hasNotifiedTopUpBalanceChange = true;
+  emit('balance-changed', { reason: 'top-up' });
+}
+
+async function waitForTopUpBalance(requiredBalance) {
+  const generation = ++topUpBalanceSyncGeneration;
+  isCheckingBalance.value = true;
+  balanceCheckError.value = '';
+
+  try {
+    for (let attempt = 0; attempt < TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS; attempt += 1) {
+      if (generation !== topUpBalanceSyncGeneration) return { status: 'cancelled' };
+
+      try {
+        const authoritativeBalance = await fetchAuthoritativeWalletBalance();
+        if (generation !== topUpBalanceSyncGeneration) return { status: 'cancelled' };
+
+        if (authoritativeBalance >= requiredBalance) {
+          applyWalletBalance(authoritativeBalance, 'top-up-balance-synced');
+          hasCheckedBalance.value = true;
+          pendingTopUpExpectedBalance.value = null;
+          return { status: 'ready', balance: authoritativeBalance };
+        }
+      } catch (error) {
+        balanceCheckError.value = error?.message || t('fan_booking_check_token_balance_failed');
+        logFanBookingDebug('step3', 'top-up-balance-sync:attempt-error', {
+          attempt: attempt + 1,
+          message: balanceCheckError.value,
+        });
+      }
+
+      if (attempt < TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, TOP_UP_BALANCE_SYNC_INTERVAL_MS));
+      }
+    }
+
+    return { status: 'timeout' };
+  } finally {
+    if (generation === topUpBalanceSyncGeneration) isCheckingBalance.value = false;
+  }
+}
+
+function showTopUpBalanceSyncDelayed() {
+  showToast({
+    type: 'warning',
+    title: t('fan_booking_top_up_sync_delayed_title'),
+    message: t('fan_booking_top_up_sync_delayed_message'),
+  });
+}
+
 async function refreshWalletBalance({ silent = false } = {}) {
   const fanId = resolveFanId();
   const creatorId = resolveCreatorId();
@@ -1714,27 +1805,8 @@ async function refreshWalletBalance({ silent = false } = {}) {
   balanceCheckError.value = '';
 
   try {
-    const response = await TokenHandler.get({
-      userId: fanId,
-      receiverId: Number.isFinite(Number(creatorId)) && Number(creatorId) > 0 ? Number(creatorId) : null,
-      defaultValue: null,
-    });
-
-    logFanBookingDebug('step3', 'refreshWalletBalance:response', {
-      response,
-    });
-
-    const parsedBalance = parseTokenBalance(response, creatorId);
-
-    if (!Number.isFinite(parsedBalance)) {
-      throw new Error(t('fan_booking_token_balance_failed'));
-    }
-
-    walletBalance.value = parsedBalance;
-    props.engine.setState('bookingDetails.walletBalance', parsedBalance, {
-      reason: 'token-balance-refresh',
-      silent: true,
-    });
+    const parsedBalance = await fetchAuthoritativeWalletBalance();
+    applyWalletBalance(parsedBalance);
     hasCheckedBalance.value = true;
     logFanBookingDebug('step3', 'refreshWalletBalance:success', {
       parsedBalance,
@@ -1977,22 +2049,31 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
       title: t('fan_booking_account_verification_needed_title'),
       message: t('fan_booking_account_verification_needed_message'),
     });
-    topUpFormRef.value?.setProcessingPayment(false);
+    topUpFormRef.value?.setProcessingPayment?.(false);
     return;
   }
 
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
-  walletBalance.value = toppedUpBalance;
-  props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
+  hasNotifiedTopUpBalanceChange = false;
+  pendingTopUpExpectedBalance.value = toppedUpBalance;
+  applyWalletBalance(toppedUpBalance, 'top-up-preview');
+  hasCheckedBalance.value = true;
   try {
-    // Add 1s delay to ensure the wallet balance is updated before finalizing the booking
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const syncResult = await waitForTopUpBalance(maximumHeldAmount.value);
+    if (syncResult.status === 'cancelled') return;
+    if (syncResult.status !== 'ready') {
+      await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-balance-sync-delayed' });
+      showTopUpBalanceSyncDelayed();
+      return;
+    }
+
+    notifyTopUpBalanceChanged();
     await finalizeBooking({
       isTopUpDone: true,
-      nextWalletBalance: toppedUpBalance - maximumHeldAmount.value,
+      nextWalletBalance: syncResult.balance - maximumHeldAmount.value,
     });
   } finally {
-    topUpFormRef.value?.setProcessingPayment(false);
+    topUpFormRef.value?.setProcessingPayment?.(false);
   }
 };
 
@@ -2029,6 +2110,21 @@ const handleButtonClick = async () => {
   }
 
   try {
+    if (pendingTopUpExpectedBalance.value != null) {
+      const syncResult = await waitForTopUpBalance(maximumHeldAmount.value);
+      if (syncResult.status === 'cancelled') return;
+      if (syncResult.status !== 'ready') {
+        showTopUpBalanceSyncDelayed();
+        return;
+      }
+      notifyTopUpBalanceChanged();
+      await finalizeBooking({
+        isTopUpDone: true,
+        nextWalletBalance: syncResult.balance - maximumHeldAmount.value,
+      });
+      return;
+    }
+
     if (!hasCheckedBalance.value) {
       const ok = await refreshWalletBalance();
       if (!ok) return;
@@ -2142,12 +2238,17 @@ watch(
 watch(
   () => hasBookingCreated.value,
   (created) => {
-    if (created) clearHoldTimer();
+    if (created) {
+      cancelTopUpBalanceSync();
+      pendingTopUpExpectedBalance.value = null;
+      clearHoldTimer();
+    }
   },
 );
 
 onBeforeUnmount(() => {
   logFanBookingDebug('step3', 'before-unmount');
+  cancelTopUpBalanceSync();
   balanceCardAvatarAbortController?.abort();
   balanceCardAvatarAbortController = null;
   clearHoldTimer();
