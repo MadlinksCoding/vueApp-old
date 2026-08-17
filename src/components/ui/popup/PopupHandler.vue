@@ -32,7 +32,7 @@ A single, reusable Vue 3 SFC that handles BOTH centered popups and slide-ins.
       v-bind="containerBindAttrs"
       @keydown.esc.prevent.stop="onEsc"
       @click.stop
-      class="relative"
+      class="relative !w-full md:!w-auto !h-dvh md:!h-auto"
     >
       <!-- Optional loader (rendered via config.loader.component) -->
       <div
@@ -56,6 +56,7 @@ A single, reusable Vue 3 SFC that handles BOTH centered popups and slide-ins.
       <div
         ref="contentRef"
         :class="contentClassList"
+        class="flex items-end"
         @click.stop
       >
         <slot />
