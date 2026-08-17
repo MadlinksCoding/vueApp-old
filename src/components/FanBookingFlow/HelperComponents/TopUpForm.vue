@@ -53,6 +53,16 @@ const isPaymentSummaryOpen = ref(true);
 const isProcessing     = ref(false);
 const isFormLoading    = ref(false);
 const paymentError     = ref('');
+const showPaymentFailure = ref(false);
+const failureCountdown = ref(5);
+let failureTimer = null;
+
+function closePaymentFailure() {
+  showPaymentFailure.value = false;
+  paymentError.value = '';
+  if (failureTimer) clearInterval(failureTimer);
+}
+
 const billingEmail     = ref('');
 const cardFormRef      = ref(null);
 const guestFormRef     = ref(null);
@@ -287,12 +297,6 @@ async function handlePaymentSuccess(_response) {
       }
     }
   } else {
-    emit('payment-failed', _response);
-    showToast({
-      type: 'error',
-      title: t('fan_booking_payment_processing_failed_title'),
-      message: _response?.error_message || t('fan_booking_payment_failed_message'),
-    });
     handlePaymentError(_response?.error_message || '');
   }
 }
@@ -302,6 +306,17 @@ function handlePaymentError(message) {
   cardFormRef.value?.setProcessingPayment(false);
   console.error('Payment error:', message);
   paymentError.value = message || t('fan_booking_payment_failed_message');
+
+  showPaymentFailure.value = true;
+  failureCountdown.value = 5;
+  if (failureTimer) clearInterval(failureTimer);
+  failureTimer = setInterval(() => {
+    failureCountdown.value--;
+    if (failureCountdown.value <= 0) {
+      closePaymentFailure();
+      emit('payment-failed', _response);
+    }
+  }, 1000);
 }
 
 async function handlePayNow() {
@@ -485,8 +500,7 @@ onBeforeUnmount(() => {
       <p v-if="paymentError" class="text-xs text-red-400 font-medium">{{ paymentError }}</p>
 
       <!-- Balance summary -->
-       <div v-if="1!=1" class="flex flex-col items-end gap-2 self-stretch rounded-[0.5rem]" style="background: linear-gradient(90deg, rgba(16, 24, 40, 0.00) 25%, rgba(16, 24, 40, 0.90) 75%), #182230;
-">
+       <div v-if="1!=1" class="flex flex-col items-end gap-2 self-stretch rounded-[0.5rem]" style="background: linear-gradient(90deg, rgba(16, 24, 40, 0.00) 25%, rgba(16, 24, 40, 0.90) 75%), #182230;">
           <div class="flex flex-col items-end gap-2 self-stretch bg-[rgba(24,34,48,0.1)] relative overflow-hidden">
             <!-- bg -->
             <div class="absolute right-4 bottom-1 z-[1]">
@@ -524,7 +538,7 @@ onBeforeUnmount(() => {
       <!-- /Balance summary -->
 
       <!-- Shipping Address -->
-      <div class="flex flex-col">
+      <div v-if="1!=1" class="flex flex-col">
           <div class="inline-flex justify-between items-center gap-2">
             <div class="flex items-center gap-2">
               <div class="w-5 h-5 relative overflow-hidden">
@@ -736,4 +750,31 @@ onBeforeUnmount(() => {
           </button>
        </div>
   </div>
+  <!-- Payment Failure Popup -->
+  <Teleport to="body">
+    <div
+      v-if="showPaymentFailure"
+      class="fixed inset-0 z-[9999999] flex items-center justify-center"
+    >
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-md" @click="closePaymentFailure"></div>
+      <div class="relative z-10 flex flex-col items-center bg-[#292A2D] rounded-3xl p-6 w-[22rem] shadow-2xl">
+        <button @click="closePaymentFailure" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        
+        <h2 class="text-[#FF5A00] text-2xl font-bold font-['Poppins'] mb-4">{{ t("fan_booking_failure", "Failure") }}</h2>
+        
+        <div class="w-48 h-48 rounded-2xl mb-4 flex items-center justify-center">
+          <img src="http://fansocial.app/wp-content/plugins/fansocial/dev/call-checkout/images/payment-fail.png" alt="Payment Failed" class="max-w-full max-h-full object-contain" />
+        </div>
+        
+        <p class="text-white text-sm font-medium font-['Poppins'] text-center mt-2">
+          This window will close in <span class="text-[#FF5A00]">00:0{{ failureCountdown }}</span> seconds.
+        </p>
+      </div>
+    </div>
+  </Teleport>
 </template>
+

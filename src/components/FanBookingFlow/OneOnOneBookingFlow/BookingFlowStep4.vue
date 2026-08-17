@@ -5,6 +5,7 @@ import {
   bookingFlowCrossWhiteIcon,
   bookingFlowMessageGreenIcon,
   bookingFlowPendingIcon,
+  bookingFlowSuccessIcon,
   bookingFlowVerifiedIcon,
   bookingFlowMessageGreenIconv2,
 } from './oneOnOneBookingFlowAssets.js';
@@ -102,13 +103,13 @@ const instantFromEvent = computed(() => toBoolean(
 const isInstantConfirmed = computed(() => approvalStatus.value === 'auto' || instantFromEvent.value);
 const topTitle = computed(() => (
   isInstantConfirmed.value
-    ? t('fan_booking_confirmed_with_creator', { creator: creatorLabel.value })
-    : t('fan_booking_request_sent_to_creator', { creator: creatorLabel.value })
+    ? t('fan_booking_step4_confirmed_title')
+    : t('fan_booking_step4_pending_title')
 ));
 const topMessage = computed(() => (
   isInstantConfirmed.value
-    ? t('fan_booking_confirmed_message')
-    : t('fan_booking_pending_message')
+    ? t('fan_booking_step4_confirmed_message', { creator: creatorLabel.value })
+    : t('fan_booking_step4_pending_message', { creator: creatorLabel.value })
 ));
 
 const successBackgroundStyle = computed(() => ({
@@ -143,9 +144,9 @@ onMounted(() => {
             <div class="p-3 md:px-6 md:pb-6 md:pt-12 md:rounded-tl-[24px] md:rounded-bl-[24px] flex flex-col gap-10 md:max-w-[25.5rem] flex-1 bg-transparent md:bg-[linear-gradient(0deg,rgba(34,204,238,0.2)_0%,rgba(34,204,238,0.2)_100%)]"
 ">
               <div class="flex flex-col justify-center items-center gap-6">
-                <img class="w-36 h-36" :src="bookingFlowPendingIcon" alt="" />
+                <img class="w-36 h-36" :src="isInstantConfirmed ? bookingFlowSuccessIcon : bookingFlowPendingIcon" alt="" />
                 <div class="flex flex-col justify-start items-start gap-2">
-                  <div class="text-center justify-center text-white text-xl md:text-2xl font-semibold">{{ topTitle }}</div>
+                  <div class="w-full text-center justify-center text-white text-xl md:text-2xl font-semibold">{{ topTitle }}</div>
                   <div class="text-center justify-center text-white text-sm md:text-base font-normal">{{ topMessage }}</div>
                   <div class="text-center justify-center text-white text-sm md:text-base font-normal">In the mean time, you can track progress of your mandatory purchase in order page.</div>
                 </div>
@@ -204,7 +205,7 @@ onMounted(() => {
                   <div class="text-center text-gray-900 text-base font-medium leading-6">{{ t("fan_booking_view_events_on_calendar") }}</div>
                 </div>
                 <!-- view order detail -->
-                <div class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-[#22CCEE] inline-flex justify-center items-center gap-2 cursor-pointer">
+                <div v-if="1!=1" class="self-stretch h-10 min-w-24 pl-2 pr-6 py-2 bg-[#22CCEE] inline-flex justify-center items-center gap-2 cursor-pointer">
                   <div class="w-6 h-6 relative overflow-hidden">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
                         <path d="M14 2.26953V6.40007C14 6.96012 14 7.24015 14.109 7.45406C14.2049 7.64222 14.3578 7.7952 14.546 7.89108C14.7599 8.00007 15.0399 8.00007 15.6 8.00007H19.7305M16 13H8M16 17H8M10 9H8M14 2H8.8C7.11984 2 6.27976 2 5.63803 2.32698C5.07354 2.6146 4.6146 3.07354 4.32698 3.63803C4 4.27976 4 5.11984 4 6.8V17.2C4 18.8802 4 19.7202 4.32698 20.362C4.6146 20.9265 5.07354 21.3854 5.63803 21.673C6.27976 22 7.11984 22 8.8 22H15.2C16.8802 22 17.7202 22 18.362 21.673C18.9265 21.3854 19.3854 20.9265 19.673 20.362C20 19.7202 20 18.8802 20 17.2V8L14 2Z" stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -225,23 +226,29 @@ onMounted(() => {
                   <div class="flex py-[0.25rem] px-[0.375rem] justify-center items-center gap-[0.625rem] rounded-[0.375rem] bg-[#22CCEE]">
                     <span class="text-[#0C111D] text-[0.875rem] font-bold leading-[1.25rem]">1 on 1 call</span>
                   </div>
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center gap-1" v-if="isInstantConfirmed">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <path d="M17.5 8.33268H2.5M13.3333 1.66602V4.99935M6.66667 1.66602V4.99935M7.5 13.3327L9.16667 14.9993L12.9167 11.2493M6.5 18.3327H13.5C14.9001 18.3327 15.6002 18.3327 16.135 18.0602C16.6054 17.8205 16.9878 17.4381 17.2275 16.9677C17.5 16.4329 17.5 15.7328 17.5 14.3327V7.33268C17.5 5.93255 17.5 5.23249 17.2275 4.69771C16.9878 4.2273 16.6054 3.84485 16.135 3.60517C15.6002 3.33268 14.9001 3.33268 13.5 3.33268H6.5C5.09987 3.33268 4.3998 3.33268 3.86502 3.60517C3.39462 3.84485 3.01217 4.2273 2.77248 4.69771C2.5 5.23249 2.5 5.93255 2.5 7.33268V14.3327C2.5 15.7328 2.5 16.4329 2.77248 16.9677C3.01217 17.4381 3.39462 17.8205 3.86502 18.0602C4.3998 18.3327 5.09987 18.3327 6.5 18.3327Z" stroke="#07F468" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    <span class="text-[#07F468] text-[0.875rem] font-normal leading-[1.25rem]">INSTANT APPROVAL</span>
+                    <span class="text-[#07F468] text-[0.875rem] font-normal leading-[1.25rem] uppercase">{{ t('common_instant_approval') }}</span>
+                  </div>
+                  <div class="flex items-center gap-1" v-else>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path d="M4.16667 10H4.175M10 10H10.0083M15.8333 10H15.8417" stroke="#FCE40D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="text-[#FCE40D] text-[0.875rem] font-medium leading-[1.25rem] uppercase">{{ t('common_approval_needed') }}</span>
                   </div>
                 </div>
-                <h1 class="line-clamp-2 self-stretch text-[#F2F4F7] font-poppins text-[1.875rem] font-semibold leading-[2.375rem]">Let me watch you enjoy my socks </h1>
+                <h1 class="line-clamp-2 self-stretch text-[#F2F4F7] font-poppins text-[1.875rem] font-semibold leading-[2.375rem]">{{ eventTitle }}</h1>
                 <!-- Model display -->
                 <div class="flex flex-row items-center gap-2">
                   <div class="w-6 h-6 flex justify-center items-center">
-                    <img src="https://dbthdbmy1eqbf.cloudfront.net/user-1407/images/omvTFOxXvPhg8ZN023nkmSun4ZLRQW/omvTFOxXvPhg8ZN023nkmSun4ZLRQW.png" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% / 60% 60% 40% 40%;">
+                    <img :src="creatorPresentation.avatar" alt="profile-image" class="w-full h-full object-cover" style="border-radius: 50% / 60% 60% 40% 40%;">
                   </div>
                   <div class="flex flex-row items-center gap-1">
-                    <p class="text-xs font-medium leading-[18px] text-white">CosManiaa Creator</p>
-                    <div class="w-4 h-4 flex justify-center items-center">
-                      <img src="/src/assets/images/icons/verified-blue-white.webp" alt="verified-icon">
+                    <p class="text-xs font-medium leading-[18px] text-white">{{ creatorLabel }}</p>
+                    <div v-if="creatorPresentation.isVerified" class="w-4 h-4 flex justify-center items-center">
+                      <img :src="bookingFlowVerifiedIcon" alt="verified-icon">
                     </div>
                   </div>
                 </div>
@@ -249,17 +256,17 @@ onMounted(() => {
 
                 <!-- Date and Time -->
                 <div class="flex flex-col gap-2 px-3 lg:px-0">
-                  <span class="text-white text-2xl font-medium">Tuesday, April 16, 2026</span>
+                  <span class="text-white text-2xl font-medium">{{ formattedDate }}</span>
                   <div class="flex items-center gap-2">
-                    <span class="text-white text-2xl font-medium">1:10pm-1:40pm</span>
-                    <span class="text-[#98A2B3] text-base font-medium">30 min.</span>
+                    <span class="text-white text-2xl font-medium">{{ timeRange }}</span>
+                    <span class="text-[#98A2B3] text-base font-medium">{{ duration }} {{ t('fan_booking_minute_session') }}</span>
                   </div>
                 </div>
                 <!-- /Date and Time -->
               </div>
               <!-- /Info -->
               <!-- mandatory Purchase -->
-              <div class="w-full flex px-3 lg:px-0">
+              <div v-if="1!=1" class="w-full flex px-3 lg:px-0">
                 <div class="flex w-full items-center rounded-[0.625rem] bg--gd--blue-51-251 overflow-hidden">
                   <div class="w-[3.5rem] h-full aspect-square overflow-hidden bg-white">
                     <img src="https://i.ibb.co/d0B63B18/image.png" alt="" class="w-full h-full object-cover">

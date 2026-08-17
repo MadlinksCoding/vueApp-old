@@ -57,6 +57,8 @@ export const bookingMessages = {
   common_wallet_balance: "Wallet Balance",
   common_week: "Week",
   common_yes: "Yes",
+  common_instant_approval: "INSTANT APPROVAL",
+  fan_booking_minute_session: "minute session",
 
   chat_action_to_buy: "{action} to Buy",
 
@@ -821,6 +823,10 @@ export const bookingMessages = {
   fan_booking_request_message_on_date: "Booking request for \"{event}\" on {date}",
   fan_booking_confirmed_message: "Your booking is confirmed. See you at your selected time.",
   fan_booking_pending_message: "Sit tight - your request is pending approval from the creator.",
+  fan_booking_step4_confirmed_title: "Session confirmed!",
+  fan_booking_step4_pending_title: "Booking request sent",
+  fan_booking_step4_confirmed_message: "Get excited - your call booking with @{creator} is coming up!",
+  fan_booking_step4_pending_message: "Sit tight - your request is pending approval from @{creator}.",
   fan_booking_total_tokens: "Total: {tokens} tokens",
   fan_booking_first_time_discount_saved: "First-time discount applied: saved {tokens} tokens",
   fan_booking_message_creator: "Message {creator}",
@@ -842,6 +848,7 @@ export const bookingMessages = {
   fan_booking_logging_out: "Logging out...",
   fan_booking_log_out: "Log out",
   fan_booking_payment_processing_failed_title: "Payment processing failed",
+  fan_booking_failure: "Failure",
   fan_booking_payment_failed_message: "Payment failed. Please try again.",
   fan_booking_reloading_payment_form: "Reloading payment form...",
   fan_booking_payment_form_load_failed: "Could not load payment form. Please refresh and try again.",
