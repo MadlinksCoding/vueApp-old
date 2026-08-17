@@ -63,6 +63,7 @@ const props = defineProps({
   message:   { type: Object, required: true },
   chatId:    { type: String, required: true },
   isCreator: { type: Boolean, default: false },
+  booking:   { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'cancelled'])
@@ -74,10 +75,19 @@ async function handleConfirm() {
   if (!bookingId) return
   submitting.value = true
   try {
+    const offerType = props.booking?.meta?.currentCounterOffer || props.booking?.meta?.negotiation?.type || null
+    const negotiation = !props.isCreator && offerType
+      ? {
+          status: 'declined',
+          type: offerType,
+          negotiationId: props.booking?.meta?.negotiation?.negotiationId || null,
+        }
+      : null
     const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
       bookingId,
       actor: props.isCreator ? 'creator' : 'fan',
-      intent: 'normal',
+      intent: negotiation ? 'decline_renegotiation' : 'normal',
+      ...(negotiation ? { args: { negotiation } } : {}),
     })
     if (cancelRes?.ok) {
       const updateRes = await FlowHandler.run('chat.updateMessage', {
