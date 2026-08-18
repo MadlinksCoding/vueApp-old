@@ -226,14 +226,14 @@
                             class="flex items-center gap-0.5 hover:opacity-80 transition-opacity"
                             @click="handleOpenChatClick"
                         >
-                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
+                            <div class="text-blue-600 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
                                 {{ t("calendar_event_open_chat") }}
                             </div>
                             <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
+                                xmlns="http://www.w3.org/2000/svg" class="text-blue-600">
                                 <path
                                     d="M9.3335 22.6666L22.6668 9.33331M22.6668 9.33331H9.3335M22.6668 9.33331V22.6666"
-                                    stroke="#000" stroke-width="2.5" stroke-linecap="round"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
                                     stroke-linejoin="round" />
                             </svg>
                         </button>
