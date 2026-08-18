@@ -1,10 +1,16 @@
 <template>
     <div
-        class="w-full lg:w-[492px] bg-gray-50 rounded-t-[24px] rounded-b-none lg:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none ipad-portrait-large:w-[40vw] ipad-portrait-large:h-full"
+        :class="[
+            'w-full bg-gray-50 flex items-stretch overflow-hidden',
+            isSidePanel
+                ? 'h-full min-h-0 rounded-none'
+                : 'lg:w-[492px] rounded-t-[24px] rounded-b-none lg:rounded max-md:rounded-t-[1.5rem] max-md:rounded-b-none ipad-portrait-large:w-[40vw] ipad-portrait-large:h-full'
+        ]"
         :style="popupStyle"
+        :data-presentation="presentation"
     >
         <div class="w-1 self-stretch shrink-0" :style="{ backgroundColor: eventColor }" />
-        <div class="w-full p-2 md:p-4 flex items-start gap-1">
+        <div :class="['w-full p-2 md:p-4 flex items-start gap-1', isSidePanel ? 'h-full overflow-y-auto' : '']">
             <div class="flex-1 inline-flex flex-col items-start gap-6">
                 <div class="w-full inline-flex justify-between items-center">
                     <div :title="titleText" class="text-2xl font-semibold font-['Poppins'] leading-8 truncate w-[150px] min-[480px]:w-[50%]" :style="{ color: eventColor }">
@@ -100,7 +106,10 @@
                         <button
                             type="button"
                             data-popup-close
-                            class=" p-2 rounded-full hover:bg-gray-200 transition-colors ipad-portrait-large:block lg:hidden"
+                            :class="[
+                                'p-2 rounded-full hover:bg-gray-200 transition-colors',
+                                isSidePanel ? 'block' : 'ipad-portrait-large:block lg:hidden'
+                            ]"
                             :aria-label="t('common_close')"
                             @click="$emit('close')"
                         >
@@ -217,14 +226,14 @@
                             class="flex items-center gap-0.5 hover:opacity-80 transition-opacity"
                             @click="handleOpenChatClick"
                         >
-                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
+                            <div class="text-blue-600 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
                                 {{ t("calendar_event_open_chat") }}
                             </div>
                             <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
+                                xmlns="http://www.w3.org/2000/svg" class="text-blue-600">
                                 <path
                                     d="M9.3335 22.6666L22.6668 9.33331M22.6668 9.33331H9.3335M22.6668 9.33331V22.6666"
-                                    stroke="#000" stroke-width="2.5" stroke-linecap="round"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
                                     stroke-linejoin="round" />
                             </svg>
                         </button>
@@ -346,11 +355,21 @@ const props = defineProps({
     comparisonTime: {
         type: Date,
         default: null
+    },
+    presentation: {
+        type: String,
+        default: 'default',
+        validator: (value) => ['default', 'side-panel'].includes(value)
+    },
+    booking: {
+        type: Object,
+        default: null
     }
 });
 
 const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking', 'close', 'adjust-booking', 'open-chat']);
 const { t, locale } = useBookingTranslations();
+const isSidePanel = computed(() => props.presentation === 'side-panel');
 const menuOpen = ref(false);
 const localCurrentTime = ref(new Date());
 const currentTimeTimer = ref(null);
@@ -443,6 +462,13 @@ const eventColor = computed(() => normalizeHexColor(
 ));
 
 const popupStyle = computed(() => {
+    if (isSidePanel.value) {
+        return {
+            borderColor: eventColor.value,
+            boxShadow: 'none',
+        };
+    }
+
     // Only apply centering-specific styles if NOT on mobile
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     
@@ -618,7 +644,7 @@ const canReviewPending = computed(() => (
 ));
 const showRejectConfirm = ref(false);
 
-const bookingData = ref(null);
+const bookingData = ref(props.booking || null);
 const bookingLoading = ref(false);
 
 const targetUserIdForChat = computed(() => {
@@ -643,12 +669,14 @@ function handleOpenChatClick() {
 }
 
 watch(
-    () => bookingId.value,
-    async (newBookingId) => {
+    () => [bookingId.value, props.booking],
+    async ([newBookingId, suppliedBooking]) => {
         showRejectConfirm.value = false;
         menuOpen.value = false;
-        
-        bookingData.value = null;
+
+        bookingData.value = suppliedBooking || null;
+        if (suppliedBooking) return;
+
         if (newBookingId && props.canReviewPending) {
             bookingLoading.value = true;
             try {

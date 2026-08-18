@@ -706,7 +706,18 @@ async function onAcceptCounter(message) {
     }
     // Call booking API now that fan has accepted
     const flow = offerType === 'reschedule' ? 'bookings.rescheduleBooking' : 'bookings.renegotiateBooking'
-    const res = await FlowHandler.run(flow, { bookingId, startAtIso: newSlot, actor: 'user' })
+    const res = await FlowHandler.run(flow, {
+      bookingId,
+      startAtIso: newSlot,
+      actor: 'user',
+      args: {
+        negotiation: {
+          status: 'accepted',
+          type: offerType,
+          negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
+        },
+      },
+    })
 
   
     if (res?.ok) {
@@ -743,6 +754,8 @@ async function onRejectCounter(message) {
   if (!activeChatId.value || !message?.message_id) return
 
   const bookingId = message.content?.booking_id
+  const cachedBooking = chatStore.getBookingById(bookingId)
+  const offerType = cachedBooking?.meta?.currentCounterOffer || cachedBooking?.meta?.negotiation?.type
   bookingActionLoading.value = true
   try {
     // Cancel the booking first
@@ -750,7 +763,14 @@ async function onRejectCounter(message) {
       const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
         bookingId,
         actor: 'user',
-		intent: 'decline_renegotiation',
+        intent: 'decline_renegotiation',
+        args: {
+          negotiation: {
+            status: 'declined',
+            type: offerType,
+            negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
+          },
+        },
       })
       if (!cancelRes?.ok) {
         showToast({ type: 'error', title: 'Failed', message: cancelRes?.error || 'Could not cancel booking.' })
@@ -771,8 +791,6 @@ async function onRejectCounter(message) {
         })
     if (res?.ok) {
       broadcastBookingUpdate(res.data?.item)
-      const cachedBooking = chatStore.getBookingById(bookingId)
-      const offerType = cachedBooking?.meta?.currentCounterOffer
       const decision  = offerType === 'reschedule' ? 'reschedule_request_rejected' : 'more_time_request_rejected'
       sendChatActivityLog('New time rejected', {
         is_booking_request: true,
@@ -793,21 +811,41 @@ async function _doConfirmCounter(bookingId, message) {
   // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
   const cachedBooking = chatStore.getBookingById(bookingId)
   const adjustMeta    = cachedBooking?.meta?.adjust || {}
-  await FlowHandler.run('bookings.renegotiateBooking', {
+  const renegotiateRes = await FlowHandler.run('bookings.renegotiateBooking', {
     bookingId,
     startAtIso:          adjustMeta.proposedSlotDate  || undefined,
     costTokens:          adjustMeta.proposedTokens    || undefined,
     personalRequestText: adjustMeta.proposedRemarks   || undefined,
     actor: 'user',
+    args: {
+      negotiation: {
+        type: 'adjust',
+        phase: 'apply',
+        negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
+      },
+    },
     meta: {
       currentCounterOffer: '',
     }
   })
 
+  if (!renegotiateRes?.ok) {
+    bookingActionLoading.value = false
+    showToast({ type: 'error', title: 'Failed', message: renegotiateRes?.error || 'Could not apply the adjustment.' })
+    return
+  }
+
   const res = await FlowHandler.run('bookings.reviewPendingBooking', {
     bookingId,
     decision: 'approve',
     actor:    'fan',
+    args: {
+      negotiation: {
+        status: 'accepted',
+        type: 'adjust',
+        negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
+      },
+    },
   })
 
   if (!res?.ok) {
@@ -3376,6 +3414,7 @@ onUnmounted(() => {
   <CancelCallConfirmPopup
     v-if="showCancelCallPopup && activeBookingMessage"
     :message="activeBookingMessage"
+    :booking="activeBookingData"
     :chat-id="activeChatId"
     :is-creator="isCreatorAccount"
     @cancelled="onCallCancelled"

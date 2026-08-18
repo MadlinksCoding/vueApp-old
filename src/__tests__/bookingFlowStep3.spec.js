@@ -1,10 +1,14 @@
 import { mount } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 const tokenGet = vi.fn();
 const showToast = vi.fn();
+const fetchUserProfileData = vi.fn();
+const resolveParentUserData = vi.fn();
+const flowRun = vi.fn();
+const sendChatMessage = vi.fn();
 let backendJwtToken = "jwt_test";
 
 function setByPath(target, path, value) {
@@ -147,6 +151,24 @@ vi.mock("@/utils/TokenHandler.js", () => ({
 
 vi.mock("@/utils/toastBus.js", () => ({
   showToast,
+}));
+
+vi.mock("@/services/users/userProfileApi.js", () => ({
+  fetchUserProfileData,
+}));
+
+vi.mock("@/utils/resolveParentUserData.js", () => ({
+  resolveParentUserData,
+}));
+
+vi.mock("@/services/flow-system/FlowHandler", () => ({
+  default: {
+    run: flowRun,
+  },
+}));
+
+vi.mock("@/composables/useChatSocket", () => ({
+  useChatSocket: () => ({ sendChatMessage }),
 }));
 
 vi.mock("@/utils/backendJwt.js", () => ({
@@ -296,20 +318,35 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowArrowRightIcon: "/arrow.webp",
   bookingFlowBackgroundImage: "/background.webp",
   bookingFlowCrossWhiteIcon: "/close.webp",
-  bookingFlowExBalanceImage: "/balance.webp",
   bookingFlowMessageGreenIcon: "/message.webp",
+  bookingFlowMessageGreenIconv2: "/message-v2.webp",
   bookingFlowPendingIcon: "/pending.webp",
+  bookingFlowSuccessIcon: "/success.webp",
   bookingFlowProfileImage: "/profile.webp",
   bookingFlowTokenIcon: "/token.webp",
   bookingFlowVerifiedIcon: "/verified.webp",
   bookingFlowBackarrowIcon: "/backarrow.webp",
+  bookingFlowTruckIcon: "/truck.webp",
 }));
 
 describe("BookingFlowStep3", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
 	vi.unstubAllEnvs();
     tokenGet.mockReset();
     showToast.mockReset();
+    fetchUserProfileData.mockReset();
+    fetchUserProfileData.mockResolvedValue(null);
+    resolveParentUserData.mockReset();
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/current-user-avatar.jpg",
+    });
+    flowRun.mockReset();
+    flowRun.mockResolvedValue({ ok: false, data: {} });
+    sendChatMessage.mockReset();
     backendJwtToken = "jwt_test";
     window.matchMedia = vi.fn(() => ({
       matches: false,
@@ -318,13 +355,18 @@ describe("BookingFlowStep3", () => {
     }));
   });
 
-  async function mountAndSubmitStep3(engine, props = {}) {
+  async function mountAndSubmitStep3(engine, props = {}, translations = {}) {
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
     const wrapper = mount(BookingFlowStep3, {
       props: {
         engine,
         embedded: true,
         ...props,
+      },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: createBookingTranslator({ translations }),
+        },
       },
     });
 
@@ -362,6 +404,263 @@ describe("BookingFlowStep3", () => {
     });
     expect(engine.getState("bookingDetails.walletBalance")).toBe(1900);
   }, 10000);
+
+  it("uses the injected WordPress avatar without fetching profile data", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/fans/current-avatar.jpg",
+      user: { color_scheme: "#4361ee" },
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(wrapper.find("[data-testid='booking-balance-placeholder-card']").exists()).toBe(false);
+    expect(avatarCard.attributes("style")).toContain("https://example.test/fans/current-avatar.jpg");
+    expect(avatarCard.element.style.backgroundSize).toBe("cover");
+    expect(avatarCard.element.style.backgroundPosition).toBe("center");
+    expect(avatarCard.element.style.backgroundColor).toBe("");
+    expect(avatarCard.text()).toContain("1.9K");
+    expect(avatarCard.text()).toContain("900");
+    expect(fetchUserProfileData).not.toHaveBeenCalled();
+  });
+
+  it("uses the injected color for an SVG WordPress avatar without fetching", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/fans/current-avatar.SVG?version=2#profile",
+      user: { color_scheme: "  #4361ee  " },
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(avatarCard.attributes("style")).toContain("current-avatar.SVG?version=2#profile");
+    expect(avatarCard.element.style.backgroundSize).toBe("48% 100%");
+    expect(avatarCard.element.style.backgroundPosition).toBe("right");
+    expect(avatarCard.element.style.backgroundColor).toBe("rgb(67, 97, 238)");
+    expect(fetchUserProfileData).not.toHaveBeenCalled();
+  });
+
+  it("fills a missing SVG color from the profile endpoint without replacing the injected avatar", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/fans/injected-avatar.svg",
+      user: { color_scheme: null },
+    });
+    fetchUserProfileData.mockResolvedValue({
+      avatar: "https://example.test/fans/endpoint-avatar.svg",
+      color_scheme: "#ff76dd",
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(fetchUserProfileData).toHaveBeenCalledWith(2615, {
+      signal: expect.any(AbortSignal),
+    });
+    expect(avatarCard.attributes("style")).toContain("injected-avatar.svg");
+    expect(avatarCard.attributes("style")).not.toContain("endpoint-avatar.svg");
+    expect(avatarCard.element.style.backgroundColor).toBe("rgb(255, 118, 221)");
+  });
+
+  it("uses the generic card for an injected placeholder avatar without fetching", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/avatars/PLACEHOLDER-user.png",
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const genericCard = wrapper.get("[data-testid='booking-balance-placeholder-card']");
+    expect(wrapper.find("[data-testid='booking-balance-avatar-card']").exists()).toBe(false);
+    expect(genericCard.text()).toContain("1.9K");
+    expect(genericCard.text()).toContain("900");
+    expect(fetchUserProfileData).not.toHaveBeenCalled();
+  });
+
+  it("fetches an SVG avatar and color using the engine fan id when WordPress has no avatar", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({});
+    fetchUserProfileData.mockResolvedValue({
+      avatar_url: "https://example.test/fans/profile-avatar.svg",
+      color_scheme: "#4361ee",
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    expect(fetchUserProfileData).toHaveBeenCalledWith(2615, {
+      signal: expect.any(AbortSignal),
+    });
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(avatarCard.attributes("style")).toContain("https://example.test/fans/profile-avatar.svg");
+    expect(avatarCard.element.style.backgroundColor).toBe("rgb(67, 97, 238)");
+    expect(wrapper.find("[data-testid='booking-balance-placeholder-card']").exists()).toBe(false);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["null", null],
+    ["invalid", "blue"],
+  ])("omits an %s color for an SVG avatar", async (_label, colorScheme) => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/fans/current-avatar.svg",
+      user: { color_scheme: colorScheme },
+    });
+    fetchUserProfileData.mockResolvedValue({ color_scheme: colorScheme });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    expect(wrapper.get("[data-testid='booking-balance-avatar-card']").element.style.backgroundColor).toBe("");
+    wrapper.unmount();
+  });
+
+  it("ignores the endpoint color for a raster avatar", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({});
+    fetchUserProfileData.mockResolvedValue({
+      avatar: "https://example.test/fans/profile-avatar.png",
+      color_scheme: "#4361ee",
+    });
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(avatarCard.attributes("style")).toContain("profile-avatar.png");
+    expect(avatarCard.element.style.backgroundSize).toBe("cover");
+    expect(avatarCard.element.style.backgroundPosition).toBe("center");
+    expect(avatarCard.element.style.backgroundColor).toBe("");
+  });
+
+  it("retains an injected SVG avatar when its color fallback fails", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({
+      userAvatar: "https://example.test/fans/current-avatar.svg",
+      user: { color_scheme: "" },
+    });
+    fetchUserProfileData.mockRejectedValue(new Error("profile unavailable"));
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(avatarCard.attributes("style")).toContain("current-avatar.svg");
+    expect(avatarCard.element.style.backgroundColor).toBe("");
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["placeholder response", { avatar: "https://example.test/placeholder.png" }, null],
+    ["missing response", null, null],
+    ["failed response", null, new Error("profile unavailable")],
+  ])("keeps the generic card for a %s", async (_label, profile, failure) => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({});
+    if (failure) fetchUserProfileData.mockRejectedValue(failure);
+    else fetchUserProfileData.mockResolvedValue(profile);
+    const engine = createEngine();
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    expect(wrapper.find("[data-testid='booking-balance-avatar-card']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='booking-balance-placeholder-card']").exists()).toBe(true);
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the profile avatar and color after authenticated fan context is applied", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    resolveParentUserData.mockReturnValue({});
+    fetchUserProfileData.mockImplementation(async (userId) => (
+      userId === 8123
+        ? {
+            userAvatar: "https://example.test/fans/authenticated-avatar.svg",
+            color_scheme: "#4361ee",
+          }
+        : null
+    ));
+    const engine = createEngine();
+    engine.substep = "topup";
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+
+    await wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("auth-updated", {
+      userId: 8123,
+      backendJwtToken: "jwt_authenticated",
+    });
+    await flushAsync();
+
+    engine.substep = "summary";
+    await flushAsync();
+
+    expect(engine.getState("fanBooking.context.fanId")).toBe(8123);
+    expect(fetchUserProfileData).toHaveBeenCalledWith(8123, {
+      signal: expect.any(AbortSignal),
+    });
+    const avatarCard = wrapper.get("[data-testid='booking-balance-avatar-card']");
+    expect(avatarCard.attributes("style")).toContain("https://example.test/fans/authenticated-avatar.svg");
+    expect(avatarCard.element.style.backgroundColor).toBe("rgb(67, 97, 238)");
+  });
+
+  it("translates the policy and hidden available-balance row with dynamic amounts", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    const translator = createBookingTranslator({
+      locale: "zh",
+      translations: {
+        fan_booking_available_balance_after_booking: "预订后可用余额",
+        fan_booking_policy_agreement: "完成预订即表示您同意预订政策。",
+      },
+    });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+
+    const wrapper = mount(BookingFlowStep3, {
+      props: { engine, embedded: true },
+      global: {
+        provide: {
+          [bookingTranslationSymbol]: translator,
+        },
+      },
+    });
+    await flushAsync();
+
+    expect(wrapper.get("[data-testid='booking-policy-agreement']").text())
+      .toBe("完成预订即表示您同意预订政策。");
+    const availableBalance = wrapper.get("[data-testid='booking-balance-available-after-booking']");
+    expect(availableBalance.text()).toContain("预订后可用余额");
+    expect(availableBalance.text()).toContain("900");
+    expect(availableBalance.text()).not.toContain("29,100");
+  });
 
   it("accepts invite-only event links for authenticated fans before booking", async () => {
     tokenGet.mockResolvedValue({
@@ -453,6 +752,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("15 Minute x 2 sessions (30 Min.)");
     expect(text).toContain("1,000");
     expect(text).toContain("USD$ 60.00");
+    expect(text).toContain("=USD$ 6.00");
     expect(text).toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
     expect(text).not.toContain("@model");
     expect(text).not.toContain("09 Dec 2026");
@@ -738,6 +1038,131 @@ describe("BookingFlowStep3", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
+  it("waits for the authoritative top-up balance before creating the booking", async () => {
+    tokenGet
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockRejectedValueOnce(new Error("temporary token service error"))
+      .mockResolvedValueOnce({ data: { balance: 500 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "booking_after_topup", eventId: "evt_123" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushAsync();
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(0);
+    expect(wrapper.emitted("balance-changed")).toEqual([[{ reason: "top-up" }]]);
+  });
+
+  it("keeps a timed-out top-up retryable without requesting another payment", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "booking_after_delayed_topup", eventId: "evt_123" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+    expect(engine.forceSubstep).toHaveBeenCalledWith("summary", { intent: "topup-balance-sync-delayed" });
+    expect(showToast).toHaveBeenCalledWith({
+      type: "warning",
+      title: "Top-up Successful",
+      message: "Your payment succeeded, but your token balance is still updating. Please wait a moment, then complete your booking again. You will not be charged twice.",
+    });
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(500);
+    expect(wrapper.emitted("balance-changed")).toBeUndefined();
+
+    tokenGet.mockResolvedValue({ data: { balance: 500 } });
+    engine.substep = "summary";
+    await flushAsync();
+    const buttons = wrapper.findAll("button");
+    await buttons[buttons.length - 1].trigger("click");
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+    expect(wrapper.emitted("balance-changed")).toEqual([[{ reason: "top-up" }]]);
+  });
+
+  it("cancels top-up balance polling when the component unmounts", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    engine.substep = "topup";
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    vi.useFakeTimers();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await flushAsync();
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(15000);
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.some(([name]) => name === "bookings.createBooking")).toBe(false);
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({
+      title: "Top-up Successful",
+    }));
+  });
+
   it("translates all known direct create-booking backend error codes", async () => {
     const cases = [
       ["missing_bearer_token", "Please log in to complete your booking."],
@@ -1018,12 +1443,131 @@ describe("BookingFlowStep3", () => {
       return { ok: true, data: {} };
     });
 
-    await mountAndSubmitStep3(engine);
+    await mountAndSubmitStep3(engine, {}, {
+      fan_booking_request_failed_with_code: "Échec de la demande : {code}",
+    });
 
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
       type: "error",
-      message: "Booking request failed: CREATE_BOOKING_FAILED",
+      message: "Échec de la demande : CREATE_BOOKING_FAILED",
     }));
+  });
+
+  it("translates event-specific booking chat metadata and request messages", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.fanBooking.context.creatorId = 793;
+    engine.state.fanBooking.booking.result = {
+      item: {
+        startAtIso: "2026-03-24T10:00:00.000Z",
+        endAtIso: "2026-03-24T10:15:00.000Z",
+      },
+    };
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: true,
+          data: {
+            bookingId: "booking_translated_chat",
+            eventId: "evt_123",
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+    flowRun.mockImplementation(async (flowName) => {
+      if (flowName === "chat.fetchUserChats") return { ok: true, data: { items: [] } };
+      if (flowName === "chat.createChat") return { ok: true, data: { chatId: "chat_translated" } };
+      if (flowName === "chat.sendBookingRequestMessage") {
+        return { ok: true, data: { item: { message_id: "message_translated" } } };
+      }
+      return { ok: true, data: {} };
+    });
+    const originalSendBeacon = navigator.sendBeacon;
+    Object.defineProperty(navigator, "sendBeacon", {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+
+    try {
+      await mountAndSubmitStep3(engine, {}, {
+        fan_booking_request_description: "Demande de réservation pour {event}",
+        fan_booking_request_message_on_date: "Demande pour \"{event}\" le {date}",
+      });
+      for (let pass = 0; pass < 6; pass += 1) await flushAsync();
+
+      expect(flowRun).toHaveBeenCalledWith("chat.createChat", expect.objectContaining({
+        name: "Test Event",
+        description: "Demande de réservation pour Test Event",
+        metadata: expect.objectContaining({
+          booking_translated_chat: expect.objectContaining({
+            eventId: "evt_123",
+            description: "Demande de réservation pour Test Event",
+          }),
+        }),
+      }));
+      expect(flowRun).toHaveBeenCalledWith("chat.sendBookingRequestMessage", expect.objectContaining({
+        text: "Demande pour \"Test Event\" le 2026-03-24T10:00:00.000Z",
+      }));
+    } finally {
+      Object.defineProperty(navigator, "sendBeacon", {
+        configurable: true,
+        value: originalSendBeacon,
+      });
+    }
+  });
+
+  it("translates generic booking chat fallbacks when the event title is missing", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    engine.state.fanBooking.context.creatorId = 793;
+    engine.state.fanBooking.context.selectedEvent.title = "";
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createBooking") {
+        return {
+          ok: true,
+          data: {
+            bookingId: "booking_generic_chat",
+            eventId: "evt_123",
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    });
+    flowRun.mockImplementation(async (flowName) => {
+      if (flowName === "chat.fetchUserChats") return { ok: true, data: { items: [] } };
+      if (flowName === "chat.createChat") return { ok: true, data: { chatId: "chat_generic" } };
+      if (flowName === "chat.sendBookingRequestMessage") {
+        return { ok: true, data: { item: { message_id: "message_generic" } } };
+      }
+      return { ok: true, data: {} };
+    });
+    const originalSendBeacon = navigator.sendBeacon;
+    Object.defineProperty(navigator, "sendBeacon", {
+      configurable: true,
+      value: vi.fn(() => true),
+    });
+
+    try {
+      await mountAndSubmitStep3(engine, {}, {
+        fan_booking_request: "Demande de réservation",
+        fan_booking_chat_name: "Discussion de réservation",
+      });
+      for (let pass = 0; pass < 6; pass += 1) await flushAsync();
+
+      expect(flowRun).toHaveBeenCalledWith("chat.createChat", expect.objectContaining({
+        name: "Discussion de réservation",
+        description: "Demande de réservation",
+      }));
+      expect(flowRun).toHaveBeenCalledWith("chat.sendBookingRequestMessage", expect.objectContaining({
+        text: "Demande de réservation",
+      }));
+    } finally {
+      Object.defineProperty(navigator, "sendBeacon", {
+        configurable: true,
+        value: originalSendBeacon,
+      });
+    }
   });
 
   it("renders event-goal group contribution controls in step 3 and updates booking state", async () => {

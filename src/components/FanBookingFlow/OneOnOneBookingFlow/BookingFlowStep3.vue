@@ -7,6 +7,8 @@ import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBoo
 import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from '@/utils/contextIds.js';
+import { resolveParentUserData } from '@/utils/resolveParentUserData.js';
+import { fetchUserProfileData } from '@/services/users/userProfileApi.js';
 import { logFanBookingDebug } from '@/embeds/fanBooking/debug.js';
 import {
   fireAndForgetCreateScheduleNotify,
@@ -16,7 +18,6 @@ import {
 import {
   bookingFlowArrowRightIcon,
   bookingFlowBackgroundImage,
-  bookingFlowExBalanceImage,
   bookingFlowTokenIcon,
   bookingFlowBackarrowIcon,
   bookingFlowTruckIcon,
@@ -101,7 +102,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['booking-created', 'booking-failed']);
+const emit = defineEmits(['booking-created', 'booking-failed', 'balance-changed']);
 const { t } = useBookingTranslations();
 const isAcceptingInvite = ref(false);
 let inviteAcceptPromise = null;
@@ -135,9 +136,14 @@ const holdLoading = ref(false);
 const holdError = ref('');
 const secondsRemaining = ref(0);
 let holdTimerId = null;
+const pendingTopUpExpectedBalance = ref(null);
+let topUpBalanceSyncGeneration = 0;
+let hasNotifiedTopUpBalanceChange = false;
 
 const PAYMENT_SUBSTEP_SUMMARY = 'summary';
 const PAYMENT_SUBSTEP_TOPUP   = 'topup';
+const TOP_UP_BALANCE_SYNC_INTERVAL_MS = 1000;
+const TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS = 16;
 
 const popupBackgroundStyle = computed(() => ({
   backgroundImage: `url('${resolvedBackgroundImageUrl.value}')`,
@@ -146,13 +152,104 @@ const popupBackgroundStyle = computed(() => ({
   backgroundPosition: 'left 50% center',
 }));
 
-const balanceCardStyle = computed(() => ({
-  backgroundImage: `url('${bookingFlowExBalanceImage}')`,
-  backgroundPosition: 'right',
-  backgroundRepeat: 'no-repeat',
-  backgroundSize: '48% 100%',
-  backgroundColor: '#FF76DD',
-}));
+const balanceCardAvatarUrl = ref('');
+const balanceCardColorScheme = ref('');
+let balanceCardAvatarAbortController = null;
+
+function normalizeAvatarUrl(...candidates) {
+  const avatarUrl = candidates.find((candidate) => (
+    typeof candidate === 'string' && candidate.trim()
+  ));
+  return avatarUrl?.trim() || '';
+}
+
+function isPlaceholderAvatar(avatarUrl) {
+  return normalizeAvatarUrl(avatarUrl).toLowerCase().includes('placeholder');
+}
+
+function isSvgAvatar(avatarUrl) {
+  const normalizedUrl = normalizeAvatarUrl(avatarUrl).split(/[?#]/, 1)[0].toLowerCase();
+  return normalizedUrl.endsWith('.svg');
+}
+
+function normalizeColorScheme(colorScheme) {
+  if (typeof colorScheme !== 'string') return '';
+  const normalizedColor = colorScheme.trim();
+  return /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(normalizedColor)
+    ? normalizedColor
+    : '';
+}
+
+const showAvatarBalanceCard = computed(() => (
+  Boolean(balanceCardAvatarUrl.value) && !isPlaceholderAvatar(balanceCardAvatarUrl.value)
+));
+
+const balanceCardStyle = computed(() => {
+  const usesSvgAvatar = isSvgAvatar(balanceCardAvatarUrl.value);
+  const style = {
+    backgroundImage: `url('${balanceCardAvatarUrl.value}')`,
+    backgroundPosition: usesSvgAvatar ? 'right' : 'center',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: usesSvgAvatar ? '48% 100%' : 'cover',
+  };
+
+  if (usesSvgAvatar && balanceCardColorScheme.value) {
+    style.backgroundColor = balanceCardColorScheme.value;
+  }
+
+  return style;
+});
+
+async function refreshBalanceCardAvatar({ userId = resolveFanId() } = {}) {
+  balanceCardAvatarAbortController?.abort();
+  balanceCardAvatarAbortController = null;
+
+  const wordpressUserData = resolveParentUserData() || {};
+  const wordpressAvatar = normalizeAvatarUrl(wordpressUserData.userAvatar);
+  const wordpressColorScheme = normalizeColorScheme(wordpressUserData.user?.color_scheme);
+  balanceCardAvatarUrl.value = wordpressAvatar;
+  balanceCardColorScheme.value = wordpressColorScheme;
+
+  if (isPlaceholderAvatar(wordpressAvatar)) return wordpressAvatar;
+
+  const shouldFetchProfile = !wordpressAvatar
+    || (isSvgAvatar(wordpressAvatar) && !wordpressColorScheme);
+  if (!shouldFetchProfile) return wordpressAvatar;
+
+  const numericUserId = Number(userId);
+  if (!Number.isFinite(numericUserId) || numericUserId <= 0) return '';
+
+  const controller = new AbortController();
+  balanceCardAvatarAbortController = controller;
+
+  try {
+    const profile = await fetchUserProfileData(numericUserId, { signal: controller.signal });
+    if (balanceCardAvatarAbortController !== controller || controller.signal.aborted) return '';
+
+    const profileAvatar = normalizeAvatarUrl(
+      profile?.avatar,
+      profile?.avatarUrl,
+      profile?.avatar_url,
+      profile?.userAvatar,
+    );
+    const profileColorScheme = normalizeColorScheme(profile?.color_scheme);
+    const resolvedAvatar = wordpressAvatar || profileAvatar;
+    balanceCardAvatarUrl.value = resolvedAvatar;
+    balanceCardColorScheme.value = wordpressColorScheme || profileColorScheme;
+    return resolvedAvatar;
+  } catch (error) {
+    if (error?.name === 'AbortError') return '';
+    logFanBookingDebug('step3', 'balance-avatar-fetch:error', {
+      userId: numericUserId,
+      message: error?.message || String(error),
+    });
+    return '';
+  } finally {
+    if (balanceCardAvatarAbortController === controller) {
+      balanceCardAvatarAbortController = null;
+    }
+  }
+}
 
 const actionFooterClass = computed(() => (
   props.embedded
@@ -931,7 +1028,7 @@ function extractBackendMessage(flowResult) {
     HTTP_402: 'fan_booking_insufficient_token_balance',
   }[code];
   if (translatedByCode) return t(translatedByCode);
-  if (code) return `Booking request failed: ${code}`;
+  if (code) return t('fan_booking_request_failed_with_code', { code });
   return flowResult?.error?.message
     || flowResult?.meta?.uiErrors?.[0]
     || t('fan_booking_complete_failed_message');
@@ -1035,6 +1132,7 @@ async function applyAuthenticatedFanContext(payload = {}, { refreshBalance = tru
   if (!hasUserId) return false;
 
   props.engine.setState('fanBooking.context.fanId', userId, { reason: 'auth-user-id', silent: true });
+  void refreshBalanceCardAvatar({ userId });
   await acceptInviteForAuthenticatedFan({ silent: true });
 
   const creatorId = resolveCreatorId();
@@ -1176,7 +1274,9 @@ function fireAndForgetCreateSchedule({ bookingId = null, eventId = null } = {}) 
 function fireAndForgetBookingCreated() {
   console.error('[fireAndForgetBookingCreated] fired', { engineState: props.engine?.state });
   const engineState = props.engine?.state || {};
-  const bookingTitle = selectedEvent.value?.title || selectedEvent.value?.raw?.title || "Untitled Event";
+  const bookingTitle = selectedEvent.value?.title
+    || selectedEvent.value?.raw?.title
+    || t('fan_booking_untitled_event');
   const eventType = selectedEvent.value?.type
     || selectedEvent.value?.eventType
     || selectedEvent.value?.raw?.type
@@ -1261,11 +1361,21 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
     // Step 1 — check if chat exists, otherwise create
     const finalBookingId = String(bookingId || props.engine.getState('fanBooking.booking.bookingId') || '');
     const finalEventId = String(eventId || selectedEvent.value?.eventId || selectedEvent.value?.raw?.eventId || '');
+    const bookingRequestDescription = eventTitle
+      ? t('fan_booking_request_description', { event: eventTitle })
+      : t('fan_booking_request');
+    const bookingRequestMessage = eventTitle
+      ? (
+        slotDate
+          ? t('fan_booking_request_message_on_date', { event: eventTitle, date: slotDate })
+          : t('fan_booking_request_message', { event: eventTitle })
+      )
+      : t('fan_booking_request');
     
     const newBookingMeta = {
       [finalBookingId]: {
         eventId: finalEventId,
-        description: eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+        description: bookingRequestDescription,
       },
       is_booking_request: true
     };
@@ -1307,8 +1417,8 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
           fullAccessUsers: [String(creatorId)]
         },
         participants: [String(fanUserId), String(creatorId)],
-        name:         eventTitle || 'Booking Chat',
-        description:  eventTitle ? `Booking request for ${eventTitle}` : 'Booking request',
+        name:         eventTitle || t('fan_booking_chat_name'),
+        description:  bookingRequestDescription,
         metadata: newBookingMeta,
       });
       if (!chatRes?.ok) return;
@@ -1338,7 +1448,7 @@ async function fireAndForgetPostBookingChat({ bookingId = null, eventId = null }
       slotDate,
       start_at: start_at,
       end_at: end_at,
-      text: `Booking request for "${eventTitle}" ${slotDate ? `on ${slotDate}` : ''}`.trim(),
+      text: bookingRequestMessage,
     });
     if (!msgRes?.ok) return;
     const messageId = msgRes.data?.item?.message_id || msgRes.data?.item?.id;
@@ -1575,6 +1685,92 @@ async function ensureTemporaryHold() {
   }
 }
 
+async function fetchAuthoritativeWalletBalance() {
+  const fanId = resolveFanId();
+  const creatorId = resolveCreatorId();
+
+  if (fanId <= 0 || !getBackendJwtToken()) return 0;
+
+  const response = await TokenHandler.get({
+    userId: fanId,
+    receiverId: Number.isFinite(Number(creatorId)) && Number(creatorId) > 0 ? Number(creatorId) : null,
+    defaultValue: null,
+  });
+
+  logFanBookingDebug('step3', 'fetchAuthoritativeWalletBalance:response', { response });
+
+  const parsedBalance = parseTokenBalance(response, creatorId);
+  if (!Number.isFinite(parsedBalance)) {
+    throw new Error(t('fan_booking_token_balance_failed'));
+  }
+
+  return parsedBalance;
+}
+
+function applyWalletBalance(balance, reason = 'token-balance-refresh') {
+  walletBalance.value = balance;
+  props.engine.setState('bookingDetails.walletBalance', balance, {
+    reason,
+    silent: true,
+  });
+}
+
+function cancelTopUpBalanceSync() {
+  topUpBalanceSyncGeneration += 1;
+}
+
+function notifyTopUpBalanceChanged() {
+  if (hasNotifiedTopUpBalanceChange) return;
+  hasNotifiedTopUpBalanceChange = true;
+  emit('balance-changed', { reason: 'top-up' });
+}
+
+async function waitForTopUpBalance(requiredBalance) {
+  const generation = ++topUpBalanceSyncGeneration;
+  isCheckingBalance.value = true;
+  balanceCheckError.value = '';
+
+  try {
+    for (let attempt = 0; attempt < TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS; attempt += 1) {
+      if (generation !== topUpBalanceSyncGeneration) return { status: 'cancelled' };
+
+      try {
+        const authoritativeBalance = await fetchAuthoritativeWalletBalance();
+        if (generation !== topUpBalanceSyncGeneration) return { status: 'cancelled' };
+
+        if (authoritativeBalance >= requiredBalance) {
+          applyWalletBalance(authoritativeBalance, 'top-up-balance-synced');
+          hasCheckedBalance.value = true;
+          pendingTopUpExpectedBalance.value = null;
+          return { status: 'ready', balance: authoritativeBalance };
+        }
+      } catch (error) {
+        balanceCheckError.value = error?.message || t('fan_booking_check_token_balance_failed');
+        logFanBookingDebug('step3', 'top-up-balance-sync:attempt-error', {
+          attempt: attempt + 1,
+          message: balanceCheckError.value,
+        });
+      }
+
+      if (attempt < TOP_UP_BALANCE_SYNC_MAX_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, TOP_UP_BALANCE_SYNC_INTERVAL_MS));
+      }
+    }
+
+    return { status: 'timeout' };
+  } finally {
+    if (generation === topUpBalanceSyncGeneration) isCheckingBalance.value = false;
+  }
+}
+
+function showTopUpBalanceSyncDelayed() {
+  showToast({
+    type: 'warning',
+    title: t('fan_booking_top_up_sync_delayed_title'),
+    message: t('fan_booking_top_up_sync_delayed_message'),
+  });
+}
+
 async function refreshWalletBalance({ silent = false } = {}) {
   const fanId = resolveFanId();
   const creatorId = resolveCreatorId();
@@ -1609,27 +1805,8 @@ async function refreshWalletBalance({ silent = false } = {}) {
   balanceCheckError.value = '';
 
   try {
-    const response = await TokenHandler.get({
-      userId: fanId,
-      receiverId: Number.isFinite(Number(creatorId)) && Number(creatorId) > 0 ? Number(creatorId) : null,
-      defaultValue: null,
-    });
-
-    logFanBookingDebug('step3', 'refreshWalletBalance:response', {
-      response,
-    });
-
-    const parsedBalance = parseTokenBalance(response, creatorId);
-
-    if (!Number.isFinite(parsedBalance)) {
-      throw new Error(t('fan_booking_token_balance_failed'));
-    }
-
-    walletBalance.value = parsedBalance;
-    props.engine.setState('bookingDetails.walletBalance', parsedBalance, {
-      reason: 'token-balance-refresh',
-      silent: true,
-    });
+    const parsedBalance = await fetchAuthoritativeWalletBalance();
+    applyWalletBalance(parsedBalance);
     hasCheckedBalance.value = true;
     logFanBookingDebug('step3', 'refreshWalletBalance:success', {
       parsedBalance,
@@ -1872,22 +2049,31 @@ const onTopUpPaymentSuccess = async (payload = {}) => {
       title: t('fan_booking_account_verification_needed_title'),
       message: t('fan_booking_account_verification_needed_message'),
     });
-    topUpFormRef.value?.setProcessingPayment(false);
+    topUpFormRef.value?.setProcessingPayment?.(false);
     return;
   }
 
   const toppedUpBalance = walletBalance.value + topUpAmount.value;
-  walletBalance.value = toppedUpBalance;
-  props.engine.setState('bookingDetails.walletBalance', toppedUpBalance, { reason: 'top-up-preview', silent: true });
+  hasNotifiedTopUpBalanceChange = false;
+  pendingTopUpExpectedBalance.value = toppedUpBalance;
+  applyWalletBalance(toppedUpBalance, 'top-up-preview');
+  hasCheckedBalance.value = true;
   try {
-    // Add 1s delay to ensure the wallet balance is updated before finalizing the booking
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const syncResult = await waitForTopUpBalance(maximumHeldAmount.value);
+    if (syncResult.status === 'cancelled') return;
+    if (syncResult.status !== 'ready') {
+      await props.engine.forceSubstep(PAYMENT_SUBSTEP_SUMMARY, { intent: 'topup-balance-sync-delayed' });
+      showTopUpBalanceSyncDelayed();
+      return;
+    }
+
+    notifyTopUpBalanceChanged();
     await finalizeBooking({
       isTopUpDone: true,
-      nextWalletBalance: toppedUpBalance - maximumHeldAmount.value,
+      nextWalletBalance: syncResult.balance - maximumHeldAmount.value,
     });
   } finally {
-    topUpFormRef.value?.setProcessingPayment(false);
+    topUpFormRef.value?.setProcessingPayment?.(false);
   }
 };
 
@@ -1924,6 +2110,21 @@ const handleButtonClick = async () => {
   }
 
   try {
+    if (pendingTopUpExpectedBalance.value != null) {
+      const syncResult = await waitForTopUpBalance(maximumHeldAmount.value);
+      if (syncResult.status === 'cancelled') return;
+      if (syncResult.status !== 'ready') {
+        showTopUpBalanceSyncDelayed();
+        return;
+      }
+      notifyTopUpBalanceChanged();
+      await finalizeBooking({
+        isTopUpDone: true,
+        nextWalletBalance: syncResult.balance - maximumHeldAmount.value,
+      });
+      return;
+    }
+
     if (!hasCheckedBalance.value) {
       const ok = await refreshWalletBalance();
       if (!ok) return;
@@ -1984,6 +2185,7 @@ onMounted(() => {
   }
 
   scheduleTopUpPrefetch('step3-mounted');
+  void refreshBalanceCardAvatar();
   ensureContributionDefault();
   acceptInviteForAuthenticatedFan({ silent: true });
   refreshWalletBalance();
@@ -2036,12 +2238,19 @@ watch(
 watch(
   () => hasBookingCreated.value,
   (created) => {
-    if (created) clearHoldTimer();
+    if (created) {
+      cancelTopUpBalanceSync();
+      pendingTopUpExpectedBalance.value = null;
+      clearHoldTimer();
+    }
   },
 );
 
 onBeforeUnmount(() => {
   logFanBookingDebug('step3', 'before-unmount');
+  cancelTopUpBalanceSync();
+  balanceCardAvatarAbortController?.abort();
+  balanceCardAvatarAbortController = null;
   clearHoldTimer();
 });
 </script>
@@ -2314,7 +2523,7 @@ onBeforeUnmount(() => {
                                 </span>
                                 <span class="whitespace-nowrap">{{ t("fan_booking_booking_fee_included") }}</span>
                               </div>
-                              <span class="text-sm text-[FCE40D] text-right">=USD$ {{ formatTokenCompact(bookingFeeAmount) }}</span>
+                              <span class="text-sm text-[FCE40D] text-right">={{ tokensToUsdDisplay(bookingFeeAmount) }}</span>
                             </div>
                           </div>
 
@@ -2371,7 +2580,13 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
 
-                    <div class="text-white rounded-lg overflow-hidden" :style="balanceCardStyle">
+                    <!-- Wallet Balance Card -->
+                    <div
+                      v-if="showAvatarBalanceCard"
+                      class="text-white rounded-lg overflow-hidden"
+                      :style="balanceCardStyle"
+                      data-testid="booking-balance-avatar-card"
+                    >
                       <div class="flex flex-col gap-3 p-4" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
@@ -2391,6 +2606,7 @@ onBeforeUnmount(() => {
                             </div>
                           </div>
                         </div>
+
                         <div class="flex justify-between items-center">
                           <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">{{ t("fan_booking_subtotal") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
@@ -2398,20 +2614,60 @@ onBeforeUnmount(() => {
                             <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
                           </div>
                         </div>
+
                         <!-- Available Balance after booking  -->
-                        <div class="_flex hidden justify-between items-center border-t border-[#F2F4F7]/50 pt-3">
-                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">Available Balance after booking</p></div>
+                        <div class="_flex hidden justify-between items-center border-t border-[#F2F4F7]/50 pt-3" data-testid="booking-balance-available-after-booking">
+                          <div class="flex items-center gap-2"><p class="text-sm font-semibold text-white">{{ t("fan_booking_available_balance_after_booking") }}</p></div>
                           <div class="flex justify-center items-center gap-0.5">
                             <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                            <p class="text-base font-semibold text-white">29,100</p>
+                            <p class="text-base font-semibold text-white">{{ formatTokenCompact(remainingBalance) }}</p>
                           </div>
                         </div>
                         <!-- /Available Balance after booking  -->
                       </div>
                     </div>
+                    <div
+                      v-else
+                      class="text-white rounded-bl-lg rounded-br-lg overflow-hidden bg-[#182230] bg-[linear-gradient(90deg,rgba(16,24,40,0)_25%,rgba(16,24,40,0.9)_75%),#182230] shadow-[0_4px_8px_0_rgba(255,255,255,0.05)]"
+                      data-testid="booking-balance-placeholder-card"
+                    >
+                      <div class="w-full relative bg-[rgba(24,34,48,0.10)]">
+                        <div class="absolute right-3 top-1 z-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="108" height="96" viewBox="0 0 108 96" fill="none">
+                            <path opacity="0.5" fill-rule="evenodd" clip-rule="evenodd" d="M9.28238 109.169L59.863 126.695C69.8881 130.173 79.8979 121.473 77.8907 111.076L73.0552 85.9181C71.5558 78.1298 77.13 70.8493 84.2 67.2442C93.7181 62.4149 101.459 54.0083 105.232 43.1126C112.981 20.7197 101.137 -3.66815 78.772 -11.4098C56.4068 -19.1514 31.986 -7.31763 24.2447 15.0445C20.3846 26.1794 21.3993 37.8078 26.1288 47.6259C29.5935 54.8898 29.5643 64.2732 23.4795 69.5272L4.76721 85.7353C-3.25772 92.685 -0.74977 105.722 9.28238 109.169Z" fill="#344054"/>
+                          </svg>
+                        </div>
+                        <div class="flex flex-col gap-2 p-5 relative z-2">
+                          <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2"><p class="text-base font-semibold text-[#FCE40D]">{{ t("fan_booking_your_token_balance") }}</p></div>
+                            <div class="flex justify-center items-center gap-0.5">
+                              <div v-if="isTopUpNeeded" class="flex items-center justify-center gap-2 px-1 py-0 h-[1.25rem] rounded-[6px] bg-[#FCE40D]">
+                                <span class="text-[#0C111D] text-[11px] font-semibold leading-[10px] relative top-[-2px]">...</span>
+                                <p class="text-[11px] font-semibold text-[#0C111D] leading-[14px] italic tracking-wider">{{ t("common_top_up_needed") }}</p>
+                                <div class="w-3 h-3 hidden justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p class="text-[11px] hidden font-semibold text-[#0C111D] leading-[14px]">{{ formatTokenCompact(topUpAmount) }}</p>
+                              </div>
+                              <div class="flex items-center justify-center gap-[2px]">
+                                <div class="w-6 h-6 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                                <p class="text-xl font-semibold text-[#FCE40D]">{{ formatTokenCompact(walletBalance) }}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <hr class="hidden border-white/20" />
+                          <div class="hidden justify-between items-center">
+                            <div class="flex items-center gap-2"><p class="text-xl font-semibold">{{ t("fan_booking_balance_after_booking") }}</p></div>
+                            <div class="flex justify-center items-center gap-0.5">
+                              <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
+                              <p class="text-2xl font-semibold">{{ formatTokenCompact(remainingBalance) }}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- /Wallet Balance Card -->
 
                     <div class="w-full">
-                      <p class="text-sm text-[#EAECF0]">Completing this booking means you agree to the event’s booking policy.</p>
+                      <p class="text-sm text-[#EAECF0]" data-testid="booking-policy-agreement">{{ t("fan_booking_policy_agreement") }}</p>
                     </div>
                   </div>
                 </div>

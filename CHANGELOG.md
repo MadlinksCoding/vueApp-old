@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-17 — Booking Checkout UI Enhancements
+
+### Added
+
+#### `src/i18n/bookingTranslations.js`
+- **New Translation Keys** — Added keys for the checkout flow and payment failure UI (`common_instant_approval`, `fan_booking_minute_session`, `fan_booking_failure`).
+
+### Changed
+
+#### `src/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue`
+- **Dynamic Right Section** — Updated the static info block on desktop to dynamically display the event title, creator label, formatted date, time range, and duration based on selected props.
+- **Instant Approval Badge** — Added conditional logic to dynamically toggle between an "INSTANT APPROVAL" or "APPROVAL NEEDED" badge in the info section based on the `isInstantConfirmed` property.
+
+#### `src/components/FanBookingFlow/HelperComponents/CardForm.vue`
+- **Checkout Skeleton Overlay** — Replaced the hidden template-based skeleton loader with a native, dynamically overlaid `v-if` skeleton. Styled the skeleton bars using `bg-white/20 animate-pulse` to ensure visibility against the dark UI background during payment gateway initialization.
+
+#### `src/components/FanBookingFlow/HelperComponents/TopUpForm.vue`
+- **Custom Payment Failure Popup** — Replaced the generic error toast mechanism with a dedicated Failure modal. The new popup features a custom POS failure image (`payment-fail.png`), orange accent text, and a 5-second dynamic countdown timer that automatically closes the modal and returns the user to the form.
+
 ## 2026-08-04 — Chat Booking API Optimizations & Event Sync
 
 ### Changed

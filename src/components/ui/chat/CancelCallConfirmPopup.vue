@@ -17,7 +17,8 @@
                 d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"
               />
             </svg>
-            <span class="text-gray-800 text-sm font-semibold">Cancel Call</span>
+            <!-- <span class="text-gray-800 text-sm font-semibold">Cancel Call</span> -->
+             <span class="text-gray-800 text-sm font-semibold">Are you sure you want to cancel?</span>
           </div>
           <button class="text-gray-400 hover:text-gray-600 transition-colors" @click="$emit('close')">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -28,8 +29,11 @@
 
         <!-- Body -->
         <div class="px-4 pb-2">
-          <p class="text-gray-700 text-sm leading-relaxed">
+          <!-- <p class="text-gray-700 text-sm leading-relaxed">
             Are you sure you want to cancel this booking? The already-held payment components will be paid or released according to the booking status and the creator's advance-cancellation cutoff.
+          </p> -->
+          <p class="text-gray-700 text-sm leading-relaxed">
+            This will remove the booking from your schedule. The fan will be notified and receive a full refund.
           </p>
         </div>
 
@@ -63,6 +67,7 @@ const props = defineProps({
   message:   { type: Object, required: true },
   chatId:    { type: String, required: true },
   isCreator: { type: Boolean, default: false },
+  booking:   { type: Object, default: null },
 })
 
 const emit = defineEmits(['close', 'cancelled'])
@@ -74,10 +79,19 @@ async function handleConfirm() {
   if (!bookingId) return
   submitting.value = true
   try {
+    const offerType = props.booking?.meta?.currentCounterOffer || props.booking?.meta?.negotiation?.type || null
+    const negotiation = !props.isCreator && offerType
+      ? {
+          status: 'declined',
+          type: offerType,
+          negotiationId: props.booking?.meta?.negotiation?.negotiationId || null,
+        }
+      : null
     const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
       bookingId,
       actor: props.isCreator ? 'creator' : 'fan',
-      intent: 'normal',
+      intent: negotiation ? 'decline_renegotiation' : 'normal',
+      ...(negotiation ? { args: { negotiation } } : {}),
     })
     if (cancelRes?.ok) {
       const updateRes = await FlowHandler.run('chat.updateMessage', {
