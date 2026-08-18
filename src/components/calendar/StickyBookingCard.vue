@@ -47,7 +47,7 @@
           <img v-else :src="GreenCheckIcon" alt="" aria-hidden="true" />
         </div>
 
-        <div class="relative" data-sticky-card-menu>
+        <div v-if="!hasPendingPriceAdjustment" class="relative" data-sticky-card-menu>
           <button
             type="button"
             class="flex h-5 w-5 shrink-0 items-center justify-center"
@@ -197,6 +197,7 @@ import ThreeDotsIcon from '@/assets/images/icons/dots-vertical.svg';
 import FileSearchIcon from '@/assets/images/icons/file-search-02.svg';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -204,7 +205,7 @@ const props = defineProps({
   menuOpen: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['toggle-menu', 'menu-action', 'join-call', 'review', 'approve-booking']);
+const emit = defineEmits(['toggle-menu', 'close-menu', 'menu-action', 'join-call', 'review', 'approve-booking']);
 const { t, locale } = useBookingTranslations();
 const fetchedProfile = ref(null);
 const profileLoading = ref(false);
@@ -218,6 +219,11 @@ const rawEvent = computed(() => (
     ? sourceEvent.value.raw
     : {}
 ));
+const hasPendingPriceAdjustment = computed(() => isPendingPriceAdjustment(props.event));
+
+watch(hasPendingPriceAdjustment, (isPending) => {
+  if (isPending && props.menuOpen) emit('close-menu');
+});
 const bookingStatus = computed(() => String(
   sourceEvent.value?.status || rawEvent.value.status || props.event?.status || '',
 ).trim().toLowerCase());

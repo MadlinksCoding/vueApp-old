@@ -88,13 +88,18 @@
             </div>
             <TooltipIcon v-if="isPendingSection(section)" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('calendar_event_status_pending')" />
             </div>
-            <span class="relative flex items-center justify-center w-[1rem] h-[1rem]">
+            <span
+              v-if="!isPendingPriceAdjustment(event)"
+              class="relative flex items-center justify-center w-[1rem] h-[1rem]"
+            >
               <button
                 type="button"
                 class="flex items-center justify-center w-[1rem] h-[1rem]"
                 :aria-expanded="openMenuId === `${sIndex}-${eIndex}`"
+                data-test="events-widget-menu-trigger"
                 @click.stop="toggleMenu(`${sIndex}-${eIndex}`)"
               >
+                <!-- ThreeDotsIcon -->
                 <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
@@ -105,6 +110,7 @@
               <div
                 v-if="openMenuId === `${sIndex}-${eIndex}`"
                 class="absolute right-0 top-[1.3rem] z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                data-test="events-widget-menu"
                 @click.stop
               >
                 <button
@@ -299,6 +305,7 @@ import TooltipIcon from '../ui/tooltip/TooltipIcon.vue';
 import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 
 const getEventCardStyles = (event, isPending) => {
@@ -380,6 +387,12 @@ const closeMenu = () => {
 
 const toggleMenu = (menuId) => {
   openMenuId.value = openMenuId.value === menuId ? null : menuId;
+};
+
+const eventForMenuId = (menuId) => {
+  const [sectionIndex, eventIndex] = String(menuId || '').split('-').map(Number);
+  if (!Number.isInteger(sectionIndex) || !Number.isInteger(eventIndex)) return null;
+  return props.sections?.[sectionIndex]?.items?.[eventIndex] || null;
 };
 
 const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking']);
@@ -612,6 +625,9 @@ const collectProfileIds = () => {
 watch(
   () => [props.sections, props.userRole],
   () => {
+    if (openMenuId.value && isPendingPriceAdjustment(eventForMenuId(openMenuId.value))) {
+      closeMenu();
+    }
     collectProfileIds().forEach(fetchProfile);
   },
   { immediate: true, deep: true },

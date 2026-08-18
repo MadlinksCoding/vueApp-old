@@ -251,7 +251,7 @@ defineExpose({
       <!-- Selected card display -->
       <div v-if="paymentMethod === 'token' && selectedCard" class="border border-[#22CCEE] rounded-md">
         <PaymentMethodLoggedIn
-          variant="large"
+          variant="default"
           :holder-name="selectedCard.card_holder_name"
           :card-number="selectedCard.last4"
           :expiry="`${selectedCard.expiry_month}/${selectedCard.expiry_year}`"
@@ -259,45 +259,45 @@ defineExpose({
         />
       </div>
 
-      <!-- Skeleton template for AxcessGatewayFormHandler._showSkeleton() — must stay outside paymentContainer -->
-      <template data-axcess-payment-skeleton>
-        <div class="checkout-skeleton axcess-payment-skeleton inline-flex flex-col justify-between items-start p-6 rounded-xl w-full">
-          <!-- Header row -->
-          <div class="flex self-stretch justify-between items-center h-4">
-            <div class="flex items-center gap-1">
-              <div class="w-4 h-4"></div>
-              <div class="text-xs font-medium leading-[18px]" style="color: #EAECF0;">{{ t("fan_booking_delete_card") }}</div>
-            </div>
-            <div class="skeleton h-4 w-24 rounded-[6px]"></div>
+      <!-- Custom Skeleton overlay for loading state -->
+      <div v-if="paymentMethod === 'new_card' && !isCardReady" class="absolute top-0 left-0 w-full h-full min-h-[240px] z-10 bg-[#222222] rounded-xl flex flex-col justify-between items-start p-6">
+        <!-- Header row -->
+        <div v-if="1!=1" class="flex self-stretch justify-between items-center h-4">
+          <div class="flex items-center gap-1">
+            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <div class="text-xs font-medium leading-[18px]" style="color: #EAECF0;">{{ t("fan_booking_delete_card") }}</div>
           </div>
-          <!-- Body -->
-          <div class="flex flex-col self-stretch gap-10">
-            <!-- Card number -->
-            <div class="w-full h-11 inline-flex flex-col justify-center">
-              <div class="skeleton h-6 rounded-[6px] self-stretch"></div>
-            </div>
-            <!-- Card holder / expiry / cvv row -->
-            <div class="inline-flex justify-between items-end self-stretch">
-              <div class="h-[46px] inline-flex items-start flex-col">
-                <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_card_holder_name") }}</div>
-                <div class="py-[2px]">
-                  <div class="skeleton w-[100px] h-6 rounded-[6px]"></div>
-                </div>
+          <div class="h-4 w-12 rounded-[6px] bg-white/20 animate-pulse"></div>
+        </div>
+        <!-- Body -->
+        <div class="flex flex-col self-stretch gap-10 mt-6">
+          <!-- Card number -->
+          <div class="w-full h-11 inline-flex flex-col justify-center">
+            <div class="h-6 rounded-[6px] self-stretch bg-white/20 animate-pulse"></div>
+          </div>
+          <!-- Card holder / expiry / cvv row -->
+          <div class="inline-flex justify-between items-end self-stretch">
+            <div class="h-[46px] inline-flex items-start flex-col">
+              <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_card_holder_name") }}</div>
+              <div class="py-[2px]">
+                <div class="w-[100px] h-6 rounded-[6px] bg-white/20 animate-pulse"></div>
               </div>
-              <div class="h-[46px] w-[68px] inline-flex flex-col justify-between items-start">
-                <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_expiry_date") }}</div>
-                <div class="self-stretch py-[2px]">
-                  <div class="skeleton h-6 rounded-[6px]"></div>
-                </div>
-              </div>
-              <div class="rounded-[6px] h-[46px] w-[46px]"></div>
             </div>
+            <div class="h-[46px] w-[68px] inline-flex flex-col justify-between items-start">
+              <div class="text-xs font-medium leading-[18px] text-gray-400">{{ t("fan_booking_expiry_date") }}</div>
+              <div class="self-stretch py-[2px]">
+                <div class="h-6 rounded-[6px] bg-white/20 animate-pulse"></div>
+              </div>
+            </div>
+            <div class="rounded-[6px] h-[46px] w-[46px]"></div>
           </div>
         </div>
-      </template>
+      </div>
 
       <!-- OPPWA new-card form (v-show keeps ref alive) -->
-      <div v-show="paymentMethod === 'new_card'" data-card-dark-ui ref="paymentContainer" class="w-full"></div>
+      <div v-show="paymentMethod === 'new_card'" :class="{ 'opacity-0 pointer-events-none': !isCardReady }" data-card-dark-ui ref="paymentContainer" class="w-full min-h-[240px]"></div>
 
       <!-- Dropdown overlay -->
       <div

@@ -1119,6 +1119,7 @@
             :user-role="userRole"
             :menu-open="openStickyCardMenuKey === stickyCardKey(event)"
             @toggle-menu="toggleStickyCardMenu(event)"
+            @close-menu="closeStickyCardMenu"
             @menu-action="handleStickyCardMenuAction($event, event)"
             @join-call="handleStickyCardJoin"
             @review="handleStickyCardReview"
@@ -1153,6 +1154,7 @@ import EventsRequestsPopup from './EventsRequestsPopup.vue';
 import StickyBookingCard from './StickyBookingCard.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 import FlowHandler from '@/services/flow-system/FlowHandler';
 import { useChatSocket } from '@/composables/useChatSocket';
 import { useChatStore } from '@/stores/useChatStore';
@@ -1331,17 +1333,23 @@ const tabletStickyCardBottom = computed(() => {
 });
 
 watch(
-  () => normalizedStickyCardEvents.value.map((event) => stickyCardKey(event)),
-  (keys) => {
-    if (openStickyCardMenuKey.value && !keys.includes(openStickyCardMenuKey.value)) {
+  normalizedStickyCardEvents,
+  (events) => {
+    const openEvent = events.find((event) => stickyCardKey(event) === openStickyCardMenuKey.value);
+    if (openStickyCardMenuKey.value && (!openEvent || isPendingPriceAdjustment(openEvent))) {
       openStickyCardMenuKey.value = null;
     }
   },
+  { deep: true },
 );
 
 const toggleStickyCardMenu = (event) => {
   const key = stickyCardKey(event);
   openStickyCardMenuKey.value = openStickyCardMenuKey.value === key ? null : key;
+};
+
+const closeStickyCardMenu = () => {
+  openStickyCardMenuKey.value = null;
 };
 
 const handleStickyCardMenuAction = (action, event) => {

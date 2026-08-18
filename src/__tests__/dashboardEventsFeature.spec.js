@@ -4252,6 +4252,38 @@ describe("DashboardEventsFeature", () => {
     }));
   });
 
+  it("preserves the pending price adjustment projection in dashboard widget event data", async () => {
+    const bookedSlots = [{
+      bookingId: "booking_adjust_projection",
+      eventId: "evt_adjust_projection",
+      creatorId: 77,
+      startIso: isoDaysFromToday(8, 10),
+      endIso: isoDaysFromToday(8, 10, 30),
+      status: "confirmed",
+      eventTitle: "Adjusted Session",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      pendingPriceAdjustment: true,
+    }];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const adjustedItem = widgetSections
+      .flatMap((section) => section.items)
+      .find((item) => item.sourceEvent?.bookingId === "booking_adjust_projection");
+
+    expect(adjustedItem.sourceEvent.raw.pendingPriceAdjustment).toBe(true);
+  });
+
   it("does not show past confirmed bookings outside today in widget sections", async () => {
     const startIso = isoDaysFromToday(-1, 20, 30);
     const endIso = isoDaysFromToday(-1, 21, 0);

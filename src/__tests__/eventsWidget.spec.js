@@ -18,6 +18,37 @@ afterEach(() => {
 });
 
 describe("EventsWidget", () => {
+  it("hides and closes the booking menu while its booked slot projects a pending price adjustment", async () => {
+    const makeItem = (pendingPriceAdjustment) => ({
+      title: "Adjusted booking",
+      time: "10:00 AM",
+      sourceEvent: {
+        bookingId: "booking_adjust",
+        raw: {
+          pendingPriceAdjustment,
+        },
+      },
+    });
+    const sectionsFor = (item) => [{ title: "TODAY", items: [item], isPending: false }];
+
+    wrapper = mount(EventsWidget, {
+      props: { sections: sectionsFor(makeItem(false)) },
+    });
+
+    await wrapper.get("[data-test='events-widget-menu-trigger']").trigger("click");
+    expect(wrapper.get("[data-test='events-widget-menu']").exists()).toBe(true);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(true)) });
+    await flushPromises();
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(false)) });
+    await flushPromises();
+    expect(wrapper.get("[data-test='events-widget-menu-trigger']").attributes("aria-expanded"))
+      .toBe("false");
+    expect(wrapper.find("[data-test='events-widget-menu']").exists()).toBe(false);
+  });
+
   it("uses pending metadata independently of the translated section title", async () => {
     const item = {
       title: "Pending booking",
