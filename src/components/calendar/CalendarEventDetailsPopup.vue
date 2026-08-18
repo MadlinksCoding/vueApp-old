@@ -53,6 +53,7 @@
                                 :aria-expanded="menuOpen"
                                 @click.stop="toggleMenu"
                             >
+                                <!-- ThreeDotsIcon -->
                                 <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
@@ -338,6 +339,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler';
 import HourglassIcon from '@/assets/images/icons/hourglass-03.webp';
 
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 const props = defineProps({
     event: {
@@ -619,8 +621,13 @@ const callHasPassed = computed(() => (
     && currentTime.value.getTime() > effectiveEndDate.value.getTime()
 ));
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinUrl.value));
+const hasPendingPriceAdjustment = computed(() => isPendingPriceAdjustment(
+    [bookingData.value, props.booking, props.event]
+));
 const showBookingMenu = computed(() => (
-    Boolean(joinUrl.value || bookingId.value) && !callHasPassed.value
+    Boolean(joinUrl.value || bookingId.value)
+    && !callHasPassed.value
+    && !hasPendingPriceAdjustment.value
 ));
 
 function handleJoin() {
@@ -646,6 +653,10 @@ const showRejectConfirm = ref(false);
 
 const bookingData = ref(props.booking || null);
 const bookingLoading = ref(false);
+
+watch(hasPendingPriceAdjustment, (isPending) => {
+    if (isPending) menuOpen.value = false;
+});
 
 const targetUserIdForChat = computed(() => {
     const isCreator = props.userRole === 'creator';

@@ -3334,6 +3334,53 @@ describe("MainCalendar all events count", () => {
     ]]);
   });
 
+  it("hides and resets the sticky-card menu during a pending changed-price adjustment", async () => {
+    setWindowWidth(390);
+    const makeStickyEvent = (status, proposedTokens) => ({
+      title: "Adjusted Booking",
+      canJoin: true,
+      joinUrl: "https://example.com/join/booking_adjust",
+      statusText: "in 5 mins",
+      sourceEvent: {
+        id: "booking_adjust",
+        status: "confirmed",
+        start: "2026-04-23T09:55:00",
+        end: "2026-04-23T10:30:00",
+        raw: {
+          status: "confirmed",
+          meta: {
+            currentCounterOffer: "adjust",
+            negotiation: {
+              type: "adjust",
+              status,
+              original: { totalTokens: 100 },
+              proposed: { totalTokens: proposedTokens },
+            },
+          },
+        },
+      },
+    });
+
+    const unchangedEvent = makeStickyEvent("sent", 100);
+    const wrapper = await mountCalendar(
+      [],
+      { stickyCardEvent: unchangedEvent },
+      { global: { stubs: { Teleport: true } } },
+    );
+    await wrapper.get("[data-test='mobile-join-card-menu-trigger']").trigger("click");
+    expect(wrapper.get("[data-test='mobile-join-card-menu']").exists()).toBe(true);
+
+    await wrapper.setProps({ stickyCardEvent: makeStickyEvent("sent", 125) });
+    await nextTick();
+    expect(wrapper.find("[data-test='mobile-join-card-menu-trigger']").exists()).toBe(false);
+
+    await wrapper.setProps({ stickyCardEvent: makeStickyEvent("accepted", 125) });
+    await nextTick();
+    expect(wrapper.get("[data-test='mobile-join-card-menu-trigger']").attributes("aria-expanded"))
+      .toBe("false");
+    expect(wrapper.find("[data-test='mobile-join-card-menu']").exists()).toBe(false);
+  });
+
   it("renders a prioritized three-card tablet list with creator pending actions", async () => {
     setWindowWidth(768);
     vi.stubGlobal("matchMedia", vi.fn(() => ({
