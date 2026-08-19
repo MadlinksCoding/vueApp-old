@@ -32,11 +32,11 @@
             
             d.getDay() === 0 ? 'text-[#FF6A6A]' : ''
           ]">
-          <span class="text-[0.75rem] ">{{ d.getDate() }}</span>
+          <span class="text-[0.75rem] mt-[-4px]">{{ d.getDate() }}</span>
           <span
             v-if="dotMap[localDateKey(d)] && (!hidePastDots || d >= today)"
             :class="[
-              'absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
+              'absolute bottom-[0.5rem] left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
               dotMap[localDateKey(d)].hasPending
                 ? ((sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today)))
                     ? 'w-1 h-1 !bg-transparent border border-white'

@@ -2496,8 +2496,8 @@ const chatTheme = computed(() => {
   return {
     ...baseThemeStyles,
     header: isGroupChat.value
-      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Matching DemoChats.vue
-      : 'bg-[#EDEDED] px-3 py-2.5 shrink-0 z-10 shadow-sm relative h-[3.5rem]' // Existing Dark Theme
+      ? 'bg-[#EDEDED] font-sans px-2 py-2 shrink-0 z-100 shadow-sm relative h-[3.5rem]' // Matching DemoChats.vue
+      : 'bg-[#EDEDED] px-3 py-2.5 shrink-0 z-100 shadow-sm relative h-[3.5rem]' // Existing Dark Theme
   }
 })
 
