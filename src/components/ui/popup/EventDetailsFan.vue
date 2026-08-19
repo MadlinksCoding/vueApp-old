@@ -4,7 +4,7 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="eventDetailsFanConfig"
   >
-   <div class="w-full h-full overflow-auto bg-white inline-flex flex-col justify-start items-start">
+   <div class="w-full md:w-[500px] h-full overflow-auto bg-white inline-flex flex-col justify-start items-start">
     <div class="self-stretch relative bg-black/25 backdrop-blur-[5px] flex flex-col justify-start items-start">
       <div class="self-stretch px-4 pt-12 pb-2 min-h-[18.75rem] relative bg-gradient-to-b from-amber-400/5 to-amber-400/30 flex flex-col justify-end items-start gap-4">
         <div class="h-6 p-1.5 bg-stone-900/50 rounded-[50px] inline-flex justify-start items-center gap-1">
@@ -122,6 +122,115 @@
         </div>
       </div>
     </div>
+
+    <!-- Deslined event section -->
+     <div class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start">
+      <div class="w-1 self-stretch bg-orange-600"></div>
+      <div class="flex-1 px-2 py-3 [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0%,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)] inline-flex flex-col justify-start items-start gap-4">
+        <div class="self-stretch inline-flex justify-end items-start gap-4">
+          <div data-svg-wrapper data-icon-type="user" data-indicator="false" data-state="Default" class="relative">
+            <img src="https://static.vecteezy.com/system/resources/thumbnails/002/098/203/small/silver-tabby-cat-sitting-on-green-background-free-photo.jpg" class="h-10 w-10 rounded-full" />
+            <div class="p-[3px] flex items-center justify-center rounded-[0.5rem] bg-[#FF4405] absolute bottom-[-0.5rem] right-[-0.5rem]">
+              <img :src="XCircleIcon" class="h-4 w-4"/>
+            </div>
+          </div>
+          <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start">
+            <div class="self-stretch pb-2 flex flex-col justify-start items-start gap-2">
+              <div class="self-stretch inline-flex justify-between items-start">
+                <div class="flex-1 pr-1 pt-1 flex justify-center items-center gap-2.5">
+                  <div class="flex-1 justify-start"><span class="text-[#97180C] text-sm font-semibold  leading-5">You have declined event request from @grapegatsby. The full session cost will be refunded. </span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Deslined event section -->
+
+    <!-- Creator side booking accept section -->
+    <div class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start">
+      <div class="w-1 self-stretch bg-[#2CE]"></div>
+      <div class="flex-1 px-2 py-3 [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(34,204,238,0.15)_0%,rgba(34,204,238,0.15)_100%),rgba(255,255,255,0.9)] inline-flex flex-col justify-start items-start gap-4">
+        <div class="self-stretch inline-flex justify-end items-start gap-4">
+          <div data-svg-wrapper data-icon-type="user" data-indicator="false" data-state="Default" class="relative">
+            <img src="https://static.vecteezy.com/system/resources/thumbnails/002/098/203/small/silver-tabby-cat-sitting-on-green-background-free-photo.jpg" class="h-10 w-10 rounded-full" />
+          </div>
+          <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start">
+            <div class="self-stretch pb-2 flex flex-col justify-start items-start gap-2">
+              <div class="self-stretch inline-flex justify-between items-start">
+                <div class="flex-1 pr-1 pt-1 flex justify-center items-center gap-2.5">
+                  <div class="flex-1 justify-start"><span class="text-[#088AB2] text-sm font-semibold  leading-5">Pending booking request from @grapegatsby </span></div>
+                </div>
+              </div>
+            </div>
+            <div class="self-stretch flex flex-col justify-start items-start gap-2">
+              <div class="self-stretch inline-flex justify-between items-end">
+                <div class="flex-1 flex justify-start flex-col sm:flex-row items-center gap-2">
+                  <div class="flex-1 self-stretch min-w-20 p-2 bg-[#07F468] flex justify-center items-center gap-2.5 cursor-pointer">
+                    <div data-svg-wrapper class="relative">
+                      <img :src="CheckBlackIcon"/>
+                    </div>
+                    <div class="text-center justify-start text-[#0C111D] text-sm font-medium  capitalize leading-6 tracking-tight">Accept Booking</div>
+                  </div>
+                  <div class="self-stretch flex-1 p-2 bg-white rounded-sm outline outline-1 outline-offset-[-1px] outline-gray-900 inline-flex justify-center items-center gap-2.5">
+                    <div data-svg-wrapper class="relative">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M15.0007 8.33326L11.6673 4.99993M2.08398 17.9166L4.90429 17.6032C5.24887 17.5649 5.42115 17.5458 5.58219 17.4937C5.72506 17.4474 5.86102 17.3821 5.98639 17.2994C6.1277 17.2062 6.25027 17.0836 6.49542 16.8385L17.5007 5.83326C18.4211 4.91279 18.4211 3.4204 17.5007 2.49993C16.5802 1.57945 15.0878 1.57945 14.1673 2.49992L3.16209 13.5052C2.91694 13.7503 2.79436 13.8729 2.70118 14.0142C2.61851 14.1396 2.55316 14.2755 2.50691 14.4184C2.45478 14.5794 2.43564 14.7517 2.39735 15.0963L2.08398 17.9166Z" stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+                    <div class="text-center justify-start text-gray-900 text-sm font-medium font-['Poppins'] capitalize leading-6 tracking-tight">Adjust request</div>
+                  </div>
+                  <div class="relative">
+                    <div 
+                      @click="showDeclinePopup = !showDeclinePopup"
+                      :class="[
+                        'w-11 self-stretch px-4 py-2 rounded-sm outline outline-1 outline-offset-[-1.15px] flex justify-center items-center gap-3 cursor-pointer transition-colors',
+                        showDeclinePopup ? 'bg-[#101828] outline-[#101828]' : 'bg-white outline-gray-300'
+                      ]"
+                    >
+                      <div data-svg-wrapper data-decline-booking class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" :fill="showDeclinePopup ? '#FFFFFF' : '#667085'"/>
+                          <path d="M19 13C19.5523 13 20 12.5523 20 12C20 11.4477 19.5523 11 19 11C18.4477 11 18 11.4477 18 12C18 12.5523 18.4477 13 19 13Z" :fill="showDeclinePopup ? '#FFFFFF' : '#667085'"/>
+                          <path d="M5 13C5.55228 13 6 12.5523 6 12C6 11.4477 5.55228 11 5 11C4.44772 11 4 11.4477 4 12C4 12.5523 4.44772 13 5 13Z" :fill="showDeclinePopup ? '#FFFFFF' : '#667085'"/>
+                          <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" :stroke="showDeclinePopup ? '#FFFFFF' : '#667085'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M19 13C19.5523 13 20 12.5523 20 12C20 11.4477 19.5523 11 19 11C18.4477 11 18 11.4477 18 12C18 12.5523 18.4477 13 19 13Z" :stroke="showDeclinePopup ? '#FFFFFF' : '#667085'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M5 13C5.55228 13 6 12.5523 6 12C6 11.4477 5.55228 11 5 11C4.44772 11 4 11.4477 4 12C4 12.5523 4.44772 13 5 13Z" :stroke="showDeclinePopup ? '#FFFFFF' : '#667085'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <!-- Decline booking dropdown menu -->
+                    <div 
+                      v-if="showDeclinePopup"
+                      data-color="warn light" 
+                      data-leading-icon="true" 
+                      data-size="S" 
+                      data-state="normal" 
+                      data-style="FIlled" 
+                      data-trailing-icon="false" 
+                      data-👁️-icon="none" 
+                      class="size- min-w-[160px] whitespace-nowrap p-2 right-0 top-full mt-2 absolute bg-white rounded-md shadow-[0px_1px_4px_0px_rgba(0,0,0,0.25)] inline-flex justify-center items-center gap-2.5 z-20 cursor-pointer"
+                      @click="showDeclinePopup = false"
+                    >
+                      <div data-svg-wrapper class="relative">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M15 5L5 15M5 5L15 15" stroke="#FF4405" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+                      <div class="text-center justify-start text-orange-600 text-sm font-medium font-['Poppins'] capitalize leading-6 tracking-tight" @click="showDeclinePopup = false; showCancelConfirmationPopup = true;">Decline booking</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Creator side booking accept section -->
+
     <div class="self-stretch flex-1 bg-gray-50 inline-flex justify-start items-start">
       <div class="w-1 self-stretch relative bg-amber-400"></div>
       <div class="flex-1 self-stretch p-4 inline-flex flex-col justify-between items-start gap-2">
@@ -233,10 +342,63 @@
 
   </div>
   </PopupHandler>
+
+  <PopupHandler
+    v-model="showCancelConfirmationPopup"
+    :config="cancelConfirmationConfig"
+  >
+    <div class="w-96 p-4 bg-white/90 rounded-[5px] backdrop-blur-[50px] inline-flex flex-col justify-start items-start gap-6">
+      <div class="self-stretch flex flex-col justify-center items-start gap-5">
+        <div class="self-stretch inline-flex justify-start items-start gap-2">
+          <div class="flex-1 justify-start text-slate-700 text-base font-semibold font-['Poppins'] leading-6">Are you sure you want to cancel your booking with Cows of Lantau? The Full Session Cost will be refunded to @fan.</div>
+          <div data-svg-wrapper class="relative cursor-pointer" @click="showCancelConfirmationPopup = false">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6L6 18M6 6L18 18" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="self-stretch p-2 flex flex-col justify-start items-start gap-3">
+          <div class="self-stretch inline-flex justify-between items-center">
+            <div class="justify-start text-gray-900 text-sm font-medium font-['Poppins'] leading-5">Session Cost Refund</div>
+            <div class="size- flex justify-center items-center">
+              <div class="flex justify-start items-center gap-0.5">
+                <div data-svg-wrapper class="relative">
+                  <img :src="TokenIcon" class="h-6 w-6"/>
+                </div>
+                <div class="text-gray-900 text-base font-semibold">1,000</div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-[#D0D5DD] h-[1px] w-full opacity-50"></div>
+          <div class="self-stretch inline-flex justify-between items-center">
+            <div class="justify-start text-gray-900 text-sm font-medium font-['Poppins'] leading-5">Total refunded to @grapegatsby”</div>
+            <div class="size- flex justify-center items-center">
+              <div class=" flex justify-start items-center gap-0.5">
+                <div data-svg-wrapper class="relative">
+                  <img :src="TokenIcon" class="h-6 w-6"/>
+                </div>
+                <div class="text-gray-900 text-base font-semibold">29,100</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="self-stretch flex flex-col justify-center items-start gap-2">
+        <div class="self-stretch h-10 px-2 py-1 bg-[#FF4405] rounded-sm cursor-pointer inline-flex justify-center items-center gap-2.5">
+          <div class="justify-center text-white text-lg font-medium font-['Poppins'] leading-7">Cancel & Refund @grapegatsby</div>
+        </div>
+      </div>
+    </div>
+  </PopupHandler>
+
 </template>
 
 <script setup>
+import { ref } from "vue";
 import PopupHandler from "./PopupHandler.vue";
+
+const showDeclinePopup = ref(false);
+const showCancelConfirmationPopup = ref(false);
 import VerifiedBlueTickIcon from "@/assets/images/icons/verified-tick-blue.svg";
 import CloseIcon from "@/assets/images/icons/x-close-white.svg";
 import DotsWhiteIcon from "@/assets/images/icons/dots-vertical-white.svg";
@@ -251,6 +413,7 @@ import dollarIcon from '@/assets/images/icons/dollar.png';
 import bellIcon from '@/assets/images/icons/bell-1.webp';
 import ChatBlueIcon from '@/assets/images/icons/message-text-square-blue.svg';
 import ArrowUpRightBlueIcon from '@/assets/images/icons/arrow-up-right-blue.svg';
+import XCircleIcon from '@/assets/images/icons/x-circle.svg';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -272,5 +435,19 @@ const eventDetailsFanConfig = {
   width: { default: "500px", "<768": "100%" },
   height: { default: "100%", "<768": "100%" },
   scrollable: true,
+};
+
+const cancelConfirmationConfig = {
+  actionType: "popup",
+  position: "center",
+  speed: "300ms",
+  effect: "cubic-bezier(0.4, 0, 0.2, 1)",
+  customEffect: "scale",
+  closeSpeed: "250ms",
+  showOverlay: true,
+  closeOnOutside: true,
+  lockScroll: true,
+  escToClose: true,
+  width: "auto",
 };
 </script>
