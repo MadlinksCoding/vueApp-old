@@ -194,8 +194,8 @@ function createMountedStep({
               `,
             },
             OneOnOneBookingFlowLeftSideBar: {
-              props: ["timeDisplay", "duration", "isFirstBookingForCreator"],
-              template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)'>{{ timeDisplay }} {{ duration }}</aside>",
+              props: ["timeDisplay", "duration", "isFirstBookingForCreator", "subtotal"],
+              template: "<aside data-testid='step2-sidebar' :data-first-booking='String(isFirstBookingForCreator)' :data-subtotal='String(subtotal)'>{{ timeDisplay }} {{ duration }}</aside>",
             },
           },
         },
@@ -208,7 +208,7 @@ function dateIsoFromDate(date) {
 }
 
 function findPaymentSummaryButton(wrapper) {
-  return wrapper.findAll("button").find((button) => button.text().includes("PAYMENT SUMMARY"));
+  return wrapper.find("[data-testid='booking-flow-payment-summary-button']");
 }
 
 async function flushStep2() {
@@ -360,6 +360,214 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.text()).toContain("ADD-ON SERVICE");
     expect(wrapper.text()).toContain("OTHER REQUEST");
     expect(wrapper.text()).not.toContain("SELECT EVENT TIME");
+  });
+
+  it("translates optional labels and derives approval copy from instant booking", async () => {
+    const manualEvent = createPrivateEvent();
+    manualEvent.allowInstantBooking = false;
+    manualEvent.raw.allowInstantBooking = false;
+    const { wrapperPromise: manualWrapperPromise } = createMountedStep({
+      selectedEvent: manualEvent,
+      translations: {
+        common_optional: "Facultatif",
+        fan_booking_approval_required: "APPROBATION REQUISE",
+      },
+    });
+    const manualWrapper = await manualWrapperPromise;
+    await flushStep2();
+
+    expect(manualWrapper.text().match(/Facultatif/g)).toHaveLength(2);
+    expect(manualWrapper.text()).toContain("APPROBATION REQUISE");
+    manualWrapper.unmount();
+
+    const instantEvent = createPrivateEvent();
+    instantEvent.allowInstantBooking = true;
+    instantEvent.raw.allowInstantBooking = true;
+    const { wrapperPromise: instantWrapperPromise } = createMountedStep({
+      selectedEvent: instantEvent,
+      translations: {
+        common_optional: "Facultatif",
+        fan_booking_approval_required: "APPROBATION REQUISE",
+      },
+    });
+    const instantWrapper = await instantWrapperPromise;
+    await flushStep2();
+
+    expect(instantWrapper.text().match(/Facultatif/g)).toHaveLength(2);
+    expect(instantWrapper.text()).not.toContain("APPROBATION REQUISE");
+  });
+
+  it("renders the booking summary from the selected session and add-ons", async () => {
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: createPrivateEvent("2030-01-15"),
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    expect(wrapper.find("[data-testid='booking-flow-step2-summary']").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("10 Minute x 1 session");
+    expect(wrapper.text()).not.toContain("300");
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const sessionRow = wrapper.get("[data-testid='booking-flow-step2-summary-session']");
+    expect(sessionRow.text()).toContain("30 Minute x 1 session (30 Min.)");
+    expect(sessionRow.text()).toContain("60");
+    expect(wrapper.findAll("[data-testid='booking-flow-step2-summary-addon']")).toHaveLength(0);
+    expect(wrapper.get("[data-testid='booking-flow-step2-summary-subtotal']").text()).toContain("60");
+
+    await wrapper.get("[data-testid='booking-flow-addon']").trigger("click");
+    await nextTick();
+
+    const addonRow = wrapper.get("[data-testid='booking-flow-step2-summary-addon']");
+    expect(addonRow.text()).toContain("Private Add-on");
+    expect(addonRow.text()).toContain("+10");
+    expect(wrapper.get("[data-testid='booking-flow-step2-summary-subtotal']").text()).toContain("70");
+  });
+
+  it("renders dynamic discounts and off-hour surcharge in the booking summary", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        enableFirstTimeDiscount: true,
+        firstTimeDiscountTokens: 5,
+        offHourSurcharge: true,
+        offHourSurchargePercent: 25,
+        raw: {
+          ...baseEvent.raw,
+          enableFirstTimeDiscount: true,
+          firstTimeDiscountTokens: 5,
+          offHourSurcharge: true,
+          offHourSurchargePercent: 25,
+          slots: [{
+            date: "2030-01-15",
+            times: [{ startTime: "10:00", endTime: "11:00", offHours: true }],
+          }],
+        },
+      },
+      isFirstBookingForCreator: true,
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const discountRow = wrapper.get("[data-testid='booking-flow-step2-summary-discount']");
+    expect(discountRow.text()).toContain("First Time Discount");
+    expect(discountRow.text()).toContain("-5");
+
+    const surchargeRow = wrapper.get("[data-testid='booking-flow-step2-summary-surcharge']");
+    expect(surchargeRow.text()).toContain("Off-hour Surcharge");
+    expect(surchargeRow.text()).toContain("+25");
+    expect(wrapper.get("[data-testid='booking-flow-step2-summary-subtotal']").text()).toContain("80");
+  });
+
+  it("translates the booking summary and interpolates its configured booking fee", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        enableBookingFee: true,
+        bookingFeeTokens: 15,
+        raw: {
+          ...baseEvent.raw,
+          enableBookingFee: true,
+          bookingFeeTokens: 15,
+        },
+      },
+      translations: {
+        fan_booking_booking_summary: "Resumen de reserva",
+        fan_booking_session_breakdown: "{count} cita de {base_minutes} minutos",
+        fan_booking_subtotal: "Subtotal traducido",
+        fan_booking_session_fee_hold_notice: "Importe retenido hasta la llamada.",
+        fan_booking_non_refundable_booking_fee_applied: "Tarifa aplicada: {tokens} tokens.",
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const summary = wrapper.get("[data-testid='booking-flow-step2-summary']");
+    expect(summary.text()).toContain("Resumen de reserva");
+    expect(summary.get("[data-testid='booking-flow-step2-summary-session']").text()).toContain("1 cita de 30 minutos");
+    expect(summary.get("[data-testid='booking-flow-step2-summary-subtotal']").text()).toContain("Subtotal traducido");
+    expect(summary.get("[data-testid='booking-flow-step2-summary-hold-notice']").text()).toBe("Importe retenido hasta la llamada.");
+    expect(summary.get("[data-testid='booking-flow-step2-summary-booking-fee-notice']").text()).toBe("Tarifa aplicada: 15 tokens.");
+    expect(summary.text()).toContain("Importe retenido hasta la llamada. Tarifa aplicada: 15 tokens.");
+
+    const { wrapperPromise: noFeeWrapperPromise } = createMountedStep({
+      selectedEvent: baseEvent,
+    });
+    const noFeeWrapper = await noFeeWrapperPromise;
+    await flushStep2();
+    await noFeeWrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+    expect(noFeeWrapper.find("[data-testid='booking-flow-step2-summary-booking-fee-notice']").exists()).toBe(false);
+  });
+
+  it("prices and preserves translated recording selections by stable add-on kind", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const selectedEvent = {
+      ...baseEvent,
+      raw: {
+        ...baseEvent.raw,
+        allowFanRecordingEnabled: true,
+        allowFanRecordingTokens: 50,
+        addOns: [{
+          id: "addon_record_review",
+          title: "Record review notes",
+          priceTokens: 10,
+        }],
+      },
+    };
+    const translations = {
+      fan_booking_record_our_session: "录制我们的会话",
+    };
+    const { engine, wrapperPromise } = createMountedStep({ selectedEvent, translations });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const addOns = wrapper.findAll("[data-testid='booking-flow-addon']");
+    expect(addOns).toHaveLength(2);
+    expect(addOns[0].attributes("data-addon-kind")).toBe("recording");
+    expect(addOns[0].text()).toContain("录制我们的会话");
+    expect(addOns[1].attributes("data-addon-kind")).toBe("addon");
+
+    await addOns[0].trigger("click");
+    await addOns[1].trigger("click");
+    await nextTick();
+
+    expect(wrapper.get("[data-testid='step2-sidebar']").attributes("data-subtotal")).toBe("120");
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.goToStep).toHaveBeenCalledWith(3);
+    expect(engine.state.bookingDetails.totalPrice).toBe(120);
+    expect(engine.state.bookingDetails.addons).toEqual([
+      expect.objectContaining({ kind: "recording", id: "evt_private_1_recording", price: 50 }),
+      expect.objectContaining({ kind: "addon", catalogId: "addon_record_review", price: 10 }),
+    ]);
+
+    const { wrapperPromise: restoredWrapperPromise } = createMountedStep({
+      selectedEvent,
+      bookingDetails: engine.state.bookingDetails,
+      selection: engine.state.fanBooking.selection,
+      translations,
+    });
+    const restoredWrapper = await restoredWrapperPromise;
+    await flushStep2();
+    expect(restoredWrapper.findAll("[data-testid='booking-flow-addon']").map(
+      (row) => row.attributes("data-selected"),
+    )).toEqual(["true", "true"]);
   });
 
   it("passes first-booking eligibility to the sidebar", async () => {
@@ -765,7 +973,7 @@ describe("BookingFlowStep2", () => {
     expect(wrapper.find("[data-testid='booking-flow-price-breakdown']").exists()).toBe(false);
   });
 
-  it("orders discounts, surcharge, and the fee-excluded current total", async () => {
+  it("orders discounts, surcharge, included allocations, and the current total", async () => {
     const baseEvent = createPrivateEvent("2030-01-15");
     const { wrapperPromise } = createMountedStep({
       selectedEvent: {
@@ -815,6 +1023,7 @@ describe("BookingFlowStep2", () => {
       "discount",
       "discount",
       "off-hour-surcharge",
+      "booking-fee-allocation",
       "current-total",
     ]);
   });
@@ -1096,7 +1305,7 @@ describe("BookingFlowStep2", () => {
 
     await plus.trigger("click");
     await nextTick();
-    expect(stepper.text()).toContain("1 hour 30 mins");
+    expect(stepper.text()).toContain("1 hr 30 mins");
 
     await minus.trigger("click");
     await nextTick();
@@ -1321,6 +1530,9 @@ describe("BookingFlowStep2", () => {
     await nextTick();
     await nextTick();
 
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
     expect(wrapper.get("[data-testid='booking-flow-first-time-discount-notice']").text()).toContain(
       "Your welcome discount is ready!",
     );
@@ -1396,6 +1608,13 @@ describe("BookingFlowStep2", () => {
     expect(notice.text()).toContain("Longer booking discount achieved!");
     expect(noticeText.classes()).toContain("text-[#07F468]");
     expect(noticeText.classes()).not.toContain("text-[#FCE40D]");
+    expect(wrapper.get("[data-row-kind='discount']").text()).toContain("60");
+    expect(wrapper.get("[data-testid='booking-flow-current-total-row']").text()).toContain("120");
+
+    await wrapper.get("[data-testid='booking-flow-duration-plus']").trigger("click");
+    await nextTick();
+    expect(wrapper.get("[data-row-kind='discount']").text()).toContain("80");
+    expect(wrapper.get("[data-testid='booking-flow-current-total-row']").text()).toContain("160");
   });
 
   it.each([
@@ -1513,7 +1732,7 @@ describe("BookingFlowStep2", () => {
     await plus.trigger("click");
     await plus.trigger("click");
     await nextTick();
-    expect(stepper.text()).toContain("1 hour 30 mins");
+    expect(stepper.text()).toContain("1 hr 30 mins");
     expect(plus.attributes("disabled")).toBeDefined();
     expect(wrapper.get("[data-testid='booking-flow-session-maximum-reached']").text()).toContain(
       "MAX SESSION LENGTH REACHED",

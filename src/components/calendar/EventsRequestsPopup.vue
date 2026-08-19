@@ -3,8 +3,9 @@
     <!-- Header -->
     <div class="flex items-center justify-between px-3 py-4 flex-shrink-0">
       <div class="h-[18px] w-[18px]"> </div>
-      <h2 class="text-sm font-semibold text-[#0C111D]">Events &amp; Requests</h2>
+      <h2 class="text-sm font-semibold text-[#0C111D]">{{ t('dashboard_events_requests_title') }}</h2>
       <button
+        type="button"
         @click="$emit('close')"
         class="p-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
         :aria-label="t('common_close')"
@@ -64,6 +65,7 @@
         @reply-click="$emit('reply-click', $event)"
         @event-click="$emit('event-click', $event)"
         @menu-action="$emit('menu-action', $event)"
+        @approve-booking="$emit('approve-booking', $event)"
       />
     </div>
   </div>
@@ -96,22 +98,68 @@ const props = defineProps({
   },
 });
 
-defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
+defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 
 const activeTab = ref('schedule');
 
-// Split eventsData into confirmed vs pending based on section title
-const confirmedSections = computed(() =>
-  (props.eventsData || []).filter(
-    (s) => String(s.title || '').toUpperCase() !== 'PENDING EVENTS',
-  ),
-);
+const isPendingSection = (section = {}) => {
+  if (typeof section.isPending === 'boolean') return section.isPending;
 
-const pendingSections = computed(() =>
-  (props.eventsData || []).filter(
-    (s) => String(s.title || '').toUpperCase() === 'PENDING EVENTS',
-  ),
-);
+  return String(section.title || '').trim().toLocaleUpperCase()
+    === String(t('dashboard_pending_events')).trim().toLocaleUpperCase();
+};
+
+const getSourceEvent = (item = {}) => item?.sourceEvent || item?.event || item || {};
+
+const getBookingStatus = (item = {}) => {
+  const sourceEvent = getSourceEvent(item);
+  const raw = sourceEvent?.raw && typeof sourceEvent.raw === 'object' ? sourceEvent.raw : {};
+  return String(sourceEvent?.status || raw.status || item?.status || '').trim().toLowerCase();
+};
+
+const getBookingKey = (item = {}, sectionIndex = 0, itemIndex = 0) => {
+  const sourceEvent = getSourceEvent(item);
+  const raw = sourceEvent?.raw && typeof sourceEvent.raw === 'object' ? sourceEvent.raw : {};
+  return String(
+    sourceEvent?.bookingId
+      || raw.bookingId
+      || item?.bookingId
+      || sourceEvent?.id
+      || `${sourceEvent?.eventId || item?.eventId || 'event'}:${sourceEvent?.start || item?.time || sectionIndex}:${itemIndex}`,
+  );
+};
+
+const filterSectionsByStatus = (mode) => {
+  const seen = new Set();
+
+  return (props.eventsData || []).map((section, sectionIndex) => {
+    const sectionPending = isPendingSection(section);
+    const items = (section?.items || []).filter((item, itemIndex) => {
+      const status = getBookingStatus(item);
+      const pending = status === 'pending' || status === 'pending_hold';
+      const matches = status
+        ? (mode === 'pending' ? pending : status === 'confirmed')
+        : (mode === 'pending' ? (sectionPending || item?.showReply === true) : !sectionPending && item?.showReply !== true);
+
+      if (!matches) return false;
+
+      const key = getBookingKey(item, sectionIndex, itemIndex);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return {
+      ...section,
+      items,
+      isPending: mode === 'pending',
+    };
+  }).filter((section) => section.items.length > 0);
+};
+
+const confirmedSections = computed(() => filterSectionsByStatus('confirmed'));
+
+const pendingSections = computed(() => filterSectionsByStatus('pending'));
 
 const confirmedCount = computed(() =>
   confirmedSections.value.reduce((n, s) => n + (s.items?.length || 0), 0),
@@ -122,9 +170,9 @@ const pendingCount = computed(() =>
 );
 
 const tabs = computed(() => [
-  { key: 'schedule',  label: 'Schedule',  count: props.bookingScheduleEvents?.length || 0 },
-  { key: 'confirmed', label: 'Confirmed', count: confirmedCount.value },
-  { key: 'pending',   label: 'Pending',   count: pendingCount.value },
+  { key: 'schedule',  label: t('dashboard_events_requests_schedule_tab'), count: props.bookingScheduleEvents?.length || 0 },
+  { key: 'confirmed', label: t('calendar_event_status_confirmed'), count: confirmedCount.value },
+  { key: 'pending',   label: t('calendar_event_status_pending'), count: pendingCount.value },
 ]);
 
 const activeSections = computed(() =>

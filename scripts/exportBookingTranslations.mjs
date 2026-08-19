@@ -5,7 +5,10 @@ import { bookingMessages } from "../src/i18n/bookingTranslations.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
-const outputPath = path.join(rootDir, "public/bookings-embed/booking-translations.en.json");
+const outputPaths = [
+  path.join(rootDir, "public/bookings-embed/booking-translations.en.json"),
+  path.resolve(rootDir, "../wp/wp-content/plugins/fansocial/bookings-embed/booking-translations.en.json"),
+];
 const scopedPaths = [
   "src/features/events",
   "src/components/calendar",
@@ -63,6 +66,8 @@ function sortedMessages() {
 }
 
 await checkUsedKeys();
-await mkdir(path.dirname(outputPath), { recursive: true });
-await writeFile(outputPath, `${JSON.stringify(sortedMessages(), null, 2)}\n`);
-console.log(`Exported ${Object.keys(bookingMessages).length} booking translation strings to ${path.relative(rootDir, outputPath)}`);
+for (const outputPath of outputPaths) {
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, `${JSON.stringify(sortedMessages(), null, 2)}\n`);
+}
+console.log(`Exported ${Object.keys(bookingMessages).length} booking translation strings to ${outputPaths.map((outputPath) => path.relative(rootDir, outputPath)).join(", ")}`);

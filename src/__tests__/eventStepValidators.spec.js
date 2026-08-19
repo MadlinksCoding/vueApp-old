@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { step1Validator, step2Validator } from "@/services/events/validators/eventStepValidators.js";
 
 describe("event step validators", () => {
+	afterEach(() => vi.unstubAllEnvs());
   const weeklyAvailability = [{
     key: "sun",
     name: "Sun",
@@ -62,6 +63,26 @@ describe("event step validators", () => {
 
     expect(result.errors.some((error) => error.field === "basePrice")).toBe(false);
   });
+
+	it("rejects v2 fee allocations above the minimum payable total", () => {
+		vi.stubEnv("VITE_BOOKING_COMPONENT_HOLDS_ENABLED", "true");
+		const result = step1Validator({
+			eventType: "1on1-call",
+			eventTitle: "Private call",
+			duration: 30,
+			basePrice: 10,
+			weeklyAvailability,
+			enableBookingFee: true,
+			bookingFee: 5,
+			enableCancellationFee: true,
+			cancellationFee: 10,
+		});
+
+		expect(result.errors).toContainEqual(expect.objectContaining({
+			field: "basePrice",
+			translationKey: "booking_validation_fee_allocations_exceed_total",
+		}));
+	});
 
   it("still requires private step 1 duration", () => {
     const result = step1Validator({

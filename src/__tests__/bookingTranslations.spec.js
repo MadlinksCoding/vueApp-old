@@ -17,6 +17,11 @@ describe("bookingTranslations", () => {
     expect(t("common_submit")).toBe("Enviar");
     expect(t("booking_who_can_book")).toBe("Who can book");
     expect(t("dashboard_booking_schedule_view_schedule")).toBe("View Booking Schedule");
+    expect(t("dashboard_events_requests_title")).toBe("Events & Requests");
+    expect(t("dashboard_events_requests_schedule_tab")).toBe("Schedule");
+    expect(t("calendar_event_review")).toBe("REVIEW");
+    expect(t("dashboard_booking_menu_aria", { title: "Office Hours" }))
+      .toBe("Open booking options for Office Hours");
   });
 
   it("interpolates translated and fallback messages", () => {

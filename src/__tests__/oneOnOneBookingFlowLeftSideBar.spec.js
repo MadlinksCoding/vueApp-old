@@ -9,6 +9,7 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/oneOnOneBookingFlowAsse
   bookingFlowTokenIcon: "/token.webp",
   bookingFlowSaleIcon: "/sale.webp",
   bookingFlowCloudMoon: "/cloud-moon.webp",
+  bookingFlowInfoCircleIcon: "/info-circle.webp",
 }));
 
 async function mountSidebar(props = {}, translations = {}) {
@@ -18,6 +19,9 @@ async function mountSidebar(props = {}, translations = {}) {
     global: {
       provide: {
         [bookingTranslationSymbol]: createBookingTranslator({ translations }),
+      },
+      directives: {
+        tooltip: {},
       },
     },
   });
@@ -35,9 +39,66 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
     const text = wrapper.text();
     expect(text).toContain("1 on 1 call");
     expect(text).toContain("BOOKING POLICY");
-    expect(text).toContain("Token equivalent of your session fee");
+    expect(text).toContain("Your booking total is temporarily held once");
     expect(text).not.toContain("Group Event");
     expect(text).not.toContain("event goal reached");
+  });
+
+  it("renders dynamic private booking date, time, and duration values", async () => {
+    const wrapper = await mountSidebar({
+      dateDisplay: "Wednesday, August 24, 2025",
+      timeDisplay: "9:30pm-10:30pm",
+      duration: 60,
+    });
+
+    expect(wrapper.get("[data-testid='booking-sidebar-date-time']").text()).toContain("DATE & TIME");
+    expect(wrapper.get("[data-testid='booking-sidebar-date']").text()).toBe("Wednesday, August 24, 2025");
+    expect(wrapper.get("[data-testid='booking-sidebar-time']").text()).toBe("9:30pm-10:30pm");
+    expect(wrapper.get("[data-testid='booking-sidebar-duration']").text()).toBe("60 min.");
+
+    await wrapper.setProps({
+      dateDisplay: "Thursday, August 25, 2025",
+      timeDisplay: "10:00am-10:30am",
+      duration: 30,
+    });
+
+    expect(wrapper.get("[data-testid='booking-sidebar-date']").text()).toBe("Thursday, August 25, 2025");
+    expect(wrapper.get("[data-testid='booking-sidebar-time']").text()).toBe("10:00am-10:30am");
+    expect(wrapper.get("[data-testid='booking-sidebar-duration']").text()).toBe("30 min.");
+  });
+
+  it("translates the date-time heading and duration template", async () => {
+    const wrapper = await mountSidebar(
+      {
+        dateDisplay: "24 de agosto de 2025",
+        timeDisplay: "21:30-22:30",
+        duration: 60,
+      },
+      {
+        fan_booking_date_time_heading: "FECHA Y HORA",
+        fan_booking_duration_minutes_short: "{minutes} minutos",
+      },
+    );
+
+    expect(wrapper.get("[data-testid='booking-sidebar-date-time']").text()).toContain("FECHA Y HORA");
+    expect(wrapper.get("[data-testid='booking-sidebar-date']").text()).toBe("24 de agosto de 2025");
+    expect(wrapper.get("[data-testid='booking-sidebar-time']").text()).toBe("21:30-22:30");
+    expect(wrapper.get("[data-testid='booking-sidebar-duration']").text()).toBe("60 minutos");
+  });
+
+  it("uses placeholders for missing date and time and omits an invalid duration", async () => {
+    const wrapper = await mountSidebar({
+      dateDisplay: "",
+      timeDisplay: "  ",
+      duration: 0,
+    });
+
+    expect(wrapper.get("[data-testid='booking-sidebar-date']").text()).toBe("-");
+    expect(wrapper.get("[data-testid='booking-sidebar-time']").text()).toBe("-");
+    expect(wrapper.find("[data-testid='booking-sidebar-duration']").exists()).toBe(false);
+
+    await wrapper.setProps({ duration: "invalid" });
+    expect(wrapper.find("[data-testid='booking-sidebar-duration']").exists()).toBe(false);
   });
 
   it("renders dynamic private session pricing and configured offers", async () => {
@@ -72,7 +133,7 @@ describe("OneOnOneBookingFlowLeftSideBar", () => {
       "100 tokens off entire booking",
     );
     expect(wrapper.get("[data-testid='booking-sidebar-long-session-offer']").text()).toContain(
-      "100 tokens off when you book 3+ sessions",
+      "100 tokens off each session when you book 3+ sessions",
     );
   });
 

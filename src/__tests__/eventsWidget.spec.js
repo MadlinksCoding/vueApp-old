@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import EventsWidget from "@/components/calendar/EventsWidget.vue";
+import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
 let wrapper;
 
@@ -17,7 +18,38 @@ afterEach(() => {
 });
 
 describe("EventsWidget", () => {
-  it("opens event details when the reply button is clicked", async () => {
+  it("hides and closes the booking menu while its booked slot projects a pending price adjustment", async () => {
+    const makeItem = (pendingPriceAdjustment) => ({
+      title: "Adjusted booking",
+      time: "10:00 AM",
+      sourceEvent: {
+        bookingId: "booking_adjust",
+        raw: {
+          pendingPriceAdjustment,
+        },
+      },
+    });
+    const sectionsFor = (item) => [{ title: "TODAY", items: [item], isPending: false }];
+
+    wrapper = mount(EventsWidget, {
+      props: { sections: sectionsFor(makeItem(false)) },
+    });
+
+    await wrapper.get("[data-test='events-widget-menu-trigger']").trigger("click");
+    expect(wrapper.get("[data-test='events-widget-menu']").exists()).toBe(true);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(true)) });
+    await flushPromises();
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(false)) });
+    await flushPromises();
+    expect(wrapper.get("[data-test='events-widget-menu-trigger']").attributes("aria-expanded"))
+      .toBe("false");
+    expect(wrapper.find("[data-test='events-widget-menu']").exists()).toBe(false);
+  });
+
+  it("uses pending metadata independently of the translated section title", async () => {
     const item = {
       title: "Pending booking",
       time: "10:00 AM",
@@ -31,31 +63,96 @@ describe("EventsWidget", () => {
 
     wrapper = mount(EventsWidget, {
       props: {
-        sections: [{ title: "PENDING EVENTS", items: [item] }],
+        sections: [{ title: "SOLICITUDES PENDIENTES", items: [item], isPending: true }],
+      },
+      global: {
+        stubs: { TooltipIcon: true },
       },
     });
 
-    const replyButton = wrapper
-      .findAll("button")
-      .find((button) => button.text() === "REPLY");
-
-    expect(replyButton).toBeTruthy();
-
-    await replyButton.trigger("click");
+    const pendingCard = wrapper.get("[data-test='events-widget-card']");
+    expect(pendingCard.classes()).toContain("border-[1.5px]");
+    await pendingCard.trigger("click");
 
     expect(wrapper.emitted("event-click")).toEqual([[item]]);
-    expect(wrapper.emitted("reply-click")).toBeUndefined();
   });
 
-  it("shows disabled join calls until the join window opens", async () => {
-    const joinAvailableLabel = new Date("2026-05-01T09:55:00.000Z").toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
+  it.each(["pending", "pending_hold"])(
+    "shows translated Review and Accept actions for creator %s items in any section",
+    async (status) => {
+      const sourceEvent = {
+        bookingId: `booking_${status}`,
+        eventId: `event_${status}`,
+        status,
+      };
+      const item = {
+        title: `${status} booking`,
+        time: "10:00 AM",
+        showReply: true,
+        showJoin: true,
+        canJoin: true,
+        joinUrl: "https://example.com/join",
+        avatars: [{ src: "/avatar.png", name: "Fan" }],
+        sourceEvent,
+      };
+
+      wrapper = mount(EventsWidget, {
+        props: {
+          userRole: "creator",
+          sections: [{ title: "PRÓXIMOS", items: [item], isPending: false }],
+        },
+        global: {
+          provide: {
+            [bookingTranslationSymbol]: createBookingTranslator({
+              translations: {
+                calendar_event_review: "REVISAR",
+                calendar_event_accept: "ACEPTAR",
+              },
+            }),
+          },
+        },
+      });
+
+      expect(wrapper.get("[data-test='pending-booking-review']").text()).toBe("REVISAR");
+      expect(wrapper.get("[data-test='pending-booking-accept']").text()).toBe("ACEPTAR");
+      expect(wrapper.find("[data-test='join-tooltip-trigger']").exists()).toBe(false);
+
+      await wrapper.get("[data-test='pending-booking-review']").trigger("click");
+      expect(wrapper.emitted("event-click")).toEqual([[item]]);
+
+      await wrapper.get("[data-test='pending-booking-accept']").trigger("click");
+      expect(wrapper.emitted("approve-booking")).toEqual([[
+        {
+          bookingId: `booking_${status}`,
+          eventId: `event_${status}`,
+          decision: "approve",
+          event: sourceEvent,
+        },
+      ]]);
+    },
+  );
+
+  it("hides creator approval actions from fan viewers", () => {
+    const item = {
+      title: "Fan pending booking",
+      showReply: true,
+      sourceEvent: { bookingId: "booking_fan", status: "pending" },
+    };
+
+    wrapper = mount(EventsWidget, {
+      props: {
+        userRole: "fan",
+        sections: [{ title: "PENDING", items: [item], isPending: true }],
+      },
+      global: {
+        stubs: { TooltipIcon: true },
+      },
     });
+
+    expect(wrapper.find("[data-test='pending-booking-actions']").exists()).toBe(false);
+  });
+
+  it("hides join calls until the join window opens and reveals them reactively", async () => {
     const item = {
       title: "Upcoming booking",
       time: "10:00 AM",
@@ -63,7 +160,6 @@ describe("EventsWidget", () => {
       showJoin: true,
       canJoin: false,
       joinUrl: "https://example.com/join",
-      joinAvailableAtIso: "2026-05-01T09:55:00.000Z",
       avatars: [{ src: "/avatar.png", name: "Fan" }],
       titleColorClass: "text-gray-900",
       borderClass: "bg-gray-300",
@@ -76,31 +172,20 @@ describe("EventsWidget", () => {
       },
     });
 
-    const joinButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase() === "join call");
+    expect(wrapper.find("[data-test='events-widget-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("confirmed");
 
-    expect(joinButton).toBeTruthy();
-    expect(joinButton.attributes("disabled")).toBeDefined();
-    expect(joinButton.classes()).toContain("bg-[#D0D5DD]");
-    expect(joinButton.classes()).not.toContain("opacity-80");
-    expect(wrapper.find("[data-test='disabled-join-tooltip']").exists()).toBe(false);
+    const joinableItem = { ...item, canJoin: true, statusText: "in 5 mins" };
+    await wrapper.setProps({
+      sections: [{ title: "TODAY", items: [joinableItem] }],
+    });
 
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("mouseenter");
-
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").text())
-      .toBe(`This call can be joined at ${joinAvailableLabel}`);
-
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("mouseleave");
-    expect(wrapper.find("[data-test='disabled-join-tooltip']").exists()).toBe(false);
-
-    await wrapper.get("[data-test='join-tooltip-trigger']").trigger("touchstart");
-    expect(wrapper.get("[data-test='disabled-join-tooltip']").text())
-      .toBe(`This call can be joined at ${joinAvailableLabel}`);
+    const joinButton = wrapper.get("[data-test='events-widget-join-call']");
+    expect(joinButton.attributes("disabled")).toBeUndefined();
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("in 5 mins");
 
     await joinButton.trigger("click");
-
-    expect(wrapper.emitted("join-click")).toBeUndefined();
+    expect(wrapper.emitted("join-click")).toEqual([[joinableItem]]);
   });
 
   it("emits join calls when the join window is open", async () => {
@@ -123,16 +208,32 @@ describe("EventsWidget", () => {
       },
     });
 
-    const joinButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase() === "join call");
-
-    expect(joinButton).toBeTruthy();
+    const joinButton = wrapper.get("[data-test='events-widget-join-call']");
     expect(joinButton.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find("[data-test='pending-booking-actions']").exists()).toBe(false);
 
     await joinButton.trigger("click");
 
     expect(wrapper.emitted("join-click")).toEqual([[item]]);
+  });
+
+  it("does not show Join without a valid join URL", () => {
+    const item = {
+      title: "Booking without a URL",
+      statusText: "confirmed",
+      showJoin: true,
+      canJoin: true,
+      joinUrl: "",
+    };
+
+    wrapper = mount(EventsWidget, {
+      props: {
+        sections: [{ title: "TODAY", items: [item] }],
+      },
+    });
+
+    expect(wrapper.find("[data-test='events-widget-join-call']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='join-status-text']").text()).toBe("confirmed");
   });
 
   it("uses the status color for the urgent join status dot and text", () => {
@@ -201,7 +302,7 @@ describe("EventsWidget", () => {
       .findAll("[data-test='join-status-dot']")
       .map((dot) => dot.element.style.backgroundColor);
 
-    expect(dotColors).toEqual(["rgb(34, 197, 94)", "rgb(34, 197, 94)"]);
+    expect(dotColors).toEqual(["rgb(7, 244, 104)", "rgb(7, 244, 104)"]);
   });
 
   it("fetches and displays fan profile data for creator viewers with a loading skeleton", async () => {

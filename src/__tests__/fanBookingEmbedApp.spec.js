@@ -21,6 +21,7 @@ const requestClose = vi.fn();
 const announceReady = vi.fn();
 const notifyCreated = vi.fn();
 const notifyFailed = vi.fn();
+const requestBalanceRefresh = vi.fn();
 const removeBootstrapListener = vi.fn();
 const removeAuthUpdateListener = vi.fn();
 const installBootstrapListener = vi.fn(() => removeBootstrapListener);
@@ -40,6 +41,7 @@ vi.mock("@/embeds/fanBooking/bridge.js", () => ({
   isEmbeddedIframe,
   notifyOneOnOneBookingCreated: notifyCreated,
   notifyOneOnOneBookingFailed: notifyFailed,
+  requestOneOnOneBookingBalanceRefresh: requestBalanceRefresh,
   requestOneOnOneBookingClose: requestClose,
 }));
 
@@ -51,10 +53,11 @@ vi.mock("@/embeds/fanBooking/debug.js", () => ({
 vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue", () => ({
   default: {
     name: "OneOnOneBookingFlowFeature",
-    emits: ["close-request", "booking-created", "booking-failed"],
+    emits: ["close-request", "booking-created", "booking-failed", "balance-refresh-request"],
     template: `
       <div>
         <button data-test="emit-close-request" @click="$emit('close-request')">close</button>
+        <button data-test="emit-balance-refresh" @click="$emit('balance-refresh-request', { reason: 'top-up' })">refresh</button>
       </div>
     `,
   },
@@ -83,5 +86,14 @@ describe("FanBookingEmbedApp", () => {
     await wrapper.get("[data-test='emit-close-request']").trigger("click");
 
     expect(requestClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards balance refresh requests to the parent bridge", async () => {
+    const { default: FanBookingEmbedApp } = await import("@/embeds/fanBooking/FanBookingEmbedApp.vue");
+    const wrapper = mount(FanBookingEmbedApp);
+
+    await wrapper.get("[data-test='emit-balance-refresh']").trigger("click");
+
+    expect(requestBalanceRefresh).toHaveBeenCalledWith({ reason: "top-up" });
   });
 });

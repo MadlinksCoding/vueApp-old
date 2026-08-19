@@ -1,10 +1,16 @@
 <template>
     <div
-        class="w-full lg:w-[492px] bg-gray-50 rounded-t-[24px] rounded-b-none lg:rounded flex items-stretch overflow-hidden max-md:rounded-t-[1.5rem] max-md:rounded-b-none ipad-portrait-large:w-[40vw] ipad-portrait-large:h-full"
+        :class="[
+            'w-full bg-gray-50 flex items-stretch overflow-hidden',
+            isSidePanel
+                ? 'h-full min-h-0 rounded-none'
+                : 'lg:w-[492px] rounded-t-[24px] rounded-b-none lg:rounded max-md:rounded-t-[1.5rem] max-md:rounded-b-none ipad-portrait-large:w-[40vw] ipad-portrait-large:h-full'
+        ]"
         :style="popupStyle"
+        :data-presentation="presentation"
     >
         <div class="w-1 self-stretch shrink-0" :style="{ backgroundColor: eventColor }" />
-        <div class="w-full p-2 md:p-4 flex items-start gap-1">
+        <div :class="['w-full p-2 md:p-4 flex items-start gap-1', isSidePanel ? 'h-full overflow-y-auto' : '']">
             <div class="flex-1 inline-flex flex-col items-start gap-6">
                 <div class="w-full inline-flex justify-between items-center">
                     <div :title="titleText" class="text-2xl font-semibold font-['Poppins'] leading-8 truncate w-[150px] min-[480px]:w-[50%]" :style="{ color: eventColor }">
@@ -15,21 +21,12 @@
                             <div data-test="status-dot" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusDotColor }" />
                             <div data-test="status-hint" class="text-gray-500 text-xs font-medium font-['Poppins'] leading-4">{{ statusHint }}</div>
                         </div>
-                        <span
-                            v-if="showJoinButton"
-                            class="relative inline-flex"
-                            data-test="join-tooltip-trigger"
-                            @mouseenter="showJoinTooltip(false)"
-                            @mouseleave="hideJoinTooltip"
-                            @touchstart.stop="showJoinTooltip(true)"
-                            @click.stop
-                        >
+                        <span v-if="canJoinCall" class="relative inline-flex">
                         <button
                             type="button"
-                            class="px-2 py-[3px] rounded hidden ipad-portrait-large:hidden lg:flex items-center gap-1 transition-colors disabled:cursor-not-allowed"
-                            :class="canJoinCall ? 'cursor-pointer' : ''"
-                            :disabled="!canJoinCall"
-                            :style="joinButtonStyle"
+                            class="hidden cursor-pointer items-center gap-1 rounded px-2 py-[3px] text-white transition-colors ipad-portrait-large:hidden lg:flex"
+                            :style="{ backgroundColor: eventColor }"
+                            data-test="calendar-event-details-desktop-join-call"
                             @click="handleJoin"
                         >
                             <div class="w-4 h-4 relative overflow-hidden">
@@ -37,33 +34,26 @@
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
                                         d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z"
-                                        :stroke="canJoinCall ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round" />
+                                        stroke="white" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </div>
                             <div
-                                class="text-xs font-semibold font-['Poppins'] leading-4"
-                                :class="canJoinCall ? 'text-white' : 'text-gray-600'"
+                                class="text-xs font-semibold font-['Poppins'] leading-4 text-white"
                             >
                                 {{ t("common_join_call") }}
                             </div>
                         </button>
-                            <span
-                                v-if="joinTooltipVisible"
-                                role="tooltip"
-                                data-test="disabled-join-tooltip"
-                                class="absolute right-0 top-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-4 text-white shadow-lg"
-                            >
-                                {{ disabledJoinTooltipText }}
-                            </span>
                         </span>
 
-                        <div v-if="showJoinButton" class="relative">
+                        <div v-if="showBookingMenu" class="relative">
                             <button
                                 type="button"
                                 class="inline-flex h-8 w-6 items-center justify-center rounded hover:bg-gray-200/80"
+                                data-test="calendar-event-details-menu-trigger"
                                 :aria-expanded="menuOpen"
                                 @click.stop="toggleMenu"
                             >
+                                <!-- ThreeDotsIcon -->
                                 <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
@@ -117,7 +107,10 @@
                         <button
                             type="button"
                             data-popup-close
-                            class=" p-2 rounded-full hover:bg-gray-200 transition-colors ipad-portrait-large:block lg:hidden"
+                            :class="[
+                                'p-2 rounded-full hover:bg-gray-200 transition-colors',
+                                isSidePanel ? 'block' : 'ipad-portrait-large:block lg:hidden'
+                            ]"
                             :aria-label="t('common_close')"
                             @click="$emit('close')"
                         >
@@ -234,14 +227,14 @@
                             class="flex items-center gap-0.5 hover:opacity-80 transition-opacity"
                             @click="handleOpenChatClick"
                         >
-                            <div class="text-gray-900 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
+                            <div class="text-blue-600 text-sm font-semibold font-['Poppins'] leading-5 cursor-pointer">
                                 {{ t("calendar_event_open_chat") }}
                             </div>
                             <svg width="15" height="32" viewBox="0 0 32 32" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
+                                xmlns="http://www.w3.org/2000/svg" class="text-blue-600">
                                 <path
                                     d="M9.3335 22.6666L22.6668 9.33331M22.6668 9.33331H9.3335M22.6668 9.33331V22.6666"
-                                    stroke="#000" stroke-width="2.5" stroke-linecap="round"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
                                     stroke-linejoin="round" />
                             </svg>
                         </button>
@@ -258,15 +251,16 @@
                     </div>
 
                     <div v-else-if="canReviewPending && !showRejectConfirm" class="inline-flex w-full items-center gap-3 pt-2">
-                    <button type="button" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
+                    <button type="button" data-test="calendar-event-details-accept" @click="handleApprove" class="px-3 py-2 rounded shadow-sm text-sm font-semibold text-gray-950 bg-[#07F468] hover:bg-[#07F468] transition-colors tracking-wide uppercase">
                         {{ t("calendar_event_accept") }}
                     </button>
-                    <button type="button" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
+                    <button type="button" data-test="calendar-event-details-decline" @click="handleReject" class="px-3 py-2 rounded text-sm font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-[#fff5f2] transition-colors tracking-wide uppercase shadow-sm">
                         {{ t("calendar_event_decline") }}
                     </button>
                     <button 
                         v-if="bookingData?.meta?.bookingMessageId && bookingData?.meta?.chatId"
-                        type="button" 
+                        type="button"
+                        data-test="calendar-event-details-adjust-request"
                         @click="handleAdjust" 
                         class="px-3 py-2 text-sm font-semibold text-[#5549FF] hover:bg-gray-50 rounded transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
                     >
@@ -277,7 +271,7 @@
                     </button>
                     </div>
 
-                    <div v-if="canReviewPending && showRejectConfirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
+                    <div v-if="canReviewPending && showRejectConfirm" data-test="calendar-event-details-reject-confirm" class="w-full rounded border border-red-200 bg-red-50 px-3 py-2">
                         <div class="text-xs font-medium text-red-700 mb-2">
                             {{ t("calendar_event_reject_confirm") }}
                         </div>
@@ -302,10 +296,10 @@
 
                 <!-- Add bg-[#07F468] for active button -->
                 <button
+                            v-if="canJoinCall"
                             type="button"
-                            class="px-2 py-3 rounded-full flex ipad-portrait-large:flex lg:hidden items-center justify-center flex-1 self-stretch gap-2 transition-colors disabled:cursor-not-allowed"
-                            :class="canJoinCall ? 'cursor-pointer bg-[#07F468]' : 'bg-gray-200'"
-                            :disabled="!canJoinCall"
+                            class="flex flex-1 cursor-pointer items-center justify-center gap-2 self-stretch rounded-full bg-[#07F468] px-2 py-3 transition-colors ipad-portrait-large:flex lg:hidden"
+                            data-test="calendar-event-details-mobile-join-call"
                             @click="handleJoin"
                         >
                             <div class="w-6 h-6 relative overflow-hidden">
@@ -313,12 +307,11 @@
                                     xmlns="http://www.w3.org/2000/svg">
                                     <path
                                         d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z"
-                                        :stroke="canJoinCall ? 'white' : '#667085'" stroke-linecap="round" stroke-linejoin="round" />
+                                        stroke="white" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </div>
                             <div
-                                class="text-base font-semibold font-['Poppins']"
-                                :class="canJoinCall ? 'text-white' : 'text-gray-600'"
+                                class="text-base font-semibold font-['Poppins'] text-white"
                             >
                                 {{ t("common_join_call") }}
                             </div>
@@ -331,7 +324,10 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { hhmm } from '@/utils/calendarHelpers.js';
-import { getBookingJoinState } from '@/utils/bookingJoinUtils.js';
+import {
+    getCalendarEventApprovalState,
+    getCalendarEventJoinState,
+} from '@/utils/bookingJoinUtils.js';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import alarmIcon from '@/assets/images/icons/alarmIcon.png';
 import userIcon from '@/assets/images/icons/profile.webp';
@@ -343,6 +339,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler';
 import HourglassIcon from '@/assets/images/icons/hourglass-03.webp';
 
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 const props = defineProps({
     event: {
@@ -356,16 +353,64 @@ const props = defineProps({
     userRole: {
         type: String,
         default: 'creator'
+    },
+    comparisonTime: {
+        type: Date,
+        default: null
+    },
+    presentation: {
+        type: String,
+        default: 'default',
+        validator: (value) => ['default', 'side-panel'].includes(value)
+    },
+    booking: {
+        type: Object,
+        default: null
     }
 });
 
 const emit = defineEmits(['join-call', 'approve-booking', 'reject-booking', 'cancel-booking', 'close', 'adjust-booking', 'open-chat']);
 const { t, locale } = useBookingTranslations();
+const isSidePanel = computed(() => props.presentation === 'side-panel');
 const menuOpen = ref(false);
-const currentTime = ref(new Date());
+const localCurrentTime = ref(new Date());
 const currentTimeTimer = ref(null);
-const joinTooltipVisible = ref(false);
-const joinTooltipTimer = ref(null);
+const MINUTE_MS = 60 * 1000;
+const hasExternalComparisonTime = computed(() => (
+    props.comparisonTime instanceof Date
+    && !Number.isNaN(props.comparisonTime.getTime())
+));
+const currentTime = computed(() => (
+    hasExternalComparisonTime.value ? props.comparisonTime : localCurrentTime.value
+));
+
+function clearCurrentTimeTimer() {
+    if (currentTimeTimer.value == null) return;
+    window.clearTimeout(currentTimeTimer.value);
+    currentTimeTimer.value = null;
+}
+
+function scheduleLocalCurrentTimeRefresh() {
+    clearCurrentTimeTimer();
+    if (hasExternalComparisonTime.value) return;
+    const nowMs = Date.now();
+    const delay = MINUTE_MS - (nowMs % MINUTE_MS);
+    currentTimeTimer.value = window.setTimeout(refreshLocalCurrentTime, Math.max(1, delay));
+}
+
+function refreshLocalCurrentTime() {
+    if (hasExternalComparisonTime.value) {
+        clearCurrentTimeTimer();
+        return;
+    }
+    localCurrentTime.value = new Date();
+    scheduleLocalCurrentTimeRefresh();
+}
+
+function handleCurrentTimeVisibilityChange() {
+    if (document.visibilityState === 'hidden') return;
+    refreshLocalCurrentTime();
+}
 
 function normalizeHexColor(color, fallback = '#5549FF') {
     if (typeof color !== 'string') return fallback;
@@ -419,6 +464,13 @@ const eventColor = computed(() => normalizeHexColor(
 ));
 
 const popupStyle = computed(() => {
+    if (isSidePanel.value) {
+        return {
+            borderColor: eventColor.value,
+            boxShadow: 'none',
+        };
+    }
+
     // Only apply centering-specific styles if NOT on mobile
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     
@@ -499,6 +551,10 @@ function translateStatusLabel(label) {
     return key ? t(key) : titleCaseFromKey(normalized);
 }
 
+const approvalState = computed(() => getCalendarEventApprovalState(props.event, {
+    now: currentTime.value,
+}));
+
 const statusHint = computed(() => {
     if (!startDate.value || !endDate.value) return statusLabel.value ? translateStatusLabel(statusLabel.value) : '';
 
@@ -507,6 +563,7 @@ const statusHint = computed(() => {
     const statusEndDate = effectiveEndDate.value || endDate.value;
     const endMs = statusEndDate.getTime();
 
+    if (approvalState.value.approvalWindowClosed) return t('calendar_event_status_ended');
     if (now >= startMs && now < endMs) return t('calendar_event_live_now');
     if (now > endMs) return t('calendar_event_status_ended');
 
@@ -545,47 +602,13 @@ const statusDotColor = computed(() => {
     return '#6B7280';
 });
 
-const bookingId = computed(() => raw.value?.bookingId || props.event?.bookingId || null);
-const eventId = computed(() => raw.value?.eventId || props.event?.eventId || null);
-const joinState = computed(() => getBookingJoinState({
-    bookingId: bookingId.value,
-    startAt: startDate.value,
-    endAt: endDate.value,
-    status: statusLabel.value,
-    enableCallReminderMinutesBefore: firstDefined(
-        props.event?.enableCallReminderMinutesBefore,
-        raw.value?.enableCallReminderMinutesBefore,
-        eventSnapshot.value?.enableCallReminderMinutesBefore,
-        eventCurrent.value?.enableCallReminderMinutesBefore,
-        props.event?.setReminders,
-        raw.value?.setReminders,
-        eventSnapshot.value?.setReminders,
-        eventCurrent.value?.setReminders,
-    ),
-    callReminderMinutesBefore: firstDefined(
-        props.event?.callReminderMinutesBefore,
-        raw.value?.callReminderMinutesBefore,
-        raw.value?.reminderMinutes,
-        mergedEvent.value?.callReminderMinutesBefore,
-        mergedEvent.value?.reminderMinutes,
-        mergedEvent.value?.remindBeforeMinutes,
-    ),
-    reminderMinutes: firstDefined(
-        raw.value?.reminderMinutes,
-        props.event?.reminderMinutes,
-        mergedEvent.value?.reminderMinutes,
-    ),
-    extensions: firstDefined(props.event?.extensions, raw.value?.extensions, []),
+const joinState = computed(() => getCalendarEventJoinState(props.event, {
+    viewerRole: props.userRole,
     now: currentTime.value,
 }));
-const joinUrl = computed(() => (
-    joinState.value.joinUrl
-    || raw.value?.joinUrl
-    || raw.value?.callUrl
-    || mergedEvent.value?.joinUrl
-    || mergedEvent.value?.callUrl
-    || null
-));
+const bookingId = computed(() => joinState.value.bookingId);
+const eventId = computed(() => joinState.value.eventId);
+const joinUrl = computed(() => joinState.value.joinUrl);
 const effectiveEndDate = computed(() => {
     const parsedEffectiveEnd = joinState.value?.effectiveEndDate
         ? new Date(joinState.value.effectiveEndDate)
@@ -597,82 +620,43 @@ const callHasPassed = computed(() => (
     effectiveEndDate.value
     && currentTime.value.getTime() > effectiveEndDate.value.getTime()
 ));
-const showJoinButton = computed(() => Boolean(joinUrl.value || bookingId.value) && !callHasPassed.value);
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinUrl.value));
-const joinButtonStyle = computed(() => ({
-    backgroundColor: canJoinCall.value ? eventColor.value : '#D0D5DD',
-}));
-const joinAvailableAtIso = computed(() => (
-    joinState.value.joinAvailableAtIso
-    || (
-        startDate.value
-            ? new Date(startDate.value.getTime() - (5 * 60 * 1000)).toISOString()
-            : ''
-    )
+const hasPendingPriceAdjustment = computed(() => isPendingPriceAdjustment(
+    [bookingData.value, props.booking, props.event]
 ));
-const joinAvailableAtLabel = computed(() => {
-    const date = joinAvailableAtIso.value ? new Date(joinAvailableAtIso.value) : null;
-    if (!date || Number.isNaN(date.getTime())) return '';
-
-    return date.toLocaleString(locale.value, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
-});
-const disabledJoinTooltipText = computed(() => (
-    `This call can be joined at ${joinAvailableAtLabel.value}`
+const showBookingMenu = computed(() => (
+    Boolean(joinUrl.value || bookingId.value)
+    && !callHasPassed.value
+    && !hasPendingPriceAdjustment.value
 ));
-
-function clearJoinTooltipTimer() {
-    if (!joinTooltipTimer.value) return;
-    window.clearTimeout(joinTooltipTimer.value);
-    joinTooltipTimer.value = null;
-}
-
-function hideJoinTooltip() {
-    clearJoinTooltipTimer();
-    joinTooltipVisible.value = false;
-}
-
-function showJoinTooltip(autoHide = false) {
-    if (canJoinCall.value) {
-        hideJoinTooltip();
-        return;
-    }
-
-    clearJoinTooltipTimer();
-    joinTooltipVisible.value = true;
-
-    if (autoHide) {
-        joinTooltipTimer.value = window.setTimeout(hideJoinTooltip, 2500);
-    }
-}
 
 function handleJoin() {
-    if (!canJoinCall.value) return;
+    const freshJoinState = getCalendarEventJoinState(props.event, {
+        viewerRole: props.userRole,
+        now: new Date(),
+    });
     menuOpen.value = false;
     emit('join-call', {
-        bookingId: bookingId.value,
-        eventId: eventId.value,
-        joinUrl: joinUrl.value,
+        bookingId: freshJoinState.bookingId,
+        eventId: freshJoinState.eventId,
+        joinUrl: freshJoinState.joinUrl,
         event: props.event,
     });
 }
 
 const canReviewPending = computed(() => (
     props.canReviewPending
-    && statusLabel.value === 'pending'
-    && !callHasPassed.value
+    && approvalState.value.canReview
     && !isWaitingForResponse.value
 ));
 const showRejectConfirm = ref(false);
 
-const bookingData = ref(null);
+const bookingData = ref(props.booking || null);
 const bookingLoading = ref(false);
+
+watch(hasPendingPriceAdjustment, (isPending) => {
+    if (isPending) menuOpen.value = false;
+});
 
 const targetUserIdForChat = computed(() => {
     const isCreator = props.userRole === 'creator';
@@ -696,12 +680,14 @@ function handleOpenChatClick() {
 }
 
 watch(
-    () => bookingId.value,
-    async (newBookingId) => {
+    () => [bookingId.value, props.booking],
+    async ([newBookingId, suppliedBooking]) => {
         showRejectConfirm.value = false;
         menuOpen.value = false;
-        
-        bookingData.value = null;
+
+        bookingData.value = suppliedBooking || null;
+        if (suppliedBooking) return;
+
         if (newBookingId && props.canReviewPending) {
             bookingLoading.value = true;
             try {
@@ -763,19 +749,25 @@ function emitReviewAction(decision) {
     });
 }
 
+function canReviewAtClickTime() {
+    return props.canReviewPending
+        && getCalendarEventApprovalState(props.event, { now: new Date() }).canReview
+        && !isWaitingForResponse.value;
+}
+
 function handleApprove() {
-    if (!canReviewPending.value) return;
+    if (!canReviewAtClickTime()) return;
     showRejectConfirm.value = false;
     emitReviewAction('approve');
 }
 
 function handleReject() {
-    if (!canReviewPending.value) return;
+    if (!canReviewAtClickTime()) return;
     showRejectConfirm.value = true;
 }
 
 function confirmReject() {
-    if (!canReviewPending.value) {
+    if (!canReviewAtClickTime()) {
         showRejectConfirm.value = false;
         return;
     }
@@ -790,28 +782,36 @@ function cancelReject() {
 
 const handleDocumentClick = () => {
     menuOpen.value = false;
-    hideJoinTooltip();
 };
 
 onMounted(() => {
-    currentTime.value = new Date();
-    currentTimeTimer.value = window.setInterval(() => {
-        currentTime.value = new Date();
-    }, 60 * 1000);
+    refreshLocalCurrentTime();
+    window.addEventListener('focus', refreshLocalCurrentTime);
+    document.addEventListener('visibilitychange', handleCurrentTimeVisibilityChange);
     document.addEventListener('click', handleDocumentClick);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleDocumentClick);
-    if (currentTimeTimer.value) {
-        window.clearInterval(currentTimeTimer.value);
-        currentTimeTimer.value = null;
-    }
-    clearJoinTooltipTimer();
+    window.removeEventListener('focus', refreshLocalCurrentTime);
+    document.removeEventListener('visibilitychange', handleCurrentTimeVisibilityChange);
+    clearCurrentTimeTimer();
     if (guestProfileAbortController) {
         guestProfileAbortController.abort();
         guestProfileAbortController = null;
     }
+});
+
+watch(hasExternalComparisonTime, (hasExternalTime) => {
+    if (hasExternalTime) {
+        clearCurrentTimeTimer();
+        return;
+    }
+    refreshLocalCurrentTime();
+});
+
+watch(canReviewPending, (canReview) => {
+    if (!canReview) showRejectConfirm.value = false;
 });
 
 const guestCount = computed(() => {

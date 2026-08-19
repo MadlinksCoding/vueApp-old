@@ -427,35 +427,30 @@ export const flowRegistry = {
       },
       etag: { enabled: true, varyByPayload: true },
       localCache: {
-        enabled: true,
-        ttlMs: 30000,
-        version: 1,
-        varyByPayload: true,
+        enabled: false,
       },
       readFrom: {
         enabled: true,
         ttlMs: 30000,
         mode: "staleWhileRevalidate",
-        priority: ["stateEngine", "local"],
+        priority: ["stateEngine"],
         sources: [
           {
             type: "stateEngine",
             key: "events.cachedResponse",
             etagKey: "events.meta.etag",
             updatedAtKey: "events.meta.updatedAt",
-          },
-          {
-            type: "local",
-            key: "dashboard-events:context",
-            ttlMs: 30000,
-            version: 1,
-            etagKey: "meta.etag",
-            updatedAtKey: "meta.updatedAt",
+            varyByPayload: true,
+            payloadHashKey: "events.meta.payloadHash",
           },
         ],
       },
       concurrency: { policy: "latestWins", dedupe: true, keyByPayload: true },
       destinations: [
+        {
+          type: "localFlush",
+          key: "dashboard-events:context",
+        },
         {
           type: "stateEngine",
           key: "events.cachedResponse",
@@ -492,13 +487,6 @@ export const flowRegistry = {
         },
         {
           type: "stateEngine",
-          key: "events.widgetBookedSlotsRaw",
-          mode: "set",
-          select: "widgetBookedSlots",
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "stateEngine",
           key: "events.meta",
           mode: "set",
           select: "meta",
@@ -509,13 +497,6 @@ export const flowRegistry = {
           key: "events.meta",
           mode: "merge",
           value: { updatedAt: "@now" },
-          hydrateOnReadHit: true,
-        },
-        {
-          type: "local",
-          key: "dashboard-events:context",
-          ttlMs: 30000,
-          version: 1,
           hydrateOnReadHit: true,
         },
       ],

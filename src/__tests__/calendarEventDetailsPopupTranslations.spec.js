@@ -2,8 +2,9 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { bookingTranslationSymbol, createBookingTranslator } from "@/i18n/bookingTranslations.js";
 
-vi.mock("@/utils/bookingJoinUtils.js", () => ({
-  getBookingJoinState: vi.fn(() => ({
+vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCalendarEventJoinState: vi.fn(() => ({
     canJoin: true,
     joinUrl: "https://example.com/join/booking_123",
   })),
@@ -23,6 +24,7 @@ describe("CalendarEventDetailsPopup translations", () => {
           status: "pending",
           raw: {
             status: "pending",
+            userId: 123,
             guestCount: 2,
             payment: {
               total: 125,

@@ -1,10 +1,14 @@
 export const FS_EVENTS_BOOTSTRAP = "FS_EVENTS_BOOTSTRAP";
+export const FS_EVENTS_AUTH_UPDATE = "FS_EVENTS_AUTH_UPDATE";
 export const FS_EVENTS_CHILD_READY = "FS_EVENTS_CHILD_READY";
 export const FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
 export const FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
 export const FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
 export const FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
 export const FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
+export const FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
+export const FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
+export const FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
 
 const MESSAGE_SOURCE = "fs-events-embed";
 
@@ -57,6 +61,18 @@ export function notifyEventsEmbedFormOpenState(isOpen) {
   });
 }
 
+export function notifyBookingDetailsReady(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_READY, payload);
+}
+
+export function requestBookingDetailsClose(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST, payload);
+}
+
+export function notifyBookingDetailsUpdated(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_UPDATED, payload);
+}
+
 export function installEventsEmbedBootstrapListener(handler) {
   if (typeof window === "undefined") return () => {};
 
@@ -64,6 +80,20 @@ export function installEventsEmbedBootstrapListener(handler) {
     if (event.source !== window.parent) return;
     const data = event.data || {};
     if (data?.type !== FS_EVENTS_BOOTSTRAP) return;
+    handler(data.payload || {}, event);
+  };
+
+  window.addEventListener("message", listener);
+  return () => window.removeEventListener("message", listener);
+}
+
+export function installEventsEmbedAuthUpdateListener(handler) {
+  if (typeof window === "undefined") return () => {};
+
+  const listener = (event) => {
+    if (event.source !== window.parent) return;
+    const data = event.data || {};
+    if (data?.type !== FS_EVENTS_AUTH_UPDATE) return;
     handler(data.payload || {}, event);
   };
 

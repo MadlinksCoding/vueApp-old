@@ -10,14 +10,25 @@ export function buildEtagKey(flowName, payload, config = {}) {
 }
 
 export function loadEtag({ storage, key }) {
-  if (storage) return storage.getItem(key) || null;
+  if (storage) {
+    try {
+      return storage.getItem(key) || memoryEtag.get(key) || null;
+    } catch (error) {
+      return memoryEtag.get(key) || null;
+    }
+  }
   return memoryEtag.get(key) || null;
 }
 
 export function saveEtag({ storage, key, etag }) {
   if (!etag) return;
   if (storage) {
-    storage.setItem(key, String(etag));
+    try {
+      storage.setItem(key, String(etag));
+      memoryEtag.delete(key);
+    } catch (error) {
+      memoryEtag.set(key, String(etag));
+    }
     return;
   }
   memoryEtag.set(key, String(etag));
@@ -49,4 +60,3 @@ export function isNotModifiedResult(flowResult) {
     Number(flowResult?.meta?.httpStatus) === 304
   );
 }
-

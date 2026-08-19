@@ -9,6 +9,7 @@
  * - Provide optional legacy bridge via handleRequest(...)
  */
 import { getBackendJwtToken } from "@/utils/backendJwt.js";
+import { presentBackendJwtAuthError } from "@/utils/backendJwtErrorToast.js";
 
 class APIHandler {
     constructor(defaults = {}, options = {}) {
@@ -224,9 +225,10 @@ class APIHandler {
                 }
             }
 
+            const finalHeaders = this.buildHeaders(headers, body, { backendJwtToken });
             const response = await fetch(finalUrl, {
                 method: upperMethod,
-                headers: this.buildHeaders(headers, body, { backendJwtToken }),
+                headers: finalHeaders,
                 body,
                 signal: combinedSignal,
                 ...(cache ? { cache } : {})
@@ -251,6 +253,14 @@ class APIHandler {
                     body: parsedBody,
                     request: requestArgs
                 });
+                const authorization = String(finalHeaders.Authorization || finalHeaders.authorization || "");
+                const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
+                const authErrorPresented = presentBackendJwtAuthError(normalizedError, {
+                    token: tokenMatch ? tokenMatch[1].trim() : "",
+                });
+                if (authErrorPresented) {
+                    normalizedError.meta = { ...(normalizedError.meta || {}), backendJwtErrorPresented: true };
+                }
                 this.dispatchErrorEvent(requestArgs, normalizedError);
                 throw normalizedError;
             }

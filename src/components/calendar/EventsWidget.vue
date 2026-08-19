@@ -11,7 +11,7 @@
             {{ section.title }}
           </h3>
           <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
-                :class="section.title==='PENDING EVENTS' ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
+                :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
             <span class="text-sm font-semibold text-white">3</span>
           </div>
         </div>
@@ -42,26 +42,27 @@
       <section 
         v-for="(event, eIndex) in section.items" 
         :key="eIndex"
+        data-test="events-widget-card"
         class="relative flex justify-end rounded-[10px] cursor-pointer shadow-purple-glow"
         :class="[
           event.bgClass || 'bg-customGrey',
-          section.title === 'PENDING EVENTS' &&
-            'border-[1.5px] border-white bg-white/10 shadow-[0_4px_8px_-2px_rgba(16,24,40,0.10),0_2px_4px_-2px_rgba(16,24,40,0.06)]'
+          isPendingSection(section) &&
+            'border-[1.5px] border-white bg-white/10 pending-blink-shadow'
         ]"
-        :style="section.title !== 'PENDING EVENTS' && event.accentColor ? { boxShadow: getDynamicBoxShadow(event.accentColor) } : null"
+        :style="getEventCardStyles(event, isPendingSection(section))"
         @click="$emit('event-click', event)"
       >
       
-      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full">
+      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[6.25rem] h-[6.25rem]">
           <div 
             class="w-[0.25rem] h-full rounded-[0.875rem]"
             :class="event.borderClass"
-            :style="section.title === 'PENDING EVENTS'
+            :style="isPendingSection(section)
               ? { background: '#fff' }
               : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
           ></div>
           
-          <span v-if="event.time" class="flex items-center justify-center w-[3.4375rem] h-auto shrink-0">
+          <span v-if="event.time" class="flex items-start justify-center w-[3.4375rem] h-auto shrink-0 py-2">
             <p class="text-[0.6875rem] text-gray-700 font-medium leading-[1rem]">{{ event.time }}</p>
           </span>
           
@@ -76,24 +77,29 @@
                 <h3
                   class="text-[0.875rem] font-semibold leading-[1.25rem] max-w-[11.25rem] truncate pr-1"
                   :class="event.titleColorClass"
-                  :style="section.title === 'PENDING EVENTS'
+                  :style="isPendingSection(section)
                 ? { color: '#101828' }
                 : (event.accentColor ? { color: event.accentColor } : null)"
             >
               {{ event.title }}
             </h3>
             <div>
-              <img v-if="section.title !== 'PENDING EVENTS'" :src=GreenCheckIcon class="w-[14px] h-[14px]">
+              <img v-if="!isPendingSection(section)" :src=GreenCheckIcon class="w-[16px] h-[16px]">
             </div>
-            <TooltipIcon  v-if="section.title === 'PENDING EVENTS'" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('Lorem ipsum')" />
+            <TooltipIcon v-if="isPendingSection(section)" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('calendar_event_status_pending')" />
             </div>
-            <span class="relative flex items-center justify-center w-[1rem] h-[1rem]">
+            <span
+              v-if="!isPendingPriceAdjustment(event)"
+              class="relative flex items-center justify-center w-[1rem] h-[1rem]"
+            >
               <button
                 type="button"
                 class="flex items-center justify-center w-[1rem] h-[1rem]"
                 :aria-expanded="openMenuId === `${sIndex}-${eIndex}`"
+                data-test="events-widget-menu-trigger"
                 @click.stop="toggleMenu(`${sIndex}-${eIndex}`)"
               >
+                <!-- ThreeDotsIcon -->
                 <svg width="4" height="12" viewBox="0 0 4 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M2.00004 6.6665C2.36823 6.6665 2.66671 6.36803 2.66671 5.99984C2.66671 5.63165 2.36823 5.33317 2.00004 5.33317C1.63185 5.33317 1.33337 5.63165 1.33337 5.99984C1.33337 6.36803 1.63185 6.6665 2.00004 6.6665Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2.00004 1.99984C2.36823 1.99984 2.66671 1.70136 2.66671 1.33317C2.66671 0.964981 2.36823 0.666504 2.00004 0.666504C1.63185 0.666504 1.33337 0.964981 1.33337 1.33317C1.33337 1.70136 1.63185 1.99984 2.00004 1.99984Z" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
@@ -104,6 +110,7 @@
               <div
                 v-if="openMenuId === `${sIndex}-${eIndex}`"
                 class="absolute right-0 top-[1.3rem] z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                data-test="events-widget-menu"
                 @click.stop
               >
                 <button
@@ -149,7 +156,7 @@
             </div>
             <!-- <span class="text-xs font-semibold text-gray-500">{{ event.dayName }} {{ event.time }}</span> -->
 
-            <div class="flex gap-1.5 items-start">
+            <div class="flex gap-1.5 items-start flex-1">
               <span class="flex flex-1 min-w-0" >
                 
                 <template v-if="shouldShowSingleProfile(event)">
@@ -198,76 +205,74 @@
                 </template>
               </span>
 
-              <div v-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-between w-[5.4375rem]">
+              <div
+                v-if="shouldShowPendingActions(event)"
+                class="flex w-[5.4375rem] shrink-0 flex-col gap-2"
+                data-test="pending-booking-actions"
+              >
+                <button
+                  type="button"
+                  class="flex h-[1.6875rem] w-full items-center justify-center gap-1 rounded border border-[#FF4405] bg-white px-2 py-1"
+                  data-test="pending-booking-review"
+                  @click.stop="handleReview(event)"
+                >
+                  <span class="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <IndicatorDot color="#FF4405" size="7" class="absolute left-[-2px] top-[-2px]" />
+                    <img :src="fileSearchIcon" alt="" aria-hidden="true" />
+                  </span>
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#FF4405]">
+                    {{ t("calendar_event_review") }}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  class="flex h-7 w-full items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1"
+                  data-test="pending-booking-accept"
+                  @click.stop="handleApprove(event)"
+                >
+                  <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <img :src="GreenCheckIcon" alt="" aria-hidden="true" />
+                  </span>
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#079455]">
+                    {{ t("calendar_event_accept") }}
+                  </span>
+                </button>
+              </div>
+
+              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end w-[5.4375rem] self-stretch gap-1">
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
-                  class="w-2 h-2 rounded-[50%]"
+                  class="w-[0.41669rem] h-[0.41669rem] rounded-[50%]"
                   :style="joinStatusColor(event) ? { backgroundColor: joinStatusColor(event) } : null"
                   :class="joinStatusColor(event) ? '' : (joinButtonEnabled(event) ? 'bg-lightViolet' : 'bg-gray-400')"
                 ></div>
                 <p
                   data-test="join-status-text"
-                  class="text-xs text-gray-500 font-medium leading-[1.125rem] uppercase"
-                  :style="event.statusColor ? { color: event.statusColor } : null"
+                  class="text-xs text-[#0E9384] font-medium uppercase"
+                  :style="joinStatusColor(event) ? { color: joinStatusColor(event) } : null"
                 >{{ event.statusText }}</p>
               </span>
 
-              <span
-                class="relative inline-flex w-full"
-                data-test="join-tooltip-trigger"
-                @mouseenter="showJoinTooltip(`${sIndex}-${eIndex}`, event)"
-                @mouseleave="hideJoinTooltip"
-                @touchstart.stop="showJoinTooltip(`${sIndex}-${eIndex}`, event, true)"
-                @click.stop
-              >
-                <button 
-                  @click.stop="$emit('join-click', event)" 
-                  :disabled="!joinButtonEnabled(event)"
-                  class="flex items-center outline-none justify-between w-full px-2 py-[3px] h-[1.5rem] gap-[0.25rem] rounded-[0.25rem] transition-colors disabled:cursor-not-allowed"
-                  :class="joinButtonEnabled(event)
-                    ? 'bg-[#07F468] blink-border-effect'
-                    : 'bg-[#D0D5DD]'"
+              <span v-if="joinButtonEnabled(event)" class="relative inline-flex w-full">
+                <button
+                  data-test="events-widget-join-call"
+                  class="blink-border-effect flex h-[1.5rem] w-full items-center justify-between gap-[0.25rem] rounded-[0.25rem] bg-[#07F468] px-2 py-[3px] outline-none transition-colors"
+                  @click.stop="$emit('join-click', event)"
                 >
                   <span class="w-[1rem] h-[1rem]">
                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" :stroke="joinButtonEnabled(event) ? '#0C111D' : '#667085'" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                   </span>
-                  <p
-                    class="text-[0.75rem] font-semibold leading-[1.125rem]"
-                    :class="joinButtonEnabled(event) ? 'text-black' : 'text-gray-600'"
-                  >
+                  <p class="text-[0.75rem] font-semibold leading-[1.125rem] text-black">
                     {{ t("common_join_call") }}
                   </p>
                 </button>
-                <span
-                  v-if="joinTooltipId === `${sIndex}-${eIndex}`"
-                  role="tooltip"
-                  data-test="disabled-join-tooltip"
-                  class="absolute right-0 bottom-[calc(100%+0.375rem)] z-[1300] w-[13rem] rounded-[0.25rem] bg-gray-900 px-2 py-1.5 text-left text-[0.6875rem] font-medium leading-[1rem] text-white shadow-lg"
-                >
-                  {{ disabledJoinTooltipText(event) }}
-                </span>
               </span>
             </div>
 
-            <div class="hidden flex gap-2 flex-col">
-              <button class="flex h-[27px] w-full items-center justify-center gap-1 self-stretch rounded border border-[#FF4405] bg-white px-2 py-1">
-                 <div class="relative">
-                    <IndicatorDot color="#FF4405" size="7" class="absolute top-[-2px] left-[-2px]"/>
-                    <img class="" :src="fileSearchIcon"/>
-                 </div>
-                 <span class="text-[#FF4405] font-semibold text-xs leading-[18px] uppercase">Review</span>
-              </button>
-
-              <button class="flex h-7 items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1">
-                 <div class="relative">
-                    <img class="" :src="GreenCheckIcon"/>
-                 </div>
-                 <span class="text-[#079455] font-semibold text-xs leading-[18px] uppercase">Accept</span>
-              </button>
-            </div>
             </div>
             
           </span>
@@ -300,31 +305,48 @@ import TooltipIcon from '../ui/tooltip/TooltipIcon.vue';
 import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
+import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 
-const getDynamicBoxShadow = (color) => {
-  if (!color) return null;
+const getEventCardStyles = (event, isPending) => {
+  const styles = {};
+  let r = 16, g = 24, b = 40;
+  let hasValidColor = false;
   
-  let r, g, b;
-  
-  if (color.startsWith('rgb')) {
-    const match = color.match(/\d+(\.\d+)?/g);
-    if (!match || match.length < 3) return null;
-    [r, g, b] = match;
-  } else {
-    let hex = color.replace(/^#/, '');
-    if (hex.length === 3) {
-      hex = hex.split('').map(char => char + char).join('');
+  if (event.accentColor) {
+    let color = event.accentColor;
+    if (color.startsWith('rgb')) {
+      const match = color.match(/\d+(\.\d+)?/g);
+      if (match && match.length >= 3) {
+        r = match[0]; g = match[1]; b = match[2];
+        hasValidColor = true;
+      }
+    } else {
+      let hex = color.replace(/^#/, '');
+      if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
+      if (hex.length === 6 || hex.length === 8) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        hasValidColor = true;
+      }
     }
-    if (hex.length !== 6 && hex.length !== 8) return null;
-    r = parseInt(hex.substring(0, 2), 16);
-    g = parseInt(hex.substring(2, 4), 16);
-    b = parseInt(hex.substring(4, 6), 16);
   }
   
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    r = 16; g = 24; b = 40;
+    hasValidColor = false;
+  }
   
-  return `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+  if (isPending) {
+    styles['--shadow-color-75'] = `rgba(${r}, ${g}, ${b}, 0.75)`;
+    styles['--shadow-color-10'] = `rgba(${r}, ${g}, ${b}, 0.10)`;
+    styles['--shadow-color-06'] = `rgba(${r}, ${g}, ${b}, 0.06)`;
+  } else if (hasValidColor) {
+    styles.boxShadow = `0 4px 8px -2px rgba(${r}, ${g}, ${b}, 0.10), 0 2px 4px -2px rgba(${r}, ${g}, ${b}, 0.06)`;
+  }
+  
+  return styles;
 };
 const props = defineProps({
   sections: {
@@ -338,8 +360,6 @@ const props = defineProps({
 });
 
 const openMenuId = ref(null);
-const joinTooltipId = ref(null);
-const joinTooltipTimer = ref(null);
 const expandedSections = ref({});
 
 const isSectionExpanded = (sIndex) => {
@@ -351,6 +371,12 @@ const toggleSection = (sIndex) => {
 };
 
 const { t } = useBookingTranslations();
+const isPendingSection = (section = {}) => {
+  if (typeof section.isPending === "boolean") return section.isPending;
+
+  return String(section.title || "").trim().toLocaleUpperCase()
+    === String(t("dashboard_pending_events")).trim().toLocaleUpperCase();
+};
 const profileStateById = reactive({});
 const profileAbortControllers = new Map();
 const DEFAULT_PROFILE_AVATAR = "https://i.ibb.co/XZHymffZ/avatar-of-a-mango.png";
@@ -363,10 +389,17 @@ const toggleMenu = (menuId) => {
   openMenuId.value = openMenuId.value === menuId ? null : menuId;
 };
 
-const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action']);
+const eventForMenuId = (menuId) => {
+  const [sectionIndex, eventIndex] = String(menuId || '').split('-').map(Number);
+  if (!Number.isInteger(sectionIndex) || !Number.isInteger(eventIndex)) return null;
+  return props.sections?.[sectionIndex]?.items?.[eventIndex] || null;
+};
+
+const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking']);
 const CONFIRMED_STATUS_DOT_COLOR = "#07F468";
 const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === "fan");
+const isCreatorViewer = computed(() => viewerRole.value === "creator");
 
 const onMenuAction = (action, event) => {
   emit('menu-action', { action, event });
@@ -383,19 +416,24 @@ const shouldShowJoinButton = (event = {}) => (
 );
 
 const joinButtonEnabled = (event = {}) => (
-  event.canJoin === true
-  || (event.canJoin === undefined && event.showJoin === true)
+  Boolean(event.joinUrl)
+  && event.canJoin === true
 );
 
 const normalizedStatusText = (event = {}) => String(event.statusText || "").trim().toLowerCase();
 
 const joinStatusColor = (event = {}) => {
-  if (event.statusColor) return event.statusColor;
-
   const statusText = normalizedStatusText(event);
+
   if (statusText === "confirmed" || statusText === "live now") {
     return CONFIRMED_STATUS_DOT_COLOR;
   }
+  
+  if (statusText.includes("in ") && statusText.includes("min")) {
+    return "#FF4405";
+  }
+
+  if (event.statusColor) return event.statusColor;
 
   return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
 };
@@ -424,6 +462,34 @@ const getSourceEvent = (event = {}) => event?.sourceEvent || event?.event || eve
 const getRawEvent = (event = {}) => {
   const sourceEvent = getSourceEvent(event);
   return sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+};
+
+const getEventStatus = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  return String(sourceEvent?.status || raw.status || event?.status || "").trim().toLowerCase();
+};
+
+const isPendingEvent = (event = {}) => {
+  const status = getEventStatus(event);
+  return status === "pending" || status === "pending_hold" || (!status && event.showReply === true);
+};
+
+const shouldShowPendingActions = (event = {}) => isCreatorViewer.value && isPendingEvent(event);
+
+const handleReview = (event = {}) => {
+  emit("event-click", event);
+};
+
+const handleApprove = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  emit("approve-booking", {
+    bookingId: sourceEvent?.bookingId || raw.bookingId || event?.bookingId || null,
+    eventId: sourceEvent?.eventId || raw.eventId || event?.eventId || null,
+    decision: "approve",
+    event: sourceEvent,
+  });
 };
 
 const getCreatorUserId = (event = {}) => {
@@ -559,72 +625,16 @@ const collectProfileIds = () => {
 watch(
   () => [props.sections, props.userRole],
   () => {
+    if (openMenuId.value && isPendingPriceAdjustment(eventForMenuId(openMenuId.value))) {
+      closeMenu();
+    }
     collectProfileIds().forEach(fetchProfile);
   },
   { immediate: true, deep: true },
 );
 
-const resolveJoinAvailableAtIso = (event = {}) => {
-  if (event.joinAvailableAtIso) return event.joinAvailableAtIso;
-
-  const sourceStart = event?.sourceEvent?.start
-    || event?.sourceEvent?.startIso
-    || event?.sourceEvent?.raw?.startIso
-    || event?.start
-    || null;
-  const startDate = sourceStart ? new Date(sourceStart) : null;
-  if (!startDate || Number.isNaN(startDate.getTime())) return "";
-
-  return new Date(startDate.getTime() - (5 * 60 * 1000)).toISOString();
-};
-
-const formatJoinAvailableAt = (event = {}) => {
-  const iso = resolveJoinAvailableAtIso(event);
-  const date = iso ? new Date(iso) : null;
-  if (!date || Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
-
-const disabledJoinTooltipText = (event = {}) => (
-  `This call can be joined at ${formatJoinAvailableAt(event)}`
-);
-
-const clearJoinTooltipTimer = () => {
-  if (!joinTooltipTimer.value) return;
-  window.clearTimeout(joinTooltipTimer.value);
-  joinTooltipTimer.value = null;
-};
-
-const hideJoinTooltip = () => {
-  clearJoinTooltipTimer();
-  joinTooltipId.value = null;
-};
-
-const showJoinTooltip = (tooltipId, event = {}, autoHide = false) => {
-  if (joinButtonEnabled(event)) {
-    hideJoinTooltip();
-    return;
-  }
-
-  clearJoinTooltipTimer();
-  joinTooltipId.value = tooltipId;
-
-  if (autoHide) {
-    joinTooltipTimer.value = window.setTimeout(hideJoinTooltip, 2500);
-  }
-};
-
 const handleDocumentClick = () => {
   closeMenu();
-  hideJoinTooltip();
 };
 
 onMounted(() => {
@@ -633,7 +643,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
-  clearJoinTooltipTimer();
   profileAbortControllers.forEach((controller) => controller.abort());
   profileAbortControllers.clear();
 });
@@ -650,5 +659,22 @@ onBeforeUnmount(() => {
 }
 .blink-border-effect {
   animation: blink-border 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-card-shadow {
+  0%, 100% {
+    box-shadow: 0 0 12px 0 var(--shadow-color-75),
+                0 4px 8px -2px var(--shadow-color-10),
+                0 2px 4px -2px var(--shadow-color-06);
+  }
+  50% {
+    box-shadow: 0 0 12px 0 transparent,
+                0 4px 8px -2px transparent,
+                0 2px 4px -2px transparent;
+  }
+}
+
+.pending-blink-shadow {
+  animation: blink-card-shadow 1.5s ease-in-out infinite;
 }
 </style>

@@ -1093,13 +1093,25 @@
     ].sort((first, second) => timeToMinutes(first.value) - timeToMinutes(second.value));
   }
 
+  function hasContrastingHoursBoundary(slots = [], slotIndex = null, boundaryTime = "") {
+    if (!boundaryTime || !Array.isArray(slots)) return false;
+    const slot = slots?.[slotIndex];
+    if (!slot) return false;
+    return slots.some((otherSlot, otherIndex) => (
+      otherIndex !== slotIndex
+      && otherSlot?.endTime === boundaryTime
+      && Boolean(otherSlot?.offHours) !== Boolean(slot?.offHours)
+    ));
+  }
+
   function getSlotStartOptions(slot = {}, siblingSlots = [], slotIndex = null) {
     const options = withCurrentTimeOption(timeOptions, slot?.startTime);
-    if (!slot?.offHours || !Array.isArray(siblingSlots)) return options;
+    if (!Array.isArray(siblingSlots)) return options;
 
     const sharedBoundaryValues = new Set(
       siblingSlots
         .filter((_otherSlot, otherIndex) => otherIndex !== slotIndex)
+        .filter((otherSlot) => Boolean(otherSlot?.offHours) !== Boolean(slot?.offHours))
         .map((otherSlot) => otherSlot?.endTime)
         .filter(Boolean),
     );
@@ -1124,13 +1136,9 @@
 
   function normalizeOffHoursSlotBoundary(slots = [], slotIndex = null) {
     const slot = slots?.[slotIndex];
-    if (!slot?.offHours) return false;
-
-    const hasSharedBoundary = slots.some((otherSlot, otherIndex) => (
-      otherIndex !== slotIndex
-      && otherSlot?.endTime === slot.startTime
-    ));
-    if (!hasSharedBoundary) return false;
+    if (!slot) return false;
+    if (offHoursBoundaryAdjustments.has(slot)) return false;
+    if (!hasContrastingHoursBoundary(slots, slotIndex, slot.startTime)) return false;
 
     const startMinutes = timeToMinutes(slot.startTime);
     const endMinutes = timeToMinutes(slot.endTime);
@@ -1159,61 +1167,64 @@
     return true;
   }
 
-  function normalizeOffHoursBoundaries(slots = []) {
-    if (!Array.isArray(slots)) return false;
-    return slots.reduce((changed, _slot, slotIndex) => (
-      normalizeOffHoursSlotBoundary(slots, slotIndex) || changed
-    ), false);
-  }
-
-  function restoreOffHoursSlotBoundary(slots = [], slotIndex = null) {
+  function restoreOffHoursSlotBoundary(
+    slots = [],
+    slotIndex = null,
+    { discardOnFailure = true } = {},
+  ) {
     const slot = slots?.[slotIndex];
     if (!slot) return false;
 
-    const candidates = [];
     const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
-    if (recordedAdjustment) candidates.push(recordedAdjustment);
-
-    const startMinutes = timeToMinutes(slot.startTime);
-    const endMinutes = timeToMinutes(slot.endTime);
-    if (startMinutes !== null && startMinutes > 0) {
-      const inferredStartTime = minutesToTime(startMinutes - 1);
-      const hasMatchingPreviousBoundary = slots.some((otherSlot, otherIndex) => (
-        otherIndex !== slotIndex
-        && otherSlot?.endTime === inferredStartTime
-      ));
-
-      if (hasMatchingPreviousBoundary) {
-        const currentDuration = getSlotDurationMinutesFromTimes(slot.startTime, slot.endTime);
-        const inferredEndTime = (
-          endMinutes !== null
-          && currentDuration === MIN_SLOT_DURATION_MINUTES
-          && endMinutes > 0
-        )
-          ? minutesToTime(endMinutes - 1)
-          : slot.endTime;
-        candidates.push({
-          startTime: inferredStartTime,
-          endTime: inferredEndTime,
-        });
-      }
+    if (!recordedAdjustment) return false;
+    if (!canUseSlotRange(
+      slots,
+      slotIndex,
+      recordedAdjustment.startTime,
+      recordedAdjustment.endTime,
+    )) {
+      if (discardOnFailure) offHoursBoundaryAdjustments.delete(slot);
+      return false;
     }
 
-    const restored = candidates.find((candidate) => (
-      canUseSlotRange(slots, slotIndex, candidate.startTime, candidate.endTime)
-    ));
     offHoursBoundaryAdjustments.delete(slot);
-    if (!restored) return false;
-
-    slot.startTime = restored.startTime;
-    slot.endTime = restored.endTime;
+    slot.startTime = recordedAdjustment.startTime;
+    slot.endTime = recordedAdjustment.endTime;
     return true;
   }
 
-  function normalizeAllOffHoursBoundaries() {
-    weekDays.value.forEach((day) => normalizeOffHoursBoundaries(day?.slots));
-    normalizeOffHoursBoundaries(monthlySlots.value);
-    oneTimeDates.value.forEach((entry) => normalizeOffHoursBoundaries(entry?.slots));
+  function reconcileOffHoursBoundaries(slots = []) {
+    if (!Array.isArray(slots)) return false;
+    let changed = false;
+
+    slots.forEach((slot, slotIndex) => {
+      const recordedAdjustment = offHoursBoundaryAdjustments.get(slot);
+      if (!recordedAdjustment) return;
+
+      const stillQualifies = hasContrastingHoursBoundary(
+        slots,
+        slotIndex,
+        recordedAdjustment.startTime,
+      );
+      if (!stillQualifies) {
+        changed = restoreOffHoursSlotBoundary(
+          slots,
+          slotIndex,
+          { discardOnFailure: false },
+        ) || changed;
+      }
+    });
+
+    slots.forEach((_slot, slotIndex) => {
+      changed = normalizeOffHoursSlotBoundary(slots, slotIndex) || changed;
+    });
+    return changed;
+  }
+
+  function reconcileAllOffHoursBoundaries() {
+    weekDays.value.forEach((day) => reconcileOffHoursBoundaries(day?.slots));
+    reconcileOffHoursBoundaries(monthlySlots.value);
+    oneTimeDates.value.forEach((entry) => reconcileOffHoursBoundaries(entry?.slots));
   }
 
   function getOneTimeSlotKey(slot = {}) {
@@ -1959,6 +1970,7 @@
     }
     day.unavailable = false;
     day.slots.push(nextSlot);
+    reconcileOffHoursBoundaries(day.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({ day, startTime: nextSlot.startTime });
   }
@@ -1970,6 +1982,7 @@
     if (!Array.isArray(day.slots) || getTotalWeeklySlotCount() <= 1) return;
 
     day.slots.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(day.slots);
     if (day.slots.length === 0) {
       day.unavailable = true;
       day.offHours = false;
@@ -1990,8 +2003,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(day.slots, slotIndex);
     }
+    reconcileOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
   }
@@ -2041,7 +2054,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(day.slots);
+    reconcileOffHoursBoundaries(day.slots);
     day.offHours = day.slots.some((item) => Boolean(item.offHours));
     syncAvailabilityToForm();
     focusSchedulePreview({ day, startTime: slot.startTime });
@@ -2067,6 +2080,7 @@
       return;
     }
     monthlySlots.value.push(nextSlot);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
     focusSchedulePreview({ startTime: nextSlot.startTime });
   }
@@ -2075,6 +2089,7 @@
     if (isScheduleLocked.value) return;
     if (getTotalMonthlySlotCount() <= 1) return;
     monthlySlots.value.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
   }
 
@@ -2087,8 +2102,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(monthlySlots.value, slotIndex);
     }
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
   }
 
@@ -2131,7 +2146,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(monthlySlots.value);
+    reconcileOffHoursBoundaries(monthlySlots.value);
     syncAvailabilityToForm();
     focusSchedulePreview({ startTime: slot.startTime });
   }
@@ -2166,6 +2181,7 @@
       return;
     }
     dateEntry.slots.push(nextSlot);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({
       date: dateEntry.date,
@@ -2235,7 +2251,7 @@
       );
     }
 
-    normalizeOffHoursBoundaries(dateEntry.slots);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
     focusSchedulePreview({
       date: dateEntry.date,
@@ -2253,8 +2269,8 @@
       slot.offHours = false;
     } else {
       slot.offHours = true;
-      normalizeOffHoursSlotBoundary(slots, slotIndex);
     }
+    reconcileOffHoursBoundaries(slots);
     syncAvailabilityToForm();
   }
 
@@ -2265,6 +2281,7 @@
     if (!Array.isArray(dateEntry.slots) || getTotalOneTimeSlotCount() <= 1) return;
 
     dateEntry.slots.splice(slotIndex, 1);
+    reconcileOffHoursBoundaries(dateEntry.slots);
     syncAvailabilityToForm();
   }
 
@@ -2375,7 +2392,7 @@
     }
   );
 
-  normalizeAllOffHoursBoundaries();
+  reconcileAllOffHoursBoundaries();
   syncAvailabilityToForm();
 </script>
 
@@ -2711,18 +2728,20 @@
         <div v-show="sectionsState.privatePricing" class="flex-1 inline-flex flex-col justify-start items-start gap-5 mt-4">
           <div class="flex flex-col justify-start items-start gap-1.5">
             <div class="flex items-center gap-1">
-              <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
-                {{ t("booking_base_price") }}
-              </div>
-              <div
-                v-if="hasFieldEditWarningChange('basePrice')"
-                class="inline-flex items-center gap-1.5 text-[#FF4405]"
-                data-test="base-price-updated-indicator"
-              >
-                <span class="h-2 w-2 shrink-0 rounded-full bg-[#FF4405]"></span>
-                <span class="whitespace-nowrap text-sm font-medium leading-tight">
-                  {{ t("booking_updated_badge") }}
-                </span>
+              <div class="flex items-center gap-2"> 
+                <div class="justify-start text-gray-500 text-sm font-medium font-['Poppins'] leading-tight">
+                  {{ t("booking_base_price") }}
+                </div>
+                <div
+                  v-if="hasFieldEditWarningChange('basePrice')"
+                  class="inline-flex items-center gap-1.5 text-[#FF4405]"
+                  data-test="base-price-updated-indicator"
+                >
+                  <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF4405]"></span>
+                  <span class="whitespace-nowrap text-sm font-medium leading-tight">
+                    {{ t("booking_updated_badge") }}
+                  </span>
+                </div>
               </div>
               <span class="text-[#F06] text-xs italic font-normal leading-none">{{ t("required_title") }}</span>
             </div>
@@ -2780,7 +2799,7 @@
                       {{ t("booking_tokens_off_session_price") }}
                     </div>
                     <div v-if="formData.longerSessionDiscountTokens" class="justify-center text-black text-xs font-medium font-['Poppins'] leading-none">
-                      ({{ t("booking_tokens_off_booking", { tokens: formData.longerSessionDiscountTokens }) }})
+                      ({{ t("booking_tokens_off_each_session", { tokens: formData.longerSessionDiscountTokens }) }})
                     </div>
                   </div>
                 </div>
@@ -2991,7 +3010,7 @@
               spacing-class="-mt-1"
             />
 
-            <div :class="['ml-7 _flex hidden flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
+            <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 :label="t('booking_allow_advance_cancellation')"
                 checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.3rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"

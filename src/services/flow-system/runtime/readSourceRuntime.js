@@ -1,5 +1,10 @@
 import { deepGet, deepSet } from "@/services/flow-system/runtime/destinationRuntime.js";
-import { resolveStorage, readCacheEntry, writeCacheEntry } from "@/services/flow-system/runtime/cacheRuntime.js";
+import {
+  buildPayloadHash,
+  resolveStorage,
+  readCacheEntry,
+  writeCacheEntry,
+} from "@/services/flow-system/runtime/cacheRuntime.js";
 
 const DEFAULT_READ_FROM_CONFIG = {
   enabled: false,
@@ -104,6 +109,22 @@ export function readFromStateEngineSource(source, context) {
   const engine = context?.stateEngine;
   if (!engine || typeof engine.getState !== "function" || !source?.key) {
     return buildMissSnapshot(source, "missing_state_engine");
+  }
+
+  if (source.varyByPayload === true) {
+    if (!source.payloadHashKey) {
+      return buildMissSnapshot(source, "missing_payload_hash_key");
+    }
+
+    const storedPayloadHash = engine.getState(source.payloadHashKey);
+    if (storedPayloadHash === undefined || storedPayloadHash === null) {
+      return buildMissSnapshot(source, "payload_hash_not_found");
+    }
+
+    const requestedPayloadHash = buildPayloadHash(context?.payload);
+    if (String(storedPayloadHash) !== requestedPayloadHash) {
+      return buildMissSnapshot(source, "payload_hash_mismatch");
+    }
   }
 
   const data = engine.getState(source.key);
@@ -282,6 +303,13 @@ function writeFreshnessToStateEngineSource(source, context, etag, updatedAt) {
   }
   if (etag != null && source.etagKey) {
     engine.setState(source.etagKey, etag, { reason: "flow-read-freshness", silent: true });
+  }
+  if (source.varyByPayload === true && source.payloadHashKey) {
+    engine.setState(
+      source.payloadHashKey,
+      buildPayloadHash(context?.payload),
+      { reason: "flow-read-freshness", silent: true },
+    );
   }
 }
 

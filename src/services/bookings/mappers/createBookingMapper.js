@@ -166,19 +166,45 @@ function resolvePersonalRequestText(state = {}) {
   return String(chosen).trim();
 }
 
+const ADD_ON_KIND_RECORDING = "recording";
+const ADD_ON_KIND_ADDON = "addon";
+
+function resolveAddOnKind(row = {}) {
+  if (row?.kind === ADD_ON_KIND_RECORDING) return ADD_ON_KIND_RECORDING;
+  if (row?.kind === ADD_ON_KIND_ADDON) return ADD_ON_KIND_ADDON;
+
+  const id = String(row?.id || "");
+  return id.endsWith("_recording") ? ADD_ON_KIND_RECORDING : ADD_ON_KIND_ADDON;
+}
+
+function normalizeAddOnSelection(row = {}) {
+  const kind = resolveAddOnKind(row);
+  const id = row?.id ?? null;
+  const catalogId = kind === ADD_ON_KIND_ADDON
+    ? (row?.catalogId ?? row?.addOnId ?? id)
+    : null;
+
+  return {
+    id,
+    kind,
+    catalogId,
+    title: row?.catalogTitle || row?.title || row?.name || "",
+    price: safeNumber(row?.price, 0),
+  };
+}
+
 function resolveAddOnSelections(state = {}) {
   const addOns = Array.isArray(state?.bookingDetails?.addons)
     ? state.bookingDetails.addons
     : (Array.isArray(state?.fanBooking?.selection?.selectedAddOns) ? state.fanBooking.selection.selectedAddOns : []);
 
-  return addOns.map((row) => ({
-    title: row?.name || row?.title || "",
-    price: safeNumber(row?.price, 0),
-  })).filter((row) => row.title);
+  return addOns
+    .map(normalizeAddOnSelection)
+    .filter((row) => row.kind === ADD_ON_KIND_RECORDING || row.title);
 }
 
 function isRecordingSelected(addons = []) {
-  return addons.some((row) => String(row.title).toLowerCase().includes("record"));
+  return addons.some((row) => resolveAddOnKind(row) === ADD_ON_KIND_RECORDING);
 }
 
 function toBoolean(value, fallback = false) {
@@ -239,9 +265,13 @@ function computeLongerDiscount({ raw = {}, durationMinutes = 0, sessionSubtotal 
     return { amountTokens, discountTokens: 0 };
   }
 
+  const sessionCount = baseSessionMinutes > 0
+    ? Math.max(1, Math.round(safeNumber(durationMinutes, baseSessionMinutes) / baseSessionMinutes))
+    : 1;
+
   return {
     amountTokens,
-    discountTokens: amountTokens,
+    discountTokens: amountTokens * sessionCount,
   };
 }
 
@@ -292,6 +322,10 @@ export function buildBookingPaymentPreview(
   options = {},
 ) {
   const raw = event?.raw || {};
+  const requestedPaymentPolicyVersion = Number(options?.paymentPolicyVersion || 0);
+  const componentHoldsEnabled = requestedPaymentPolicyVersion > 0
+    ? requestedPaymentPolicyVersion === 2
+    : toBoolean(import.meta.env?.VITE_BOOKING_COMPONENT_HOLDS_ENABLED, true);
   const isFirstBookingForCreator = toBoolean(
     options?.isFirstBookingForCreator
       ?? event?.isFirstBookingForCreator
@@ -315,6 +349,30 @@ export function buildBookingPaymentPreview(
       baseSessionMinutes,
       durationMinutes,
     });
+  const bookingFeeAmount = componentHoldsEnabled && toBoolean(raw.enableBookingFee ?? event.enableBookingFee, false)
+    ? toWholeTokens(raw.bookingFeeTokens ?? raw.bookingFee ?? event.bookingFeeTokens ?? 0)
+    : 0;
+  const cancellationFeeAmount = componentHoldsEnabled && toBoolean(raw.enableCancellationFee ?? event.enableCancellationFee, false)
+    ? toWholeTokens(raw.cancellationFeeTokens ?? raw.cancellationFee ?? event.cancellationFeeTokens ?? 0)
+    : 0;
+  const protectedAllocationTotal = bookingFeeAmount + cancellationFeeAmount;
+  const withAllocations = (paymentLines) => {
+    const total = toWholeTokens(paymentLines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0));
+    if (!componentHoldsEnabled) {
+      return { currency: "TOKENS", lines: paymentLines, total };
+    }
+    return {
+      currency: "TOKENS",
+      lines: paymentLines,
+      total,
+      paymentPolicyVersion: 2,
+      allocations: {
+        service: Math.max(0, total - protectedAllocationTotal),
+        bookingFee: bookingFeeAmount,
+        cancellationFee: cancellationFeeAmount,
+      },
+    };
+  };
   const lines = [{
     code: eventGoalGroup ? "event_goal_contribution" : "base",
     label: eventGoalGroup ? "Event Goal Contribution" : "Base Price",
@@ -337,11 +395,7 @@ export function buildBookingPaymentPreview(
     }
 
     return {
-      payment: {
-        currency: "TOKENS",
-        lines,
-        total: toWholeTokens(lines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0)),
-      },
+      payment: withAllocations(lines),
       contributionTokens,
       requestedAddOns: [],
       additionalRequests: {
@@ -356,16 +410,16 @@ export function buildBookingPaymentPreview(
     };
   }
 
-  if (raw.enableBookingFee) {
+  if (!componentHoldsEnabled && toBoolean(raw.enableBookingFee ?? event.enableBookingFee, false)) {
     lines.push({
       code: "booking_fee",
       label: "Booking Fee",
-      amount: safeNumber(raw.bookingFeeTokens, 0),
+      amount: safeNumber(raw.bookingFeeTokens ?? raw.bookingFee ?? event.bookingFeeTokens, 0),
     });
   }
 
   const addOnCatalog = Array.isArray(raw.addOns) ? raw.addOns : [];
-  const recordingRequested = !!raw.allowFanRecordingEnabled && isRecordingSelected(selectedAddOns);
+  const recordingRequested = toBoolean(raw.allowFanRecordingEnabled, false) && isRecordingSelected(selectedAddOns);
   const requestedAddOns = [];
 
   if (recordingRequested) {
@@ -377,17 +431,31 @@ export function buildBookingPaymentPreview(
   }
 
   selectedAddOns.forEach((selection) => {
-    const match = addOnCatalog.find((item) => String(item?.title) === String(selection.title));
+    const normalizedSelection = normalizeAddOnSelection(selection);
+    if (normalizedSelection.kind === ADD_ON_KIND_RECORDING) return;
+
+    const catalogId = normalizedSelection.catalogId == null ? "" : String(normalizedSelection.catalogId);
+    const matchById = catalogId
+      ? addOnCatalog.find((item) => item?.id != null && String(item.id) === catalogId)
+      : null;
+    const match = matchById || addOnCatalog.find(
+      (item) => String(item?.title || item?.name || "") === String(normalizedSelection.title),
+    );
     if (!match) return;
-    requestedAddOns.push({ title: String(match.title) });
+    const canonicalTitle = String(match?.title || match?.name || "");
+    if (!canonicalTitle) return;
+    requestedAddOns.push({ title: canonicalTitle });
     lines.push({
       code: "addon",
-      label: `Add-on: ${match.title}`,
-      amount: safeNumber(match.priceTokens, 0),
+      label: `Add-on: ${canonicalTitle}`,
+      amount: safeNumber(match?.priceTokens ?? match?.price, 0),
     });
   });
 
-  let remainingDiscountableSessionSubtotal = sessionSubtotal;
+  let remainingDiscountableSessionSubtotal = Math.max(
+    0,
+    sessionSubtotal - (componentHoldsEnabled ? protectedAllocationTotal : 0),
+  );
 
   const longerDiscountRequest = computeLongerDiscount({
     raw,
@@ -426,12 +494,19 @@ export function buildBookingPaymentPreview(
     });
   }
 
-  const recurringEventDiscount = computeRecurringGroupDiscount({
+  const recurringEventDiscountRequest = computeRecurringGroupDiscount({
     event,
     sessionSubtotal,
     priorEventBookingCount,
   });
+  const recurringEventDiscount = {
+    ...recurringEventDiscountRequest,
+    discountTokens: componentHoldsEnabled
+      ? Math.min(recurringEventDiscountRequest.discountTokens, remainingDiscountableSessionSubtotal)
+      : recurringEventDiscountRequest.discountTokens,
+  };
   if (recurringEventDiscount.discountTokens > 0) {
+    remainingDiscountableSessionSubtotal -= recurringEventDiscount.discountTokens;
     lines.push({
       code: "recurring_event_discount",
       label: `Recurring Event Discount (${recurringEventDiscount.percent}%)`,
@@ -456,14 +531,8 @@ export function buildBookingPaymentPreview(
     }
   }
 
-  const total = toWholeTokens(lines.reduce((sum, row) => sum + safeNumber(row.amount, 0), 0));
-
   return {
-    payment: {
-      currency: "TOKENS",
-      lines,
-      total,
-    },
+    payment: withAllocations(lines),
     contributionTokens: eventGoalGroup ? contributionTokens : null,
     requestedAddOns,
     additionalRequests: {

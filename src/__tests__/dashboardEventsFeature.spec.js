@@ -7,7 +7,7 @@ import { localDateTimeToHkt } from "@/services/events/eventsApiUtils.js";
 let engine;
 const callFlow = vi.fn();
 const showToast = vi.fn();
-const getBookingJoinState = vi.fn();
+const getCalendarEventJoinState = vi.fn();
 const mainCalendarResetScrollToTop = vi.fn();
 const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
@@ -59,18 +59,16 @@ vi.mock("@/utils/toastBus.js", () => ({
   showToast,
 }));
 
-vi.mock("@/utils/bookingJoinUtils.js", () => ({
-  getBookingJoinState,
-  buildScheduledGroupMeetingUrl: vi.fn(({ eventId, startIso }) => (
-    `https://example.com/scheduled-meeting/?event_id=${encodeURIComponent(eventId)}&start_iso=${encodeURIComponent(startIso)}`
-  )),
+vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCalendarEventJoinState,
 }));
 
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "events", "eventsData", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates"],
-    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
@@ -190,6 +188,19 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
     },
     template: `
       <div class='main-calendar-stub'>
+        <button
+          data-test="main-calendar-popup-join"
+          @click="$emit('join-call', {
+            event: {
+              bookingId: 'booking_popup_race',
+              eventId: 'evt_popup_race',
+              start: '2026-03-23T10:00:00',
+              end: '2026-03-23T10:30:00',
+              status: 'confirmed',
+              eventType: '1on1-call'
+            }
+          })"
+        >join popup call</button>
         <button data-test="main-calendar-create-group" @click="$emit('create-event', { type: 'group' })">group</button>
         <button data-test="main-calendar-schedule-edit" @click="emitScheduleEdit">edit schedule</button>
         <button data-test="main-calendar-schedule-delete" @click="emitScheduleDelete">delete schedule</button>
@@ -237,7 +248,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           :event="event"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="bookingTestView"
         />
         <slot
           v-for="event in dynamicAvailabilityEvents"
@@ -344,7 +355,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
     props: ["sections"],
-    emits: ["join-click", "reply-click", "event-click", "menu-action"],
+    emits: ["join-click", "reply-click", "event-click", "menu-action", "approve-booking"],
     methods: {
       isoHoursFromNow(hours) {
         return new Date(Date.now() + (hours * 60 * 60 * 1000)).toISOString();
@@ -389,6 +400,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
             @click="$emit('event-click', event)"
           >
             {{ event.title }} {{ event.time }} {{ event.showReply ? 'reply' : '' }}
+            <span v-if="event.canJoin" data-test="widget-synchronized-join">Join</span>
           </button>
         </template>
         <template v-if="shouldRenderActionMocks">
@@ -397,6 +409,12 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
             @click="$emit('join-click', { sourceEvent: { bookingId: 77, start: '2026-03-23T10:00:00Z', end: '2026-03-23T10:30:00Z', status: 'confirmed', raw: { enableCallReminderMinutesBefore: true, callReminderMinutesBefore: 15, extensions: [{ status: 'held', endAtIso: '2026-03-23T10:45:00Z' }] } } })"
           >
             Join
+          </button>
+          <button
+            data-test="widget-approve"
+            @click="$emit('approve-booking', { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', decision: 'approve', event: { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', status: 'pending' } })"
+          >
+            Approve
           </button>
           <button
             data-test="widget-cancel-group"
@@ -511,7 +529,7 @@ describe("DashboardEventsFeature", () => {
 
     callFlow.mockReset();
     showToast.mockReset();
-    getBookingJoinState.mockReset();
+    getCalendarEventJoinState.mockReset();
     mainCalendarResetScrollToTop.mockReset();
     mainCalendarScrollToCurrentTime.mockReset();
     mainCalendarRevealSelectedWeekDay.mockReset();
@@ -525,9 +543,17 @@ describe("DashboardEventsFeature", () => {
       },
     });
 
-    getBookingJoinState.mockReturnValue({
-      canJoin: true,
-      joinUrl: "https://example.com/join/77",
+    getCalendarEventJoinState.mockImplementation((event, { viewerRole } = {}) => {
+      const raw = event?.raw || {};
+      const eventType = String(event?.eventType || event?.type || raw.eventType || raw.type || "");
+      const eventId = event?.eventId || raw.eventId;
+      const startIso = event?.start || raw.startIso || raw.startAtIso;
+      return {
+        canJoin: true,
+        joinUrl: viewerRole === "creator" && eventType.includes("group")
+          ? `https://example.com/scheduled-meeting/?event_id=${encodeURIComponent(eventId)}&start_iso=${encodeURIComponent(startIso)}`
+          : "https://example.com/join/77",
+      };
     });
 
     engine = createMockEngine();
@@ -577,7 +603,37 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
     expect(wrapper.getComponent({ name: "MainCalendar" }).props("showCurrentTimeAcrossDates")).toBe(true);
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("minEventHeightPx")).toBe(40);
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+  });
+
+  it("approves pending bookings emitted by the events widget", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+
+    const approveButton = wrapper.findAll("[data-test='widget-approve']").at(-1);
+    expect(approveButton).toBeTruthy();
+    await approveButton.trigger("click");
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.reviewPendingBooking",
+      {
+        bookingId: "booking_widget_pending",
+        decision: "approve",
+        actor: "creator",
+        reason: "approved_by_creator",
+      },
+      expect.objectContaining({
+        context: expect.objectContaining({ creatorId: 99 }),
+      }),
+    );
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "success",
+      title: "Booking Updated",
+    }));
   });
 
   it("selects past dates from the dashboard mini calendar and loads their range", async () => {
@@ -600,6 +656,250 @@ describe("DashboardEventsFeature", () => {
     expect(callFlow.mock.calls.filter(
       ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
     )).toHaveLength(fetchCallsAfterMount + 1);
+  });
+
+  it("replaces the mobile Day dataset when a different week-strip date is selected", async () => {
+    vi.setSystemTime(new Date("2026-08-06T09:00:00"));
+    setWindowWidth(390);
+
+    callFlow.mockImplementation(async (flowName, payload) => {
+      if (flowName !== "bookings.fetchDashboardBookingContext") {
+        return { ok: true, data: {} };
+      }
+
+      const selectedDate = payload.toIso;
+      return {
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [{
+            bookingId: `booking_${selectedDate}`,
+            eventId: `event_${selectedDate}`,
+            eventTitle: selectedDate === "2026-08-07" ? "August 7 booking" : "August 6 booking",
+            eventType: "1on1-call",
+            startIso: `${selectedDate}T00:10:00.000Z`,
+            endIso: `${selectedDate}T00:20:00.000Z`,
+            status: "confirmed",
+          }],
+          bookedSlotsIndex: {},
+        },
+      };
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 1407,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    mainCalendar.vm.$emit("date-selected", new Date("2026-08-07T12:00:00"));
+    await flushPromises();
+
+    const dashboardFetchCalls = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    );
+    const visibleBookings = mainCalendar.props("events")
+      .filter((event) => event?.slot !== "availability");
+
+    expect(dashboardFetchCalls.at(-1)?.[1]).toEqual(expect.objectContaining({
+      creatorId: 1407,
+      fromIso: "2026-08-06",
+      toIso: "2026-08-07",
+    }));
+    expect(visibleBookings).toEqual([
+      expect.objectContaining({
+        bookingId: "booking_2026-08-07",
+        title: "August 7 booking",
+      }),
+    ]);
+  });
+
+  it("coalesces mobile initialization navigation without losing widget bookings", async () => {
+    vi.setSystemTime(new Date("2026-08-06T09:00:00"));
+    setWindowWidth(390);
+
+    let resolveInitialFetch;
+    const initialFetch = new Promise((resolve) => {
+      resolveInitialFetch = resolve;
+    });
+    const confirmedStart = "2026-08-07T03:10:00+08:00";
+    const pendingStart = "2026-08-07T04:10:00+08:00";
+    const widgetSlots = [
+      {
+        bookingId: "booking_mobile_confirmed",
+        eventId: "event_mobile_confirmed",
+        eventTitle: "Mobile Confirmed",
+        eventType: "1on1-call",
+        startIso: confirmedStart,
+        endIso: "2026-08-07T03:20:00+08:00",
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_mobile_pending",
+        eventId: "event_mobile_pending",
+        eventTitle: "Mobile Pending",
+        eventType: "1on1-call",
+        startIso: pendingStart,
+        endIso: "2026-08-07T04:20:00+08:00",
+        status: "pending",
+      },
+    ];
+
+    callFlow
+      .mockImplementationOnce(() => initialFetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [],
+          widgetBookedSlots: null,
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 1407,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("initialView")).toBe("day");
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    mainCalendar.vm.$emit("view-changed", "week");
+    mainCalendar.vm.$emit("update:focus-date", new Date("2026-08-14T12:00:00"));
+    mainCalendar.vm.$emit("update:focus-date", new Date("2026-08-21T12:00:00"));
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    resolveInitialFetch({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [],
+        widgetBookedSlots: widgetSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    const dashboardFetchCalls = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    );
+    const sections = mainCalendar.props("eventsData");
+
+    expect(dashboardFetchCalls).toHaveLength(2);
+    expect(dashboardFetchCalls[0][1]).toEqual(expect.objectContaining({
+      widgetFromIso: "2026-08-06",
+      widgetToIso: "2027-02-06",
+    }));
+    expect(dashboardFetchCalls[1][1]).toEqual(expect.objectContaining({
+      fromIso: "2026-08-15",
+      toIso: "2026-08-22",
+    }));
+    expect(dashboardFetchCalls[1][1]).not.toHaveProperty("widgetFromIso");
+    expect(sections.filter((section) => section.isPending === false)
+      .flatMap((section) => section.items))
+      .toEqual([expect.objectContaining({ title: "Mobile Confirmed" })]);
+    expect(sections.find((section) => section.isPending === true)?.items)
+      .toEqual([expect.objectContaining({ title: "Mobile Pending", showReply: true })]);
+  });
+
+  it("keeps upcoming widget sections stable across Day, Week, and Month views", async () => {
+    const farFutureStart = isoDaysFromToday(8, 20, 30);
+    const pendingStart = isoDaysFromToday(9, 20, 30);
+    const pendingRequestStart = isoDaysFromToday(10, 20, 30);
+    const widgetSlots = [
+      {
+        bookingId: "booking_view_stable_confirmed",
+        eventId: "event_view_stable_confirmed",
+        eventTitle: "Future Confirmed",
+        eventType: "1on1-call",
+        startIso: farFutureStart,
+        endIso: isoDaysFromToday(8, 21, 0),
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_view_stable_pending",
+        eventId: "event_view_stable_pending",
+        eventTitle: "Future Pending",
+        eventType: "1on1-call",
+        startIso: pendingStart,
+        endIso: isoDaysFromToday(9, 21, 0),
+        status: "pending_hold",
+      },
+      {
+        bookingId: "booking_view_stable_pending_request",
+        eventId: "event_view_stable_pending_request",
+        eventTitle: "Future Pending Request",
+        eventType: "1on1-call",
+        startIso: pendingRequestStart,
+        endIso: isoDaysFromToday(10, 21, 0),
+        status: "pending",
+      },
+      {
+        bookingId: "booking_view_stable_completed",
+        eventId: "event_view_stable_completed",
+        eventTitle: "Future Completed",
+        eventType: "1on1-call",
+        startIso: isoDaysFromToday(11, 20, 30),
+        endIso: isoDaysFromToday(11, 21, 0),
+        status: "completed",
+      },
+      {
+        bookingId: "booking_view_stable_cancelled",
+        eventId: "event_view_stable_cancelled",
+        eventTitle: "Future Cancelled",
+        eventType: "1on1-call",
+        startIso: isoDaysFromToday(12, 20, 30),
+        endIso: isoDaysFromToday(12, 21, 0),
+        status: "cancelled_user",
+      },
+    ];
+
+    callFlow.mockImplementation(async (flowName, payload) => ({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [],
+        widgetBookedSlots: payload?.widgetFromIso ? widgetSlots : null,
+        bookedSlotsIndex: {},
+      },
+    }));
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const sectionTitlesForView = () => mainCalendar.props("eventsData")
+      .flatMap((section) => section.items)
+      .map((item) => item.title)
+      .sort();
+
+    expect(sectionTitlesForView()).toEqual(["Future Confirmed", "Future Pending", "Future Pending Request"]);
+    expect(mainCalendar.props("bookedSlotsCount")).toBe(3);
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    expect(sectionTitlesForView()).toEqual(["Future Confirmed", "Future Pending", "Future Pending Request"]);
+    expect(mainCalendar.props("bookedSlotsCount")).toBe(3);
+
+    mainCalendar.vm.$emit("view-changed", "month");
+    await flushPromises();
+    expect(sectionTitlesForView()).toEqual(["Future Confirmed", "Future Pending", "Future Pending Request"]);
+    expect(mainCalendar.props("bookedSlotsCount")).toBe(3);
+
+    const sections = mainCalendar.props("eventsData");
+    expect(sections.filter((section) => section.isPending === false)
+      .flatMap((section) => section.items))
+      .toEqual([expect.objectContaining({ title: "Future Confirmed" })]);
+    expect(sections.find((section) => section.isPending === true)?.items)
+      .toEqual([
+        expect.objectContaining({ title: "Future Pending" }),
+        expect.objectContaining({ title: "Future Pending Request" }),
+      ]);
   });
 
   it("scrolls to the current time on Day and Week view changes without changing the selected date", async () => {
@@ -981,9 +1281,9 @@ describe("DashboardEventsFeature", () => {
 
     const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
     expect(sections).toEqual([
-      expect.objectContaining({ title: "TODAY", items: [] }),
-      expect.objectContaining({ title: "WEEK", items: [] }),
-      expect.objectContaining({ title: "PENDING EVENTS", items: [] }),
+      expect.objectContaining({ title: "PENDING REQUESTS", items: [], isPending: true }),
+      expect.objectContaining({ title: "TODAY", items: [], isPending: false }),
+      expect.objectContaining({ title: "WEEK", items: [], isPending: false }),
     ]);
   });
 
@@ -1124,6 +1424,9 @@ describe("DashboardEventsFeature", () => {
     expect(bookingMarker.classes()).toContain("hidden");
     expect(bookingMarker.classes()).toContain("lg:flex");
     expect(bookingMarker.classes()).toContain("month-booking-row");
+    expect(bookingMarker.classes()).not.toContain("flex-col");
+    expect(bookingMarker.classes()).not.toContain("justify-between");
+    expect(bookingMarker.classes()).not.toContain("h-full");
     expect(bookingMarker.classes()).toContain("cursor-pointer");
     expect(bookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(bookingMarker.element.style.backgroundColor).toBe("rgb(85, 73, 255)");
@@ -1268,8 +1571,228 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
   });
 
+  it("changes a confirmed month booking countdown to live now for the active call", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: "month",
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T09:05:00",
+        end: "2026-03-23T09:30:00",
+        status: "confirmed",
+      },
+    });
+
+    const findBookingMarker = () => wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("in 5 mins");
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-countdown-indicator'] circle").attributes("fill"))
+      .toBe("#FF4405");
+    expect(findBookingMarker().find("[data-test='dashboard-calendar-booking-status-icon']").exists())
+      .toBe(false);
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-time']").text())
+      .not.toContain("9:05am");
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000);
+    await flushPromises();
+
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("in 1 min");
+
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
+
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("live now");
+    expect(findBookingMarker().find("[data-test='dashboard-calendar-booking-status-icon']").exists())
+      .toBe(false);
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-time']").text())
+      .not.toContain("9:05am");
+
+    await vi.advanceTimersByTimeAsync(25 * 60 * 1000);
+    await flushPromises();
+
+    expect(findBookingMarker().find("[data-test='dashboard-calendar-booking-countdown']").exists())
+      .toBe(false);
+    expect(findBookingMarker().get("[data-test='dashboard-calendar-booking-time']").text())
+      .toBe("9:05am");
+  });
+
+  it.each([
+    ["confirmed bookings outside the window", "confirmed", "2026-03-23T09:06:00", "9:06am"],
+    ["pending bookings", "pending", "2026-03-23T09:05:00", "9:05am"],
+    ["completed bookings", "completed", "2026-03-23T09:05:00", "9:05am"],
+    ["cancelled bookings", "cancelled_creator", "2026-03-23T09:05:00", "9:05am"],
+    ["confirmed bookings with invalid dates", "confirmed", "not-a-date", ""],
+  ])("keeps the month time for %s", async (_label, status, start, expectedTime) => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: "month",
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start,
+        status,
+      },
+    });
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-countdown']").exists())
+      .toBe(false);
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text())
+      .toBe(expectedTime);
+  });
+
+  it("renders the month countdown through booking translations", async () => {
+    const wrapper = await mountDashboardEventsFeature(
+      { creatorId: 77, userRole: "creator" },
+      {
+        calendar_event_in_minutes: "dentro de {count} {unit}",
+        calendar_event_minute_short_other: "minutos",
+        calendar_event_live_now: "en vivo ahora",
+      },
+    );
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: "month",
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T09:05:00",
+        status: "confirmed",
+      },
+    });
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("dentro de 5 minutos");
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    await flushPromises();
+
+    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("en vivo ahora");
+  });
+
+  it.each(["day", "week"])("shows the starting-soon countdown above Join call in %s view", async (view) => {
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/calendar-booking",
+    });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: view,
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T09:05:00",
+        end: "2026-03-23T09:30:00",
+        status: "confirmed",
+      },
+    });
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+    const joinArea = bookingMarker.get("[data-test='dashboard-calendar-join-area']");
+    const countdown = joinArea.get("[data-test='dashboard-calendar-booking-countdown']");
+    const joinButton = joinArea.get("[data-test='dashboard-calendar-join-call']");
+
+    expect(countdown.text()).toBe("in 5 mins");
+    expect(joinArea.get("[data-test='dashboard-calendar-booking-countdown-indicator'] circle").attributes("fill"))
+      .toBe("#FF4405");
+    expect(joinArea.get("[data-test='dashboard-calendar-booking-countdown-indicator']").attributes("aria-hidden"))
+      .toBe("true");
+    expect(countdown.element.compareDocumentPosition(joinButton.element) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(joinArea.classes()).toContain("pb-1");
+    expect(bookingMarker.classes()).toContain("min-h-[4rem]");
+    expect(joinButton.text()).toBe("Join call");
+  });
+
+  it.each(["day", "week"])("updates the %s countdown to live now while preserving the active Join action", async (view) => {
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/calendar-booking",
+    });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: view,
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T09:05:00",
+        end: "2026-03-23T09:30:00",
+        status: "confirmed",
+      },
+    });
+
+    expect(wrapper.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("in 5 mins");
+
+    await vi.advanceTimersByTimeAsync(4 * 60 * 1000);
+    await flushPromises();
+    expect(wrapper.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("in 1 min");
+
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
+    expect(wrapper.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("live now");
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists())
+      .toBe(true);
+  });
+
+  it("keeps live now through an effective paid extension and clears it at the extended end", async () => {
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/calendar-booking",
+      effectiveEndDate: new Date("2026-03-23T09:10:00"),
+    });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({
+      bookingTestView: "month",
+      monthBookedEvent: {
+        ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T08:55:00",
+        end: "2026-03-23T08:59:00",
+        status: "confirmed",
+      },
+    });
+
+    expect(wrapper.get("[data-test='dashboard-calendar-booking-countdown']").text())
+      .toBe("live now");
+
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='dashboard-calendar-booking-countdown']").exists())
+      .toBe(false);
+  });
+
   it.each(["day", "week"])("replaces a joinable booking's time with the Join call CTA in %s view", async (view) => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: true,
       joinUrl: "https://example.com/join/calendar-booking",
     });
@@ -1282,8 +1805,10 @@ describe("DashboardEventsFeature", () => {
 
     const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
       .find((marker) => marker.text().includes("Month Booked Slot"));
+    const joinArea = bookingMarker.get("[data-test='dashboard-calendar-join-area']");
     const joinButton = bookingMarker.get("[data-test='dashboard-calendar-join-call']");
 
+    expect(joinArea.classes()).toContain("pb-1");
     expect(joinButton.text()).toBe("Join call");
     expect(joinButton.classes()).toEqual(expect.arrayContaining([
       "mx-1",
@@ -1291,9 +1816,16 @@ describe("DashboardEventsFeature", () => {
       "justify-center",
       "bg-[#07F468]",
     ]));
-    expect(bookingMarker.classes()).toContain("min-h-[3rem]");
+    expect(bookingMarker.classes()).toContain("min-h-[4rem]");
     expect(bookingMarker.classes()).not.toContain("min-h-[2.5rem]");
+    expect(bookingMarker.classes()).toEqual(expect.arrayContaining([
+      "flex",
+      "h-full",
+      "flex-col",
+      "justify-between",
+    ]));
     expect(bookingMarker.find("[data-test='dashboard-calendar-booking-time']").exists()).toBe(false);
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-countdown']").exists()).toBe(false);
 
     await joinButton.trigger("click");
 
@@ -1306,11 +1838,40 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.emitted("month-event-click")).toBeUndefined();
   });
 
-  it("uses the existing group meeting URL and exposes the CTA to fan dashboards", async () => {
-    getBookingJoinState.mockReturnValue({
-      canJoin: true,
-      joinUrl: "https://example.com/join/private-booking",
+  it.each(["day", "week"])("spaces a non-joinable booking's title and time apart in %s view", async (view) => {
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: false,
+      joinUrl: "https://example.com/join/calendar-booking",
     });
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    await mainCalendar.setData({ bookingTestView: view });
+
+    const bookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes("Month Booked Slot"));
+
+    expect(bookingMarker.classes()).toEqual(expect.arrayContaining([
+      "flex",
+      "h-full",
+      "flex-col",
+      "justify-between",
+      "min-h-[2.5rem]",
+    ]));
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-title']").exists()).toBe(true);
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-time']").exists()).toBe(true);
+    expect(bookingMarker.find("[data-test='dashboard-calendar-join-area']").exists()).toBe(false);
+  });
+
+  it("uses the existing group meeting URL and exposes the CTA to fan dashboards", async () => {
+    getCalendarEventJoinState.mockImplementation((event, { viewerRole }) => ({
+      canJoin: true,
+      joinUrl: viewerRole === "creator" && String(event?.eventType || event?.type || "").includes("group")
+        ? "https://example.com/scheduled-meeting/?event_id=evt_month_booked&start_iso=2026-03-23T12%3A00%3A00"
+        : "https://example.com/join/private-booking",
+    }));
     const creatorWrapper = await mountDashboardEventsFeature({
       creatorId: 77,
       userRole: "creator",
@@ -1362,8 +1923,18 @@ describe("DashboardEventsFeature", () => {
       status: "completed",
       joinState: { canJoin: true, joinUrl: "https://example.com/join/calendar-booking" },
     },
+    {
+      label: "while pending",
+      status: "pending",
+      joinState: { canJoin: true, joinUrl: "https://example.com/join/calendar-booking" },
+    },
+    {
+      label: "after cancellation",
+      status: "cancelled_creator",
+      joinState: { canJoin: true, joinUrl: "https://example.com/join/calendar-booking" },
+    },
   ])("keeps the time row for a booking $label", async ({ status, joinState }) => {
-    getBookingJoinState.mockReturnValue(joinState);
+    getCalendarEventJoinState.mockReturnValue(joinState);
     const wrapper = await mountDashboardEventsFeature({
       creatorId: 77,
       userRole: "creator",
@@ -1373,6 +1944,8 @@ describe("DashboardEventsFeature", () => {
       bookingTestView: "day",
       monthBookedEvent: {
         ...mainCalendar.vm.monthBookedEvent,
+        start: "2026-03-23T09:05:00",
+        end: "2026-03-23T09:30:00",
         status,
       },
     });
@@ -1381,16 +1954,54 @@ describe("DashboardEventsFeature", () => {
 
     expect(bookingMarker.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
     expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text())
-      .toBe("12:00pm - 12:30pm");
+      .toBe("9:05am - 9:30am");
+    expect(bookingMarker.find("[data-test='dashboard-calendar-booking-countdown']").exists()).toBe(false);
     expect(bookingMarker.classes()).toContain("min-h-[2.5rem]");
-    expect(bookingMarker.classes()).not.toContain("min-h-[3rem]");
+    expect(bookingMarker.classes()).not.toContain("min-h-[4rem]");
     expect(wrapper.findAll("[data-test='dashboard-calendar-join-call']")).toHaveLength(0);
   });
 
   it("updates the calendar CTA as the reactive clock enters and leaves the join window", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:00:59"));
     const joinWindowStart = new Date("2026-03-23T09:01:00").getTime();
     const joinWindowEnd = new Date("2026-03-23T09:02:00").getTime();
-    getBookingJoinState.mockImplementation(({ now }) => {
+    const widgetBookedSlots = [
+      {
+        bookingId: "booking_height_transition",
+        eventId: "evt_height_transition",
+        eventTitle: "Height Transition Call",
+        eventType: "1on1-call",
+        eventCallType: "video",
+        startIso: "2026-03-23T09:01:00",
+        endIso: "2026-03-23T09:30:00",
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_pending_during_transition",
+        eventId: "evt_pending_during_transition",
+        eventTitle: "Pending During Transition",
+        eventType: "1on1-call",
+        eventCallType: "video",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+      },
+    ];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: "evt_height_transition",
+          title: "Height Transition Call",
+          type: "1on1-call",
+          eventCallType: "video",
+        }],
+        bookedSlots: widgetBookedSlots,
+        widgetBookedSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => {
       const nowMs = new Date(now).getTime();
       return {
         canJoin: nowMs >= joinWindowStart && nowMs < joinWindowEnd,
@@ -1403,14 +2014,223 @@ describe("DashboardEventsFeature", () => {
     });
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
     await mainCalendar.setData({ bookingTestView: "day" });
+    const layoutHeight = () => mainCalendar.props("events")
+      .find((event) => event.bookingId === "booking_height_transition")
+      ?.layoutMinHeightPx;
+    const sectionOrder = () => mainCalendar.props("eventsData").map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ));
+    const renderedWidgetSectionOrder = () => wrapper
+      .findAllComponents({ name: "EventsWidget" })
+      .find((component) => component.props("sections")?.some((section) => section.isPending))
+      ?.props("sections")
+      .map((section) => (
+        section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+      ));
 
     expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
-    vi.advanceTimersByTime(60 * 1000);
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(true);
-    vi.advanceTimersByTime(60 * 1000);
-    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+    expect(sectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:00:59").getTime());
+    expect(layoutHeight()).toBe(40);
+    await vi.advanceTimersByTimeAsync(999);
+    await flushPromises();
     expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(true);
+    expect(sectionOrder()).toEqual(["today", "pending", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["today", "pending", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime()).toBe(joinWindowStart);
+    expect(layoutHeight()).toBe(64);
+
+    await vi.advanceTimersByTimeAsync(60 * 1000);
+    await flushPromises();
+    expect(wrapper.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='widget-synchronized-join']").exists()).toBe(false);
+    expect(sectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(renderedWidgetSectionOrder()).toEqual(["pending", "today", "week"]);
+    expect(mainCalendar.props("joinComparisonTime").getTime()).toBe(joinWindowEnd);
+    expect(layoutHeight()).toBe(40);
+  });
+
+  it.each([
+    { label: "a private creator booking", userRole: "creator", eventType: "1on1-call" },
+    { label: "a group creator booking", userRole: "creator", eventType: "group-event" },
+    { label: "a private fan booking", userRole: "fan", eventType: "1on1-call" },
+    { label: "a group fan booking", userRole: "fan", eventType: "group-event" },
+  ])("promotes Today for $label with an enabled Join Call", async ({ userRole, eventType }) => {
+    const joinableSlot = {
+      bookingId: `booking_joinable_${userRole}_${eventType}`,
+      eventId: `evt_joinable_${userRole}_${eventType}`,
+      eventTitle: "Joinable Today",
+      eventType,
+      eventCallType: "video",
+      startIso: "2026-03-23T09:05:00",
+      endIso: "2026-03-23T09:35:00",
+      status: "confirmed",
+    };
+    const pendingSlot = {
+      bookingId: `booking_pending_${userRole}_${eventType}`,
+      eventId: `evt_pending_${userRole}_${eventType}`,
+      eventTitle: "Pending Today",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      startIso: "2026-03-23T10:00:00",
+      endIso: "2026-03-23T10:30:00",
+      status: "pending",
+    };
+    const laterTodaySlot = {
+      bookingId: `booking_later_${userRole}_${eventType}`,
+      eventId: `evt_later_${userRole}_${eventType}`,
+      eventTitle: "Later Today",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      startIso: "2026-03-23T09:30:00",
+      endIso: "2026-03-23T10:00:00",
+      status: "confirmed",
+    };
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: true,
+      joinUrl: "https://example.com/join/active-booking",
+    });
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{
+          eventId: joinableSlot.eventId,
+          title: joinableSlot.eventTitle,
+          type: eventType,
+          eventCallType: "video",
+        }],
+        bookedSlots: [pendingSlot, laterTodaySlot, joinableSlot],
+        widgetBookedSlots: [pendingSlot, laterTodaySlot, joinableSlot],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: userRole === "creator" ? 77 : null,
+      fanId: userRole === "fan" ? 2615 : null,
+      userRole,
+    });
+    const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+
+    expect(sections.map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ))).toEqual(["today", "pending", "week"]);
+    expect(sections[0].items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Joinable Today",
+        canJoin: true,
+        joinUrl: "https://example.com/join/active-booking",
+      }),
+    ]));
+    expect(sections[0].items.map((item) => item.title))
+      .toEqual(["Joinable Today", "Later Today"]);
+  });
+
+  it.each([
+    {
+      label: "outside the join window",
+      joinState: { canJoin: false, joinUrl: "https://example.com/join/upcoming" },
+    },
+    {
+      label: "without a usable join URL",
+      joinState: { canJoin: true, joinUrl: null },
+    },
+  ])("keeps Pending first when a confirmed Today booking is $label", async ({ joinState }) => {
+    const slots = [
+      {
+        bookingId: "booking_not_enabled",
+        eventId: "evt_not_enabled",
+        eventTitle: "Not Enabled Today",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T09:05:00",
+        endIso: "2026-03-23T09:35:00",
+        status: "confirmed",
+      },
+      {
+        bookingId: "booking_pending_stays_first",
+        eventId: "evt_pending_stays_first",
+        eventTitle: "Pending Stays First",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending_hold",
+      },
+      {
+        bookingId: "booking_completed_ignored",
+        eventId: "evt_completed_ignored",
+        eventTitle: "Completed Ignored",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:30:00",
+        endIso: "2026-03-23T11:00:00",
+        status: "completed",
+      },
+      {
+        bookingId: "booking_cancelled_ignored",
+        eventId: "evt_cancelled_ignored",
+        eventTitle: "Cancelled Ignored",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T11:00:00",
+        endIso: "2026-03-23T11:30:00",
+        status: "cancelled_creator",
+      },
+    ];
+    getCalendarEventJoinState.mockReturnValue(joinState);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: slots,
+        widgetBookedSlots: slots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const sections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+
+    expect(sections.map((section) => (
+      section.isPending ? "pending" : section.title === "TODAY" ? "today" : "week"
+    ))).toEqual(["pending", "today", "week"]);
+  });
+
+  it("refreshes the shared join clock immediately on visibility and focus recovery", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:54:10"));
+    const joinWindowStart = new Date("2026-03-23T09:55:00").getTime();
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => ({
+      canJoin: new Date(now).getTime() >= joinWindowStart,
+      joinUrl: "https://example.com/join/calendar-booking",
+    }));
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:54:10").getTime());
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:05"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:55:05").getTime());
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:20"));
+    window.dispatchEvent(new Event("focus"));
+    await flushPromises();
+
+    expect(mainCalendar.props("joinComparisonTime").getTime())
+      .toBe(new Date("2026-03-23T09:55:20").getTime());
   });
 
   it("shows an interactive schedule-title hover card in every main calendar view", async () => {
@@ -1783,6 +2603,35 @@ describe("DashboardEventsFeature", () => {
 
     const startIso = isoTodayAt(10);
     const endIso = isoTodayAt(10, 30);
+    const bookedSlots = [{
+      bookingId: "booking_private_color",
+      eventId: "evt_private_color",
+      userId: 2615,
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Private Color Skin",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      eventSnapshot: {
+        eventColorSkin: "#FF3B30",
+      },
+    }, {
+      bookingId: "booking_group_color",
+      eventId: "evt_group_color",
+      userId: 2616,
+      creatorId: 77,
+      startIso: isoTodayAt(11),
+      endIso: isoTodayAt(11, 30),
+      status: "confirmed",
+      eventTitle: "Group Color Skin",
+      eventType: "group-event",
+      eventCallType: "video",
+      eventSnapshot: {
+        eventColorSkin: "#E11D48",
+      },
+    }];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -1798,35 +2647,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#8B5CF6",
         }],
-        bookedSlots: [{
-          bookingId: "booking_private_color",
-          eventId: "evt_private_color",
-          userId: 2615,
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Private Color Skin",
-          eventType: "1on1-call",
-          eventCallType: "video",
-          eventSnapshot: {
-            eventColorSkin: "#FF3B30",
-          },
-        }, {
-          bookingId: "booking_group_color",
-          eventId: "evt_group_color",
-          userId: 2616,
-          creatorId: 77,
-          startIso: isoTodayAt(11),
-          endIso: isoTodayAt(11, 30),
-          status: "confirmed",
-          eventTitle: "Group Color Skin",
-          eventType: "group-event",
-          eventCallType: "video",
-          eventSnapshot: {
-            eventColorSkin: "#E11D48",
-          },
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -1857,9 +2679,320 @@ describe("DashboardEventsFeature", () => {
     expect(todayItem.accentColor).toBe("#28C76F");
   });
 
+  it("passes the earliest-starting currently joinable confirmed booking to the mobile sticky card", async () => {
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    const laterStartIso = isoTodayAt(9, 4);
+    const earlierStartIso = isoTodayAt(9, 2);
+    const endIso = isoTodayAt(9, 30);
+
+    getCalendarEventJoinState.mockImplementation((event) => {
+      const bookingId = event?.bookingId || event?.raw?.bookingId;
+      return {
+        canJoin: bookingId !== "booking_without_url",
+        joinUrl: bookingId === "booking_without_url" ? null : `https://example.com/join/${bookingId}`,
+      };
+    });
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [
+          { eventId: "evt_later", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_earlier", type: "1on1-call", eventCallType: "audio" },
+          { eventId: "evt_pending", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_without_url", type: "1on1-call", eventCallType: "video" },
+        ],
+        bookedSlots: [
+          {
+            bookingId: "booking_later",
+            eventId: "evt_later",
+            startIso: laterStartIso,
+            endIso,
+            status: "confirmed",
+            eventTitle: "Later Joinable Call",
+            eventType: "1on1-call",
+          },
+          {
+            bookingId: "booking_earlier",
+            eventId: "evt_earlier",
+            userDisplayName: "Ava",
+            userAvatarUrl: "https://example.com/ava.png",
+            startIso: earlierStartIso,
+            endIso,
+            status: "confirmed",
+            eventTitle: "Earlier Joinable Call",
+            eventType: "1on1-call",
+          },
+          {
+            bookingId: "booking_pending",
+            eventId: "evt_pending",
+            startIso: isoTodayAt(9, 1),
+            endIso,
+            status: "pending",
+            eventTitle: "Pending Call",
+            eventType: "1on1-call",
+          },
+          {
+            bookingId: "booking_without_url",
+            eventId: "evt_without_url",
+            startIso: isoTodayAt(9, 0),
+            endIso,
+            status: "confirmed",
+            eventTitle: "Call Without URL",
+            eventType: "1on1-call",
+          },
+        ],
+        widgetBookedSlots: [],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const stickyEvent = wrapper.getComponent({ name: "MainCalendar" }).props("stickyCardEvent");
+
+    expect(stickyEvent).toEqual(expect.objectContaining({
+      title: "Earlier Joinable Call",
+      canJoin: true,
+      joinUrl: "https://example.com/join/booking_earlier",
+      profile: {
+        name: "Ava",
+        avatar: "https://example.com/ava.png",
+      },
+    }));
+    const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
+    expect(floatingCreateControl.classes()).toContain("bottom-[7rem]");
+    expect(floatingCreateControl.classes()).toContain("md:bottom-5");
+    expect(floatingCreateControl.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingCreateControl.attributes("style")).toContain("--sticky-card-tablet-bottom: 22.25rem");
+  });
+
+  it("prioritizes starting-soon and live confirmed bookings ahead of pending tablet cards", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [
+          { eventId: "evt_live", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_soon", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_later", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_pending", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_hold", type: "1on1-call", eventCallType: "video" },
+        ],
+        bookedSlots: [
+          {
+            bookingId: "booking_live",
+            eventId: "evt_live",
+            startIso: isoTodayAt(8, 55),
+            endIso: isoTodayAt(9, 30),
+            status: "confirmed",
+            eventTitle: "Live Call",
+          },
+          {
+            bookingId: "booking_soon",
+            eventId: "evt_soon",
+            startIso: isoTodayAt(9, 5),
+            endIso: isoTodayAt(9, 30),
+            status: "confirmed",
+            eventTitle: "Starts In Five",
+          },
+          {
+            bookingId: "booking_later",
+            eventId: "evt_later",
+            startIso: new Date(Date.now() + (5 * 60 + 1) * 1000).toISOString(),
+            endIso: isoTodayAt(9, 30),
+            status: "confirmed",
+            eventTitle: "Outside Five Minutes",
+          },
+          {
+            bookingId: "booking_pending",
+            eventId: "evt_pending",
+            startIso: isoTodayAt(9, 10),
+            endIso: isoTodayAt(9, 40),
+            status: "pending",
+            eventTitle: "Pending Request",
+          },
+          {
+            bookingId: "booking_hold",
+            eventId: "evt_hold",
+            startIso: isoTodayAt(9, 20),
+            endIso: isoTodayAt(9, 50),
+            status: "pending_hold",
+            eventTitle: "Pending Hold",
+          },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const stickyEvents = mainCalendar.props("stickyCardEvents");
+
+    expect(stickyEvents).toHaveLength(3);
+    expect(stickyEvents.map((item) => item.title)).toEqual([
+      "Live Call",
+      "Starts In Five",
+      "Pending Request",
+    ]);
+    expect(stickyEvents[2].showReply).toBe(true);
+    expect(mainCalendar.props("stickyCardEvent")?.title).toBe("Live Call");
+  });
+
+  it("keeps tablet-only pending cards from moving phone controls and activates the offset in tablet portrait", async () => {
+    setWindowWidth(390);
+    setWindowHeight(844);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{ eventId: "evt_pending_mobile", type: "1on1-call", eventCallType: "video" }],
+        bookedSlots: [{
+          bookingId: "booking_pending_mobile",
+          eventId: "evt_pending_mobile",
+          startIso: isoTodayAt(9, 10),
+          endIso: isoTodayAt(9, 40),
+          status: "pending",
+          eventTitle: "Pending Mobile Request",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
+
+    expect(mainCalendar.props("stickyCardEvents")).toHaveLength(1);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
+    expect(floatingCreateControl.classes())
+      .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.vm.$nextTick();
+
+    expect(floatingCreateControl.classes())
+      .toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 8.25rem");
+  });
+
+  it("excludes pending cards for fans and confirmed bookings outside five minutes", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [
+          { eventId: "evt_later", type: "1on1-call", eventCallType: "video" },
+          { eventId: "evt_pending", type: "1on1-call", eventCallType: "video" },
+        ],
+        bookedSlots: [
+          {
+            bookingId: "booking_later",
+            eventId: "evt_later",
+            startIso: new Date(Date.now() + (5 * 60 + 1) * 1000).toISOString(),
+            endIso: isoTodayAt(9, 30),
+            status: "confirmed",
+            eventTitle: "Outside Five Minutes",
+          },
+          {
+            bookingId: "booking_pending",
+            eventId: "evt_pending",
+            startIso: isoTodayAt(9, 2),
+            endIso: isoTodayAt(9, 30),
+            status: "pending",
+            eventTitle: "Pending Fan Request",
+          },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ fanId: 88, userRole: "fan" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("stickyCardEvents")).toEqual([]);
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
+  });
+
+  it("clears the mobile sticky card after an extended booking's effective end", async () => {
+    const extendedEndIso = isoTodayAt(9, 1);
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{ eventId: "evt_extended", type: "1on1-call", eventCallType: "video" }],
+        bookedSlots: [{
+          bookingId: "booking_extended",
+          eventId: "evt_extended",
+          startIso: isoTodayAt(8, 0),
+          endIso: isoTodayAt(8, 30),
+          status: "confirmed",
+          eventTitle: "Extended Call",
+          eventType: "1on1-call",
+          extensions: [{ status: "held", endAtIso: extendedEndIso }],
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("stickyCardEvent")?.sourceEvent?.end).toBe(extendedEndIso);
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await flushPromises();
+
+    expect(mainCalendar.props("stickyCardEvent")).toBeNull();
+    expect(wrapper.get("[data-test='dashboard-floating-create-event']").attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+  });
+
+  it("does not pass a sticky card event when no confirmed booking has an active join URL", async () => {
+    getCalendarEventJoinState.mockReturnValue({ canJoin: true, joinUrl: null });
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [{ eventId: "evt_no_url", type: "1on1-call", eventCallType: "video" }],
+        bookedSlots: [{
+          bookingId: "booking_no_url",
+          eventId: "evt_no_url",
+          startIso: isoTodayAt(9, 0),
+          endIso: isoTodayAt(9, 30),
+          status: "confirmed",
+          eventTitle: "No URL",
+          eventType: "1on1-call",
+        }],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("stickyCardEvent")).toBeNull();
+    const floatingCreateControl = wrapper.get("[data-test='dashboard-floating-create-event']");
+    expect(floatingCreateControl.classes()).toContain("bottom-2");
+    expect(floatingCreateControl.classes()).toContain("md:bottom-5");
+    expect(floatingCreateControl.classes()).not.toContain("ipad-portrait:bottom-[7rem]");
+    expect(floatingCreateControl.attributes("style"))
+      .toContain("--sticky-card-tablet-bottom: 0.5rem");
+  });
+
   it("shows confirmed widget status as minutes remaining in the event color skin inside five minutes", async () => {
     const startIso = isoTodayAt(9, 5);
     const endIso = isoTodayAt(9, 30);
+    const bookedSlots = [{
+      bookingId: "booking_private_starting_soon",
+      eventId: "evt_private_starting_soon",
+      userId: 2615,
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Private Starting Soon",
+      eventType: "1on1-call",
+      eventCallType: "video",
+    }];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -1870,18 +3003,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#28C76F",
         }],
-        bookedSlots: [{
-          bookingId: "booking_private_starting_soon",
-          eventId: "evt_private_starting_soon",
-          userId: 2615,
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Private Starting Soon",
-          eventType: "1on1-call",
-          eventCallType: "video",
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -1906,6 +3029,18 @@ describe("DashboardEventsFeature", () => {
   it("shows confirmed widget status as live now while the call is ongoing", async () => {
     const startIso = isoTodayAt(8, 55);
     const endIso = isoTodayAt(9, 30);
+    const bookedSlots = [{
+      bookingId: "booking_private_live_now",
+      eventId: "evt_private_live_now",
+      userId: 2615,
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Private Live Now",
+      eventType: "1on1-call",
+      eventCallType: "video",
+    }];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -1916,18 +3051,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#28C76F",
         }],
-        bookedSlots: [{
-          bookingId: "booking_private_live_now",
-          eventId: "evt_private_live_now",
-          userId: 2615,
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Private Live Now",
-          eventType: "1on1-call",
-          eventCallType: "video",
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -1958,6 +3083,22 @@ describe("DashboardEventsFeature", () => {
 
     const startIso = isoTodayAt(11);
     const endIso = isoTodayAt(12);
+    const bookedSlots = [{
+      bookingId: "booking_group_color",
+      eventId: "evt_group_color",
+      userId: 2615,
+      userDisplayName: "Ava",
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Group Color Skin",
+      eventType: "group-event",
+      eventCallType: "video",
+      eventSnapshot: {
+        eventColorSkin: "#E11D48",
+      },
+    }];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -1968,22 +3109,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#28C76F",
         }],
-        bookedSlots: [{
-          bookingId: "booking_group_color",
-          eventId: "evt_group_color",
-          userId: 2615,
-          userDisplayName: "Ava",
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Group Color Skin",
-          eventType: "group-event",
-          eventCallType: "video",
-          eventSnapshot: {
-            eventColorSkin: "#E11D48",
-          },
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -2030,15 +3157,38 @@ describe("DashboardEventsFeature", () => {
         target: "_self",
       }],
     ]);
-    expect(getBookingJoinState).toHaveBeenCalledWith(expect.objectContaining({
-      enableCallReminderMinutesBefore: true,
-      callReminderMinutesBefore: 15,
-      extensions: [{ status: "held", endAtIso: "2026-03-23T10:45:00Z" }],
+    expect(getCalendarEventJoinState).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: 77 }),
+      expect.objectContaining({ viewerRole: "creator", now: expect.any(Date) }),
+    );
+  });
+
+  it("validates popup joins with the actual click time instead of the stale dashboard clock", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:54:30"));
+    const joinWindowStart = Date.parse("2026-03-23T09:55:00");
+    getCalendarEventJoinState.mockImplementation((_event, { now }) => ({
+      canJoin: new Date(now).getTime() >= joinWindowStart,
+      joinUrl: "https://example.com/join/booking_popup_race",
     }));
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 77,
+      userRole: "creator",
+    });
+
+    vi.setSystemTime(new Date("2026-03-23T09:55:01"));
+    await wrapper.get("[data-test='main-calendar-popup-join']").trigger("click");
+
+    const clickOptions = getCalendarEventJoinState.mock.calls.at(-1)?.[1];
+    expect(clickOptions.now.getTime()).toBe(Date.parse("2026-03-23T09:55:01"));
+    expect(wrapper.emitted("open-url")?.at(-1)).toEqual([{
+      url: "https://example.com/join/booking_popup_race",
+      target: "_self",
+    }]);
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   it("shows current unavailable copy when a confirmed booking cannot be joined", async () => {
-    getBookingJoinState.mockReturnValue({
+    getCalendarEventJoinState.mockReturnValue({
       canJoin: false,
       joinUrl: "https://example.com/join/77",
     });
@@ -2065,6 +3215,35 @@ describe("DashboardEventsFeature", () => {
   it("passes booked group sessions into the widget today section with join metadata", async () => {
     const startIso = isoTodayAt(10);
     const endIso = isoTodayAt(13);
+    const bookedSlots = [
+      {
+        bookingId: "booking_group_1",
+        eventId: "evt_group",
+        userId: 2615,
+        userDisplayName: "Ava",
+        userAvatarUrl: "https://example.test/ava.png",
+        creatorId: 77,
+        startIso,
+        endIso,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+        eventCallType: "video",
+      },
+      {
+        bookingId: "booking_group_2",
+        eventId: "evt_group",
+        userId: 2616,
+        userDisplayName: "Ben",
+        creatorId: 77,
+        startIso,
+        endIso,
+        status: "confirmed",
+        eventTitle: "Group Hang",
+        eventType: "group-event",
+        eventCallType: "video",
+      },
+    ];
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -2074,35 +3253,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#E11D48",
         }],
-        bookedSlots: [
-          {
-            bookingId: "booking_group_1",
-            eventId: "evt_group",
-            userId: 2615,
-            userDisplayName: "Ava",
-            userAvatarUrl: "https://example.test/ava.png",
-            creatorId: 77,
-            startIso,
-            endIso,
-            status: "confirmed",
-            eventTitle: "Group Hang",
-            eventType: "group-event",
-            eventCallType: "video",
-          },
-          {
-            bookingId: "booking_group_2",
-            eventId: "evt_group",
-            userId: 2616,
-            userDisplayName: "Ben",
-            creatorId: 77,
-            startIso,
-            endIso,
-            status: "confirmed",
-            eventTitle: "Group Hang",
-            eventType: "group-event",
-            eventCallType: "video",
-          },
-        ],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -2119,6 +3271,7 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("bookedSlotsCount")).toBe(1);
     const [groupItem] = widgetSections.find((section) => section.title === "TODAY").items;
 
     expect(groupItem).toEqual(expect.objectContaining({
@@ -2147,6 +3300,22 @@ describe("DashboardEventsFeature", () => {
     const endIso = isoTodayAt(10, 30);
     const capturedEndIso = isoTodayAt(10, 38);
     const heldEndIso = isoTodayAt(10, 43);
+    const bookedSlots = [{
+      bookingId: "booking_private_extended",
+      eventId: "evt_private_extended",
+      userId: 2615,
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Extended Private Call",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      extensions: [
+        { status: "captured", endAtIso: capturedEndIso, durationMinutes: 8 },
+        { status: "held", endAtIso: heldEndIso, durationMinutes: 5 },
+      ],
+    }];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
@@ -2157,22 +3326,8 @@ describe("DashboardEventsFeature", () => {
           eventCallType: "video",
           eventColorSkin: "#5549FF",
         }],
-        bookedSlots: [{
-          bookingId: "booking_private_extended",
-          eventId: "evt_private_extended",
-          userId: 2615,
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Extended Private Call",
-          eventType: "1on1-call",
-          eventCallType: "video",
-          extensions: [
-            { status: "captured", endAtIso: capturedEndIso, durationMinutes: 8 },
-            { status: "held", endAtIso: heldEndIso, durationMinutes: 5 },
-          ],
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -2953,8 +4108,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-booking-fee']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
-    expect(wrapper.text()).not.toContain("tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).toContain("The booking allocation already included in your total will be paid to the creator; the remaining amount will be released.");
+    expect(wrapper.text()).not.toContain("held cancellation reserve");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -2967,8 +4122,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-cancellation-fee']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("13 tokens will be deducted as cancellation fee.");
-    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).toContain("The 13-token cancellation allocation already included in your booking total will be paid to the creator.");
+    expect(wrapper.text()).not.toContain("The booking allocation already included in your total will be paid to the creator");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -2981,8 +4136,8 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-both-fees']").trigger("click");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Booking Fee will still be deducted from your wallet.");
-    expect(wrapper.text()).toContain("21 tokens will be deducted as cancellation fee.");
+    expect(wrapper.text()).toContain("The booking allocation already included in your total will be paid to the creator; the remaining amount will be released.");
+    expect(wrapper.text()).toContain("The 21-token cancellation allocation already included in your booking total will be paid to the creator.");
     expect(wrapper.text()).not.toContain("Cancelling this event will notify the host and remove it from your schedule.");
   });
 
@@ -2996,28 +4151,30 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain("Cancelling this event will notify the host and remove it from your schedule.");
-    expect(wrapper.text()).not.toContain("34 tokens will be deducted as cancellation fee.");
-    expect(wrapper.text()).not.toContain("Booking Fee will still be deducted from your wallet.");
+    expect(wrapper.text()).not.toContain("held cancellation reserve of 34 tokens");
+    expect(wrapper.text()).not.toContain("The booking allocation already included in your total will be paid to the creator");
   });
 
   it("keeps current-week group sessions visible with group styling and join metadata", async () => {
     const startIso = isoCurrentWeekNotToday(11);
     const endIso = isoCurrentWeekNotToday(14);
+    const bookedSlots = [{
+      bookingId: "booking_group_week",
+      eventId: "evt_group_week",
+      userId: 2615,
+      userDisplayName: "Ava",
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Week Group Hang",
+      eventSnapshot: { eventType: "group-event" },
+    }];
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
         events: [],
-        bookedSlots: [{
-          bookingId: "booking_group_week",
-          eventId: "evt_group_week",
-          userId: 2615,
-          userDisplayName: "Ava",
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Week Group Hang",
-          eventSnapshot: { eventType: "group-event" },
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -3049,23 +4206,25 @@ describe("DashboardEventsFeature", () => {
   it("keeps future booked sessions outside the current week visible in the upcoming section", async () => {
     const startIso = isoDaysFromToday(8, 20, 30);
     const endIso = isoDaysFromToday(8, 21, 0);
+    const bookedSlots = [{
+      bookingId: "booking_future_group",
+      eventId: "evt_future_group",
+      userId: 2615,
+      userDisplayName: "Ava",
+      creatorId: 77,
+      startIso,
+      endIso,
+      status: "confirmed",
+      eventTitle: "Future Group Hang",
+      eventType: "group-event",
+      eventCallType: "video",
+    }];
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
         events: [],
-        bookedSlots: [{
-          bookingId: "booking_future_group",
-          eventId: "evt_future_group",
-          userId: 2615,
-          userDisplayName: "Ava",
-          creatorId: 77,
-          startIso,
-          endIso,
-          status: "confirmed",
-          eventTitle: "Future Group Hang",
-          eventType: "group-event",
-          eventCallType: "video",
-        }],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -3091,6 +4250,38 @@ describe("DashboardEventsFeature", () => {
       showJoin: true,
       joinUrl: expect.stringContaining("event_id=evt_future_group"),
     }));
+  });
+
+  it("preserves the pending price adjustment projection in dashboard widget event data", async () => {
+    const bookedSlots = [{
+      bookingId: "booking_adjust_projection",
+      eventId: "evt_adjust_projection",
+      creatorId: 77,
+      startIso: isoDaysFromToday(8, 10),
+      endIso: isoDaysFromToday(8, 10, 30),
+      status: "confirmed",
+      eventTitle: "Adjusted Session",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      pendingPriceAdjustment: true,
+    }];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const adjustedItem = widgetSections
+      .flatMap((section) => section.items)
+      .find((item) => item.sourceEvent?.bookingId === "booking_adjust_projection");
+
+    expect(adjustedItem.sourceEvent.raw.pendingPriceAdjustment).toBe(true);
   });
 
   it("does not show past confirmed bookings outside today in widget sections", async () => {
@@ -3205,35 +4396,37 @@ describe("DashboardEventsFeature", () => {
     const endedEndIso = isoTodayAt(8, 30);
     const boundaryStartIso = isoTodayAt(8, 30);
     const boundaryEndIso = isoTodayAt(9);
+    const bookedSlots = [
+      {
+        bookingId: "booking_ended_today",
+        eventId: "evt_ended_today",
+        userId: 2615,
+        creatorId: 77,
+        startIso: endedStartIso,
+        endIso: endedEndIso,
+        status: "confirmed",
+        eventTitle: "Ended Today Hang",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_boundary_today",
+        eventId: "evt_boundary_today",
+        userId: 2615,
+        creatorId: 77,
+        startIso: boundaryStartIso,
+        endIso: boundaryEndIso,
+        status: "confirmed",
+        eventTitle: "Boundary Today Hang",
+        eventType: "group-event",
+      },
+    ];
 
     callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
         events: [],
-        bookedSlots: [
-          {
-            bookingId: "booking_ended_today",
-            eventId: "evt_ended_today",
-            userId: 2615,
-            creatorId: 77,
-            startIso: endedStartIso,
-            endIso: endedEndIso,
-            status: "confirmed",
-            eventTitle: "Ended Today Hang",
-            eventType: "group-event",
-          },
-          {
-            bookingId: "booking_boundary_today",
-            eventId: "evt_boundary_today",
-            userId: 2615,
-            creatorId: 77,
-            startIso: boundaryStartIso,
-            endIso: boundaryEndIso,
-            status: "confirmed",
-            eventTitle: "Boundary Today Hang",
-            eventType: "group-event",
-          },
-        ],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
         bookedSlotsIndex: {},
       },
     });
@@ -3253,5 +4446,186 @@ describe("DashboardEventsFeature", () => {
     expect(widgetSections.flatMap((section) => section.items).map((item) => item.title)).toEqual([
       "Boundary Today Hang",
     ]);
+  });
+
+  it("expires pending approval cards at the exact start while retaining the calendar marker", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:59"));
+    const boundaryRequests = [
+      {
+        bookingId: "booking_pending_boundary",
+        eventId: "evt_pending_boundary",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+        eventTitle: "Pending At Boundary",
+        eventType: "1on1-call",
+      },
+      {
+        bookingId: "booking_hold_boundary",
+        eventId: "evt_hold_boundary",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending_hold",
+        eventTitle: "Hold At Boundary",
+        eventType: "group-event",
+      },
+      {
+        bookingId: "booking_pending_future",
+        eventId: "evt_pending_future",
+        startIso: "2026-03-23T11:00:00",
+        endIso: "2026-03-23T11:30:00",
+        status: "pending",
+        eventTitle: "Future Pending",
+        eventType: "1on1-call",
+      },
+    ];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: boundaryRequests,
+        widgetBookedSlots: boundaryRequests,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const actionableTitles = () => mainCalendar.props("eventsData")
+      .find((section) => section.isPending)?.items.map((item) => item.title);
+    const stickyTitles = () => mainCalendar.props("stickyCardEvents").map((item) => item.title);
+    const calendarTitles = () => mainCalendar.props("events").map((event) => event.title);
+    const calendarMarkerFor = (title) => wrapper
+      .findAll("[data-test='dashboard-month-booking-marker']")
+      .find((marker) => marker.text().includes(title));
+
+    expect(actionableTitles()).toEqual([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]);
+    expect(stickyTitles()).toEqual([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]);
+    expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
+      .toContain("Expanded Pending Event");
+    expect(calendarMarkerFor("Pending At Boundary")?.element.style.backgroundColor)
+      .toBe("transparent");
+    expect(calendarMarkerFor("Hold At Boundary")?.element.style.backgroundColor)
+      .toBe("transparent");
+
+    await vi.advanceTimersByTimeAsync(999);
+    await flushPromises();
+    expect(actionableTitles()).toContain("Pending At Boundary");
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+
+    expect(actionableTitles()).toEqual(["Future Pending"]);
+    expect(stickyTitles()).toEqual(["Future Pending"]);
+    expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
+      .not.toContain("Expanded Pending Event");
+    expect(calendarTitles()).toEqual(expect.arrayContaining([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]));
+    expect(mainCalendar.props("events")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: "Pending At Boundary", status: "pending" }),
+      expect.objectContaining({ title: "Hold At Boundary", status: "pending_hold" }),
+    ]));
+
+    for (const view of ["day", "week", "month"]) {
+      mainCalendar.vm.bookingTestView = view;
+      await wrapper.vm.$nextTick();
+
+      for (const title of ["Pending At Boundary", "Hold At Boundary"]) {
+        const markerStyle = calendarMarkerFor(title)?.element.style;
+        expect(markerStyle?.backgroundColor).toBe("rgb(217, 220, 230)");
+        expect(markerStyle?.borderColor).toBe("rgb(200, 205, 216)");
+        expect(markerStyle?.color).toBe("rgb(152, 162, 179)");
+        expect(markerStyle?.boxShadow).toBe("none");
+      }
+    }
+  });
+
+  it("blocks stale approval events locally and refreshes the dashboard context", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:59Z"));
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialFetchCount = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+
+    vi.setSystemTime(new Date("2026-03-23T10:00:00Z"));
+    mainCalendar.vm.$emit("approve-booking", {
+      bookingId: "booking_stale_dashboard",
+      event: {
+        bookingId: "booking_stale_dashboard",
+        start: "2026-03-23T10:00:00Z",
+        status: "pending",
+      },
+    });
+    await flushPromises();
+
+    expect(callFlow.mock.calls.some(
+      ([flowName]) => flowName === "bookings.reviewPendingBooking",
+    )).toBe(false);
+    expect(callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    )).toHaveLength(initialFetchCount + 1);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Approval Window Closed",
+      message: expect.not.stringContaining("approval_window_closed"),
+    }));
+  });
+
+  it("turns an approval_window_closed backend race into friendly copy and refreshes context", async () => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: false,
+          error: {
+            code: "REVIEW_BOOKING_FAILED",
+            message: "approval_window_closed",
+            details: { error: "approval_window_closed" },
+          },
+        };
+      }
+      return {
+        ok: true,
+        data: { events: [], bookedSlots: [], widgetBookedSlots: [], bookedSlotsIndex: {} },
+      };
+    });
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    const initialFetchCount = callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+
+    mainCalendar.vm.$emit("approve-booking", {
+      bookingId: "booking_raced_dashboard",
+      event: {
+        bookingId: "booking_raced_dashboard",
+        start: "2026-03-23T10:00:00Z",
+        status: "pending",
+      },
+    });
+    await flushPromises();
+
+    expect(callFlow.mock.calls.some(
+      ([flowName]) => flowName === "bookings.reviewPendingBooking",
+    )).toBe(true);
+    expect(callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    )).toHaveLength(initialFetchCount + 1);
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      title: "Approval Window Closed",
+      message: expect.not.stringContaining("approval_window_closed"),
+    }));
   });
 });

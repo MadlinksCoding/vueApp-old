@@ -822,13 +822,12 @@ function resolveTotalPriceWithoutBookingFee(preview = null) {
     ? preview.payment
     : {};
   const total = Number(payment.total || 0);
+  const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
+  if (Number(payment.paymentPolicyVersion || 0) === 2) return safeTotal;
   const lines = Array.isArray(payment.lines) ? payment.lines : [];
   const bookingFeeLine = lines.find((line) => String(line?.code || '') === 'booking_fee');
   const bookingFee = Number(bookingFeeLine?.amount || 0);
-  const safeTotal = Number.isFinite(total) ? total : 0;
-  const safeBookingFee = Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0;
-
-  return Math.max(0, safeTotal - safeBookingFee);
+  return Math.max(0, safeTotal - (Number.isFinite(bookingFee) && bookingFee > 0 ? bookingFee : 0));
 }
 
 async function autoSelectGroupAndGoToPayment() {
@@ -1217,13 +1216,21 @@ const effectivePrivateMaxSessionCount = computed(() => {
 
 function formatDurationLabel(minutes) {
   const duration = Number(minutes || 0);
-  if (!Number.isFinite(duration) || duration <= 0) return `0 ${t('fan_booking_min_short').toLowerCase()}`;
-  if (duration <= 60) return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
-  return `${duration} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const minuteUnit = (count) => t(
+    count === 1 ? 'calendar_event_minute_short_one' : 'calendar_event_minute_short_other',
+  );
+  const hourUnit = (count) => t(
+    count === 1 ? 'calendar_event_hour_short_one' : 'calendar_event_hour_short_other',
+  );
+
+  if (!Number.isFinite(duration) || duration <= 0) return `0 ${minuteUnit(0)}`;
+  if (duration <= 60) return `${duration} ${minuteUnit(duration)}`;
 
   const hours = Math.floor(duration / 60);
   const remainingMinutes = duration % 60;
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainingMinutes} ${t('fan_booking_min_short').toLowerCase()}s`;
+  const parts = [`${hours} ${hourUnit(hours)}`];
+  if (remainingMinutes > 0) parts.push(`${remainingMinutes} ${minuteUnit(remainingMinutes)}`);
+  return parts.join(' ');
 }
 
 const selectedDurationDisplayMinutes = computed(() => (
@@ -1248,6 +1255,20 @@ const selectedSessionCountLabel = computed(() => {
 const selectedDurationTokenCost = computed(() => (
   Number(selectedDurationObj.value?.price || 0)
 ));
+
+const bookingSummarySessionLabel = computed(() => {
+  const baseMinutes = Math.round(Number(baseSessionDurationMinutes.value || 0)) || 15;
+  const totalMinutes = Math.round(Number(selectedDurationDisplayMinutes.value || 0)) || baseMinutes;
+  const count = Math.max(1, Number(selectedSessionCount.value || 1));
+  const sessionLabel = count === 1 ? t('fan_booking_session') : t('fan_booking_sessions');
+
+  return t('fan_booking_session_breakdown', {
+    base_minutes: baseMinutes,
+    count,
+    session_label: sessionLabel,
+    total_minutes: totalMinutes,
+  });
+});
 
 const showFirstTimeDiscountNotice = computed(() => {
   const event = selectedEvent.value || {};
@@ -1482,7 +1503,7 @@ const pricingPreview = computed(() => {
   return buildBookingPaymentPreview(
     selectedEvent.value,
     Number(selectedDurationObj.value?.value || 0),
-    selectedAddons.value.map((item) => ({ title: item.name || item.title || '', price: Number(item.price || 0) })),
+    selectedAddons.value,
     selectedTime.value || {},
     {
       isFirstBookingForCreator: isFirstBookingForCreator.value,
@@ -1490,6 +1511,19 @@ const pricingPreview = computed(() => {
     },
   );
 });
+const pricingPreviewLines = computed(() => (
+  Array.isArray(pricingPreview.value?.payment?.lines)
+    ? pricingPreview.value.payment.lines
+    : []
+));
+
+const bookingSummarySessionCost = computed(() => {
+  const baseLine = pricingPreviewLines.value.find((row) => String(row?.code || '') === 'base');
+  const baseAmount = Number(baseLine?.amount);
+  if (Number.isFinite(baseAmount) && baseAmount >= 0) return baseAmount;
+  return Math.max(0, Number(selectedDurationTokenCost.value || 0));
+});
+const usesComponentAllocations = computed(() => Number(pricingPreview.value?.payment?.paymentPolicyVersion || 0) === 2);
 
 const longerDiscountAmount = computed(() => {
   return Number(pricingPreview.value?.discounts?.longerDiscount?.discountTokens || 0);
@@ -1506,9 +1540,15 @@ const offHourSurchargeAmount = computed(() => {
 });
 
 const bookingFeeAmount = computed(() => {
+  const allocated = Number(pricingPreview.value?.payment?.allocations?.bookingFee);
   const lines = Array.isArray(pricingPreview.value?.payment?.lines) ? pricingPreview.value.payment.lines : [];
-  const line = lines.find((row) => String(row?.code) === 'booking_fee');
-  const amount = Number(line?.amount || 0);
+  const legacyLine = lines.find((row) => String(row?.code) === 'booking_fee');
+  const amount = Number.isFinite(allocated) && allocated > 0 ? allocated : Number(legacyLine?.amount || 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+});
+
+const cancellationFeeAmount = computed(() => {
+  const amount = Number(pricingPreview.value?.payment?.allocations?.cancellationFee || 0);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 });
 
@@ -1690,18 +1730,28 @@ function hydrateAddons() {
   const raw = selectedEvent.value?.raw || {};
   const addOnRows = Array.isArray(raw.addOns) ? raw.addOns : [];
 
-  const mapped = addOnRows.map((item, index) => ({
-    id: item?.id || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
-    name: item?.title || item?.name || t('fan_booking_add_on'),
-    price: Number(item?.priceTokens || item?.price || 0),
-    selected: false,
-  }));
+  const mapped = addOnRows.map((item, index) => {
+    const canonicalTitle = item?.title || item?.name || '';
+    const catalogId = item?.id ?? null;
+    return {
+      id: catalogId || `${selectedEvent.value?.eventId || 'event'}_addon_${index}`,
+      kind: 'addon',
+      catalogId,
+      catalogTitle: canonicalTitle,
+      name: canonicalTitle || t('fan_booking_add_on'),
+      price: Number(item?.priceTokens ?? item?.price ?? 0),
+      selected: false,
+    };
+  });
 
-  if (raw.allowFanRecordingEnabled && !mapped.some((item) => String(item.name).toLowerCase().includes('record'))) {
+  if (toBoolean(raw.allowFanRecordingEnabled, false)) {
     mapped.unshift({
       id: `${selectedEvent.value?.eventId || 'event'}_recording`,
+      kind: 'recording',
+      catalogId: null,
+      catalogTitle: '',
       name: t('fan_booking_record_our_session'),
-      price: Number(raw.allowFanRecordingTokens || 0),
+      price: Number(raw.allowFanRecordingTokens ?? 0),
       selected: false,
     });
   }
@@ -1777,7 +1827,16 @@ function hydrateFromState() {
 
   if (!isGroupEvent.value && Array.isArray(existing.addons) && existing.addons.length > 0) {
     existing.addons.forEach(savedAddon => {
-      const addon = addons.value.find((a) => String(a.id) === String(savedAddon.id) || a.name === savedAddon.name);
+      const addon = addons.value.find((a) => (
+        String(a.id) === String(savedAddon.id)
+        || (
+          a.kind === 'addon'
+          && savedAddon.kind === 'addon'
+          && a.catalogId != null
+          && String(a.catalogId) === String(savedAddon.catalogId)
+        )
+        || a.name === savedAddon.name
+      ));
       if (addon) addon.selected = true;
     });
   }
@@ -2151,14 +2210,9 @@ onBeforeUnmount(() => {
     v-else
     class="relative lg:rounded-[20px] h-dvh lg:h-full w-full lg:w-[57.563rem] overflow-hidden">
     <div :class="['h-full lg:rounded-[20px] md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
-      <div class="w-full h-full lg:h-auto md:rounded-[20px]" :style="popupBackgroundStyle">
-        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh max-h-dvh lg:h-auto md:rounded-t-[20px] bg-[rgba(12,17,29,0.5)] flex flex-col md:flex-row before:content-['']
-before:absolute
-before:inset-0
-before:z-[-1]
-before:bg-[rgba(0,0,0,0.75)]
-before:backdrop-blur-sm
-before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
+      <div class="w-full h-full lg:h-auto md:rounded-[20px] relative" :style="popupBackgroundStyle">
+        <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(0deg,rgba(12,17,29,0.5)_0%,rgba(12,17,29,0.5)_100%)]"></div>
+        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh max-h-dvh lg:h-auto md:rounded-t-[20px] bg-[#0C111D]/50 flex flex-col md:flex-row backdrop-blur-[5px] overflow-hidden">
 
         <div class="w-full h-dvh max-h-dvh lg:h-auto flex flex-col md:flex-row overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
           <OneOnOneBookingFlowLeftSideBar
@@ -2178,7 +2232,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
             :price-setting="groupPriceSetting"
           />
 
-          <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:max-h-[41.625rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[rgba(12,17,29,0.5)]">
+          <div class="flex-1 flex w-full flex-col gap-3 justify-between md:min-h-0 md:overflow-y-auto h-auto md:max-h-none lg:h-[43.75rem] [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] px-0 pt-2 md:pt-7 pb-0 bg-[#0C111D]/50">
 
             <div class="flex-none lg:flex-1 flex-col w-full pt-1 md:pt-5 px-3 md:p-5">
               <div class="flex items-center justify-between w-full mb-2">
@@ -2382,7 +2436,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
 
               <div v-if="!isGroupEvent" class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5">
                 <div class="flex items-center gap--2 justify-between">
-                  <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_select_length") }}</h3>
+                  <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_select_length") }}</h3>
                   <span
                     v-if="!isAtMaximumDuration"
                     class="text-xs font-normal leading-[18px] text-[#EAECF0]"
@@ -2462,19 +2516,61 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                     </div>
                   </div>
                 </div>
-
                 <div
-                  v-if="hasAvailableLongerSessionDiscount"
-                  class="flex items-center gap-1"
-                  data-testid="booking-flow-longer-discount-notice"
+                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
+                  class=""
                 >
-                  <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
-                  <p
-                    class="text-sm font-normal leading-5"
-                    :class="isLongerDiscountAchieved ? 'text-[#07F468]' : 'text-[#FCE40D]'"
-                  >
-                    {{ longerDiscountNoticeLabel }}
-                  </p>
+                  <div class="flex flex-col gap-2">
+                    <p
+                      v-if="showDurationOverlapNotice"
+                      class="flex items-center gap-1 text-sm font-normal leading-[18px] text-[#FF4D6D]"
+                      data-testid="booking-flow-duration-overlap-warning"
+                    >
+                      <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                      <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
+                    </p>
+
+                    <div class="flex items-start gap-1">
+                      <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
+                      <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
+                    </div>
+                    
+                    <div
+                      v-if="showFirstTimeDiscountNotice"
+                      class="flex items-start gap-1"
+                      data-testid="booking-flow-first-time-discount-notice"
+                    >
+                      <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
+                      <p class="text-sm font-normal leading-5 text-[#07F468]">
+                        {{ t("fan_booking_first_time_discount_received") }}
+                      </p>
+                    </div>
+
+                    <div
+                      v-if="hasAvailableLongerSessionDiscount"
+                      class="flex items-start gap-1"
+                      data-testid="booking-flow-longer-discount-notice"
+                    >
+                      <div class="w-5 h-5 flex justify-center items-center"><img :src="isLongerDiscountAchieved ? bookingFlowCalendarCheckIcon : bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
+                      <p
+                      class="text-sm font-normal leading-5"
+                      :class="isLongerDiscountAchieved ? 'text-[#07F468]' : 'text-[#FCE40D]'">
+                        {{ longerDiscountNoticeLabel }}
+                      </p>
+                    </div>
+                    
+                    <p
+                      v-if="showDurationMaxNotice"
+                      class="hidden items-center gap-1 text-sm font-normal leading-[18px]"
+                      :class="durationMaxNoticeClass"
+                      data-testid="booking-flow-duration-max-warning"
+                    >
+                      <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
+                      <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
+                    </p>
+                    <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
+                    
+                  </div>
                 </div>
                 
                 <p
@@ -2487,121 +2583,22 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                   <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
                 </p>
                 <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
-                
-              </div>
-              
-
-              <div
-                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
-                class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
-                data-testid="booking-flow-price-breakdown"
-              >
-                <div class="flex flex-col gap-2">
-                  <p
-                    v-if="showDurationOverlapNotice"
-                    class="flex items-center gap-1 text-sm font-normal leading-[18px] text-[#FF4D6D]"
-                    data-testid="booking-flow-duration-overlap-warning"
-                  >
-                    <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
-                    <span>{{ t("fan_booking_duration_overlap_warning", { time: nextDurationBlockingTimeLabel }) }}</span>
-                  </p>
-
-                  <div class="flex items-start gap-1">
-                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarIcon" alt="token-icon" /></div>
-                    <p class="text-sm font-normal leading-5 text-white" v-html="t('fan_booking_session_will_be_on', { date: `<span class='font-semibold'>${selectedDateDisplay}</span>`, time: formattedTimeRange !== '-' ? `<span class='font-semibold'>${formattedTimeRange}</span>` : '' })"></p>
-                  </div>
-                  
-                  <div
-                    v-if="showFirstTimeDiscountNotice"
-                    class="flex items-start gap-1"
-                    data-testid="booking-flow-first-time-discount-notice"
-                  >
-                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowCalendarCheckIcon" alt="calendar-check-icon" /></div>
-                    <p class="text-sm font-normal leading-5 text-[#07F468]">
-                      {{ t("fan_booking_first_time_discount_received") }}
-                    </p>
-                  </div>
-
-                  <div
-                    v-if="hasAvailableLongerSessionDiscount"
-                    class="flex items-start gap-1"
-                    data-testid="booking-flow-longer-discount-notice"
-                  >
-                    <div class="w-5 h-5 flex justify-center items-center"><img :src="bookingFlowSaleIcon" alt="calendar-sale-icon" /></div>
-                    <p class="text-sm font-normal leading-5 text-[#FCE40D]">
-                      {{ longerDiscountNoticeLabel }}
-                    </p>
-                  </div>
-                  
-                  <p
-                    v-if="showDurationMaxNotice"
-                    class="hidden items-center gap-1 text-sm font-normal leading-[18px]"
-                    :class="durationMaxNoticeClass"
-                    data-testid="booking-flow-duration-max-warning"
-                  >
-                    <ExclamationTriangleIcon class="h-4 w-4 flex-none" />
-                    <span>{{ t("fan_booking_max_session_length_warning", { duration: maxSessionDurationDisplayLabel }) }}</span>
-                  </p>
-                  <p v-if="!selectedTime" class="hidden text-xs text-gray-300">{{ t("fan_booking_select_start_time_first") }}</p>
-                  
-                </div>
-                
-
-                <div
-                  v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0)"
-                  class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3"
-                  data-testid="booking-flow-price-breakdown"
-                >
-                  <div class="flex flex-col gap-2">
-                    <div
-                      v-for="row in discountRows"
-                      :key="row.code"
-                      class="flex items-center justify-between text-sm text-white"
-                      data-row-kind="discount"
-                    >
-                      <p class="text-[#EAECF0]">{{ row.label }}</p>
-                      <div class="flex items-center gap-1 text-[#07F468]">
-                        <span>-</span>
-                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                        <span>{{ row.amount }}</span>
-                      </div>
-                    </div>
-
-                    <div
-                      v-if="offHourSurchargeAmount > 0"
-                      class="flex items-center justify-between text-sm text-white"
-                      data-row-kind="off-hour-surcharge"
-                    >
-                      <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
-                      <div class="flex items-center gap-1 text-[#FF9F43]">
-                        <span>+</span>
-                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                        <span>{{ offHourSurchargeAmount }}</span>
-                      </div>
-                    </div>
-
-                    <div
-                      class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
-                      data-row-kind="current-total"
-                      data-testid="booking-flow-current-total-row"
-                    >
-                      <p>{{ t("fan_booking_current_total") }}</p>
-                      <div class="flex items-center gap-1">
-                        <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
-                        <span>{{ totalPrice }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5" v-if="!isGroupEvent && addons.length > 0">
-                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+                <div class="flex items-center gap-1">
+                  <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_add_on_service_heading") }}</h3>
+                  <span class="text-xs text-[#EAECF0] italic">{{ t("common_optional") }}</span>
+                </div>
                 <div class="flex flex-col w-full gap-2">
                   <div
                     v-for="(addon, index) in addons"
                     :key="addon.id"
                     @click="toggleAddon(index)"
+                    data-testid="booking-flow-addon"
+                    :data-addon-kind="addon.kind"
+                    :data-addon-id="addon.id"
+                    :data-selected="String(addon.selected)"
                     class="flex flex-row justify-between text-white py-[0.25rem] cursor-pointer"
                   >
                     <div class="flex flex-row items-center gap-2">
@@ -2625,8 +2622,16 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
               </div>
 
               <div v-if="!isGroupEvent" class="flex flex-col gap-2 md:mt-0 mt-5 px-3 md:px-5">
-                <h3 class="text-sm text-[#98A2B3]">{{ t("fan_booking_other_request") }}</h3>
-                <div class="desc">
+                <div class="flex items-center justify-between">
+                  <div class="flex gap-1 items-center">
+                    <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">{{ t("fan_booking_other_request") }}</h3>
+                    <span class="text-xs text-[#EAECF0] italic">{{ t("common_optional") }}</span>
+                  </div>
+                  <span v-if="showApprovalNeeded" class="text-xs text-[#EAECF0]">
+                    {{ t("fan_booking_approval_required") }}
+                  </span>
+                </div>
+                <div class="desc hidden">
                   <p class="text-sm font-normal leading-5 text-[#F2F4F7]">
                     {{ t("fan_booking_other_request_body") }}
                   </p>
@@ -2634,10 +2639,199 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
                 <div class="example">
                   <textarea
                     v-model="otherRequest"
-                    class="leading-[24px] text-white break-words rounded-t-[0.25rem] bg-black/50 p-[0.75rem_0.675rem] border-b border-solid border-[#07F468] w-full"
+                    class="flex min-h-[100px] items-start gap-4 self-stretch p-4 leading-5 text-sm text-white break-words rounded-t-lg border-b border-white bg-[#0C111D] shadow-[0_4px_8px_0_rgba(255,255,255,0.05)] w-full placeholder:text-[#98A2B3] placeholder:font-[Poppins] placeholder:text-sm placeholder:font-normal placeholder:italic placeholder:leading-5 focus:outline-none" :placeholder="t('fan_booking_other_request_body')"
                   />
                 </div>
               </div>
+
+              <!-- Previous Booking details -->
+              <div
+                v-if="selectedDurationObj && (discountRows.length > 0 || offHourSurchargeAmount > 0 || bookingFeeAmount > 0 || cancellationFeeAmount > 0)"
+                class="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 hidden"
+                data-testid="booking-flow-price-breakdown"
+              >
+                <div class="flex flex-col gap-2">
+                  <div
+                    v-for="row in discountRows"
+                    :key="row.code"
+                    class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="discount"
+                  >
+                    <p class="text-[#EAECF0]">{{ row.label }}</p>
+                    <div class="flex items-center gap-1 text-[#07F468]">
+                      <span>-</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ row.amount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="offHourSurchargeAmount > 0"
+                    class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="off-hour-surcharge"
+                  >
+                    <p class="text-[#EAECF0]">{{ t("fan_booking_off_hour_surcharge") }}</p>
+                    <div class="flex items-center gap-1 text-[#FF9F43]">
+                      <span>+</span>
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ offHourSurchargeAmount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="false && usesComponentAllocations && bookingFeeAmount > 0"
+                    class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="booking-fee-allocation"
+                  >
+                    <p class="text-[#EAECF0]">{{ t("fan_booking_booking_fee_included") }}</p>
+                    <div class="flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ bookingFeeAmount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="false && usesComponentAllocations && cancellationFeeAmount > 0"
+                    class="flex items-center justify-between text-sm text-white"
+                    data-row-kind="cancellation-fee-allocation"
+                  >
+                    <p class="text-[#EAECF0]">{{ t("fan_booking_cancellation_fee_included") }}</p>
+                    <div class="flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ cancellationFeeAmount }}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    class="flex items-center justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"
+                    data-row-kind="current-total"
+                    data-testid="booking-flow-current-total-row"
+                  >
+                    <p>{{ t("fan_booking_current_total") }}</p>
+                    <div class="flex items-center gap-1">
+                      <img :src="bookingFlowTokenIcon" alt="token-icon" class="h-4 w-4" />
+                      <span>{{ totalPrice }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- /Previous Booking details -->
+
+              <!-- Booking Summary -->
+              <div
+                v-if="selectedDurationObj"
+                class="flex flex-col gap-4 md:mt-0 mt-5 px-3 md:px-5"
+                data-testid="booking-flow-step2-summary"
+              >
+                <h3 class="text-sm font-semibold leading-5 text-[#22CCEE]">
+                  {{ t("fan_booking_booking_summary") }}
+                </h3>
+                <div class="flex flex-col gap-3">
+                  <div class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3">
+                    <div
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-session"
+                    >
+                      <span class="text-base text-white">{{ bookingSummarySessionLabel }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(bookingSummarySessionCost) }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      v-for="(addon, index) in selectedAddons"
+                      :key="addon.id || index"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-addon"
+                      :data-addon-kind="addon.kind"
+                    >
+                      <span class="text-base text-white">{{ addon.name }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#EAECF0]">+</span>
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(addon.price) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="discountRows.length > 0 || offHourSurchargeAmount > 0"
+                    class="flex flex-col gap-3 border-b border-[#F2F4F7]/50 pb-3"
+                  >
+                    <div
+                      v-for="row in discountRows"
+                      :key="row.code"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-discount"
+                      :data-discount-code="row.code"
+                    >
+                      <span class="text-base text-white">{{ row.label }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#07F468]">-</span>
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#07F468]">
+                          {{ formatTokens(row.amount) }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="offHourSurchargeAmount > 0"
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-surcharge"
+                    >
+                      <span class="text-base text-white">{{ t("fan_booking_off_hour_surcharge") }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <span class="text-base font-medium text-[#EAECF0]">+</span>
+                        <div class="w-5 h-5 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-base font-medium text-[#EAECF0]">
+                          {{ formatTokens(offHourSurchargeAmount) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <div
+                      class="flex items-center justify-between"
+                      data-testid="booking-flow-step2-summary-subtotal"
+                    >
+                      <span class="text-lg font-medium text-white">{{ t("fan_booking_subtotal") }}</span>
+                      <div class="flex items-center gap-0.5">
+                        <div class="w-6 h-6 flex items-center justify-center">
+                          <img :src="bookingFlowTokenIcon" alt="token-icon" />
+                        </div>
+                        <p class="text-2xl font-medium text-white">{{ formatTokens(totalPrice) }}</p>
+                      </div>
+                    </div>
+                    <p class="text-sm italic text-[#EAECF0]">
+                      <span data-testid="booking-flow-step2-summary-hold-notice">
+                        {{ t("fan_booking_session_fee_hold_notice") }}
+                      </span>
+                      <span
+                        v-if="bookingFeeAmount > 0"
+                        data-testid="booking-flow-step2-summary-booking-fee-notice"
+                      >
+                        {{ " " }}{{ t("fan_booking_non_refundable_booking_fee_applied", { tokens: formatTokens(bookingFeeAmount) }) }}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <!-- /Booking Summary -->
               </template>
             </div>
 
@@ -2647,6 +2841,7 @@ before:backdrop-blur-none before:h-full backdrop-blur-sm overflow-hidden">
             <button
               :disabled="bottomActionDisabled"
               @click="goToNextStep"
+              data-testid="booking-flow-payment-summary-button"
             >
               <div
                 class="relative w-[14.625rem] p-[12px] md:rounded-bl-[0px] md:rounded-br-[0px] flex justify-center items-center gap-2 after:content-[''] after:absolute after:right-full after:top-0 after:w-0 after:h-0 after:border-t-[3.3125rem] after:border-t-transparent after:border-b-0"

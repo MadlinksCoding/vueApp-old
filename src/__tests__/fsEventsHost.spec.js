@@ -6,6 +6,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     vi.useFakeTimers();
     document.body.innerHTML = "";
     delete window.FSScheduledCallOverlay;
+    delete window.tokenManager;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
       text: () => Promise.resolve(""),
@@ -29,6 +30,76 @@ describe("fs-events-host openFanBookingPopup", () => {
     });
 
     expect(popup.iframe.src).toContain("fanId=0");
+  });
+
+  it("opens booking details in a right-side overlay and keeps booking data out of the iframe URL", () => {
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_secret_123",
+      creatorId: 1407,
+      userRole: "creator",
+      jwtToken: "jwt_secret",
+    });
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    popup.iframe.dispatchEvent(new Event("load"));
+
+    expect(popup.overlay.matches("[data-fs-booking-details-popup]")).toBe(true);
+    expect(popup.overlay.querySelector(".fs-booking-details-popup__panel")).not.toBeNull();
+    expect(popup.iframe.src).not.toContain("booking_secret_123");
+    expect(popup.iframe.src).not.toContain("jwt_secret");
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "FS_EVENTS_BOOTSTRAP",
+        payload: expect.objectContaining({
+          initialRoute: "booking-details",
+          bookingId: "booking_secret_123",
+          jwtToken: "jwt_secret",
+        }),
+      }),
+      window.location.origin,
+    );
+
+    popup.destroy();
+  });
+
+  it("closes only the booking-details overlay and restores focus", () => {
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_123",
+      creatorId: 1407,
+      returnFocusElement: trigger,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST", payload: {} },
+      origin: window.location.origin,
+    }));
+
+    expect(document.body.contains(popup.overlay)).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("notifies the host once after a booking mutation and removes the overlay", () => {
+    const onBookingUpdated = vi.fn();
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_123",
+      creatorId: 1407,
+      onBookingUpdated,
+    });
+    const payload = { bookingId: "booking_123", action: "approve" };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_EVENTS_BOOKING_DETAILS_UPDATED", payload },
+      origin: window.location.origin,
+    }));
+
+    expect(onBookingUpdated).toHaveBeenCalledTimes(1);
+    expect(onBookingUpdated).toHaveBeenCalledWith(payload);
+    expect(document.body.contains(popup.overlay)).toBe(false);
   });
 
   it("posts translations and locale in fan booking bootstrap without putting them in the iframe URL", () => {
@@ -330,6 +401,33 @@ describe("fs-events-host openFanBookingPopup", () => {
     );
   });
 
+  it("broadcasts auth updates to active events embeds and forgets destroyed embeds", () => {
+    const firstContainer = document.createElement("div");
+    const secondContainer = document.createElement("div");
+    document.body.append(firstContainer, secondContainer);
+    const first = window.FSEventsEmbed.mount(firstContainer, { creatorId: 1407 });
+    const second = window.FSEventsEmbed.mount(secondContainer, { creatorId: 1407 });
+    const firstPostMessage = vi.spyOn(first.iframe.contentWindow, "postMessage");
+    const secondPostMessage = vi.spyOn(second.iframe.contentWindow, "postMessage");
+
+    expect(window.FSEventsEmbed.updateAuth({ jwtToken: "jwt_fresh" })).toBe(2);
+    expect(firstPostMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, window.location.origin);
+    expect(secondPostMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_AUTH_UPDATE",
+      payload: { jwtToken: "jwt_fresh" },
+    }, window.location.origin);
+
+    first.destroy();
+    firstPostMessage.mockClear();
+    secondPostMessage.mockClear();
+    expect(window.FSEventsEmbed.updateAuth({ jwtToken: "jwt_newer" })).toBe(1);
+    expect(firstPostMessage).not.toHaveBeenCalled();
+    expect(secondPostMessage).toHaveBeenCalledOnce();
+  });
+
   it("hides the loading layer when the child-ready message arrives", () => {
     const popup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,
@@ -457,6 +555,96 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(document.body.contains(popup.overlay)).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.__FSFanBookingActivePopup).toBeNull();
+  });
+
+  it("queues token balance UI refreshes requested by the active booking iframe", async () => {
+    let releaseFirstRefresh;
+    const firstRefresh = new Promise((resolve) => {
+      releaseFirstRefresh = resolve;
+    });
+    const updateBalanceUIs = vi.fn()
+      .mockReturnValueOnce(firstRefresh)
+      .mockResolvedValueOnce(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "top-up" } },
+      origin: window.location.origin,
+    }));
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    releaseFirstRefresh();
+    for (let index = 0; index < 10; index += 1) {
+      await Promise.resolve();
+    }
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores balance refresh messages from outside the active booking iframe", async () => {
+    const updateBalanceUIs = vi.fn();
+    window.tokenManager = { updateBalanceUIs };
+    window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).not.toHaveBeenCalled();
+  });
+
+  it("contains token balance refresh failures", async () => {
+    const refreshError = new Error("refresh failed");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    window.tokenManager = { updateBalanceUIs: vi.fn().mockRejectedValue(refreshError) };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "booking" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[FSEventsEmbed] Failed to refresh token balance UIs",
+      refreshError,
+    );
+    consoleError.mockRestore();
+  });
+
+  it("contains balance refresh requests when the WordPress token manager is unavailable", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason: "top-up" } },
+      origin: window.location.origin,
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[FSEventsEmbed] tokenManager.updateBalanceUIs is unavailable",
+      { reason: "top-up" },
+    );
+    consoleWarn.mockRestore();
   });
 
   it("opens scheduled meeting URLs through the shared WordPress overlay", () => {

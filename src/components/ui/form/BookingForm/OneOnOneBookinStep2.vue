@@ -394,14 +394,6 @@ function editBaselineValue(field) {
   return getEditWarningValue(props.editBaseline, field);
 }
 
-function addOnStructureEditWarningMessages() {
-  if (!props.isEditMode || !hasEditWarningBaseline.value) return [];
-  const baseline = editBaselineValue("addOns");
-  return (Array.isArray(baseline) ? baseline.length : 0) !== formData.value.addOns.length
-    ? [t("booking_future_bookings_warning")]
-    : [];
-}
-
 const removeXPostSettingsHydrationListener = props.engine?.on?.(
   "x-post-settings:hydrated",
   ({ fields } = {}) => {
@@ -656,19 +648,33 @@ const xRepostPopupConfig = {
   customEffect: 'scale',
   speed: '200ms',
 };
-const editConfirmationPopupConfig = computed(() => ({
-  actionType: "popup",
-  position: "center",
-  width: { default: "504px", "<768": "90%" },
-  height: "auto",
-  showOverlay: true,
-  closeOnOutside: !isCreating.value,
-  escToClose: !isCreating.value,
-  lockScroll: true,
-  scrollable: false,
-  customEffect: "scale",
-  speed: "200ms",
-}));
+const editConfirmationPopupConfig = computed(() => {
+  const isMobile = window.innerWidth < 768;
+  return isMobile ? {
+    actionType: "slidein",
+    from: "bottom",
+    width: "100%",
+    height: "auto",
+    showOverlay: true,
+    closeOnOutside: !isCreating.value,
+    escToClose: !isCreating.value,
+    lockScroll: true,
+    scrollable: false,
+    speed: "200ms",
+  } : {
+    actionType: "popup",
+    position: "center",
+    width: "504px",
+    height: "auto",
+    showOverlay: true,
+    closeOnOutside: !isCreating.value,
+    escToClose: !isCreating.value,
+    lockScroll: true,
+    scrollable: false,
+    customEffect: "scale",
+    speed: "200ms",
+  };
+});
 
 const xRepostPopupCheckboxModel = computed({
   get() {
@@ -1928,11 +1934,6 @@ const createEvent = async () => {
                 <span>{{ t("booking_add_more_service") }}</span>
               </button>
             </div>
-            <ValidationInlineWarning
-              :messages="addOnStructureEditWarningMessages()"
-              purpose="edit-impact"
-              spacing-class="mt-0"
-            />
           </div>
         </div>
       </div>
@@ -2437,17 +2438,17 @@ const createEvent = async () => {
     :config="editConfirmationPopupConfig"
   >
     <div
-      class="w-[31.5rem] max-w-[calc(100vw-2rem)] border border-[#EAECF0] bg-white p-5 shadow-xl"
+      class="w-full md:w-[31.5rem] md:max-w-[calc(100vw-2rem)] max-[767px]:w-full max-[767px]:max-w-full rounded-t-[0.313rem] rounded-b-none md:rounded-b-[0.313rem] border border-[#EAECF0] bg-white p-4 shadow-xl flex flex-col gap-6"
       data-test="edit-submit-confirmation-dialog"
       role="document"
     >
-      <p class="text-xl font-semibold leading-8 text-slate-700">
+      <p class="text-base font-semibold text-slate-700">
         {{ t("booking_edit_confirmation_message") }}
       </p>
-      <div class="mt-8 flex gap-3">
+      <div class="flex gap-2">
         <button
           type="button"
-          class="h-[3.375rem] flex-1 border-2 border-[#63E96D] bg-white px-4 text-lg font-semibold text-black transition hover:bg-[#F4FFF5] disabled:cursor-not-allowed disabled:opacity-60"
+          class="py-2 flex-1 border-2 border-[#63E96D] bg-white px-4 text-base font-semibold text-[#0C111D] transition hover:bg-[#F4FFF5] disabled:cursor-not-allowed disabled:opacity-60"
           data-test="edit-submit-confirmation-back"
           :disabled="isCreating"
           @click="closeEditConfirmation"
@@ -2456,7 +2457,7 @@ const createEvent = async () => {
         </button>
         <button
           type="button"
-          class="flex h-[3.375rem] flex-1 items-center justify-center bg-[#63E96D] px-4 text-lg font-semibold text-black transition hover:bg-[#52D95D] disabled:cursor-not-allowed disabled:opacity-60"
+          class="py-2 flex-1 items-center justify-center bg-[#63E96D] px-4 text-base font-semibold text-[#0C111D] transition hover:bg-[#52D95D] disabled:cursor-not-allowed disabled:opacity-60"
           data-test="edit-submit-confirmation-save"
           :disabled="isCreating"
           @click="confirmEditChanges"

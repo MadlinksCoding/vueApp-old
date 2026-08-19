@@ -33,7 +33,7 @@ import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
 import { showToast } from "@/utils/toastBus.js";
-import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import { getCalendarEventJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import arrowPinkIcon from "@/assets/images/icons/arrow-up-right-pink.svg";
@@ -83,6 +83,11 @@ const DEFAULT_CREATOR_TIMEZONE = "Asia/Hong_Kong";
 const ACTIVE_BOOKING_LOCK_STATUSES = new Set(["pending", "pending_hold", "confirmed"]);
 const RESCHEDULE_FEE_SETTING_ENABLED = false;
 const X_POST_SETTINGS_LOAD_TIMEOUT_MS = 10_000;
+const showBookingDebugPanel = computed(() => (
+    import.meta.env.DEV
+    && String(import.meta.env.VITE_SHOW_BOOKING_DEBUG || "").trim().toLowerCase() === "true"
+    && !props.embedded
+));
 
 const isEditMode = computed(() => String(props.mode || route.query.mode || "").toLowerCase() === "edit");
 const resolvedEditEventId = computed(() => {
@@ -1495,7 +1500,7 @@ function resolveSchedulePreviewFocusDate(payload = {}, stateSnapshot = {}) {
 const previewDraftEvents = computed(() => {
     const stateSnapshot = bookingFlow.state || {};
     const repeatRule = String(stateSnapshot.repeatRule || "weekly");
-    const eventTitle = String(stateSnapshot.eventTitle || "").trim() || "New Event";
+    const eventTitle = String(stateSnapshot.eventTitle || "").trim() || t("booking_preview_new_event_title");
     const eventColor = normalizeHexColor(stateSnapshot.eventColorSkin, DEFAULT_EVENT_COLOR);
 
     const selectedDate = String(stateSnapshot.selectedDate || "").trim() || formatDateIso(state.focus);
@@ -2042,7 +2047,7 @@ async function confirmCancelBooking() {
     try {
         const result = await bookingFlow.callFlow(
             "bookings.cancelBooking",
-            { bookingId, actor: "creator", reason: "creator_cancelled_from_booking_form_calendar" },
+			{ bookingId, actor: "creator", intent: "normal", reason: "creator_cancelled_from_booking_form_calendar" },
             {
                 context: {
                     stateEngine: bookingFlow,
@@ -2074,28 +2079,11 @@ async function confirmCancelBooking() {
 
 function handleJoinCall(payload = {}) {
     const event = payload?.sourceEvent || payload?.event || payload;
-    const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-    const isGroup = String(event?.eventType || event?.type || raw?.eventType || raw?.type || "")
-        .toLowerCase()
-        .includes("group");
-    const joinState = getBookingJoinState({
-        bookingId: event?.bookingId || raw?.bookingId,
-        startAt: event?.start,
-        endAt: event?.end,
-        status: event?.status || raw?.status,
-        enableCallReminderMinutesBefore: raw?.enableCallReminderMinutesBefore,
-        callReminderMinutesBefore: raw?.callReminderMinutesBefore,
-        reminderMinutes: raw?.reminderMinutes,
-        extensions: raw?.extensions,
+    const joinState = getCalendarEventJoinState(event, {
+        viewerRole: "creator",
+        now: new Date(),
     });
-    const groupUrl = isGroup
-        ? buildScheduledGroupMeetingUrl({
-            eventId: getScheduleEventId(event),
-            startIso: event?.start || raw?.startIso || raw?.startAtIso,
-        })
-        : null;
-    const joinUrl = groupUrl || joinState.joinUrl;
-    if (!joinState.canJoin || !joinUrl) {
+    if (!joinState.canJoin || !joinState.joinUrl) {
         showToast({
             type: "error",
             title: t("dashboard_join_unavailable_title"),
@@ -2103,7 +2091,7 @@ function handleJoinCall(payload = {}) {
         });
         return;
     }
-    emit("open-url", { url: joinUrl, target: "_blank" });
+    emit("open-url", { url: joinState.joinUrl, target: "_blank" });
 }
 
 const onDebugSubmit = () => {
@@ -2403,7 +2391,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
     </component>
 
     <!-- Debug Section (as requested) -->
-    <div v-if="!embedded" class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
+    <div v-if="showBookingDebugPanel" data-test="booking-debug-state-manager" class="mt-8 p-6 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-700">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Debug / State Manager</h3>
         </div>
@@ -2444,7 +2432,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :aria-label="t('booking_unsaved_changes_title')"
         @click.self="resolvePendingUnsavedLeave(false)"
     >
-        <div class="w-full max-w-[30.75rem] max-h-[8.5rem] rounded-[0.313rem] bg-white p-4 shadow-[0px_4px_8px_0px_rgba(0,0,0,0.2),0px_6px_20px_0px_rgba(0,0,0,0.19)] backdrop-blur-[50px] flex flex-col gap-6">
+        <div class="w-full max-w-[30.75rem] max-h-[8.5rem] rounded-t-[0.313rem] rounded-b-none md:rounded-b-[0.313rem] bg-white p-4 shadow-[0px_4px_8px_0px_rgba(0,0,0,0.2),0px_6px_20px_0px_rgba(0,0,0,0.19)] backdrop-blur-[50px] flex flex-col gap-6">
             <div class="hidden text-base font-semibold leading-6 text-slate-900">
                 {{ t("booking_unsaved_changes_title") }}
             </div>

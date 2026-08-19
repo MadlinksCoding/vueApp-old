@@ -24,17 +24,21 @@
           embedded ? 'lg:overflow-y-auto' : 'overflow-y-auto'
         ]"
         variant="default"
-        :is-sticky-card-visible="isStickyCardVisible"
+        :sticky-card-events="stickyCardEvents"
+        :sticky-card-event="stickyCardEvent"
         :focus-date="state.focus"
         :selected-date="state.selected"
+        :initial-view="state.view"
         :events="events1"
         :events-data="eventsData"
+        :booked-slots-count="bookedSlotsCount"
         :booking-schedule-events="bookingScheduleEvents"
         :booking-schedule-booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
         :show-booking-schedule-list="isCreator && !dashboardEventsEngine.state.events.loading"
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
+        :join-comparison-time="currentTime"
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"
         :highlight-today-column="true"
@@ -45,7 +49,7 @@
         time-end="24:00"
         :slot-minutes="60"
         :row-height-px="120"
-        :min-event-height-px="0"
+        :min-event-height-px="40"
         @date-selected="onSelectFromMain"
         @update:focus-date="onFocusFromMain"
         @view-changed="onViewChanged"
@@ -70,8 +74,8 @@
               view === 'month'
                 ? 'hidden lg:flex text-xs leading-3 w-full shadow-sm'
                 : [
-                    'text-xs w-full overflow-hidden',
-                    isCalendarEventJoinable(event) ? 'min-h-[3rem]' : 'min-h-[2.5rem]'
+                    'flex h-full w-full flex-col justify-between overflow-hidden text-xs',
+                    isCalendarEventJoinable(event) ? 'min-h-[4rem]' : 'min-h-[2.5rem]'
                   ]
             ]"
             :style="[style, getCalendarEventStyle(event)]"
@@ -99,38 +103,75 @@
                   <span class="min-w-0 truncate">{{ event.title }}</span>
                 </div>
               </div>
-              <button
+              <div
                 v-if="view !== 'month' && isCalendarEventJoinable(event)"
-                type="button"
-                class="mx-1 flex h-[1.5rem] w-[calc(100%_-_0.5rem)] items-center justify-center gap-1 rounded-[0.25rem] bg-[#07F468] px-2 py-[0.1875rem] text-[#0C111D] outline-none transition-colors blink-border-effect"
-                data-test="dashboard-calendar-join-call"
-                :aria-label="t('common_join_call')"
-                @click.stop="handleJoin(event)"
+                class="flex min-w-0 w-full flex-col pb-1"
+                data-test="dashboard-calendar-join-area"
               >
-                <span class="h-4 w-4 shrink-0">
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="whitespace-nowrap text-[0.75rem] font-semibold leading-[1.125rem]">
-                  {{ t("common_join_call") }}
-                </span>
-              </button>
+                <div
+                  v-if="getCalendarBookingUrgencyText(event)"
+                  class="flex h-[0.875rem] w-full items-baseline justify-end gap-1 px-1 text-[0.625rem] leading-[0.875rem]"
+                  data-test="dashboard-calendar-booking-countdown-row"
+                >
+                  <IndicatorDot
+                    color="#FF4405"
+                    size="7"
+                    class="shrink-0"
+                    aria-hidden="true"
+                    data-test="dashboard-calendar-booking-countdown-indicator"
+                  />
+                  <span
+                    class="min-w-0 truncate"
+                    data-test="dashboard-calendar-booking-countdown"
+                  >{{ getCalendarBookingUrgencyText(event) }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="mx-1 flex h-[1.5rem] w-[calc(100%_-_0.5rem)] min-w-[5.25rem] items-center justify-center gap-1 rounded-[0.25rem] bg-[#07F468] px-2 py-[0.1875rem] text-[#0C111D] outline-none transition-colors blink-border-effect"
+                  data-test="dashboard-calendar-join-call"
+                  :aria-label="t('common_join_call')"
+                  @click.stop="handleJoin(event)"
+                >
+                  <span class="h-4 w-4 shrink-0">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.9998 1L8.66645 3.33333M8.66645 3.33333L10.9998 5.66667M8.66645 3.33333H13.9998M6.8178 8.24205C6.01675 7.44099 5.38422 6.53523 4.92022 5.56882C4.88031 5.48569 4.86036 5.44413 4.84503 5.39154C4.79054 5.20463 4.82968 4.97513 4.94302 4.81684C4.97491 4.7723 5.01302 4.7342 5.08923 4.65799C5.3223 4.42492 5.43883 4.30838 5.51502 4.1912C5.80235 3.74927 5.80235 3.17955 5.51502 2.73762C5.43883 2.62044 5.3223 2.5039 5.08923 2.27083L4.95931 2.14092C4.60502 1.78662 4.42787 1.60947 4.23762 1.51324C3.85924 1.32186 3.4124 1.32186 3.03402 1.51324C2.84377 1.60947 2.66662 1.78662 2.31233 2.14092L2.20724 2.24601C1.85416 2.59909 1.67762 2.77563 1.54278 3.01565C1.39317 3.28199 1.2856 3.69565 1.2865 4.00113C1.28732 4.27643 1.34073 4.46458 1.44753 4.84087C2.02151 6.86314 3.10449 8.77138 4.69648 10.3634C6.28847 11.9554 8.19671 13.0383 10.219 13.6123C10.5953 13.7191 10.7834 13.7725 11.0587 13.7733C11.3642 13.7743 11.7779 13.6667 12.0442 13.5171C12.2842 13.3822 12.4608 13.2057 12.8138 12.8526L12.9189 12.7475C13.2732 12.3932 13.4504 12.2161 13.5466 12.0258C13.738 11.6474 13.738 11.2006 13.5466 10.8222C13.4504 10.632 13.2732 10.4548 12.9189 10.1005L12.789 9.97062C12.5559 9.73755 12.4394 9.62101 12.3222 9.54482C11.8803 9.25749 11.3106 9.2575 10.8687 9.54482C10.7515 9.62102 10.6349 9.73755 10.4019 9.97062C10.3257 10.0468 10.2875 10.0849 10.243 10.1168C10.0847 10.2302 9.85521 10.2693 9.66831 10.2148C9.61572 10.1995 9.57415 10.1795 9.49103 10.1396C8.52461 9.67562 7.61885 9.0431 6.8178 8.24205Z" stroke="#0C111D" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <span class="whitespace-nowrap text-[0.75rem] font-semibold leading-[1.125rem]">
+                    {{ t("common_join_call") }}
+                  </span>
+                </button>
+              </div>
               <div
                 v-else
                 class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1"
                 data-test="dashboard-calendar-booking-time"
               >
-                <span
-                  class="shrink-0"
-                  data-test="dashboard-calendar-booking-status-icon"
-                  :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
-                >
-                  <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
-                </span>
-                <span class="min-w-0 truncate">
-                  {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
-                </span>
+                <template v-if="view === 'month' && getCalendarBookingUrgencyText(event)">
+                  <IndicatorDot
+                    color="#FF4405"
+                    size="7"
+                    class="shrink-0"
+                    aria-hidden="true"
+                    data-test="dashboard-calendar-booking-countdown-indicator"
+                  />
+                  <span
+                    class="min-w-0 truncate"
+                    data-test="dashboard-calendar-booking-countdown"
+                  >{{ getCalendarBookingUrgencyText(event) }}</span>
+                </template>
+                <template v-else>
+                  <span
+                    class="shrink-0"
+                    data-test="dashboard-calendar-booking-status-icon"
+                    :data-booking-status-icon="getBookedSlotIndicatorStatus(event)"
+                  >
+                    <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
+                  </span>
+                  <span class="min-w-0 truncate">
+                    {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
+                  </span>
+                </template>
               </div>
             </template>
           </div>
@@ -344,6 +385,7 @@
               @reply-click="handleReply"
               @event-click="handleMonthExpandedEventClick($event, onClick)"
               @menu-action="handleWidgetMenuAction"
+              @approve-booking="onApprovePendingBooking"
             />
           </div>
         </template>
@@ -454,7 +496,7 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto pb-[6.5rem] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div class="flex-1 overflow-y-auto pb-[6.5rem] px-3 -mx-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <BookingScheduleList
             v-if="isCreator && !dashboardEventsEngine.state.events.loading"
             :events="bookingScheduleEvents"
@@ -472,6 +514,7 @@
               @reply-click="handleReply"
               @event-click="handleWidgetEventClick"
               @menu-action="handleWidgetMenuAction"
+              @approve-booking="onApprovePendingBooking"
             />
           </div>
         </div>
@@ -479,8 +522,10 @@
 
       <div v-if="isCreator" :class="[
         'fixed right-2 md:right-5 z-[95] transition-all duration-300',
-        isStickyCardVisible ? 'bottom-[7rem] ipad-portrait-small:bottom-2 ipad-portrait-small:right-3 md:bottom-5' : 'bottom-2 md:bottom-5'
-      ]" ref="floatingPopupTrigger">
+        isStickyCardVisible ? 'bottom-[7rem]' : 'bottom-2',
+        'md:bottom-5',
+        hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:right-3' : ''
+      ]" :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }" ref="floatingPopupTrigger" data-test="dashboard-floating-create-event">
         <!-- For Tablet and Mobile-->
         <button
           class="bg-[#FB5BA2] p-3 rounded-full flex ipad-portrait:flex lg:hidden ipad-portrait-large:hidden items-center justify-center shadow-lg hover:scale-110 transition-transform h-14 w-14"
@@ -541,7 +586,7 @@
         <div class="mt-2 flex items-center justify-center gap-2">
           <button
             type="button"
-            class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50"
+            class="h-9 px-3 text-base font-medium leading-6 text-[#ff4405] hover:bg-gray-50 flex-1 md:flex-none"
             :disabled="cancelBookingLoading"
             @click="closeCancelBookingPopup"
           >
@@ -549,7 +594,7 @@
           </button>
           <button
             type="button"
-            class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60"
+            class="h-9 bg-[#ff4405] px-3 text-base font-medium leading-6 text-white hover:bg-[#ff692e] disabled:opacity-60 flex-1 md:flex-none"
             :disabled="cancelBookingLoading"
             @click="confirmCancelBooking"
           >
@@ -560,7 +605,7 @@
     </PopupHandler>
 
     <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
-      <div class="w-[32.875rem] max-w-[90vw] rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+      <div class="w-full md:w-[32.875rem] md:max-w-[90vw] rounded-t-[0.25rem] md:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
         <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
           {{ deleteEventConfirmTitle }}
         </h3>
@@ -704,6 +749,7 @@ import BookingScheduleList from "@/components/calendar/BookingScheduleList.vue";
 import BookingScheduleMenu from "@/components/calendar/BookingScheduleMenu.vue";
 import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
 import GroupCallIcon from "@/components/icons/GroupCallIcon.vue";
+import IndicatorDot from "@/components/icons/IndicatorDot.vue";
 import PendingStatus from "@/components/icons/PendingStatus.vue";
 import PhoneIcon from "@/components/icons/PhoneIcon.vue";
 import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
@@ -723,7 +769,10 @@ import {
 } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { mergeBookedSlotCollections } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 import { showToast } from "@/utils/toastBus.js";
-import { buildScheduledGroupMeetingUrl, getBookingJoinState } from "@/utils/bookingJoinUtils.js";
+import {
+  getCalendarEventApprovalState,
+  getCalendarEventJoinState,
+} from "@/utils/bookingJoinUtils.js";
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
@@ -800,8 +849,34 @@ const popupTrigger = ref(null);
 const floatingPopupTrigger = ref(null);
 const popupStyle = reactive({ top: "0px", left: "0px" });
 const isMounted = ref(false);
+const initialDashboardLoadComplete = ref(false);
+const pendingCalendarContextRefresh = ref(false);
 const currentTime = ref(new Date());
 const currentTimeTimer = ref(null);
+const MINUTE_MS = 60 * 1000;
+
+function clearCurrentTimeTimer() {
+  if (currentTimeTimer.value == null) return;
+  window.clearTimeout(currentTimeTimer.value);
+  currentTimeTimer.value = null;
+}
+
+function scheduleCurrentTimeRefresh() {
+  clearCurrentTimeTimer();
+  const nowMs = Date.now();
+  const delay = MINUTE_MS - (nowMs % MINUTE_MS);
+  currentTimeTimer.value = window.setTimeout(refreshCurrentTime, Math.max(1, delay));
+}
+
+function refreshCurrentTime() {
+  currentTime.value = new Date();
+  scheduleCurrentTimeRefresh();
+}
+
+function handleCurrentTimeVisibilityChange() {
+  if (document.visibilityState === "hidden") return;
+  refreshCurrentTime();
+}
 const calendarTooltip = reactive({
   visible: false,
   title: "",
@@ -811,8 +886,6 @@ const calendarTooltip = reactive({
   y: 0,
   placement: "bottom",
 });
-
-const isStickyCardVisible = ref(true); // Toggle this to show/hide the sticky bottom card and adjust spacing
 
 const calendarTooltipStyle = computed(() => ({
   left: `${calendarTooltip.x}px`,
@@ -930,10 +1003,16 @@ const deleteEventPopupConfig = {
   closeOnOutside: !deleteEventLoading.value,
 };
 
+const initialDashboardView = (
+  typeof window !== "undefined" && window.innerWidth < 1024
+) ? "day" : "week";
+const dashboardViewportWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const dashboardViewportHeight = ref(typeof window !== "undefined" ? window.innerHeight : 768);
+
 const state = reactive({
   focus: new Date(),
   selected: new Date(),
-  view: "week",
+  view: initialDashboardView,
 });
 
 const theme1 = computed(() => ({
@@ -945,8 +1024,8 @@ const theme1 = computed(() => ({
     expired: "opacity-40",
     today: "bg-[#101828] !font-semibold text-white",
     selected: "bg-[#101828] !font-semibold text-white",
-    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#101828]",
-    selectedDot: "!bg-white",
+    dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#ff4405]",
+    selectedDot: "!bg-[#ff4405]",
     pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
   },
   main: {
@@ -972,6 +1051,9 @@ const theme1 = computed(() => ({
 
 const DEFAULT_EVENT_COLOR = "#5549FF";
 const AVAILABILITY_TITLE_BOOKING_START_WINDOW_MS = 15 * 60 * 1000;
+const STARTING_SOON_WINDOW_MS = 5 * 60 * 1000;
+const BOOKING_MIN_HEIGHT_PX = 40;
+const JOINABLE_BOOKING_MIN_HEIGHT_PX = 64;
 const MAIN_CALENDAR_BOOKING_STATUSES = Object.freeze([
   "pending",
   "pending_hold",
@@ -1012,6 +1094,8 @@ const togglePopup = () => {
 };
 
 const handlePositionUpdate = () => {
+  dashboardViewportWidth.value = window.innerWidth;
+  dashboardViewportHeight.value = window.innerHeight;
   if (isCreatePopupOpen.value) updatePopupPosition();
   if (availabilityScheduleMenu.open) closeAvailabilityScheduleMenu();
   hideScheduleTitleTooltip();
@@ -1158,6 +1242,11 @@ function isPastPendingBookedCalendarEvent(event = {}, comparisonDate = currentTi
     && isPastBookedCalendarEvent(event, comparisonDate);
 }
 
+function isApprovalExpiredPendingCalendarEvent(event = {}, comparisonDate = currentTime.value) {
+  const approvalState = getCalendarEventApprovalState(event, { now: comparisonDate });
+  return approvalState.isPending && approvalState.approvalWindowClosed;
+}
+
 function isMidnightDateTime(value) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return false;
@@ -1185,7 +1274,10 @@ function getCalendarEventStyle(event) {
     };
   }
 
-  if (isPastBookedCalendarEvent(event)) {
+  if (
+    isPastBookedCalendarEvent(event)
+    || isApprovalExpiredPendingCalendarEvent(event)
+  ) {
     return {
       backgroundColor: "#D9DCE6",
       border: "1px solid #C8CDD8",
@@ -1501,55 +1593,42 @@ function makeAvatar(event) {
     const participantAvatars = participants
       .map((participant) => ({
         src: participant?.avatarUrl || DEFAULT_AVATAR_URL,
-        name: participant?.name || "User",
+        name: participant?.name || t("calendar_event_guest_fallback"),
       }))
       .slice(0, 4);
 
     if (participantAvatars.length > 0) return participantAvatars;
   }
 
-  return [{
-    src: event?.raw?.creatorAvatarUrl || DEFAULT_AVATAR_URL,
-    name: event?.raw?.creatorName || t("common_creator"),
-  }];
+  const profile = makeCounterpartProfile(event);
+  return [{ src: profile.avatar, name: profile.name }];
 }
 
-function firstDefined(...values) {
-  return values.find((value) => value !== undefined && value !== null);
-}
-
-function getJoinOptionsFromEvent(event = {}) {
+function makeCounterpartProfile(event = {}) {
   const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
-  const eventCurrent = raw.eventCurrent && typeof raw.eventCurrent === "object" ? raw.eventCurrent : {};
-  const eventSnapshot = raw.eventSnapshot && typeof raw.eventSnapshot === "object" ? raw.eventSnapshot : {};
+
+  if (isFan.value) {
+    return {
+      name: raw.creatorDisplayName
+        || raw.creatorName
+        || raw.creatorUsername
+        || t("common_creator"),
+      avatar: raw.creatorAvatarUrl
+        || raw.creatorAvatar
+        || DEFAULT_AVATAR_URL,
+    };
+  }
 
   return {
-    enableCallReminderMinutesBefore: firstDefined(
-      event.enableCallReminderMinutesBefore,
-      raw.enableCallReminderMinutesBefore,
-      eventSnapshot.enableCallReminderMinutesBefore,
-      eventCurrent.enableCallReminderMinutesBefore,
-      event.setReminders,
-      raw.setReminders,
-      eventSnapshot.setReminders,
-      eventCurrent.setReminders,
-    ),
-    callReminderMinutesBefore: firstDefined(
-      event.callReminderMinutesBefore,
-      raw.callReminderMinutesBefore,
-      raw.reminderMinutes,
-      eventSnapshot.callReminderMinutesBefore,
-      eventSnapshot.reminderMinutes,
-      eventCurrent.callReminderMinutesBefore,
-      eventCurrent.reminderMinutes,
-    ),
-    reminderMinutes: firstDefined(
-      raw.reminderMinutes,
-      event.reminderMinutes,
-      eventSnapshot.reminderMinutes,
-      eventCurrent.reminderMinutes,
-    ),
-    extensions: firstDefined(event.extensions, raw.extensions, []),
+    name: raw.userDisplayName
+      || raw.userName
+      || raw.userUsername
+      || raw.fanName
+      || t("calendar_event_guest_fallback"),
+    avatar: raw.userAvatarUrl
+      || raw.userAvatar
+      || raw.fanAvatarUrl
+      || DEFAULT_AVATAR_URL,
   };
 }
 
@@ -1569,30 +1648,11 @@ function getWidgetGroupText(event = {}) {
   return count > 0 ? `${base} (${count})` : base;
 }
 
-function resolveJoinStateForEvent(event = {}) {
-  const isGroup = isGroupCalendarEvent(event);
-  const bookingId = event?.bookingId || event?.raw?.bookingId || null;
-  const joinState = getBookingJoinState({
-    bookingId,
-    startAt: event?.start,
-    endAt: event?.end,
-    status: event?.status || event?.raw?.status || "",
-    now: currentTime.value,
-    ...getJoinOptionsFromEvent(event),
+function resolveJoinStateForEvent(event = {}, now = currentTime.value) {
+  return getCalendarEventJoinState(event, {
+    viewerRole: isCreator.value ? "creator" : "fan",
+    now,
   });
-
-  if (!isGroup || !isCreator.value) return joinState;
-
-  const creatorJoinUrl = buildScheduledGroupMeetingUrl({
-    eventId: event?.eventId || event?.raw?.eventId || null,
-    startIso: event?.start || event?.raw?.startIso || event?.raw?.startAtIso || null,
-  });
-
-  return {
-    ...joinState,
-    joinUrl: creatorJoinUrl || joinState.joinUrl,
-    canJoin: joinState.canJoin && Boolean(creatorJoinUrl || joinState.joinUrl),
-  };
 }
 
 function isCalendarEventJoinable(event = {}) {
@@ -1610,9 +1670,51 @@ function shouldShowJoinButtonForEvent(event = {}, joinState = {}, options = {}) 
   return Boolean(joinState.joinUrl || event?.bookingId || event?.raw?.bookingId);
 }
 
+function getStartingSoonCountdownText(startDate) {
+  if (!(startDate instanceof Date) || Number.isNaN(startDate.getTime())) return "";
+
+  const msToStart = startDate.getTime() - currentTime.value.getTime();
+  if (msToStart <= 0 || msToStart > STARTING_SOON_WINDOW_MS) return "";
+
+  const minutesToStart = Math.max(1, Math.ceil(msToStart / 60000));
+  return t("calendar_event_in_minutes", {
+    count: minutesToStart,
+    unit: t(minutesToStart === 1
+      ? "calendar_event_minute_short_one"
+      : "calendar_event_minute_short_other"),
+  });
+}
+
+function getCalendarBookingUrgencyText(event = {}) {
+  if (resolveBookingStatus(event) !== "confirmed") return "";
+
+  const startDate = asDate(event.start);
+  if (!startDate) return "";
+
+  const nowMs = currentTime.value.getTime();
+  if (nowMs >= startDate.getTime()) {
+    const joinState = resolveJoinStateForEvent(event);
+    const effectiveEndDate = asDate(joinState?.effectiveEndDate) || resolveEventEndDate(event);
+    if (effectiveEndDate && nowMs < effectiveEndDate.getTime()) {
+      return t("calendar_event_live_now");
+    }
+    return "";
+  }
+
+  return getStartingSoonCountdownText(startDate);
+}
+
 function getWidgetStatusInfo(event = {}, startDate = null, endDate = null, accentColor = null) {
   const status = String(event?.status || event?.raw?.status || "").toLowerCase();
-  const defaultText = event.status === "active" ? t("dashboard_status_active") : event.status;
+  const statusTranslationKeys = {
+    active: "dashboard_status_active",
+    approved: "calendar_event_status_confirmed",
+    completed: "calendar_event_status_completed",
+    confirmed: "calendar_event_status_confirmed",
+    pending: "calendar_event_status_pending",
+    pending_hold: "calendar_event_status_pending_hold",
+  };
+  const defaultText = statusTranslationKeys[status] ? t(statusTranslationKeys[status]) : event.status;
   const now = currentTime.value;
 
   if (status === "confirmed" && startDate instanceof Date && !Number.isNaN(startDate.getTime())) {
@@ -1626,11 +1728,10 @@ function getWidgetStatusInfo(event = {}, startDate = null, endDate = null, accen
       }
     }
 
-    const msToStart = startDate.getTime() - now.getTime();
-    if (msToStart > 0 && msToStart <= (5 * 60 * 1000)) {
-      const minutesToStart = Math.max(1, Math.ceil(msToStart / 60000));
+    const startingSoonText = getStartingSoonCountdownText(startDate);
+    if (startingSoonText) {
       return {
-        text: `in ${minutesToStart} mins`,
+        text: startingSoonText,
         color: accentColor,
       };
     }
@@ -1675,6 +1776,7 @@ function toWidgetItem(event, options = {}) {
       statusColor: statusInfo.color,
       showReply: options.showReply === true,
       avatars: makeAvatar(event),
+      profile: makeCounterpartProfile(event),
       sourceEvent: event,
       accentColor,
       isGroup,
@@ -1701,6 +1803,7 @@ function toWidgetItem(event, options = {}) {
     statusColor: statusInfo.color,
     showReply: options.showReply === true,
     avatars: makeAvatar(event),
+    profile: makeCounterpartProfile(event),
     sourceEvent: event,
     accentColor,
   };
@@ -1854,6 +1957,7 @@ const rebuildAvailabilityForFocusDate = () => {
 };
 
 let dashboardFetchGeneration = 0;
+let lastLoadedCalendarRangeKey = null;
 
 const fetchDashboardContext = async (
   forceRefresh = false,
@@ -1925,8 +2029,7 @@ const fetchDashboardContext = async (
     const fetchedWidgetBookedSlotsRaw = Array.isArray(result?.data?.widgetBookedSlots)
       ? result.data.widgetBookedSlots
       : null;
-    const widgetBookedSlotsRaw = fetchedWidgetBookedSlotsRaw
-      || (refreshWidgets ? bookedSlotsRaw : null);
+    const widgetBookedSlotsRaw = fetchedWidgetBookedSlotsRaw;
     const effectiveWidgetBookedSlotsRaw = widgetBookedSlotsRaw
       || (Array.isArray(previousWidgetBookedSlotsRaw) ? previousWidgetBookedSlotsRaw : []);
     const combinedBookedSlotsRaw = mergeBookedSlotCollections(bookedSlotsRaw, effectiveWidgetBookedSlotsRaw);
@@ -1971,6 +2074,7 @@ const fetchDashboardContext = async (
       );
     }
     dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
+    lastLoadedCalendarRangeKey = visibleRange.key;
   }
 
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
@@ -1990,6 +2094,36 @@ const fetchDashboardContext = async (
   }
 };
 
+const requestCalendarContextRefresh = async () => {
+  if (!hasDashboardContext.value) return;
+
+  if (!initialDashboardLoadComplete.value) {
+    pendingCalendarContextRefresh.value = true;
+    return;
+  }
+
+  await fetchDashboardContext(false, { refreshWidgets: false });
+};
+
+const loadInitialDashboardContext = async ({ scrollToCurrentTime = false } = {}) => {
+  try {
+    await fetchDashboardContext(true, { scrollToCurrentTime });
+  } finally {
+    initialDashboardLoadComplete.value = true;
+
+    if (!pendingCalendarContextRefresh.value || !hasDashboardContext.value) return;
+    pendingCalendarContextRefresh.value = false;
+
+    const currentRange = resolveVisibleBookedSlotRange({
+      focusDate: state.focus,
+      view: state.view,
+    });
+    if (currentRange.key !== lastLoadedCalendarRangeKey) {
+      await fetchDashboardContext(false, { refreshWidgets: false });
+    }
+  }
+};
+
 const resolveBookingIdFromPayload = (payload) => {
   const id = payload?.bookingId || payload?.event?.bookingId || payload?.event?.raw?.bookingId || null;
   return id ? String(id) : null;
@@ -1997,6 +2131,7 @@ const resolveBookingIdFromPayload = (payload) => {
 
 const reviewPendingBooking = async (payload, decision) => {
   if (!isCreator.value) return;
+	if (isSettlementPendingEvent(payload?.event || payload)) return;
   const bookingId = resolveBookingIdFromPayload(payload);
   if (!bookingId) {
     showToast({
@@ -2008,6 +2143,21 @@ const reviewPendingBooking = async (payload, decision) => {
   }
 
   if (reviewPendingLoading.value) return;
+
+  const freshApprovalState = getCalendarEventApprovalState(payload?.event || payload, {
+    now: new Date(),
+  });
+  if (freshApprovalState.isPending && !freshApprovalState.canReview) {
+    refreshCurrentTime();
+    showToast({
+      type: "error",
+      title: t("dashboard_approval_window_closed_title"),
+      message: t("dashboard_approval_window_closed_message"),
+    });
+    await fetchDashboardContext(true);
+    return;
+  }
+
   reviewPendingLoading.value = true;
 
   const actionLabel = decision === "approve" ? "approved" : "rejected";
@@ -2031,6 +2181,25 @@ const reviewPendingBooking = async (payload, decision) => {
     );
 
     if (!result?.ok) {
+      const approvalWindowClosed = [
+        result?.error?.code,
+        result?.error?.message,
+        result?.error?.details?.error,
+        result?.error?.details?.code,
+        result?.meta?.error,
+      ].some((value) => String(value || "").trim().toLowerCase() === "approval_window_closed");
+
+      if (approvalWindowClosed) {
+        refreshCurrentTime();
+        showToast({
+          type: "error",
+          title: t("dashboard_approval_window_closed_title"),
+          message: t("dashboard_approval_window_closed_message"),
+        });
+        await fetchDashboardContext(true);
+        return;
+      }
+
       const message = result?.meta?.uiErrors?.[0]
         || result?.error?.message
         || t("dashboard_booking_action_update_failed");
@@ -2291,6 +2460,7 @@ const confirmDeleteEvent = async () => {
       type: "success",
       title: t("dashboard_delete_booking_schedule_success_title"),
       message: t("dashboard_delete_booking_schedule_success_message"),
+      autoClose: false,
     });
     deleteEventPopupOpen.value = false;
     deleteEventCandidate.value = null;
@@ -2348,12 +2518,20 @@ const getCancellationEventSources = (event = {}) => {
   ].filter((source) => source && typeof source === "object");
 };
 
+const isSettlementPendingEvent = (event = {}) => getCancellationEventSources(event).some((source) => (
+  String(source?.paymentStatus || source?.paymentSettlement?.status || "").trim().toLowerCase() === "settlement_pending"
+));
+
 const getPaymentSources = (event = {}) => {
   const raw = event?.raw && typeof event.raw === "object" ? event.raw : {};
   return [raw.payment, event.payment].filter((payment) => payment && typeof payment === "object");
 };
 
 const hasBookingFeeForCancelEvent = (event = {}) => {
+  const hasBookingFeeAllocation = getPaymentSources(event).some((payment) => (
+    toPositiveNumber(payment?.allocations?.bookingFee) > 0
+  ));
+  if (hasBookingFeeAllocation) return true;
   const hasBookingFeeLine = getPaymentSources(event).some((payment) => (
     Array.isArray(payment.lines)
     && payment.lines.some((line) => {
@@ -2406,8 +2584,12 @@ const isInsideAdvanceCancelWindow = (event = {}) => {
 const getCancellationFeeTokensForCancelEvent = (event = {}) => {
   const sources = getCancellationEventSources(event);
   const cancellationFeeEnabled = toBoolean(firstDefinedFromSources(sources, ["enableCancellationFee"]));
-  const cancellationFeeTokens = toPositiveNumber(firstDefinedFromSources(sources, ["cancellationFeeTokens", "cancellationFee"]));
-  if (!cancellationFeeEnabled || cancellationFeeTokens <= 0) return 0;
+  const allocatedCancellationFee = getPaymentSources(event).reduce((amount, payment) => (
+    amount || toPositiveNumber(payment?.allocations?.cancellationFee)
+  ), 0);
+  const cancellationFeeTokens = allocatedCancellationFee
+    || toPositiveNumber(firstDefinedFromSources(sources, ["cancellationFeeTokens", "cancellationFee"]));
+  if ((!cancellationFeeEnabled && allocatedCancellationFee <= 0) || cancellationFeeTokens <= 0) return 0;
 
   const status = String(event?.status || event?.raw?.status || "").trim().toLowerCase();
   if (status !== "confirmed") return 0;
@@ -2475,11 +2657,96 @@ const calendarEvents = computed(() => {
   });
 });
 
+const stickyCardCandidates = computed(() => {
+  const seen = new Set();
+  return [...allEvents.value, ...calendarEvents.value]
+    .filter((candidate) => (
+      !isCancelledOrDeclinedBooking(candidate)
+      && hasNotEnded(candidate, currentTime.value)
+    ))
+    .filter((candidate) => {
+      const key = String(
+        candidate?.bookingId
+          || candidate?.raw?.bookingId
+          || candidate?.id
+          || `${candidate?.eventId || candidate?.raw?.eventId || "event"}-${candidate?.start || "start"}`,
+      );
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((left, right) => {
+      const leftStart = asDate(left?.start)?.getTime() || 0;
+      const rightStart = asDate(right?.start)?.getTime() || 0;
+      return leftStart - rightStart;
+    });
+});
+
+const stickyCardEvents = computed(() => {
+  const nowMs = currentTime.value.getTime();
+  const confirmedItems = [];
+  const pendingItems = [];
+
+  stickyCardCandidates.value.forEach((candidate) => {
+    const status = resolveBookingStatus(candidate);
+
+    if (status === "confirmed") {
+      const startDate = asDate(candidate?.start);
+      if (!startDate) return;
+
+      const msToStart = startDate.getTime() - nowMs;
+      if (msToStart > STARTING_SOON_WINDOW_MS) return;
+
+      const joinState = resolveJoinStateForEvent(candidate);
+      if (!joinState.canJoin || !joinState.joinUrl) return;
+
+      confirmedItems.push(toWidgetItem(candidate, { layout: "today" }));
+      return;
+    }
+
+    if (isCreator.value && PENDING_BOOKING_STATUSES.has(status)) {
+      if (!getCalendarEventApprovalState(candidate, { now: currentTime.value }).canReview) return;
+      pendingItems.push(toWidgetItem(candidate, { layout: "today", showReply: true }));
+    }
+  });
+
+  return [...confirmedItems, ...pendingItems].slice(0, 3);
+});
+
+const stickyCardEvent = computed(() => stickyCardEvents.value.find((item) => (
+  resolveBookingStatus(item?.sourceEvent || item) === "confirmed"
+)) || null);
+const isStickyCardVisible = computed(() => Boolean(stickyCardEvent.value));
+const hasTabletStickyCards = computed(() => stickyCardEvents.value.length > 0);
+const isTabletPortraitViewport = computed(() => (
+  dashboardViewportWidth.value >= 678
+  && dashboardViewportWidth.value <= 1366
+  && dashboardViewportHeight.value >= dashboardViewportWidth.value
+));
+const hasVisibleTabletStickyCards = computed(() => (
+  isTabletPortraitViewport.value && hasTabletStickyCards.value
+));
+const tabletStickyCardBottom = computed(() => {
+  const cardCount = hasVisibleTabletStickyCards.value
+    ? stickyCardEvents.value.length
+    : 0;
+  return cardCount > 0
+    ? `${8.25 + (cardCount - 1) * 7}rem`
+    : "0.5rem";
+});
+
 const events1 = computed(() => {
   const now = currentTime.value;
-  return calendarEvents.value.filter((event) => (
-    !props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now)
-  ));
+  return calendarEvents.value
+    .filter((event) => (
+      !props.filterPastPendingBookings || !isPastPendingBookedCalendarEvent(event, now)
+    ))
+    .map((event) => ({
+      ...event,
+      layoutMinHeightPx: isCalendarEventJoinable(event)
+        ? JOINABLE_BOOKING_MIN_HEIGHT_PX
+        : BOOKING_MIN_HEIGHT_PX,
+    }));
 });
 const miniEvents = computed(() => {
   const combined = [
@@ -2498,33 +2765,6 @@ const miniEvents = computed(() => {
 });
 
 const eventsData = computed(() => {
-  const focus = state.focus || new Date();
-  
-  if (state.view === "day") {
-    const yesterday = addDays(focus, -1);
-    const tomorrow = addDays(focus, 1);
-
-    const filterByDay = (date) => allEvents.value.filter(ev => sameDay(asDate(ev.start), date));
-
-    const yesterdaySections = buildExpandedMonthSections(filterByDay(yesterday), yesterday);
-    const todaySections = buildExpandedMonthSections(filterByDay(focus), focus);
-    const tomorrowSections = buildExpandedMonthSections(filterByDay(tomorrow), tomorrow);
-
-    const pendingItems = allEvents.value
-      .filter(event => {
-        const status = String(event.status || "").toLowerCase();
-        return status === "pending" || status === "pending_hold";
-      })
-      .map(event => toWidgetItem(event, { showReply: true }));
-
-    return [
-      ...yesterdaySections,
-      ...todaySections,
-      ...tomorrowSections,
-      { title: t("dashboard_pending_events"), items: pendingItems },
-    ];
-  }
-
   const now = currentTime.value;
 
   const todayItems = [];
@@ -2537,9 +2777,12 @@ const eventsData = computed(() => {
 
     const status = String(event.status || "").toLowerCase();
     if (status === "pending" || status === "pending_hold") {
+      if (!getCalendarEventApprovalState(event, { now }).canReview) return;
       pendingItems.push(toWidgetItem(event, { showReply: true }));
       return;
     }
+
+    if (status !== "confirmed") return;
 
     if (sameDay(startDate, now)) {
       todayItems.push(toWidgetItem(event, { layout: "today" }));
@@ -2551,16 +2794,64 @@ const eventsData = computed(() => {
     }
   });
 
-  return [
-    { title: t("dashboard_today_section"), items: todayItems },
-    { title: t("dashboard_week_section"), items: weekItems },
-    { title: t("dashboard_pending_events"), items: pendingItems },
-  ];
+  const pendingSection = {
+    title: t("dashboard_pending_events"),
+    items: pendingItems,
+    isPending: true,
+  };
+  const todaySection = {
+    title: t("dashboard_today_section"),
+    items: todayItems,
+    isPending: false,
+  };
+  const weekSection = {
+    title: t("dashboard_week_section"),
+    items: weekItems,
+    isPending: false,
+  };
+  const hasJoinableTodayItem = todayItems.some((item) => (
+    item?.canJoin === true && Boolean(item?.joinUrl)
+  ));
+
+  return hasJoinableTodayItem
+    ? [todaySection, pendingSection, weekSection]
+    : [pendingSection, todaySection, weekSection];
+});
+
+const bookedSlotsCount = computed(() => {
+  const countableStatuses = new Set(["confirmed", "pending", "pending_hold"]);
+  const seen = new Set();
+
+  return eventsData.value.reduce((total, section, sectionIndex) => (
+    total + (section?.items || []).reduce((sectionTotal, item, itemIndex) => {
+      const sourceEvent = item?.sourceEvent || item?.event || item || {};
+      if (!countableStatuses.has(resolveBookingStatus(sourceEvent))) return sectionTotal;
+
+      const raw = sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+      const key = String(
+        sourceEvent?.bookingId
+          || raw.bookingId
+          || item?.bookingId
+          || sourceEvent?.id
+          || `${sourceEvent?.eventId || item?.eventId || "event"}:${sourceEvent?.start || item?.time || sectionIndex}:${itemIndex}`,
+      );
+      if (seen.has(key)) return sectionTotal;
+
+      seen.add(key);
+      return sectionTotal + 1;
+    }, 0)
+  ), 0);
 });
 
 const buildExpandedMonthSections = (events = [], day = null) => {
   const now = currentTime.value;
-  const items = events.filter((event) => hasNotEnded(event, now)).map((event) => {
+  const items = events.filter((event) => (
+    hasNotEnded(event, now)
+    && (
+      !PENDING_BOOKING_STATUSES.has(resolveBookingStatus(event))
+      || getCalendarEventApprovalState(event, { now }).canReview
+    )
+  )).map((event) => {
     const status = String(event?.status || "").toLowerCase();
     return toWidgetItem(event, {
       layout: "today",
@@ -2572,19 +2863,19 @@ const buildExpandedMonthSections = (events = [], day = null) => {
     ? sectionDate.toLocaleDateString(locale.value, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()
     : t("dashboard_today_section");
 
-  return [{ title, items }];
+  return [{ title, items, isPending: false }];
 };
 
 const onSelectFromMini = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
-  fetchDashboardContext(false, { refreshWidgets: false });
+  requestCalendarContextRefresh();
 };
 
 const onSelectFromMain = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
-  fetchDashboardContext(false, { refreshWidgets: false });
+  requestCalendarContextRefresh();
 };
 
 const onFocusFromMain = (date) => {
@@ -2592,7 +2883,7 @@ const onFocusFromMain = (date) => {
   if (!nextFocus || sameDay(nextFocus, state.focus)) return;
 
   state.focus = nextFocus;
-  fetchDashboardContext(false, { refreshWidgets: false });
+  requestCalendarContextRefresh();
 };
 
 const onViewChanged = (view) => {
@@ -2608,7 +2899,7 @@ const onCalendarEventClick = (event) => {
 
 const handleJoin = (item) => {
   const sourceEvent = item?.sourceEvent || item?.event || item || null;
-  const joinState = resolveJoinStateForEvent(sourceEvent);
+  const joinState = resolveJoinStateForEvent(sourceEvent, new Date());
 
   if (!joinState.canJoin || !joinState.joinUrl) {
     showToast({
@@ -2649,6 +2940,7 @@ const handleWidgetMenuAction = (payload) => {
   const event = payload?.event?.sourceEvent || payload?.event || null;
 
   if (action === "cancel_call") {
+	if (isSettlementPendingEvent(event)) return;
     const bookingId = resolveBookingIdFromPayload({ event });
     if (!bookingId) {
       showToast({
@@ -2675,6 +2967,7 @@ const handleWidgetMenuAction = (payload) => {
 const onCancelBookingFromCalendar = (payload) => {
   const bookingId = resolveBookingIdFromPayload(payload || {});
   const event = payload?.event || null;
+	if (isSettlementPendingEvent(event)) return;
   if (!bookingId) {
     showToast({
       type: "error",
@@ -2695,11 +2988,13 @@ const confirmCancelBooking = async () => {
     ? {
         bookingId,
         actor: "fan",
+		intent: "normal",
         reason: "fan_cancelled_from_events_widget",
       }
     : {
         bookingId,
         actor: "creator",
+		intent: "normal",
         reason: "creator_cancelled_from_events_widget",
       };
 
@@ -2743,21 +3038,21 @@ const confirmCancelBooking = async () => {
 
 onMounted(() => {
   isMounted.value = true;
-  currentTime.value = new Date();
-  currentTimeTimer.value = window.setInterval(() => {
-    currentTime.value = new Date();
-  }, 60 * 1000);
+  refreshCurrentTime();
   dashboardEventsEngine.initialize({ fromUrl: false });
 
   window.addEventListener("resize", handlePositionUpdate);
   window.addEventListener("scroll", handlePositionUpdate, true);
+  window.addEventListener("focus", refreshCurrentTime);
+  document.addEventListener("visibilitychange", handleCurrentTimeVisibilityChange);
   document.addEventListener("click", handleClickOutside);
   document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
 
   if (hasDashboardContext.value) {
-    fetchDashboardContext(true, { scrollToCurrentTime: true });
+    loadInitialDashboardContext({ scrollToCurrentTime: true });
   } else {
+    initialDashboardLoadComplete.value = true;
     resetEventsState();
   }
 
@@ -2822,20 +3117,17 @@ watch(() => state.view, async (nextView, previousView) => {
   }
 
   if (isMounted.value && hasDashboardContext.value) {
-    await fetchDashboardContext(false, {
-      refreshWidgets: false,
-    });
+    await requestCalendarContextRefresh();
   }
 });
 
 onUnmounted(() => {
   hideScheduleTitleTooltip();
-  if (currentTimeTimer.value) {
-    window.clearInterval(currentTimeTimer.value);
-    currentTimeTimer.value = null;
-  }
+  clearCurrentTimeTimer();
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
+  window.removeEventListener("focus", refreshCurrentTime);
+  document.removeEventListener("visibilitychange", handleCurrentTimeVisibilityChange);
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("keydown", handleDocumentKeydown);
   document.removeEventListener("calendar:event-click", onCalendarEventClick);

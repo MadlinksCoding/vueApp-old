@@ -8,6 +8,8 @@ function normalizeToast(input) {
       title: "Notice",
       duration: 4500,
       autoClose: true,
+      action: null,
+      dedupeKey: "",
     };
   }
 
@@ -19,6 +21,8 @@ function normalizeToast(input) {
     title: input?.title || "Notice",
     duration: Number.isFinite(Number(input?.duration)) ? Number(input.duration) : 4500,
     autoClose,
+    action: input?.action && typeof input.action === "object" ? { ...input.action } : null,
+    dedupeKey: typeof input?.dedupeKey === "string" ? input.dedupeKey.trim() : "",
   };
 }
 
