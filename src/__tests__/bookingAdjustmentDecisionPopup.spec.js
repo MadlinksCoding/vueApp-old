@@ -29,6 +29,44 @@ function mountDecision(props = {}) {
 }
 
 describe('BookingAdjustmentDecisionPopup', () => {
+  it('renders creator rejection as a full-session refund confirmation', async () => {
+    const wrapper = mountDecision({
+      mode: 'reject',
+      actorRole: 'creator',
+      fanUsername: 'grapegatsby',
+      sessionRefundTokens: 335,
+      netRefundTokens: 335,
+    });
+    const primary = wrapper.get('[data-test="booking-adjustment-decision-primary"]');
+
+    expect(wrapper.get('[data-test="booking-adjustment-decision-popup"]').attributes('data-mode')).toBe('reject');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('Cows of Lantau');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('@grapegatsby');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('Full Session Cost');
+    expect(wrapper.find('[data-test="booking-adjustment-decision-prices"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-adjustment-balance-card"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-adjustment-creator-session-refund"]').text()).toBe('335');
+    expect(wrapper.get('[data-test="booking-adjustment-creator-total-refund"]').text()).toBe('335');
+    expect(primary.classes()).toContain('bg-[#FF4405]');
+    expect(primary.text()).toBe('Cancel & Refund @grapegatsby');
+
+    await primary.trigger('click');
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'reject', requiresTopup: false, shortfallTokens: 0 });
+  });
+
+  it('does not expose a generic User #ID as the fan username', () => {
+    const wrapper = mountDecision({
+      mode: 'reject',
+      actorRole: 'creator',
+      fanUsername: 'User #25',
+      sessionRefundTokens: 335,
+      netRefundTokens: 335,
+    });
+
+    expect(wrapper.text()).not.toContain('User #25');
+    expect(wrapper.text()).toContain('@fan');
+  });
+
   it('renders a price decrease with refund and projected balance', async () => {
     const wrapper = mountDecision({ originalTokens: 1335, proposedTokens: 1000 });
 
@@ -175,6 +213,27 @@ describe('BookingAdjustmentDecisionPopup', () => {
     const processing = mountDecision({ processing: true });
     await processing.get('[data-test="booking-adjustment-decision-close"]').trigger('click');
     expect(processing.emitted('close')).toBeUndefined();
+  });
+
+  it('renders the creator refund-only cancellation presentation', async () => {
+    const wrapper = mountDecision({
+      mode: 'cancel',
+      actorRole: 'creator',
+      fanUsername: 'grapegatsby',
+      sessionRefundTokens: 335,
+      netRefundTokens: 335,
+      walletBalance: null,
+    });
+
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('Cows of Lantau');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('@grapegatsby');
+    expect(wrapper.find('[data-test="booking-adjustment-balance-card"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-adjustment-creator-session-refund"]').text()).toBe('335');
+    expect(wrapper.get('[data-test="booking-adjustment-creator-total-refund"]').text()).toBe('335');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-primary"]').text()).toBe('Cancel & Refund @grapegatsby');
+
+    await wrapper.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0 });
   });
 
   it('preserves the reference popup structure, assets, and responsive configuration', () => {

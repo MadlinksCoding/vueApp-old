@@ -54,30 +54,22 @@ vi.mock("@/i18n/bookingTranslations.js", () => ({
 
 vi.mock("@/utils/toastBus.js", () => ({ showToast: vi.fn() }));
 
-const CalendarDetailsStub = {
-  name: "CalendarEventDetailsPopup",
-  props: ["event", "booking", "userRole", "canReviewPending", "presentation"],
-  emits: ["approve-booking", "reject-booking", "cancel-booking", "close", "join-call", "open-chat", "adjust-booking"],
-  template: "<div data-test='calendar-details-stub' />",
-};
-
 const FanDetailsStub = {
-  name: "EventDetailsFan",
-  props: ["event", "booking", "presentation", "actionLoading"],
-  emits: ["cancel-booking", "close", "join-call", "open-chat", "accept-adjustment", "decline-adjustment"],
+  name: "BookingDetailsPopup",
+  props: ["event", "booking", "presentation", "actionLoading", "userRole", "canReviewPending"],
+  emits: ["cancel-booking", "close", "join-call", "open-chat", "accept-adjustment", "decline-adjustment", "approve-booking", "reject-booking", "adjust-booking", "decision-visibility"],
   template: "<div data-test='fan-details-stub' />",
 };
 
 const AdjustmentDecisionStub = {
   name: "BookingAdjustmentDecisionPopup",
-  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "creatorUsername", "creatorName", "eventTitle", "balanceLoading", "balanceError", "processing"],
+  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "creatorUsername", "creatorName", "eventTitle", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
   emits: ["update:modelValue", "confirm", "retry-balance", "close"],
   template: "<div v-if='modelValue' data-test='adjustment-decision-stub' />",
 };
 
 const pageStubs = {
-  CalendarEventDetailsPopup: CalendarDetailsStub,
-  EventDetailsFan: FanDetailsStub,
+  BookingDetailsPopup: FanDetailsStub,
   BookingAdjustmentDecisionPopup: AdjustmentDecisionStub,
   ToastHost: true,
 };
@@ -135,7 +127,6 @@ describe("EventsEmbedBookingDetailsPage", () => {
     await flushPromises();
 
     expect(wrapper.findComponent(FanDetailsStub).exists()).toBe(false);
-    expect(wrapper.findComponent(CalendarDetailsStub).exists()).toBe(false);
     const decision = wrapper.getComponent(AdjustmentDecisionStub);
     expect(decision.props("modelValue")).toBe(true);
     expect(decision.props("mode")).toBe("cancel");
@@ -160,7 +151,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
       { bookingId: "booking_123" },
       expect.objectContaining({ apiBaseUrl: "https://api.example.test" }),
     );
-    const details = wrapper.getComponent(CalendarDetailsStub);
+    const details = wrapper.getComponent(FanDetailsStub);
     expect(details.props("presentation")).toBe("side-panel");
     expect(details.props("event")).toEqual(expect.objectContaining({
       bookingId: "booking_123",
@@ -180,7 +171,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     await flushPromises();
     mocks.flowRun.mockResolvedValueOnce({ ok: true, data: { item: { status: "confirmed" } } });
 
-    wrapper.getComponent(CalendarDetailsStub).vm.$emit("approve-booking", { bookingId: "booking_123" });
+    wrapper.getComponent(FanDetailsStub).vm.$emit("approve-booking", { bookingId: "booking_123" });
     await flushPromises();
 
     expect(mocks.flowRun).toHaveBeenLastCalledWith(
@@ -192,6 +183,21 @@ describe("EventsEmbedBookingDetailsPage", () => {
       bookingId: "booking_123",
       action: "approve",
     }));
+  });
+
+  it("forwards the embedded reject decision visibility to the WordPress host", async () => {
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    const details = wrapper.getComponent(FanDetailsStub);
+    details.vm.$emit("decision-visibility", true);
+    await flushPromises();
+    expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(true);
+
+    details.vm.$emit("decision-visibility", false);
+    await flushPromises();
+    expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(false);
   });
 
   it("renders an error state and leaves the panel open when fetch fails", async () => {
@@ -309,7 +315,10 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.profileFetch).not.toHaveBeenCalled();
     expect(mocks.flowRun).not.toHaveBeenCalledWith("bookings.cancelBooking", expect.anything(), expect.anything());
 
-    mocks.flowRun.mockResolvedValueOnce({ ok: true, data: { item: { status: "cancelled" } } });
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: { item: { status: "cancelled", paymentStatus: "partial_refunded" } },
+    });
     decision.vm.$emit("confirm", { mode: "cancel", requiresTopup: false, shortfallTokens: 0 });
     await flushPromises();
 
@@ -326,6 +335,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
         creatorUsername: "creator_direct",
         startAtIso: "2027-08-14T10:00:00Z",
         endAtIso: "2027-08-14T10:10:00Z",
+        refundState: "partial",
       }),
     }));
     expect(decision.props("modelValue")).toBe(false);
@@ -345,6 +355,37 @@ describe("EventsEmbedBookingDetailsPage", () => {
     await flushPromises();
 
     expect(wrapper.getComponent(AdjustmentDecisionStub).props("creatorUsername")).toBe("fetched_creator");
+  });
+
+  it("replaces a generic User #ID fan label with the profile username", async () => {
+    mocks.profileFetch.mockResolvedValue({ username: "fetched_fan" });
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_123",
+          eventId: "event_123",
+          creatorId: 1407,
+          userId: 25,
+          username: "User #25",
+          eventTitle: "Validation call",
+          status: "confirmed",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+          payment: { total: 100 },
+          meta: {},
+        },
+      },
+    });
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    expect(mocks.profileFetch).toHaveBeenCalledWith(25, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    wrapper.getComponent(FanDetailsStub).vm.$emit("cancel-booking", { bookingId: "booking_123" });
+    await flushPromises();
+
+    expect(wrapper.getComponent(AdjustmentDecisionStub).props("fanUsername")).toBe("fetched_fan");
   });
 
   it("falls back to the stored creator display name when username lookup fails", async () => {
@@ -401,16 +442,20 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.notifyUpdated).not.toHaveBeenCalled();
   });
 
-  it("retains the existing inline confirmation for creator cancellation", async () => {
+  it("opens the shared creator cancellation decision", async () => {
     const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
     const wrapper = mount(Page, { global: { stubs: pageStubs } });
     await flushPromises();
 
-    wrapper.getComponent(CalendarDetailsStub).vm.$emit("cancel-booking", { bookingId: "booking_123" });
+    wrapper.getComponent(FanDetailsStub).vm.$emit("cancel-booking", { bookingId: "booking_123" });
     await flushPromises();
 
-    expect(wrapper.find("[data-test='booking-details-cancel-confirm']").exists()).toBe(true);
-    expect(wrapper.getComponent(AdjustmentDecisionStub).props("modelValue")).toBe(false);
+    expect(wrapper.find("[data-test='booking-details-cancel-confirm']").exists()).toBe(false);
+    expect(wrapper.getComponent(AdjustmentDecisionStub).props("modelValue")).toBe(true);
+    expect(wrapper.getComponent(AdjustmentDecisionStub).props("mode")).toBe("cancel");
+    expect(wrapper.getComponent(AdjustmentDecisionStub).attributes("actor-role")).toBe("creator");
+    expect(wrapper.get("[data-test='events-embed-booking-details-page']").classes()).toContain("bg-transparent");
+    expect(wrapper.get("[data-test='events-embed-booking-details-page']").classes()).not.toContain("bg-gray-50");
   });
 
   it("keeps the fan drawer constrained while the host processes decision popup closure", async () => {

@@ -6,6 +6,7 @@ export const FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
 export const FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
 export const FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
 export const FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
+export const FS_EVENTS_BOOKING_DETAILS_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_VISIBILITY";
 export const FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
 export const FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
 export const FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
@@ -62,6 +63,12 @@ export function notifyEventsEmbedFormDirtyState(isDirty) {
 export function notifyEventsEmbedFormOpenState(isOpen) {
   postToParent(FS_EVENTS_FORM_OPEN_STATE, {
     isOpen: Boolean(isOpen),
+  });
+}
+
+export function notifyEventsEmbedBookingDetailsVisibility(isOpen) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_VISIBILITY, {
+    open: Boolean(isOpen),
   });
 }
 

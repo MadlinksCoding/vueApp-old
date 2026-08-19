@@ -39,7 +39,19 @@
           </div>
         </div>
 
-        <div class="self-stretch bg-[#182230] bg-[linear-gradient(90deg,rgba(16,24,40,0)_25%,rgba(16,24,40,0.9)_75%)] rounded-lg shadow-[0px_4px_8px_0px_rgba(255,255,255,0.05)] inline-flex flex-col justify-start items-end gap-2 overflow-hidden" data-test="booking-adjustment-balance-card">
+        <div v-if="isCreatorRefundDecision" class="self-stretch flex flex-col gap-3 px-2" data-test="booking-adjustment-creator-cancel-summary">
+          <div class="self-stretch inline-flex justify-between items-center gap-4">
+            <div class="text-slate-800 text-sm font-medium">{{ t('booking_adjustment_session_cost_refund') }}</div>
+            <div class="inline-flex items-center gap-1 text-slate-800 text-base font-semibold"><img :src="TokenIcon" alt="" class="h-6 w-6" /><span data-test="booking-adjustment-creator-session-refund">{{ formatAmount(sessionRefund) }}</span></div>
+          </div>
+          <div class="self-stretch h-px bg-gray-300" />
+          <div class="self-stretch inline-flex justify-between items-center gap-4">
+            <div class="text-slate-800 text-sm font-medium">{{ t('booking_adjustment_total_refunded_to', { fan: fanLabel }) }}</div>
+            <div class="inline-flex items-center gap-1 text-slate-800 text-base font-semibold"><img :src="TokenIcon" alt="" class="h-6 w-6" /><span data-test="booking-adjustment-creator-total-refund">{{ formatAmount(netRefund) }}</span></div>
+          </div>
+        </div>
+
+        <div v-else-if="!isReviewRejection" class="self-stretch bg-[#182230] bg-[linear-gradient(90deg,rgba(16,24,40,0)_25%,rgba(16,24,40,0.9)_75%)] rounded-lg shadow-[0px_4px_8px_0px_rgba(255,255,255,0.05)] inline-flex flex-col justify-start items-end gap-2 overflow-hidden" data-test="booking-adjustment-balance-card">
           <div class="self-stretch relative bg-gray-800/10 flex flex-col justify-start items-end gap-2 z-[1]">
             <div data-svg-wrapper class="right-[20px] top-[8.51px] absolute z-[-1]">
               <img src="https://fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/grey-new-icon.svg" alt="" class="h-[139px]" />
@@ -121,7 +133,7 @@
           data-test="booking-adjustment-decision-primary"
           @click="handlePrimaryAction"
         >
-          <div :class="['justify-center text-lg font-medium leading-7', isCancellationMode ? 'text-white' : 'text-black']">{{ primaryButtonText }}</div>
+          <div :class="['justify-center text-lg font-medium leading-7', isCancellationMode || isReviewRejection ? 'text-white' : 'text-black']">{{ primaryButtonText }}</div>
         </button>
       </div>
     </div>
@@ -148,6 +160,9 @@ const props = defineProps({
   creatorUsername: { type: String, default: '' },
   creatorName: { type: String, default: '' },
   eventTitle: { type: String, default: '' },
+  actorRole: { type: String, default: 'fan' },
+  fanUsername: { type: String, default: '' },
+  netRefundTokens: { type: [Number, String], default: null },
   balanceLoading: { type: Boolean, default: false },
   balanceError: { type: String, default: '' },
   processing: { type: Boolean, default: false },
@@ -172,9 +187,12 @@ function finiteAmount(value, fallback = 0) {
 
 const normalizedMode = computed(() => {
   if (props.mode === 'cancel') return 'cancel';
+  if (props.mode === 'reject') return 'reject';
   return props.mode === 'decline' ? 'decline' : 'accept';
 });
 const isCancellationMode = computed(() => normalizedMode.value === 'decline' || normalizedMode.value === 'cancel');
+const isReviewRejection = computed(() => normalizedMode.value === 'reject');
+const isCreatorRefundDecision = computed(() => (isCancellationMode.value || isReviewRejection.value) && String(props.actorRole).toLowerCase() === 'creator');
 const originalPrice = computed(() => finiteAmount(props.originalTokens));
 const proposedPrice = computed(() => finiteAmount(props.proposedTokens));
 const balanceAvailable = computed(() => props.walletBalance !== '' && props.walletBalance != null && Number.isFinite(Number(props.walletBalance)));
@@ -182,6 +200,7 @@ const balance = computed(() => finiteAmount(props.walletBalance));
 const bookingFee = computed(() => finiteAmount(props.bookingFeeTokens));
 const cancellationFee = computed(() => finiteAmount(props.cancellationFeeTokens));
 const sessionRefund = computed(() => finiteAmount(props.sessionRefundTokens, originalPrice.value));
+const netRefund = computed(() => finiteAmount(props.netRefundTokens, sessionRefund.value));
 const adjustmentAmount = computed(() => isCancellationMode.value
   ? cancellationFee.value
   : Math.abs(proposedPrice.value - originalPrice.value));
@@ -201,8 +220,14 @@ const projectedBalance = computed(() => isCancellationMode.value
   : balance.value + priceRefund.value - priceIncrease.value);
 const creatorLabel = computed(() => props.creatorUsername || props.creatorName || t('common_creator'));
 const eventLabel = computed(() => props.eventTitle || t('common_booking'));
+const fanLabel = computed(() => {
+  const username = String(props.fanUsername || '').trim().replace(/^@+/, '');
+  return username && !/^user\s*#\s*\d+$/i.test(username) ? username : t('common_fan');
+});
 const balanceDisplay = computed(() => balanceAvailable.value ? formatAmount(balance.value) : '—');
 const headingKey = computed(() => {
+  if (isCreatorRefundDecision.value) return 'booking_adjustment_creator_cancel_heading';
+  if (isReviewRejection.value) return 'calendar_event_decline_confirm';
   if (isCancellationMode.value) {
     return bookingFee.value > 0 || cancellationFee.value > 0
       ? 'booking_adjustment_cancel_fee_heading'
@@ -213,14 +238,18 @@ const headingKey = computed(() => {
   return 'booking_adjustment_increase_heading';
 });
 const headingParts = computed(() => {
+  if (isReviewRejection.value && !isCreatorRefundDecision.value) {
+    return { before: t(headingKey.value), highlight: '', after: '' };
+  }
   const marker = '__FS_BOOKING_HIGHLIGHT__';
   const highlight = isCancellationMode.value
-    ? creatorLabel.value
-    : `${formatAmount(adjustmentAmount.value)} ${t('common_tokens')}`;
+    ? (isCreatorRefundDecision.value ? eventLabel.value : creatorLabel.value)
+    : (isCreatorRefundDecision.value ? eventLabel.value : `${formatAmount(adjustmentAmount.value)} ${t('common_tokens')}`);
   const message = t(headingKey.value, {
     tokens: marker,
     creator: isCancellationMode.value ? marker : creatorLabel.value,
-    event: eventLabel.value,
+    event: isCreatorRefundDecision.value ? marker : eventLabel.value,
+    fan: fanLabel.value,
   });
   const markerIndex = message.indexOf(marker);
   if (markerIndex < 0) return { before: message, highlight: '', after: '' };
@@ -238,6 +267,7 @@ const projectedBalanceLabel = computed(() => isCancellationMode.value
   ? t('booking_adjustment_balance_after_cancellation')
   : t('booking_adjustment_balance_after_adjustment'));
 const primaryButtonClass = computed(() => {
+  if (isReviewRejection.value) return 'bg-[#FF4405]';
   if (isCancellationMode.value) return 'bg-[#FF4405]';
   if (requiresTopup.value) return 'bg-[#facc15]';
   return 'bg-[#07F468]';
@@ -246,13 +276,15 @@ const primaryButtonText = computed(() => {
   if (props.processing) return t('fan_booking_processing');
   if (props.balanceLoading) return t('booking_adjustment_checking_balance');
   if (props.balanceError) return t('booking_adjustment_retry_balance');
+  if (isCreatorRefundDecision.value) return t('booking_adjustment_creator_cancel_action', { fan: fanLabel.value });
+  if (isReviewRejection.value) return t('calendar_event_decline_booking');
   if (isCancellationMode.value) return t('booking_adjustment_proceed_cancel');
   if (requiresTopup.value) return t('booking_adjustment_top_up_pay');
   return t('common_continue');
 });
 
 function formatAmount(value) {
-  return new Intl.NumberFormat(locale.value).format(finiteAmount(value));
+  return new Intl.NumberFormat(locale?.value || undefined).format(finiteAmount(value));
 }
 
 function handleVisibilityChange(value) {

@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EventDetailsFan from '@/components/ui/popup/EventDetailsFan.vue';
 import defaultCoverImage from '@/assets/images/icons/background.webp';
@@ -48,7 +48,7 @@ function booking(overrides = {}) {
   };
 }
 
-function mountDetails(value, presentation = 'side-panel') {
+function mountDetails(value, presentation = 'side-panel', extraProps = {}) {
   return mount(EventDetailsFan, {
     props: {
       presentation,
@@ -63,6 +63,7 @@ function mountDetails(value, presentation = 'side-panel') {
         color: value.eventColorSkin,
         raw: value,
       },
+      ...extraProps,
     },
   });
 }
@@ -95,6 +96,8 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="event-details-fan-session-cost-arrow"]').attributes('src')).toBe(priceArrowIcon);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed-icon"]').attributes('src')).toBe(tokenIcon);
     expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
+    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(wrapper.get('[data-test="booking-details-session-cost-tile"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
     expect(wrapper.get('[data-test="event-details-fan-event-type-badge"]').element.style.backgroundColor).toBe('rgb(250, 204, 21)');
     expect(wrapper.get('[data-test="event-details-fan-color-rail"]').element.style.backgroundColor).toBe('rgb(250, 204, 21)');
@@ -103,6 +106,32 @@ describe('EventDetailsFan', () => {
     expect(wrapper.emitted('accept-adjustment')?.[0]?.[0]).toEqual(expect.objectContaining({
       negotiationId: 'neg_1', originalTokens: 100, proposedTokens: 135,
     }));
+    wrapper.unmount();
+  });
+
+  it('shows creators a read-only waiting notice without overriding the event color', async () => {
+    const value = booking({
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+
+    const notice = wrapper.get('[data-test="booking-details-adjustment-waiting-notice"]');
+    expect(notice.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
+      .toBe('Waiting for @grapegatsby to respond to your adjustments');
+    expect(notice.get('img').attributes('src')).toBe('https://example.test/fan.webp');
+    expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-accept-adjustment"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-decline-adjustment"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#22CCEE');
+
+    await wrapper.setProps({ userRole: 'fan' });
+    expect(wrapper.find('[data-test="booking-details-adjustment-waiting-notice"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
     wrapper.unmount();
   });
 
@@ -171,6 +200,7 @@ describe('EventDetailsFan', () => {
 
     expect(wrapper.find('[data-test="event-details-fan-session-cost-adjusted"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="booking-details-session-cost-tile"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#22CCEE');
     wrapper.unmount();
   });
@@ -344,6 +374,7 @@ describe('EventDetailsFan', () => {
 
     expect(panelRoot.classList).toContain('h-full');
     expect(panelRoot.classList).toContain('min-h-0');
+    expect(panelRoot.classList).toContain('w-full');
     wrapper.unmount();
   });
 
@@ -376,6 +407,176 @@ describe('EventDetailsFan', () => {
 
     expect(joinButton.classes()).toEqual(expect.arrayContaining(['bg-[#07F468]', 'rounded-sm', 'gap-3']));
     expect(joinButton.find('[data-svg-wrapper] svg').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('shows creator review actions in the pending-request notice and the fan as counterparty', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+
+    const notice = wrapper.get('[data-test="booking-details-review-notice"]');
+    const acceptButton = notice.get('[data-test="booking-details-accept"]');
+    const adjustButton = notice.get('[data-test="booking-details-adjust"]');
+    const menuButton = notice.get('[data-test="booking-details-review-menu"]');
+
+    expect(notice.get('[data-test="booking-details-review-actions"]').exists()).toBe(true);
+    expect(notice.get('[data-test="booking-details-review-actions"]').classes()).toContain('flex-nowrap');
+    expect(notice.get('[data-test="booking-details-review-heading"]').text()).toContain('@grapegatsby');
+    expect(notice.get('img').attributes('src')).toBe('https://example.test/fan.webp');
+    expect(acceptButton.classes()).toEqual(expect.arrayContaining(['flex-1', 'min-w-0']));
+    expect(adjustButton.classes()).toEqual(expect.arrayContaining(['flex-1', 'min-w-0']));
+    expect(menuButton.classes()).toEqual(expect.arrayContaining(['h-10', 'w-10']));
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="event-details-fan-join"]').exists()).toBe(false);
+
+    await wrapper.get('[data-test="booking-details-accept"]').trigger('click');
+    expect(wrapper.emitted('approve-booking')?.[0]?.[0]).toMatchObject({ bookingId: 'booking_1', decision: 'approve' });
+
+    await wrapper.get('[data-test="booking-details-adjust"]').trigger('click');
+    expect(wrapper.emitted('adjust-booking')?.[0]?.[0]).toMatchObject({ bookingId: 'booking_1', eventId: 'event_1' });
+    wrapper.unmount();
+  });
+
+  it('lets Accept fill the review action row when adjustment is unavailable', () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: {},
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+
+    expect(wrapper.get('[data-test="booking-details-accept"]').classes()).toContain('flex-1');
+    expect(wrapper.find('[data-test="booking-details-adjust"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-details-review-menu"]').classes()).toContain('w-10');
+    wrapper.unmount();
+  });
+
+  it('keeps creator decline in the notice menu and confirms before rejecting', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    const menuTrigger = wrapper.get('[data-test="booking-details-review-menu"]');
+
+    expect(menuTrigger.attributes('aria-expanded')).toBe('false');
+    await menuTrigger.trigger('click');
+    expect(menuTrigger.attributes('aria-expanded')).toBe('true');
+    expect(wrapper.get('[data-test="booking-details-review-menu-dropdown"]').text()).toContain('Decline Booking');
+
+    await wrapper.get('[data-test="booking-details-decline"]').trigger('click');
+    expect(wrapper.emitted('reject-booking')).toBeUndefined();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+    const decision = wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' });
+    expect(decision.props('modelValue')).toBe(true);
+    expect(decision.props('mode')).toBe('reject');
+    expect(decision.props('actorRole')).toBe('creator');
+    expect(decision.props('eventTitle')).toBe('Lantau cows meet up');
+    expect(decision.props('fanUsername')).toBe('grapegatsby');
+    expect(decision.props('sessionRefundTokens')).toBe(100);
+    expect(decision.props('netRefundTokens')).toBe(100);
+    expect(wrapper.emitted('decision-visibility')?.at(-1)?.[0]).toBe(true);
+
+    decision.vm.$emit('confirm', { mode: 'reject', requiresTopup: false, shortfallTokens: 0 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('reject-booking')?.[0]?.[0]).toMatchObject({ bookingId: 'booking_1', decision: 'reject' });
+    expect(wrapper.emitted('decision-visibility')?.at(-1)?.[0]).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('uses the profile username instead of a generic User #ID in creator rejection', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ user: { username: 'profile_fan' } }),
+    });
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      username: 'User #25',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    await flushPromises();
+
+    await wrapper.get('[data-test="booking-details-review-menu"]').trigger('click');
+    await wrapper.get('[data-test="booking-details-decline"]').trigger('click');
+
+    const decision = wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/users/get-profile-data?id=25'), expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(decision.props('fanUsername')).toBe('profile_fan');
+    wrapper.unmount();
+  });
+
+  it('dismisses the creator review menu on outside click and Escape', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    const menuTrigger = wrapper.get('[data-test="booking-details-review-menu"]');
+
+    await menuTrigger.trigger('click');
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+
+    await menuTrigger.trigger('click');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('shows actor-aware creator cancellation details and nonzero fees', () => {
+    const wrapper = mountDetails(booking({
+      status: 'cancelled_creator',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: {},
+      cancellation: { actor: 'creator', refundedTokens: 335, cancellationFeeTokens: 100 },
+      payment: { allocations: { bookingFee: 20, cancellationFee: 100 } },
+    }), 'side-panel', { userRole: 'creator' });
+
+    expect(wrapper.get('[data-test="booking-details-cancelled-heading"]').text()).toContain('@grapegatsby');
+    expect(wrapper.get('[data-test="booking-details-cancelled-refund"]').text()).toContain('335');
+    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('100');
+    expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('20');
+    expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').classes()).toContain('flex-col');
+    expect(wrapper.get('[data-test="booking-details-booking-fee"]').classes()).toContain('flex-col');
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the refund from the full booking payment settlement', () => {
+    const wrapper = mountDetails(booking({
+      status: 'cancelled_creator',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: {},
+      cancellation: { actor: 'creator' },
+      paymentSettlement: {
+        status: 'completed',
+        releasedTotal: 235,
+        capturedTotal: 100,
+      },
+    }), 'side-panel', { userRole: 'creator' });
+
+    expect(wrapper.get('[data-test="booking-details-cancelled-refund"]').text()).toContain('235');
     wrapper.unmount();
   });
 });

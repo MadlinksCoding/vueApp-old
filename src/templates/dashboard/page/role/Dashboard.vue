@@ -310,7 +310,7 @@
     <ProfileLoginPopup v-model="profileLoginPopupOpen" />
     <ProfileMerchPopup v-model="profileMerchPopupOpen" />
     <TopUpPopup v-model="topUpPopupOpen" />
-    <EventDetailsFan v-model="eventDetailsFanOpen" />
+    <BookingDetailsPopup v-model="eventDetailsFanOpen" user-role="fan" />
     <AcceptNewPrice v-model="acceptNewPriceOpen" />
 
     <PremiumOrdersPage/>
@@ -366,7 +366,7 @@ import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPopup.vue";
 import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
-import EventDetailsFan from "@/components/ui/popup/EventDetailsFan.vue";
+import BookingDetailsPopup from "@/components/ui/popup/BookingDetailsPopup.vue";
 import AcceptNewPrice from "@/components/ui/popup/AcceptNewPrice.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";

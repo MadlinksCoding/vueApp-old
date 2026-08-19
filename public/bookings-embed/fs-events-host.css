@@ -17,6 +17,21 @@
 .fs-events-embed__iframe--viewport {
   height: 100vh;
   height: var(--fs-events-embed-height, 100dvh);
+  min-height: 0;
+}
+
+@media screen and (max-width: 1023px) {
+  .fs-events-embed__iframe--booking-details-open {
+    position: fixed;
+    inset: 0;
+    z-index: 100200;
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
 }
 
 .fs-booking-details-popup__overlay {

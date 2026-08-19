@@ -1,6 +1,6 @@
 <template>
   <main
-    :class="['h-full min-h-0', viewerRole === 'fan' ? 'bg-transparent' : 'bg-gray-50']"
+    class="h-full min-h-0 bg-transparent"
     data-test="events-embed-booking-details-page"
   >
     <div v-if="loading" class="flex h-full items-center justify-center p-6" data-test="booking-details-loading">
@@ -26,13 +26,15 @@
     </div>
 
     <div
-      v-else-if="viewerRole === 'fan' && !isDirectCancelLaunch"
+      v-else-if="!isDirectCancelLaunch"
       class="booking-details-fan-surface h-full min-h-0"
       data-test="booking-details-fan-surface"
     >
-      <EventDetailsFan
+      <BookingDetailsPopup
         :booking="booking"
         :event="calendarEvent"
+        :user-role="viewerRole"
+        :can-review-pending="viewerRole === 'creator'"
         :action-loading="actionLoading"
         presentation="side-panel"
         @join-call="handleJoin"
@@ -40,25 +42,13 @@
         @cancel-booking="requestCancelBooking"
         @accept-adjustment="acceptPriceAdjustment"
         @decline-adjustment="requestDeclineAdjustment"
+        @approve-booking="approveBooking"
+        @reject-booking="rejectBooking"
+        @adjust-booking="openChat"
+        @decision-visibility="detailsDecisionOpen = $event"
         @close="closePanel"
       />
     </div>
-
-    <CalendarEventDetailsPopup
-	  v-else-if="viewerRole !== 'fan'"
-      :event="calendarEvent"
-      :booking="booking"
-      :user-role="viewerRole"
-      :can-review-pending="viewerRole === 'creator'"
-      presentation="side-panel"
-      @join-call="handleJoin"
-      @approve-booking="approveBooking"
-      @reject-booking="rejectBooking"
-      @cancel-booking="requestCancelBooking"
-      @open-chat="openChat"
-      @adjust-booking="openChat"
-      @close="closePanel"
-    />
 
     <BookingAdjustmentDecisionPopup
       v-model="adjustmentDecisionOpen"
@@ -72,6 +62,9 @@
       :creator-username="adjustmentCreatorUsername"
       :creator-name="adjustmentCreatorName"
       :event-title="adjustmentEventTitle"
+      :actor-role="viewerRole"
+      :fan-username="adjustmentFanUsername"
+      :net-refund-tokens="adjustmentNetRefundTokens"
       :balance-loading="adjustmentBalanceLoading"
       :balance-error="adjustmentDecisionError"
       :processing="actionLoading"
@@ -80,29 +73,13 @@
       @close="resetAdjustmentDecision"
     />
 
-    <div v-if="cancelCandidate" class="fixed inset-0 z-[1800] flex items-center justify-center bg-black/45 p-4" data-test="booking-details-cancel-confirm">
-      <div class="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-        <h2 class="text-base font-semibold text-gray-900">{{ cancelConfirmTitle }}</h2>
-        <p class="mt-2 text-sm text-gray-600">{{ cancelConfirmBody }}</p>
-        <div class="mt-5 flex justify-end gap-2">
-          <button type="button" class="rounded border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700" :disabled="actionLoading" @click="cancelCandidate = null">
-            {{ t("common_cancel") }}
-          </button>
-          <button type="button" class="rounded bg-[#F04438] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="actionLoading" @click="confirmCancelBooking">
-            {{ actionLoading ? t("common_loading") : cancelConfirmAction }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <ToastHost />
   </main>
 </template>
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import CalendarEventDetailsPopup from "@/components/calendar/CalendarEventDetailsPopup.vue";
-import EventDetailsFan from "@/components/ui/popup/EventDetailsFan.vue";
+import BookingDetailsPopup from "@/components/ui/popup/BookingDetailsPopup.vue";
 import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import FlowHandler from "@/services/flow-system/FlowHandler.js";
@@ -119,6 +96,7 @@ import {
 } from "@/embeds/events/bridge.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
+import { resolveBookingRefundState } from "@/services/bookings/utils/bookingRefundUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import TokenHandler from "@/utils/TokenHandler.js";
@@ -130,33 +108,27 @@ const calendarEvent = ref(null);
 const loading = ref(true);
 const actionLoading = ref(false);
 const errorMessage = ref("");
-const cancelCandidate = ref(null);
 const pendingTopupAdjustment = ref(null);
 const adjustmentDecisionOpen = ref(false);
+const detailsDecisionOpen = ref(false);
 const adjustmentDecisionMode = ref("accept");
 const adjustmentDecision = ref(null);
 const adjustmentWalletBalance = ref(null);
 const adjustmentBalanceLoading = ref(false);
 const adjustmentDecisionError = ref("");
 const fetchedCreatorUsername = ref("");
+const fetchedFanUsername = ref("");
 let removeTopupListener = null;
 let creatorProfileAbortController = null;
 const viewerRole = computed(() => normalizeDashboardBookingRole(bootstrap.userRole));
-const isDirectCancelLaunch = computed(() => viewerRole.value === "fan" && bootstrap.initialAction === "cancel");
+const isDirectCancelLaunch = computed(() => bootstrap.initialAction === "cancel");
 const directCancelOpened = ref(false);
 
-watch(adjustmentDecisionOpen, (isOpen) => {
+const anyDecisionOpen = computed(() => adjustmentDecisionOpen.value || detailsDecisionOpen.value);
+
+watch(anyDecisionOpen, (isOpen) => {
   notifyBookingDetailsDecisionVisibility(isOpen);
 });
-const cancelConfirmTitle = computed(() => (
-  viewerRole.value === "fan" ? t("dashboard_fan_cancel_confirm_title") : t("dashboard_cancel_confirm_title")
-));
-const cancelConfirmBody = computed(() => (
-  viewerRole.value === "fan" ? t("dashboard_fan_cancel_confirm_neutral_body") : t("dashboard_cancel_confirm_body")
-));
-const cancelConfirmAction = computed(() => (
-  viewerRole.value === "fan" ? t("dashboard_fan_cancel_confirm_action") : t("dashboard_cancel_confirm_action")
-));
 
 function finiteNonNegative(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
@@ -174,6 +146,12 @@ function firstDefined(sources, keys) {
   return null;
 }
 
+function normalizeUsername(value) {
+  const username = String(value || "").trim().replace(/^@+/, "");
+  if (!username || /^user\s*#\s*\d+$/i.test(username)) return "";
+  return username;
+}
+
 function truthyFlag(value) {
   return value === true || value === 1 || value === "1" || String(value || "").trim().toLowerCase() === "true";
 }
@@ -187,9 +165,13 @@ const adjustmentEventSources = computed(() => [
 ].filter((source) => source && typeof source === "object"));
 const adjustmentPayment = computed(() => booking.value?.payment && typeof booking.value.payment === "object" ? booking.value.payment : {});
 const adjustmentCreatorId = computed(() => firstDefined(adjustmentEventSources.value, ["creatorId", "creator_id"]));
+const adjustmentFanId = computed(() => firstDefined(adjustmentEventSources.value, ["userId", "user_id", "fanId", "fan_id"]));
 const storedCreatorUsername = computed(() => String(firstDefined(adjustmentEventSources.value, ["creatorUsername", "creatorUserName", "creatorHandle"]) || "").trim());
 const adjustmentCreatorName = computed(() => String(firstDefined(adjustmentEventSources.value, ["creatorDisplayName", "creatorName"]) || "").trim());
 const adjustmentCreatorUsername = computed(() => storedCreatorUsername.value || fetchedCreatorUsername.value || adjustmentCreatorName.value);
+const storedFanUsername = computed(() => normalizeUsername(firstDefined(adjustmentEventSources.value, ["fanUsername", "fanUserName"])));
+const storedFanDisplayName = computed(() => normalizeUsername(firstDefined(adjustmentEventSources.value, ["username", "userName", "fanDisplayName", "userDisplayName"])));
+const adjustmentFanUsername = computed(() => fetchedFanUsername.value || storedFanUsername.value || storedFanDisplayName.value);
 const adjustmentEventTitle = computed(() => String(firstDefined(adjustmentEventSources.value, ["eventTitle", "title"]) || "").trim());
 const adjustmentPaymentTotal = computed(() => {
   const explicit = Number(adjustmentPayment.value?.total ?? booking.value?.paymentTotal);
@@ -254,25 +236,33 @@ const adjustmentSessionRefundTokens = computed(() => {
   }
   return adjustmentPaymentTotal.value;
 });
+const adjustmentNetRefundTokens = computed(() => viewerRole.value === "creator"
+  ? adjustmentSessionRefundTokens.value
+  : Math.max(0, adjustmentSessionRefundTokens.value - adjustmentBookingFeeTokens.value - adjustmentCancellationFeeTokens.value));
 
-watch([viewerRole, adjustmentCreatorId, storedCreatorUsername], async ([role, creatorId, storedUsername]) => {
+watch([viewerRole, adjustmentCreatorId, adjustmentFanId, storedCreatorUsername, storedFanUsername], async ([role, creatorId, fanId, storedUsername, fanUsername]) => {
   if (creatorProfileAbortController) {
     creatorProfileAbortController.abort();
     creatorProfileAbortController = null;
   }
   fetchedCreatorUsername.value = "";
-  if (role !== "fan" || storedUsername || !creatorId) return;
+  fetchedFanUsername.value = "";
+  const targetId = role === "creator" ? fanId : creatorId;
+  const hasStoredUsername = role === "creator" ? fanUsername : storedUsername;
+  if (hasStoredUsername || !targetId) return;
 
   const controller = new AbortController();
   creatorProfileAbortController = controller;
   try {
-    const profile = await fetchUserProfileData(creatorId, { signal: controller.signal });
+    const profile = await fetchUserProfileData(targetId, { signal: controller.signal });
     if (creatorProfileAbortController === controller) {
-      fetchedCreatorUsername.value = String(profile?.username || "").trim();
+      if (role === "creator") fetchedFanUsername.value = normalizeUsername(profile?.username);
+      else fetchedCreatorUsername.value = normalizeUsername(profile?.username);
     }
   } catch (error) {
     if (error?.name !== "AbortError" && creatorProfileAbortController === controller) {
-      fetchedCreatorUsername.value = "";
+      if (role === "creator") fetchedFanUsername.value = "";
+      else fetchedCreatorUsername.value = "";
     }
   } finally {
     if (creatorProfileAbortController === controller) creatorProfileAbortController = null;
@@ -348,6 +338,7 @@ function buildBookingUpdateNotification(updatedItem = null) {
     ]) || "").trim(),
     startAtIso: String(firstDefined(sources, ["startAtIso", "startIso", "startAt", "start"]) || "").trim(),
     endAtIso: String(firstDefined(sources, ["endAtIso", "endIso", "endAt", "end"]) || "").trim(),
+    refundState: resolveBookingRefundState(updatedItem || {}),
   };
 }
 
@@ -462,11 +453,7 @@ function rejectBooking(payload) {
 }
 
 function requestCancelBooking(payload) {
-  if (viewerRole.value === "fan") {
-    openAdjustmentDecision("cancel", payload || { bookingId: bootstrap.bookingId });
-    return;
-  }
-  cancelCandidate.value = payload || { bookingId: bootstrap.bookingId };
+  openAdjustmentDecision("cancel", payload || { bookingId: bootstrap.bookingId });
 }
 
 function reportCancelFailure(message) {
@@ -483,9 +470,7 @@ function reportCancelFailure(message) {
 
 async function confirmCancelBooking() {
   if (actionLoading.value) return;
-  const decisionCandidate = adjustmentDecisionMode.value === "cancel"
-    ? adjustmentDecision.value
-    : cancelCandidate.value;
+  const decisionCandidate = adjustmentDecision.value;
   const bookingId = String(decisionCandidate?.bookingId || bootstrap.bookingId || "").trim();
   if (!bookingId) return;
 
@@ -505,7 +490,6 @@ async function confirmCancelBooking() {
       return;
     }
 
-    cancelCandidate.value = null;
     await notifySuccessfulBookingUpdate("cancel", result?.data?.item || null);
   } catch (error) {
     reportCancelFailure(error?.message);
@@ -702,7 +686,9 @@ function openAdjustmentDecision(mode, adjustment) {
   adjustmentWalletBalance.value = null;
   adjustmentDecisionError.value = "";
   adjustmentDecisionOpen.value = true;
-  void loadAdjustmentBalance();
+  if (!(viewerRole.value === "creator" && adjustmentDecisionMode.value === "cancel")) {
+    void loadAdjustmentBalance();
+  }
 }
 
 async function confirmAdjustmentDecision(payload = {}) {

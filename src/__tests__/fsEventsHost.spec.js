@@ -130,7 +130,8 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(panel.classList.contains("fs-booking-details-popup__panel--decision-open")).toBe(true);
     expect(panel.classList.contains("fs-booking-details-popup__panel--decision-direct")).toBe(true);
     expect(popup.iframe.style.visibility).toBe("hidden");
-    expect(panel.querySelector(".fs-booking-details-popup__loading-label")?.textContent).toBe("Loading");
+    expect(panel.querySelector(".fs-booking-details-popup__loading-label")).toBeNull();
+    expect(panel.querySelector(".fs-booking-details-popup__loading")?.textContent).toBe("");
     popup.iframe.dispatchEvent(new Event("load"));
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
       payload: expect.objectContaining({ initialAction: "cancel" }),
@@ -155,6 +156,27 @@ describe("fs-events-host openFanBookingPopup", () => {
 
     popup.destroy();
     expect(panel.classList.contains("fs-booking-details-popup__panel--decision-direct")).toBe(false);
+  });
+
+  it("bootstraps direct creator cancellation in the same full-screen decision host", () => {
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_creator_cancel",
+      creatorId: 1407,
+      userRole: "creator",
+      initialAction: "cancel",
+    });
+    const panel = popup.overlay.querySelector(".fs-booking-details-popup__panel");
+    const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
+
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-open")).toBe(true);
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-direct")).toBe(true);
+    expect(panel.querySelector(".fs-booking-details-popup__loading-label")).toBeNull();
+    expect(panel.querySelector(".fs-booking-details-popup__loading")?.textContent).toBe("");
+    popup.iframe.dispatchEvent(new Event("load"));
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ userRole: "creator", initialAction: "cancel" }),
+    }), window.location.origin);
+    popup.destroy();
   });
 
   it("keeps the direct cancellation loading layer transparent without a fade", () => {
@@ -420,11 +442,7 @@ describe("fs-events-host openFanBookingPopup", () => {
       origin: window.location.origin,
     }));
 
-    expect(embed.root.scrollIntoView).toHaveBeenCalledWith({
-      block: "start",
-      inline: "nearest",
-      behavior: "auto",
-    });
+    expect(embed.root.scrollIntoView).not.toHaveBeenCalled();
     expect(window.scrollTo).toHaveBeenCalledWith({
       top: 300,
       left: 0,
@@ -434,7 +452,17 @@ describe("fs-events-host openFanBookingPopup", () => {
     window.scrollTo = originalScrollTo;
   });
 
-  it("applies viewport resize payload height to the events iframe", () => {
+  it("keeps the events toolbar below the visible WordPress mobile header on initial reset", () => {
+    const mobileHeader = document.createElement("div");
+    mobileHeader.setAttribute("data-mobile-header", "");
+    mobileHeader.style.position = "fixed";
+    mobileHeader.getBoundingClientRect = vi.fn(() => ({
+      top: 0,
+      bottom: 60,
+      height: 60,
+    }));
+    document.body.appendChild(mobileHeader);
+
     const container = document.createElement("div");
     document.body.appendChild(container);
     const embed = window.FSEventsEmbed.mount(container, {
@@ -442,6 +470,51 @@ describe("fs-events-host openFanBookingPopup", () => {
       userRole: "creator",
       initialRoute: "events",
     });
+    const originalScrollTo = window.scrollTo;
+
+    window.scrollTo = vi.fn();
+    embed.root.scrollIntoView = vi.fn();
+    embed.root.getBoundingClientRect = vi.fn(() => ({ top: 0 }));
+    Object.defineProperty(window, "pageYOffset", {
+      configurable: true,
+      value: 60,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_SCROLL_TO_TOP",
+        payload: { behavior: "auto", reason: "events-page-mounted" },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(window.scrollTo).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+    expect(embed.root.scrollIntoView).not.toHaveBeenCalled();
+
+    window.scrollTo = originalScrollTo;
+  });
+
+  it("uses the parent viewport immediately and ignores the child iframe's self-reported viewport height", () => {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 768,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--viewport")).toBe(true);
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("768px");
 
     window.dispatchEvent(new MessageEvent("message", {
       source: embed.iframe.contentWindow,
@@ -453,7 +526,92 @@ describe("fs-events-host openFanBookingPopup", () => {
     }));
 
     expect(embed.iframe.classList.contains("fs-events-embed__iframe--viewport")).toBe(true);
-    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("512px");
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("768px");
+  });
+
+  it("subtracts the visible WordPress mobile header from the events iframe viewport height", () => {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 768,
+    });
+    const mobileHeader = document.createElement("div");
+    mobileHeader.setAttribute("data-mobile-header", "");
+    mobileHeader.style.position = "fixed";
+    mobileHeader.getBoundingClientRect = vi.fn(() => ({
+      top: 0,
+      bottom: 60,
+      height: 60,
+    }));
+    document.body.appendChild(mobileHeader);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("708px");
+    expect(hostCss.match(/\.fs-events-embed__iframe--viewport\s*\{([^}]*)\}/)?.[1] || "")
+      .toContain("min-height: 0");
+  });
+
+  it("raises only the active events iframe while booking details are visible and restores it on close", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: true },
+      },
+      origin: window.location.origin,
+    }));
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--booking-details-open")).toBe(false);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: true },
+      },
+      origin: window.location.origin,
+    }));
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--booking-details-open")).toBe(true);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_VISIBILITY",
+        payload: { open: false },
+      },
+      origin: window.location.origin,
+    }));
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--booking-details-open")).toBe(false);
+
+    embed.iframe.classList.add("fs-events-embed__iframe--booking-details-open");
+    embed.destroy();
+    expect(embed.iframe.classList.contains("fs-events-embed__iframe--booking-details-open")).toBe(false);
+  });
+
+  it("limits the fixed full-viewport booking-details host layer to mobile", () => {
+    const mobileRuleStart = hostCss.indexOf("@media screen and (max-width: 1023px)");
+    const mobileCss = mobileRuleStart >= 0 ? hostCss.slice(mobileRuleStart) : "";
+    const rule = mobileCss.match(/\.fs-events-embed__iframe--booking-details-open\s*\{([^}]*)\}/)?.[1] || "";
+
+    expect(mobileRuleStart).toBeGreaterThanOrEqual(0);
+    expect(rule).toContain("position: fixed");
+    expect(rule).toContain("inset: 0");
+    expect(rule).toContain("z-index: 100200");
+    expect(rule).toContain("height: 100dvh");
   });
 
   it("warns the WordPress host page before unload when the events form is dirty", () => {
@@ -519,7 +677,7 @@ describe("fs-events-host openFanBookingPopup", () => {
       },
       origin: window.location.origin,
     }));
-    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("512px");
+    expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("640px");
 
     visualViewport.height = 590;
     visualViewport.dispatchEvent(new Event("resize"));

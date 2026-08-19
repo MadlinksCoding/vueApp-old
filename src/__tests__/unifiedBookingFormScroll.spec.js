@@ -1445,7 +1445,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     );
 
     await wrapper.get("[data-test='calendar-cancel']").trigger("click");
-    await wrapper.get("[data-test='booking-form-cancel-confirm']").trigger("click");
+    await wrapper.get("[data-test='booking-adjustment-decision-primary']").trigger("click");
     await flushPromises();
     expect(mock.engine.callFlow).toHaveBeenCalledWith(
       "bookings.cancelBooking",

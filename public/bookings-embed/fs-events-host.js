@@ -7,6 +7,7 @@
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
   var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
   var FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
+  var FS_EVENTS_BOOKING_DETAILS_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_VISIBILITY";
   var FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
   var FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
   var FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
@@ -30,6 +31,7 @@
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
   var EVENTS_EMBED_IFRAME_CONTENT_CLASS = "fs-events-embed__iframe--content";
   var EVENTS_EMBED_IFRAME_VIEWPORT_CLASS = "fs-events-embed__iframe--viewport";
+  var EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS = "fs-events-embed__iframe--booking-details-open";
   var FAN_BOOKING_POPUP_CLASS = "fs-fan-booking-popup";
   var FAN_BOOKING_POPUP_OVERLAY_CLASS = "fs-fan-booking-popup__overlay";
   var FAN_BOOKING_POPUP_MODAL_CLASS = "fs-fan-booking-popup__modal";
@@ -385,9 +387,22 @@
     return Math.max(320, Math.round(height));
   }
 
+  function resolveVisibleMobileHeaderInset() {
+    var mobileHeader = document.querySelector("[data-mobile-header]");
+    if (!mobileHeader || typeof mobileHeader.getBoundingClientRect !== "function") return 0;
+
+    var style = global.getComputedStyle ? global.getComputedStyle(mobileHeader) : null;
+    if (style && (style.display === "none" || style.visibility === "hidden")) return 0;
+
+    var headerRect = mobileHeader.getBoundingClientRect();
+    if (!headerRect || headerRect.height <= 0 || headerRect.top > 0 || headerRect.bottom <= 0) return 0;
+    return Math.max(0, headerRect.bottom);
+  }
+
   function applyViewportIframeHeight(iframe, nextHeight) {
     if (!iframe) return;
-    var height = safeNumber(nextHeight, null) || resolveViewportHeight();
+    var requestedHeight = safeNumber(nextHeight, null) || resolveViewportHeight();
+    var height = Math.max(320, requestedHeight - resolveVisibleMobileHeaderInset());
     iframe.style.setProperty("--fs-events-embed-height", String(Math.max(320, Math.round(height))) + "px");
   }
 
@@ -421,26 +436,25 @@
     var behavior = payload && payload.behavior === "smooth" ? "smooth" : "auto";
 
     try {
-      if (typeof wrapper.scrollIntoView === "function") {
-        wrapper.scrollIntoView({ block: "start", inline: "nearest", behavior: behavior });
-      }
-    } catch (_error) {
-      // Fall back to absolute window scrolling below.
-    }
-
-    try {
       var rect = wrapper.getBoundingClientRect ? wrapper.getBoundingClientRect() : null;
       if (!rect) return;
 
       var pageOffset = global.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      var top = Math.max(0, rect.top + pageOffset);
+      var top = Math.max(0, rect.top + pageOffset - resolveVisibleMobileHeaderInset());
       if (typeof global.scrollTo === "function") {
         global.scrollTo({ top: top, left: 0, behavior: behavior });
+        return;
       }
     } catch (_error) {
-      if (typeof global.scrollTo === "function") {
-        global.scrollTo({ top: 0, left: 0, behavior: behavior });
+      // Fall through to the element-based fallback below.
+    }
+
+    try {
+      if (typeof wrapper.scrollIntoView === "function") {
+        wrapper.scrollIntoView({ block: "start", inline: "nearest", behavior: behavior });
       }
+    } catch (_error) {
+      // The host page does not expose a usable scrolling surface.
     }
   }
 
@@ -553,7 +567,11 @@
     iframe.title = settings.iframeTitle;
     iframe.loading = "lazy";
     iframe.setAttribute("scrolling", "no");
-    setIframeHeightMode(iframe, "content", settings.minHeight);
+    if (String(settings.initialRoute || "").trim() === "events") {
+      setIframeHeightMode(iframe, "viewport");
+    } else {
+      setIframeHeightMode(iframe, "content", settings.minHeight);
+    }
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var hasUnsavedFormChanges = false;
@@ -615,7 +633,14 @@
       if (data.type === FS_EVENTS_RESIZE) {
         var nextHeight = safeNumber(data.payload && data.payload.height, null);
         var resizeMode = data.payload && data.payload.mode;
-        setIframeHeightMode(iframe, resizeMode === "viewport" ? "viewport" : "content", nextHeight);
+        if (resizeMode === "viewport") {
+          // The child can only measure its current iframe viewport. Using that
+          // value here creates a self-locking height loop when the iframe starts
+          // at the content-mode minimum. The parent owns the real viewport.
+          setIframeHeightMode(iframe, "viewport");
+        } else {
+          setIframeHeightMode(iframe, "content", nextHeight);
+        }
         return;
       }
 
@@ -640,6 +665,13 @@
           document.body.classList.remove("event-form-open");
         }
       }
+
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_VISIBILITY) {
+        iframe.classList.toggle(
+          EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS,
+          Boolean(data.payload && data.payload.open),
+        );
+      }
     }
 
     window.addEventListener("message", onMessage);
@@ -657,6 +689,7 @@
       sendBootstrap: sendBootstrap,
       updateAuth: updateAuth,
       destroy: function () {
+        iframe.classList.remove(EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS);
         window.removeEventListener("message", onMessage);
         window.removeEventListener("beforeunload", onBeforeUnload);
         window.removeEventListener("resize", syncViewportIframeHeight);
@@ -1000,7 +1033,7 @@
     }
 
     var normalizedRole = String(settings.userRole || "creator").trim().toLowerCase() === "fan" ? "fan" : "creator";
-    var initialAction = normalizedRole === "fan" && String(settings.initialAction || "").trim().toLowerCase() === "cancel"
+    var initialAction = String(settings.initialAction || "").trim().toLowerCase() === "cancel"
       ? "cancel"
       : "";
     var isDirectCancelLaunch = initialAction === "cancel";
@@ -1046,11 +1079,6 @@
       "aria-label": settings.loadingLabel,
     });
     loadingLayer.innerHTML = '<span class="fs-booking-details-popup__spinner" aria-hidden="true"></span>';
-    if (isDirectCancelLaunch) {
-      var loadingLabel = createElement("span", "fs-booking-details-popup__loading-label");
-      loadingLabel.textContent = settings.loadingLabel;
-      loadingLayer.appendChild(loadingLabel);
-    }
 
     function sendBootstrap() {
       if (!iframe.contentWindow || isDestroyed) return;

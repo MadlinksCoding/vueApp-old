@@ -10,12 +10,13 @@
       @create-event="handleCreateEvent"
       @edit-event="handleEditEvent"
       @open-url="handleOpenUrl"
+      @booking-details-visibility="handleBookingDetailsVisibility"
     />
   </div>
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DashboardEventsFeature from "@/features/events/DashboardEventsFeature.vue";
 import { useEventsEmbedBootstrap } from "@/embeds/events/bootstrap.js";
@@ -23,6 +24,7 @@ import {
   isEmbeddedIframe,
   requestEventsEmbedOpenUrl,
   requestEventsEmbedScrollToTop,
+  notifyEventsEmbedBookingDetailsVisibility,
 } from "@/embeds/events/bridge.js";
 
 const router = useRouter();
@@ -106,7 +108,15 @@ const handleOpenUrl = ({ url, target = "_self" }) => {
   window.location.assign(url);
 };
 
+const handleBookingDetailsVisibility = (open) => {
+  notifyEventsEmbedBookingDetailsVisibility(Boolean(open));
+};
+
 onMounted(() => {
   void resetEventsPageScrollOnMobile();
+});
+
+onBeforeUnmount(() => {
+  notifyEventsEmbedBookingDetailsVisibility(false);
 });
 </script>

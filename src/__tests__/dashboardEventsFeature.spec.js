@@ -3963,8 +3963,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-group']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
-    expect(confirmButton).toBeTruthy();
+    const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
     await confirmButton.trigger("click");
     await flushPromises();
 
@@ -4021,8 +4020,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-private']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
-    expect(confirmButton).toBeTruthy();
+    const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
     await confirmButton.trigger("click");
     await flushPromises();
 
