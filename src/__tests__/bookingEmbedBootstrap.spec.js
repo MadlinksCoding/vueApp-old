@@ -32,4 +32,9 @@ describe("booking embed bootstrap translations", () => {
     expect(normalized.translations).toEqual({ fan_booking_book_now: "Reservar" });
     expect(normalized.locale).toBe("fr-CA");
   });
+
+  it("accepts only the internal direct-cancellation initial action", () => {
+    expect(normalizeEventsEmbedBootstrap({ initialAction: " CANCEL " }).initialAction).toBe("cancel");
+    expect(normalizeEventsEmbedBootstrap({ initialAction: "approve" }).initialAction).toBe("");
+  });
 });

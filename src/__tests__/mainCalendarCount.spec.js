@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
+import { createEventDetailsPopupConfig } from "@/components/calendar/eventDetailsPopupConfig.js";
 
 vi.mock("@/components/calendar/EventDropdownContent.vue", () => ({
   default: {
@@ -142,9 +143,9 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   },
 }));
 
-vi.mock("@/components/calendar/CalendarEventDetailsPopup.vue", () => ({
+vi.mock("@/components/ui/popup/BookingDetailsPopup.vue", () => ({
   default: {
-    name: "CalendarEventDetailsPopup",
+    name: "BookingDetailsPopup",
     props: ["event", "comparisonTime"],
     template: "<div data-test='event-details' :data-comparison-time='comparisonTime?.toISOString?.()'>{{ event.title }}</div>",
   },
@@ -1719,9 +1720,66 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.findAll("[data-test='mobile-booking']")).toHaveLength(5);
 
     await wrapper.get("[data-test='mobile-booking']").trigger("click");
-    const detailsPopup = wrapper.findComponent({ name: "CalendarEventDetailsPopup" });
+    const detailsPopup = wrapper.findComponent({ name: "BookingDetailsPopup" });
     expect(detailsPopup.exists()).toBe(true);
     expect(detailsPopup.props("comparisonTime")).toBe(joinComparisonTime);
+    expect(createEventDetailsPopupConfig(390)).toMatchObject({
+      actionType: "slidein",
+      from: "right",
+      verticalAlign: "stretch",
+      speed: "220ms",
+      effect: "ease-out",
+      width: { default: "492px", "<768": "100%" },
+      height: { default: "100%" },
+      closeSpeed: "220ms",
+      closeEffect: "ease-in",
+    });
+  });
+
+  it("opens desktop and tablet booking details as a full-height right drawer", async () => {
+    setWindowWidth(1280);
+    const event = makeEvent({
+      id: "desktop_drawer_booking",
+      eventId: "evt_desktop_drawer",
+      title: "Desktop drawer booking",
+      start: new Date(2026, 3, 23, 10, 0, 0),
+      end: new Date(2026, 3, 23, 10, 30, 0),
+      isAvailabilityBlock: false,
+    });
+    const wrapper = await mountCalendar(
+      [event],
+      { initialView: "day" },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, onClick }">
+              <button data-test="desktop-drawer-booking" @click="onClick(event)">{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    await wrapper.get('[data-test="desktop-drawer-booking"]').trigger("click");
+    expect(wrapper.findComponent({ name: "BookingDetailsPopup" }).exists()).toBe(true);
+    expect(createEventDetailsPopupConfig(1280)).toMatchObject({
+      actionType: "slidein",
+      from: "right",
+      verticalAlign: "stretch",
+      speed: "220ms",
+      effect: "ease-out",
+      showOverlay: true,
+      closeOnOutside: true,
+      escToClose: true,
+      width: { default: "492px", "<768": "100%" },
+      height: { default: "100%" },
+      closeSpeed: "220ms",
+      closeEffect: "ease-in",
+    });
+    expect(createEventDetailsPopupConfig(1010).width).toEqual({
+      default: "492px",
+      "<768": "100%",
+    });
   });
 
   it("uses month and year for the mobile day calendar toggle title", async () => {

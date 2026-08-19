@@ -16,6 +16,7 @@ import CalendarWeekBookingBlock from "@/components/calendar/CalendarWeekBookingB
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
 import { resolveVisibleBookedSlotRange } from "@/services/bookings/utils/calendarBookedSlotRange.js";
@@ -1812,6 +1813,16 @@ const deleteEventCandidateTitle = computed(() => (
 const cancelBookingCandidateTitle = computed(() => (
     cancelBookingCandidate.value?.event?.title || t("common_booking")
 ));
+const cancelBookingCandidateRaw = computed(() => cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event || {});
+const cancelBookingFanUsername = computed(() => String(cancelBookingCandidateRaw.value?.fanUsername || cancelBookingCandidateRaw.value?.username || cancelBookingCandidateRaw.value?.fanDisplayName || cancelBookingCandidateRaw.value?.userDisplayName || "fan"));
+const cancelBookingRefundTokens = computed(() => {
+    const payment = cancelBookingCandidateRaw.value?.payment || {};
+    const explicit = Number(payment.total ?? cancelBookingCandidateRaw.value?.paymentTotal);
+    if (Number.isFinite(explicit)) return Math.max(0, explicit);
+    return Array.isArray(payment.lines)
+        ? payment.lines.reduce((sum, line) => sum + Math.max(0, Number(line?.amount) || 0), 0)
+        : 0;
+});
 
 const cancelBookingCandidateTime = computed(() => {
     const event = cancelBookingCandidate.value?.event;
@@ -2460,37 +2471,18 @@ useBodyOverflowHidden({ minWidth: 1010 });
         </div>
     </div>
 
-    <PopupHandler v-model="cancelBookingPopupOpen" :config="confirmationPopupConfig">
-        <div class="w-[30.9375rem] max-w-[90vw] border border-[#EAECF0] bg-white p-4 shadow-xl">
-            <h3 class="text-base font-semibold text-gray-700">
-                {{ t("dashboard_cancel_confirm_title") }}
-            </h3>
-            <p class="mt-2 text-black">{{ t("dashboard_cancel_confirm_body") }}</p>
-            <div class="mt-2 bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                <p class="truncate font-semibold">{{ cancelBookingCandidateTitle }}</p>
-                <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
-            </div>
-            <div class="mt-2 flex items-center justify-center gap-2">
-                <button
-                    type="button"
-                    class="h-9 px-3 text-base font-medium text-[#ff4405] hover:bg-gray-50 disabled:opacity-60"
-                    :disabled="cancelBookingLoading"
-                    @click="closeCancelBookingPopup"
-                >
-                    {{ t("dashboard_cancel_confirm_back") }}
-                </button>
-                <button
-                    type="button"
-                    data-test="booking-form-cancel-confirm"
-                    class="h-9 bg-[#ff4405] px-3 text-base font-medium text-white hover:bg-[#ff692e] disabled:opacity-60"
-                    :disabled="cancelBookingLoading"
-                    @click="confirmCancelBooking"
-                >
-                    {{ cancelBookingLoading ? t("common_loading") : t("dashboard_cancel_confirm_action") }}
-                </button>
-            </div>
-        </div>
-    </PopupHandler>
+    <BookingAdjustmentDecisionPopup
+        v-model="cancelBookingPopupOpen"
+        mode="cancel"
+        actor-role="creator"
+        :event-title="cancelBookingCandidateTitle"
+        :fan-username="cancelBookingFanUsername"
+        :session-refund-tokens="cancelBookingRefundTokens"
+        :net-refund-tokens="cancelBookingRefundTokens"
+        :processing="cancelBookingLoading"
+        @confirm="confirmCancelBooking"
+        @close="closeCancelBookingPopup"
+    />
 
     <PopupHandler v-model="deleteEventPopupOpen" :config="confirmationPopupConfig">
         <div class="w-[32.875rem] max-w-[90vw] rounded border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">

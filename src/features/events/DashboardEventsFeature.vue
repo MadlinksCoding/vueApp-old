@@ -62,6 +62,7 @@
         @edit-schedule-event="handleEditScheduleEvent"
         @delete-schedule-event="openDeleteEventPopup"
         @view-schedule-card="openScheduleCardPreview"
+        @booking-details-visibility="emit('booking-details-visibility', $event)"
       >
         <template #event="{ event, style, onClick, view }">
           <div
@@ -573,7 +574,20 @@
       />
     </PopupHandler>
 
-    <PopupHandler v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
+    <BookingAdjustmentDecisionPopup
+      v-if="isCreator"
+      v-model="cancelBookingPopupOpen"
+      mode="cancel"
+      actor-role="creator"
+      :event-title="cancelBookingCandidateTitle"
+      :fan-username="cancelBookingFanUsername"
+      :session-refund-tokens="cancelBookingRefundTokens"
+      :net-refund-tokens="cancelBookingRefundTokens"
+      :processing="cancelBookingLoading"
+      @confirm="confirmCancelBooking"
+      @close="closeCancelBookingPopup"
+    />
+    <PopupHandler v-else v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
       <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
         <h3 class="text-[1rem] font-semibold text-gray-700">{{ cancelBookingConfirmTitle }}</h3>
         <p class="mt-2 text-black">
@@ -756,6 +770,7 @@ import CreateEventPopup from "@/components/calendar/CreateEventPopup.vue";
 import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import {
@@ -809,7 +824,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["create-event", "edit-event", "open-url"]);
+const emit = defineEmits(["create-event", "edit-event", "open-url", "booking-details-visibility"]);
 const { t, locale } = useBookingTranslations();
 
 const isCreatePopupOpen = ref(false);
@@ -2471,6 +2486,14 @@ const confirmDeleteEvent = async () => {
 };
 
 const cancelBookingCandidateTitle = computed(() => cancelBookingCandidate.value?.event?.title || t("common_booking"));
+const cancelBookingCandidateRaw = computed(() => cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event || {});
+const cancelBookingFanUsername = computed(() => String(cancelBookingCandidateRaw.value?.fanUsername || cancelBookingCandidateRaw.value?.username || cancelBookingCandidateRaw.value?.fanDisplayName || cancelBookingCandidateRaw.value?.userDisplayName || "fan"));
+const cancelBookingRefundTokens = computed(() => {
+  const payment = cancelBookingCandidateRaw.value?.payment || {};
+  const explicit = Number(payment.total ?? cancelBookingCandidateRaw.value?.paymentTotal);
+  if (Number.isFinite(explicit)) return Math.max(0, explicit);
+  return Array.isArray(payment.lines) ? payment.lines.reduce((sum, line) => sum + Math.max(0, Number(line?.amount) || 0), 0) : 0;
+});
 
 const cancelBookingConfirmTitle = computed(() => (
   isFan.value ? t("dashboard_fan_cancel_confirm_title") : t("dashboard_cancel_confirm_title")

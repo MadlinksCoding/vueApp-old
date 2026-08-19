@@ -1031,12 +1031,13 @@
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
-      <CalendarEventDetailsPopup
+      <BookingDetailsPopup
         v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         :comparison-time="props.joinComparisonTime"
+        presentation="side-panel"
         @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
         @reject-booking="handleRejectBooking"
@@ -1149,7 +1150,8 @@ import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
-import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
+import BookingDetailsPopup from '@/components/ui/popup/BookingDetailsPopup.vue';
+import { createEventDetailsPopupConfig } from './eventDetailsPopupConfig.js';
 import EventsRequestsPopup from './EventsRequestsPopup.vue';
 import StickyBookingCard from './StickyBookingCard.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
@@ -1193,7 +1195,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1246,6 +1248,16 @@ const adjustBookingState = ref(null);
 const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
 const isMobileCalendarOpen = ref(false);
+
+watch(eventDetailsPopupOpen, (open) => {
+  emit('booking-details-visibility', Boolean(open));
+});
+
+onBeforeUnmount(() => {
+  if (eventDetailsPopupOpen.value) {
+    emit('booking-details-visibility', false);
+  }
+});
 
 const chatStore = useChatStore();
 const { sendChatMessage } = useChatSocket();
@@ -1534,33 +1546,7 @@ const newEventsPopupConfig = {
   lockScroll: false,
 };
 
-const eventDetailsPopupConfig = computed(() => {
-  const isIpadPortraitLarge = width.value >= 1024
-    && width.value <= 1279
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(orientation: portrait)").matches;
-
-  return {
-    actionType: width.value < 1024 ? "slidein" : (isIpadPortraitLarge ? "slidein" : "popup"),
-    from: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "right" : undefined),
-    position: width.value >= 1024 && !isIpadPortraitLarge ? "center" : undefined,
-    verticalAlign: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "stretch" : undefined),
-    customEffect: width.value >= 1024 && !isIpadPortraitLarge ? "scale" : undefined,
-    offset: "0px",
-    speed: "250ms",
-    effect: "ease-in-out",
-    showOverlay: !(width.value >= 1024 && width.value <= 1279),
-    closeOnOutside: true,
-    lockScroll: true,
-    escToClose: true,
-    width: { default: "auto", "<1023": "98%", "1024-1279": "auto" },
-    height: "auto",
-    scrollable: false,
-    closeSpeed: "250ms",
-    closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
-    customClass: "mobile-event-details-sheet",
-  };
-});
+const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value));
 
 const datePopupConfig = {
   actionType: "slidein",
@@ -3493,17 +3479,30 @@ defineExpose({
 </style>
 
 <style>
-/* Mobile Bottom Sheet for Event Details (Teleported to body) */
-@media (max-width: 1023px) {
+/* Booking details drawer (Teleported to body). The historical class name is
+   retained because other calendar consumers use it as an integration hook. */
+.mobile-event-details-sheet {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+}
+
+@media (min-width: 768px) {
   .mobile-event-details-sheet {
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    width: 492px !important;
+    max-width: 492px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-event-details-sheet {
     width: 100% !important;
     max-width: 100% !important;
-    height: auto !important;
-    border-radius: 1.5rem 1.5rem 0 0 !important;
   }
 }
 </style>
