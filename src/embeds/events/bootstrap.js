@@ -14,6 +14,7 @@ const DEFAULT_BOOTSTRAP = {
   tokenHandlerApiUrl: "",
   jwtToken: "",
   initialRoute: "events",
+  initialAction: "",
   bookingId: "",
   creatorData: {
     avatar: null,
@@ -41,6 +42,10 @@ function normalizeInitialRoute(value) {
     return normalized;
   }
   return "events";
+}
+
+function normalizeInitialAction(value) {
+  return String(value || "").trim().toLowerCase() === "cancel" ? "cancel" : "";
 }
 
 function normalizeRuntimeUrl(value) {
@@ -73,6 +78,7 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     tokenHandlerApiUrl: normalizeRuntimeUrl(payload.tokenHandlerApiUrl),
     jwtToken: typeof payload.jwtToken === "string" ? payload.jwtToken : "",
     initialRoute: normalizeInitialRoute(payload.initialRoute),
+    initialAction: normalizeInitialAction(payload.initialAction),
     bookingId: typeof payload.bookingId === "string" || typeof payload.bookingId === "number"
       ? String(payload.bookingId).trim()
       : "",
@@ -95,6 +101,7 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.tokenHandlerApiUrl = applyTokenHandlerApiUrlSafely(normalized.tokenHandlerApiUrl);
   bootstrapState.jwtToken = normalized.jwtToken;
   bootstrapState.initialRoute = normalized.initialRoute;
+  bootstrapState.initialAction = normalized.initialAction;
   bootstrapState.bookingId = normalized.bookingId;
   bootstrapState.creatorData = normalized.creatorData;
   bootstrapState.translations = normalized.translations;
@@ -136,6 +143,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     tokenHandlerApiUrl: params.get("tokenHandlerApiUrl") || "",
     jwtToken: params.get("jwtToken") || "",
     initialRoute: params.get("initialRoute") || "events",
+    initialAction: "",
     bookingId: params.get("bookingId") || "",
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),

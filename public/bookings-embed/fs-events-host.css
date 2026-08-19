@@ -48,6 +48,26 @@
   background: #f9fafb;
 }
 
+.fs-booking-details-popup__panel--decision-open {
+  width: 100vw;
+  max-width: 100vw;
+  background: transparent;
+  box-shadow: none;
+}
+
+.fs-booking-details-popup__panel--decision-open .fs-booking-details-popup__iframe {
+  background: transparent;
+}
+
+.fs-booking-details-popup__panel--decision-direct {
+  animation: none;
+}
+
+.fs-booking-details-popup__panel--closing {
+  transform: translateX(100%);
+  transition: transform 220ms ease-in;
+}
+
 .fs-booking-details-popup__loading {
   position: absolute;
   inset: 0;
@@ -67,12 +87,37 @@
   pointer-events: none;
 }
 
+/* Direct dashboard cancellation already uses the host overlay as its loading
+   backdrop. Keep its full-viewport loading layer transparent and remove it
+   without a fade so it cannot wash the WordPress page white while the
+   authenticated iframe becomes ready. */
+.fs-booking-details-popup__panel--decision-direct .fs-booking-details-popup__loading {
+  flex-direction: column;
+  gap: 8px;
+  background: transparent;
+  color: #667085;
+  font-size: 14px;
+  font-weight: 500;
+  transition: none;
+}
+
+.fs-booking-details-popup__loading-label {
+  line-height: 20px;
+}
+
 .fs-booking-details-popup__spinner {
+  display: block;
+  box-sizing: border-box;
+  flex: 0 0 32px;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   border: 3px solid #d0d5dd;
   border-top-color: #5549ff;
   border-radius: 9999px;
+  opacity: 1;
+  visibility: visible;
   animation: fs-booking-details-spin 700ms linear infinite;
 }
 

@@ -9,6 +9,10 @@ export const FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
 export const FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
 export const FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
 export const FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
+export const FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED";
+export const FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS = "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS";
+export const FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED";
+export const FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY";
 
 const MESSAGE_SOURCE = "fs-events-embed";
 
@@ -71,6 +75,30 @@ export function requestBookingDetailsClose(payload = {}) {
 
 export function notifyBookingDetailsUpdated(payload = {}) {
   postToParent(FS_EVENTS_BOOKING_DETAILS_UPDATED, payload);
+}
+
+export function requestBookingDetailsTopup(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED, payload);
+}
+
+export function notifyBookingDetailsDecisionVisibility(isOpen) {
+  postToParent(FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY, {
+    open: Boolean(isOpen),
+  });
+}
+
+export function installBookingDetailsTopupListener(handler) {
+  if (typeof window === "undefined") return () => {};
+
+  const listener = (event) => {
+    if (event.source !== window.parent) return;
+    const type = event.data?.type;
+    if (![FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS, FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED].includes(type)) return;
+    handler({ ok: type === FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS, payload: event.data?.payload || {} }, event);
+  };
+
+  window.addEventListener("message", listener);
+  return () => window.removeEventListener("message", listener);
 }
 
 export function installEventsEmbedBootstrapListener(handler) {

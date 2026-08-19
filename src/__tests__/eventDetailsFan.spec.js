@@ -1,0 +1,381 @@
+import { mount } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import EventDetailsFan from '@/components/ui/popup/EventDetailsFan.vue';
+import defaultCoverImage from '@/assets/images/icons/background.webp';
+import tokenIcon from '@/assets/images/icons/token-02.webp';
+import priceArrowIcon from '@/assets/images/icons/arrow-right-orange.svg';
+import profileIcon from '@/assets/images/icons/profile.webp';
+import requestsIcon from '@/assets/images/icons/dotpoints.png';
+import costIcon from '@/assets/images/icons/dollar.png';
+import reminderIcon from '@/assets/images/icons/bell-1.webp';
+import dotsIcon from '@/assets/images/icons/dots-vertical-white.svg';
+import closeIcon from '@/assets/images/icons/x-close-white.svg';
+import chatIcon from '@/assets/images/icons/message-text-square-blue.svg';
+import chatArrowIcon from '@/assets/images/icons/arrow-up-right-blue.svg';
+import adjustmentCheckIcon from '@/assets/images/icons/check-black.svg';
+import adjustmentTokenIcon from '@/assets/images/icons/token-sm-calender.svg';
+import adjustmentArrowIcon from '@/assets/images/icons/arrow-right-brown.svg';
+
+function booking(overrides = {}) {
+  return {
+    bookingId: 'booking_1',
+    eventId: 'event_1',
+    creatorId: 1407,
+    creatorName: 'Miu Miu',
+    eventTitle: 'Lantau cows meet up',
+    eventType: 'private-event',
+    eventCallType: 'video',
+    eventColorSkin: '#22CCEE',
+    status: 'pending',
+    startAtIso: '2027-04-25T14:15:00Z',
+    endAtIso: '2027-04-25T14:45:00Z',
+    reminderMinutes: 5,
+    payment: { total: 100, currency: 'TOKENS' },
+    personalRequestText: 'Record the live call',
+    meta: {
+      chatId: 'chat_1',
+      bookingMessageId: 'message_1',
+      currentCounterOffer: 'adjust',
+      negotiation: {
+        type: 'adjust',
+        status: 'sent',
+        negotiationId: 'neg_1',
+        original: { totalTokens: 100 },
+        proposed: { totalTokens: 135, remarks: 'Demand increased.' },
+      },
+    },
+    ...overrides,
+  };
+}
+
+function mountDetails(value, presentation = 'side-panel') {
+  return mount(EventDetailsFan, {
+    props: {
+      presentation,
+      booking: value,
+      event: {
+        bookingId: value.bookingId,
+        eventId: value.eventId,
+        title: value.eventTitle,
+        start: value.startAtIso,
+        end: value.endAtIso,
+        status: value.status,
+        color: value.eventColorSkin,
+        raw: value,
+      },
+    },
+  });
+}
+
+describe('EventDetailsFan', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('renders booking data and an active changed-price adjustment', async () => {
+    const wrapper = mountDetails(booking());
+
+    expect(wrapper.text()).toContain('Lantau cows meet up');
+    expect(wrapper.text()).toContain('Miu Miu');
+    expect(wrapper.text()).toContain('Record the live call');
+    expect(wrapper.text()).toContain('Demand increased.');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('100');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
+    expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original-icon"]').attributes('src')).toBe(tokenIcon);
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original-icon"]').element.closest('.grayscale')).not.toBeNull();
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('100');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-arrow"]').attributes('src')).toBe(priceArrowIcon);
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed-icon"]').attributes('src')).toBe(tokenIcon);
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
+    expect(wrapper.get('[data-test="event-details-fan-event-type-badge"]').element.style.backgroundColor).toBe('rgb(250, 204, 21)');
+    expect(wrapper.get('[data-test="event-details-fan-color-rail"]').element.style.backgroundColor).toBe('rgb(250, 204, 21)');
+
+    await wrapper.get('[data-test="event-details-fan-accept-adjustment"]').trigger('click');
+    expect(wrapper.emitted('accept-adjustment')?.[0]?.[0]).toEqual(expect.objectContaining({
+      negotiationId: 'neg_1', originalTokens: 100, proposedTokens: 135,
+    }));
+    wrapper.unmount();
+  });
+
+  it('hides the adjustment for an unchanged or terminal offer and restores booking actions', () => {
+    const value = booking({
+      status: 'confirmed',
+      meta: {
+        currentCounterOffer: '',
+        negotiation: {
+          type: 'adjust',
+          status: 'accepted',
+          original: { totalTokens: 100 },
+          proposed: { totalTokens: 135 },
+        },
+      },
+    });
+    const wrapper = mountDetails(value);
+
+    expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('renders one colored token icon with the localized ordinary session cost', () => {
+    const wrapper = mountDetails(booking({ payment: { total: 1234 }, meta: {}, status: 'confirmed' }));
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-icon"]').attributes('src')).toBe(tokenIcon);
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-icon"]').classes()).not.toContain('grayscale');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,234');
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-adjusted"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders the translated missing-cost fallback without a token icon', () => {
+    const wrapper = mountDetails(booking({ payment: {}, meta: {}, status: 'confirmed' }));
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-missing"]').text()).toBe('Not set');
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-icon"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('renders legacy pending Adjust prices with the same token comparison', () => {
+    const wrapper = mountDetails(booking({
+      meta: {
+        currentCounterOffer: 'adjust',
+        adjust: { prevTotalTokens: '90', proposedTokens: '125' },
+      },
+    }));
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('90');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('125');
+    expect(wrapper.findAll('img[src="' + tokenIcon + '"]')).toHaveLength(2);
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['equal price', { currentCounterOffer: 'adjust', negotiation: { type: 'adjust', status: 'sent', original: { totalTokens: 100 }, proposed: { totalTokens: 100 } } }],
+    ['accepted adjustment', { currentCounterOffer: '', negotiation: { type: 'adjust', status: 'accepted', original: { totalTokens: 100 }, proposed: { totalTokens: 135 } } }],
+    ['declined adjustment', { currentCounterOffer: '', negotiation: { type: 'adjust', status: 'declined', original: { totalTokens: 100 }, proposed: { totalTokens: 135 } } }],
+    ['reschedule offer', { currentCounterOffer: 'reschedule', negotiation: { type: 'reschedule', status: 'sent', original: { totalTokens: 100 }, proposed: { totalTokens: 135 } } }],
+    ['more-time offer', { currentCounterOffer: 'more_time', negotiation: { type: 'more_time', status: 'sent', original: { totalTokens: 100 }, proposed: { totalTokens: 135 } } }],
+  ])('uses the ordinary cost display for a %s', (_label, meta) => {
+    const wrapper = mountDetails(booking({ meta, status: 'confirmed' }));
+
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-adjusted"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#22CCEE');
+    wrapper.unmount();
+  });
+
+  it('reactively restores the stored event color after the adjustment becomes terminal', async () => {
+    const value = booking();
+    const wrapper = mountDetails(value);
+
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
+
+    await wrapper.setProps({
+      booking: {
+        ...value,
+        status: 'confirmed',
+        meta: {
+          currentCounterOffer: '',
+          negotiation: {
+            ...value.meta.negotiation,
+            status: 'accepted',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#22CCEE');
+    expect(wrapper.get('[data-test="event-details-fan-event-type-badge"]').element.style.backgroundColor).toBe('rgb(34, 204, 238)');
+    expect(wrapper.get('[data-test="event-details-fan-color-rail"]').element.style.backgroundColor).toBe('rgb(34, 204, 238)');
+    wrapper.unmount();
+  });
+
+  it('restores the default event color when the stored color is invalid', async () => {
+    const value = booking({ eventColorSkin: 'not-a-color' });
+    const wrapper = mountDetails(value);
+
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#FACC15');
+
+    await wrapper.setProps({
+      booking: {
+        ...value,
+        status: 'confirmed',
+        meta: {
+          currentCounterOffer: '',
+          negotiation: {
+            ...value.meta.negotiation,
+            status: 'declined',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan"]').element.style.getPropertyValue('--event-color')).toBe('#5549FF');
+    wrapper.unmount();
+  });
+
+  it('renders the calendar-style action menu at the top and closes it on outside click', async () => {
+    const wrapper = mountDetails(booking({ meta: {}, status: 'confirmed' }));
+    const trigger = wrapper.get('[data-test="event-details-fan-menu"]');
+
+    expect(trigger.element.closest('[data-test="event-details-fan-hero"]')).not.toBeNull();
+    expect(wrapper.findAll('[data-test="event-details-fan-menu"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-test="event-details-fan-close"]')).toHaveLength(1);
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+
+	await trigger.trigger('click');
+	expect(trigger.attributes('aria-expanded')).toBe('true');
+	expect(wrapper.find('[data-test="event-details-fan-more-time"]').exists()).toBe(false);
+	expect(wrapper.find('[data-test="event-details-fan-reschedule"]').exists()).toBe(false);
+	expect(wrapper.text()).toContain('Cancel booking');
+
+    document.body.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="event-details-fan-menu-dropdown"]').exists()).toBe(false);
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    wrapper.unmount();
+  });
+
+  it('closes an actionable booking from the X beside the top menu', async () => {
+    const wrapper = mountDetails(booking({ meta: {}, status: 'confirmed' }));
+
+    await wrapper.get('[data-test="event-details-fan-close"]').trigger('click');
+
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    expect(wrapper.emitted('close')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('closes the menu and emits the existing cancellation payload', async () => {
+    const value = booking({ meta: {}, status: 'confirmed' });
+    const wrapper = mountDetails(value);
+
+    await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
+    await wrapper.get('[data-test="event-details-fan-cancel"]').trigger('click');
+
+    expect(wrapper.emitted('cancel-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: 'booking_1',
+      eventId: 'event_1',
+    }));
+    expect(wrapper.find('[data-test="event-details-fan-menu-dropdown"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['ended booking', { meta: {}, startAtIso: '2020-01-01T10:00:00Z', endAtIso: '2020-01-01T10:30:00Z' }],
+    ['missing booking identity', { bookingId: '', meta: {} }],
+  ])('uses the close action instead of dots for an %s', (_label, overrides) => {
+    const wrapper = mountDetails(booking(overrides));
+
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it.each(['side-panel', 'popup'])('emits close events from the fallback X in %s presentation', async (presentation) => {
+    const wrapper = mountDetails(booking(), presentation);
+    const closeButton = presentation === 'popup'
+      ? document.querySelector('[data-test="event-details-fan-close"]')
+      : wrapper.get('[data-test="event-details-fan-close"]').element;
+
+    expect(closeButton).not.toBeNull();
+    closeButton.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
+    expect(wrapper.emitted('close')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('adapts the event type label for group bookings', () => {
+    const wrapper = mountDetails(booking({ eventType: 'group-event', status: 'confirmed', meta: {} }));
+    expect(wrapper.text()).toContain('Group Video Call');
+    wrapper.unmount();
+  });
+
+  it('uses the booking-flow background when the event has no cover image', () => {
+    const wrapper = mountDetails(booking());
+
+    expect(wrapper.get('[data-test="event-details-fan-cover"]').attributes('src')).toBe(defaultCoverImage);
+    wrapper.unmount();
+  });
+
+  it('retains the committed layout anchors, icon assets, and SVG wrappers', () => {
+    const wrapper = mountDetails(booking({
+      status: 'confirmed',
+      meta: {},
+      creatorVerified: true,
+    }));
+    const imageSources = wrapper.findAll('img').map((image) => image.attributes('src'));
+
+    expect(wrapper.get('[data-test="event-details-fan"]').classes()).toEqual(expect.arrayContaining([
+      'w-full', 'h-full', 'overflow-auto', 'inline-flex', 'flex-col',
+    ]));
+    expect(wrapper.get('[data-test="event-details-fan-hero"]').classes()).toEqual(expect.arrayContaining([
+      'px-4', 'pt-12', 'pb-2', 'min-h-[18.75rem]', 'bg-gradient-to-b',
+    ]));
+    expect(wrapper.findAll('[data-svg-wrapper]').length).toBeGreaterThanOrEqual(10);
+    expect(imageSources).toEqual(expect.arrayContaining([
+      profileIcon,
+      requestsIcon,
+      costIcon,
+      reminderIcon,
+      dotsIcon,
+      chatIcon,
+      chatArrowIcon,
+    ]));
+    expect(wrapper.findAll('[data-test="event-details-fan-menu"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('gives the iframe side-panel wrapper a full-height flex boundary', () => {
+    const wrapper = mountDetails(booking({ status: 'confirmed', meta: {} }));
+    const panelRoot = wrapper.get('[data-test="event-details-fan"]').element.parentElement;
+
+    expect(panelRoot.classList).toContain('h-full');
+    expect(panelRoot.classList).toContain('min-h-0');
+    wrapper.unmount();
+  });
+
+  it('retains the committed adjustment gradient, buttons, and icon assets', () => {
+    const wrapper = mountDetails(booking());
+    const panel = wrapper.get('[data-test="event-details-fan-price-adjustment"]');
+    const imageSources = panel.findAll('img').map((image) => image.attributes('src'));
+
+    expect(panel.classes()).toEqual(expect.arrayContaining([
+      'shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)]',
+      'border-b-[0.50px]',
+    ]));
+    expect(panel.find('[class*="background:linear-gradient"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="event-details-fan-accept-adjustment"]').classes()).toContain('bg-[#07F468]');
+    expect(wrapper.get('[data-test="event-details-fan-decline-adjustment"]').classes()).toContain('bg-[#FF4405]');
+    expect(imageSources).toEqual(expect.arrayContaining([
+      adjustmentCheckIcon,
+      closeIcon,
+      adjustmentTokenIcon,
+      adjustmentArrowIcon,
+    ]));
+    wrapper.unmount();
+  });
+
+  it('retains the original Join Call treatment inside its active window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2027-04-25T14:12:00Z'));
+    const wrapper = mountDetails(booking({ status: 'confirmed', meta: {}, joinUrl: 'https://example.test/join' }));
+    const joinButton = wrapper.get('[data-test="event-details-fan-join"]');
+
+    expect(joinButton.classes()).toEqual(expect.arrayContaining(['bg-[#07F468]', 'rounded-sm', 'gap-3']));
+    expect(joinButton.find('[data-svg-wrapper] svg').exists()).toBe(true);
+    wrapper.unmount();
+  });
+});

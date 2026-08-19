@@ -10,6 +10,10 @@
   var FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
   var FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
   var FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS = "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED";
+  var FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
@@ -36,6 +40,9 @@
   var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
   var BOOKING_DETAILS_POPUP_OVERLAY_CLASS = "fs-booking-details-popup__overlay";
   var BOOKING_DETAILS_POPUP_PANEL_CLASS = "fs-booking-details-popup__panel";
+  var BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS = "fs-booking-details-popup__panel--decision-open";
+  var BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS = "fs-booking-details-popup__panel--decision-direct";
+  var BOOKING_DETAILS_POPUP_CLOSING_CLASS = "fs-booking-details-popup__panel--closing";
   var BOOKING_DETAILS_POPUP_IFRAME_CLASS = "fs-booking-details-popup__iframe";
   var BOOKING_DETAILS_POPUP_LOADING_CLASS = "fs-booking-details-popup__loading";
   var BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS = "fs-booking-details-popup__loading--hidden";
@@ -506,6 +513,7 @@
       creatorId: null,
       fanId: null,
       userRole: "creator",
+      initialAction: "",
       apiBaseUrl: "",
       tokenHandlerApiUrl: "",
       jwtToken: "",
@@ -978,6 +986,7 @@
       locale: "en",
       targetOrigin: window.location.origin,
       iframeTitle: "Booking details",
+      loadingLabel: "Loading...",
       closeOnOverlayClick: true,
       escToClose: true,
       returnFocusElement: null,
@@ -991,6 +1000,10 @@
     }
 
     var normalizedRole = String(settings.userRole || "creator").trim().toLowerCase() === "fan" ? "fan" : "creator";
+    var initialAction = normalizedRole === "fan" && String(settings.initialAction || "").trim().toLowerCase() === "cancel"
+      ? "cancel"
+      : "";
+    var isDirectCancelLaunch = initialAction === "cancel";
     if (normalizedRole === "fan" && safePositiveNumber(settings.fanId, null) == null) {
       throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a positive fanId for fan views.");
     }
@@ -1006,6 +1019,9 @@
     var unlockBodyScroll = lockBodyScroll();
     var isDestroyed = false;
     var closeInvoked = false;
+    var bookingUpdateCloseTimer = null;
+    var bookingUpdateTransitionHandler = null;
+    var bookingUpdateCallbackInvoked = false;
 
     var overlay = createElement("div", BOOKING_DETAILS_POPUP_OVERLAY_CLASS, {
       role: "presentation",
@@ -1017,14 +1033,24 @@
       "aria-label": settings.iframeTitle,
     });
     var iframe = createElement("iframe", BOOKING_DETAILS_POPUP_IFRAME_CLASS);
+    if (isDirectCancelLaunch) {
+      panel.classList.add(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+      panel.classList.add(BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS);
+      iframe.style.visibility = "hidden";
+    }
     iframe.title = settings.iframeTitle;
     iframe.loading = "eager";
     iframe.setAttribute("scrolling", "no");
 
     var loadingLayer = createElement("div", BOOKING_DETAILS_POPUP_LOADING_CLASS, {
-      "aria-label": "Loading booking details",
+      "aria-label": settings.loadingLabel,
     });
     loadingLayer.innerHTML = '<span class="fs-booking-details-popup__spinner" aria-hidden="true"></span>';
+    if (isDirectCancelLaunch) {
+      var loadingLabel = createElement("span", "fs-booking-details-popup__loading-label");
+      loadingLabel.textContent = settings.loadingLabel;
+      loadingLayer.appendChild(loadingLabel);
+    }
 
     function sendBootstrap() {
       if (!iframe.contentWindow || isDestroyed) return;
@@ -1038,6 +1064,7 @@
           tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           jwtToken: settings.jwtToken || "",
           initialRoute: "booking-details",
+          initialAction: initialAction,
           bookingId: bookingId,
           creatorData: creatorData,
           translations: translations,
@@ -1058,6 +1085,7 @@
 
     function hideLoadingLayer() {
       if (!loadingLayer.parentNode) return;
+      if (isDirectCancelLaunch) iframe.style.visibility = "visible";
       loadingLayer.classList.add(BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS);
       global.setTimeout(function () {
         if (loadingLayer.parentNode) loadingLayer.parentNode.removeChild(loadingLayer);
@@ -1086,6 +1114,13 @@
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown);
       iframe.removeEventListener("load", sendBootstrap);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_CLOSING_CLASS);
+      if (bookingUpdateTransitionHandler) {
+        panel.removeEventListener("transitionend", bookingUpdateTransitionHandler);
+        bookingUpdateTransitionHandler = null;
+      }
       unlockBodyScroll();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (activeBookingDetailsPopup && activeBookingDetailsPopup.iframe === iframe) {
@@ -1097,6 +1132,36 @@
 
     function close() {
       destroy({ invokeOnClose: true });
+    }
+
+    function finishBookingUpdate(payload) {
+      if (bookingUpdateCallbackInvoked) return;
+      bookingUpdateCallbackInvoked = true;
+      if (bookingUpdateCloseTimer !== null) {
+        global.clearTimeout(bookingUpdateCloseTimer);
+        bookingUpdateCloseTimer = null;
+      }
+      destroy({ invokeOnClose: false });
+      if (typeof settings.onBookingUpdated === "function") {
+        settings.onBookingUpdated(payload || {});
+      }
+    }
+
+    function closeAfterBookingUpdate(payload) {
+      if (!isDirectCancelLaunch) {
+        panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+        // Flush the restored drawer width before applying the slide-out transform.
+        void panel.offsetWidth;
+      }
+      panel.classList.add(BOOKING_DETAILS_POPUP_CLOSING_CLASS);
+      bookingUpdateTransitionHandler = function (event) {
+        if (event.target !== panel || event.propertyName !== "transform") return;
+        finishBookingUpdate(payload);
+      };
+      panel.addEventListener("transitionend", bookingUpdateTransitionHandler);
+      bookingUpdateCloseTimer = global.setTimeout(function () {
+        finishBookingUpdate(payload);
+      }, 260);
     }
 
     function onMessage(event) {
@@ -1111,16 +1176,59 @@
         hideLoadingLayer();
         return;
       }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY) {
+        if (isDirectCancelLaunch) return;
+        panel.classList.toggle(
+          BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS,
+          data.payload && data.payload.open === true
+        );
+        return;
+      }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST) {
         close();
         return;
       }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
+        var topupPayload = data.payload || {};
+        var requiredTokens = Number(topupPayload.requiredTokens || 0);
+        if (typeof global.openTipPopup !== "function" || !Number.isFinite(requiredTokens) || requiredTokens <= 0) {
+          iframe.contentWindow.postMessage({
+            type: FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED,
+            payload: { bookingId: bookingId, reason: "topup_unavailable" },
+          }, targetOrigin);
+          return;
+        }
+
+        global.openTipPopup({
+          creator_id: topupPayload.creatorUserId || 0,
+          user_id: topupPayload.currentUserId || 0,
+          tip_type: "token",
+          topup_amount: requiredTokens,
+          is_call_topup_and_tip: true,
+          is_tip_from_php: true,
+          topupFor: topupPayload.topupFor || "booking_confirm",
+          successCallback: function () {
+            if (!isDestroyed && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({
+                type: FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS,
+                payload: { bookingId: bookingId },
+              }, targetOrigin);
+            }
+          },
+          failureCallback: function () {
+            if (!isDestroyed && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({
+                type: FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED,
+                payload: { bookingId: bookingId, reason: "topup_failed" },
+              }, targetOrigin);
+            }
+          },
+        });
+        return;
+      }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_UPDATED) {
         var payload = data.payload || {};
-        destroy({ invokeOnClose: false });
-        if (typeof settings.onBookingUpdated === "function") {
-          settings.onBookingUpdated(payload);
-        }
+        closeAfterBookingUpdate(payload);
         return;
       }
       if (data.type === FS_EVENTS_OPEN_URL) {
@@ -1149,8 +1257,12 @@
     iframe.addEventListener("load", sendBootstrap);
     document.body.appendChild(overlay);
 
-    // Booking IDs and authentication remain in the postMessage bootstrap payload.
-    iframe.src = settings.src;
+    // Force the lightweight HTML shell to be revalidated so a deployment cannot
+    // strand an already-open dashboard on stale hashed bundles. Booking IDs and
+    // authentication remain exclusively in the postMessage bootstrap payload.
+    iframe.src = buildIframeSrcWithQuery(settings.src, {
+      fsDetailsVersion: Date.now(),
+    });
 
     activeBookingDetailsPopup = {
       iframe: iframe,
