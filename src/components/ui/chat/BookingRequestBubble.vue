@@ -30,7 +30,7 @@
             <span class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</span>
           </button>
 
-          <div v-if="!isPassCall && ['pending', 'accepted'].includes(resolvedAction)" class="relative">
+          <div v-if="isPinned && !isPassCall && ['pending', 'accepted'].includes(resolvedAction)" class="relative">
           <button
             type="button"
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
@@ -164,40 +164,84 @@
           </button>
         </div>
         <!-- Active state -->
-        <div v-else class="mt-auto flex flex-wrap gap-2 w-full items-start justify-between">
-          <div class="flex items-center gap-1.5 flex-wrap">
+        <div v-else class="mt-auto flex flex-col gap-2 w-full">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 text-gray-400 text-sm font-medium">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.5" stroke="#98A2B3" stroke-width="1.25" />
+                <path d="M8 5v3.25l2 1.25" stroke="#98A2B3" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Pending
+            </div>
+            <button
+              type="button"
+              class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+              @click.stop="$emit('view-details')"
+            >
+              View detail
+              <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+            </button>
+          </div>
+
+          <div class="flex items-stretch gap-2">
             <button
               type="button"
               :disabled="disabled"
-              class="px-3 py-1 rounded text-xs font-semibold transition-opacity text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50"
+              class="flex-1 min-w-0 px-3 py-2 rounded shadow-sm inline-flex items-center justify-center gap-2 text-sm font-semibold transition-opacity text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50"
               @click.stop="!disabled && $emit('accept')"
             >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" stroke="#0C111D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
               Accept
             </button>
             <button
               type="button"
               :disabled="disabled"
-              class="px-3 py-1 rounded text-xs font-semibold bg-white border transition-colors text-[#EE3400] border-[#EE3400] hover:bg-red-50 disabled:opacity-50"
-              @click.stop="!disabled && $emit('decline')"
+              class="flex-1 min-w-0 px-3 py-2 rounded border border-[#344054] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#1D2939] transition-colors hover:bg-gray-50 disabled:opacity-50"
+              @click.stop="!disabled && $emit('adjust')"
             >
-              Decline
+              <img :src="EditIcon" class="w-3.5 h-3.5" alt="" />
+              Adjust Request
             </button>
+
+            <div class="relative shrink-0" @click.stop>
+              <button
+                type="button"
+                :disabled="disabled"
+                class="h-full w-10 rounded bg-[#0C111D] inline-flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-50"
+                :aria-expanded="reviewMenuOpen"
+                aria-label="More booking actions"
+                @click.stop="toggleReviewMenu"
+              >
+                <svg width="16" height="4" viewBox="0 0 16 4" fill="none" aria-hidden="true">
+                  <circle cx="2" cy="2" r="1.5" fill="white" />
+                  <circle cx="8" cy="2" r="1.5" fill="white" />
+                  <circle cx="14" cy="2" r="1.5" fill="white" />
+                </svg>
+              </button>
+
+              <div
+                v-if="reviewMenuOpen"
+                class="absolute right-0 top-11 z-[1200] w-[13rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  :disabled="disabled"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2] disabled:opacity-50"
+                  @click.stop="handleDeclineBooking"
+                >
+                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                  </span>
+                  Decline Booking
+                </button>
+              </div>
+            </div>
           </div>
-          <button type="button"
-            class="hidden items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
-            @click.stop="$emit('view-details')">
-            View Details
-            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
-          </button>
-          <button
-            type="button"
-            :disabled="disabled"
-            class="flex items-center gap-1 text-xs transition-colors text-[#5549FF] hover:opacity-80 disabled:opacity-50"
-            @click.stop="!disabled && $emit('adjust')"
-          >
-            <img :src="EditIcon" class="w-3 h-3" alt="" />
-            Adjust request and price
-          </button>
         </div>
       </template>
 
@@ -421,6 +465,8 @@ const emit = defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confir
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
 const menuOpen = ref(false)
+// The pending action row has its own overflow menu, separate from the header one.
+const reviewMenuOpen = ref(false)
 const remarksExpanded = ref(false)
 const remarksRef = ref(null)
 const isRemarksClamped = ref(false)
@@ -457,7 +503,9 @@ const booking = computed(() => {
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
 
-function toggleMenu() { menuOpen.value = !menuOpen.value }
+function toggleMenu() { menuOpen.value = !menuOpen.value; reviewMenuOpen.value = false }
+function toggleReviewMenu() { if (props.disabled) return; reviewMenuOpen.value = !reviewMenuOpen.value; menuOpen.value = false }
+function handleDeclineBooking() { if (props.disabled) return; reviewMenuOpen.value = false; emit('decline') }
 function handleAskMoreTime()     { if(isPassCall.value) return; menuOpen.value = false; emit('ask-more-time') }
 function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value = false; emit('ask-to-reschedule') }
 function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
@@ -476,7 +524,7 @@ function goToCalendar() {
   window.open('/dashboard/events', '_top')
 }
 
-const handleDocumentClick = () => { menuOpen.value = false }
+const handleDocumentClick = () => { menuOpen.value = false; reviewMenuOpen.value = false }
 onMounted(() => document.addEventListener('click', handleDocumentClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
@@ -510,7 +558,6 @@ onMounted(async () => {
   }
 
   loading.value = true
-  console.error("Fetching booking details for bookingId:", bookingId)
   const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
   loading.value = false
 
