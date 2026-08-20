@@ -1159,8 +1159,10 @@ import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
 import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 import FlowHandler from '@/services/flow-system/FlowHandler';
 import { useChatSocket } from '@/composables/useChatSocket';
-import { useChatStore } from '@/stores/useChatStore';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { buildBookingChatMessage } from '@/services/bookings/utils/bookingChatMessage.js';
+import { resolveUserId } from '@/utils/resolveUserId';
+import { showToast } from '@/utils/toastBus.js';
 
 import MiniCalendar from './MiniCalendar.vue';
 import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
@@ -1259,7 +1261,6 @@ onBeforeUnmount(() => {
   }
 });
 
-const chatStore = useChatStore();
 const { sendChatMessage } = useChatSocket();
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
@@ -2416,17 +2417,32 @@ const handleApproveBooking = (payload) => {
   emit('approve-booking', payload);
 };
 
+// AdjustBookingPopup is message-driven: it reads the booking id from
+// `message.content.booking_id` and posts back to `chatId`. The detail popup only
+// hands us the booking, so rebuild the linked chat message from its meta.
 const handleAdjustBooking = (payload) => {
+  const booking = payload?.booking || payload?.event?.raw || null;
+  const message = buildBookingChatMessage(booking);
+
+  if (!message) {
+    showToast({
+      type: 'error',
+      title: t('dashboard_booking_action_failed_title'),
+      message: t('dashboard_booking_adjust_unavailable'),
+    });
+    return;
+  }
+
   eventDetailsPopupOpen.value = false;
-  adjustBookingState.value = payload;
+  adjustBookingState.value = { ...payload, booking, message, chatId: message.chat_id };
 };
 
 const handleAdjustSubmitted = async ({ item, booking }) => {
   const chatId = adjustBookingState.value?.chatId;
-  const currentUserId = chatStore.currentUserId; 
-  
+  const currentUserId = resolveUserId();
+
   if (chatId && item) {
-    const recipients = [booking.creatorId, booking.userId]
+    const recipients = [booking?.creatorId, booking?.userId]
       .map(id => parseInt(id, 10))
       .filter(id => !isNaN(id));
 

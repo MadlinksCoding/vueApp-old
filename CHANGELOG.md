@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-08-20 — Booking Request Bubble & Adjust Request Fixes
+
+Follow-up to the booking details popup consolidation: aligns the chat bubble's actions with the new confirmation flow and repairs the "Adjust Request" path on the events dashboard.
+
+### Fixed
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Adjust Request Submission** — Submitting an adjustment from the events dashboard failed with `BOOKING_UPDATE_MISSING_ID`. `handleAdjustBooking` stored the detail popup's payload (`{ bookingId, eventId, event, booking }`) verbatim, but `AdjustBookingPopup` is bound to `message` / `chatId` and reads the booking id from `message.content.booking_id`, so it submitted `undefined`. The handler now rebuilds the linked chat message from `booking.meta` with `buildBookingChatMessage()`, and refuses to open the popup with an error toast when the booking has no linked chat request.
+- **Counter Offer Never Reached Chat** — `handleAdjustSubmitted` read `chatId` from the same missing field, so the socket broadcast and activity log were skipped even on a successful submit. It also sent `senderId: undefined`, since `chatStore.currentUserId` is not part of the chat store's state; it now resolves the sender through `resolveUserId()`.
+- **Unused Store** — Dropped the now-unreferenced `useChatStore` import.
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Accept & Pay** — Renamed the counter-offer accept button to match the confirmation step it now opens.
+- **Kebab Menu Visibility** — The overflow menu now shows for pending and accepted requests that have not passed, replacing the previous pinned/creator condition.
+- **View Details** — Hidden on the bubble; the pinned card remains the entry point.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Menu Trimmed** — Commented out the "Ask for more time" and "Ask to reschedule" entries, leaving cancel as the only live-call action.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Unpin Empty Bookings** — Pinned booking messages whose booking has no start/end are now treated as expired and unpinned, so stale cards stop occupying the pinned slot.
+- **Top-up Failure State** — Stopped clearing the pending top-up booking on `FS_CHAT_TOPUP_FAILED`, so a failed attempt can still be resumed by a later success.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Open Chat Closes the Panel** — The "Open chat" link now emits `close` alongside `open-chat`, so the detail panel does not stay open behind the chat.
+
+#### `src/i18n/bookingTranslations.js` & `public/bookings-embed/booking-translations.en.json`
+- **New Key** — `dashboard_booking_adjust_unavailable` for the case where a booking has no linked chat request to adjust.
+
+### Added
+
+#### `src/__tests__/mainCalendarAdjustBooking.spec.js`
+- **Adjust Request Coverage** — Five cases over the rebuilt chat message, the guard for bookings without `meta.chatId` / `meta.bookingMessageId`, and the broadcast payload (recipients and resolved sender id).
+
 ## 2026-08-20 — Unified Booking Details Popup Across Chat & Booking Embeds
 
 Both embeds rendered their own booking detail UI (`BookingRequestDetailPopup` in chat, `BookingDetailsPopup` everywhere else) and re-implemented the same booking writes side by side. This consolidates on a single popup, extracts the shared action logic, and lets the events embed reach the chat socket through the host page.

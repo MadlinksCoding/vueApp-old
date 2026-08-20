@@ -30,7 +30,7 @@
             <span class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</span>
           </button>
 
-          <div v-if="isPinned && isCreator && ! ['pending', 'declined', 'cancelled'].includes(resolvedAction)" class="relative">
+          <div v-if="!isPassCall && ['pending', 'accepted'].includes(resolvedAction)" class="relative">
           <button
             type="button"
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
@@ -184,7 +184,7 @@
             </button>
           </div>
           <button type="button"
-            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            class="hidden items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
             @click.stop="$emit('view-details')">
             View Details
             <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
@@ -300,7 +300,7 @@
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click.stop="!disabled && $emit('confirm-counter')"
           >
-            Accept Changes
+            Accept & Pay
           </button>
           <button
             type="button"

@@ -289,7 +289,7 @@
                     </div>
                   </div>
                 </div>
-                <button v-if="canOpenChat" type="button" data-color="dark" data-leading-icon="true" data-property-1="hover" data-size="sm" data-trailing-icon="true" class="size- inline-flex justify-start items-center gap-0.5" data-test="event-details-fan-open-chat" @click="emit('open-chat', chatPayload)">
+                <button v-if="canOpenChat" type="button" data-color="dark" data-leading-icon="true" data-property-1="hover" data-size="sm" data-trailing-icon="true" class="size- inline-flex justify-start items-center gap-0.5" data-test="event-details-fan-open-chat" @click="emit('open-chat', chatPayload); emit('close')">
                   <div data-svg-wrapper class="relative"><img :src="ChatBlueIcon" alt="" /></div>
                   <div class="justify-start text-blue-600 text-xs font-medium leading-4">{{ t('calendar_event_open_chat') }}</div>
                   <div data-svg-wrapper class="relative"><img :src="ArrowUpRightBlueIcon" alt="" /></div>

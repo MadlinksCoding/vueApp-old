@@ -2791,8 +2791,8 @@ function _onTopupMessage(e) {
     _pendingTopupMessage.value   = null
     if (bookingId) _doConfirmCounter(bookingId, message)
   } else if (e.data.type === 'FS_CHAT_TOPUP_FAILED') {
-    _pendingTopupBookingId.value = null
-    _pendingTopupMessage.value   = null
+    // _pendingTopupBookingId.value = null
+    // _pendingTopupMessage.value   = null
     showToast({ type: 'error', title: 'Top-up failed', message: 'Booking was not confirmed.' })
   } else if (e.data.type === 'FS_CHAT_PRODUCT_REFRESH') {
     refreshProductRecommendationMessages(e.data.payload || {})

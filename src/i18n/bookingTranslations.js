@@ -177,6 +177,7 @@ export const bookingMessages = {
   dashboard_load_failed_message: "Could not load events.",
   dashboard_booking_action_failed_title: "Booking Action Failed",
   dashboard_booking_action_missing_id: "Could not find booking id for this request.",
+  dashboard_booking_adjust_unavailable: "This booking has no linked chat request, so it cannot be adjusted.",
   dashboard_booking_action_update_failed: "Could not update booking approval.",
   dashboard_approval_window_closed_title: "Approval Window Closed",
   dashboard_approval_window_closed_message: "This booking request can no longer be reviewed because its scheduled start time has passed.",
