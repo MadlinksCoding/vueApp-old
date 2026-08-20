@@ -1,5 +1,99 @@
 # Changelog
 
+## 2026-08-20 — Unified Booking Details Popup Across Chat & Booking Embeds
+
+Both embeds rendered their own booking detail UI (`BookingRequestDetailPopup` in chat, `BookingDetailsPopup` everywhere else) and re-implemented the same booking writes side by side. This consolidates on a single popup, extracts the shared action logic, and lets the events embed reach the chat socket through the host page.
+
+### Added
+
+#### `src/composables/useBookingActions.js`
+- **Shared Booking Writes** — New composable holding every booking flow call used by both embeds (`reviewBooking`, `cancelBooking`, `applyPriceAdjustment`, `acceptCounterOffer`, `rejectCounterOffer`, `syncBookingMessage`), returning a uniform `{ ok, item, error }`. Host-specific side effects (socket broadcast, activity log, embed bridge, toasts) stay with the caller.
+
+#### `src/composables/useBookingAdjustmentDecision.js`
+- **Shared Decision State** — New composable that resolves every figure `BookingAdjustmentDecisionPopup` needs (session refund, booking fee, cancellation fee, wallet balance, counterparty username) from a booking and exposes them as ready-to-bind `popupProps`. Extracted from `EventsEmbedBookingDetailsPage.vue` so the chat embed can reuse it verbatim.
+
+#### `src/services/bookings/utils/bookingChatMessage.js`
+- **Booking → Chat Message** — `buildBookingChatMessage(booking)` rebuilds the linked `booking_request` message from `booking.meta.chatId` + `meta.bookingMessageId`, so any surface holding a booking can drive the message-driven chat popups without the real message.
+
+#### `src/services/bookings/utils/bookingCalendarEvent.js`
+- **Booking → Calendar Event** — Extracted `normalizeBookingForCalendar` / `toCalendarEvent` out of `EventsEmbedBookingDetailsPage.vue` so the chat embed can feed `bookingJoinUtils` the shape it expects.
+
+#### `src/services/chat/utils/chatBroadcast.js`
+- **Chat Broadcast Helpers** — `broadcastMessageUpdate` and `sendActivityLog` lifted out of `ChatWindow.vue` so `ChatFloatingWidget` can apply booking updates for a chat that is not currently open.
+
+#### `src/services/bookings/utils/bookingNegotiationUtils.js`
+- **`getPendingCounterOffer()`** — Resolves the outstanding counter offer for every type (`adjust`, `moretime`, `reschedule`), not just price adjustments, returning the proposal and negotiation id. `isPendingPriceAdjustment` is now a thin wrapper over it with its behaviour unchanged.
+
+#### `src/embeds/events/bridge.js`
+- **`requestBookingChatSync()`** — New `FS_EVENTS_BOOKING_CHAT_SYNC` message asking the chat embed on the same host page to broadcast a booking update, since the events embed has no chat socket of its own.
+
+#### `src/__tests__/bookingDetailsPopupCounterOffers.spec.js`
+- **Counter Offer Coverage** — 11 new cases covering the moretime/reschedule accept & reject actions, the rebuilt chat message payload, waiting and expired states, the creator time-change menu, `messageAction` overriding the booking status, and the no-show settlement labels.
+
+### Changed
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Counter Offer Actions** — Added `accept-counter` / `reject-counter` / `ask-more-time` / `ask-to-reschedule` emits, each carrying a full payload (`bookingId`, `offerType`, `proposed`, `negotiationId`, `message`) so hosts no longer re-derive state themselves.
+- **New Props** — `bookingMessage` and `messageAction` let a chat message drive the popup's state, and `canRequestTimeChange` opts a host into the creator's "Ask for more time" / "Ask to reschedule" menu entries. `popupConfig` merges over the slide-in config (used for a higher z-index inside chat).
+- **New States** — Fan-facing banner for a proposed new time, a "Waiting for creator response" badge, a "Request expired" notice once the slot has started, and the no-show settlement line ("Fully refunded" / "Fan Forfeited").
+- **Accept And Pay** — The fan's price-adjustment button now reads "Accept and pay", matching the confirmation step it opens.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Popup Swap** — Replaced `BookingRequestDetailPopup` with `BookingDetailsPopup`, deriving the calendar event from the cached booking and mapping the eleven chat actions onto its emits. Handlers now accept either a chat message (from the bubble) or a popup payload.
+- **Confirmation Step** — Cancellations and price-adjustment responses now confirm through `BookingAdjustmentDecisionPopup` (refund / price-increase / top-up-needed), matching the booking embed. The manual balance check in `onConfirmCounter` was dropped in favour of the popup's own `requiresTopup` / `shortfallTokens`.
+- **Shared Logic** — Booking writes now go through `useBookingActions`, and broadcast/activity-log helpers through `chatBroadcast.js`.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Disambiguated Cancel** — `cancel-booking` now carries `{ source: 'counter_offer' | 'menu' }` so the parent can tell a fan declining an adjustment from a creator cancelling the call, which need different negotiation intents.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **`syncBookingUpdate()`** — New exposed method that refreshes the cached booking, re-renders the request bubble, socket-pushes the message and appends an activity log for updates that happened outside chat. Lives on the widget because it owns the socket and the target chat need not be open.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Booking Sync Inbound** — Handles `FS_CHAT_BOOKING_SYNC` from the host and forwards it to the widget.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Booking Sync Relay** — Relays `FS_EVENTS_BOOKING_CHAT_SYNC` from an events embed on the same page into the chat iframe. Guarded on both the `fs-events-embed` source marker and the sending frame, so only this page's own embeds can reach chat state.
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **Time Change Requests** — Creators can now open the more-time and reschedule request popups directly from the booking embed, driven by the rebuilt chat message.
+- **Counter Offer Responses** — Wired `accept-counter` / `reject-counter` so fans can respond to a proposed new time without switching to chat.
+- **Chat Mirroring** — Approve, reject and cancel now mirror onto the chat message as well, and every action asks the chat embed to broadcast it with a matching activity log.
+- **Deduplicated Logic** — The fee/refund computeds and the flow calls were replaced by the two new composables.
+
+#### `src/components/ui/popup/EventDetailsFan.vue` & `src/components/calendar/CalendarEventDetailsPopup.vue`
+- **Pass-through Events** — Both wrappers re-emit the four new counter-offer events.
+
+#### `src/components/ui/popup/BookingAdjustmentDecisionPopup.vue`
+- **Configurable Popup** — Accepts an optional `popupConfig` merged over its defaults, so a host can raise its z-index.
+
+#### `src/i18n/bookingTranslations.js`
+- **New Keys** — Added the strings for the counter-offer banner, waiting and expired notices, time-change menu entries, "Accept and pay", and the no-show settlement labels.
+
+### Fixed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Unchecked Booking Result** — `performBookingDecision` flipped the chat message to accepted/declined even when `bookings.reviewPendingBooking` had failed. The shared composable checks the result and surfaces a toast instead.
+- **Popup Never Opened** — `PopupHandler` only opens on a `false → true` transition of `modelValue`, so mounting the detail popup with `v-if` while already visible left it hidden. The popup is now mounted with the message first and revealed on the next tick.
+- **Popup Behind Chat** — `PopupHandler` defaults to `zIndex: 2000`, below the chat window's `10000`; the chat embed now passes explicit z-indexes for both popups.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Stretched Panel** — `PopupHandler` forces `md:!w-auto` on its panel, which overrode the configured `500px` and let long adjustment remarks stretch the popup across the viewport. The surface now carries the desktop width itself.
+
+#### `src/composables/useBookingAdjustmentDecision.js`
+- **Silent Zero Balance** — A failed wallet lookup returns `null`, and `Number(null)` is `0`, so a failed fetch read as an empty wallet — showing no error and wrongly forcing a top-up on the accept flow. `null` / `undefined` / `""` are now treated as unavailable.
+
+#### `public/bookings-embed/chat-iframe.html`
+- **Missing JWT** — The test harness stored the token on `window.usersData` and never passed `jwtToken` to `mountChatEmbed`, so the embedded chat could not authenticate (`Backend JWT token is not configured`). It now sets `window.userData.jwtToken` and forwards the token to the embed.
+
+### Removed
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Superseded Popup** — Deleted; `BookingDetailsPopup` now serves the chat embed as well.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **`CancelCallConfirmPopup` Wiring** — Removed, as every cancellation entry point in chat now confirms through `BookingAdjustmentDecisionPopup`.
+
 ## 2026-08-17 — Booking Checkout UI Enhancements
 
 ### Added

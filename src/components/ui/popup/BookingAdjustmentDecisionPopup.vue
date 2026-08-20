@@ -166,18 +166,21 @@ const props = defineProps({
   balanceLoading: { type: Boolean, default: false },
   balanceError: { type: String, default: '' },
   processing: { type: Boolean, default: false },
+  // Merged over the PopupHandler config (e.g. a higher zIndex inside chat).
+  popupConfig: { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'retry-balance', 'close']);
 const { t, locale } = useBookingTranslations();
 
-const popupConfig = {
+const defaultPopupConfig = {
   actionType: 'popup',
   width: 'auto',
   height: { default: 'auto' },
   customEffect: 'fade',
   containerClass: 'booking-adjustment-decision-container',
 };
+const popupConfig = computed(() => ({ ...defaultPopupConfig, ...props.popupConfig }));
 
 function finiteAmount(value, fallback = 0) {
   if (value === '' || value == null) return fallback;

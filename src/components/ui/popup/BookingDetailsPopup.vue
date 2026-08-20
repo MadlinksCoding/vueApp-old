@@ -1,6 +1,6 @@
 <template>
   <component :is="panelComponent" v-bind="panelProps" @update:model-value="handleModelUpdate">
-    <div class="w-full h-full overflow-auto bg-white inline-flex flex-col justify-start items-start" data-test="event-details-fan" :style="{ '--event-color': eventColor }">
+    <div class="w-full h-full overflow-auto bg-white inline-flex flex-col justify-start items-start" :class="surfaceWidthClass" data-test="event-details-fan" :style="{ '--event-color': eventColor }">
       <div class="self-stretch relative bg-black/25 backdrop-blur-[5px] flex flex-col justify-start items-start">
         <div class="self-stretch px-4 pt-12 pb-2 min-h-[18.75rem] relative bg-gradient-to-b from-amber-400/5 to-amber-400/30 flex flex-col justify-end items-start gap-4" data-test="event-details-fan-hero">
           <div class="h-6 p-1.5 bg-stone-900/50 rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
@@ -50,6 +50,18 @@
                 <img :src="DotsWhiteIcon" alt="" class="cursor-pointer" />
               </button>
               <div v-if="menuOpen" class="absolute right-0 top-9 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden" data-test="event-details-fan-menu-dropdown" @click.stop>
+                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]" data-test="booking-details-ask-more-time" @click.stop="askMoreTime">
+                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  </span>
+                  {{ t('booking_details_ask_more_time') }}
+                </button>
+                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]" data-test="booking-details-ask-reschedule" @click.stop="askToReschedule">
+                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  </span>
+                  {{ t('booking_details_ask_reschedule') }}
+                </button>
                 <button type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]" data-test="event-details-fan-cancel" @click.stop="requestCancel">
                   <span data-svg-wrapper class="inline-flex w-5 h-5 items-center justify-center">
                     <span
@@ -82,7 +94,25 @@
           <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0"><img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" /></div>
           <div class="flex-1 text-sm leading-5 text-[#7A271A]">
             <div class="font-semibold" data-test="booking-details-cancelled-heading">{{ cancelledNoticeHeading }}</div>
+            <div v-if="noShowNotice" class="mt-1 text-gray-900" data-test="booking-details-no-show-notice">{{ noShowNotice }}</div>
             <div v-if="cancelledRefundTokens != null" class="mt-1 text-gray-900" data-test="booking-details-cancelled-refund">{{ t('booking_details_cancelled_refund_notice', { tokens: formatTokenAmount(cancelledRefundTokens) }) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="showFanNoShowNotice" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-stretch" data-test="booking-details-fan-cancelled-notice">
+        <div class="w-1 self-stretch bg-[#FF4405]" />
+        <div class="flex-1 px-3 py-3 bg-[#FFF4ED] inline-flex justify-start items-center gap-3 min-w-0">
+          <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0"><img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" /></div>
+          <div class="flex-1 min-w-0 text-sm font-semibold leading-5 text-[#7A271A]" data-test="booking-details-no-show-notice">{{ noShowNotice }}</div>
+        </div>
+      </div>
+
+      <div v-else-if="showExpiredNotice" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-stretch" data-test="booking-details-expired-notice">
+        <div class="w-1 self-stretch bg-gray-400" />
+        <div class="flex-1 px-3 py-3 bg-gray-50 inline-flex justify-start items-center gap-3 min-w-0">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-500" data-test="booking-details-expired-badge">
+            {{ t('booking_details_request_expired') }}
           </div>
         </div>
       </div>
@@ -136,6 +166,54 @@
         </div>
       </div>
 
+      <div v-else-if="fanPendingTimeOffer" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-stretch" data-test="booking-details-time-offer">
+        <div class="w-1 self-stretch bg-orange-600" />
+        <div class="flex-1 px-3 py-3 bg-[#FFF4ED] inline-flex justify-start items-start gap-3 min-w-0">
+          <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0">
+            <img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" />
+          </div>
+          <div class="flex-1 min-w-0 flex flex-col items-start gap-3">
+            <div class="self-stretch text-sm leading-5 text-[#7A271A]" data-test="booking-details-time-offer-heading">
+              <span class="font-semibold">{{ creatorName || t('common_creator') }}</span>
+              {{ counterOfferType === 'reschedule' ? t('booking_details_proposed_reschedule') : t('booking_details_proposed_more_time') }}
+            </div>
+            <div class="self-stretch inline-flex flex-wrap items-center gap-2">
+              <div class="inline-flex flex-col items-start gap-0.5">
+                <span class="text-xs font-medium leading-4 text-red-800">{{ t('booking_details_current_time') }}</span>
+                <span class="text-sm font-medium leading-5 text-gray-500 line-through" data-test="booking-details-time-offer-original">{{ formattedCurrentRange }}</span>
+              </div>
+              <div data-svg-wrapper class="relative"><img :src="ArrowBrownIcon" alt="" /></div>
+              <div class="inline-flex flex-col items-start gap-0.5">
+                <span class="text-xs font-medium leading-4 text-orange-600">{{ t('booking_details_new_time') }}</span>
+                <span class="text-sm font-semibold leading-5 text-orange-600" data-test="booking-details-time-offer-proposed">{{ formattedProposedRange }}</span>
+              </div>
+            </div>
+            <div class="self-stretch flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <button type="button" class="flex-1 min-w-20 p-2 bg-[#07F468] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="booking-details-accept-counter" @click="acceptCounter">
+                <div data-svg-wrapper class="relative"><img :src="CheckBlackIcon" alt="" /></div>
+                <div class="text-center text-[#0C111D] text-sm font-medium capitalize leading-6 tracking-tight">{{ actionLoading ? t('common_loading') : t('booking_details_accept_new_time') }}</div>
+              </button>
+              <button type="button" class="flex-1 sm:flex-none min-w-20 p-2 bg-[#FF4405] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="booking-details-reject-counter" @click="rejectCounter">
+                <div data-svg-wrapper class="relative"><img :src="CloseIcon" alt="" /></div>
+                <div class="text-center text-white text-sm font-medium capitalize leading-6 tracking-tight">{{ t('booking_details_reject_new_time') }}</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="fanWaitingForCreator" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-stretch" data-test="booking-details-fan-waiting-notice">
+        <div class="w-1 self-stretch bg-[#06AED4]" />
+        <div class="flex-1 px-3 py-3 bg-[#ECFDFF] inline-flex justify-start items-center gap-3 min-w-0">
+          <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0">
+            <img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" />
+          </div>
+          <div class="flex-1 min-w-0 text-sm font-semibold leading-5 text-[#0096B7]" data-test="booking-details-fan-waiting-heading">
+            {{ t('booking_details_waiting_for_creator_response') }}
+          </div>
+        </div>
+      </div>
+
       <div v-else-if="fanPendingPriceAdjustment" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-start" data-test="event-details-fan-price-adjustment">
         <div class="w-1 self-stretch bg-orange-600" />
         <div class="flex-1 px-2 py-3 [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(0deg,rgba(255,68,5,0.1)_0%,rgba(255,68,5,0.1)_100%),rgba(255,255,255,0.9)] inline-flex flex-col justify-start items-start gap-4">
@@ -179,7 +257,7 @@
                   <div class="flex-1 flex justify-start flex-col sm:flex-row items-center gap-2">
                     <button type="button" class="flex-1 self-stretch min-w-20 p-2 bg-[#07F468] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="event-details-fan-accept-adjustment" @click="emit('accept-adjustment', adjustment)">
                       <div data-svg-wrapper class="relative"><img :src="CheckBlackIcon" alt="" /></div>
-                      <div class="text-center justify-start text-[#0C111D] text-sm font-medium capitalize leading-6 tracking-tight">{{ actionLoading ? t('common_loading') : t('fan_event_details_accept_new_price') }}</div>
+                      <div class="text-center justify-start text-[#0C111D] text-sm font-medium capitalize leading-6 tracking-tight">{{ actionLoading ? t('common_loading') : t('booking_details_accept_and_pay') }}</div>
                     </button>
                     <button type="button" class="flex-1 self-stretch sm:flex-none sm:self-auto min-w-20 p-2 bg-[#FF4405] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" :disabled="actionLoading" data-test="event-details-fan-decline-adjustment" @click="emit('decline-adjustment', adjustment)">
                       <div data-svg-wrapper class="relative"><img :src="CloseIcon" alt="" /></div>
@@ -305,7 +383,8 @@ import PopupHandler from './PopupHandler.vue';
 import BookingAdjustmentDecisionPopup from './BookingAdjustmentDecisionPopup.vue';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { getCalendarEventApprovalState, getCalendarEventJoinState } from '@/utils/bookingJoinUtils.js';
-import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { getPendingCounterOffer } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { buildBookingChatMessage } from '@/services/bookings/utils/bookingChatMessage.js';
 import { fetchUserProfileData } from '@/services/users/userProfileApi.js';
 import FlowHandler from '@/services/flow-system/FlowHandler.js';
 import defaultCoverImage from '@/assets/images/icons/background.webp';
@@ -335,8 +414,16 @@ const props = defineProps({
   userRole: { type: String, default: 'fan' },
   canReviewPending: { type: Boolean, default: false },
   comparisonTime: { type: [Date, String, Number], default: null },
+  // Chat message this booking is linked to. Rebuilt from `booking.meta` when absent.
+  bookingMessage: { type: Object, default: null },
+  // Chat-side action (`counter_offer`, `accepted`, …) which wins over the booking status.
+  messageAction: { type: String, default: null },
+  // Enables the creator's "Ask for more time" / "Ask to reschedule" menu entries.
+  canRequestTimeChange: { type: Boolean, default: false },
+  // Merged over the slide-in PopupHandler config (e.g. a higher zIndex inside chat).
+  popupConfig: { type: Object, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'close', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility']);
+const emit = defineEmits(['update:modelValue', 'close', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule']);
 const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 const reviewMenuOpen = ref(false);
@@ -347,12 +434,17 @@ const rejectDecisionOpen = ref(false);
 let timerId = null;
 let profileController = null;
 
-const popupConfig = { actionType: 'slidein', from: 'right', offset: '0px', speed: '300ms', effect: 'cubic-bezier(0.4, 0, 0.2, 1)', closeSpeed: '250ms', closeEffect: 'cubic-bezier(0.4, 0, 0.2, 1)', showOverlay: true, closeOnOutside: true, lockScroll: true, escToClose: true, width: { default: '500px', '<768': '100%' }, height: { default: '100%', '<768': '100%' }, scrollable: true };
+const defaultPopupConfig = { actionType: 'slidein', from: 'right', offset: '0px', speed: '300ms', effect: 'cubic-bezier(0.4, 0, 0.2, 1)', closeSpeed: '250ms', closeEffect: 'cubic-bezier(0.4, 0, 0.2, 1)', showOverlay: true, closeOnOutside: true, lockScroll: true, escToClose: true, width: { default: '500px', '<768': '100%' }, height: { default: '100%', '<768': '100%' }, scrollable: true };
+const popupConfig = computed(() => ({ ...defaultPopupConfig, ...props.popupConfig }));
 const isSidePanel = computed(() => props.presentation === 'side-panel');
+// PopupHandler forces `md:!w-auto` on its panel, which beats the inline width from the
+// config — so the surface has to carry the desktop width itself or long content
+// (adjustment remarks in particular) stretches the whole panel.
+const surfaceWidthClass = computed(() => (isSidePanel.value ? '' : 'md:w-[31.25rem]'));
 const panelComponent = computed(() => (isSidePanel.value ? 'div' : PopupHandler));
 const panelProps = computed(() => (isSidePanel.value
   ? { class: 'h-full min-h-0 w-full' }
-  : { modelValue: props.modelValue, config: popupConfig }));
+  : { modelValue: props.modelValue, config: popupConfig.value }));
 const raw = computed(() => fetchedBooking.value || props.booking || props.event?.raw || {});
 const snapshot = computed(() => raw.value?.eventSnapshot || {});
 const currentEvent = computed(() => raw.value?.eventCurrent || {});
@@ -388,15 +480,48 @@ const formattedTimeRange = computed(() => {
   const formatter = new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' });
   return `${formatter.format(startDate.value)} - ${formatter.format(endDate.value)}`;
 });
+function formatDateTime(date) {
+  if (!date) return '';
+  return new Intl.DateTimeFormat(locale.value, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+}
+// A `moretime` / `reschedule` offer proposes a new start; the session keeps its length.
+const proposedStartDate = computed(() => {
+  const parsed = new Date(counterOffer.value.proposed.proposedSlotDate || '');
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+});
+const proposedEndDate = computed(() => {
+  if (!proposedStartDate.value || !startDate.value || !endDate.value) return null;
+  return new Date(proposedStartDate.value.getTime() + (endDate.value.getTime() - startDate.value.getTime()));
+});
+const formattedProposedRange = computed(() => {
+  if (!proposedStartDate.value) return '';
+  if (!proposedEndDate.value) return formatDateTime(proposedStartDate.value);
+  const timeFormatter = new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' });
+  return `${formatDateTime(proposedStartDate.value)} - ${timeFormatter.format(proposedEndDate.value)}`;
+});
+const formattedCurrentRange = computed(() => (startDate.value ? `${formatDateTime(startDate.value)}` : ''));
+
+// The request can no longer be acted on once its slot has started (unless it is live).
+const isExpired = computed(() => {
+  if (!startDate.value) return false;
+  const currentMs = now.value.getTime();
+  const startMs = startDate.value.getTime();
+  if (endDate.value && currentMs >= startMs && currentMs < endDate.value.getTime()) return false;
+  return currentMs >= startMs;
+});
 const normalizedStatus = computed(() => firstText(raw.value?.status, raw.value?.bookingStatus, props.event?.status).toLowerCase());
 const isCancelledStatus = computed(() => normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined');
 const statusKeys = { confirmed: 'calendar_event_status_confirmed', completed: 'calendar_event_status_completed', pending: 'calendar_event_status_pending', pending_hold: 'calendar_event_status_pending_hold', cancelled: 'calendar_event_status_cancelled', cancelled_user: 'calendar_event_status_cancelled', cancelled_creator: 'calendar_event_status_cancelled', declined: 'calendar_event_status_declined' };
 const statusText = computed(() => t(statusKeys[normalizedStatus.value] || 'calendar_event_status_pending'));
 const statusColor = computed(() => ['confirmed', 'completed'].includes(normalizedStatus.value) ? '#22C55E' : (normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined' ? '#F04438' : '#F59E0B'));
 
-const pendingPriceAdjustment = computed(() => isPendingPriceAdjustment([props.booking, props.event]));
+const counterOffer = computed(() => getPendingCounterOffer([props.booking, props.event]));
+const counterOfferType = computed(() => counterOffer.value.type);
+const pendingPriceAdjustment = computed(() => counterOfferType.value === 'adjust');
+const pendingTimeOffer = computed(() => counterOfferType.value === 'moretime' || counterOfferType.value === 'reschedule');
 const fanPendingPriceAdjustment = computed(() => viewerRole.value === 'fan' && pendingPriceAdjustment.value);
-const creatorWaitingForAdjustment = computed(() => viewerRole.value === 'creator' && pendingPriceAdjustment.value);
+const fanPendingTimeOffer = computed(() => viewerRole.value === 'fan' && pendingTimeOffer.value && !isExpired.value);
+const creatorWaitingForAdjustment = computed(() => viewerRole.value === 'creator' && Boolean(counterOfferType.value));
 const eventColor = computed(() => fanPendingPriceAdjustment.value ? '#FACC15' : storedEventColor.value);
 const adjustment = computed(() => {
   const negotiation = raw.value?.meta?.negotiation || {};
@@ -455,6 +580,23 @@ const approvalState = computed(() => getCalendarEventApprovalState(props.event, 
 const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(raw.value?.meta?.currentCounterOffer));
 const canReviewBooking = computed(() => viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);
 const canAdjustBooking = computed(() => Boolean(raw.value?.meta?.bookingMessageId && raw.value?.meta?.chatId));
+
+// Chat-linked state — the chat message wins over the booking status because the
+// negotiation lives on the message until the fan responds.
+const resolvedMessage = computed(() => props.bookingMessage || buildBookingChatMessage(raw.value));
+const effectiveAction = computed(() => firstText(props.messageAction, resolvedMessage.value?.content?.action).toLowerCase()
+  || (isCancelledStatus.value ? 'declined' : normalizedStatus.value === 'confirmed' ? 'accepted' : normalizedStatus.value));
+const isPendingApproval = computed(() => approvalState.value.isPending && !counterOfferType.value);
+// Nothing to act on any more: the slot started before either side responded.
+const showExpiredNotice = computed(() => isExpired.value && !isCancelledStatus.value
+  && (isPendingApproval.value || Boolean(counterOfferType.value)));
+const fanWaitingForCreator = computed(() => viewerRole.value === 'fan' && isPendingApproval.value && !isExpired.value);
+const canAskTimeChange = computed(() => props.canRequestTimeChange
+  && viewerRole.value === 'creator'
+  && effectiveAction.value === 'accepted'
+  && !isExpired.value
+  && !counterOfferType.value
+  && canAdjustBooking.value);
 const cancellation = computed(() => raw.value?.cancellation && typeof raw.value.cancellation === 'object' ? raw.value.cancellation : {});
 const cancelledActor = computed(() => firstText(cancellation.value.actor, normalizedStatus.value === 'cancelled_creator' ? 'creator' : normalizedStatus.value === 'cancelled_user' ? 'fan' : ''));
 const cancelledRefundTokens = computed(() => finiteNumber(cancellation.value.refundedTokens)
@@ -463,7 +605,21 @@ const cancelledRefundTokens = computed(() => finiteNumber(cancellation.value.ref
   ?? finiteNumber(raw.value?.settlement?.releasedTotal));
 const cancelledCancellationFee = computed(() => finiteNumber(cancellation.value.cancellationFeeTokens) ?? finiteNumber(raw.value?.payment?.allocations?.cancellationFee) ?? 0);
 const cancelledBookingFee = computed(() => finiteNumber(raw.value?.payment?.allocations?.bookingFee) ?? finiteNumber(raw.value?.payment?.bookingFeeAmountTokens) ?? 0);
-const showCreatorCancellationNotice = computed(() => viewerRole.value === 'creator' && isCancelledStatus.value);
+const cancelledReason = computed(() => firstText(cancellation.value.reason, raw.value?.meta?.cancelled?.reason));
+// A no-show auto-cancel settles differently for each side, so both need to see it.
+const noShowNotice = computed(() => {
+  if (cancelledReason.value === 'creator_no_show_auto_cancel' && viewerRole.value === 'fan') {
+    return t('booking_details_no_show_fully_refunded');
+  }
+  if (cancelledReason.value === 'fan_no_show_auto_cancel' && viewerRole.value === 'creator') {
+    return t('booking_details_no_show_fan_forfeited');
+  }
+  return '';
+});
+// The cancellation notice is written from the creator's perspective (headings, fee
+// breakdown), so fans only get the no-show settlement line.
+const showCreatorCancellationNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'creator');
+const showFanNoShowNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'fan' && Boolean(noShowNotice.value));
 const showCancelledFees = computed(() => showCreatorCancellationNotice.value && (cancelledCancellationFee.value > 0 || cancelledBookingFee.value > 0));
 const cancelledNoticeHeading = computed(() => cancelledActor.value === 'creator'
   ? t('booking_details_cancelled_by_creator', { fan: creatorName.value || t('common_fan') })
@@ -485,6 +641,25 @@ function confirmRejectDecision(payload = {}) {
   rejectBooking();
 }
 function requestCancel() { menuOpen.value = false; emit('cancel-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, event: props.event }); }
+// Shared payload for every chat-linked negotiation action, so hosts never have to
+// re-derive the message or the proposal from their own state.
+function counterPayload(extra = {}) {
+  return {
+    bookingId: bookingId.value,
+    eventId: raw.value?.eventId,
+    event: props.event,
+    booking: raw.value,
+    message: resolvedMessage.value,
+    offerType: counterOfferType.value,
+    proposed: counterOffer.value.proposed,
+    negotiationId: counterOffer.value.negotiationId,
+    ...extra,
+  };
+}
+function acceptCounter() { if (props.actionLoading || !fanPendingTimeOffer.value) return; emit('accept-counter', counterPayload()); }
+function rejectCounter() { if (props.actionLoading || !fanPendingTimeOffer.value) return; emit('reject-counter', counterPayload()); }
+function askMoreTime() { menuOpen.value = false; if (!canAskTimeChange.value || props.actionLoading) return; emit('ask-more-time', counterPayload()); }
+function askToReschedule() { menuOpen.value = false; if (!canAskTimeChange.value || props.actionLoading) return; emit('ask-to-reschedule', counterPayload()); }
 function handleDocumentClick() { menuOpen.value = false; reviewMenuOpen.value = false; }
 function handleDocumentKeydown(event) {
   if (event.key !== 'Escape' || !reviewMenuOpen.value) return;

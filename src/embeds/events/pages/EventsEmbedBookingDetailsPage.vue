@@ -36,6 +36,7 @@
         :user-role="viewerRole"
         :can-review-pending="viewerRole === 'creator'"
         :action-loading="actionLoading"
+        :can-request-time-change="viewerRole === 'creator' && Boolean(bookingChatMessage)"
         presentation="side-panel"
         @join-call="handleJoin"
         @open-chat="openChat"
@@ -45,31 +46,42 @@
         @approve-booking="approveBooking"
         @reject-booking="rejectBooking"
         @adjust-booking="openChat"
+        @accept-counter="acceptCounterOffer"
+        @reject-counter="rejectCounterOffer"
+        @ask-more-time="showMoreTimePopup = true"
+        @ask-to-reschedule="showReschedulePopup = true"
         @decision-visibility="detailsDecisionOpen = $event"
         @close="closePanel"
       />
     </div>
 
+    <MoreTimeRequestPopup
+      v-if="showMoreTimePopup && bookingChatMessage"
+      :message="bookingChatMessage"
+      :booking="booking"
+      :event="calendarEvent"
+      :chat-id="bookingChatMessage.chat_id"
+      :other-user-name="adjustmentDecisionState.fanUsername.value || t('common_fan')"
+      @submitted="onTimeChangeSubmitted('more_time_request', $event)"
+      @close="showMoreTimePopup = false"
+    />
+
+    <RescheduleRequestPopup
+      v-if="showReschedulePopup && bookingChatMessage"
+      :message="bookingChatMessage"
+      :booking="booking"
+      :event="calendarEvent"
+      :chat-id="bookingChatMessage.chat_id"
+      :other-user-name="adjustmentDecisionState.fanUsername.value || t('common_fan')"
+      @submitted="onTimeChangeSubmitted('reschedule_request', $event)"
+      @close="showReschedulePopup = false"
+    />
+
     <BookingAdjustmentDecisionPopup
-      v-model="adjustmentDecisionOpen"
-      :mode="adjustmentDecisionMode"
-      :original-tokens="adjustmentDecision?.originalTokens"
-      :proposed-tokens="adjustmentDecision?.proposedTokens"
-      :wallet-balance="adjustmentWalletBalance"
-      :session-refund-tokens="adjustmentSessionRefundTokens"
-      :booking-fee-tokens="adjustmentBookingFeeTokens"
-      :cancellation-fee-tokens="adjustmentCancellationFeeTokens"
-      :creator-username="adjustmentCreatorUsername"
-      :creator-name="adjustmentCreatorName"
-      :event-title="adjustmentEventTitle"
-      :actor-role="viewerRole"
-      :fan-username="adjustmentFanUsername"
-      :net-refund-tokens="adjustmentNetRefundTokens"
-      :balance-loading="adjustmentBalanceLoading"
-      :balance-error="adjustmentDecisionError"
-      :processing="actionLoading"
+      v-bind="adjustmentDecisionPopupProps"
+      @update:model-value="$event || resetAdjustmentDecision()"
       @confirm="confirmAdjustmentDecision"
-      @retry-balance="loadAdjustmentBalance"
+      @retry-balance="adjustmentDecisionState.loadBalance"
       @close="resetAdjustmentDecision"
     />
 
@@ -81,9 +93,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import BookingDetailsPopup from "@/components/ui/popup/BookingDetailsPopup.vue";
 import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
+import MoreTimeRequestPopup from "@/components/ui/chat/MoreTimeRequestPopup.vue";
+import RescheduleRequestPopup from "@/components/ui/chat/RescheduleRequestPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import FlowHandler from "@/services/flow-system/FlowHandler.js";
-import { mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { toCalendarEvent as bookingToCalendarEvent } from "@/services/bookings/utils/bookingCalendarEvent.js";
+import { buildBookingChatMessage } from "@/services/bookings/utils/bookingChatMessage.js";
 import { useEventsEmbedBootstrap } from "@/embeds/events/bootstrap.js";
 import {
   notifyBookingDetailsReady,
@@ -92,14 +107,15 @@ import {
   installBookingDetailsTopupListener,
   requestBookingDetailsTopup,
   requestBookingDetailsClose,
+  requestBookingChatSync,
   requestEventsEmbedOpenUrl,
 } from "@/embeds/events/bridge.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
-import { fetchUserProfileData } from "@/services/users/userProfileApi.js";
 import { resolveBookingRefundState } from "@/services/bookings/utils/bookingRefundUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
-import TokenHandler from "@/utils/TokenHandler.js";
+import { useBookingActions } from "@/composables/useBookingActions.js";
+import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
 
 const bootstrap = useEventsEmbedBootstrap();
 const { t } = useBookingTranslations();
@@ -109,26 +125,15 @@ const loading = ref(true);
 const actionLoading = ref(false);
 const errorMessage = ref("");
 const pendingTopupAdjustment = ref(null);
-const adjustmentDecisionOpen = ref(false);
 const detailsDecisionOpen = ref(false);
-const adjustmentDecisionMode = ref("accept");
-const adjustmentDecision = ref(null);
-const adjustmentWalletBalance = ref(null);
-const adjustmentBalanceLoading = ref(false);
-const adjustmentDecisionError = ref("");
-const fetchedCreatorUsername = ref("");
-const fetchedFanUsername = ref("");
+const showMoreTimePopup = ref(false);
+const showReschedulePopup = ref(false);
+// The chat request popups are message-driven; rebuild that message from booking meta.
+const bookingChatMessage = computed(() => buildBookingChatMessage(booking.value));
 let removeTopupListener = null;
-let creatorProfileAbortController = null;
 const viewerRole = computed(() => normalizeDashboardBookingRole(bootstrap.userRole));
 const isDirectCancelLaunch = computed(() => bootstrap.initialAction === "cancel");
 const directCancelOpened = ref(false);
-
-const anyDecisionOpen = computed(() => adjustmentDecisionOpen.value || detailsDecisionOpen.value);
-
-watch(anyDecisionOpen, (isOpen) => {
-  notifyBookingDetailsDecisionVisibility(isOpen);
-});
 
 function finiteNonNegative(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
@@ -146,147 +151,27 @@ function firstDefined(sources, keys) {
   return null;
 }
 
-function normalizeUsername(value) {
-  const username = String(value || "").trim().replace(/^@+/, "");
-  if (!username || /^user\s*#\s*\d+$/i.test(username)) return "";
-  return username;
-}
-
-function truthyFlag(value) {
-  return value === true || value === 1 || value === "1" || String(value || "").trim().toLowerCase() === "true";
-}
-
-const adjustmentEventSources = computed(() => [
-  booking.value?.eventCurrent,
-  booking.value?.eventSnapshot,
-  booking.value,
-  calendarEvent.value?.raw,
-  calendarEvent.value,
-].filter((source) => source && typeof source === "object"));
-const adjustmentPayment = computed(() => booking.value?.payment && typeof booking.value.payment === "object" ? booking.value.payment : {});
-const adjustmentCreatorId = computed(() => firstDefined(adjustmentEventSources.value, ["creatorId", "creator_id"]));
-const adjustmentFanId = computed(() => firstDefined(adjustmentEventSources.value, ["userId", "user_id", "fanId", "fan_id"]));
-const storedCreatorUsername = computed(() => String(firstDefined(adjustmentEventSources.value, ["creatorUsername", "creatorUserName", "creatorHandle"]) || "").trim());
-const adjustmentCreatorName = computed(() => String(firstDefined(adjustmentEventSources.value, ["creatorDisplayName", "creatorName"]) || "").trim());
-const adjustmentCreatorUsername = computed(() => storedCreatorUsername.value || fetchedCreatorUsername.value || adjustmentCreatorName.value);
-const storedFanUsername = computed(() => normalizeUsername(firstDefined(adjustmentEventSources.value, ["fanUsername", "fanUserName"])));
-const storedFanDisplayName = computed(() => normalizeUsername(firstDefined(adjustmentEventSources.value, ["username", "userName", "fanDisplayName", "userDisplayName"])));
-const adjustmentFanUsername = computed(() => fetchedFanUsername.value || storedFanUsername.value || storedFanDisplayName.value);
-const adjustmentEventTitle = computed(() => String(firstDefined(adjustmentEventSources.value, ["eventTitle", "title"]) || "").trim());
-const adjustmentPaymentTotal = computed(() => {
-  const explicit = Number(adjustmentPayment.value?.total ?? booking.value?.paymentTotal);
-  if (Number.isFinite(explicit)) return Math.max(0, explicit);
-  if (Array.isArray(adjustmentPayment.value?.lines)) {
-    return adjustmentPayment.value.lines.reduce((sum, line) => sum + finiteNonNegative(line?.amount), 0);
-  }
-  return finiteNonNegative(adjustmentDecision.value?.originalTokens);
+const adjustmentDecisionState = useBookingAdjustmentDecision(booking, {
+  viewerRole,
+  event: calendarEvent,
+  processing: actionLoading,
+  fanId: () => bootstrap.fanId,
 });
-const adjustmentBookingFeeTokens = computed(() => {
-  const allocations = adjustmentPayment.value?.allocations;
-  if (allocations && typeof allocations === "object" && Object.prototype.hasOwnProperty.call(allocations, "bookingFee")) {
-    return finiteNonNegative(allocations.bookingFee);
-  }
-  const stored = finiteNonNegative(firstDefined(
-    [
-      adjustmentPayment.value,
-      booking.value?.paymentSnapshot,
-      booking.value?.meta?.payment,
-      booking.value?.meta?.validation?.payment,
-      booking.value?.meta?.validation?.paymentPayload,
-      booking.value,
-    ],
-    ["bookingFeeAmountTokens", "bookingFeeAmount", "bookingFeePaidTokens"],
-  ));
-  if (stored > 0) return stored;
-  const line = Array.isArray(adjustmentPayment.value?.lines)
-    ? adjustmentPayment.value.lines.find((item) => String(item?.code || "").trim().toLowerCase() === "booking_fee")
-    : null;
-  const lineAmount = finiteNonNegative(line?.amount);
-  if (lineAmount > 0) return lineAmount;
-  const enabled = truthyFlag(firstDefined(adjustmentEventSources.value, ["enableBookingFee"]));
-  return enabled
-    ? finiteNonNegative(firstDefined(adjustmentEventSources.value, ["bookingFeeTokens", "bookingFee"]))
-    : 0;
+const adjustmentDecisionOpen = adjustmentDecisionState.isOpen;
+const adjustmentDecisionMode = adjustmentDecisionState.mode;
+const adjustmentDecision = adjustmentDecisionState.decision;
+const adjustmentDecisionPopupProps = adjustmentDecisionState.popupProps;
+
+const bookingActions = useBookingActions({ flowOptions });
+
+const anyDecisionOpen = computed(() => adjustmentDecisionOpen.value || detailsDecisionOpen.value);
+
+watch(anyDecisionOpen, (isOpen) => {
+  notifyBookingDetailsDecisionVisibility(isOpen);
 });
-const adjustmentCancellationFeeTokens = computed(() => {
-  const allocated = finiteNonNegative(adjustmentPayment.value?.allocations?.cancellationFee);
-  const configured = finiteNonNegative(firstDefined(adjustmentEventSources.value, ["cancellationFeeTokens", "cancellationFee"]));
-  const enabled = allocated > 0 || truthyFlag(firstDefined(adjustmentEventSources.value, ["enableCancellationFee"]));
-  if (!enabled) return 0;
-
-  const advanceEnabled = truthyFlag(firstDefined(adjustmentEventSources.value, ["allowAdvanceCancelToAvoidMinCharge", "allowAdvanceCancellation"]));
-  const advanceQuantity = finiteNonNegative(firstDefined(adjustmentEventSources.value, ["advanceCancelWindowQuantity", "advanceCancelWindow", "advanceVoid"]));
-  const advanceUnit = String(firstDefined(adjustmentEventSources.value, ["advanceCancelWindowUnit"]) || "").trim().toLowerCase();
-  const unitMs = advanceUnit.startsWith("day") ? 86400000 : advanceUnit.startsWith("hour") ? 3600000 : advanceUnit.startsWith("minute") ? 60000 : 0;
-  const startAt = Date.parse(booking.value?.startAtIso || calendarEvent.value?.start || "");
-  if (advanceEnabled && advanceQuantity > 0 && unitMs > 0 && Number.isFinite(startAt) && startAt - Date.now() >= advanceQuantity * unitMs) return 0;
-  return allocated || configured;
-});
-const adjustmentSessionRefundTokens = computed(() => {
-  const allocations = adjustmentPayment.value?.allocations;
-  const hasV2Allocations = Number(adjustmentPayment.value?.paymentPolicyVersion) === 2
-    || (allocations && typeof allocations === "object"
-      && (Object.prototype.hasOwnProperty.call(allocations, "service")
-        || Object.prototype.hasOwnProperty.call(allocations, "bookingFee")
-        || Object.prototype.hasOwnProperty.call(allocations, "cancellationFee")));
-  if (hasV2Allocations) {
-    return finiteNonNegative(allocations?.service)
-      + finiteNonNegative(allocations?.bookingFee)
-      + finiteNonNegative(allocations?.cancellationFee);
-  }
-  return adjustmentPaymentTotal.value;
-});
-const adjustmentNetRefundTokens = computed(() => viewerRole.value === "creator"
-  ? adjustmentSessionRefundTokens.value
-  : Math.max(0, adjustmentSessionRefundTokens.value - adjustmentBookingFeeTokens.value - adjustmentCancellationFeeTokens.value));
-
-watch([viewerRole, adjustmentCreatorId, adjustmentFanId, storedCreatorUsername, storedFanUsername], async ([role, creatorId, fanId, storedUsername, fanUsername]) => {
-  if (creatorProfileAbortController) {
-    creatorProfileAbortController.abort();
-    creatorProfileAbortController = null;
-  }
-  fetchedCreatorUsername.value = "";
-  fetchedFanUsername.value = "";
-  const targetId = role === "creator" ? fanId : creatorId;
-  const hasStoredUsername = role === "creator" ? fanUsername : storedUsername;
-  if (hasStoredUsername || !targetId) return;
-
-  const controller = new AbortController();
-  creatorProfileAbortController = controller;
-  try {
-    const profile = await fetchUserProfileData(targetId, { signal: controller.signal });
-    if (creatorProfileAbortController === controller) {
-      if (role === "creator") fetchedFanUsername.value = normalizeUsername(profile?.username);
-      else fetchedCreatorUsername.value = normalizeUsername(profile?.username);
-    }
-  } catch (error) {
-    if (error?.name !== "AbortError" && creatorProfileAbortController === controller) {
-      if (role === "creator") fetchedFanUsername.value = "";
-      else fetchedCreatorUsername.value = "";
-    }
-  } finally {
-    if (creatorProfileAbortController === controller) creatorProfileAbortController = null;
-  }
-}, { immediate: true });
-
-function normalizeBookingForCalendar(value = {}) {
-  const eventSnapshot = value.eventSnapshot && typeof value.eventSnapshot === "object" ? value.eventSnapshot : {};
-  const eventCurrent = value.eventCurrent && typeof value.eventCurrent === "object" ? value.eventCurrent : {};
-  return {
-    ...value,
-    startIso: value.startIso || value.startAtIso || value.startAt || "",
-    endIso: value.endIso || value.endAtIso || value.endAt || "",
-    eventTitle: value.eventTitle || eventSnapshot.title || eventCurrent.title || "",
-    eventType: value.eventType || eventSnapshot.eventType || eventSnapshot.type || eventCurrent.eventType || eventCurrent.type || "",
-    eventCallType: value.eventCallType || eventSnapshot.eventCallType || eventCurrent.eventCallType || "",
-    eventColorSkin: value.eventColorSkin || eventSnapshot.eventColorSkin || eventCurrent.eventColorSkin || "",
-  };
-}
 
 function toCalendarEvent(value) {
-  return mapBookedSlotsToCalendarEvents([normalizeBookingForCalendar(value)], {
-    titleFallback: t("calendar_event_untitled_booking"),
-  })[0] || null;
+  return bookingToCalendarEvent(value, { titleFallback: t("calendar_event_untitled_booking") });
 }
 
 function flowOptions() {
@@ -321,8 +206,8 @@ function buildBookingUpdateNotification(updatedItem = null) {
   ].filter((source) => source && typeof source === "object");
 
   return {
-    creatorUsername: String(firstDefined(sources, ["creatorUsername", "creatorUserName", "creatorHandle", "username"]) || adjustmentCreatorUsername.value || "").trim(),
-    creatorName: String(firstDefined(sources, ["creatorDisplayName", "creatorName", "displayName", "name"]) || adjustmentCreatorName.value || "").trim(),
+    creatorUsername: String(firstDefined(sources, ["creatorUsername", "creatorUserName", "creatorHandle", "username"]) || adjustmentDecisionState.creatorUsername.value || "").trim(),
+    creatorName: String(firstDefined(sources, ["creatorDisplayName", "creatorName", "displayName", "name"]) || adjustmentDecisionState.creatorName.value || "").trim(),
     creatorAvatarUrl: String(firstDefined(sources, [
       "creatorAvatar",
       "creatorAvatarUrl",
@@ -421,24 +306,25 @@ async function reviewBooking(payload, decision) {
 
   actionLoading.value = true;
   try {
-    const result = await FlowHandler.run("bookings.reviewPendingBooking", {
+    const { ok, item, error } = await bookingActions.reviewBooking({
       bookingId,
       decision,
       actor: "creator",
       reason: decision === "approve" ? "approved_by_creator" : "rejected_by_creator",
       event: payload?.event || calendarEvent.value,
-    }, flowOptions());
+    });
 
-    if (!result?.ok) {
+    if (!ok) {
       showToast({
         type: "error",
         title: t("dashboard_booking_action_failed_title"),
-        message: result?.meta?.uiErrors?.[0] || result?.error?.message || t("dashboard_booking_action_update_failed"),
+        message: error || t("dashboard_booking_action_update_failed"),
       });
       return;
     }
 
-    await notifySuccessfulBookingUpdate(decision, result?.data?.item || null);
+    await syncBookingMessageAction(decision === "approve" ? "accepted" : "declined", decision);
+    await notifySuccessfulBookingUpdate(decision, item);
   } finally {
     actionLoading.value = false;
   }
@@ -456,10 +342,94 @@ function requestCancelBooking(payload) {
   openAdjustmentDecision("cancel", payload || { bookingId: bootstrap.bookingId });
 }
 
+// Fan responses to a creator's `moretime` / `reschedule` proposal.
+async function acceptCounterOffer(payload = {}) {
+  if (actionLoading.value) return;
+  const bookingId = String(payload.bookingId || booking.value?.bookingId || bootstrap.bookingId || "").trim();
+  const proposedSlotDate = payload.proposed?.proposedSlotDate;
+  if (!bookingId || !proposedSlotDate) {
+    actionError(t("fan_event_details_adjustment_price_unavailable"));
+    return;
+  }
+
+  actionLoading.value = true;
+  try {
+    const { ok, item, error } = await bookingActions.acceptCounterOffer({
+      bookingId,
+      offerType: payload.offerType,
+      proposedSlotDate,
+      negotiationId: payload.negotiationId || null,
+    });
+    if (!ok) {
+      actionError(error || t("dashboard_booking_action_update_failed"));
+      return;
+    }
+    await syncBookingMessageAction("accepted", "accept_counter");
+    await notifySuccessfulBookingUpdate("accept_counter", item);
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function rejectCounterOffer(payload = {}) {
+  if (actionLoading.value) return;
+  const bookingId = String(payload.bookingId || booking.value?.bookingId || bootstrap.bookingId || "").trim();
+  if (!bookingId) return;
+
+  actionLoading.value = true;
+  try {
+    const { ok, item, error } = await bookingActions.rejectCounterOffer({
+      bookingId,
+      offerType: payload.offerType,
+      negotiationId: payload.negotiationId || null,
+    });
+    if (!ok) {
+      actionError(error || t("fan_event_details_decline_failed"));
+      return;
+    }
+    await syncBookingMessageAction("declined", "reject_counter");
+    await notifySuccessfulBookingUpdate("reject_counter", item);
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+// The chat request popups do their own writes (booking meta + chat message), so all
+// that is left is broadcasting the message and refreshing this panel.
+async function onTimeChangeSubmitted(action, payload = {}) {
+  showMoreTimePopup.value = false;
+  showReschedulePopup.value = false;
+  const chatId = booking.value?.meta?.chatId;
+  if (payload.booking) booking.value = payload.booking;
+
+  if (chatId && payload.item) {
+    const log = CHAT_ACTIVITY_LOGS[action];
+    requestBookingChatSync({
+      chatId,
+      bookingId: booking.value?.bookingId || bootstrap.bookingId,
+      item: payload.item,
+      recipientIds: [booking.value?.creatorId, booking.value?.userId].filter(Boolean).map(String),
+      activityLog: log
+        ? {
+          text: log.text,
+          meta: {
+            is_booking_request: true,
+            decision: log.decision,
+            bookingId: booking.value?.bookingId || bootstrap.bookingId,
+          },
+        }
+        : null,
+    });
+  }
+
+  await notifySuccessfulBookingUpdate(action, payload.booking || booking.value);
+  await loadBooking();
+}
+
 function reportCancelFailure(message) {
   const resolvedMessage = message || t("dashboard_booking_cancel_failed_message");
   if (adjustmentDecisionMode.value === "cancel" && adjustmentDecisionOpen.value) {
-    adjustmentDecisionError.value = resolvedMessage;
+    adjustmentDecisionState.reportError(resolvedMessage);
   }
   showToast({
     type: "error",
@@ -476,21 +446,22 @@ async function confirmCancelBooking() {
 
   actionLoading.value = true;
   try {
-    const result = await FlowHandler.run("bookings.cancelBooking", {
+    const { ok, item, error } = await bookingActions.cancelBooking({
       bookingId,
       actor: viewerRole.value === "fan" ? "fan" : "creator",
       intent: "normal",
       reason: viewerRole.value === "fan"
         ? "fan_cancelled_from_order_details"
         : "creator_cancelled_from_order_details",
-    }, flowOptions());
+    });
 
-    if (!result?.ok) {
-      reportCancelFailure(result?.meta?.uiErrors?.[0] || result?.error?.message);
+    if (!ok) {
+      reportCancelFailure(error);
       return;
     }
 
-    await notifySuccessfulBookingUpdate("cancel", result?.data?.item || null);
+    await syncBookingMessageAction("cancelled", "cancel");
+    await notifySuccessfulBookingUpdate("cancel", item);
   } catch (error) {
     reportCancelFailure(error?.message);
   } finally {
@@ -500,7 +471,7 @@ async function confirmCancelBooking() {
 
 function actionError(message) {
   if (adjustmentDecisionOpen.value) {
-    adjustmentDecisionError.value = message || t("dashboard_booking_action_update_failed");
+    adjustmentDecisionState.reportError(message || t("dashboard_booking_action_update_failed"));
   }
   showToast({
     type: "error",
@@ -509,20 +480,48 @@ function actionError(message) {
   });
 }
 
-async function syncBookingMessageAction(action) {
-  const chatId = booking.value?.meta?.chatId;
-  const messageId = booking.value?.meta?.bookingMessageId;
-  if (!chatId || !messageId) return;
+const CHAT_ACTIVITY_LOGS = {
+  approve: { text: "Booking accepted", decision: "accepted" },
+  reject: { text: "Booking declined", decision: "declined" },
+  cancel: { text: "Call cancelled", decision: "call_cancelled" },
+  accept_adjustment: { text: "Counter offer accepted", decision: "counter_offer_accepted" },
+  decline_adjustment: { text: "Counter offer declined", decision: "counter_offer_declined" },
+  accept_counter: { text: "New time accepted", decision: "more_time_request_accepted" },
+  reject_counter: { text: "New time rejected", decision: "more_time_request_rejected" },
+  more_time_request: { text: "More time requested", decision: "more_time_request_sent" },
+  reschedule_request: { text: "Reschedule requested", decision: "reschedule_request_sent" },
+};
 
-  try {
-    await FlowHandler.run("chat.updateBookingRequestMessage", {
-      chatId,
-      messageId,
-      action,
-    }, flowOptions());
-  } catch (_error) {
-    // The booking state is authoritative; chat synchronization is best effort.
-  }
+/**
+ * Mirrors the action onto the linked chat message, then asks the chat embed on the
+ * host page to broadcast it — this embed has no chat socket of its own.
+ */
+async function syncBookingMessageAction(action, logKey = null) {
+  const chatId = booking.value?.meta?.chatId;
+  const { ok, item } = await bookingActions.syncBookingMessage({
+    chatId,
+    messageId: booking.value?.meta?.bookingMessageId,
+    action,
+  });
+  if (!ok || !chatId) return;
+
+  const log = logKey ? CHAT_ACTIVITY_LOGS[logKey] : null;
+  requestBookingChatSync({
+    chatId,
+    bookingId: booking.value?.bookingId || bootstrap.bookingId,
+    item,
+    recipientIds: [booking.value?.creatorId, booking.value?.userId].filter(Boolean).map(String),
+    activityLog: log
+      ? {
+        text: log.text,
+        meta: {
+          is_booking_request: true,
+          decision: log.decision,
+          bookingId: booking.value?.bookingId || bootstrap.bookingId,
+        },
+      }
+      : null,
+  });
 }
 
 async function applyPriceAdjustment(adjustment = {}) {
@@ -534,49 +533,22 @@ async function applyPriceAdjustment(adjustment = {}) {
   }
 
   try {
-    const renegotiateResult = await FlowHandler.run("bookings.renegotiateBooking", {
+    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
       bookingId,
-      startAtIso: adjustment.proposedStartAtIso || undefined,
-      durationMinutes: adjustment.proposedDurationMinutes ?? undefined,
-      costTokens: adjustment.proposedTokens ?? undefined,
-      personalRequestText: adjustment.remarks || undefined,
-      actor: "user",
-      args: {
-        negotiation: {
-          type: "adjust",
-          phase: "apply",
-          negotiationId: adjustment.negotiationId || null,
-        },
-      },
-      meta: { currentCounterOffer: "" },
-    }, flowOptions());
+      proposedStartAtIso: adjustment.proposedStartAtIso,
+      proposedDurationMinutes: adjustment.proposedDurationMinutes,
+      proposedTokens: adjustment.proposedTokens,
+      remarks: adjustment.remarks,
+      negotiationId: adjustment.negotiationId || null,
+    });
 
-    if (!renegotiateResult?.ok) {
-      actionError(renegotiateResult?.meta?.uiErrors?.[0] || renegotiateResult?.error?.message || t("fan_event_details_adjustment_apply_failed"));
+    if (!ok) {
+      actionError(error || t("fan_event_details_adjustment_confirm_failed"));
       return;
     }
 
-    const reviewResult = await FlowHandler.run("bookings.reviewPendingBooking", {
-      bookingId,
-      decision: "approve",
-      actor: "fan",
-      reason: "adjustment_accepted_by_fan",
-      args: {
-        negotiation: {
-          status: "accepted",
-          type: "adjust",
-          negotiationId: adjustment.negotiationId || null,
-        },
-      },
-    }, flowOptions());
-
-    if (!reviewResult?.ok) {
-      actionError(reviewResult?.meta?.uiErrors?.[0] || reviewResult?.error?.message || t("fan_event_details_adjustment_confirm_failed"));
-      return;
-    }
-
-    await syncBookingMessageAction("accepted");
-    await notifySuccessfulBookingUpdate("accept_adjustment", reviewResult?.data?.item || null);
+    await syncBookingMessageAction("accepted", "accept_adjustment");
+    await notifySuccessfulBookingUpdate("accept_adjustment", item);
   } catch (error) {
     actionError(error?.message || t("fan_event_details_adjustment_confirm_failed"));
   } finally {
@@ -608,27 +580,20 @@ async function confirmDeclineAdjustment() {
 
   actionLoading.value = true;
   try {
-    const result = await FlowHandler.run("bookings.cancelBooking", {
+    const { ok, item, error } = await bookingActions.rejectCounterOffer({
       bookingId,
-      actor: "user",
-      intent: "decline_renegotiation",
+      offerType: "adjust",
+      negotiationId: adjustmentDecision.value.negotiationId || null,
       reason: "fan_declined_price_adjustment",
-      args: {
-        negotiation: {
-          status: "declined",
-          type: "adjust",
-          negotiationId: adjustmentDecision.value.negotiationId || null,
-        },
-      },
-    }, flowOptions());
+    });
 
-    if (!result?.ok) {
-      actionError(result?.meta?.uiErrors?.[0] || result?.error?.message || t("fan_event_details_decline_failed"));
+    if (!ok) {
+      actionError(error || t("fan_event_details_decline_failed"));
       return;
     }
 
-    await syncBookingMessageAction("declined");
-    await notifySuccessfulBookingUpdate("decline_adjustment", result?.data?.item || null);
+    await syncBookingMessageAction("declined", "decline_adjustment");
+    await notifySuccessfulBookingUpdate("decline_adjustment", item);
   } catch (error) {
     actionError(error?.message || t("fan_event_details_decline_failed"));
   } finally {
@@ -642,58 +607,16 @@ function resetAdjustmentDecision() {
     closePanel();
     return;
   }
-  adjustmentDecisionOpen.value = false;
-  adjustmentDecision.value = null;
-  adjustmentWalletBalance.value = null;
-  adjustmentBalanceLoading.value = false;
-  adjustmentDecisionError.value = "";
-}
-
-async function loadAdjustmentBalance() {
-  if (!adjustmentDecisionOpen.value || adjustmentBalanceLoading.value || actionLoading.value) return;
-  const fanId = bootstrap.fanId || booking.value?.userId || booking.value?.user_id;
-  const creatorId = booking.value?.creatorId || booking.value?.creator_id;
-  adjustmentBalanceLoading.value = true;
-  adjustmentDecisionError.value = "";
-
-  if (!fanId || !creatorId) {
-    adjustmentBalanceLoading.value = false;
-    adjustmentDecisionError.value = t("booking_adjustment_balance_unavailable");
-    return;
-  }
-
-  try {
-    const nextBalance = await TokenHandler.get({ userId: fanId, receiverId: creatorId, defaultValue: null });
-    if (!Number.isFinite(Number(nextBalance))) {
-      adjustmentDecisionError.value = t("booking_adjustment_balance_unavailable");
-      adjustmentWalletBalance.value = null;
-      return;
-    }
-    adjustmentWalletBalance.value = Math.max(0, Number(nextBalance));
-  } catch (_error) {
-    adjustmentDecisionError.value = t("booking_adjustment_balance_unavailable");
-    adjustmentWalletBalance.value = null;
-  } finally {
-    adjustmentBalanceLoading.value = false;
-  }
+  adjustmentDecisionState.reset();
 }
 
 function openAdjustmentDecision(mode, adjustment) {
-  adjustmentDecisionMode.value = mode === "cancel"
-    ? "cancel"
-    : mode === "decline" ? "decline" : "accept";
-  adjustmentDecision.value = adjustment;
-  adjustmentWalletBalance.value = null;
-  adjustmentDecisionError.value = "";
-  adjustmentDecisionOpen.value = true;
-  if (!(viewerRole.value === "creator" && adjustmentDecisionMode.value === "cancel")) {
-    void loadAdjustmentBalance();
-  }
+  adjustmentDecisionState.open(mode, adjustment);
 }
 
 async function confirmAdjustmentDecision(payload = {}) {
   if (actionLoading.value || !adjustmentDecision.value) return;
-  adjustmentDecisionError.value = "";
+  adjustmentDecisionState.reportError("");
 
   if (payload.mode === "decline") {
     await confirmDeclineAdjustment();
@@ -747,7 +670,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   notifyBookingDetailsDecisionVisibility(false);
-  if (creatorProfileAbortController) creatorProfileAbortController.abort();
   if (removeTopupListener) removeTopupListener();
 });
 </script>

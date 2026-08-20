@@ -8,6 +8,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
+import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
 import MessageTextIcon from '@/assets/images/icons/message-text-square.svg'
 import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
@@ -522,7 +523,47 @@ async function openGroupChat({
   })
 }
 
-defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll, toggleList })
+/**
+ * Applies a booking update that happened outside chat (the events embed).
+ *
+ * This lives on the widget rather than ChatWindow because the widget owns the
+ * socket, and the relevant ChatWindow may not even be mounted — the chat only has
+ * to exist, not be open.
+ */
+async function syncBookingUpdate({ chatId, bookingId, item, recipientIds = [], activityLog } = {}) {
+  console.error("syncBookingUpdate called with:", { chatId, bookingId, item, recipientIds, activityLog })
+  if (!chatId) return
+
+  if (bookingId) {
+    const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+    if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
+  }
+
+  if (item) {
+    broadcastMessageUpdate({
+      chatStore,
+      socket: socket.value,
+      chatId,
+      currentUserId: currentUserId.value,
+      item,
+      recipientIds,
+    })
+  }
+
+  if (activityLog?.text) {
+    await sendActivityLog({
+      chatStore,
+      socket: socket.value,
+      chatId,
+      currentUserId: currentUserId.value,
+      text: activityLog.text,
+      meta: activityLog.meta,
+      recipientIds,
+    })
+  }
+}
+
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll, toggleList, syncBookingUpdate })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)

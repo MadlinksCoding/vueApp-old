@@ -555,8 +555,35 @@
       openChat(data.payload || {});
     }
 
+    // Same-page iframes only: the sender must be one of this document's own frames
+    // and must not be the chat iframe itself.
+    function isEventsEmbedFrame(source) {
+      if (!source || source === iframe.contentWindow) return false;
+      for (var i = 0; i < window.frames.length; i += 1) {
+        if (window.frames[i] === source) return true;
+      }
+      return false;
+    }
+
+    // The events embed has no chat socket, so it asks us to relay booking updates
+    // into the chat iframe, which does the store update, socket push and activity log.
+    function onEventsBookingChatSync(event) {
+      var data = event.data || {};
+      if (data.type !== "FS_EVENTS_BOOKING_CHAT_SYNC") return;
+      // Only relay from an events embed on this page — anything else could make the
+      // chat persist and broadcast arbitrary messages into arbitrary chats.
+      if (data.source !== "fs-events-embed") return;
+      if (!isEventsEmbedFrame(event.source)) return;
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_BOOKING_SYNC",
+        payload: data.payload || {},
+      }, "*");
+    }
+
     window.addEventListener("message", onMessage);
     window.addEventListener("message", onFanBookingMessage);
+    window.addEventListener("message", onEventsBookingChatSync);
     window.addEventListener("resize", onHostResize);
 
     // Pending getState() requests keyed by requestId
@@ -678,6 +705,7 @@
       destroy: function () {
         window.removeEventListener("message", onMessage);
         window.removeEventListener("message", onFanBookingMessage);
+        window.removeEventListener("message", onEventsBookingChatSync);
         window.removeEventListener("resize", onHostResize);
         if (chatContainer.parentNode) {
           chatContainer.parentNode.removeChild(chatContainer);

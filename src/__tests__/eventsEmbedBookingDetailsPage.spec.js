@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   requestOpenUrl: vi.fn(),
   requestTopup: vi.fn(),
   installTopup: vi.fn(),
+  requestChatSync: vi.fn(),
   topupHandler: null,
   tokenGet: vi.fn(),
   profileFetch: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
   requestEventsEmbedOpenUrl: mocks.requestOpenUrl,
   requestBookingDetailsTopup: mocks.requestTopup,
   installBookingDetailsTopupListener: mocks.installTopup,
+  requestBookingChatSync: mocks.requestChatSync,
 }));
 
 vi.mock("@/utils/TokenHandler.js", () => ({
@@ -63,7 +65,7 @@ const FanDetailsStub = {
 
 const AdjustmentDecisionStub = {
   name: "BookingAdjustmentDecisionPopup",
-  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "creatorUsername", "creatorName", "eventTitle", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
+  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "creatorUsername", "creatorName", "eventTitle", "actorRole", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
   emits: ["update:modelValue", "confirm", "retry-balance", "close"],
   template: "<div v-if='modelValue' data-test='adjustment-decision-stub' />",
 };
@@ -174,7 +176,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     wrapper.getComponent(FanDetailsStub).vm.$emit("approve-booking", { bookingId: "booking_123" });
     await flushPromises();
 
-    expect(mocks.flowRun).toHaveBeenLastCalledWith(
+    expect(mocks.flowRun).toHaveBeenCalledWith(
       "bookings.reviewPendingBooking",
       expect.objectContaining({ bookingId: "booking_123", decision: "approve", actor: "creator" }),
       expect.any(Object),
@@ -182,6 +184,17 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
       bookingId: "booking_123",
       action: "approve",
+    }));
+    // The chat message is mirrored and handed to the chat embed to broadcast.
+    expect(mocks.flowRun).toHaveBeenCalledWith(
+      "chat.updateBookingRequestMessage",
+      expect.objectContaining({ chatId: "chat_1", messageId: "message_1", action: "accepted" }),
+      expect.any(Object),
+    );
+    expect(mocks.requestChatSync).toHaveBeenCalledWith(expect.objectContaining({
+      chatId: "chat_1",
+      bookingId: "booking_123",
+      activityLog: expect.objectContaining({ text: "Booking accepted" }),
     }));
   });
 
@@ -453,7 +466,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(wrapper.find("[data-test='booking-details-cancel-confirm']").exists()).toBe(false);
     expect(wrapper.getComponent(AdjustmentDecisionStub).props("modelValue")).toBe(true);
     expect(wrapper.getComponent(AdjustmentDecisionStub).props("mode")).toBe("cancel");
-    expect(wrapper.getComponent(AdjustmentDecisionStub).attributes("actor-role")).toBe("creator");
+    expect(wrapper.getComponent(AdjustmentDecisionStub).props("actorRole")).toBe("creator");
     expect(wrapper.get("[data-test='events-embed-booking-details-page']").classes()).toContain("bg-transparent");
     expect(wrapper.get("[data-test='events-embed-booking-details-page']").classes()).not.toContain("bg-gray-50");
   });

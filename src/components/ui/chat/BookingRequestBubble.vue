@@ -300,10 +300,16 @@
             type="button"
             :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="!disabled && $emit('cancel-booking')"
+            @click.stop="!disabled && $emit('cancel-booking', { source: 'counter_offer' })"
           >
             Cancel Booking
           </button>
+          <!-- <button type="button"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')">
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button> -->
         </div>
       </template>
 
@@ -448,7 +454,7 @@ const booking = computed(() => {
 function toggleMenu() { menuOpen.value = !menuOpen.value }
 function handleAskMoreTime()     { if(isPassCall.value) return; menuOpen.value = false; emit('ask-more-time') }
 function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value = false; emit('ask-to-reschedule') }
-function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking') }
+function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
 
 function goToCalendar() {
   emit('view-details');return;
