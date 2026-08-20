@@ -3523,6 +3523,7 @@ describe("one-on-one booking step translations", () => {
       creatorId: 1407,
       eventTitle: "Creator Strategy Call",
       eventType: "1on1-call",
+      eventCallType: "audio",
     });
     engine.callFlow.mockResolvedValue({
       ok: true,
@@ -3555,6 +3556,7 @@ describe("one-on-one booking step translations", () => {
     expect(payload.event_name).toBe("Creator Strategy Call");
     expect(payload.booking_name).toBe("Creator Strategy Call");
     expect(payload.event_name).not.toBe("Booked Slot");
+    expect(payload.callType).toBe("audio");
   });
 
   it("uses one normalized edit warning for the active calendar availability schedule", async () => {
