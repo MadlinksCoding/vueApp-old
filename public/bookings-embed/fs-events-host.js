@@ -1094,6 +1094,7 @@
           initialRoute: "booking-details",
           initialAction: initialAction,
           bookingId: bookingId,
+          hostViewportWidth: window.innerWidth,
           creatorData: creatorData,
           translations: translations,
           locale: locale,
@@ -1256,6 +1257,12 @@
       }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_UPDATED) {
         var payload = data.payload || {};
+        if (payload.retainOpen === true) {
+          if (typeof settings.onBookingUpdated === "function") {
+            settings.onBookingUpdated(payload);
+          }
+          return;
+        }
         closeAfterBookingUpdate(payload);
         return;
       }

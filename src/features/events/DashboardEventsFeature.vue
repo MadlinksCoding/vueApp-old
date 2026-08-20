@@ -38,6 +38,7 @@
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
+        :booking-action-loading="reviewPendingLoading"
         :join-comparison-time="currentTime"
         :data-attrs="{ 'data-calendar': 'main' }"
         :console-overlaps="true"
@@ -55,6 +56,7 @@
         @view-changed="onViewChanged"
         @join-call="handleJoin"
         @approve-booking="onApprovePendingBooking"
+        @widget-accept-details="openWidgetCompactDetails"
         @reject-booking="onRejectPendingBooking"
         @cancel-booking="onCancelBookingFromCalendar"
         @menu-action="handleWidgetMenuAction"
@@ -386,7 +388,7 @@
               @reply-click="handleReply"
               @event-click="handleMonthExpandedEventClick($event, onClick)"
               @menu-action="handleWidgetMenuAction"
-              @approve-booking="onApprovePendingBooking"
+              @accept-details="openWidgetCompactDetails"
             />
           </div>
         </template>
@@ -515,7 +517,7 @@
               @reply-click="handleReply"
               @event-click="handleWidgetEventClick"
               @menu-action="handleWidgetMenuAction"
-              @approve-booking="onApprovePendingBooking"
+              @accept-details="openWidgetCompactDetails"
             />
           </div>
         </div>
@@ -746,6 +748,23 @@
       </div>
     </div>
 
+    <BookingDetailsPopup
+      v-if="widgetCompactEvent"
+      v-model="widgetCompactOpen"
+      :event="widgetCompactEvent"
+      :user-role="dashboardRole"
+      :can-review-pending="isCreator"
+      :comparison-time="currentTime"
+      :action-loading="reviewPendingLoading"
+      :popup-config="widgetCompactPopupConfig"
+      layout-variant="compact"
+      compact-review-mode="accept-only"
+      presentation="responsive-dialog"
+      @approve-booking="approveWidgetCompactBooking"
+      @close="handleWidgetCompactClose"
+      @closed="handleWidgetCompactClosed"
+    />
+
     <ToastHost />
   </div>
 </template>
@@ -771,6 +790,7 @@ import NewEventsPopup from "@/components/calendar/NewEventsPopup.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
+import BookingDetailsPopup from "@/components/ui/popup/BookingDetailsPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { createFlowStateEngine } from "@/utils/flowStateEngine.js";
 import {
@@ -784,6 +804,7 @@ import {
 } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { mergeBookedSlotCollections } from "@/services/bookings/utils/fetchAllBookedSlotPages.js";
 import { showToast } from "@/utils/toastBus.js";
+import { showCreatorBookingReviewToast } from "@/utils/creatorBookingReviewToast.js";
 import {
   getCalendarEventApprovalState,
   getCalendarEventJoinState,
@@ -830,6 +851,9 @@ const { t, locale } = useBookingTranslations();
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const reviewPendingLoading = ref(false);
+const widgetCompactOpen = ref(false);
+const widgetCompactEvent = ref(null);
+const pendingWidgetHeroEvent = ref(null);
 const dashboardRootRef = ref(null);
 const mainCalendarRef = ref(null);
 const initialWeekDateRevealed = ref(false);
@@ -868,6 +892,10 @@ const initialDashboardLoadComplete = ref(false);
 const pendingCalendarContextRefresh = ref(false);
 const currentTime = ref(new Date());
 const currentTimeTimer = ref(null);
+const widgetCompactPopupConfig = computed(() => ({
+  closeOnOutside: !reviewPendingLoading.value,
+  escToClose: !reviewPendingLoading.value,
+}));
 const MINUTE_MS = 60 * 1000;
 
 function clearCurrentTimeTimer() {
@@ -2144,9 +2172,40 @@ const resolveBookingIdFromPayload = (payload) => {
   return id ? String(id) : null;
 };
 
+const mergeApprovedBookingEvent = (sourceEvent = {}, booking = null) => {
+  const approvedBooking = booking && typeof booking === "object" ? booking : {};
+  const originalRaw = sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {};
+  const start = approvedBooking.startAtIso || approvedBooking.startIso || sourceEvent.start || null;
+  const end = approvedBooking.endAtIso || approvedBooking.endIso || sourceEvent.end || null;
+
+  return {
+    ...sourceEvent,
+    bookingId: approvedBooking.bookingId || sourceEvent.bookingId || originalRaw.bookingId || null,
+    eventId: approvedBooking.eventId || sourceEvent.eventId || originalRaw.eventId || null,
+    status: approvedBooking.status || approvedBooking.bookingStatus || "confirmed",
+    start,
+    end,
+    raw: {
+      ...originalRaw,
+      ...approvedBooking,
+      status: approvedBooking.status || approvedBooking.bookingStatus || "confirmed",
+    },
+  };
+};
+
+const findRefreshedBookingEvent = (bookingId) => {
+  const normalizedId = String(bookingId || "").trim();
+  if (!normalizedId) return null;
+
+  return [...allEvents.value, ...calendarEvents.value].find((event) => (
+    resolveBookingIdFromPayload({ event }) === normalizedId
+    && resolveBookingStatus(event) === "confirmed"
+  )) || null;
+};
+
 const reviewPendingBooking = async (payload, decision) => {
-  if (!isCreator.value) return;
-	if (isSettlementPendingEvent(payload?.event || payload)) return;
+  if (!isCreator.value) return { ok: false };
+	if (isSettlementPendingEvent(payload?.event || payload)) return { ok: false };
   const bookingId = resolveBookingIdFromPayload(payload);
   if (!bookingId) {
     showToast({
@@ -2154,10 +2213,10 @@ const reviewPendingBooking = async (payload, decision) => {
       title: t("dashboard_booking_action_failed_title"),
       message: t("dashboard_booking_action_missing_id"),
     });
-    return;
+    return { ok: false };
   }
 
-  if (reviewPendingLoading.value) return;
+  if (reviewPendingLoading.value) return { ok: false };
 
   const freshApprovalState = getCalendarEventApprovalState(payload?.event || payload, {
     now: new Date(),
@@ -2170,7 +2229,7 @@ const reviewPendingBooking = async (payload, decision) => {
       message: t("dashboard_approval_window_closed_message"),
     });
     await fetchDashboardContext(true);
-    return;
+    return { ok: false };
   }
 
   reviewPendingLoading.value = true;
@@ -2212,7 +2271,7 @@ const reviewPendingBooking = async (payload, decision) => {
           message: t("dashboard_approval_window_closed_message"),
         });
         await fetchDashboardContext(true);
-        return;
+        return { ok: false };
       }
 
       const message = result?.meta?.uiErrors?.[0]
@@ -2223,27 +2282,116 @@ const reviewPendingBooking = async (payload, decision) => {
         title: t("dashboard_booking_action_failed_title"),
         message,
       });
-      return;
+      return { ok: false, result };
     }
 
-    showToast({
-      type: "success",
-      title: t("dashboard_booking_updated_title"),
-      message: t("dashboard_booking_updated_message", { action: actionLabel }),
-    });
+    if (!payload?.suppressSuccessToast && !payload?.retainDetails) {
+      showToast({
+        type: "success",
+        title: t("dashboard_booking_updated_title"),
+        message: t("dashboard_booking_updated_message", { action: actionLabel }),
+      });
+    }
 
     await fetchDashboardContext(true);
+    const item = result?.data?.item || null;
+    return {
+      ok: true,
+      item,
+      event: findRefreshedBookingEvent(bookingId)
+        || mergeApprovedBookingEvent(payload?.event || {}, item),
+    };
+  } catch (error) {
+    showToast({
+      type: "error",
+      title: t("dashboard_booking_action_failed_title"),
+      message: error?.message || t("dashboard_booking_action_update_failed"),
+    });
+    return { ok: false, error };
   } finally {
     reviewPendingLoading.value = false;
   }
 };
 
 const onApprovePendingBooking = async (payload) => {
-  await reviewPendingBooking(payload, "approve");
+  const result = await reviewPendingBooking(payload, "approve");
+  if (!result?.ok || !payload?.retainDetails) return;
+  mainCalendarRef.value?.applyBookingReviewResult?.(result.event || mergeApprovedBookingEvent(payload?.event || {}, result.item));
+  showCreatorBookingReviewToast({
+    decision: "approve",
+    username: payload?.counterparty?.username,
+    avatarUrl: payload?.counterparty?.avatarUrl,
+    t,
+  });
 };
 
 const onRejectPendingBooking = async (payload) => {
-  await reviewPendingBooking(payload, "reject");
+  const result = await reviewPendingBooking(payload, "reject");
+  if (!result?.ok || !payload?.retainDetails) return;
+  mainCalendarRef.value?.applyBookingReviewResult?.(result.event || mergeApprovedBookingEvent(payload?.event || {}, result.item));
+  showCreatorBookingReviewToast({
+    decision: "reject",
+    username: payload?.counterparty?.username,
+    avatarUrl: payload?.counterparty?.avatarUrl,
+    t,
+  });
+};
+
+const openWidgetCompactDetails = async (payload = {}) => {
+  const event = payload?.event || payload?.sourceEvent || payload;
+  if (!event || typeof event !== "object") return;
+
+  pendingWidgetHeroEvent.value = null;
+  widgetCompactOpen.value = false;
+  widgetCompactEvent.value = event;
+
+  // PopupHandler reacts to modelValue changes after it mounts. Mount the compact
+  // details surface closed first, then open it on the following render tick.
+  // Mounting it with modelValue=true skips PopupHandler's non-immediate watcher.
+  await nextTick();
+  widgetCompactOpen.value = true;
+};
+
+const approveWidgetCompactBooking = async (payload) => {
+  if (reviewPendingLoading.value || !widgetCompactOpen.value) return;
+  const sourceEvent = widgetCompactEvent.value;
+  const retainOpen = dashboardViewportWidth.value < 768;
+  const result = await reviewPendingBooking({
+    ...payload,
+    event: sourceEvent,
+    suppressSuccessToast: retainOpen,
+  }, "approve");
+  if (!result?.ok) return;
+
+  if (retainOpen) {
+    widgetCompactEvent.value = result.event || mergeApprovedBookingEvent(sourceEvent, result.item);
+    showCreatorBookingReviewToast({
+      decision: "approve",
+      username: payload?.counterparty?.username,
+      avatarUrl: payload?.counterparty?.avatarUrl,
+      t,
+    });
+    return;
+  }
+
+  pendingWidgetHeroEvent.value = result.event
+    || mergeApprovedBookingEvent(sourceEvent, result.item);
+  widgetCompactOpen.value = false;
+};
+
+const handleWidgetCompactClose = () => {
+  if (reviewPendingLoading.value) return;
+  widgetCompactOpen.value = false;
+};
+
+const handleWidgetCompactClosed = () => {
+  const heroEvent = pendingWidgetHeroEvent.value;
+  pendingWidgetHeroEvent.value = null;
+  widgetCompactEvent.value = null;
+
+  if (heroEvent) {
+    mainCalendarRef.value?.openEventDetails?.(heroEvent);
+  }
 };
 
 const goToCreateEvent = (type) => {

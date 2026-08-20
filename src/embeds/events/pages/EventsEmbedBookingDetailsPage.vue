@@ -31,6 +31,33 @@
       data-test="booking-details-fan-surface"
     >
       <BookingDetailsPopup
+        v-if="useCompactMobileDetails"
+        v-model="compactDetailsOpen"
+        :booking="booking"
+        :event="calendarEvent"
+        :user-role="viewerRole"
+        :can-review-pending="true"
+        :action-loading="actionLoading"
+        :can-request-time-change="Boolean(bookingChatMessage)"
+        layout-variant="compact"
+        presentation="responsive-dialog"
+        @join-call="handleJoin"
+        @open-chat="openChat"
+        @cancel-booking="requestCancelBooking"
+        @accept-adjustment="acceptPriceAdjustment"
+        @decline-adjustment="requestDeclineAdjustment"
+        @approve-booking="approveBooking"
+        @reject-booking="rejectBooking"
+        @adjust-booking="openChat"
+        @accept-counter="acceptCounterOffer"
+        @reject-counter="rejectCounterOffer"
+        @ask-more-time="showMoreTimePopup = true"
+        @ask-to-reschedule="showReschedulePopup = true"
+        @decision-visibility="detailsDecisionOpen = $event"
+        @close="closePanel"
+      />
+      <BookingDetailsPopup
+        v-else
         :booking="booking"
         :event="calendarEvent"
         :user-role="viewerRole"
@@ -113,6 +140,8 @@ import {
 } from "@/embeds/events/bridge.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { resolveBookingRefundState } from "@/services/bookings/utils/bookingRefundUtils.js";
+import { isPendingCounterOffer } from "@/services/bookings/utils/bookingNegotiationUtils.js";
+import { getCalendarEventApprovalState } from "@/utils/bookingJoinUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
@@ -129,6 +158,8 @@ const pendingTopupAdjustment = ref(null);
 const detailsDecisionOpen = ref(false);
 const showMoreTimePopup = ref(false);
 const showReschedulePopup = ref(false);
+const compactDetailsOpen = ref(false);
+const compactDetailsSession = ref(false);
 // The chat request popups are message-driven. Start from the message rebuilt out of
 // booking meta so the UI is never empty, then upgrade to the real one if a chat embed
 // on the host page still has it — only that one carries `content.action`.
@@ -147,6 +178,17 @@ watch(booking, async (value) => {
 let removeTopupListener = null;
 const viewerRole = computed(() => normalizeDashboardBookingRole(bootstrap.userRole));
 const isDirectCancelLaunch = computed(() => bootstrap.initialAction === "cancel");
+const hostViewportWidth = computed(() => Number(bootstrap.hostViewportWidth));
+const compactMobileDetailsEligible = computed(() => (
+  !isDirectCancelLaunch.value
+  && viewerRole.value === "creator"
+  && Number.isFinite(hostViewportWidth.value)
+  && hostViewportWidth.value > 0
+  && hostViewportWidth.value < 768
+  && getCalendarEventApprovalState(calendarEvent.value, { now: new Date() }).canReview
+  && !isPendingCounterOffer(booking.value || calendarEvent.value)
+));
+const useCompactMobileDetails = computed(() => compactDetailsSession.value);
 const directCancelOpened = ref(false);
 
 function finiteNonNegative(value, fallback = 0) {
@@ -199,7 +241,7 @@ function flowOptions() {
   };
 }
 
-function buildBookingUpdateNotification(updatedItem = null) {
+function buildBookingUpdateNotification(updatedItem = null, counterparty = null) {
   const sources = [
     updatedItem,
     updatedItem?.eventCurrent,
@@ -238,10 +280,21 @@ function buildBookingUpdateNotification(updatedItem = null) {
     startAtIso: String(firstDefined(sources, ["startAtIso", "startIso", "startAt", "start"]) || "").trim(),
     endAtIso: String(firstDefined(sources, ["endAtIso", "endIso", "endAt", "end"]) || "").trim(),
     refundState: resolveBookingRefundState(updatedItem || {}),
+    fanUsername: String(counterparty?.username || firstDefined(sources, ["fanUsername", "userUsername", "username"]) || "").trim(),
+    fanAvatarUrl: String(counterparty?.avatarUrl || firstDefined(sources, [
+      "fanAvatar",
+      "fanAvatarUrl",
+      "userAvatar",
+      "userAvatarUrl",
+      "avatar",
+      "avatarUrl",
+      "profileImage",
+      "profileImageUrl",
+    ]) || "").trim(),
   };
 }
 
-async function notifySuccessfulBookingUpdate(action, updatedItem = null) {
+async function notifySuccessfulBookingUpdate(action, updatedItem = null, options = {}) {
   if (adjustmentDecisionOpen.value) {
     adjustmentDecisionOpen.value = false;
     await nextTick();
@@ -251,7 +304,8 @@ async function notifySuccessfulBookingUpdate(action, updatedItem = null) {
     bookingId: String(updatedItem?.bookingId || booking.value?.bookingId || bootstrap.bookingId || "").trim(),
     action,
     item: updatedItem,
-    notification: buildBookingUpdateNotification(updatedItem),
+    retainOpen: options.retainOpen === true,
+    notification: buildBookingUpdateNotification(updatedItem, options.counterparty),
   });
 }
 
@@ -261,6 +315,7 @@ async function loadBooking() {
   errorMessage.value = "";
   booking.value = null;
   calendarEvent.value = null;
+  compactDetailsSession.value = false;
 
   if (!bookingId) {
     errorMessage.value = t("fan_event_details_missing_booking_id");
@@ -279,6 +334,7 @@ async function loadBooking() {
 
     booking.value = item;
     calendarEvent.value = toCalendarEvent(item);
+    compactDetailsSession.value = compactMobileDetailsEligible.value;
     if (!calendarEvent.value) {
       errorMessage.value = t("fan_event_details_schedule_unavailable");
     } else if (isDirectCancelLaunch.value && !directCancelOpened.value) {
@@ -289,6 +345,13 @@ async function loadBooking() {
     errorMessage.value = error?.message || t("fan_event_details_load_failed");
   } finally {
     loading.value = false;
+    await nextTick();
+    if (compactDetailsSession.value) {
+      compactDetailsOpen.value = false;
+      await nextTick();
+      compactDetailsOpen.value = true;
+      await nextTick();
+    }
     notifyBookingDetailsReady({ bookingId, ok: Boolean(calendarEvent.value) });
   }
 }
@@ -338,7 +401,17 @@ async function reviewBooking(payload, decision) {
     }
 
     await syncBookingMessageAction(decision === "approve" ? "accepted" : "declined", decision);
-    await notifySuccessfulBookingUpdate(decision, item);
+
+    const retainOpen = compactDetailsSession.value;
+    if (retainOpen && item) {
+      booking.value = item;
+      calendarEvent.value = toCalendarEvent(item) || calendarEvent.value;
+      compactDetailsOpen.value = true;
+    }
+    await notifySuccessfulBookingUpdate(decision, item, {
+      retainOpen,
+      counterparty: payload?.counterparty,
+    });
   } finally {
     actionLoading.value = false;
   }

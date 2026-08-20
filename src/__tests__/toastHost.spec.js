@@ -45,6 +45,35 @@ describe("ToastHost", () => {
     expect(wrapper.text()).not.toContain("Please fill these fields");
   });
 
+  it("renders persistent creator booking review notifications with the fan avatar", async () => {
+    const wrapper = mountToastHost();
+
+    document.dispatchEvent(new CustomEvent(toastEventName, {
+      detail: {
+        variant: "booking-review",
+        status: "confirmed",
+        type: "success",
+        title: "Your event with @grapegatsby has been confirmed.",
+        avatarUrl: "https://example.test/fan.jpg",
+        avatarAlt: "grapegatsby",
+        closeLabel: "Close notification",
+        autoClose: false,
+      },
+    }));
+    await wrapper.vm.$nextTick();
+
+    const toast = wrapper.get('[data-test="creator-booking-review-toast"]');
+    expect(toast.text()).toContain("@grapegatsby");
+    expect(toast.get("img").attributes("src")).toBe("https://example.test/fan.jpg");
+
+    vi.advanceTimersByTime(60_000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="creator-booking-review-toast"]').exists()).toBe(true);
+
+    await wrapper.get('button[aria-label="Close notification"]').trigger("click");
+    expect(wrapper.find('[data-test="creator-booking-review-toast"]').exists()).toBe(false);
+  });
+
   it("renders one shared toast when multiple hosts are mounted", async () => {
     const firstHost = mountToastHost();
     const secondHost = mountToastHost();

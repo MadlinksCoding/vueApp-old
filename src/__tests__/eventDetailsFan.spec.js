@@ -119,7 +119,7 @@ describe('EventDetailsFan', () => {
 
     const notice = wrapper.get('[data-test="booking-details-adjustment-waiting-notice"]');
     expect(notice.get('[data-test="booking-details-adjustment-waiting-heading"]').text())
-      .toBe('Waiting for @grapegatsby to respond to your adjustments');
+      .toBe('Adjusted event detail has been sent to @grapegatsby to review:');
     expect(notice.get('img').attributes('src')).toBe('https://example.test/fan.webp');
     expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-accept-adjustment"]').exists()).toBe(false);
@@ -153,6 +153,105 @@ describe('EventDetailsFan', () => {
     expect(wrapper.find('[data-test="event-details-fan-price-adjustment"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['fan', {
+      creatorUsername: 'miu_miu',
+      creatorAvatar: 'https://example.test/creator.webp',
+    }, 'miu_miu', 'https://example.test/creator.webp'],
+    ['creator', {
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+    }, 'grapegatsby', 'https://example.test/fan.webp'],
+  ])('shows the confirmed notice to the %s with the resolved counterparty', (userRole, overrides, username, avatar) => {
+    const wrapper = mountDetails(booking({
+      ...overrides,
+      status: 'confirmed',
+      meta: {},
+    }), 'side-panel', { userRole });
+
+    const notice = wrapper.get('[data-test="booking-details-confirmed-notice"]');
+    expect(notice.get('[data-test="booking-details-confirmed-heading"]').text())
+      .toBe(`Your event with @${username} has been confirmed.`);
+    expect(notice.get('[data-test="booking-details-confirmed-avatar"]').attributes()).toEqual(expect.objectContaining({
+      src: avatar,
+      alt: username,
+    }));
+    expect(notice.get('[data-test="booking-details-confirmed-rail"]').classes()).toContain('bg-[#20C7B5]');
+    expect(notice.get('[data-test="booking-details-confirmed-badge"]').classes()).toContain('bg-[#20C7B5]');
+    wrapper.unmount();
+  });
+
+  it('uses a safe initial avatar and generic role label instead of a numeric user fallback', () => {
+    const wrapper = mountDetails(booking({
+      creatorName: '',
+      creatorDisplayName: 'User #1407',
+      status: 'confirmed',
+      meta: {},
+    }));
+
+    expect(wrapper.get('[data-test="booking-details-confirmed-heading"]').text())
+      .toBe('Your event with @Creator has been confirmed.');
+    expect(wrapper.get('[data-test="booking-details-confirmed-avatar-fallback"]').text()).toBe('C');
+    expect(wrapper.text()).not.toContain('User #1407');
+    wrapper.unmount();
+  });
+
+  it('reactively shows and removes the confirmed notice as the booking status changes', async () => {
+    const value = booking({ creatorUsername: 'miu_miu', status: 'pending', meta: {} });
+    const wrapper = mountDetails(value);
+
+    expect(wrapper.find('[data-test="booking-details-confirmed-notice"]').exists()).toBe(false);
+
+    await wrapper.setProps({
+      booking: { ...value, status: 'confirmed' },
+      event: {
+        bookingId: value.bookingId,
+        eventId: value.eventId,
+        title: value.eventTitle,
+        start: value.startAtIso,
+        end: value.endAtIso,
+        status: 'confirmed',
+        raw: { ...value, status: 'confirmed' },
+      },
+    });
+    expect(wrapper.find('[data-test="booking-details-confirmed-notice"]').exists()).toBe(true);
+
+    await wrapper.setProps({
+      booking: { ...value, status: 'completed' },
+      event: {
+        bookingId: value.bookingId,
+        eventId: value.eventId,
+        title: value.eventTitle,
+        start: value.startAtIso,
+        end: value.endAtIso,
+        status: 'completed',
+        raw: { ...value, status: 'completed' },
+      },
+    });
+    expect(wrapper.find('[data-test="booking-details-confirmed-notice"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps an active confirmed counteroffer notice ahead of the generic confirmation', () => {
+    const wrapper = mountDetails(booking({
+      status: 'confirmed',
+      meta: {
+        currentCounterOffer: 'reschedule',
+        negotiation: {
+          type: 'reschedule',
+          status: 'sent',
+          original: { startAtIso: '2027-04-25T14:15:00Z', endAtIso: '2027-04-25T14:45:00Z' },
+          proposed: { startAtIso: '2027-04-26T14:15:00Z', endAtIso: '2027-04-26T14:45:00Z' },
+        },
+      },
+    }), 'side-panel', { userRole: 'creator' });
+
+    expect(wrapper.find('[data-test="booking-details-adjustment-waiting-notice"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-confirmed-notice"]').exists()).toBe(false);
     wrapper.unmount();
   });
 

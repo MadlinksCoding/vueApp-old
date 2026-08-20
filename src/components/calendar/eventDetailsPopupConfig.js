@@ -1,4 +1,25 @@
-export function createEventDetailsPopupConfig() {
+export function createEventDetailsPopupConfig(_viewportWidth, options = {}) {
+  if (options.compact === true) {
+    return {
+      actionType: "slidein",
+      from: "bottom",
+      verticalAlign: "bottom",
+      offset: "0px",
+      speed: "220ms",
+      effect: "ease-out",
+      showOverlay: true,
+      closeOnOutside: true,
+      lockScroll: true,
+      escToClose: true,
+      width: { default: "100%" },
+      height: { default: "auto" },
+      scrollable: false,
+      closeSpeed: "220ms",
+      closeEffect: "ease-in",
+      customClass: "booking-details-compact-dialog",
+    };
+  }
+
   return {
     actionType: "slidein",
     from: "right",

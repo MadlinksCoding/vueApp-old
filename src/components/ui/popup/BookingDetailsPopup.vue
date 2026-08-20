@@ -1,6 +1,170 @@
 <template>
-  <component :is="panelComponent" v-bind="panelProps" @update:model-value="handleModelUpdate">
-    <div class="w-full h-full overflow-auto bg-white inline-flex flex-col justify-start items-start" :class="surfaceWidthClass" data-test="event-details-fan" :style="{ '--event-color': eventColor }">
+  <component :is="panelComponent" v-bind="panelProps" @update:model-value="handleModelUpdate" @closed="emit('closed')">
+    <div
+      class="relative w-full overflow-auto inline-flex flex-col justify-start items-start"
+      :class="[surfaceWidthClass, isCompact ? 'booking-details-compact-surface bg-[#F9FAFB]' : 'h-full bg-white']"
+      :data-layout-variant="layoutVariant"
+      data-test="event-details-fan"
+      :style="{ '--event-color': eventColor }"
+    >
+      <template v-if="isCompact">
+        <div class="absolute inset-y-0 left-0 z-10 w-1" :style="{ backgroundColor: eventColor }" data-test="booking-details-compact-color-rail" />
+
+        <div class="hidden h-7 w-full items-start justify-between md:flex" data-test="booking-details-compact-desktop-header">
+          <div class="inline-flex h-7 items-center">
+            <div class="h-7 px-1.5 py-1 inline-flex items-center" :style="{ backgroundColor: eventColor }" data-test="booking-details-compact-event-type">
+              <span class="text-sm font-bold leading-5 text-white">{{ eventTypeLabel }}</span>
+            </div>
+            <div class="h-7 px-1.5 py-1 inline-flex items-center gap-1.5">
+              <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4" />
+              <span v-else class="size-2.5 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" />
+              <span class="text-sm font-medium uppercase leading-5 text-[#667085]" data-test="booking-details-compact-status">{{ statusText }}</span>
+            </div>
+          </div>
+          <button type="button" class="m-2 flex size-10 items-center justify-center disabled:cursor-wait disabled:opacity-50" :disabled="actionLoading" :aria-label="t('common_close')" data-test="booking-details-compact-close" @click="closePanel">
+            <img :src="CompactCloseIcon" alt="" class="size-5" />
+          </button>
+        </div>
+
+        <div class="flex w-full flex-1 flex-col gap-5 p-4 md:pt-3">
+          <div class="flex w-full items-center gap-2 md:hidden" data-test="booking-details-compact-mobile-header">
+            <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4 shrink-0" />
+            <span v-else class="size-2.5 shrink-0 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" />
+            <h2 class="min-w-0 flex-1 truncate text-2xl font-semibold leading-8 text-[#B54708]" data-test="booking-details-compact-title">{{ titleText }}</h2>
+            <button type="button" class="flex size-5 shrink-0 items-center justify-center disabled:cursor-wait disabled:opacity-50" :disabled="actionLoading" :aria-label="t('common_close')" data-test="booking-details-compact-close" @click="closePanel">
+              <img :src="CompactCloseIcon" alt="" class="size-4" />
+            </button>
+          </div>
+
+          <h2 class="hidden w-full truncate text-3xl font-semibold leading-[2.375rem] text-[#B54708] md:block" data-test="booking-details-compact-title">{{ titleText }}</h2>
+
+          <BookingDetailsInformation
+            compact
+            :formatted-date="formattedDate"
+            :formatted-time-range="formattedTimeRange"
+            :counterparty-name="creatorName"
+            :counterparty-fallback="counterpartyFallback"
+            :counterparty-avatar="creatorAvatar"
+            :counterparty-verified="creatorVerified"
+            :additional-request-lines="additionalRequestLines"
+            :session-cost="paymentTotal"
+            :session-deposit="sessionDepositTokens"
+            :cancellation-fee="activeCancellationFee"
+            :booking-fee="activeBookingFee"
+            :pending-price-adjustment="pendingPriceAdjustment"
+            :adjustment="adjustment"
+            :reminder-text="reminderText"
+          />
+
+          <button
+            v-if="canReviewBooking && compactReviewMode !== 'full'"
+            type="button"
+            class="mt-auto flex min-h-10 w-full items-center justify-center bg-[#07F468] px-6 py-2 text-base font-medium leading-6 text-[#0C111D] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="actionLoading"
+            :aria-label="t('calendar_event_accept_booking')"
+            data-test="booking-details-compact-accept"
+            @click="approveBooking"
+          >
+            <Spinner
+              v-if="actionLoading"
+              size="sm"
+              thickness="2.5"
+              color="text-[#0C111D]"
+              :show-track="false"
+              data-test="booking-details-compact-accept-spinner"
+            />
+            <span v-else>{{ t('calendar_event_accept_booking') }}</span>
+          </button>
+        </div>
+
+        <div
+          v-if="canReviewBooking && compactReviewMode === 'full'"
+          class="mt-auto flex w-full flex-col gap-2 border-l-[3px] border-[#06AED4] bg-[#ECFDFF] p-3"
+          data-test="booking-details-compact-review-notice"
+        >
+          <div class="flex min-w-0 items-center gap-3">
+            <div data-svg-wrapper class="relative shrink-0">
+              <img v-if="creatorAvatar" :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" />
+              <div v-else class="flex h-10 w-10 items-center justify-center rounded-full bg-[#FCE40D] text-sm font-semibold text-[#344054]" aria-hidden="true">
+                {{ creatorName.charAt(0) }}
+              </div>
+            </div>
+            <div class="min-w-0 flex-1 text-sm font-semibold leading-5 text-[#0096B7]" data-test="booking-details-compact-review-heading">
+              {{ t('booking_details_pending_request_from', { fan: creatorName || t('common_fan') }) }}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="flex min-h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#07F468] px-4 py-2 text-sm font-medium text-[#0C111D] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="actionLoading"
+            :aria-label="t('calendar_event_accept_booking')"
+            data-test="booking-details-compact-accept"
+            @click="approveBooking"
+          >
+            <Spinner
+              v-if="actionLoading"
+              size="sm"
+              thickness="2.5"
+              color="text-[#0C111D]"
+              :show-track="false"
+              data-test="booking-details-compact-accept-spinner"
+            />
+            <template v-else>
+              <span data-svg-wrapper class="relative"><img :src="CheckBlackIcon" alt="" class="h-5 w-5" /></span>
+              <span>{{ t('calendar_event_accept_booking') }}</span>
+            </template>
+          </button>
+
+          <div class="flex w-full items-center gap-2" data-test="booking-details-compact-review-actions">
+            <button
+              v-if="canAdjustBooking"
+              type="button"
+              class="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-sm border border-[#344054] bg-white px-4 py-2 text-sm font-medium text-[#1D2939] disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="actionLoading"
+              data-test="booking-details-compact-adjust"
+              @click="adjustBooking"
+            >
+              <span data-svg-wrapper class="relative"><img :src="EditGrayIcon" alt="" class="h-5 w-5" /></span>
+              {{ t('booking_details_adjust_detail') }}
+            </button>
+            <div class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
+              <button
+                type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-[#344054] bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                :aria-label="t('fan_event_details_booking_actions')"
+                :aria-expanded="reviewMenuOpen"
+                :disabled="actionLoading"
+                data-test="booking-details-compact-review-menu"
+                @click.stop="toggleReviewMenu"
+              >
+                <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
+              </button>
+              <div
+                v-if="reviewMenuOpen"
+                class="absolute bottom-11 right-0 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
+                data-test="booking-details-compact-review-menu-dropdown"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  class="inline-flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]"
+                  :disabled="actionLoading"
+                  data-test="booking-details-compact-decline"
+                  @click.stop="openRejectConfirmation"
+                >
+                  <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg>
+                  </span>
+                  {{ t('calendar_event_decline_booking') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
       <div class="self-stretch relative bg-black/25 backdrop-blur-[5px] flex flex-col justify-start items-start">
         <div class="self-stretch px-4 pt-12 pb-2 min-h-[18.75rem] relative bg-gradient-to-b from-amber-400/5 to-amber-400/30 flex flex-col justify-end items-start gap-4" data-test="event-details-fan-hero">
           <div class="h-6 p-1.5 bg-stone-900/50 rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
@@ -154,14 +318,59 @@
         </div>
       </div>
 
-      <div v-else-if="creatorWaitingForAdjustment" class="self-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.25)] border-b-[0.50px] border-gray-200 inline-flex justify-start items-stretch" data-test="booking-details-adjustment-waiting-notice">
-        <div class="w-1 self-stretch bg-[#06AED4]" />
-        <div class="flex-1 px-3 py-3 bg-[#ECFDFF] inline-flex justify-start items-center gap-3 min-w-0">
-          <div v-if="creatorAvatar" data-svg-wrapper class="relative shrink-0">
-            <img :src="creatorAvatar" :alt="creatorName" class="h-10 w-10 rounded-full object-cover" />
-          </div>
-          <div class="flex-1 min-w-0 text-sm font-semibold leading-5 text-[#0096B7]" data-test="booking-details-adjustment-waiting-heading">
-            {{ t('booking_details_waiting_for_adjustment_response', { fan: creatorName || t('common_fan') }) }}
+      <div
+        v-else-if="creatorWaitingForAdjustment"
+        class="self-stretch min-h-16 border-b-[0.5px] border-[#EAECF0] inline-flex items-stretch"
+        :data-counteroffer-type="counterOfferType"
+        data-test="booking-details-adjustment-waiting-notice"
+      >
+        <div class="w-[3px] shrink-0 self-stretch bg-[#98A2B3]" data-test="booking-details-counteroffer-rail" />
+        <div class="flex-1 min-w-0 px-2 py-3 flex flex-col items-start gap-4 [background:linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.9)_100%),linear-gradient(90deg,rgba(152,162,179,0.15)_0%,rgba(152,162,179,0.15)_100%),linear-gradient(90deg,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0.9)_100%)]">
+          <div class="self-stretch flex items-start justify-end gap-4">
+            <div class="relative size-10 shrink-0 rounded-[200px] bg-[#FCE40D]" data-test="booking-details-counteroffer-sent-icon">
+              <img
+                v-if="creatorAvatar"
+                :src="creatorAvatar"
+                :alt="creatorName || decisionFanUsername"
+                class="size-10 rounded-full object-cover"
+                data-test="booking-details-counteroffer-avatar"
+              />
+              <div class="absolute left-7 top-[27px] z-10 size-[22px] rounded-lg bg-[#98A2B3]">
+                <div data-svg-wrapper class="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 overflow-hidden">
+                  <img :src="SendWhiteIcon" alt="" class="size-4" />
+                </div>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0 self-stretch flex flex-col items-start justify-center">
+              <div class="self-stretch pb-2 pr-1 pt-1 text-sm font-semibold leading-5 text-[#344054] break-words" data-test="booking-details-adjustment-waiting-heading">
+                {{ t('booking_details_counteroffer_sent_for_review', { fan: decisionFanUsername }) }}
+              </div>
+              <div class="self-stretch flex flex-col items-start gap-2.5">
+                <div v-if="counterOfferPresentation.remarks" class="self-stretch flex flex-col items-start gap-0.5 text-black [text-shadow:_0px_0px_10px_rgb(0_0_0_/_0.10)]" data-test="booking-details-counteroffer-remarks">
+                  <div class="self-stretch text-xs font-normal leading-[18px]">{{ t('booking_details_counteroffer_your_remarks') }}</div>
+                  <div class="self-stretch whitespace-pre-wrap break-words text-sm font-normal leading-5">“{{ counterOfferPresentation.remarks }}”</div>
+                </div>
+                <div v-if="counterOfferPresentation.hasComparison" class="self-stretch flex flex-wrap items-center gap-2" data-test="booking-details-counteroffer-comparison">
+                  <div class="min-w-0 px-2 flex flex-col items-start justify-center gap-1">
+                    <div class="text-xs font-medium leading-[18px] text-[#97180C]" data-test="booking-details-counteroffer-original-label">{{ counterOfferPresentation.originalLabel }}</div>
+                    <div class="min-w-0 flex items-center gap-1">
+                      <img v-if="counterOfferPresentation.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0 grayscale" data-test="booking-details-counteroffer-original-token" />
+                      <div class="min-w-0 break-words text-sm font-medium leading-5 text-[#667085] line-through" data-test="booking-details-counteroffer-original-value">{{ counterOfferPresentation.originalValue }}</div>
+                    </div>
+                  </div>
+                  <div data-svg-wrapper class="relative size-6 shrink-0 overflow-hidden">
+                    <img :src="priceArrowIcon" alt="" class="size-6" />
+                  </div>
+                  <div class="min-w-0 px-2 flex flex-col items-start justify-center gap-1">
+                    <div class="text-xs font-medium leading-[18px] text-[#FF4405]" data-test="booking-details-counteroffer-proposed-label">{{ counterOfferPresentation.proposedLabel }}</div>
+                    <div class="min-w-0 flex items-center gap-1">
+                      <img v-if="counterOfferPresentation.usesTokens" :src="tokenIcon" alt="" class="size-5 shrink-0" data-test="booking-details-counteroffer-proposed-token" />
+                      <div class="min-w-0 break-words text-sm font-semibold leading-5 text-[#FF4405]" data-test="booking-details-counteroffer-proposed-value">{{ counterOfferPresentation.proposedValue }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -271,84 +480,64 @@
         </div>
       </div>
 
+      <div
+        v-else-if="showConfirmedNotice"
+        class="self-stretch border-b-[0.5px] border-[#D0D5DD] inline-flex items-stretch shadow-[0px_0px_8px_0px_rgba(0,0,0,0.16)]"
+        data-test="booking-details-confirmed-notice"
+      >
+        <div class="w-1 shrink-0 self-stretch bg-[#20C7B5]" data-test="booking-details-confirmed-rail" />
+        <div class="flex-1 min-w-0 px-3 py-3 inline-flex items-center gap-3 [background:linear-gradient(90deg,rgba(32,199,181,0.16)_0%,rgba(255,255,255,0.96)_100%)]">
+          <div class="relative h-10 w-10 shrink-0" data-svg-wrapper>
+            <img
+              v-if="creatorAvatar"
+              :src="creatorAvatar"
+              :alt="confirmedCounterpartyUsername"
+              class="h-10 w-10 rounded-full object-cover"
+              data-test="booking-details-confirmed-avatar"
+            />
+            <div
+              v-else
+              class="h-10 w-10 rounded-full bg-[#E4E7EC] inline-flex items-center justify-center text-sm font-semibold uppercase text-[#475467]"
+              data-test="booking-details-confirmed-avatar-fallback"
+              aria-hidden="true"
+            >
+              {{ confirmedCounterpartyInitial }}
+            </div>
+            <span class="absolute -bottom-1 -right-1 h-[22px] w-[22px] rounded-full border-2 border-white bg-[#20C7B5] inline-flex items-center justify-center" aria-hidden="true" data-test="booking-details-confirmed-badge">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+                <path d="M5 9.25L7.6 11.75L13 6.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="9" cy="9" r="7.25" stroke="white" stroke-width="1.5" />
+              </svg>
+            </span>
+          </div>
+          <div class="min-w-0 flex-1 break-words text-sm font-semibold leading-5 text-[#117E75]" data-test="booking-details-confirmed-heading">
+            {{ t('booking_details_confirmed_with_counterparty', { counterparty: confirmedCounterpartyUsername }) }}
+          </div>
+        </div>
+      </div>
+
       <div class="self-stretch flex-1 bg-gray-50 inline-flex justify-start items-start">
         <div class="w-1 self-stretch relative" :style="{ backgroundColor: eventColor }" data-test="event-details-fan-color-rail" />
         <div class="flex-1 min-w-0 self-stretch p-4 inline-flex flex-col justify-between items-start gap-2">
-          <div class="self-stretch flex flex-col justify-start items-start gap-4">
-            <div class="self-stretch inline-flex justify-start items-start gap-4">
-              <div data-svg-wrapper class="relative"><img :src="userIcon" alt="" class="filter grayscale brightness-75 opacity-100" /></div>
-              <div class="w-96 min-w-0 flex-1 inline-flex flex-col justify-center items-start gap-2">
-                <div class="self-stretch inline-flex justify-start items-start gap-1 flex-wrap content-start">
-                  <div class="h-6 flex justify-center items-center gap-1.5">
-                    <div v-if="creatorAvatar" data-svg-wrapper class="relative"><img :src="creatorAvatar" :alt="creatorName" class="h-[1.375rem] w-[1.375rem] object-cover [border-radius:25%_75%_50%_51%_/_45%_65%_36%_55%]" /></div>
-                    <div class="size- inline-flex flex-col justify-center items-start">
-                      <div class="self-stretch inline-flex justify-start items-center gap-1">
-                        <div class="justify-start text-gray-900 text-sm font-normal leading-5 line-clamp-1">{{ creatorName || t('common_creator') }}</div>
-                        <div v-if="creatorVerified" data-svg-wrapper data-size="xs" class="relative"><img :src="VerifiedBlueTickIcon" alt="" /></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <button v-if="canOpenChat" type="button" data-color="dark" data-leading-icon="true" data-property-1="hover" data-size="sm" data-trailing-icon="true" class="size- inline-flex justify-start items-center gap-0.5" data-test="event-details-fan-open-chat" @click="emit('open-chat', chatPayload); emit('close')">
-                  <div data-svg-wrapper class="relative"><img :src="ChatBlueIcon" alt="" /></div>
-                  <div class="justify-start text-blue-600 text-xs font-medium leading-4">{{ t('calendar_event_open_chat') }}</div>
-                  <div data-svg-wrapper class="relative"><img :src="ArrowUpRightBlueIcon" alt="" /></div>
-                </button>
-              </div>
-            </div>
-
-            <div class="self-stretch inline-flex justify-start items-start gap-4">
-              <div data-svg-wrapper class="relative"><img :src="dotPoints" alt="" /></div>
-              <div class="flex-1 inline-flex flex-col justify-start items-start gap-2">
-                <div class="justify-center text-gray-900 text-sm font-semibold leading-5">{{ t('calendar_event_additional_request') }}</div>
-                <div v-for="line in additionalRequestLines" :key="line" class="justify-center text-gray-900 text-sm font-normal leading-5 whitespace-pre-wrap break-words">{{ line }}</div>
-              </div>
-            </div>
-
-            <div v-if="showCancelledFees" class="self-stretch inline-flex justify-start items-start gap-4" data-test="booking-details-cancelled-fees">
-              <div data-svg-wrapper class="relative"><img :src="dollarIcon" alt="" /></div>
-              <div class="flex-1 min-w-0 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
-                <div v-if="cancelledCancellationFee > 0" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-cancellation-fee">
-                  <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
-                  <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="tokenIcon" alt="" class="h-6 w-6" />{{ formatTokenAmount(cancelledCancellationFee) }}</span>
-                </div>
-                <div v-if="cancelledBookingFee > 0" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-booking-fee">
-                  <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
-                  <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="tokenIcon" alt="" class="h-6 w-6" />{{ formatTokenAmount(cancelledBookingFee) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="self-stretch inline-flex justify-start items-start gap-4">
-              <div data-svg-wrapper class="relative"><img :src="dollarIcon" alt="" /></div>
-              <div class="flex-1 min-w-0 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
-                <div class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
-                  <div class="justify-center text-gray-900 text-sm font-semibold leading-5">{{ t('fan_event_details_session_cost') }}</div>
-                  <div v-if="pendingPriceAdjustment" class="size- inline-flex justify-start items-center gap-2" data-test="event-details-fan-session-cost-adjusted">
-                    <div class="size- flex justify-start items-center gap-1 grayscale">
-                      <div data-svg-wrapper class="relative"><img :src="tokenIcon" alt="" class="h-6 w-6" data-test="event-details-fan-session-cost-original-icon" /></div>
-                      <div class="text-center justify-start text-gray-500 text-sm font-medium line-through leading-5" data-test="event-details-fan-session-cost-original">{{ formatTokenAmount(adjustment.originalTokens) }}</div>
-                    </div>
-                    <div data-svg-wrapper class="relative"><img :src="priceArrowIcon" alt="" class="h-6 w-6" data-test="event-details-fan-session-cost-arrow" /></div>
-                    <div class="size- flex justify-start items-center gap-1">
-                      <div data-svg-wrapper class="relative"><img :src="tokenIcon" alt="" class="h-6 w-6" data-test="event-details-fan-session-cost-proposed-icon" /></div>
-                      <div class="text-center justify-start text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-proposed">{{ formatTokenAmount(adjustment.proposedTokens) }}</div>
-                    </div>
-                  </div>
-                  <div v-else-if="hasSessionCost" class="size- inline-flex justify-start items-center gap-1" data-test="event-details-fan-session-cost-standard">
-                    <div data-svg-wrapper class="relative"><img :src="tokenIcon" alt="" class="h-6 w-6" data-test="event-details-fan-session-cost-icon" /></div>
-                    <div class="text-center justify-start text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-value">{{ formatTokenAmount(paymentTotal) }}</div>
-                  </div>
-                  <div v-else class="justify-center text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="self-stretch inline-flex justify-start items-center gap-4">
-              <div data-svg-wrapper class="relative"><img :src="bellIcon" alt="" class="filter grayscale brightness-75 opacity-100" /></div>
-              <div class="size- flex justify-start items-center gap-2"><div class="justify-center text-gray-900 text-sm font-normal leading-5">{{ reminderText }}</div></div>
-            </div>
-          </div>
+          <BookingDetailsInformation
+            :formatted-date="formattedDate"
+            :formatted-time-range="formattedTimeRange"
+            :counterparty-name="creatorName"
+            :counterparty-fallback="counterpartyFallback"
+            :counterparty-avatar="creatorAvatar"
+            :counterparty-verified="creatorVerified"
+            :can-open-chat="canOpenChat"
+            :chat-payload="chatPayload"
+            :additional-request-lines="additionalRequestLines"
+            :show-cancelled-fees="showCancelledFees"
+            :session-cost="paymentTotal"
+            :cancellation-fee="cancelledCancellationFee"
+            :booking-fee="cancelledBookingFee"
+            :pending-price-adjustment="pendingPriceAdjustment"
+            :adjustment="adjustment"
+            :reminder-text="reminderText"
+            @open-chat="handleOpenChat"
+          />
 
           <div v-if="!canReviewBooking && canJoinCall" class="self-stretch inline-flex justify-start items-start gap-2.5">
             <button type="button" class="flex-1 px-4 py-2 bg-[#07F468] rounded-sm flex justify-center items-center gap-3 cursor-pointer" data-test="event-details-fan-join" @click="handleJoin">
@@ -360,6 +549,7 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
   </component>
 
@@ -381,6 +571,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import PopupHandler from './PopupHandler.vue';
 import BookingAdjustmentDecisionPopup from './BookingAdjustmentDecisionPopup.vue';
+import BookingDetailsInformation from './BookingDetailsInformation.vue';
+import Spinner from '@/components/ui/spinner/Spinner.vue';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { getCalendarEventApprovalState, getCalendarEventJoinState } from '@/utils/bookingJoinUtils.js';
 import { getPendingCounterOffer } from '@/services/bookings/utils/bookingNegotiationUtils.js';
@@ -396,20 +588,19 @@ import DotsWhiteIcon from '@/assets/images/icons/dots-vertical-white.svg';
 import CheckBlackIcon from '@/assets/images/icons/check-black.svg';
 import ArrowBrownIcon from '@/assets/images/icons/arrow-right-brown.svg';
 import TokenIcon from '@/assets/images/icons/token-sm-calender.svg';
-import userIcon from '@/assets/images/icons/profile.webp';
-import dotPoints from '@/assets/images/icons/dotpoints.png';
-import dollarIcon from '@/assets/images/icons/dollar.png';
-import bellIcon from '@/assets/images/icons/bell-1.webp';
-import ChatBlueIcon from '@/assets/images/icons/message-text-square-blue.svg';
-import ArrowUpRightBlueIcon from '@/assets/images/icons/arrow-up-right-blue.svg';
 import EditGrayIcon from '@/assets/images/icons/edit-02-gray.svg';
 import DotsGrayIcon from '@/assets/images/icons/dots-vertical.svg';
+import SendWhiteIcon from '@/assets/images/icons/send-01-white.svg';
+import CompactPendingIcon from '@/assets/images/icons/booking-compact-pending.svg';
+import CompactCloseIcon from '@/assets/images/icons/booking-compact-close.svg';
 
 defineOptions({ name: 'BookingDetailsPopup' });
 
 const props = defineProps({
   modelValue: { type: Boolean, default: true }, booking: { type: Object, default: null },
   event: { type: Object, default: () => ({}) }, presentation: { type: String, default: 'popup' },
+  layoutVariant: { type: String, default: 'hero' },
+  compactReviewMode: { type: String, default: 'full' },
   actionLoading: { type: Boolean, default: false },
   userRole: { type: String, default: 'fan' },
   canReviewPending: { type: Boolean, default: false },
@@ -423,7 +614,7 @@ const props = defineProps({
   // Merged over the slide-in PopupHandler config (e.g. a higher zIndex inside chat).
   popupConfig: { type: Object, default: null },
 });
-const emit = defineEmits(['update:modelValue', 'close', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule']);
+const emit = defineEmits(['update:modelValue', 'close', 'closed', 'join-call', 'open-chat', 'cancel-booking', 'accept-adjustment', 'decline-adjustment', 'approve-booking', 'reject-booking', 'adjust-booking', 'decision-visibility', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule']);
 const { t, locale } = useBookingTranslations();
 const menuOpen = ref(false);
 const reviewMenuOpen = ref(false);
@@ -431,16 +622,38 @@ const now = ref(new Date());
 const creatorProfile = ref(null);
 const fetchedBooking = ref(null);
 const rejectDecisionOpen = ref(false);
+const compactMobile = ref(typeof window !== 'undefined' && window.innerWidth < 768);
 let timerId = null;
 let profileController = null;
 
 const defaultPopupConfig = { actionType: 'slidein', from: 'right', offset: '0px', speed: '300ms', effect: 'cubic-bezier(0.4, 0, 0.2, 1)', closeSpeed: '250ms', closeEffect: 'cubic-bezier(0.4, 0, 0.2, 1)', showOverlay: true, closeOnOutside: true, lockScroll: true, escToClose: true, width: { default: '500px', '<768': '100%' }, height: { default: '100%', '<768': '100%' }, scrollable: true };
-const popupConfig = computed(() => ({ ...defaultPopupConfig, ...props.popupConfig }));
+const responsiveDialogPopupConfig = computed(() => compactMobile.value
+  ? {
+      actionType: 'slidein', from: 'bottom', offset: '0px', speed: '220ms', effect: 'ease-out',
+      closeSpeed: '220ms', closeEffect: 'ease-in', showOverlay: true, closeOnOutside: true,
+      lockScroll: true, escToClose: true, width: '100%', height: 'auto', scrollable: false,
+      customClass: 'booking-details-compact-dialog',
+    }
+  : {
+      actionType: 'popup', position: 'center', customEffect: 'fade', speed: '200ms', effect: 'ease-out',
+      closeSpeed: '180ms', closeEffect: 'fade', showOverlay: true, closeOnOutside: true,
+      lockScroll: true, escToClose: true, width: '500px', height: 'auto', scrollable: false,
+      customClass: 'booking-details-compact-dialog',
+    });
+const isCompact = computed(() => props.layoutVariant === 'compact');
+const isResponsiveDialog = computed(() => props.presentation === 'responsive-dialog');
+const popupConfig = computed(() => ({
+  ...(isResponsiveDialog.value ? responsiveDialogPopupConfig.value : defaultPopupConfig),
+  ...props.popupConfig,
+}));
 const isSidePanel = computed(() => props.presentation === 'side-panel');
 // PopupHandler forces `md:!w-auto` on its panel, which beats the inline width from the
 // config — so the surface has to carry the desktop width itself or long content
 // (adjustment remarks in particular) stretches the whole panel.
-const surfaceWidthClass = computed(() => (isSidePanel.value ? '' : 'md:w-[31.25rem]'));
+const surfaceWidthClass = computed(() => {
+  if (isCompact.value) return 'w-full md:w-[31.25rem]';
+  return isSidePanel.value ? '' : 'md:w-[31.25rem]';
+});
 const panelComponent = computed(() => (isSidePanel.value ? 'div' : PopupHandler));
 const panelProps = computed(() => (isSidePanel.value
   ? { class: 'h-full min-h-0 w-full' }
@@ -484,6 +697,45 @@ function formatDateTime(date) {
   if (!date) return '';
   return new Intl.DateTimeFormat(locale.value, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
 }
+function parseDate(value) {
+  const parsed = value instanceof Date ? value : new Date(value || '');
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+function durationBetweenMinutes(startValue, endValue) {
+  const start = parseDate(startValue);
+  const end = parseDate(endValue);
+  if (!start || !end || end.getTime() <= start.getTime()) return null;
+  return Math.round((end.getTime() - start.getTime()) / 60000);
+}
+function endFromDuration(startValue, explicitEndValue, durationMinutes) {
+  const explicitEnd = parseDate(explicitEndValue);
+  if (explicitEnd) return explicitEnd;
+  const start = parseDate(startValue);
+  const duration = finiteNumber(durationMinutes);
+  return start && duration != null && duration > 0
+    ? new Date(start.getTime() + duration * 60000)
+    : null;
+}
+function formatCounterOfferRange(startValue, endValue) {
+  const start = parseDate(startValue);
+  if (!start) return '';
+  const end = parseDate(endValue);
+  const dateTimeFormatter = new Intl.DateTimeFormat(locale.value, {
+    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+  if (!end) return dateTimeFormatter.format(start);
+  const dateFormatter = new Intl.DateTimeFormat(locale.value, { year: 'numeric', month: 'numeric', day: 'numeric' });
+  if (dateFormatter.format(start) === dateFormatter.format(end)) {
+    const timeFormatter = new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' });
+    return `${dateTimeFormatter.format(start)} - ${timeFormatter.format(end)}`;
+  }
+  return `${dateTimeFormatter.format(start)} - ${dateTimeFormatter.format(end)}`;
+}
+function formatCounterOfferDuration(value) {
+  const minutes = finiteNumber(value);
+  if (minutes == null) return '';
+  return t('calendar_event_duration_minutes', { count: new Intl.NumberFormat(locale.value).format(minutes) });
+}
 // A `moretime` / `reschedule` offer proposes a new start; the session keeps its length.
 const proposedStartDate = computed(() => {
   const parsed = new Date(counterOffer.value.proposed.proposedSlotDate || '');
@@ -513,9 +765,13 @@ const normalizedStatus = computed(() => firstText(raw.value?.status, raw.value?.
 const isCancelledStatus = computed(() => normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined');
 const statusKeys = { confirmed: 'calendar_event_status_confirmed', completed: 'calendar_event_status_completed', pending: 'calendar_event_status_pending', pending_hold: 'calendar_event_status_pending_hold', cancelled: 'calendar_event_status_cancelled', cancelled_user: 'calendar_event_status_cancelled', cancelled_creator: 'calendar_event_status_cancelled', declined: 'calendar_event_status_declined' };
 const statusText = computed(() => t(statusKeys[normalizedStatus.value] || 'calendar_event_status_pending'));
+const compactPendingStatus = computed(() => normalizedStatus.value === 'pending' || normalizedStatus.value === 'pending_hold');
 const statusColor = computed(() => ['confirmed', 'completed'].includes(normalizedStatus.value) ? '#22C55E' : (normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined' ? '#F04438' : '#F59E0B'));
 
-const counterOffer = computed(() => getPendingCounterOffer([props.booking || raw.value , props.event]));
+// Calendar events can be lightweight projections without negotiation metadata.
+// Prefer the authoritative booking fetched by this component before falling
+// back to booking/event props so review and waiting states use one data source.
+const counterOffer = computed(() => getPendingCounterOffer([raw.value, props.booking, props.event]));
 const counterOfferType = computed(() => counterOffer.value.type);
 const pendingPriceAdjustment = computed(() => counterOfferType.value === 'adjust');
 const pendingTimeOffer = computed(() => counterOfferType.value === 'moretime' || counterOfferType.value === 'reschedule');
@@ -535,12 +791,90 @@ const adjustment = computed(() => {
     remarks: firstText(negotiation.proposed?.remarks, legacy.proposedRemarks),
   };
 });
+const counterOfferPresentation = computed(() => {
+  const meta = raw.value?.meta || {};
+  const negotiation = meta.negotiation && typeof meta.negotiation === 'object' ? meta.negotiation : {};
+  const original = negotiation.original && typeof negotiation.original === 'object' ? negotiation.original : {};
+  const proposed = negotiation.proposed && typeof negotiation.proposed === 'object' ? negotiation.proposed : {};
+  const rawType = firstText(meta.currentCounterOffer, counterOffer.value.rawType, counterOfferType.value);
+  const legacyCandidate = meta[rawType] || meta[counterOfferType.value];
+  const legacy = legacyCandidate && typeof legacyCandidate === 'object' ? legacyCandidate : {};
+  const remarks = firstText(proposed.remarks, legacy.proposedRemarks, counterOffer.value.proposed.proposedRemarks);
+
+  let originalLabel = '';
+  let proposedLabel = '';
+  let originalValue = '';
+  let proposedValue = '';
+  let usesTokens = false;
+
+  if (counterOfferType.value === 'adjust') {
+    const originalTokens = finiteNumber(original.totalTokens)
+      ?? finiteNumber(legacy.prevTotalTokens)
+      ?? finiteNumber(counterOffer.value.proposed.prevTotalTokens);
+    const proposedTokens = finiteNumber(proposed.totalTokens)
+      ?? finiteNumber(legacy.proposedTokens)
+      ?? finiteNumber(counterOffer.value.proposed.proposedTokens);
+    originalLabel = t('booking_adjustment_original_price');
+    proposedLabel = t('booking_adjustment_new_price');
+    originalValue = originalTokens == null ? '' : formatTokenAmount(originalTokens);
+    proposedValue = proposedTokens == null ? '' : formatTokenAmount(proposedTokens);
+    usesTokens = true;
+  } else {
+    const originalStart = firstText(original.startAtIso, raw.value?.startAtIso, raw.value?.startIso, props.event?.start);
+    const originalEnd = firstText(original.endAtIso, raw.value?.endAtIso, raw.value?.endIso, props.event?.end);
+    const proposedStart = firstText(proposed.startAtIso, legacy.proposedSlotDate, counterOffer.value.proposed.proposedSlotDate);
+    const proposedExplicitEnd = firstText(proposed.endAtIso, legacy.proposedEndAtIso, legacy.proposedEndIso);
+    const originalDuration = finiteNumber(original.durationMinutes)
+      ?? durationBetweenMinutes(originalStart, originalEnd);
+    const proposedDuration = finiteNumber(proposed.durationMinutes)
+      ?? finiteNumber(legacy.adjustedDurationMinutes)
+      ?? finiteNumber(counterOffer.value.proposed.adjustedDurationMinutes)
+      ?? durationBetweenMinutes(proposedStart, proposedExplicitEnd)
+      ?? originalDuration;
+
+    if (counterOfferType.value === 'reschedule') {
+      const proposedEnd = endFromDuration(proposedStart, proposedExplicitEnd, proposedDuration);
+      originalLabel = t('booking_details_counteroffer_original_schedule');
+      proposedLabel = t('booking_details_counteroffer_new_schedule');
+      originalValue = formatCounterOfferRange(originalStart, originalEnd);
+      proposedValue = formatCounterOfferRange(proposedStart, proposedEnd);
+    } else if (counterOfferType.value === 'moretime') {
+      originalLabel = t('booking_details_counteroffer_original_duration');
+      proposedLabel = t('booking_details_counteroffer_new_duration');
+      originalValue = formatCounterOfferDuration(originalDuration);
+      proposedValue = formatCounterOfferDuration(proposedDuration);
+    }
+  }
+
+  return {
+    remarks,
+    originalLabel,
+    proposedLabel,
+    originalValue,
+    proposedValue,
+    usesTokens,
+    hasComparison: Boolean(originalValue && proposedValue),
+  };
+});
 function formatTokenAmount(amount) { const value = finiteNumber(amount); return value == null ? t('calendar_event_not_set') : new Intl.NumberFormat(locale.value).format(value); }
 const paymentTotal = computed(() => {
   const payment = raw.value?.payment || {};
   const lineTotal = Array.isArray(payment.lines) ? payment.lines.reduce((sum, line) => sum + Number(line?.amount || 0), 0) : null;
   return finiteNumber(payment.total) ?? finiteNumber(raw.value?.paymentTotal) ?? lineTotal;
 });
+const paymentAllocations = computed(() => raw.value?.payment?.allocations && typeof raw.value.payment.allocations === 'object'
+  ? raw.value.payment.allocations
+  : {});
+const sessionDepositTokens = computed(() => finiteNumber(raw.value?.sessionDepositTokens)
+  ?? finiteNumber(raw.value?.payment?.sessionDepositTokens)
+  ?? finiteNumber(raw.value?.payment?.depositTokens)
+  ?? finiteNumber(paymentAllocations.value.service));
+const activeCancellationFee = computed(() => finiteNumber(paymentAllocations.value.cancellationFee)
+  ?? finiteNumber(raw.value?.cancellationFeeTokens)
+  ?? finiteNumber(mergedEvent.value?.cancellationFeeTokens));
+const activeBookingFee = computed(() => finiteNumber(paymentAllocations.value.bookingFee)
+  ?? finiteNumber(raw.value?.bookingFeeTokens)
+  ?? finiteNumber(mergedEvent.value?.bookingFeeTokens));
 const rejectEventTitle = computed(() => firstText(raw.value?.eventTitle, mergedEvent.value?.title, props.event?.title) || t('calendar_event_untitled_booking'));
 const rejectRefundTokens = computed(() => finiteNumber(paymentTotal.value) ?? 0);
 const hasSessionCost = computed(() => finiteNumber(paymentTotal.value) != null);
@@ -552,16 +886,42 @@ const additionalRequestLines = computed(() => {
   const personalRequest = firstText(raw.value?.personalRequestText); if (personalRequest) lines.push(personalRequest);
   return lines.length ? [...new Set(lines)] : [t('calendar_event_no_additional_request')];
 });
-const creatorName = computed(() => viewerRole.value === 'creator'
+const resolvedCounterpartyName = computed(() => viewerRole.value === 'creator'
   ? firstText(creatorProfile.value?.username, creatorProfile.value?.displayName, creatorProfile.value?.display_name, raw.value?.fanUsername, raw.value?.username, raw.value?.fanDisplayName, raw.value?.userDisplayName)
   : firstText(creatorProfile.value?.username, creatorProfile.value?.displayName, creatorProfile.value?.display_name, raw.value?.creatorUsername, raw.value?.creatorDisplayName, raw.value?.creatorName, mergedEvent.value?.creatorDisplayName, mergedEvent.value?.creatorName));
+const counterpartyFallback = computed(() => viewerRole.value === 'creator' ? t('common_fan') : t('common_creator'));
+const creatorName = computed(() => normalizeUsername(resolvedCounterpartyName.value) || counterpartyFallback.value);
 const decisionFanUsername = computed(() => normalizeUsername(creatorProfile.value?.username)
   || normalizeUsername(raw.value?.fanUsername)
   || normalizeUsername(raw.value?.fanUserName)
   || t('common_fan'));
 const creatorAvatar = computed(() => viewerRole.value === 'creator'
-  ? firstText(creatorProfile.value?.avatar, creatorProfile.value?.avatarUrl, creatorProfile.value?.avatar_url, raw.value?.fanAvatar, raw.value?.userAvatar)
-  : firstText(creatorProfile.value?.avatar, creatorProfile.value?.avatarUrl, creatorProfile.value?.avatar_url, raw.value?.creatorAvatar, mergedEvent.value?.creatorAvatar, mergedEvent.value?.creatorAvatarUrl));
+  ? firstText(
+      creatorProfile.value?.avatar,
+      creatorProfile.value?.avatarUrl,
+      creatorProfile.value?.avatar_url,
+      raw.value?.fanAvatar,
+      raw.value?.fanAvatarUrl,
+      raw.value?.userAvatar,
+      raw.value?.userAvatarUrl,
+      raw.value?.userSnapshot?.avatar,
+      raw.value?.userSnapshot?.avatarUrl,
+      raw.value?.userSnapshot?.avatar_url,
+    )
+  : firstText(
+      creatorProfile.value?.avatar,
+      creatorProfile.value?.avatarUrl,
+      creatorProfile.value?.avatar_url,
+      raw.value?.creatorAvatar,
+      raw.value?.creatorAvatarUrl,
+      raw.value?.creatorSnapshot?.avatar,
+      raw.value?.creatorSnapshot?.avatarUrl,
+      raw.value?.creatorSnapshot?.avatar_url,
+      mergedEvent.value?.creatorAvatar,
+      mergedEvent.value?.creatorAvatarUrl,
+    ));
+const confirmedCounterpartyUsername = computed(() => normalizeUsername(creatorName.value) || counterpartyFallback.value);
+const confirmedCounterpartyInitial = computed(() => confirmedCounterpartyUsername.value.charAt(0) || '?');
 const creatorVerified = computed(() => viewerRole.value === 'creator' ? false : [
   creatorProfile.value?.isVerified,
   creatorProfile.value?.is_verified,
@@ -590,6 +950,9 @@ const isPendingApproval = computed(() => approvalState.value.isPending && !count
 // Nothing to act on any more: the slot started before either side responded.
 const showExpiredNotice = computed(() => isExpired.value && !isCancelledStatus.value
   && (isPendingApproval.value || Boolean(counterOfferType.value)));
+const showConfirmedNotice = computed(() => normalizedStatus.value === 'confirmed'
+  && !isExpired.value
+  && !counterOfferType.value);
 const fanWaitingForCreator = computed(() => viewerRole.value === 'fan' && isPendingApproval.value && !isExpired.value);
 const canAskTimeChange = computed(() => props.canRequestTimeChange
   && viewerRole.value === 'creator'
@@ -627,9 +990,22 @@ const cancelledNoticeHeading = computed(() => cancelledActor.value === 'creator'
 
 function handleModelUpdate(value) { emit('update:modelValue', value); if (!value) emit('close'); }
 function closePanel() { menuOpen.value = false; reviewMenuOpen.value = false; rejectDecisionOpen.value = false; emit('update:modelValue', false); emit('close'); }
+function handleOpenChat(payload) { emit('open-chat', payload); emit('close'); }
 function handleJoin() { const fresh = getCalendarEventJoinState(props.event, { viewerRole: viewerRole.value, now: new Date() }); if (fresh.canJoin && fresh.joinUrl) emit('join-call', { bookingId: bookingId.value, eventId: raw.value?.eventId, joinUrl: fresh.joinUrl, event: props.event }); }
-function approveBooking() { if (!canReviewBooking.value || props.actionLoading) return; emit('approve-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, decision: 'approve', event: props.event }); }
-function rejectBooking() { if (!canReviewBooking.value || props.actionLoading) return; emit('reject-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, decision: 'reject', event: props.event }); }
+function reviewPayload(decision) {
+  return {
+    bookingId: bookingId.value,
+    eventId: raw.value?.eventId,
+    decision,
+    event: props.event,
+    counterparty: {
+      username: creatorName.value,
+      avatarUrl: creatorAvatar.value,
+    },
+  };
+}
+function approveBooking() { if (!canReviewBooking.value || props.actionLoading) return; emit('approve-booking', reviewPayload('approve')); }
+function rejectBooking() { if (!canReviewBooking.value || props.actionLoading) return; emit('reject-booking', reviewPayload('reject')); }
 function adjustBooking() { if (!canReviewBooking.value || !canAdjustBooking.value || props.actionLoading) return; emit('adjust-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, event: props.event, booking: raw.value }); }
 function toggleMenu() { menuOpen.value = !menuOpen.value; }
 function toggleReviewMenu() { if (!canReviewBooking.value || props.actionLoading) return; reviewMenuOpen.value = !reviewMenuOpen.value; }
@@ -661,6 +1037,7 @@ function rejectCounter() { if (props.actionLoading || !fanPendingTimeOffer.value
 function askMoreTime() { menuOpen.value = false; if (!canAskTimeChange.value || props.actionLoading) return; emit('ask-more-time', counterPayload()); }
 function askToReschedule() { menuOpen.value = false; if (!canAskTimeChange.value || props.actionLoading) return; emit('ask-to-reschedule', counterPayload()); }
 function handleDocumentClick() { menuOpen.value = false; reviewMenuOpen.value = false; }
+function syncCompactViewport() { compactMobile.value = window.innerWidth < 768; }
 function handleDocumentKeydown(event) {
   if (event.key !== 'Escape' || !reviewMenuOpen.value) return;
   event.preventDefault();
@@ -695,6 +1072,34 @@ watch(counterpartyId, async (id) => {
   } catch (error) { if (error?.name !== 'AbortError' && profileController === controller) creatorProfile.value = null; }
   finally { if (profileController === controller) profileController = null; }
 }, { immediate: true });
-onMounted(() => { timerId = window.setInterval(() => { now.value = new Date(); }, 15000); document.addEventListener('click', handleDocumentClick); document.addEventListener('keydown', handleDocumentKeydown, true); });
-onBeforeUnmount(() => { if (rejectDecisionOpen.value) emit('decision-visibility', false); if (timerId) window.clearInterval(timerId); if (profileController) profileController.abort(); document.removeEventListener('click', handleDocumentClick); document.removeEventListener('keydown', handleDocumentKeydown, true); });
+onMounted(() => { syncCompactViewport(); timerId = window.setInterval(() => { now.value = new Date(); }, 15000); window.addEventListener('resize', syncCompactViewport); document.addEventListener('click', handleDocumentClick); document.addEventListener('keydown', handleDocumentKeydown, true); });
+onBeforeUnmount(() => { if (rejectDecisionOpen.value) emit('decision-visibility', false); if (timerId) window.clearInterval(timerId); if (profileController) profileController.abort(); window.removeEventListener('resize', syncCompactViewport); document.removeEventListener('click', handleDocumentClick); document.removeEventListener('keydown', handleDocumentKeydown, true); });
 </script>
+
+<style>
+.booking-details-compact-dialog {
+  width: 100% !important;
+  height: auto !important;
+  max-height: calc(100dvh - 6.5rem) !important;
+  overflow: visible !important;
+}
+
+.booking-details-compact-surface {
+  max-height: calc(100dvh - 6.5rem);
+  border-radius: 1.5rem 1.5rem 0 0;
+}
+
+@media (min-width: 768px) {
+  .booking-details-compact-dialog {
+    width: 500px !important;
+    max-width: 500px !important;
+    max-height: calc(100dvh - 2rem) !important;
+  }
+
+  .booking-details-compact-surface {
+    width: 500px;
+    max-height: calc(100dvh - 2rem);
+    border-radius: 1.25rem;
+  }
+}
+</style>
