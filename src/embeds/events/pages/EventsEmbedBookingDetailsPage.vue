@@ -36,6 +36,7 @@
         :user-role="viewerRole"
         :can-review-pending="viewerRole === 'creator'"
         :action-loading="actionLoading"
+        :booking-message="bookingChatMessage"
         :can-request-time-change="viewerRole === 'creator' && Boolean(bookingChatMessage)"
         presentation="side-panel"
         @join-call="handleJoin"
@@ -98,7 +99,7 @@ import RescheduleRequestPopup from "@/components/ui/chat/RescheduleRequestPopup.
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import FlowHandler from "@/services/flow-system/FlowHandler.js";
 import { toCalendarEvent as bookingToCalendarEvent } from "@/services/bookings/utils/bookingCalendarEvent.js";
-import { buildBookingChatMessage } from "@/services/bookings/utils/bookingChatMessage.js";
+import { buildBookingChatMessage, resolveBookingChatMessage } from "@/services/bookings/utils/bookingChatMessage.js";
 import { useEventsEmbedBootstrap } from "@/embeds/events/bootstrap.js";
 import {
   notifyBookingDetailsReady,
@@ -128,8 +129,21 @@ const pendingTopupAdjustment = ref(null);
 const detailsDecisionOpen = ref(false);
 const showMoreTimePopup = ref(false);
 const showReschedulePopup = ref(false);
-// The chat request popups are message-driven; rebuild that message from booking meta.
-const bookingChatMessage = computed(() => buildBookingChatMessage(booking.value));
+// The chat request popups are message-driven. Start from the message rebuilt out of
+// booking meta so the UI is never empty, then upgrade to the real one if a chat embed
+// on the host page still has it — only that one carries `content.action`.
+const bookingChatMessage = ref(null);
+watch(booking, async (value) => {
+  const fallback = buildBookingChatMessage(value);
+  bookingChatMessage.value = fallback;
+  if (!fallback) return;
+
+  const resolved = await resolveBookingChatMessage(value);
+  // Drop the answer if the panel moved on to another booking meanwhile.
+  if (bookingChatMessage.value?.message_id === fallback.message_id) {
+    bookingChatMessage.value = resolved;
+  }
+}, { immediate: true });
 let removeTopupListener = null;
 const viewerRole = computed(() => normalizeDashboardBookingRole(bootstrap.userRole));
 const isDirectCancelLaunch = computed(() => bootstrap.initialAction === "cancel");

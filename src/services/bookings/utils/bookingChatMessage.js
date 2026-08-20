@@ -40,7 +40,31 @@ export function buildBookingChatMessage(booking) {
   };
 }
 
-/** Convenience accessor for the chat id a booking is linked to (empty when unlinked). */
-export function bookingChatId(booking) {
-  return firstText(booking?.meta?.chatId);
+/**
+ * Returns the real chat message when a chat embed is mounted on the host page and
+ * still holds it, otherwise the rebuilt one.
+ *
+ * The synthetic message carries the ids but not the negotiation state
+ * (`content.action`, `content.meta`), which the booking detail popup reads to
+ * decide which actions to offer.
+ */
+export async function resolveBookingChatMessage(booking) {
+  const fallback = buildBookingChatMessage(booking);
+  if (!fallback) return null;
+
+  try {
+    // Reading `window.parent` throws on a cross-origin host.
+    const chatEmbed = window.parent?.chatEmbed;
+    if (typeof chatEmbed?.getMessage !== "function") return fallback;
+
+    const result = await chatEmbed.getMessage({
+      chatId: fallback.chat_id,
+      messageId: fallback.message_id,
+    });
+    console.error("resolveBookingChatMessage: got message from chatEmbed:", result?.item);
+    return result?.item || fallback;
+  } catch (_error) {
+    // No chat embed, cross-origin host, or the request timed out.
+    return fallback;
+  }
 }

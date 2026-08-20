@@ -621,6 +621,9 @@ async function performBookingDecision(message, decision) {
       action:    newAction,
     })
 
+    // Declining is confirmed through the decision popup, which cannot close itself
+    // while the action is still marked as processing.
+    closeBookingDecision({ force: true })
     showBookingPopup.value = false
 
     if (res?.ok) {
@@ -987,7 +990,8 @@ function openBookingDecision(mode, payload) {
   const message = resolveBookingMessage(payload)
   if (message) activeBookingMessage.value = message
   const bookingId = payload?.bookingId || message?.content?.booking_id
-  const fallback = mode === 'cancel' ? {} : adjustmentFromBooking(bookingId)
+  // Cancelling and declining a request never involve the adjustment price figures.
+  const fallback = ['cancel', 'reject'].includes(mode) ? {} : adjustmentFromBooking(bookingId)
   const merged = { ...payload, bookingId, message }
   for (const key of ['originalTokens', 'proposedTokens', 'negotiationId']) {
     if (merged[key] == null) merged[key] = fallback[key] ?? null
@@ -1005,6 +1009,7 @@ function confirmBookingDecision(payload = {}) {
   const merged = { ...decision, ...payload }
   if (payload.mode === 'cancel') return onCancelBooking(merged)
   if (payload.mode === 'decline') return onDeclineAdjustment(merged)
+  if (payload.mode === 'reject') return onDirectDecline(merged)
   return onConfirmCounter(merged)
 }
 
@@ -2958,7 +2963,7 @@ onUnmounted(() => {
               pinned
               @view-details="openBookingDetail(msg)"
               @accept="onDirectAccept(msg)"
-              @decline="onDirectDecline(msg)"
+              @decline="openBookingDecision('reject', msg)"
               @adjust="openAdjustPopup(msg)"
               @confirm-counter="openBookingDecision('accept', msg)"
               @cancel-booking="openBookingDecision($event?.source === 'menu' ? 'cancel' : 'decline', msg)"
@@ -3108,7 +3113,7 @@ onUnmounted(() => {
             :sender-name="bookingSenderName"
             @view-details="openBookingDetail(message)"
             @accept="onDirectAccept(message)"
-            @decline="onDirectDecline(message)"
+            @decline="openBookingDecision('reject', message)"
             @adjust="openAdjustPopup(message)"
             @confirm-counter="openBookingDecision('accept', message)"
             @cancel-booking="openBookingDecision($event?.source === 'menu' ? 'cancel' : 'decline', message)"

@@ -58,7 +58,7 @@ vi.mock("@/utils/toastBus.js", () => ({ showToast: vi.fn() }));
 
 const FanDetailsStub = {
   name: "BookingDetailsPopup",
-  props: ["event", "booking", "presentation", "actionLoading", "userRole", "canReviewPending"],
+  props: ["event", "booking", "presentation", "actionLoading", "userRole", "canReviewPending", "bookingMessage"],
   emits: ["cancel-booking", "close", "join-call", "open-chat", "accept-adjustment", "decline-adjustment", "approve-booking", "reject-booking", "adjust-booking", "decision-visibility"],
   template: "<div data-test='fan-details-stub' />",
 };
@@ -161,6 +161,35 @@ describe("EventsEmbedBookingDetailsPage", () => {
       start: "2026-08-14T10:00:00Z",
     }));
     expect(mocks.notifyReady).toHaveBeenCalledWith({ bookingId: "booking_123", ok: true });
+  });
+
+  it("hands the detail popup the linked chat message", async () => {
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    // No chat embed on the page, so this is the message rebuilt from booking meta.
+    expect(wrapper.getComponent(FanDetailsStub).props("bookingMessage")).toEqual(expect.objectContaining({
+      message_id: "message_1",
+      chat_id: "chat_1",
+      content_type: "booking_request",
+    }));
+  });
+
+  it("prefers the real chat message when a chat embed is mounted", async () => {
+    const real = { message_id: "message_1", chat_id: "chat_1", content: { booking_id: "booking_123", action: "counter_offer" } };
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: { chatEmbed: { getMessage: vi.fn().mockResolvedValue({ item: real }) } },
+    });
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    // `content.action` is the field the synthetic message cannot carry.
+    expect(wrapper.getComponent(FanDetailsStub).props("bookingMessage")).toEqual(real);
+    Reflect.deleteProperty(window, "parent");
   });
 
   it("runs creator approval and notifies the host only on success", async () => {

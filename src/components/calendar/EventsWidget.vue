@@ -113,7 +113,7 @@
                 data-test="events-widget-menu"
                 @click.stop
               >
-                <button
+                <!-- <button
                   type="button"
                   class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
                   @click.stop="onMenuAction('ask_more_time', event)"
@@ -124,9 +124,9 @@
                     </svg>
                   </span>
                   {{ t("dashboard_ask_for_more_time") }}
-                </button>
+                </button> -->
 
-                <button
+                <!-- <button
                   type="button"
                   class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
                   @click.stop="onMenuAction('ask_to_reschedule', event)"
@@ -137,7 +137,7 @@
                     </svg>
                   </span>
                   {{ t("dashboard_ask_to_reschedule") }}
-                </button>
+                </button> -->
 
                 <button
                   type="button"

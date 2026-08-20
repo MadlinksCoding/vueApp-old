@@ -5,7 +5,7 @@ import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
-import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
+import { ensureChatUsersData, resolveAndSyncChat, findDirectChat } from '@/services/chat/chatResolverUtils'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
@@ -312,16 +312,7 @@ function onChatCreated(uid, newChatId) {
 }
 
 function findExistingDirectChat(targetUserId, isBookingRequest = false) {
-  const targetId = Number(targetUserId)
-  const myId = Number(currentUserId.value)
-  return chatStore.userChats.find(chat => {
-    if (chat.is_group === true || chat.is_group === 1 || chat.type === 'group') return false
-    const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
-    if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
-    const bookingFlag = chat.metadata?.is_booking_request === true
-    console.log("Checking chat:", chat.chat_id, "participants:", parts, "myId:", myId, "targetId:", targetId, "isBookingRequest:", isBookingRequest, "bookingFlag:", bookingFlag)
-    return isBookingRequest ? bookingFlag : true
-  })
+  return findDirectChat(chatStore, currentUserId.value, targetUserId, { bookingRequestOnly: isBookingRequest })
 }
 
 async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId, chatSource }) {

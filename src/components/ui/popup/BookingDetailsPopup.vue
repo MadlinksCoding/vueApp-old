@@ -515,7 +515,7 @@ const statusKeys = { confirmed: 'calendar_event_status_confirmed', completed: 'c
 const statusText = computed(() => t(statusKeys[normalizedStatus.value] || 'calendar_event_status_pending'));
 const statusColor = computed(() => ['confirmed', 'completed'].includes(normalizedStatus.value) ? '#22C55E' : (normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined' ? '#F04438' : '#F59E0B'));
 
-const counterOffer = computed(() => getPendingCounterOffer([props.booking, props.event]));
+const counterOffer = computed(() => getPendingCounterOffer([props.booking || raw.value , props.event]));
 const counterOfferType = computed(() => counterOffer.value.type);
 const pendingPriceAdjustment = computed(() => counterOfferType.value === 'adjust');
 const pendingTimeOffer = computed(() => counterOfferType.value === 'moretime' || counterOfferType.value === 'reschedule');
