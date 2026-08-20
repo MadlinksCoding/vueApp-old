@@ -42,12 +42,15 @@ import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatRes
 import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.js'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
+import { showCreatorBookingReviewToast } from '@/utils/creatorBookingReviewToast.js'
 import { postToParent } from '@/utils/postToParent'
 import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
 import { useBookingActions } from '@/composables/useBookingActions.js'
 import { useBookingAdjustmentDecision } from '@/composables/useBookingAdjustmentDecision.js'
 import { toCalendarEvent } from '@/services/bookings/utils/bookingCalendarEvent.js'
+import { isPendingCounterOffer } from '@/services/bookings/utils/bookingNegotiationUtils.js'
+import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js'
 import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -354,6 +357,7 @@ const _pendingTopupMessage   = ref(null)
 
 // ── Booking request popup ─────────────────────────────────────────────────────
 const showBookingPopup        = ref(false)
+const compactBookingDetailsSession = ref(false)
 const showAdjustPopup         = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
@@ -526,6 +530,13 @@ const activeCalendarEvent = computed(() => toCalendarEvent(activeBookingData.val
   titleFallback: activeBookingMessage.value?.content?.event_title || '',
 }))
 const activeBookingRole = computed(() => (isCreatorAccount.value ? 'creator' : 'fan'))
+const compactBookingDetailsEligible = computed(() => (
+  activeBookingRole.value === 'creator'
+  && Number(props.hostWidth || window.innerWidth) < 768
+  && getCalendarEventApprovalState(activeCalendarEvent.value, { now: new Date() }).canReview
+  && !isPendingCounterOffer(activeBookingData.value || activeCalendarEvent.value)
+))
+const useCompactBookingDetails = computed(() => compactBookingDetailsSession.value)
 
 const bookingActions = useBookingActions()
 const bookingDecision = useBookingAdjustmentDecision(activeBookingData, {
@@ -537,12 +548,17 @@ const bookingDecision = useBookingAdjustmentDecision(activeBookingData, {
 
 async function openBookingDetail(message) {
   activeBookingMessage.value = message
+  const bookingId = message?.content?.booking_id
+  if (bookingId && !chatStore.getBookingById(bookingId)) {
+    const response = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+    if (response?.ok) chatStore.setBooking(bookingId, response.data?.item || null)
+  }
   // PopupHandler only opens on a false -> true transition, so let the popup mount
   // with the message first and flip visibility on the next tick.
   await nextTick()
+  compactBookingDetailsSession.value = compactBookingDetailsEligible.value
   showBookingPopup.value = true
   // Refresh booking data in background when popup opens
-  const bookingId = message?.content?.booking_id
   if (bookingId) {
     FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
       if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
@@ -600,7 +616,7 @@ function resolveBookingMessage(input) {
   return activeBookingMessage.value
 }
 
-async function performBookingDecision(message, decision) {
+async function performBookingDecision(message, decision, reviewPayload = {}) {
   if (!activeChatId.value || !message) return
   const messageId = message.message_id
   const bookingId = message.content?.booking_id
@@ -614,17 +630,26 @@ async function performBookingDecision(message, decision) {
       return
     }
 
+    if (review.item) chatStore.setBooking(bookingId, review.item)
+
     const newAction = decision === 'approve' ? 'accepted' : 'declined'
+    if (activeBookingMessage.value?.message_id === messageId) {
+      activeBookingMessage.value = {
+        ...activeBookingMessage.value,
+        content: { ...activeBookingMessage.value.content, action: newAction },
+      }
+    }
     const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
       chatId:    activeChatId.value,
       messageId,
       action:    newAction,
     })
 
+    const retainOpen = compactBookingDetailsSession.value && Number(props.hostWidth || window.innerWidth) < 768
     // Declining is confirmed through the decision popup, which cannot close itself
     // while the action is still marked as processing.
     closeBookingDecision({ force: true })
-    showBookingPopup.value = false
+    if (!retainOpen) showBookingPopup.value = false
 
     if (res?.ok) {
       broadcastBookingUpdate(res.data?.item)
@@ -638,17 +663,26 @@ async function performBookingDecision(message, decision) {
         bookingId,
       })
     }
+
+    if (retainOpen) {
+      showCreatorBookingReviewToast({
+        decision,
+        username: reviewPayload?.counterparty?.username,
+        avatarUrl: reviewPayload?.counterparty?.avatarUrl,
+        t,
+      })
+    }
   } finally {
     bookingActionLoading.value = false
   }
 }
 
 function onDirectAccept(input) {
-  performBookingDecision(resolveBookingMessage(input), 'approve')
+  performBookingDecision(resolveBookingMessage(input), 'approve', input)
 }
 
 function onDirectDecline(input) {
-  performBookingDecision(resolveBookingMessage(input), 'reject')
+  performBookingDecision(resolveBookingMessage(input), 'reject', input)
 }
 
 function onMoreTimeSubmitted({ item, booking: updatedBooking }) {
@@ -3429,6 +3463,8 @@ onUnmounted(() => {
     :user-role="activeBookingRole"
     :can-review-pending="isCreatorAccount"
     :action-loading="bookingActionLoading"
+    :layout-variant="useCompactBookingDetails ? 'compact' : 'hero'"
+    :presentation="useCompactBookingDetails ? 'responsive-dialog' : 'popup'"
     can-request-time-change
     @approve-booking="onDirectAccept"
     @reject-booking="onDirectDecline"

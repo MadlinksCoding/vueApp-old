@@ -16,6 +16,7 @@ const DEFAULT_BOOTSTRAP = {
   initialRoute: "events",
   initialAction: "",
   bookingId: "",
+  hostViewportWidth: null,
   creatorData: {
     avatar: null,
     name: null,
@@ -82,6 +83,7 @@ export function normalizeEventsEmbedBootstrap(payload = {}) {
     bookingId: typeof payload.bookingId === "string" || typeof payload.bookingId === "number"
       ? String(payload.bookingId).trim()
       : "",
+    hostViewportWidth: toNumberOr(payload.hostViewportWidth, null),
     creatorData: normalizeCreatorPresentationInput(payload.creatorData || {
       avatar: payload.creatorAvatar,
       name: payload.creatorName,
@@ -103,6 +105,7 @@ export function applyEventsEmbedBootstrap(payload = {}) {
   bootstrapState.initialRoute = normalized.initialRoute;
   bootstrapState.initialAction = normalized.initialAction;
   bootstrapState.bookingId = normalized.bookingId;
+  bootstrapState.hostViewportWidth = normalized.hostViewportWidth;
   bootstrapState.creatorData = normalized.creatorData;
   bootstrapState.translations = normalized.translations;
   bootstrapState.locale = normalized.locale;
@@ -145,6 +148,7 @@ export function readEventsEmbedBootstrapFromUrl() {
     initialRoute: params.get("initialRoute") || "events",
     initialAction: "",
     bookingId: params.get("bookingId") || "",
+    hostViewportWidth: window.innerWidth,
     creatorAvatar: params.get("creatorAvatar"),
     creatorName: params.get("creatorName"),
     creatorVerified: params.get("creatorVerified"),

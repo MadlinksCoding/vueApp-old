@@ -53,6 +53,20 @@ function isPendingPriceAdjustmentMeta(meta) {
     && proposedTokens !== originalTokens;
 }
 
+function isPendingCounterOfferMeta(meta) {
+  const activeType = normalizeOfferType(meta.currentCounterOffer);
+  if (!["adjust", "reschedule", "moretime"].includes(activeType)) return false;
+
+  const negotiation = asObject(meta.negotiation);
+  if (!negotiation) return true;
+
+  const actor = String(negotiation.actor || "").trim().toLowerCase();
+  const normalizedActor = actor === "user" ? "fan" : actor;
+  return normalizeOfferType(negotiation.type) === activeType
+    && String(negotiation.status || "").trim().toLowerCase() === "sent"
+    && (!normalizedActor || normalizedActor === "creator");
+}
+
 function hasAnyKey(meta, keys) {
   return keys.some((key) => Object.prototype.hasOwnProperty.call(meta, key));
 }
@@ -87,6 +101,36 @@ export function isPendingPriceAdjustment(bookingLike) {
 
   if (projected) return projected.pendingPriceAdjustment;
   if (meta) return isPendingPriceAdjustmentMeta(meta);
+  return false;
+}
+
+export function isPendingCounterOffer(bookingLike) {
+  const sources = Array.isArray(bookingLike) ? bookingLike : [bookingLike];
+
+  for (const sourceValue of sources) {
+    const candidates = bookingCandidates(sourceValue);
+    const projectedState = candidates.find(
+      (candidate) => typeof candidate.pendingCounterOffer === "boolean",
+    );
+    if (projectedState) return projectedState.pendingCounterOffer;
+
+    const negotiationState = candidates
+      .map((candidate) => asObject(candidate.meta))
+      .find((meta) => meta && hasAnyKey(meta, [
+        "currentCounterOffer",
+        "negotiation",
+        "adjust",
+        "moretime",
+        "reschedule",
+      ]));
+    if (negotiationState) return isPendingCounterOfferMeta(negotiationState);
+
+    const legacyPriceProjection = candidates.find(
+      (candidate) => typeof candidate.pendingPriceAdjustment === "boolean",
+    );
+    if (legacyPriceProjection) return legacyPriceProjection.pendingPriceAdjustment;
+  }
+
   return false;
 }
 

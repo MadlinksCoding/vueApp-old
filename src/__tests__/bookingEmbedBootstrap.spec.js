@@ -12,10 +12,12 @@ describe("booking embed bootstrap translations", () => {
         ignored: 12,
       },
       locale: "es-MX",
+      hostViewportWidth: "390",
     });
 
     expect(normalized.translations).toEqual({ dashboard_new_events: "Nuevos eventos" });
     expect(normalized.locale).toBe("es-MX");
+    expect(normalized.hostViewportWidth).toBe(390);
   });
 
   it("normalizes fan booking translations and locale", () => {

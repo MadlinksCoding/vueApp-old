@@ -89,7 +89,7 @@
         <div class="w-full p-2 mb-[100px]">
             <EventsWidget :sections="eventsData" :user-role="userRole" @join-click="$emit('join-click', $event)"
                 @reply-click="$emit('reply-click', $event)" @event-click="$emit('event-click', $event)"
-                @menu-action="$emit('menu-action', $event)" @approve-booking="$emit('approve-booking', $event)" />
+                @menu-action="$emit('menu-action', $event)" @accept-details="$emit('accept-details', $event)" />
         </div>
 
         <!-- <div v-if="canCreateEvents" class="p-4 mt-auto flex-shrink-0">
@@ -140,5 +140,5 @@ defineProps({
     }
 });
 
-defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'close']);
+defineEmits(['set-view', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'accept-details', 'open-new-events', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'close']);
 </script>

@@ -98,7 +98,7 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
   default: {
     name: "CalendarMobilePopupContent",
     props: ["view", "eventsData", "canCreateEvents", "userRole", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList"],
-    emits: ["join-click", "event-click", "menu-action", "approve-booking", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    emits: ["join-click", "event-click", "menu-action", "approve-booking", "accept-details", "open-new-events", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     template: `
       <div data-test="mobile-popup">
         <button data-test="mobile-open-new-events" @click="$emit('open-new-events')">new</button>
@@ -116,7 +116,7 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
         </button>
         <button
           data-test="mobile-approve-booking"
-          @click="$emit('approve-booking', { bookingId: 'booking_mobile_pending', eventId: 'event_mobile_pending', decision: 'approve' })"
+          @click="$emit('accept-details', { bookingId: 'booking_mobile_pending', eventId: 'event_mobile_pending', event: { bookingId: 'booking_mobile_pending', eventId: 'event_mobile_pending', status: 'pending' } })"
         >
           approve
         </button>
@@ -146,7 +146,7 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
 vi.mock("@/components/ui/popup/BookingDetailsPopup.vue", () => ({
   default: {
     name: "BookingDetailsPopup",
-    props: ["event", "comparisonTime"],
+    props: ["event", "comparisonTime", "layoutVariant", "actionLoading"],
     template: "<div data-test='event-details' :data-comparison-time='comparisonTime?.toISOString?.()'>{{ event.title }}</div>",
   },
 }));
@@ -1736,6 +1736,56 @@ describe("MainCalendar all events count", () => {
     });
   });
 
+  it("uses a mobile bottom dialog configuration for compact creator reviews", () => {
+    expect(createEventDetailsPopupConfig(390, { compact: true })).toMatchObject({
+      actionType: "slidein",
+      from: "bottom",
+      verticalAlign: "bottom",
+      width: { default: "100%" },
+      height: { default: "auto" },
+      customClass: "booking-details-compact-dialog",
+    });
+  });
+
+  it("retains a mobile creator review popup while applying the reviewed booking result", async () => {
+    setWindowWidth(390);
+    const pendingEvent = makeEvent({
+      eventId: "evt_mobile_review",
+      title: "Mobile review",
+      start: "2026-04-23T10:00:00",
+      end: "2026-04-23T10:30:00",
+      status: "pending",
+      isAvailabilityBlock: false,
+      raw: { bookingId: "booking_mobile_review", status: "pending" },
+    });
+    const wrapper = await mountCalendar(
+      [pendingEvent],
+      { initialView: "day", userRole: "creator", canReviewPending: true },
+      {
+        slots: {
+          event: `<template #event="{ event, onClick }"><button data-test="mobile-review-event" @click="onClick(event)">{{ event.title }}</button></template>`,
+        },
+      },
+    );
+
+    await wrapper.get('[data-test="mobile-review-event"]').trigger("click");
+    const details = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    expect(details.props("layoutVariant")).toBe("compact");
+
+    details.vm.$emit("approve-booking", {
+      bookingId: "booking_mobile_review",
+      event: pendingEvent,
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted("approve-booking")?.[0]?.[0]).toEqual(expect.objectContaining({ retainDetails: true }));
+    expect(wrapper.findComponent({ name: "BookingDetailsPopup" }).exists()).toBe(true);
+
+    wrapper.vm.applyBookingReviewResult({ ...pendingEvent, status: "confirmed", raw: { ...pendingEvent.raw, status: "confirmed" } });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("event").status).toBe("confirmed");
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("layoutVariant")).toBe("compact");
+  });
+
   it("opens desktop and tablet booking details as a full-height right drawer", async () => {
     setWindowWidth(1280);
     const event = makeEvent({
@@ -3133,19 +3183,25 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
   });
 
-  it("forwards mobile widget approval actions", async () => {
+  it("closes the mobile wrapper and forwards widget compact-detail requests", async () => {
     const wrapper = await mountCalendar([], { userRole: "creator" });
 
     await openMobilePopup(wrapper);
     await wrapper.get("[data-test='mobile-approve-booking']").trigger("click");
 
-    expect(wrapper.emitted("approve-booking")).toEqual([[
+    expect(wrapper.emitted("widget-accept-details")).toEqual([[
       {
         bookingId: "booking_mobile_pending",
         eventId: "event_mobile_pending",
-        decision: "approve",
+        event: {
+          bookingId: "booking_mobile_pending",
+          eventId: "event_mobile_pending",
+          status: "pending",
+        },
       },
     ]]);
+    expect(wrapper.emitted("approve-booking")).toBeUndefined();
+    expect(wrapper.find("[data-test='mobile-popup']").exists()).toBe(false);
   });
 
   it("fetches and displays the booked fan profile in the creator sticky card", async () => {

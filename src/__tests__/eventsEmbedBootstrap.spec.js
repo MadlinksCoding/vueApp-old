@@ -86,6 +86,7 @@ describe("events embed bootstrap", () => {
       initialRoute: "create-private",
       initialAction: "",
       bookingId: "",
+      hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",
       creatorData: {
@@ -116,6 +117,7 @@ describe("events embed bootstrap", () => {
       initialRoute: "events",
       initialAction: "",
       bookingId: "",
+      hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",
       creatorData: {

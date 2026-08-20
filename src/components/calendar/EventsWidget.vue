@@ -226,6 +226,7 @@
                 </button>
 
                 <button
+                  v-if="shouldShowPendingAccept(event)"
                   type="button"
                   class="flex h-7 w-full items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1"
                   data-test="pending-booking-accept"
@@ -305,7 +306,7 @@ import TooltipIcon from '../ui/tooltip/TooltipIcon.vue';
 import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
-import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 
 
 const getEventCardStyles = (event, isPending) => {
@@ -395,7 +396,7 @@ const eventForMenuId = (menuId) => {
   return props.sections?.[sectionIndex]?.items?.[eventIndex] || null;
 };
 
-const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking']);
+const emit = defineEmits(['join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'accept-details']);
 const CONFIRMED_STATUS_DOT_COLOR = "#07F468";
 const viewerRole = computed(() => String(props.userRole || "creator").toLowerCase());
 const isFanViewer = computed(() => viewerRole.value === "fan");
@@ -476,6 +477,9 @@ const isPendingEvent = (event = {}) => {
 };
 
 const shouldShowPendingActions = (event = {}) => isCreatorViewer.value && isPendingEvent(event);
+const shouldShowPendingAccept = (event = {}) => (
+  shouldShowPendingActions(event) && !isPendingCounterOffer(event)
+);
 
 const handleReview = (event = {}) => {
   emit("event-click", event);
@@ -484,10 +488,9 @@ const handleReview = (event = {}) => {
 const handleApprove = (event = {}) => {
   const sourceEvent = getSourceEvent(event);
   const raw = getRawEvent(event);
-  emit("approve-booking", {
+  emit("accept-details", {
     bookingId: sourceEvent?.bookingId || raw.bookingId || event?.bookingId || null,
     eventId: sourceEvent?.eventId || raw.eventId || event?.eventId || null,
-    decision: "approve",
     event: sourceEvent,
   });
 };

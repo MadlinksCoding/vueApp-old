@@ -23,6 +23,11 @@ function normalizeToast(input) {
     autoClose,
     action: input?.action && typeof input.action === "object" ? { ...input.action } : null,
     dedupeKey: typeof input?.dedupeKey === "string" ? input.dedupeKey.trim() : "",
+    variant: input?.variant || "default",
+    status: input?.status || "",
+    avatarUrl: input?.avatarUrl || "",
+    avatarAlt: input?.avatarAlt || "",
+    closeLabel: input?.closeLabel || "Close",
   };
 }
 

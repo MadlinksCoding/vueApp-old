@@ -6,14 +6,14 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
     props: ["sections", "userRole"],
-    emits: ["join-click", "reply-click", "event-click", "menu-action", "approve-booking"],
+    emits: ["join-click", "reply-click", "event-click", "menu-action", "accept-details"],
     template: `
       <div>
         <button data-test="join" @click="$emit('join-click', sections[0].items[0])">join</button>
         <button data-test="reply" @click="$emit('reply-click', sections[0].items[0])">reply</button>
         <button data-test="event" @click="$emit('event-click', sections[0].items[0])">event</button>
         <button data-test="menu" @click="$emit('menu-action', { action: 'cancel_call', event: sections[0].items[0] })">menu</button>
-        <button data-test="approve" @click="$emit('approve-booking', { bookingId: 'booking_1', decision: 'approve', event: sections[0].items[0].sourceEvent })">approve</button>
+        <button data-test="approve" @click="$emit('accept-details', { bookingId: 'booking_1', event: sections[0].items[0].sourceEvent })">approve</button>
       </div>
     `,
   },
@@ -76,8 +76,8 @@ describe("CalendarMobilePopupContent", () => {
     expect(wrapper.emitted("menu-action")).toEqual([
       [{ action: "cancel_call", event: item }],
     ]);
-    expect(wrapper.emitted("approve-booking")).toEqual([[
-      { bookingId: "booking_1", decision: "approve", event: item.sourceEvent },
+    expect(wrapper.emitted("accept-details")).toEqual([[
+      { bookingId: "booking_1", event: item.sourceEvent },
     ]]);
   });
 

@@ -996,6 +996,7 @@
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
         @approve-booking="handleApproveBooking"
+        @accept-details="handleMobileWidgetAcceptDetails"
         @open-new-events="handleOpenNewEvents"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
@@ -1017,6 +1018,7 @@
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
         @approve-booking="handleApproveBooking"
+        @accept-details="handleRequestsWidgetAcceptDetails"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
         @view-schedule-card="handleMobileScheduleCardPreview"
@@ -1036,7 +1038,9 @@
         :event="selectedEvent"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
+        :action-loading="props.bookingActionLoading"
         :comparison-time="props.joinComparisonTime"
+        :layout-variant="useCompactEventDetails ? 'compact' : 'hero'"
         presentation="side-panel"
         @join-call="handleJoin"
         @approve-booking="handleApproveBooking"
@@ -1156,7 +1160,8 @@ import EventsRequestsPopup from './EventsRequestsPopup.vue';
 import StickyBookingCard from './StickyBookingCard.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
-import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js';
 import FlowHandler from '@/services/flow-system/FlowHandler';
 import { useChatSocket } from '@/composables/useChatSocket';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
@@ -1181,6 +1186,7 @@ const props = defineProps({
   theme: { type: Object, default: () => ({}) },
   userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
+  bookingActionLoading: { type: Boolean, default: false },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
   highlightTodayColumn: { type: Boolean, default: false },
@@ -1197,7 +1203,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'widget-accept-details']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1246,6 +1252,7 @@ const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
+const eventDetailsCompactSession = ref(false);
 const adjustBookingState = ref(null);
 const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
@@ -1547,7 +1554,19 @@ const newEventsPopupConfig = {
   lockScroll: false,
 };
 
-const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value));
+const shouldUseCompactEventDetails = (event) => (
+  width.value < 768
+  && String(props.userRole || '').trim().toLowerCase() === 'creator'
+  && props.canReviewPending
+  && getCalendarEventApprovalState(event, {
+    now: props.joinComparisonTime || new Date(),
+  }).canReview
+  && !isPendingCounterOffer(event)
+);
+const useCompactEventDetails = computed(() => eventDetailsCompactSession.value);
+const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value, {
+  compact: useCompactEventDetails.value,
+}));
 
 const datePopupConfig = {
   actionType: "slidein",
@@ -2387,13 +2406,21 @@ const dispatchEventClick = (event) => {
   // console.log('Event clicked:', event);
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
+  eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
 
 const openEventDetails = (event) => {
   if (!event || typeof event !== 'object') return;
   selectedEvent.value = event;
+  eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
+};
+
+const applyBookingReviewResult = (event) => {
+  if (!event || typeof event !== 'object' || !eventDetailsPopupOpen.value) return false;
+  selectedEvent.value = event;
+  return true;
 };
 
 const closeEventDetails = () => {
@@ -2419,6 +2446,10 @@ const handleOpenChat = (payload) => {
 };
 
 const handleApproveBooking = (payload) => {
+  if (eventDetailsCompactSession.value && width.value < 768) {
+    emit('approve-booking', { ...payload, retainDetails: true });
+    return;
+  }
   eventDetailsPopupOpen.value = false;
   emit('approve-booking', payload);
 };
@@ -2499,6 +2530,16 @@ const handleMobileWidgetMenuAction = (payload) => {
   emit('menu-action', payload);
 };
 
+const handleMobileWidgetAcceptDetails = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('widget-accept-details', payload);
+};
+
+const handleRequestsWidgetAcceptDetails = (payload) => {
+  eventsRequestsPopupOpen.value = false;
+  emit('widget-accept-details', payload);
+};
+
 const handleMobileScheduleEdit = (event) => {
   calendarPopupOpen.value = false;
   emit('edit-schedule-event', event);
@@ -2526,6 +2567,10 @@ const handleCreateEvent = (type) => {
 };
 
 const handleRejectBooking = (payload) => {
+  if (eventDetailsCompactSession.value && width.value < 768) {
+    emit('reject-booking', { ...payload, retainDetails: true });
+    return;
+  }
   eventDetailsPopupOpen.value = false;
   emit('reject-booking', payload);
 };
@@ -3385,6 +3430,7 @@ const scrollToTime = async (time, { behavior = 'smooth', viewportOffset = 0.4 } 
 
 defineExpose({
   openEventDetails,
+  applyBookingReviewResult,
   closeEventDetails,
   resetScrollToTop,
   scrollToCurrentTime,

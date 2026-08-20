@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     fanId: null,
     userRole: "creator",
     apiBaseUrl: "https://api.example.test",
+    hostViewportWidth: null,
   },
 }));
 
@@ -58,7 +59,7 @@ vi.mock("@/utils/toastBus.js", () => ({ showToast: vi.fn() }));
 
 const FanDetailsStub = {
   name: "BookingDetailsPopup",
-  props: ["event", "booking", "presentation", "actionLoading", "userRole", "canReviewPending", "bookingMessage"],
+  props: ["modelValue", "event", "booking", "presentation", "layoutVariant", "actionLoading", "userRole", "canReviewPending", "bookingMessage"],
   emits: ["cancel-booking", "close", "join-call", "open-chat", "accept-adjustment", "decline-adjustment", "approve-booking", "reject-booking", "adjust-booking", "decision-visibility"],
   template: "<div data-test='fan-details-stub' />",
 };
@@ -98,6 +99,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     mocks.bootstrap.initialAction = "";
     mocks.bootstrap.creatorId = 1407;
     mocks.bootstrap.fanId = null;
+    mocks.bootstrap.hostViewportWidth = null;
     mocks.flowRun.mockResolvedValue({
       ok: true,
       data: {
@@ -190,6 +192,124 @@ describe("EventsEmbedBookingDetailsPage", () => {
     // `content.action` is the field the synthetic message cannot carry.
     expect(wrapper.getComponent(FanDetailsStub).props("bookingMessage")).toEqual(real);
     Reflect.deleteProperty(window, "parent");
+  });
+
+  it("uses the compact bottom dialog for a creator review on a mobile WordPress viewport", async () => {
+    mocks.bootstrap.hostViewportWidth = 390;
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_mobile_pending",
+          eventId: "event_mobile_pending",
+          creatorId: 1407,
+          userId: 25,
+          eventTitle: "Mobile review",
+          status: "pending",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+          meta: { chatId: "chat_1", bookingMessageId: "message_1" },
+        },
+      },
+    });
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    const details = wrapper.getComponent(FanDetailsStub);
+    expect(details.props("layoutVariant")).toBe("compact");
+    expect(details.props("presentation")).toBe("responsive-dialog");
+    expect(details.props("modelValue")).toBe(true);
+  });
+
+  it("keeps a mobile creator compact review mounted after approval and retains the host iframe", async () => {
+    mocks.bootstrap.hostViewportWidth = 390;
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_mobile_retained",
+          eventId: "event_mobile_retained",
+          creatorId: 1407,
+          userId: 25,
+          status: "pending",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+          meta: { chatId: "chat_1", bookingMessageId: "message_1" },
+        },
+      },
+    });
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_mobile_retained",
+          eventId: "event_mobile_retained",
+          creatorId: 1407,
+          userId: 25,
+          status: "confirmed",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+        },
+      },
+    });
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("approve-booking", {
+      bookingId: "booking_mobile_retained",
+      counterparty: { username: "grapegatsby", avatarUrl: "https://example.test/fan.jpg" },
+    });
+    await flushPromises();
+
+    const retainedDetails = wrapper.getComponent(FanDetailsStub);
+    expect(retainedDetails.props("layoutVariant")).toBe("compact");
+    expect(retainedDetails.props("modelValue")).toBe(true);
+    expect(retainedDetails.props("booking")).toEqual(expect.objectContaining({ status: "confirmed" }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      action: "approve",
+      retainOpen: true,
+      notification: expect.objectContaining({
+        fanUsername: "grapegatsby",
+        fanAvatarUrl: "https://example.test/fan.jpg",
+      }),
+    }));
+    expect(mocks.requestClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps mobile creator counteroffers in the hero drawer", async () => {
+    mocks.bootstrap.hostViewportWidth = 390;
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_mobile_counteroffer",
+          eventId: "event_mobile_counteroffer",
+          creatorId: 1407,
+          userId: 25,
+          eventTitle: "Mobile counteroffer",
+          status: "pending",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+          meta: {
+            currentCounterOffer: "adjust",
+            negotiation: { type: "adjust", status: "sent", actor: "creator" },
+          },
+        },
+      },
+    });
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    const details = wrapper.getComponent(FanDetailsStub);
+    expect(details.props("layoutVariant")).toBeUndefined();
+    expect(details.props("presentation")).toBe("side-panel");
   });
 
   it("runs creator approval and notifies the host only on success", async () => {

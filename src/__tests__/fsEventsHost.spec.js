@@ -60,6 +60,7 @@ describe("fs-events-host openFanBookingPopup", () => {
           initialRoute: "booking-details",
           bookingId: "booking_secret_123",
           jwtToken: "jwt_secret",
+          hostViewportWidth: window.innerWidth,
         }),
       }),
       window.location.origin,
@@ -242,6 +243,30 @@ describe("fs-events-host openFanBookingPopup", () => {
     expect(onBookingUpdated).toHaveBeenCalledTimes(1);
     expect(onBookingUpdated).toHaveBeenCalledWith(payload);
     expect(document.body.contains(popup.overlay)).toBe(false);
+  });
+
+  it("retains the booking-details iframe for mobile creator review updates", () => {
+    const onBookingUpdated = vi.fn();
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_123",
+      creatorId: 1407,
+      onBookingUpdated,
+    });
+    const payload = { bookingId: "booking_123", action: "approve", retainOpen: true };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_EVENTS_BOOKING_DETAILS_UPDATED", payload },
+      origin: window.location.origin,
+    }));
+
+    const panel = popup.overlay.querySelector(".fs-booking-details-popup__panel");
+    expect(panel.classList.contains("fs-booking-details-popup__panel--closing")).toBe(false);
+    expect(document.body.contains(popup.overlay)).toBe(true);
+    expect(onBookingUpdated).toHaveBeenCalledTimes(1);
+    expect(onBookingUpdated).toHaveBeenCalledWith(payload);
+
+    popup.destroy();
   });
 
   it("opens token top-up only for messages from the active booking-details iframe", () => {

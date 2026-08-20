@@ -65,7 +65,7 @@
         @reply-click="$emit('reply-click', $event)"
         @event-click="$emit('event-click', $event)"
         @menu-action="$emit('menu-action', $event)"
-        @approve-booking="$emit('approve-booking', $event)"
+        @accept-details="$emit('accept-details', $event)"
       />
     </div>
   </div>
@@ -98,7 +98,7 @@ const props = defineProps({
   },
 });
 
-defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
+defineEmits(['close', 'join-click', 'reply-click', 'event-click', 'menu-action', 'approve-booking', 'accept-details', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card']);
 
 const activeTab = ref('schedule');
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isPendingPriceAdjustment } from "@/services/bookings/utils/bookingNegotiationUtils.js";
+import {
+  isPendingCounterOffer,
+  isPendingPriceAdjustment,
+} from "@/services/bookings/utils/bookingNegotiationUtils.js";
 
 function bookingWithNegotiation({
   currentCounterOffer = "adjust",
@@ -77,5 +80,57 @@ describe("isPendingPriceAdjustment", () => {
         },
       },
     })).toBe(true);
+  });
+});
+
+describe("isPendingCounterOffer", () => {
+  it.each(["adjust", "reschedule", "more_time"])(
+    "detects an active creator-sent %s offer through calendar wrappers",
+    (type) => {
+      expect(isPendingCounterOffer({
+        sourceEvent: {
+          raw: bookingWithNegotiation({ currentCounterOffer: type, type }),
+        },
+      })).toBe(true);
+    },
+  );
+
+  it("resolves the booked-slot boolean and treats explicit false as authoritative", () => {
+    expect(isPendingCounterOffer({
+      sourceEvent: { raw: { pendingCounterOffer: true } },
+    })).toBe(true);
+    expect(isPendingCounterOffer({
+      raw: {
+        ...bookingWithNegotiation(),
+        pendingCounterOffer: false,
+      },
+    })).toBe(false);
+  });
+
+  it("supports the older pending price adjustment projection", () => {
+    expect(isPendingCounterOffer({ raw: { pendingPriceAdjustment: true } })).toBe(true);
+    expect(isPendingCounterOffer({ raw: { pendingPriceAdjustment: false } })).toBe(false);
+  });
+
+  it("treats an equal-price Adjust as an active counteroffer", () => {
+    expect(isPendingCounterOffer(bookingWithNegotiation({ proposedTokens: 100 }))).toBe(true);
+  });
+
+  it.each([
+    ["accepted", { status: "accepted" }],
+    ["declined", { status: "declined" }],
+    ["mismatched", { currentCounterOffer: "adjust", type: "reschedule" }],
+    ["fan-authored", {}],
+  ])("returns false for %s canonical offers", (label, overrides) => {
+    const booking = bookingWithNegotiation(overrides);
+    if (label === "fan-authored") booking.meta.negotiation.actor = "fan";
+    expect(isPendingCounterOffer(booking)).toBe(false);
+  });
+
+  it("supports legacy active markers and rejects a missing marker", () => {
+    expect(isPendingCounterOffer({ meta: { currentCounterOffer: "more_time" } })).toBe(true);
+    expect(isPendingCounterOffer({
+      meta: { negotiation: bookingWithNegotiation().meta.negotiation },
+    })).toBe(false);
   });
 });
