@@ -30,7 +30,7 @@
             <span class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</span>
           </button>
 
-          <div v-if="isPinned && isCreator && ! ['pending', 'declined', 'cancelled'].includes(resolvedAction)" class="relative">
+          <div v-if="!isPassCall && ['pending', 'accepted'].includes(resolvedAction)" class="relative">
           <button
             type="button"
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
@@ -49,7 +49,7 @@
             class="absolute right-0 top-6 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
             @click.stop
           >
-            <button
+            <!-- <button
               v-if="resolvedAction === 'accepted'"
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
@@ -63,8 +63,8 @@
                 </svg>
               </span>
               Ask for more time
-            </button>
-            <button
+            </button> -->
+            <!-- <button
               v-if="resolvedAction === 'accepted'"
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
@@ -78,7 +78,7 @@
                 </svg>
               </span>
               Ask to reschedule
-            </button>
+            </button> -->
             <button
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
@@ -164,7 +164,7 @@
           </button>
         </div>
         <!-- Active state -->
-        <div v-else class="mt-auto flex flex-col gap-2 w-full items-start">
+        <div v-else class="mt-auto flex flex-wrap gap-2 w-full items-start justify-between">
           <div class="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
@@ -183,6 +183,12 @@
               Decline
             </button>
           </div>
+          <button type="button"
+            class="hidden items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')">
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button>
           <button
             type="button"
             :disabled="disabled"
@@ -294,16 +300,22 @@
             class="px-3 py-1 rounded text-xs font-semibold text-gray-900 bg-[#07F468] hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click.stop="!disabled && $emit('confirm-counter')"
           >
-            Accept Changes
+            Accept & Pay
           </button>
           <button
             type="button"
             :disabled="disabled"
             class="px-3 py-1 rounded text-xs font-semibold text-[#EE3400] bg-white border border-[#EE3400] hover:bg-red-50 disabled:opacity-50 transition-colors"
-            @click.stop="!disabled && $emit('cancel-booking')"
+            @click.stop="!disabled && $emit('cancel-booking', { source: 'counter_offer' })"
           >
             Cancel Booking
           </button>
+          <!-- <button type="button"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')">
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button> -->
         </div>
       </template>
 
@@ -448,7 +460,7 @@ const booking = computed(() => {
 function toggleMenu() { menuOpen.value = !menuOpen.value }
 function handleAskMoreTime()     { if(isPassCall.value) return; menuOpen.value = false; emit('ask-more-time') }
 function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value = false; emit('ask-to-reschedule') }
-function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking') }
+function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
 
 function goToCalendar() {
   emit('view-details');return;

@@ -11,11 +11,11 @@ import {
 import FlexChat from '@/components/ui/chat/FlexChat.vue'
 import BookingRequestBubble from '@/components/ui/chat/BookingRequestBubble.vue'
 import LiveCallRequest      from '@/components/ui/chat/LiveCallRequest.vue'
-import BookingRequestDetailPopup from '@/components/ui/chat/BookingRequestDetailPopup.vue'
+import BookingDetailsPopup       from '@/components/ui/popup/BookingDetailsPopup.vue'
+import BookingAdjustmentDecisionPopup from '@/components/ui/popup/BookingAdjustmentDecisionPopup.vue'
 import AdjustBookingPopup        from '@/components/ui/chat/AdjustBookingPopup.vue'
 import MoreTimeRequestPopup      from '@/components/ui/chat/MoreTimeRequestPopup.vue'
 import RescheduleRequestPopup    from '@/components/ui/chat/RescheduleRequestPopup.vue'
-import CancelCallConfirmPopup    from '@/components/ui/chat/CancelCallConfirmPopup.vue'
 import ChatMembersPopup          from '@/components/ui/chat/ChatMembersPopup.vue'
 import PopupHandler              from '@/components/ui/popup/PopupHandler.vue'
 import SpendingRequirementProductPopup from '@/components/ui/form/BookingForm/HelperComponents/SpendingRequirementProductPopup.vue'
@@ -39,13 +39,16 @@ import {
 } from '@/utils/chatProductRecommendation.js'
 import FlowHandler from '@/services/flow-system/FlowHandler'
 import { resolveAndSyncChat, isMessageReadByUser } from '@/services/chat/chatResolverUtils'
-import TokenHandler from '@/utils/TokenHandler.js'
 import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.js'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { postToParent } from '@/utils/postToParent'
 import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
+import { useBookingActions } from '@/composables/useBookingActions.js'
+import { useBookingAdjustmentDecision } from '@/composables/useBookingAdjustmentDecision.js'
+import { toCalendarEvent } from '@/services/bookings/utils/bookingCalendarEvent.js'
+import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import galleryIcon from '@/assets/images/icons/image-03.svg'
@@ -354,7 +357,6 @@ const showBookingPopup        = ref(false)
 const showAdjustPopup         = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
-const showCancelCallPopup     = ref(false)
 const showMembersPopup        = ref(false)
 
 const isChatBlocked = computed(() => {
@@ -518,9 +520,26 @@ const activeEventData = computed(() => {
   return eventId ? chatStore.getEventById(eventId) : null
 })
 
-function openBookingDetail(message) {
-  console.log("Opening booking detail for message:", message, pinnedBookingMessages.value)
+// BookingDetailsPopup and bookingJoinUtils read the calendar-event shape, which the
+// chat store's raw event is not — derive it from the booking instead.
+const activeCalendarEvent = computed(() => toCalendarEvent(activeBookingData.value, {
+  titleFallback: activeBookingMessage.value?.content?.event_title || '',
+}))
+const activeBookingRole = computed(() => (isCreatorAccount.value ? 'creator' : 'fan'))
+
+const bookingActions = useBookingActions()
+const bookingDecision = useBookingAdjustmentDecision(activeBookingData, {
+  viewerRole: activeBookingRole,
+  event: activeCalendarEvent,
+  processing: bookingActionLoading,
+  fanId: () => (isCreatorAccount.value ? null : currentUserId),
+})
+
+async function openBookingDetail(message) {
   activeBookingMessage.value = message
+  // PopupHandler only opens on a false -> true transition, so let the popup mount
+  // with the message first and flip visibility on the next tick.
+  await nextTick()
   showBookingPopup.value = true
   // Refresh booking data in background when popup opens
   const bookingId = message?.content?.booking_id
@@ -531,64 +550,54 @@ function openBookingDetail(message) {
   }
 }
 
-function openAdjustPopup(message) {
-  activeBookingMessage.value = message
+function openAdjustPopup(input) {
+  const message = resolveBookingMessage(input)
+  if (message) activeBookingMessage.value = message
   showBookingPopup.value = false
   showAdjustPopup.value = true
 }
 
+function onAskMoreTime(input) {
+  const message = resolveBookingMessage(input)
+  if (message) activeBookingMessage.value = message
+  showMoreTimePopup.value = true
+}
+
+function onAskToReschedule(input) {
+  const message = resolveBookingMessage(input)
+  if (message) activeBookingMessage.value = message
+  showReschedulePopup.value = true
+}
+
 // ── Activity log ──────────────────────────────────────────────────────────────
-async function sendChatActivityLog(text, meta, options = {}) {
-  if (!activeChatId.value || !text) return
-  const res = await FlowHandler.run('chat.sendChatActivityLog', {
-    chatId:   activeChatId.value,
-    senderId: currentUserId,
+function sendChatActivityLog(text, meta, options = {}) {
+  return sendActivityLog({
+    chatStore,
+    socket: props.socket,
+    chatId: activeChatId.value,
+    currentUserId,
     text,
     meta,
+    overrideRecipients: Array.isArray(options.participants) ? options.participants : null,
   })
-  if (res?.ok) {
-    chatStore.addMessage(activeChatId.value, res.data.item)
-    chatStore.updateChatLastMessage(activeChatId.value, res.data.item)
-    
-    let recipients = []
-    if (options.participants && Array.isArray(options.participants)) {
-      recipients = options.participants
-        .map(id => parseInt(id, 10))
-        .filter(id => !isNaN(id) && id !== parseInt(currentUserId, 10))
-    } else {
-      const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
-      recipients = allParticipants
-        .map((id) => parseInt(id, 10))
-        .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
-    }
-    
-    props.socket?.sendChatMessage(res.data.item, recipients)
-  }
 }
 
 function broadcastBookingUpdate(item) {
-  if (!item || !activeChatId.value) return
-  // Update the message in the chat list in-place so the bubble re-renders
-  chatStore.addMessage(activeChatId.value, item)
-  chatStore.updateChatLastMessage(activeChatId.value, item)
-  // Keep chatPinnedMessages in sync: if this is a pinnable type, update/clear accordingly
-  const pinnableTypes = ['requestJoinCallNotification', 'booking_request']
-  if (pinnableTypes.includes(item.content_type)) {
-    if (item.is_pinned === false) {
-      // Unpinned — clear stored pinned message only if it's the same message
-      const current = chatStore.getPinnedMessageByChatId(activeChatId.value)
-      if (current?.message_id === item.message_id) {
-        chatStore.setPinnedMessage(activeChatId.value, null)
-      }
-    } else {
-      chatStore.setPinnedMessage(activeChatId.value, item)
-    }
-  }
-  const allParticipants = chatStore.chatParticipants[activeChatId.value] || []
-  const recipients = allParticipants
-    .map((id) => parseInt(id, 10))
-    .filter((id) => !isNaN(id) && id !== parseInt(currentUserId, 10))
-  props.socket?.sendChatMessage(item, recipients)
+  broadcastMessageUpdate({
+    chatStore,
+    socket: props.socket,
+    chatId: activeChatId.value,
+    currentUserId,
+    item,
+  })
+}
+
+// Booking actions reach these handlers from two places: the message bubble passes
+// the chat message directly, the detail popup passes a payload wrapping it.
+function resolveBookingMessage(input) {
+  if (input?.message) return input.message
+  if (input?.content) return input
+  return activeBookingMessage.value
 }
 
 async function performBookingDecision(message, decision) {
@@ -598,43 +607,45 @@ async function performBookingDecision(message, decision) {
   if (!bookingId || !messageId) return
 
   bookingActionLoading.value = true
+  try {
+    const review = await bookingActions.reviewBooking({ bookingId, decision, actor: 'creator' })
+    if (!review.ok) {
+      showToast({ type: 'error', title: 'Failed', message: review.error || 'Could not update this booking. Please try again.' })
+      return
+    }
 
-  await FlowHandler.run('bookings.reviewPendingBooking', {
-    bookingId,
-    decision,
-    actor: 'creator',
-  })
-
-  const newAction = decision === 'approve' ? 'accepted' : 'declined'
-  const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
-    chatId:    activeChatId.value,
-    messageId,
-    action:    newAction,
-  })
-
-  bookingActionLoading.value = false
-  showBookingPopup.value = false
-
-  if (res?.ok) {
-    broadcastBookingUpdate(res.data?.item)
-    const eventTitle = message.content?.event_title || ''
-    const logText = decision === 'approve'
-      ? `Booking accepted${eventTitle ? `: ${eventTitle}` : ''}`
-      : `Booking declined${eventTitle ? `: ${eventTitle}` : ''}`
-    sendChatActivityLog(logText, {
-      is_booking_request: true,
-      decision,
-      bookingId,
+    const newAction = decision === 'approve' ? 'accepted' : 'declined'
+    const res = await FlowHandler.run('chat.updateBookingRequestMessage', {
+      chatId:    activeChatId.value,
+      messageId,
+      action:    newAction,
     })
+
+    showBookingPopup.value = false
+
+    if (res?.ok) {
+      broadcastBookingUpdate(res.data?.item)
+      const eventTitle = message.content?.event_title || ''
+      const logText = decision === 'approve'
+        ? `Booking accepted${eventTitle ? `: ${eventTitle}` : ''}`
+        : `Booking declined${eventTitle ? `: ${eventTitle}` : ''}`
+      sendChatActivityLog(logText, {
+        is_booking_request: true,
+        decision,
+        bookingId,
+      })
+    }
+  } finally {
+    bookingActionLoading.value = false
   }
 }
 
-function onDirectAccept(message) {
-  performBookingDecision(message, 'approve')
+function onDirectAccept(input) {
+  performBookingDecision(resolveBookingMessage(input), 'approve')
 }
 
-function onDirectDecline(message) {
-  performBookingDecision(message, 'reject')
+function onDirectDecline(input) {
+  performBookingDecision(resolveBookingMessage(input), 'reject')
 }
 
 function onMoreTimeSubmitted({ item, booking: updatedBooking }) {
@@ -689,7 +700,8 @@ function onAdjustSubmitted({ item, booking: updatedBooking }) {
 }
 
 // ── counter_offer responses for requestJoinCallNotification + booking_request ──
-async function onAcceptCounter(message) {
+async function onAcceptCounter(input) {
+  const message = resolveBookingMessage(input)
   if (!activeChatId.value || !message?.message_id) return
   bookingActionLoading.value = true
   try {
@@ -697,30 +709,21 @@ async function onAcceptCounter(message) {
     // Read proposed values from booking meta (stored by popup via updateMeta)
     const cachedBooking = chatStore.getBookingById(bookingId)
 
-    const offerType = cachedBooking?.meta?.currentCounterOffer  // 'moretime' | 'reschedule'
+    const offerType = input?.offerType || cachedBooking?.meta?.currentCounterOffer  // 'moretime' | 'reschedule'
     const proposed = (offerType ? cachedBooking?.meta?.[offerType] : null) || {}
-    const newSlot = proposed.proposedSlotDate
+    const newSlot = input?.proposed?.proposedSlotDate || proposed.proposedSlotDate
 
     if (! bookingId || ! newSlot) {
       return showToast({ type: 'error', title: 'Failed', message: 'Missing proposed time for this offer. Please try again.' })
     }
-    // Call booking API now that fan has accepted
-    const flow = offerType === 'reschedule' ? 'bookings.rescheduleBooking' : 'bookings.renegotiateBooking'
-    const res = await FlowHandler.run(flow, {
+    const { ok, error } = await bookingActions.acceptCounterOffer({
       bookingId,
-      startAtIso: newSlot,
-      actor: 'user',
-      args: {
-        negotiation: {
-          status: 'accepted',
-          type: offerType,
-          negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
-        },
-      },
+      offerType,
+      proposedSlotDate: newSlot,
+      negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
     })
 
-  
-    if (res?.ok) {
+    if (ok) {
       const resMessage = message.content_type === 'booking_request'
         ? await FlowHandler.run('chat.updateBookingRequestMessage', {
             chatId:    activeChatId.value,
@@ -743,37 +746,31 @@ async function onAcceptCounter(message) {
 
       showBookingPopup.value = false
     } else {
-      showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not confirm the new time. Please try again.' })
+      showToast({ type: 'error', title: 'Failed', message: error || 'Could not confirm the new time. Please try again.' })
     }
   } finally {
     bookingActionLoading.value = false
   }
 }
 
-async function onRejectCounter(message) {
+async function onRejectCounter(input) {
+  const message = resolveBookingMessage(input)
   if (!activeChatId.value || !message?.message_id) return
 
   const bookingId = message.content?.booking_id
   const cachedBooking = chatStore.getBookingById(bookingId)
-  const offerType = cachedBooking?.meta?.currentCounterOffer || cachedBooking?.meta?.negotiation?.type
+  const offerType = input?.offerType || cachedBooking?.meta?.currentCounterOffer || cachedBooking?.meta?.negotiation?.type
   bookingActionLoading.value = true
   try {
     // Cancel the booking first
     if (bookingId) {
-      const cancelRes = await FlowHandler.run('bookings.cancelBooking', {
+      const cancelRes = await bookingActions.rejectCounterOffer({
         bookingId,
-        actor: 'user',
-        intent: 'decline_renegotiation',
-        args: {
-          negotiation: {
-            status: 'declined',
-            type: offerType,
-            negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
-          },
-        },
+        offerType,
+        negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
       })
-      if (!cancelRes?.ok) {
-        showToast({ type: 'error', title: 'Failed', message: cancelRes?.error || 'Could not cancel booking.' })
+      if (!cancelRes.ok) {
+        showToast({ type: 'error', title: 'Failed', message: cancelRes.error || 'Could not cancel booking.' })
         return
       }
     }
@@ -807,129 +804,75 @@ async function onRejectCounter(message) {
 async function _doConfirmCounter(bookingId, message) {
   bookingActionLoading.value = true
 
-  // console.error("Confirming counter offer for bookingId", bookingId, { message })
-  // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
-  const cachedBooking = chatStore.getBookingById(bookingId)
-  const adjustMeta    = cachedBooking?.meta?.adjust || {}
-  const renegotiateRes = await FlowHandler.run('bookings.renegotiateBooking', {
-    bookingId,
-    startAtIso:          adjustMeta.proposedSlotDate  || undefined,
-    costTokens:          adjustMeta.proposedTokens    || undefined,
-    personalRequestText: adjustMeta.proposedRemarks   || undefined,
-    actor: 'user',
-    args: {
-      negotiation: {
-        type: 'adjust',
-        phase: 'apply',
-        negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
-      },
-    },
-    meta: {
-      currentCounterOffer: '',
+  try {
+    // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
+    const cachedBooking = chatStore.getBookingById(bookingId)
+    const adjustMeta    = cachedBooking?.meta?.adjust || {}
+    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
+      bookingId,
+      proposedStartAtIso: adjustMeta.proposedSlotDate,
+      proposedTokens:     adjustMeta.proposedTokens,
+      remarks:            adjustMeta.proposedRemarks,
+      negotiationId:      cachedBooking?.meta?.negotiation?.negotiationId || null,
+    })
+
+    if (!ok) {
+      showToast({ type: 'error', title: 'Failed', message: error || 'Could not confirm booking.' })
+      return
     }
-  })
 
-  if (!renegotiateRes?.ok) {
+    // Keep cached booking fresh
+    if (item) chatStore.setBooking(bookingId, item)
+
+    // Update the chat message action to 'accepted' (mirrors performBookingDecision)
+    const messageId = message?.message_id
+    const updateRes = messageId
+      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+          chatId:    activeChatId.value,
+          messageId,
+          action:    'accepted',
+        })
+      : null
+
+    broadcastBookingUpdate(updateRes?.data?.item || message)
+    sendChatActivityLog('Counter offer accepted', {
+      is_booking_request: true,
+      decision:           'counter_offer_accepted',
+      bookingId,
+    })
+  } finally {
     bookingActionLoading.value = false
-    showToast({ type: 'error', title: 'Failed', message: renegotiateRes?.error || 'Could not apply the adjustment.' })
-    return
   }
-
-  const res = await FlowHandler.run('bookings.reviewPendingBooking', {
-    bookingId,
-    decision: 'approve',
-    actor:    'fan',
-    args: {
-      negotiation: {
-        status: 'accepted',
-        type: 'adjust',
-        negotiationId: cachedBooking?.meta?.negotiation?.negotiationId || null,
-      },
-    },
-  })
-
-  if (!res?.ok) {
-    bookingActionLoading.value = false
-    showToast({ type: 'error', title: 'Failed', message: res?.error || 'Could not confirm booking.' })
-    return
-  }
-
-  // Keep cached booking fresh
-  if (res.data?.item) chatStore.setBooking(bookingId, res.data.item)
-
-  // Update the chat message action to 'accepted' (mirrors performBookingDecision)
-  const messageId = message?.message_id
-  const updateRes = messageId
-    ? await FlowHandler.run('chat.updateBookingRequestMessage', {
-        chatId:    activeChatId.value,
-        messageId,
-        action:    'accepted',
-      })
-    : null
-
-  bookingActionLoading.value = false
-
-  broadcastBookingUpdate(updateRes?.data?.item || message)
-  sendChatActivityLog('Counter offer accepted', {
-    is_booking_request: true,
-    decision:           'counter_offer_accepted',
-    bookingId,
-  })
 }
 
-async function onConfirmCounter(message) {
+// The fan reviews the price change in BookingAdjustmentDecisionPopup first, so by the
+// time this runs the shortfall (if any) is already known.
+async function onConfirmCounter(input) {
+  const message = resolveBookingMessage(input)
   const bookingId = message?.content?.booking_id
   if (!bookingId) return
 
-  // Resolve token amounts from booking meta (stored by AdjustBookingPopup via updateMeta)
-  const cachedBooking = chatStore.getBookingById(bookingId)
-  const adjustMeta    = cachedBooking?.meta?.adjust || {}
-  const newTokens     = Number(cachedBooking?.payment?.total ?? adjustMeta.proposedTokens ?? 0)
-  const prevTokens    = Number(adjustMeta.prevTotalTokens || message?.content?.meta?.prevTotalTokens || 0)
-  const diffTokens    = Math.max(0, newTokens - prevTokens)
-
-  // Fan already covered this amount (same or cheaper counter-offer) — confirm directly
-  if (diffTokens === 0) {
+  if (!input?.requiresTopup) {
     await _doConfirmCounter(bookingId, message)
+    closeBookingDecision({ force: true })
     showBookingPopup.value = false
     return
   }
 
-  // Resolve creator ID (the other participant)
-  const participants = chatStore.chatParticipants[activeChatId.value] || []
-  const creatorId    = participants.find(id => String(id) !== String(currentUserId)) || null
-
-  // Fetch fan's spendable token balance
-  let userBalance = 0
-  if (creatorId) {
-    const balance = await TokenHandler.get({ userId: currentUserId, receiverId: creatorId })
-    userBalance = typeof balance === 'number' ? balance : 0
-  } else {
-    const res = await TokenHandler.get({ userId: currentUserId })
-    userBalance = Number(res?.data?.paidTokens ?? res?.data?.balance ?? 0)
-  }
-
-  // DEV-only: override balance via localStorage for testing topup flow
-  if (import.meta.env.DEV) {
-    const mock = localStorage.getItem('mockTokenBalance')
-    if (mock !== null) userBalance = Number(mock)
-  }
-
-  // Fan has enough balance to cover the difference — confirm directly
-  if (userBalance >= diffTokens) {
-    await _doConfirmCounter(bookingId, message)
-    showBookingPopup.value = false
-    return
-  }
+  const diffTokens = Math.max(0, Number(input.shortfallTokens) || 0)
+  const creatorId = bookingDecision.creatorId.value
+    || (chatStore.chatParticipants[activeChatId.value] || []).find(id => String(id) !== String(currentUserId))
+    || null
 
   // Insufficient tokens — need topup for the difference only
   const isInIframe = window.self !== window.top
-  if (!isInIframe) {
-    alert('The topup checkout is not available.')
+  if (!isInIframe || diffTokens <= 0) {
+    showToast({ type: 'error', title: 'Failed', message: 'The topup checkout is not available.' })
     return
   }
 
   // Close popup and ask parent to open the topup popup
+  closeBookingDecision({ force: true })
   showBookingPopup.value = false
   _pendingTopupBookingId.value = bookingId
   _pendingTopupMessage.value   = message
@@ -943,16 +886,130 @@ async function onConfirmCounter(message) {
   })
 }
 
-function onCancelBooking(msg) {
-  if( ! activeBookingMessage.value ) {
-    activeBookingMessage.value = msg
+// Reached only from the confirmed decision popup, so the cancellation runs directly.
+function onCancelBooking(input) {
+  const message = resolveBookingMessage(input)
+  if (message) activeBookingMessage.value = message
+  void confirmBookingCancellation(message)
+}
+
+async function confirmBookingCancellation(message) {
+  const bookingId = message?.content?.booking_id
+  if (!bookingId || bookingActionLoading.value) return
+
+  bookingActionLoading.value = true
+  try {
+    const { ok, error } = await bookingActions.cancelBooking({
+      bookingId,
+      actor: isCreatorAccount.value ? 'creator' : 'fan',
+      intent: 'normal',
+      reason: isCreatorAccount.value ? 'creator_cancelled_from_chat' : 'fan_cancelled_from_chat',
+    })
+    if (!ok) {
+      bookingDecision.reportError(error || 'Could not cancel booking.')
+      showToast({ type: 'error', title: 'Failed', message: error || 'Could not cancel booking.' })
+      return
+    }
+
+    const res = message.content_type === 'booking_request'
+      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+          chatId: activeChatId.value, messageId: message.message_id, action: 'cancelled',
+        })
+      : await FlowHandler.run('chat.updateMessage', {
+          chatId: activeChatId.value, messageId: message.message_id, updates: { action: 'cancelled' },
+        })
+
+    closeBookingDecision({ force: true })
+    onCallCancelled(res?.data?.item)
+  } finally {
+    bookingActionLoading.value = false
   }
-  showCancelCallPopup.value = true
+}
+
+// A fan declining a price adjustment cancels it as a rejected renegotiation.
+async function onDeclineAdjustment(input) {
+  const message = resolveBookingMessage(input)
+  const bookingId = message?.content?.booking_id
+  if (!bookingId || bookingActionLoading.value) return
+
+  bookingActionLoading.value = true
+  try {
+    const cached = chatStore.getBookingById(bookingId)
+    const offerType = input?.offerType || cached?.meta?.currentCounterOffer || cached?.meta?.negotiation?.type || 'adjust'
+    const { ok, error } = await bookingActions.rejectCounterOffer({
+      bookingId,
+      offerType,
+      negotiationId: input?.negotiationId || cached?.meta?.negotiation?.negotiationId || null,
+      reason: 'fan_declined_price_adjustment',
+    })
+    if (!ok) {
+      bookingDecision.reportError(error || 'Could not cancel booking.')
+      showToast({ type: 'error', title: 'Failed', message: error || 'Could not cancel booking.' })
+      return
+    }
+
+    const res = message.content_type === 'booking_request'
+      ? await FlowHandler.run('chat.updateBookingRequestMessage', {
+          chatId: activeChatId.value, messageId: message.message_id, action: 'declined',
+        })
+      : await FlowHandler.run('chat.updateMessage', {
+          chatId: activeChatId.value, messageId: message.message_id, updates: { action: 'declined' },
+        })
+
+    closeBookingDecision({ force: true })
+    broadcastBookingUpdate(res?.data?.item || message)
+    sendChatActivityLog('Counter offer declined', {
+      is_booking_request: true,
+      decision: 'counter_offer_declined',
+      bookingId,
+    })
+    showBookingPopup.value = false
+  } finally {
+    bookingActionLoading.value = false
+  }
+}
+
+// ── Adjustment / cancellation confirmation popup ──────────────────────────────
+// The bubble can trigger these without going through the detail popup, so rebuild
+// the price figures from booking meta when the payload has none.
+function adjustmentFromBooking(bookingId) {
+  const cached = chatStore.getBookingById(bookingId)
+  const negotiation = cached?.meta?.negotiation || {}
+  const adjustMeta = cached?.meta?.adjust || {}
+  return {
+    negotiationId: negotiation.negotiationId || null,
+    originalTokens: negotiation.original?.totalTokens ?? adjustMeta.prevTotalTokens ?? null,
+    proposedTokens: negotiation.proposed?.totalTokens ?? adjustMeta.proposedTokens ?? null,
+  }
+}
+
+function openBookingDecision(mode, payload) {
+  const message = resolveBookingMessage(payload)
+  if (message) activeBookingMessage.value = message
+  const bookingId = payload?.bookingId || message?.content?.booking_id
+  const fallback = mode === 'cancel' ? {} : adjustmentFromBooking(bookingId)
+  const merged = { ...payload, bookingId, message }
+  for (const key of ['originalTokens', 'proposedTokens', 'negotiationId']) {
+    if (merged[key] == null) merged[key] = fallback[key] ?? null
+  }
+  bookingDecision.open(mode, merged)
+}
+
+function closeBookingDecision({ force = false } = {}) {
+  bookingDecision.reset({ force })
+}
+
+function confirmBookingDecision(payload = {}) {
+  if (bookingActionLoading.value) return
+  const decision = bookingDecision.decision.value || {}
+  const merged = { ...decision, ...payload }
+  if (payload.mode === 'cancel') return onCancelBooking(merged)
+  if (payload.mode === 'decline') return onDeclineAdjustment(merged)
+  return onConfirmCounter(merged)
 }
 
 function onCallCancelled(updatedItem) {
   const msg = activeBookingMessage.value
-  showCancelCallPopup.value = false
   broadcastBookingUpdate(updatedItem || msg)
   sendChatActivityLog('Call cancelled', {
     is_booking_request: true,
@@ -1066,7 +1123,7 @@ function resolveActivityLogText(message) {
     const name = getName(userId);
     return name ? `@${name}` : `@${userId}`;
   });
-  console.log('Final resolved activity log text:', workingText)
+  // console.log('Final resolved activity log text:', workingText)
 
   return workingText
 }
@@ -2734,8 +2791,8 @@ function _onTopupMessage(e) {
     _pendingTopupMessage.value   = null
     if (bookingId) _doConfirmCounter(bookingId, message)
   } else if (e.data.type === 'FS_CHAT_TOPUP_FAILED') {
-    _pendingTopupBookingId.value = null
-    _pendingTopupMessage.value   = null
+    // _pendingTopupBookingId.value = null
+    // _pendingTopupMessage.value   = null
     showToast({ type: 'error', title: 'Top-up failed', message: 'Booking was not confirmed.' })
   } else if (e.data.type === 'FS_CHAT_PRODUCT_REFRESH') {
     refreshProductRecommendationMessages(e.data.payload || {})
@@ -2764,7 +2821,8 @@ function _handleUnpinInterval() {
     const isCancelledOrDeclined = (msg.content_type === 'booking_request' || msg.content_type === 'requestJoinCallNotification') &&
                                   (isCancelledOrDeclinedAction || isCancelledOrDeclinedApi);
 
-    const isTimeExpired = unpinAt && new Date(unpinAt).getTime() < Date.now();
+    let isEmptyBooking = !booking || !booking.endAtIso || !booking.startAtIso;
+    const isTimeExpired = unpinAt && new Date(unpinAt).getTime() < Date.now() || isEmptyBooking;
 
     if (isCancelledOrDeclined || isTimeExpired) {
       let currentPinned = chatStore.chatPinnedMessages[activeChatId.value] || [];
@@ -2885,7 +2943,7 @@ onUnmounted(() => {
               :is-creator="isCreatorAccount"
               @ask-more-time="activeBookingMessage = msg; showMoreTimePopup = true"
               @reschedule="activeBookingMessage = msg; showReschedulePopup = true"
-              @cancel="activeBookingMessage = msg; showCancelCallPopup = true"
+              @cancel="openBookingDecision('cancel', msg)"
               @accept-counter="onAcceptCounter(msg)"
               @reject-counter="onRejectCounter(msg)"
               @view-details="openBookingDetail(msg)"
@@ -2902,8 +2960,8 @@ onUnmounted(() => {
               @accept="onDirectAccept(msg)"
               @decline="onDirectDecline(msg)"
               @adjust="openAdjustPopup(msg)"
-              @confirm-counter="onConfirmCounter(msg)"
-              @cancel-booking="onCancelBooking(msg)"
+              @confirm-counter="openBookingDecision('accept', msg)"
+              @cancel-booking="openBookingDecision($event?.source === 'menu' ? 'cancel' : 'decline', msg)"
               @accept-counter="onAcceptCounter(msg)"
               @reject-counter="onRejectCounter(msg)"
               @ask-more-time="activeBookingMessage = msg; showMoreTimePopup = true"
@@ -3037,7 +3095,7 @@ onUnmounted(() => {
             :is-creator="isCreatorAccount"
             @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
             @reschedule="activeBookingMessage = message; showReschedulePopup = true"
-            @cancel="activeBookingMessage = message; showCancelCallPopup = true"
+            @cancel="openBookingDecision('cancel', message)"
             @accept-counter="onAcceptCounter(message)"
             @reject-counter="onRejectCounter(message)"
             @view-details="openBookingDetail(message)"
@@ -3052,8 +3110,8 @@ onUnmounted(() => {
             @accept="onDirectAccept(message)"
             @decline="onDirectDecline(message)"
             @adjust="openAdjustPopup(message)"
-            @confirm-counter="onConfirmCounter(message)"
-            @cancel-booking="onCancelBooking(message)"
+            @confirm-counter="openBookingDecision('accept', message)"
+            @cancel-booking="openBookingDecision($event?.source === 'menu' ? 'cancel' : 'decline', message)"
             @accept-counter="onAcceptCounter(message)"
             @reject-counter="onRejectCounter(message)"
             @ask-more-time="activeBookingMessage = message; showMoreTimePopup = true"
@@ -3355,27 +3413,48 @@ onUnmounted(() => {
   </div>
 
   <!-- Booking request detail popup -->
-  <BookingRequestDetailPopup
-    v-if="showBookingPopup && activeBookingMessage"
-    :message="activeBookingMessage"
+  <BookingDetailsPopup
+    v-if="activeBookingMessage"
+    :model-value="showBookingPopup"
+    :popup-config="{ zIndex: 10001 }"
     :booking="activeBookingData"
-    :event="activeEventData"
-    :is-creator="isCreatorAccount"
-    :chat-id="activeChatId"
-    :current-user-id="currentUserId"
-    :loading="bookingActionLoading"
-    @accept="onDirectAccept(activeBookingMessage)"
-    @decline="onDirectDecline(activeBookingMessage)"
-    @adjust="openAdjustPopup(activeBookingMessage)"
-    @confirm-counter="onConfirmCounter(activeBookingMessage)"
-    @cancel-booking="onCancelBooking(activeBookingMessage)"
-    @accept-counter="onAcceptCounter(activeBookingMessage)"
-    @reject-counter="onRejectCounter(activeBookingMessage)"
-    @ask-more-time="showMoreTimePopup = true"
-    @ask-to-reschedule="showReschedulePopup = true"
+    :event="activeCalendarEvent"
+    :booking-message="activeBookingMessage"
+    :message-action="activeBookingMessage?.content?.action"
+    :user-role="activeBookingRole"
+    :can-review-pending="isCreatorAccount"
+    :action-loading="bookingActionLoading"
+    can-request-time-change
+    @approve-booking="onDirectAccept"
+    @reject-booking="onDirectDecline"
+    @adjust-booking="openAdjustPopup"
+    @accept-adjustment="openBookingDecision('accept', $event)"
+    @decline-adjustment="openBookingDecision('decline', $event)"
+    @cancel-booking="openBookingDecision('cancel', $event)"
+    @accept-counter="onAcceptCounter"
+    @reject-counter="onRejectCounter"
+    @ask-more-time="onAskMoreTime"
+    @ask-to-reschedule="onAskToReschedule"
+    @update:model-value="showBookingPopup = $event"
     @open-chat="showBookingPopup = false"
     @close="showBookingPopup = false"
   />
+
+  <!-- Price adjustment / cancellation confirmation -->
+  <BookingAdjustmentDecisionPopup
+    v-bind="bookingDecision.popupProps.value"
+    :popup-config="{ zIndex: 10002 }"
+    @update:model-value="$event || closeBookingDecision()"
+    @confirm="confirmBookingDecision"
+    @retry-balance="bookingDecision.loadBalance"
+    @close="closeBookingDecision()"
+  />
+
+  <!-- Marks the chat embed as showing a full-screen popup (see ChatEmbedApp).
+       Both popups teleport out of this tree, so neither carries the marker itself. -->
+  <Teleport to="body">
+    <div v-if="showBookingPopup || bookingDecision.isOpen.value" data-fs-chat-popup style="display:none" />
+  </Teleport>
 
   <!-- Adjust booking popup -->
   <AdjustBookingPopup
@@ -3408,17 +3487,6 @@ onUnmounted(() => {
     :event="activeEventData"
     @submitted="onRescheduleSubmitted($event)"
     @close="showReschedulePopup = false"
-  />
-
-  <!-- Cancel call confirmation popup (requestJoinCallNotification) -->
-  <CancelCallConfirmPopup
-    v-if="showCancelCallPopup && activeBookingMessage"
-    :message="activeBookingMessage"
-    :booking="activeBookingData"
-    :chat-id="activeChatId"
-    :is-creator="isCreatorAccount"
-    @cancelled="onCallCancelled"
-    @close="showCancelCallPopup = false"
   />
 
   <SpendingRequirementProductPopup

@@ -14,6 +14,7 @@ export const FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED = "FS_EVENTS_BOOKING_DETAI
 export const FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS = "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS";
 export const FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED";
 export const FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY";
+export const FS_EVENTS_BOOKING_CHAT_SYNC = "FS_EVENTS_BOOKING_CHAT_SYNC";
 
 const MESSAGE_SOURCE = "fs-events-embed";
 
@@ -86,6 +87,18 @@ export function notifyBookingDetailsUpdated(payload = {}) {
 
 export function requestBookingDetailsTopup(payload = {}) {
   postToParent(FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED, payload);
+}
+
+/**
+ * Asks the chat embed mounted on the same host page to mirror a booking change:
+ * refresh its cached booking, re-render the request bubble, socket-push it to the
+ * other participant and append an activity log. The events embed has no chat socket
+ * of its own, so it delegates that half of the update through the host.
+ *
+ * Best effort — nothing happens when no chat embed is mounted.
+ */
+export function requestBookingChatSync(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_CHAT_SYNC, payload);
 }
 
 export function notifyBookingDetailsDecisionVisibility(isOpen) {

@@ -1,0 +1,452 @@
+# BookingDetailsPopup ကို embed နှစ်ခုလုံးအတွက် တစ်ခုတည်း အသုံးပြုနိုင်အောင် ပေါင်းစည်းခြင်း
+
+## Context
+
+လက်ရှိမှာ booking detail ကို ပြတဲ့ component ၂ ခု ရှိနေတယ် —
+
+| | `BookingDetailsPopup.vue` | `BookingRequestDetailPopup.vue` |
+|---|---|---|
+| တည်နေရာ | [src/components/ui/popup/BookingDetailsPopup.vue](src/components/ui/popup/BookingDetailsPopup.vue) | [src/components/ui/chat/BookingRequestDetailPopup.vue](src/components/ui/chat/BookingRequestDetailPopup.vue) |
+| data ရင်းမြစ် | booking object (booking-centric) | chat `message.content` (message-centric) |
+| သုံးတဲ့နေရာ | events(booking) embed, MainCalendar, Dashboard, wrapper ၂ ခု | ChatWindow တစ်ခုတည်း (chat embed) |
+| Actions | approve / reject / adjust / cancel / accept-adjustment / decline-adjustment / join / open-chat | + accept-counter / reject-counter / ask-more-time / ask-to-reschedule |
+
+ရလဒ်အနေနဲ့ embed ၂ ခုက **တူညီတဲ့ booking action တွေကို သီးခြားစီ implement** လုပ်ထားတယ် (`_doConfirmCounter` in [ChatWindow.vue:807](src/components/ui/chat/ChatWindow.vue#L807) vs `applyPriceAdjustment` in [EventsEmbedBookingDetailsPage.vue:528](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L528) — ကုဒ်ကနီးပါးတူ)။ UI ၂ မျိုးကြောင့် maintain ရခက်ပြီး behavior မညီဘူး။
+
+**ရည်ရွယ်ချက်:** `BookingDetailsPopup` တစ်ခုတည်းကို embed နှစ်ခုလုံး (chat + booking) မှာ သုံးနိုင်အောင် — state/emit အားလုံးကို union လုပ်ပြီး၊ action logic ကို composable တစ်ခုတည်းထဲ ထုတ်မယ်။
+
+**ထပ်တိုး လိုအပ်ချက် ၂ ခု:**
+1. **Confirmation စုစည်း** — chat ရဲ့ `ACCEPT NEW Changes` ကို `ACCEPT AND PAY` လို့ ပြောင်းပြီး၊ နှိပ်ရင် တိုက်ရိုက် confirm မလုပ်ဘဲ [BookingAdjustmentDecisionPopup](src/components/ui/popup/BookingAdjustmentDecisionPopup.vue) ကို ပြရမယ် (refund / price-increase / top-up-needed ၃ မျိုး)။ Cancel booking လည်း အတူတူ — `CancelCallConfirmPopup` အစား decision popup ကိုပဲ သုံးမယ်။ ဒါက events embed မှာ ရှိပြီးသား behavior မို့ popup ထဲ ရွှေ့လိုက်ရင် embed ၂ ခုလုံး တူသွားမယ် → **အဆင့် ၃ခ**
+2. **Chat sync** — events embed မှာ socket မရှိလို့ တစ်ဖက်လူရဲ့ chat က live မ update ဘူး။ `open-chat` သုံးနေတဲ့ parent-window bridge နည်းအတိုင်း chat embed ဆီ လွှဲပြီး ဖြေရှင်းမယ် → **အဆင့် ၅ခ**
+
+**အခြေခံအချက် (key enabler):** [BookingFlowStep3.vue:1471](src/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue#L1471) မှာ `bookings.updateMeta` နဲ့ `meta.chatId` + `meta.bookingMessageId` ကို booking ပေါ်တင်ထားပြီးသား။ ဒါကြောင့် **booking တစ်ခုတည်းကနေ chat message ကို ပြန်တည်ဆောက်နိုင်တယ်** — chat `message` prop မလိုတော့ဘူး၊ popup က booking-centric ဖြစ်နေလို့ ရပါတယ်။
+
+## လုပ်မယ့်နည်းလမ်း (recommended)
+
+Popup က **UI + confirmation** ကိုပဲ ပိုင်မယ် — API call လုံးဝ မလုပ်ဘူး၊ user က confirm လုပ်ပြီးမှ event emit ထုတ်တယ် (`BookingAdjustmentDecisionPopup` ကို host လုပ်တာ ဒီအထဲ ပါတယ်၊ `reject` mode အတွက် ရှိပြီးသား precedent ရှိတယ်)။ Action logic ကို composable ထုတ်ပြီး host ၂ ခုစလုံးက share သုံးမယ်။ Host-specific side effect (chat: socket broadcast + activity log / events: bridge postMessage) ကတော့ host မှာပဲ ကျန်မယ်။
+
+ဒါကြောင့် ရလဒ်က —
+- **Popup**: ဘယ်အခြေအနေမှာ ဘယ် button ပြမလဲ + confirmation dialog (တစ်နေရာတည်း)
+- **`useBookingActions`**: FlowHandler call တွေ (တစ်နေရာတည်း)
+- **Host**: side effect (socket / bridge / toast) သာ
+
+---
+
+## အဆင့် ၁ — Shared utils
+
+### 1a. Counter-offer resolver
+`src/services/bookings/utils/bookingNegotiationUtils.js` (ရှိပြီးသား ဖိုင်) မှာ ထပ်ထည့်:
+
+```js
+export function getPendingCounterOffer(bookingLike)
+// → { type: 'adjust'|'moretime'|'reschedule'|null,
+//     negotiationId, proposed: { proposedSlotDate, proposedTokens,
+//     proposedRemarks, adjustedDurationMinutes, prevTotalTokens } }
+```
+
+- ရှိပြီးသား `normalizeOfferType` / `bookingCandidates` / `finiteTokenAmount` helper တွေကို ပြန်သုံးပါ။
+- `isPendingPriceAdjustment` ကို ဒီ function အပေါ်မှာ thin wrapper ပြန်လုပ် (`type === 'adjust'` + ဈေးနှုန်းကွာ)။ **API မပြောင်းရ** — [src/\_\_tests\_\_/bookingNegotiationUtils.spec.js](src/__tests__/bookingNegotiationUtils.spec.js) နဲ့ [eventDetailsFan.spec.js](src/__tests__/eventDetailsFan.spec.js) က ဒါကို စစ်နေတယ်။
+- `more_time` / `moretime` / `more-time` အားလုံးကို `moretime` အဖြစ် normalize (ရှိပြီးသား regex က လုပ်ပေးပြီးသား)။
+
+### 1b. Booking → calendar event helper
+[EventsEmbedBookingDetailsPage.vue:272-290](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L272-L290) မှာရှိတဲ့ `normalizeBookingForCalendar` + `toCalendarEvent` ကို `src/services/bookings/utils/bookingCalendarEvent.js` အသစ်ထဲ ရွှေ့ပြီး export လုပ်ပါ (ရှိပြီးသား `mapBookedSlotsToCalendarEvents` ကို ပြန်သုံး)။ embed page က ဒီ util ကို import ပြန်သုံးမယ်။
+
+ChatWindow မှာ `BookingDetailsPopup` ရဲ့ `:event` အတွက် ဒါလိုတယ် — အခု chat က သုံးနေတဲ့ `chatStore.getEventById()` event object က `getCalendarEventApprovalState` / `getCalendarEventJoinState` မျှော်လင့်တဲ့ shape မဟုတ်ဘူး။
+
+### 1c. Booking → chat message builder
+`src/services/bookings/utils/bookingChatMessage.js` အသစ်:
+
+```js
+export function buildBookingChatMessage(booking)
+// booking.meta.chatId + booking.meta.bookingMessageId ရှိမှ object ပြန်၊ မရှိရင် null
+// → { message_id, content_type: 'booking_request',
+//     content: { booking_id, event_id, event_title, slot_date, start_at, end_at } }
+```
+
+ဘာကြောင့်လိုလဲ: `AdjustBookingPopup` / `MoreTimeRequestPopup` / `RescheduleRequestPopup` / `CancelCallConfirmPopup` လေးခုစလုံးက `message` + `chatId` prop တွေ **required** ဖြစ်နေတယ်။ ဒီ builder ရှိမှ events embed ကနေလည်း အဲ့ popup တွေ ဖွင့်လို့ရမယ်။ [MainCalendar.vue:1097](src/components/calendar/MainCalendar.vue#L1097) မှာ `AdjustBookingPopup` ကို `:message="adjustBookingState.message"` (undefined) ပေးနေတဲ့ bug ကိုပါ ဒီနည်းနဲ့ ဖြေရှင်းနိုင်တယ်။
+
+---
+
+## အဆင့် ၂ — `useBookingActions` composable
+
+ဖိုင်အသစ်: `src/composables/useBookingActions.js`
+
+```js
+export function useBookingActions({ flowOptions = () => ({}), onError } = {}) {
+  return {
+    reviewBooking,        // bookings.reviewPendingBooking (approve|reject)
+    cancelBooking,        // bookings.cancelBooking (intent: 'normal')
+    applyPriceAdjustment, // renegotiateBooking(phase:'apply') → reviewPendingBooking(actor:'fan')
+    acceptCounterOffer,   // moretime → renegotiateBooking / reschedule → rescheduleBooking
+    rejectCounterOffer,   // cancelBooking(intent:'decline_renegotiation')
+    syncBookingMessage,   // chat.updateBookingRequestMessage | chat.updateMessage
+  }
+}
+```
+
+- Body တွေကို အောက်ကနေ ကူးယူပါ (behavior တူညီအောင်):
+  - `applyPriceAdjustment` ← [EventsEmbedBookingDetailsPage.vue:528-586](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L528-L586) (`durationMinutes` ပါတဲ့ version ကို ယူ — chat version မှာ ကျန်နေတယ်)
+  - `acceptCounterOffer` ← [ChatWindow.vue:692-751](src/components/ui/chat/ChatWindow.vue#L692-L751)
+  - `rejectCounterOffer` ← [ChatWindow.vue:753-805](src/components/ui/chat/ChatWindow.vue#L753-L805)
+  - `reviewBooking` ← [EventsEmbedBookingDetailsPage.vue:417-445](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L417-L445) (**`result.ok` စစ်တဲ့ version**)
+- Return shape ကို `{ ok, item, error }` အဖြစ် တစ်သမတ်တည်းထား။
+- Host-specific ဟာတွေ **မထည့်ရ**: socket broadcast, `sendChatActivityLog`, `notifyBookingDetailsUpdated`, toast — အဲ့ဒါတွေ host မှာပဲ ကျန်စေ။
+- Bug fix: `performBookingDecision` ([ChatWindow.vue:602](src/components/ui/chat/ChatWindow.vue#L602)) က `reviewPendingBooking` ရဲ့ result ကို မစစ်ဘဲ chat message ကို accepted/declined ပြောင်းနေတယ်။ composable သုံးလိုက်ရင် အလိုအလျောက် ပြင်ပြီးသား ဖြစ်သွားမယ်။
+
+`actor` string မညီတာ (`'user'` vs `'fan'`) ကို composable ထဲမှာ ရှိပြီးသား အတိုင်း ထားပါ — API contract မသေချာလို့ ဒီ refactor မှာ မထိပါနဲ့။ ပြင်ရင် သီးခြား task အနေနဲ့ လုပ်ပါ။
+
+---
+
+## အဆင့် ၃ — `BookingDetailsPopup` ကို တိုးချဲ့ (additive သာ)
+
+ဖိုင်: [src/components/ui/popup/BookingDetailsPopup.vue](src/components/ui/popup/BookingDetailsPopup.vue)
+
+### Props အသစ်
+| Prop | Type | Default | ရည်ရွယ်ချက် |
+|---|---|---|---|
+| `bookingMessage` | Object | `null` | chat message (မပေးရင် `buildBookingChatMessage(raw)` နဲ့ တည်ဆောက်) |
+| `messageAction` | String | `null` | chat က `message.content.action` — `counter_offer` စတဲ့ state ကို override |
+| `canRequestTimeChange` | Boolean | `false` | "Ask for more time" / "Ask to reschedule" menu ကို ဖွင့် |
+
+### Emits အသစ် (ရှိပြီးသား ၁၁ ခုကို မထိ)
+`accept-counter`, `reject-counter`, `ask-more-time`, `ask-to-reschedule`
+
+**Payload convention** — လေးခုစလုံး တူညီတဲ့ object ပေး (လက်ရှိ chat popup က payload လုံးဝမပေးလို့ host က state ကို ကိုယ်တိုင်ရှာနေရတယ်၊ အဲ့ဒါ ဖြေရှင်း):
+```js
+{ bookingId, eventId, event, booking: raw, message: resolvedMessage,
+  offerType, proposed, negotiationId }
+```
+
+### Computed အသစ်
+```js
+const counterOffer   = computed(() => getPendingCounterOffer([props.booking, props.event]))
+const effectiveAction = computed(() => props.messageAction || derived-from-booking-status)
+const isExpired      = computed(() => start အလွန် && live မဟုတ်)  // joinState ကို ပြန်သုံး
+const resolvedMessage = computed(() => props.bookingMessage || buildBookingChatMessage(raw.value))
+```
+
+`pendingPriceAdjustment` ကို `counterOffer.type === 'adjust'` ကနေ ဆွဲသုံး (တွက်ချက်မှု ၂ မျိုး မဖြစ်အောင်)။
+
+### UI state အသစ် (banner chain ထဲ ထပ်ထည့်)
+လက်ရှိ `v-if / v-else-if` chain ([L79-L194](src/components/ui/popup/BookingDetailsPopup.vue#L79-L194)) ရဲ့ အောက်မှာ:
+
+1. **Fan + `counterOffer.type` ∈ {moretime, reschedule}** → အချိန်အသစ် (အဟောင်း → အသစ်) ပြတဲ့ banner + `[ACCEPT NEW TIME]`→`accept-counter`, `[REJECT]`→`reject-counter`
+2. **Creator + counterOffer ရှိ** → ရှိပြီးသား `creatorWaitingForAdjustment` banner ကို offer type အားလုံးအတွက် ချဲ့ (`isWaitingForResponse` [L455](src/components/ui/popup/BookingDetailsPopup.vue#L455) က `currentCounterOffer` ကို စစ်နေပြီးသား)
+3. **Fan + status pending + counterOffer မရှိ** → "Waiting for creator response" badge
+4. **`isExpired`** + pending/counter_offer → action row အစား "Request expired" pill; menu item တွေ disable
+5. **Cancelled notice** ထဲမှာ no-show label ထပ်ထည့် — `meta.cancelled.reason === 'creator_no_show_auto_cancel'` (fan မြင်: "Fully refunded") / `'fan_no_show_auto_cancel'` (creator မြင်: "Fan Forfeited") — ([BookingRequestDetailPopup.vue:657-665](src/components/ui/chat/BookingRequestDetailPopup.vue#L657-L665) ကနေ ကူး)
+
+### Kebab menu ([L52-L63](src/components/ui/popup/BookingDetailsPopup.vue#L52-L63))
+`canRequestTimeChange && viewerRole === 'creator' && status confirmed/accepted && !isExpired` ဆိုရင် "Cancel booking" အပေါ်မှာ "Ask for more time" + "Ask to reschedule" ထပ်ထည့်။
+
+### i18n
+စာသားအသစ်တွေကို `useBookingTranslations` ရဲ့ `t()` နဲ့ပဲ ထည့် (chat popup က hard-coded English ဖြစ်နေတယ်)။ Key အသစ်တွေကို [src/i18n/bookingTranslations.js](src/i18n/bookingTranslations.js) မှာ ထည့်ပြီး `npm run i18n:bookings:export` ပြန်ဖွင့်ရန် မမေ့ပါနှင့်။
+
+---
+
+## အဆင့် ၃ခ — `BookingAdjustmentDecisionPopup` ကို confirmation တစ်ခုတည်းအဖြစ် စုစည်း
+
+**လိုအပ်ချက်:** chat ရဲ့ adjustment မှာ `ACCEPT NEW Changes` ကို **`ACCEPT AND PAY`** လို့ ပြောင်း၊ နှိပ်လိုက်ရင် တိုက်ရိုက် confirm မလုပ်ဘဲ [BookingAdjustmentDecisionPopup](src/components/ui/popup/BookingAdjustmentDecisionPopup.vue) ကို ပြရမယ် (refund / price increase / top-up needed ၃ မျိုးလုံး)။ **Cancel booking လည်း အတူတူ** — `CancelCallConfirmPopup` အစား decision popup ကိုပဲ သုံးမယ်။
+
+ဒါက events embed မှာ ရှိပြီးသား behavior ပါ ([EventsEmbedBookingDetailsPage.vue:53-74](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L53-L74))။ ဒါကြောင့် **အဲ့ဒီ logic ကို ထုတ်ပြီး popup ထဲ ရွှေ့လိုက်ရင် embed ၂ ခုလုံး အလိုအလျောက် တူသွားမယ်**။
+
+### 3b-1. Composable ထုတ်
+ဖိုင်အသစ်: `src/composables/useBookingAdjustmentDecision.js`
+
+[EventsEmbedBookingDetailsPage.vue:159-241](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L159-L241) (fee / refund / username computed တွေ) နဲ့ [:639-731](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L639-L731) (`resetAdjustmentDecision`, `loadAdjustmentBalance`, `openAdjustmentDecision`, `confirmAdjustmentDecision` ရဲ့ dispatch အပိုင်း) ကို ဒီထဲ ရွှေ့ပါ:
+
+```js
+useBookingAdjustmentDecision(bookingRef, { viewerRole, processing })
+// → { open(mode, adjustment), reset(), loadBalance(),
+//     isOpen, mode, decision, popupProps }
+```
+- `popupProps` က `BookingAdjustmentDecisionPopup` ရဲ့ prop ၁၅ ခုလုံးကို တစ်ခါတည်း ပြန်ပေး → `v-bind="popupProps"` နဲ့ သုံး။
+- `TokenHandler.get({ userId: fanId, receiverId: creatorId })` က balance ဆွဲတယ် (ရှိပြီးသား logic)။
+- API call **မလုပ်ဘူး** — UI state + တွက်ချက်မှုသာ။
+
+### 3b-2. `BookingDetailsPopup` ထဲ host
+Popup က `reject` mode အတွက် decision popup ကို host လုပ်ပြီးသား ([L288-299](src/components/ui/popup/BookingDetailsPopup.vue#L288-L299))။ အဲ့ instance တစ်ခုတည်းကိုပဲ **mode ၄ မျိုးလုံး** (`accept` / `decline` / `cancel` / `reject`) အတွက် ချဲ့သုံးပါ၊ props ကို composable ကနေယူ။
+
+Emit လုပ်ပုံ ပြောင်း — **confirm ပြီးမှ** emit ထွက်တယ်:
+
+| Button | ယခင် | ယခု |
+|---|---|---|
+| Accept new price → **Accept and pay** | `accept-adjustment` ချက်ချင်း | decision popup (`accept`) ဖွင့် → confirm မှ `accept-adjustment` |
+| Decline & cancel booking | `decline-adjustment` ချက်ချင်း | decision popup (`decline`) → confirm မှ `decline-adjustment` |
+| Kebab → Cancel booking | `cancel-booking` ချက်ချင်း | decision popup (`cancel`) → confirm မှ `cancel-booking` |
+| Kebab → Decline booking | decision popup (`reject`) → `reject-booking` | မပြောင်း |
+
+Payload မှာ decision popup ရဲ့ confirm data ထပ်ပေါင်း:
+```js
+{ ...existingPayload, mode, requiresTopup, shortfallTokens, adjustment }
+```
+`requiresTopup` / `shortfallTokens` က [BookingAdjustmentDecisionPopup.vue:311-315](src/components/ui/popup/BookingAdjustmentDecisionPopup.vue#L311-L315) ကလာတယ် — host က ဒါကိုကြည့်ပြီး topup လမ်းကြောင်း ခွဲမယ်။
+
+`decision-visibility` emit ကို mode ၄ မျိုးလုံးအတွက် ထုတ်ပါ (host က ကိုယ့် overlay ကို ဖျောက်ဖို့ သုံးတယ်)။
+
+**Opt-out မလိုပါ** — consumer အားလုံး (chat, events embed, MainCalendar, Dashboard) အတွက် ဒီ confirmation က မှန်ကန်တဲ့ behavior ဖြစ်တယ်။
+
+### 3b-3. i18n
+- `fan_event_details_accept_new_price: "Accept new price"` → `"Accept and pay"` (key အသစ် `booking_details_accept_and_pay` ထည့်ပြီး အဟောင်းကို မဖျက်ဘဲ ထားရင် ပိုလုံခြုံ — [eventDetailsFan.spec.js](src/__tests__/eventDetailsFan.spec.js) က စာသားစစ်နေလား စစ်ပါ)
+- `fan_event_details_decline_cancel: "Decline & cancel booking"` — မပြောင်း
+
+---
+
+## အဆင့် ၄ — ChatWindow swap
+
+ဖိုင်: [src/components/ui/chat/ChatWindow.vue](src/components/ui/chat/ChatWindow.vue)
+
+### 4a. Popup အစားထိုး ([L3358-L3378](src/components/ui/chat/ChatWindow.vue#L3358-L3378))
+```vue
+<BookingDetailsPopup
+  v-if="showBookingPopup && activeBookingMessage"
+  :model-value="showBookingPopup"
+  :booking="activeBookingData"
+  :event="activeCalendarEvent"
+  :booking-message="activeBookingMessage"
+  :message-action="activeBookingMessage?.content?.action"
+  :user-role="isCreatorAccount ? 'creator' : 'fan'"
+  :can-review-pending="isCreatorAccount"
+  :action-loading="bookingActionLoading"
+  can-request-time-change
+  @approve-booking="onDirectAccept"      @reject-booking="onDirectDecline"
+  @adjust-booking="openAdjustPopup"      @accept-adjustment="onConfirmCounter"
+  @decline-adjustment="onDeclineAdjustment"  @cancel-booking="onCancelBooking"
+  @accept-counter="onAcceptCounter"      @reject-counter="onRejectCounter"
+  @ask-more-time="onAskMoreTime"         @ask-to-reschedule="onAskToReschedule"
+  @open-chat="showBookingPopup = false"  @close="showBookingPopup = false"
+/>
+```
+
+`activeCalendarEvent` computed အသစ် — `toCalendarEvent(activeBookingData)` (အဆင့် 1b)၊ `activeEventData` က `reminderLabel` အတွက်ပဲ သုံးနေတာမို့ ဖြုတ်လို့ရ။
+
+### 4b. Handler signature ပြောင်း
+Handler တွေက အခု `message` ကို တိုက်ရိုက်လက်ခံတယ်။ `BookingRequestBubble` ([L2884-2910](src/components/ui/chat/ChatWindow.vue#L2884-L2910), [L3033-3060](src/components/ui/chat/ChatWindow.vue#L3033-L3060)) ကလည်း တူညီတဲ့ handler တွေကို `msg` နဲ့ ခေါ်နေတာမို့ **နှစ်မျိုးလုံး လက်ခံအောင်** normalize လုပ်ပါ:
+
+```js
+function resolveMessage(input) {
+  return input?.message || (input?.content ? input : null) || activeBookingMessage.value
+}
+```
+Handler တိုင်းရဲ့ ပထမ line မှာ `const message = resolveMessage(payload)` သုံးပါ။ Bubble bindings တွေ မထိရ။
+
+`onAskMoreTime(payload)` / `onAskToReschedule(payload)` အသစ် — `activeBookingMessage` ကို set ပြီးမှ `showMoreTimePopup/showReschedulePopup = true` (အခု template ထဲမှာ boolean သာ set နေလို့ `activeBookingMessage` မရှိရင် ကျိုးနိုင်တယ်)။
+
+### 4b-2. Decision popup ကြောင့် ပြောင်းရမယ့် handler တွေ (အဆင့် ၃ခ နဲ့ ဆက်စပ်)
+`accept-adjustment` / `decline-adjustment` / `cancel-booking` က အခု **confirm ပြီးသား** ဖြစ်နေပြီ — chat မှာ ထပ် confirm မလုပ်ရ:
+
+- **`onConfirmCounter(payload)`** — balance စစ်တဲ့ code ([L880-L944](src/components/ui/chat/ChatWindow.vue#L880-L944)) ကို ဖျက်ပါ။ decision popup က တွက်ပြီးသား:
+  ```js
+  if (payload.requiresTopup) {
+    _pendingTopupBookingId.value = payload.bookingId; _pendingTopupMessage.value = message
+    postToParent('FS_CHAT_TOPUP_REQUIRED', { bookingId, requiredTokens: payload.shortfallTokens, ... })
+    return
+  }
+  await bookingActions.applyPriceAdjustment(...)   // composable
+  ```
+  DEV-only `localStorage.mockTokenBalance` override ကို composable ထဲ ရွှေ့ (သို့) ဖျက်။
+- **`onCancelBooking(payload)`** — `payload.mode` ရှိရင် (detail popup ကလာ) `bookingActions.cancelBooking()` တိုက်ရိုက်ခေါ်ပြီး `chat.updateMessage action:'cancelled'` + broadcast + activity log လုပ်ပါ ([CancelCallConfirmPopup.vue:77-106](src/components/ui/chat/CancelCallConfirmPopup.vue#L77-L106) ရဲ့ body ကို composable ကနေ ပြန်သုံး)။ `payload.mode` မရှိရင် (bubble `@cancel` ကလာ) လက်ရှိအတိုင်း `CancelCallConfirmPopup` ဖွင့်ပါ။
+- **`decline-adjustment` → `onDeclineAdjustment(payload)`** အသစ် — `bookingActions.rejectCounterOffer({ offerType: 'adjust', ... })` (intent `decline_renegotiation`)။ ယခင်က `cancel-booking` နဲ့ ရောနေတာကို ခွဲထုတ်လိုက်တာ။
+- `@decision-visibility` ကို ချိတ်ပြီး decision popup ဖွင့်နေချိန် chat resize/fullscreen state မှန်အောင် ထား။
+
+### 4c. `data-fs-chat-popup` sentinel — **မဖြစ်မနေလို**
+[ChatEmbedApp.vue:232-252](src/embeds/chat/ChatEmbedApp.vue#L232-L252) က `document.body.children` ထဲမှာ `data-fs-chat-popup` attribute ရှာပြီး iframe ကို fullscreen ချဲ့တယ်။ `BookingRequestDetailPopup` က [L6](src/components/ui/chat/BookingRequestDetailPopup.vue#L6) မှာ အဲ့ attribute တင်ထားတယ်။ `BookingDetailsPopup` က `PopupHandler` (Teleport) ကို သုံးလို့ attribute က fallthrough မဖြစ်ဘူး။
+
+**ဖြေရှင်းနည်း (ရိုးရှင်း၊ risk မရှိ):** ChatWindow ထဲမှာ sentinel element တစ်ခု ထည့်ပါ —
+```vue
+<Teleport to="body">
+  <div v-if="showBookingPopup" data-fs-chat-popup style="display:none" />
+</Teleport>
+```
+`showAdjustPopup` / `showMoreTimePopup` စတဲ့ ကျန်တဲ့ chat popup တွေက ကိုယ်ပိုင် attribute ရှိပြီးသားမို့ မထိရ။
+
+### 4c-alt. Action logic ကို composable ပြောင်း
+`performBookingDecision`, `onAcceptCounter`, `onRejectCounter`, `_doConfirmCounter` တွေရဲ့ FlowHandler call တွေကို `useBookingActions()` ကနေ ခေါ်အောင် ပြင်။ `broadcastBookingUpdate` + `sendChatActivityLog` + topup postMessage တွေက ChatWindow မှာ ကျန်စေ။
+
+### 4d. ဖိုင်ဖျက်
+- [src/components/ui/chat/BookingRequestDetailPopup.vue](src/components/ui/chat/BookingRequestDetailPopup.vue) ဖျက် (production usage က ChatWindow တစ်ခုတည်း)
+- [src/\_\_tests\_\_/chatJoinCall.spec.js:125-143](src/__tests__/chatJoinCall.spec.js#L125-L143) ကို `BookingDetailsPopup` သုံးအောင် ပြင် (`data-test="event-details-fan-join"` ကို target)
+
+---
+
+## အဆင့် ၅ — Events (booking) embed ကို parity ပေး
+
+ဖိုင်: [src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue)
+
+1. `bookingChatMessage` computed ထည့် — `buildBookingChatMessage(booking.value)` (အဆင့် 1c)
+2. `MoreTimeRequestPopup` / `RescheduleRequestPopup` ကို render၊ `:message="bookingChatMessage"` `:chat-id="booking.meta.chatId"` `:booking="booking"` `:event="calendarEvent"` ပေး
+3. `@ask-more-time` / `@ask-to-reschedule` → အဲ့ popup တွေ ဖွင့်; `@submitted` → `loadBooking()` ပြန်ခေါ် + `notifySuccessfulBookingUpdate('more_time_request'|'reschedule_request', item)`
+4. `@accept-counter` / `@reject-counter` → `useBookingActions.acceptCounterOffer/rejectCounterOffer` + `syncBookingMessageAction('accepted'|'declined')` + `notifySuccessfulBookingUpdate`
+5. `:can-request-time-change="viewerRole === 'creator'"` ထည့်
+6. ရှိပြီးသား handler တွေကို `useBookingActions` သုံးအောင် ပြင် (bridge notify က host မှာ ကျန်)
+7. **ကိုယ်ပိုင် `BookingAdjustmentDecisionPopup` ကို ဖြုတ်** ([L53-74](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L53-L74)) — အခု `BookingDetailsPopup` က host လုပ်ပြီးသား (အဆင့် ၃ခ)၊ မဖြုတ်ရင် popup ၂ ထပ် တက်မယ်။ `openAdjustmentDecision` / `confirmAdjustmentDecision` / balance computed ၈ ခုကိုပါ ဖြုတ်ပြီး `useBookingAdjustmentDecision` composable နဲ့ အစားထိုး
+8. **ခြွင်းချက် —** `isDirectCancelLaunch` ([L124](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L124), `initialAction === "cancel"`) မှာ `BookingDetailsPopup` ကို render မလုပ်ဘဲ decision popup ကိုပဲ ပြတာမို့၊ အဲ့ path အတွက် decision popup instance တစ်ခု ဆက်ထားရမယ် — ဒါပေမဲ့ composable တူတူသုံးလို့ logic မထပ်ဘူး
+9. Handler တွေက `payload.requiresTopup` / `payload.shortfallTokens` ကို popup ဆီက လက်ခံပြီး `requestBookingDetailsTopup` ခေါ်ဖို့ ပြင် (ယခင်က `confirmAdjustmentDecision` ထဲမှာ)
+
+`@adjust-booking` ကို လက်ရှိ `openChat` (chat ဆီ လွှဲ) အတိုင်းပဲ ထားပါ — `AdjustBookingPopup` ကို embed ထဲ ဆွဲထည့်တာက embed UX ပြောင်းသွားလို့ သီးခြား task။
+
+---
+
+## အဆင့် ၅ခ — Chat sync bridge (events embed → chat embed)
+
+**ပြဿနာ:** events embed မှာ chat socket မရှိလို့ `syncBookingMessageAction` က API ကိုပဲ ရေးတယ် — တစ်ဖက်လူရဲ့ chat window က live မ update ဘူး၊ activity log လည်း မတက်ဘူး။
+
+**ဖြေရှင်းချက်:** `open-chat` လုပ်နေတဲ့ နည်းအတိုင်းပဲ parent window ကို ဖြတ်ပြီး chat embed ဆီ လွှဲပါ။ ဒီ pattern က **ရှိပြီးသား**:
+
+> [fs-chat-host.js:552-556](public/bookings-embed/fs-chat-host.js#L552-L556) မှာ `onFanBookingMessage` က parent window ပေါ်မှာ `FS_FAN_BOOKING_OPEN_CHAT` ကို နားထောင်ပြီး တခြား iframe (fanBooking embed) ကနေလာတဲ့ message ကို chat iframe ဆီ ထပ်လွှဲပေးတယ်။ iframe ၂ ခုစလုံးက host page တစ်ခုတည်းရဲ့ သားသမီးဖြစ်လို့ cross-origin ဖြစ်လည်း အလုပ်လုပ်တယ်။
+
+### 5c-1. Events embed → parent
+[src/embeds/events/bridge.js](src/embeds/events/bridge.js) မှာ ထည့်:
+```js
+export const FS_EVENTS_BOOKING_CHAT_SYNC = "FS_EVENTS_BOOKING_CHAT_SYNC";
+export function requestBookingChatSync(payload = {}) {
+  postToParent(FS_EVENTS_BOOKING_CHAT_SYNC, payload);
+}
+```
+Payload:
+```js
+{ chatId, bookingId,
+  item,           // chat.updateBookingRequestMessage က ပြန်ပေးတဲ့ message item
+  recipientIds,   // [creatorId, userId] — booking ကနေ တိုက်ရိုက်ရတယ်
+  activityLog: { text, meta } }   // optional
+}
+```
+`recipientIds` ကို booking ကနေ ပေးရတဲ့အကြောင်းရင်း — chat embed ရဲ့ `chatStore.chatParticipants[chatId]` မှာ အဲ့ chat မ load ရသေးရင် ဘယ်သူ့ကို push ရမလဲ မသိလို့။
+
+### 5c-2. Host forwarder
+[public/bookings-embed/fs-chat-host.js](public/bookings-embed/fs-chat-host.js) `onFanBookingMessage` ဘေးမှာ listener ထပ်ထည့် (သို့) အဲ့ function ကိုပဲ ချဲ့:
+```js
+if (data.type === "FS_EVENTS_BOOKING_CHAT_SYNC") {
+  if (!iframe.contentWindow) return;
+  iframe.contentWindow.postMessage({ type: "FS_CHAT_BOOKING_SYNC", payload: data.payload || {} }, "*");
+}
+```
+`destroy()` ထဲမှာ listener ဖြုတ်ဖို့ မမေ့ရ။
+
+### 5c-3. Chat embed inbound
+[ChatEmbedApp.vue](src/embeds/chat/ChatEmbedApp.vue) `onParentMessage` ([L95-L175](src/embeds/chat/ChatEmbedApp.vue#L95-L175)) မှာ:
+```js
+if (data.type === 'FS_CHAT_BOOKING_SYNC') {
+  widgetRef.value?.syncBookingUpdate?.(data.payload || {})
+}
+```
+
+### 5c-4. `syncBookingUpdate` implementation
+[ChatFloatingWidget.vue](src/components/ui/chat/ChatFloatingWidget.vue) မှာ ထားပါ — **ChatWindow မှာ မထားရ**။ အကြောင်းရင်း: socket ကို widget က ပိုင်တယ် ([L404](src/components/ui/chat/ChatFloatingWidget.vue#L404), [L574](src/components/ui/chat/ChatFloatingWidget.vue#L574)) ပြီးတော့ ChatWindow မှာ `defineExpose` မရှိသေးဘူး၊ ChatWindow ကလည်း အဲ့ chat ကို ဖွင့်ထားမှ mount ဖြစ်တာမို့ မှီခိုလို့မရဘူး။
+
+```js
+async function syncBookingUpdate({ chatId, bookingId, item, recipientIds = [], activityLog }) {
+  if (!chatId) return
+  if (bookingId) {
+    const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+    if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
+  }
+  if (item) {
+    chatStore.addMessage(chatId, item)
+    chatStore.updateChatLastMessage(chatId, item)
+    // pinned message sync — broadcastBookingUpdate (ChatWindow.vue:569-592) ထဲက logic အတိုင်း
+    socket.value?.sendChatMessage(item, resolveRecipients(chatId, recipientIds))
+  }
+  if (activityLog?.text) { /* chat.sendChatActivityLog → addMessage → socket push */ }
+}
+```
+`resolveRecipients(chatId, fallbackIds)` = `chatStore.chatParticipants[chatId]` ရှိရင် အဲ့ဒါ၊ မရှိရင် `fallbackIds` — နှစ်မျိုးလုံးကနေ ကိုယ့် `currentUserId` ကို ဖယ်။
+
+`defineExpose` ([L525](src/components/ui/chat/ChatFloatingWidget.vue#L525)) မှာ `syncBookingUpdate` ထပ်ထည့်။
+
+**ပြန်သုံးဖို့:** [ChatWindow.vue:569-592](src/components/ui/chat/ChatWindow.vue#L569-L592) `broadcastBookingUpdate` နဲ့ [L541-566](src/components/ui/chat/ChatWindow.vue#L541-L566) `sendChatActivityLog` ရဲ့ chat-id-agnostic version ကို `src/services/chat/utils/chatBroadcast.js` အသစ်ထဲ ထုတ်ပြီး ChatWindow နဲ့ ChatFloatingWidget နှစ်ခုစလုံးက သုံးပါ (logic ၂ ခါ မရေးရ)။
+
+### 5c-5. Events embed က ခေါ်တာ
+[EventsEmbedBookingDetailsPage.vue:512-526](src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue#L512-L526) `syncBookingMessageAction` ကို ချဲ့:
+```js
+async function syncBookingMessageAction(action, activityLog = null) {
+  const chatId = booking.value?.meta?.chatId;
+  const messageId = booking.value?.meta?.bookingMessageId;
+  if (!chatId || !messageId) return;
+  try {
+    const res = await FlowHandler.run("chat.updateBookingRequestMessage",
+      { chatId, messageId, action }, flowOptions());
+    requestBookingChatSync({
+      chatId, bookingId: booking.value?.bookingId,
+      item: res?.data?.item || null,
+      recipientIds: [booking.value?.creatorId, booking.value?.userId].filter(Boolean),
+      activityLog,
+    });
+  } catch (_error) { /* booking state က authoritative — chat sync က best effort */ }
+}
+```
+Action တိုင်း (approve / reject / cancel / accept_adjustment / decline_adjustment / accept-counter / reject-counter) မှာ ခေါ်ပါ။ Activity log text/meta ကို [ChatWindow](src/components/ui/chat/ChatWindow.vue) မှာ သုံးနေတဲ့ `decision` key တွေနဲ့ တူအောင် ထား (`counter_offer_accepted`, `more_time_request_accepted`, `call_cancelled` ...) — `ActivityLogTexts` map ([ChatWindow.vue:972](src/components/ui/chat/ChatWindow.vue#L972)) က အဲ့ key တွေနဲ့ စာသား ဖတ်တယ်။
+
+**Fallback:** host page မှာ chat embed မ mount ထားရင် ဘာမှ မဖြစ်ဘူး (postMessage က ကျသွားတယ်) — `FSEventsEmbed.openBookingDetailsPopup` ကို တစ်ခုတည်း သုံးတဲ့ page တွေမှာ လက်ရှိအတိုင်း best-effort ပဲ။ ဒီ bridge ရလိုက်တာနဲ့ [MainCalendar](src/components/calendar/MainCalendar.vue) ကလာတဲ့ action တွေလည်း အလိုအလျောက် အကျိုးရှိမယ်။
+
+---
+
+## အဆင့် ၆ — ကျန်တဲ့ consumer တွေ
+
+- [EventDetailsFan.vue](src/components/ui/popup/EventDetailsFan.vue) + [CalendarEventDetailsPopup.vue](src/components/calendar/CalendarEventDetailsPopup.vue) — pass-through wrapper ၂ ခုစလုံးမှာ emit အသစ် ၄ ခု ထပ်ထည့် (တစ်လုံးမကျန် တူညီအောင်)
+- [MainCalendar.vue:1034](src/components/calendar/MainCalendar.vue#L1034) — `canRequestTimeChange` မထည့်ပါနဲ့ (default `false`)၊ [DashboardEventsFeature.vue:2981](src/features/events/DashboardEventsFeature.vue#L2981) ရဲ့ "coming soon" toast လမ်းကြောင်း အတိုင်း ဆက်ထား။ `accept-adjustment` / `decline-adjustment` မချိတ်ရသေးတဲ့ bug ကို ဒီ task မှာ မထိပါနဲ့ (သီးခြား)
+- [Dashboard.vue:313](src/templates/dashboard/page/role/Dashboard.vue#L313) — demo သာ၊ မထိရ
+
+---
+
+## အတည်ပြုနည်း (Verification)
+
+### Unit tests
+```bash
+npm run test:unit -- --run \
+  src/__tests__/bookingNegotiationUtils.spec.js \
+  src/__tests__/eventDetailsFan.spec.js \
+  src/__tests__/calendarEventDetailsPopup.spec.js \
+  src/__tests__/calendarEventDetailsPopupTranslations.spec.js \
+  src/__tests__/eventsEmbedBookingDetailsPage.spec.js \
+  src/__tests__/mainCalendarCount.spec.js \
+  src/__tests__/chatJoinCall.spec.js
+```
+ပြီးရင် full suite: `npm run test:unit -- --run`
+
+Test အသစ် ရေးရန် — `BookingDetailsPopup` အတွက်:
+- fan + `meta.currentCounterOffer: 'moretime'` → `accept-counter` / `reject-counter` button ထွက်ကြောင်း + payload မှာ `offerType`/`proposed` ပါကြောင်း
+- creator + status `confirmed` + `canRequestTimeChange` → menu မှာ ask-more-time / ask-to-reschedule ရှိကြောင်း
+- `isExpired` → action row အစား "Request expired" ပြကြောင်း
+- `messageAction: 'counter_offer'` က booking status ကို override လုပ်ကြောင်း
+- **Accept and pay** နှိပ်ရင် `accept-adjustment` **မထွက်ဘဲ** `BookingAdjustmentDecisionPopup` ပွင့်ကြောင်း၊ `@confirm` ပြီးမှ `accept-adjustment` ထွက်ပြီး payload မှာ `requiresTopup` / `shortfallTokens` ပါကြောင်း
+- Cancel booking (kebab) → decision popup `mode="cancel"` ဖွင့်ပြီးမှ `cancel-booking` ထွက်ကြောင်း
+- Wallet balance က price အသစ်ထက် နည်းရင် `requiresTopup: true` + "TOP UP & PAY" ပြကြောင်း (screenshot ရဲ့ ၃ ခုမြောက် state)
+
+### Manual (embed ၂ ခု တွဲပြီး)
+```bash
+npm run dev
+```
+`public/bookings-embed/event-chat-iframe.html` က dashboard embed + chat embed ကို ဘေးချင်းယှဉ် mount လုပ်ပေးတယ် — အဲ့ဒီမှာ စမ်းပါ။
+
+စစ်ရမယ့် flow (fan account + creator account ၂ ခု လိုမယ်):
+1. Fan က booking တင် → creator chat မှာ pending bubble → **View details** → accept / decline / adjust
+2. Creator က adjust (ဈေးပြောင်း) → fan side မှာ price banner ပေါ် → **ACCEPT AND PAY** နှိပ် → `BookingAdjustmentDecisionPopup` ပေါ်လာကြောင်း၊ ၃ မျိုးလုံး စစ်:
+   - ဈေးလျော့ → "will be refunded" + `CONTINUE`
+   - ဈေးတက် + balance လုံလောက် → "will be deducted" + `CONTINUE`
+   - ဈေးတက် + balance မလုံလောက် → `TOP UP NEEDED` badge + `TOP UP & PAY` → parent topup popup ပွင့်ပြီး ပြီးတာနဲ့ booking confirm ဖြစ်ကြောင်း (`FS_CHAT_TOPUP_SUCCESS`)
+   - `CANCEL BOOKING` → decision popup `decline` mode
+3. Creator က ask-more-time / ask-to-reschedule → fan side မှာ ACCEPT NEW TIME / REJECT
+4. Cancel booking (creator + fan နှစ်ဖက်စလုံး) — kebab → decision popup `cancel` mode → booking fee / cancellation fee row တွေ မှန်ကြောင်း
+5. **Chat embed fullscreen** — booking detail ဖွင့်တဲ့အခါ iframe က viewport အပြည့် ချဲ့ကြောင်း (sentinel မှန်မမှန် စစ်တာ)
+6. Booking embed: `FSEventsEmbed.openBookingDetailsPopup({ bookingId })` နဲ့ ဖွင့်ပြီး action အားလုံး၊ host က `FS_EVENTS_BOOKING_DETAILS_UPDATED` ရကြောင်း
+7. **Chat sync bridge** — `event-chat-iframe.html` မှာ booking embed ကနေ accept/cancel လုပ်ပြီးတဲ့အခါ ဘေးက chat widget ရဲ့ bubble က page reload မလုပ်ဘဲ ချက်ချင်း ပြောင်းသွားကြောင်း + activity log message တက်လာကြောင်း + တစ်ဖက် account ရဲ့ chat မှာလည်း ရောက်ကြောင်း (browser ၂ ခု / profile ၂ ခုနဲ့)
+8. Chat embed မ mount ထားတဲ့ page မှာ booking embed တစ်ခုတည်း ဖွင့်ပြီး action လုပ်ရင် error မတက်ဘဲ ပုံမှန် အလုပ်လုပ်ကြောင်း (bridge fallback)
+
+### Build
+```bash
+npm run build
+```
+embed entry ၄ ခုစလုံး (main / eventsEmbed / bookingsEmbed / chatEmbed) build အောင်မြင်ကြောင်း။
+
+---
+
+## အဆင့်လိုက် တင်နည်း (staging)
+
+Risk လျှော့ဖို့ commit ၅ ခု ခွဲပါ:
+
+1. **Utils + composable** (အဆင့် ၁-၂) — behavior မပြောင်း၊ ရှိပြီးသား host တွေက composable ကို သုံးအောင်ပဲ ပြင်။ Test အားလုံး အစိမ်းဖြစ်ရမယ်။
+2. **Popup ချဲ့** (အဆင့် ၃ + ၆) — additive သာ။ consumer အဟောင်းတွေ မထိခိုက်ရ။
+3. **Decision popup စုစည်း** (အဆင့် ၃ခ + အဆင့် ၅ ရဲ့ ၇-၉) — `BookingDetailsPopup` က confirm ကို host လုပ်ပြီး events embed က ကိုယ်ပိုင် popup ဖြုတ်။ ဒါက additive မဟုတ်လို့ [eventsEmbedBookingDetailsPage.spec.js](src/__tests__/eventsEmbedBookingDetailsPage.spec.js) ကို ပြင်ရမယ်။
+4. **ChatWindow swap + embed parity** (အဆင့် ၄ + အဆင့် ၅ ရဲ့ ၁-၆) — ဒါက အမြင်ပြောင်းတဲ့ commit၊ manual test အပြည့်လိုတယ်။
+5. **Chat sync bridge** (အဆင့် ၅ခ) — သီးခြားထား၊ `public/bookings-embed/fs-chat-host.js` ပါလို့ WordPress host script ကို ပြန်တင်ရမယ် (deploy step ကွဲတယ်)။

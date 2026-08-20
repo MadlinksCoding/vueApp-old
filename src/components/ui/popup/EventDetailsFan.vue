@@ -12,6 +12,10 @@
     @reject-booking="emit('reject-booking', $event)"
     @adjust-booking="emit('adjust-booking', $event)"
     @decision-visibility="emit('decision-visibility', $event)"
+    @accept-counter="emit('accept-counter', $event)"
+    @reject-counter="emit('reject-counter', $event)"
+    @ask-more-time="emit('ask-more-time', $event)"
+    @ask-to-reschedule="emit('ask-to-reschedule', $event)"
   />
 </template>
 
@@ -24,5 +28,6 @@ const emit = defineEmits([
   'accept-adjustment', 'decline-adjustment', 'approve-booking',
   'reject-booking', 'adjust-booking',
   'decision-visibility',
+  'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule',
 ]);
 </script>

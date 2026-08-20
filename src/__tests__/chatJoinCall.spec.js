@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   booking: null,
   flowRun: vi.fn(),
   getBookingJoinState: vi.fn(),
+  getCalendarEventJoinState: vi.fn(),
   openScheduledMeetingOverlay: vi.fn(() => false),
   showToast: vi.fn(),
   setBooking: vi.fn(),
@@ -24,6 +25,8 @@ vi.mock("@/stores/useChatStore", () => ({
 vi.mock("@/utils/bookingJoinUtils.js", () => ({
   getBookingJoinState: mocks.getBookingJoinState,
   openScheduledMeetingOverlay: mocks.openScheduledMeetingOverlay,
+  getCalendarEventJoinState: mocks.getCalendarEventJoinState,
+  getCalendarEventApprovalState: () => ({ isPending: false, approvalWindowClosed: false, canReview: false }),
 }));
 
 vi.mock("@/utils/toastBus.js", () => ({
@@ -123,24 +126,38 @@ describe("chat Join Call controls", () => {
 
   it("uses a fresh click-time state in the booking detail popup", async () => {
     vi.setSystemTime(new Date("2026-05-01T09:55:00Z"));
-    const { default: BookingRequestDetailPopup } = await import("@/components/ui/chat/BookingRequestDetailPopup.vue");
-    const wrapper = mount(BookingRequestDetailPopup, {
+    mocks.getCalendarEventJoinState.mockImplementation((_event, { now = new Date() } = {}) => ({
+      canJoin: new Date(now).getTime() >= Date.parse("2026-05-01T09:55:00Z"),
+      joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_chat",
+      effectiveEndDate: "2026-05-01T10:30:00Z",
+    }));
+
+    const { default: BookingDetailsPopup } = await import("@/components/ui/popup/BookingDetailsPopup.vue");
+    const wrapper = mount(BookingDetailsPopup, {
       props: {
-        message: { content: { booking_id: "booking_chat", action: "accepted" } },
+        presentation: "side-panel",
         booking: mocks.booking,
+        event: {
+          bookingId: mocks.booking.bookingId,
+          start: mocks.booking.startAtIso,
+          end: mocks.booking.endAtIso,
+          status: mocks.booking.status,
+          raw: mocks.booking,
+        },
       },
-      global: { stubs: { Teleport: true } },
     });
     await flushPromises();
 
-    await wrapper.get("[data-test='chat-booking-detail-join-call']").trigger("click");
-    const clickNow = mocks.getBookingJoinState.mock.calls.at(-1)?.[0]?.now;
+    await wrapper.get("[data-test='event-details-fan-join']").trigger("click");
+    const clickNow = mocks.getCalendarEventJoinState.mock.calls.at(-1)?.[1]?.now;
     expect(clickNow.getTime()).toBe(Date.parse("2026-05-01T09:55:00Z"));
-    expect(window.open).toHaveBeenCalledWith(
-      "https://example.com/scheduled-meeting/?booking_id=booking_chat",
-      "_top",
-    );
+    expect(wrapper.emitted("join-call")?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: "booking_chat",
+      joinUrl: "https://example.com/scheduled-meeting/?booking_id=booking_chat",
+    }));
     expect(mocks.showToast).not.toHaveBeenCalled();
+
+    wrapper.unmount();
   });
 
   it("rejects programmatic live-call clicks before the join window", async () => {

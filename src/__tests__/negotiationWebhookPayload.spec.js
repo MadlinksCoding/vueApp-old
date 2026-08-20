@@ -19,11 +19,12 @@ describe('negotiation webhook request context', () => {
   })
 
   it('marks time-based accept and decline operations explicitly', () => {
-    const chatWindow = source('src/components/ui/chat/ChatWindow.vue')
-    expect(chatWindow).toContain("status: 'accepted'")
-    expect(chatWindow).toContain("status: 'declined'")
-    expect(chatWindow).toContain("intent: 'decline_renegotiation'")
-    expect(chatWindow).toContain("type: 'adjust'")
+    // Both embeds route these writes through the shared composable.
+    const actions = source('src/composables/useBookingActions.js')
+    expect(actions).toContain('status: "accepted"')
+    expect(actions).toContain('status: "declined"')
+    expect(actions).toContain('intent: "decline_renegotiation"')
+    expect(actions).toContain('type: "adjust"')
   })
 
   it('passes active Adjust cancellation as negotiation decline', () => {

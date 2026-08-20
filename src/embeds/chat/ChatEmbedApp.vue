@@ -131,6 +131,11 @@ function onParentMessage(event) {
     widgetRef.value?.openChat(payload)
   }
 
+  // Booking updated in the events embed — mirror it into chat state and the socket.
+  if (data.type === 'FS_CHAT_BOOKING_SYNC') {
+    widgetRef.value?.syncBookingUpdate?.(data.payload || {})
+  }
+
   if (data.type === 'FS_CHAT_CLOSE') {
     widgetRef.value?.closeAll?.()
   }
