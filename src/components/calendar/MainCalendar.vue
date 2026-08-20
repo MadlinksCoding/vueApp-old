@@ -2402,10 +2402,16 @@ const closeEventDetails = () => {
 
 const handleOpenChat = (payload) => {
   if (window.self !== window.top) {
-    if (window.parent.chatEmbed && typeof window.parent.chatEmbed.openChat === 'function') {
-      window.parent.chatEmbed.openChat(payload);
-    } else {
-      console.warn('chatEmbed is not available in embed mode');
+    try {
+      // Reading `window.parent` throws on a cross-origin host.
+      const parentChat = window.parent?.chatEmbed;
+      if (typeof parentChat?.openChat === 'function') {
+        parentChat.openChat(payload);
+      } else {
+        console.warn('chatEmbed is not available in embed mode');
+      }
+    } catch (_error) {
+      console.warn('chatEmbed is not reachable from a cross-origin host');
     }
   } else {
     console.log('Open chat requested in normal mode:', payload);

@@ -10,6 +10,26 @@ export function isMessageReadByUser(msg, userId) {
   return receipts.some((r) => String(r.user_id ?? r) === String(userId));
 }
 
+/**
+ * Finds the direct (non-group) chat shared by exactly two participants.
+ *
+ * `chatParticipants` entries are ids or objects depending on where they were
+ * filled in, so both shapes are normalised before comparing.
+ */
+export function findDirectChat(chatStore, userIdA, userIdB, { bookingRequestOnly = false } = {}) {
+  const a = Number(userIdA);
+  const b = Number(userIdB);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+
+  return (chatStore.userChats || []).find((chat) => {
+    if (chat.is_group === true || chat.is_group === 1 || chat.type === 'group') return false;
+    const parts = (chatStore.chatParticipants[chat.chat_id] || [])
+      .map((participant) => Number(participant?.user_id ?? participant?.userId ?? participant?.id ?? participant));
+    if (parts.length !== 2 || !parts.includes(a) || !parts.includes(b)) return false;
+    return bookingRequestOnly ? chat.metadata?.is_booking_request === true : true;
+  }) || null;
+}
+
 export async function ensureChatUsersData(userIds) {
   if (!Array.isArray(userIds) || userIds.length === 0) return;
 

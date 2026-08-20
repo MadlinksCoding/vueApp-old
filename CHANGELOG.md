@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-08-20 — Decline Confirmation & Chat Embed Read APIs
+
+### Added
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **`getChat()` / `getMessage()`** — Two read APIs on the mounted chat handle, alongside `getState()` / `refreshStats()`. `getChat({ chatId })` or `getChat({ userId, creatorId })` returns one chat; `getMessage({ chatId, messageId })` returns one message. Both resolve to `{ item }` and read only from the embed's store — no API calls, no state mutation, so the unread counters the host renders are untouched.
+- **Shared `request()` Helper** — The `getState` promise/timeout/requestId block was generalised so the three RPCs share one implementation and one pending map, answered by a new `FS_CHAT_RESPONSE` type (the original `FS_CHAT_STATE_RESPONSE` is still accepted).
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **`FS_CHAT_GET_CHAT` / `FS_CHAT_GET_MESSAGE` Handlers** — Message lookup checks the pinned messages first, since booking requests are pinned, then the chat's message list; it normalises the two shapes `chatPinnedMessages` can hold and matches on either `message_id` or `id`.
+
+#### `src/services/bookings/utils/bookingChatMessage.js`
+- **`resolveBookingChatMessage()`** — Returns the real chat message when a chat embed on the host page still holds it, otherwise the message rebuilt from booking meta. Guarded against a missing embed, a cross-origin host, and a request timeout.
+
+#### `src/services/chat/chatResolverUtils.js`
+- **`findDirectChat()`** — The direct-chat lookup lifted out of `ChatFloatingWidget` so the widget and the new RPC handler share it. Participant entries may be ids or objects, so both shapes are normalised.
+
+#### `src/__tests__/`
+- **New Specs** — `fsChatHostRpc.spec.js` (round trip, unknown request id, timeout, teardown, `getState` regression), `bookingChatMessage.spec.js` (every fallback path including a cross-origin `SecurityError`), and `chatDeclineConfirmation.spec.js` (decline wiring).
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Decline Confirms First** — Declining a pending booking from a chat bubble ran the API on the first click. It now opens `BookingAdjustmentDecisionPopup` in `reject` mode — the same refund confirmation the booking detail panel already used. The detail popup's own `reject-booking` path is untouched, since it confirms internally.
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **Real Booking Message** — The linked chat message is now resolved asynchronously and passed to `BookingDetailsPopup` as `bookingMessage`. The rebuilt message is shown immediately so the panel is never empty, then replaced once the real one arrives. Only the real message carries `content.action`, which decides whether the creator sees the time-change actions.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Counter Offer From a Self-Fetched Booking** — `getPendingCounterOffer` fell back to `props.booking`, which is null when the popup fetches the booking itself; it now reads the resolved booking.
+
+### Fixed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Reject Fell Through to Accept** — A confirmed decision with mode `reject` had no branch in `confirmBookingDecision` and would have reached `onConfirmCounter`, accepting the counter offer instead of declining the booking.
+- **Confirmation Popup Stayed Open** — `performBookingDecision` closed the detail panel but not the decision popup, which cannot close itself while the action is still marked as processing.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Timers Outliving Teardown** — `destroy()` left in-flight request timers running, so they rejected five seconds after the embed was gone. They are now cleared.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Read Requests Toggled the Widget** — Any inbound `FS_CHAT_*` message re-evaluated the floating button's visibility. The two read APIs are excluded so fetching a chat or message cannot move the UI.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Cross-Origin Chat Access** — `window.parent.chatEmbed` was read without a guard; on a cross-origin host that throws a `SecurityError` out of the click handler.
+
 ## 2026-08-20 — Booking Request Bubble & Adjust Request Fixes
 
 Follow-up to the booking details popup consolidation: aligns the chat bubble's actions with the new confirmation flow and repairs the "Adjust Request" path on the events dashboard.
