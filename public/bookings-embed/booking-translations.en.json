@@ -448,6 +448,7 @@
   "dashboard_booking_action_failed_title": "Booking Action Failed",
   "dashboard_booking_action_missing_id": "Could not find booking id for this request.",
   "dashboard_booking_action_update_failed": "Could not update booking approval.",
+  "dashboard_booking_adjust_unavailable": "This booking has no linked chat request, so it cannot be adjusted.",
   "dashboard_booking_approved_message": "The booking request was approved.",
   "dashboard_booking_approved_title": "Booking Approved",
   "dashboard_booking_cancel_failed_message": "Could not cancel booking.",
