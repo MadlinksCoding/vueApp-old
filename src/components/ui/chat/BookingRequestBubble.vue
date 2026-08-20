@@ -49,7 +49,7 @@
             class="absolute right-0 top-6 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
             @click.stop
           >
-            <button
+            <!-- <button
               v-if="resolvedAction === 'accepted'"
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
@@ -63,8 +63,8 @@
                 </svg>
               </span>
               Ask for more time
-            </button>
-            <button
+            </button> -->
+            <!-- <button
               v-if="resolvedAction === 'accepted'"
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
@@ -78,7 +78,7 @@
                 </svg>
               </span>
               Ask to reschedule
-            </button>
+            </button> -->
             <button
               type="button"
               class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
@@ -164,7 +164,7 @@
           </button>
         </div>
         <!-- Active state -->
-        <div v-else class="mt-auto flex flex-col gap-2 w-full items-start">
+        <div v-else class="mt-auto flex flex-wrap gap-2 w-full items-start justify-between">
           <div class="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
@@ -183,6 +183,12 @@
               Decline
             </button>
           </div>
+          <button type="button"
+            class="flex items-center gap-0.5 text-[#5549FF] text-sm font-medium hover:opacity-80 shrink-0"
+            @click.stop="$emit('view-details')">
+            View Details
+            <img :src="ArrowRightIcon" class="w-4 h-4" alt="" />
+          </button>
           <button
             type="button"
             :disabled="disabled"
