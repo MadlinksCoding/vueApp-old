@@ -2826,8 +2826,8 @@ function _handleUnpinInterval() {
     const isCancelledOrDeclined = (msg.content_type === 'booking_request' || msg.content_type === 'requestJoinCallNotification') &&
                                   (isCancelledOrDeclinedAction || isCancelledOrDeclinedApi);
 
-    let isEmptyBooking = !booking || !booking.endAtIso || !booking.startAtIso;
-    const isTimeExpired = unpinAt && new Date(unpinAt).getTime() < Date.now() || isEmptyBooking;
+    let isEmptyBooking = !booking;
+    const isTimeExpired = (unpinAt && new Date(unpinAt).getTime() < Date.now()) || isEmptyBooking
 
     if (isCancelledOrDeclined || isTimeExpired) {
       let currentPinned = chatStore.chatPinnedMessages[activeChatId.value] || [];

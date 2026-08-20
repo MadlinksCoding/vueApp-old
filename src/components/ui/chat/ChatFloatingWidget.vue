@@ -608,9 +608,12 @@ onMounted(async () => {
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
 
-    // Pre-fetch global chat data
-    chatStore.fetchBlockedUsers(currentUserId.value, isCreatorAccount.value).catch(() => {})
-    chatStore.fetchChatBookingsAndEvents(currentUserId.value, isCreatorAccount.value).catch(() => {})
+    // Pre-fetch global chat data. These populate caches the bubbles read, so a
+    // failure has to be visible rather than swallowed.
+    chatStore.fetchBlockedUsers(currentUserId.value, isCreatorAccount.value)
+      .catch((error) => console.error('ChatFloatingWidget: fetchBlockedUsers failed', error))
+    chatStore.fetchChatBookingsAndEvents(currentUserId.value, isCreatorAccount.value)
+      .catch((error) => console.error('ChatFloatingWidget: fetchChatBookingsAndEvents failed', error))
 
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [
