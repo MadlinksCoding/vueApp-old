@@ -649,6 +649,42 @@
         return;
       }
 
+      // The calendar surface can also need a token top-up, when a fan accepts a
+      // price increase from the booking details panel it renders inline.
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
+        var dashboardTopup = data.payload || {};
+        var dashboardTokens = Number(dashboardTopup.requiredTokens || 0);
+        var replyTopup = function (type, reason) {
+          if (!iframe.contentWindow) return;
+          iframe.contentWindow.postMessage({
+            type: type,
+            payload: { bookingId: dashboardTopup.bookingId, reason: reason },
+          }, settings.targetOrigin || "*");
+        };
+
+        if (typeof global.openTipPopup !== "function" || !Number.isFinite(dashboardTokens) || dashboardTokens <= 0) {
+          replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED, "topup_unavailable");
+          return;
+        }
+
+        global.openTipPopup({
+          creator_id: dashboardTopup.creatorUserId || 0,
+          user_id: dashboardTopup.currentUserId || 0,
+          tip_type: "token",
+          topup_amount: dashboardTokens,
+          is_call_topup_and_tip: true,
+          is_tip_from_php: true,
+          topupFor: dashboardTopup.topupFor || "booking_confirm",
+          successCallback: function () {
+            replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS);
+          },
+          failureCallback: function () {
+            replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED, "topup_failed");
+          },
+        });
+        return;
+      }
+
       if (data.type === FS_EVENTS_SCROLL_TO_TOP) {
         scrollEventsEmbedToTop(wrapper, data.payload || {});
         return;

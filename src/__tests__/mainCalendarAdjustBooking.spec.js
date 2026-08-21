@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   flowRun: vi.fn(),
-  sendChatMessage: vi.fn(),
+  requestSync: vi.fn(),
   showToast: vi.fn(),
   resolveUserId: vi.fn(() => "2615"),
 }));
@@ -13,9 +13,7 @@ vi.mock("@/services/flow-system/FlowHandler", () => ({
   default: { run: mocks.flowRun },
 }));
 
-vi.mock("@/composables/useChatSocket", () => ({
-  useChatSocket: () => ({ sendChatMessage: mocks.sendChatMessage }),
-}));
+vi.mock("@/embeds/events/bridge.js", () => ({ requestBookingChatSync: mocks.requestSync }));
 
 vi.mock("@/utils/toastBus.js", () => ({ showToast: mocks.showToast }));
 
@@ -41,7 +39,7 @@ vi.mock("@/components/ui/popup/PopupHandler.vue", () => ({
 const DetailsStub = {
   name: "BookingDetailsPopup",
   props: ["event"],
-  emits: ["adjust-booking"],
+  emits: ["adjust-booking", "accept-adjustment", "decline-adjustment"],
   template: "<div data-test='details-stub' />",
 };
 
@@ -115,7 +113,7 @@ describe("MainCalendar adjust request", () => {
     setActivePinia(createPinia());
     mocks.flowRun.mockReset();
     mocks.flowRun.mockResolvedValue({ ok: true, data: { item: {} } });
-    mocks.sendChatMessage.mockReset();
+    mocks.requestSync.mockReset();
     mocks.showToast.mockReset();
   });
 
@@ -157,23 +155,53 @@ describe("MainCalendar adjust request", () => {
     wrapper.unmount();
   });
 
-  it("broadcasts the counter offer with a resolved sender id", async () => {
+  it.each([
+    ["accept-adjustment", "accept-adjustment"],
+    ["decline-adjustment", "decline-adjustment"],
+  ])("attaches the selected booking when forwarding %s", async (_label, eventName) => {
+    const wrapper = await mountCalendar();
+    const value = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
+
+    wrapper.vm.eventDetailsPopupOpen = true;
+    wrapper.vm.selectedEvent = { bookingId: value.bookingId, raw: value };
+    await wrapper.vm.$nextTick();
+
+    // The popup only emits the proposal figures, so the host would have no booking
+    // to act on unless the calendar attaches it.
+    wrapper.getComponent(DetailsStub).vm.$emit(eventName, { negotiationId: "neg_1", proposedTokens: 10 });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted(eventName)?.[0]?.[0]).toEqual(expect.objectContaining({
+      negotiationId: "neg_1",
+      proposedTokens: 10,
+      booking: expect.objectContaining({ bookingId: "booking_1" }),
+    }));
+
+    wrapper.unmount();
+  });
+
+  it("relays the counter offer through the host instead of its own socket", async () => {
     const wrapper = await mountCalendar();
     const value = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
     await requestAdjust(wrapper, value);
 
     const item = { message_id: "message_1", content: { booking_id: "booking_1" } };
-    mocks.flowRun.mockResolvedValueOnce({ ok: true, data: { item: { message_id: "log_1" } } });
     wrapper.getComponent(AdjustStub).vm.$emit("submitted", { item, booking: value });
     await wrapper.vm.$nextTick();
     await Promise.resolve();
 
-    expect(mocks.flowRun).toHaveBeenCalledWith("chat.sendChatActivityLog", expect.objectContaining({
+    // This surface has no chat socket, so the broadcast and activity log go to the
+    // chat embed via the host relay.
+    expect(mocks.requestSync).toHaveBeenCalledWith(expect.objectContaining({
       chatId: "chat_1",
-      senderId: "2615",
-      text: "Counter offer sent",
+      bookingId: "booking_1",
+      item,
+      recipientIds: ["1407", "2615"],
+      activityLog: expect.objectContaining({
+        text: "Counter offer sent",
+        meta: expect.objectContaining({ decision: "counter_offer" }),
+      }),
     }));
-    expect(mocks.sendChatMessage).toHaveBeenCalledWith(item, [1407, 2615]);
 
     wrapper.unmount();
   });

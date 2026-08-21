@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-21 — Calendar Booking Actions Reach Chat
+
+Accepting, declining or cancelling a booking from the events dashboard calendar left the chat untouched — no updated request bubble, no activity log, and nothing pushed to the other party. Only the standalone booking-details popup was wired for it. This closes that gap and gives the calendar the price-adjustment actions it was missing.
+
+### Added
+
+#### `src/composables/useBookingChatSync.js`
+- **Shared Chat Mirroring** — `syncBookingToChat(booking, action, logKey)` writes the action onto the linked chat message and then asks the chat embed on the host page to broadcast it with an activity log. `broadcastBookingToChat(booking, item, logKey)` covers the case where the message was already written by one of the chat request popups, so only the broadcast is missing. The activity-log copy lives here too, keyed the way `ChatWindow` reads `decision`.
+
+#### `src/features/events/DashboardEventsFeature.vue`
+- **Price Adjustment Responses** — Fans can now accept or decline a creator's price change from the calendar's booking detail panel. The confirmation, wallet-balance breakdown, top-up round trip and re-approval mirror what the standalone booking-details page already did, via `useBookingAdjustmentDecision` and `useBookingActions`.
+
+#### `public/bookings-embed/fs-events-host.js`
+- **Dashboard Top-up Handler** — `FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED` was only handled inside the booking-details popup's message block, so a top-up requested from the dashboard embed was dropped without a reply. The dashboard block now opens the tip popup and answers with success or failure, matching the popup block.
+
+#### `src/__tests__/`
+- **New Coverage** — `bookingChatSync.spec.js` (mirror, broadcast payload, and the cases that must not reach chat) plus dashboard top-up cases in `fsEventsHost.spec.js` and payload-shape cases in `mainCalendarAdjustBooking.spec.js`.
+
+### Changed
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **One Implementation** — `syncBookingMessageAction` and the inline relay in `onTimeChangeSubmitted` now delegate to `useBookingChatSync`, so the two events surfaces share a single implementation instead of drifting.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Counter Offers Through the Host Relay** — `handleAdjustSubmitted` broadcast the updated message over its own `useChatSocket()` instance, which was constructed without a user id. It now goes through the same host relay as every other events-surface action, and the direct socket import is gone.
+
+### Fixed
+
+#### `src/features/events/DashboardEventsFeature.vue`
+- **Calendar Actions Never Reached Chat** — `reviewPendingBooking` and `confirmCancelBooking` called the booking API and refetched the dashboard, but never updated the linked chat message or asked the chat embed to broadcast it. Accept, decline and cancel now all mirror to chat, which also covers the compact widget approval that routes through the same handler.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Adjustment Events Carried No Booking** — `BookingDetailsPopup` emits only the proposal figures for `accept-adjustment` / `decline-adjustment`, with no booking or event attached. The calendar now attaches the selected booking when forwarding them; without it the host had nothing to act on and the buttons did nothing.
+
 ## 2026-08-20 — Decline Confirmation & Chat Embed Read APIs
 
 ### Added

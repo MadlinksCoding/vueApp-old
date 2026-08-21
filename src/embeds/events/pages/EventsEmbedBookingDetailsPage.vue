@@ -135,7 +135,6 @@ import {
   installBookingDetailsTopupListener,
   requestBookingDetailsTopup,
   requestBookingDetailsClose,
-  requestBookingChatSync,
   requestEventsEmbedOpenUrl,
 } from "@/embeds/events/bridge.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
@@ -145,6 +144,7 @@ import { getCalendarEventApprovalState } from "@/utils/bookingJoinUtils.js";
 import { showToast } from "@/utils/toastBus.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
+import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
 
 const bootstrap = useEventsEmbedBootstrap();
@@ -219,6 +219,7 @@ const adjustmentDecision = adjustmentDecisionState.decision;
 const adjustmentDecisionPopupProps = adjustmentDecisionState.popupProps;
 
 const bookingActions = useBookingActions({ flowOptions });
+const { syncBookingToChat, broadcastBookingToChat } = useBookingChatSync({ flowOptions });
 
 const anyDecisionOpen = computed(() => adjustmentDecisionOpen.value || detailsDecisionOpen.value);
 
@@ -491,25 +492,7 @@ async function onTimeChangeSubmitted(action, payload = {}) {
   const chatId = booking.value?.meta?.chatId;
   if (payload.booking) booking.value = payload.booking;
 
-  if (chatId && payload.item) {
-    const log = CHAT_ACTIVITY_LOGS[action];
-    requestBookingChatSync({
-      chatId,
-      bookingId: booking.value?.bookingId || bootstrap.bookingId,
-      item: payload.item,
-      recipientIds: [booking.value?.creatorId, booking.value?.userId].filter(Boolean).map(String),
-      activityLog: log
-        ? {
-          text: log.text,
-          meta: {
-            is_booking_request: true,
-            decision: log.decision,
-            bookingId: booking.value?.bookingId || bootstrap.bookingId,
-          },
-        }
-        : null,
-    });
-  }
+  if (chatId) broadcastBookingToChat(booking.value, payload.item, action);
 
   await notifySuccessfulBookingUpdate(action, payload.booking || booking.value);
   await loadBooking();
@@ -569,48 +552,13 @@ function actionError(message) {
   });
 }
 
-const CHAT_ACTIVITY_LOGS = {
-  approve: { text: "Booking accepted", decision: "accepted" },
-  reject: { text: "Booking declined", decision: "declined" },
-  cancel: { text: "Call cancelled", decision: "call_cancelled" },
-  accept_adjustment: { text: "Counter offer accepted", decision: "counter_offer_accepted" },
-  decline_adjustment: { text: "Counter offer declined", decision: "counter_offer_declined" },
-  accept_counter: { text: "New time accepted", decision: "more_time_request_accepted" },
-  reject_counter: { text: "New time rejected", decision: "more_time_request_rejected" },
-  more_time_request: { text: "More time requested", decision: "more_time_request_sent" },
-  reschedule_request: { text: "Reschedule requested", decision: "reschedule_request_sent" },
-};
 
 /**
  * Mirrors the action onto the linked chat message, then asks the chat embed on the
  * host page to broadcast it — this embed has no chat socket of its own.
  */
 async function syncBookingMessageAction(action, logKey = null) {
-  const chatId = booking.value?.meta?.chatId;
-  const { ok, item } = await bookingActions.syncBookingMessage({
-    chatId,
-    messageId: booking.value?.meta?.bookingMessageId,
-    action,
-  });
-  if (!ok || !chatId) return;
-
-  const log = logKey ? CHAT_ACTIVITY_LOGS[logKey] : null;
-  requestBookingChatSync({
-    chatId,
-    bookingId: booking.value?.bookingId || bootstrap.bookingId,
-    item,
-    recipientIds: [booking.value?.creatorId, booking.value?.userId].filter(Boolean).map(String),
-    activityLog: log
-      ? {
-        text: log.text,
-        meta: {
-          is_booking_request: true,
-          decision: log.decision,
-          bookingId: booking.value?.bookingId || bootstrap.bookingId,
-        },
-      }
-      : null,
-  });
+  await syncBookingToChat(booking.value, action, logKey);
 }
 
 async function applyPriceAdjustment(adjustment = {}) {
