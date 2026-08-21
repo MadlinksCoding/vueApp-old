@@ -146,7 +146,7 @@ vi.mock("@/components/calendar/CalendarMobilePopupContent.vue", () => ({
 vi.mock("@/components/ui/popup/BookingDetailsPopup.vue", () => ({
   default: {
     name: "BookingDetailsPopup",
-    props: ["event", "comparisonTime", "layoutVariant", "actionLoading"],
+    props: ["event", "booking", "comparisonTime", "layoutVariant", "actionLoading"],
     template: "<div data-test='event-details' :data-comparison-time='comparisonTime?.toISOString?.()'>{{ event.title }}</div>",
   },
 }));
@@ -755,6 +755,40 @@ describe("MainCalendar all events count", () => {
     await wrapper.setProps({ bookedSlotsCount: 0 });
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
     expect(mobilePopupCounts(wrapper)).toEqual(["0", "0"]);
+  });
+
+  it("blinks the mobile calendar icon only for creator-actionable pending bookings", async () => {
+    setWindowWidth(390);
+    const pendingBooking = makeEvent({
+      eventId: "actionable_pending",
+      isAvailabilityBlock: false,
+      status: "pending",
+      start: "2026-04-23T10:00:00Z",
+      raw: { bookingId: "booking_actionable_pending", status: "pending" },
+    });
+    const wrapper = await mountCalendar([pendingBooking], {
+      userRole: "creator",
+      canReviewPending: true,
+      joinComparisonTime: new Date("2026-04-23T09:00:00Z"),
+    });
+
+    const indicators = wrapper.findAll("[data-test='calendar-actionable-pending-indicator']");
+    expect(indicators).toHaveLength(2);
+    expect(indicators.every((indicator) => indicator.classes().includes("calendar-pending-dot-blink"))).toBe(true);
+    expect(indicators.every((indicator) => indicator.classes().includes("bg-[#F04438]"))).toBe(true);
+
+    await wrapper.setProps({
+      events: [{ ...pendingBooking, pendingPriceAdjustment: true }],
+    });
+    expect(wrapper.find("[data-test='calendar-actionable-pending-indicator']").exists()).toBe(false);
+
+    await wrapper.setProps({
+      events: [{ ...pendingBooking, pendingCounterOffer: true }],
+    });
+    expect(wrapper.find("[data-test='calendar-actionable-pending-indicator']").exists()).toBe(false);
+
+    await wrapper.setProps({ events: [pendingBooking], userRole: "fan" });
+    expect(wrapper.find("[data-test='calendar-actionable-pending-indicator']").exists()).toBe(false);
   });
 
   it("shows completed and ended bookings by default and allows hiding them", async () => {
@@ -1635,12 +1669,17 @@ describe("MainCalendar all events count", () => {
     const stripDates = wrapper.findAll("[data-test='calendar-mobile-day-strip-date']");
     const bodyColumns = wrapper.findAll("[data-cal-time-grid] span.grid > div[data-date]");
     const selectedDate = stripDates.find((button) => button.attributes("data-selected") === "true");
+    const unselectedDate = stripDates.find((button) => button.attributes("data-selected") === "false");
 
     expect(strip.exists()).toBe(true);
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(false);
     expect(stripDates).toHaveLength(7);
     expect(stripDates.every((button) => button.classes().includes("min-w-[25%]"))).toBe(true);
     expect(selectedDate?.attributes("data-date")).toBe(localDateKey(todayDate));
     expect(selectedDate?.attributes("data-today")).toBe("true");
+    expect(selectedDate?.find("span:first-child").classes()).toContain("text-[#101828]");
+    expect(unselectedDate?.find("span:first-child").classes()).toContain("text-[#98A2B3]");
+    expect(unselectedDate?.find("span:nth-child(2)").classes()).toContain("text-[#98A2B3]");
     expect(wrapper.find("[data-test='calendar-day-event-title']").exists()).toBe(false);
 
     expect(bodyColumns).toHaveLength(1);
@@ -1771,19 +1810,83 @@ describe("MainCalendar all events count", () => {
     await wrapper.get('[data-test="mobile-review-event"]').trigger("click");
     const details = wrapper.getComponent({ name: "BookingDetailsPopup" });
     expect(details.props("layoutVariant")).toBe("compact");
+    expect(details.props("booking")).toBeNull();
 
     details.vm.$emit("approve-booking", {
       bookingId: "booking_mobile_review",
       event: pendingEvent,
     });
     await wrapper.vm.$nextTick();
-    expect(wrapper.emitted("approve-booking")?.[0]?.[0]).toEqual(expect.objectContaining({ retainDetails: true }));
+    expect(wrapper.emitted("approve-booking")?.[0]?.[0]).toEqual(expect.objectContaining({
+      retainDetails: true,
+      showReviewToast: true,
+    }));
     expect(wrapper.findComponent({ name: "BookingDetailsPopup" }).exists()).toBe(true);
 
     wrapper.vm.applyBookingReviewResult({ ...pendingEvent, status: "confirmed", raw: { ...pendingEvent.raw, status: "confirmed" } });
     await wrapper.vm.$nextTick();
     expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("event").status).toBe("confirmed");
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("booking")).toEqual(expect.objectContaining({ status: "confirmed" }));
     expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("layoutVariant")).toBe("compact");
+  });
+
+  it.each([
+    ["approve-booking", "confirmed"],
+    ["reject-booking", "cancelled_creator"],
+  ])("retains a desktop creator hero after %s and applies its authoritative result", async (eventName, reviewedStatus) => {
+    setWindowWidth(1280);
+    const pendingEvent = makeEvent({
+      eventId: `evt_desktop_${reviewedStatus}`,
+      title: "Desktop review",
+      start: "2026-04-23T10:00:00",
+      end: "2026-04-23T10:30:00",
+      status: "pending",
+      isAvailabilityBlock: false,
+      raw: { bookingId: `booking_desktop_${reviewedStatus}`, status: "pending" },
+    });
+    const wrapper = await mountCalendar(
+      [pendingEvent],
+      { initialView: "day", userRole: "creator", canReviewPending: true },
+      {
+        slots: {
+          event: `<template #event="{ event, onClick }"><button data-test="desktop-review-event" @click="onClick(event)">{{ event.title }}</button></template>`,
+        },
+      },
+    );
+
+    await wrapper.get('[data-test="desktop-review-event"]').trigger("click");
+    const details = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    expect(details.props("layoutVariant")).toBe("hero");
+    expect(details.props("booking")).toBeNull();
+
+    details.vm.$emit(eventName, {
+      bookingId: pendingEvent.raw.bookingId,
+      event: pendingEvent,
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted(eventName)?.[0]?.[0]).toEqual(expect.objectContaining({
+      retainDetails: true,
+      showReviewToast: false,
+    }));
+    expect(wrapper.findComponent({ name: "BookingDetailsPopup" }).exists()).toBe(true);
+
+    const authoritativeBooking = {
+      ...pendingEvent.raw,
+      status: reviewedStatus,
+      ...(reviewedStatus === "cancelled_creator" ? {
+        cancellation: { actor: "creator", refundedTokens: 100 },
+        payment: { allocations: { bookingFee: 5, cancellationFee: 10 } },
+      } : {}),
+    };
+    wrapper.vm.applyBookingReviewResult({
+      ...pendingEvent,
+      status: reviewedStatus,
+      raw: authoritativeBooking,
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("event").status).toBe(reviewedStatus);
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("booking")).toEqual(authoritativeBooking);
+    expect(wrapper.getComponent({ name: "BookingDetailsPopup" }).props("layoutVariant")).toBe("hero");
   });
 
   it("opens desktop and tablet booking details as a full-height right drawer", async () => {
@@ -3371,7 +3474,7 @@ describe("MainCalendar all events count", () => {
     expect(secondSignal.aborted).toBe(true);
   });
 
-  it("renders the dynamic phone and tablet-portrait join card and emits its join and translated menu actions", async () => {
+  it("renders the dynamic phone join card and emits its join and translated menu actions", async () => {
     setWindowWidth(390);
     const { bookingTranslationSymbol } = await import("@/i18n/bookingTranslations");
     const stickyCardEvent = {
@@ -3419,7 +3522,6 @@ describe("MainCalendar all events count", () => {
 
     const card = wrapper.get("[data-test='mobile-join-card']");
     expect(card.classes()).toContain("md:hidden");
-    expect(card.classes()).toContain("ipad-portrait:block");
     expect(card.get("[data-test='mobile-join-card-title']").text()).toBe("Creator Office Hours");
     expect(card.get("[data-test='mobile-join-card-time']").text()).toContain("9:55");
     expect(card.get("[data-test='mobile-join-card-status']").text()).toBe("en 4 min");
@@ -3433,7 +3535,6 @@ describe("MainCalendar all events count", () => {
     expect(floatingTodayButton.classes()).toContain("md:bottom-2");
     expect(floatingTodayButton.classes())
       .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingTodayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 0.5rem");
 
     await card.get("[data-test='mobile-join-card-join']").trigger("click");
     expect(wrapper.emitted("join-call")).toEqual([[stickyCardEvent]]);
@@ -3495,92 +3596,27 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-join-card-menu']").exists()).toBe(false);
   });
 
-  it("renders a prioritized three-card tablet list with creator pending actions", async () => {
+  it("does not render sticky booking cards in tablet portrait", async () => {
     setWindowWidth(768);
-    vi.stubGlobal("matchMedia", vi.fn(() => ({
-      matches: true,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })));
-    const confirmed = {
-      title: "Starting Soon",
-      canJoin: true,
-      joinUrl: "https://example.com/join/soon",
-      statusText: "in 5 mins",
-      isGroup: true,
-      groupText: "Group event (2)",
-      sourceEvent: {
-        bookingId: "booking_confirmed",
-        eventId: "event_confirmed",
-        status: "confirmed",
-        start: "2026-04-23T09:55:00",
-        end: "2026-04-23T10:30:00",
-      },
-    };
-    const pending = {
-      title: "Pending Request",
-      canJoin: false,
-      joinUrl: null,
-      showReply: true,
-      isGroup: true,
-      groupText: "Group event (1)",
-      sourceEvent: {
-        bookingId: "booking_pending",
-        eventId: "event_pending",
-        title: "Pending Request",
-        status: "pending",
-        start: "2026-04-23T10:35:00",
-        end: "2026-04-23T11:00:00",
-      },
-    };
-    const pendingHold = {
-      ...pending,
-      title: "Pending Hold",
-      sourceEvent: {
-        ...pending.sourceEvent,
-        bookingId: "booking_pending_hold",
-        eventId: "event_pending_hold",
-        title: "Pending Hold",
-        status: "pending_hold",
-        start: "2026-04-23T11:05:00",
-        end: "2026-04-23T11:30:00",
-      },
-    };
+    setWindowHeight(1024);
     const wrapper = await mountCalendar(
       [],
-      { stickyCardEvents: [confirmed, pending, pendingHold], userRole: "creator" },
-      { global: { stubs: { Teleport: true, TooltipIcon: true } } },
+      {
+        stickyCardEvents: [{
+          title: "Pending Request",
+          showReply: true,
+          sourceEvent: { bookingId: "booking_pending", status: "pending" },
+        }],
+        userRole: "creator",
+      },
+      { global: { stubs: { Teleport: true } } },
     );
 
-    expect(wrapper.findAll("[data-test='sticky-booking-card']")).toHaveLength(3);
-    expect(wrapper.findAll("[data-test='mobile-join-card']")).toHaveLength(1);
-    expect(wrapper.findAll("[data-test='tablet-sticky-pending-card']")).toHaveLength(2);
-    expect(wrapper.findAll("[data-test='sticky-booking-card']").map((card) => card.attributes("data-booking-status")))
-      .toEqual(["confirmed", "pending", "pending_hold"]);
-
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='sticky-booking-card']").exists()).toBe(false);
     const todayButton = wrapper.findAll("[data-main-today]")
-      .find((button) => button.classes().includes("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]"));
-    expect(todayButton).toBeTruthy();
-    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 22.25rem");
-
-    const menuTriggers = wrapper.findAll("[data-test='mobile-join-card-menu-trigger']");
-    await menuTriggers[0].trigger("click");
-    expect(wrapper.findAll("[data-test='mobile-join-card-menu']")).toHaveLength(1);
-    await menuTriggers[1].trigger("click");
-    expect(wrapper.findAll("[data-test='mobile-join-card-menu']")).toHaveLength(1);
-
-    await wrapper.findAll("[data-test='sticky-card-review']")[0].trigger("click");
-    expect(wrapper.get("[data-test='event-details']").text()).toBe("Pending Request");
-
-    await wrapper.findAll("[data-test='sticky-card-accept']")[1].trigger("click");
-    expect(wrapper.emitted("approve-booking")).toEqual([[
-      {
-        bookingId: "booking_pending_hold",
-        eventId: "event_pending_hold",
-        decision: "approve",
-        event: pendingHold.sourceEvent,
-      },
-    ]]);
+      .find((button) => button.classes().includes("fixed"));
+    expect(todayButton.classes()).not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
   });
 
   it("does not render pending sticky cards for fan viewers", async () => {
@@ -3607,7 +3643,7 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='mobile-join-card']").exists()).toBe(false);
   });
 
-  it("renders sticky cards only at phone and tablet-portrait viewport shapes", async () => {
+  it("renders a confirmed sticky card on phones only", async () => {
     const confirmed = {
       title: "Responsive Booking",
       canJoin: true,
@@ -3623,8 +3659,8 @@ describe("MainCalendar all events count", () => {
       },
     };
 
-    setWindowWidth(768);
-    setWindowHeight(1024);
+    setWindowWidth(390);
+    setWindowHeight(844);
     const wrapper = await mountCalendar(
       [],
       { stickyCardEvents: [confirmed], userRole: "creator" },
@@ -3633,15 +3669,20 @@ describe("MainCalendar all events count", () => {
 
     expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
 
+    setWindowWidth(768);
+    setWindowHeight(1024);
+    await nextTick();
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
+
     setWindowWidth(1024);
     setWindowHeight(1366);
     await nextTick();
-    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
 
     setWindowWidth(1366);
     setWindowHeight(1400);
     await nextTick();
-    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
 
     setWindowWidth(1366);
     setWindowHeight(1024);
@@ -3659,7 +3700,7 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
   });
 
-  it("resets the tablet floating-control offset when the final sticky card is removed", async () => {
+  it("does not reserve tablet portrait space for sticky cards", async () => {
     setWindowWidth(768);
     setWindowHeight(1024);
     const confirmed = {
@@ -3682,13 +3723,7 @@ describe("MainCalendar all events count", () => {
     const todayButton = wrapper.findAll("[data-main-today]")
       .find((button) => button.classes().includes("fixed"));
 
-    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 8.25rem");
-    expect(todayButton.classes()).toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-
-    await wrapper.setProps({ stickyCardEvents: [] });
-
     expect(wrapper.find("[data-test='tablet-sticky-card-list']").exists()).toBe(false);
-    expect(todayButton.attributes("style")).toContain("--sticky-card-tablet-bottom: 0.5rem");
     expect(todayButton.classes()).not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
   });
 
@@ -3719,8 +3754,6 @@ describe("MainCalendar all events count", () => {
       .find((button) => button.classes().includes("fixed"));
     expect(floatingTodayButton.classes())
       .not.toContain("ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)]");
-    expect(floatingTodayButton.attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("hides the mobile join card and resets floating spacing without an eligible event", async () => {
@@ -3742,8 +3775,6 @@ describe("MainCalendar all events count", () => {
       .toBe(true);
     const floatingTodayButton = wrapper.findAll("[data-main-today]")
       .find((button) => button.classes().includes("fixed"));
-    expect(floatingTodayButton.attributes("style"))
-      .toContain("--sticky-card-tablet-bottom: 0.5rem");
   });
 
   it("renders group participant context in the mobile join card for creators", async () => {

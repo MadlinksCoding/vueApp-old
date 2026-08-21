@@ -2293,13 +2293,13 @@ const reviewPendingBooking = async (payload, decision) => {
       });
     }
 
-    await fetchDashboardContext(true);
     const item = result?.data?.item || null;
+    await fetchDashboardContext(true);
+    const refreshedEvent = findRefreshedBookingEvent(bookingId);
     return {
       ok: true,
       item,
-      event: findRefreshedBookingEvent(bookingId)
-        || mergeApprovedBookingEvent(payload?.event || {}, item),
+      event: mergeApprovedBookingEvent(refreshedEvent || payload?.event || {}, item),
     };
   } catch (error) {
     showToast({
@@ -2317,24 +2317,28 @@ const onApprovePendingBooking = async (payload) => {
   const result = await reviewPendingBooking(payload, "approve");
   if (!result?.ok || !payload?.retainDetails) return;
   mainCalendarRef.value?.applyBookingReviewResult?.(result.event || mergeApprovedBookingEvent(payload?.event || {}, result.item));
-  showCreatorBookingReviewToast({
-    decision: "approve",
-    username: payload?.counterparty?.username,
-    avatarUrl: payload?.counterparty?.avatarUrl,
-    t,
-  });
+  if (payload?.showReviewToast === true) {
+    showCreatorBookingReviewToast({
+      decision: "approve",
+      username: payload?.counterparty?.username,
+      avatarUrl: payload?.counterparty?.avatarUrl,
+      t,
+    });
+  }
 };
 
 const onRejectPendingBooking = async (payload) => {
   const result = await reviewPendingBooking(payload, "reject");
   if (!result?.ok || !payload?.retainDetails) return;
   mainCalendarRef.value?.applyBookingReviewResult?.(result.event || mergeApprovedBookingEvent(payload?.event || {}, result.item));
-  showCreatorBookingReviewToast({
-    decision: "reject",
-    username: payload?.counterparty?.username,
-    avatarUrl: payload?.counterparty?.avatarUrl,
-    t,
-  });
+  if (payload?.showReviewToast === true) {
+    showCreatorBookingReviewToast({
+      decision: "reject",
+      username: payload?.counterparty?.username,
+      avatarUrl: payload?.counterparty?.avatarUrl,
+      t,
+    });
+  }
 };
 
 const openWidgetCompactDetails = async (payload = {}) => {
@@ -2359,7 +2363,10 @@ const approveWidgetCompactBooking = async (payload) => {
   const result = await reviewPendingBooking({
     ...payload,
     event: sourceEvent,
-    suppressSuccessToast: retainOpen,
+    // The widget flow supplies its own success presentation: compact mobile
+    // shows the persistent review toast, while larger viewports transition to
+    // the refreshed hero details notice.
+    suppressSuccessToast: true,
   }, "approve");
   if (!result?.ok) return;
 

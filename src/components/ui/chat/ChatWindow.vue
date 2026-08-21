@@ -645,7 +645,10 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       action:    newAction,
     })
 
-    const retainOpen = compactBookingDetailsSession.value && Number(props.hostWidth || window.innerWidth) < 768
+    const retainOpen = showBookingPopup.value && activeBookingRole.value === 'creator'
+    const showReviewToast = retainOpen
+      && compactBookingDetailsSession.value
+      && Number(props.hostWidth || window.innerWidth) < 768
     // Declining is confirmed through the decision popup, which cannot close itself
     // while the action is still marked as processing.
     closeBookingDecision({ force: true })
@@ -664,7 +667,7 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       })
     }
 
-    if (retainOpen) {
+    if (showReviewToast) {
       showCreatorBookingReviewToast({
         decision,
         username: reviewPayload?.counterparty?.username,

@@ -9,6 +9,14 @@ import { join } from "path";
 const FAN_SOCIAL_PLUGIN_BASE = "/wp-content/plugins/fansocial/";
 const FAN_SOCIAL_BOOKING_ASSETS_DIR = "assets/booking";
 
+async function copyWordPressBookingPublicFiles() {
+  const sourceDir = join(__dirname, "public", "bookings-embed");
+  const outputDir = join(__dirname, "dist", "bookings-embed");
+
+  if (!(await fs.exists(sourceDir))) return;
+  await fs.copy(sourceDir, outputDir, { overwrite: true });
+}
+
 async function generateManifest() {
   const outputDir = join(__dirname, "dist", FAN_SOCIAL_BOOKING_ASSETS_DIR);
   const distDir = join(__dirname, "dist");
@@ -54,6 +62,15 @@ export default defineConfig(({ command, mode }) => {
   const proxyTarget = PROXY_TARGETS[env.PROXY_MODE] ?? PROXY_TARGETS.staging;
   const explicitBase = typeof env.VITE_PUBLIC_BASE === "string" ? env.VITE_PUBLIC_BASE.trim() : "";
   const isVercelBuild = env.VERCEL === "1" || process.env.VERCEL === "1";
+  const isWordPressBuild = command === "build" && env.VITE_BUILD_TARGET === "wordpress";
+  const bookingBuildInputs = {
+    eventsEmbed: join(__dirname, "bookings-embed/dashboard.html"),
+    bookingsEmbed: join(__dirname, "bookings-embed/fan-booking.html"),
+    chatEmbed: join(__dirname, "bookings-embed/chat.html"),
+  };
+  const buildInputs = isWordPressBuild
+    ? bookingBuildInputs
+    : { main: join(__dirname, "index.html"), ...bookingBuildInputs };
   const allowDevTestJwtFallback = command !== "build" && (command === "serve" || process.env.NODE_ENV === "test");
   const devTestJwtFallback = allowDevTestJwtFallback && typeof env.VITE_JWT_TEST_KEY === "string"
     ? env.VITE_JWT_TEST_KEY
@@ -84,7 +101,7 @@ export default defineConfig(({ command, mode }) => {
         buffer: "buffer",
       },
     },
-    publicDir: "public",
+    publicDir: isWordPressBuild ? false : "public",
     test: {
       environment: "jsdom",
       globals: true,
@@ -94,12 +111,7 @@ export default defineConfig(({ command, mode }) => {
       cssCodeSplit: true,
       assetsInlineLimit: 0,
       rollupOptions: {
-        input: {
-          main: join(__dirname, "index.html"),
-          eventsEmbed: join(__dirname, "bookings-embed/dashboard.html"),
-          bookingsEmbed: join(__dirname, "bookings-embed/fan-booking.html"),
-          chatEmbed: join(__dirname, "bookings-embed/chat.html"),
-        },
+        input: buildInputs,
         external: (id) => id.includes('__tests__') || id.includes('.spec.'),
         output: {
           manualChunks(id) {
@@ -219,6 +231,7 @@ export default defineConfig(({ command, mode }) => {
           {
             name: "generate-manifest",
             async closeBundle() {
+              if (isWordPressBuild) await copyWordPressBookingPublicFiles();
               await generateManifest();
             },
           },
