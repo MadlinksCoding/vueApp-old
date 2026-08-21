@@ -16,8 +16,8 @@
               <span class="text-sm font-bold leading-5 text-white">{{ eventTypeLabel }}</span>
             </div>
             <div class="h-7 px-1.5 py-1 inline-flex items-center gap-1.5">
-              <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4" />
-              <span v-else class="size-2.5 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" />
+              <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4" data-test="booking-details-compact-pending-icon" />
+              <span v-else class="size-2.5 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" data-test="booking-details-compact-status-dot" />
               <span class="text-sm font-medium uppercase leading-5 text-[#667085]" data-test="booking-details-compact-status">{{ statusText }}</span>
             </div>
           </div>
@@ -28,8 +28,8 @@
 
         <div class="flex w-full flex-1 flex-col gap-5 p-4 md:pt-3">
           <div class="flex w-full items-center gap-2 md:hidden" data-test="booking-details-compact-mobile-header">
-            <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4 shrink-0" />
-            <span v-else class="size-2.5 shrink-0 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" />
+            <img v-if="compactPendingStatus" :src="CompactPendingIcon" alt="" class="size-4 shrink-0" data-test="booking-details-compact-pending-icon" />
+            <span v-else class="size-2.5 shrink-0 rounded-full" :style="{ backgroundColor: statusColor }" aria-hidden="true" data-test="booking-details-compact-status-dot" />
             <h2 class="min-w-0 flex-1 truncate text-2xl font-semibold leading-8 text-[#B54708]" data-test="booking-details-compact-title">{{ titleText }}</h2>
             <button type="button" class="flex size-5 shrink-0 items-center justify-center disabled:cursor-wait disabled:opacity-50" :disabled="actionLoading" :aria-label="t('common_close')" data-test="booking-details-compact-close" @click="closePanel">
               <img :src="CompactCloseIcon" alt="" class="size-4" />
@@ -78,7 +78,17 @@
         </div>
 
         <div
-          v-if="canReviewBooking && compactReviewMode === 'full'"
+          v-if="showExpiredNotice"
+          class="mt-auto flex w-full items-stretch border-l-[3px] border-gray-400 bg-gray-50 p-3"
+          data-test="booking-details-compact-expired-notice"
+        >
+          <div class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-500" data-test="booking-details-compact-expired-badge">
+            {{ t('booking_details_request_expired') }}
+          </div>
+        </div>
+
+        <div
+          v-else-if="canReviewBooking && compactReviewMode === 'full'"
           class="mt-auto flex w-full flex-col gap-2 border-l-[3px] border-[#06AED4] bg-[#ECFDFF] p-3"
           data-test="booking-details-compact-review-notice"
         >
@@ -170,7 +180,7 @@
           <div class="h-6 p-1.5 bg-stone-900/50 rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
             <div data-property-1="decline" data-size="Default" class="size-4 p-px flex justify-start items-center gap-2.5">
               <div class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5" :style="{ backgroundColor: statusColor }">
-                <div v-if="isCancelledStatus" data-svg-wrapper class="relative">
+                <div v-if="displayIsCancelledStatus" data-svg-wrapper class="relative">
                   <img :src="CloseIcon" alt="" class="h-3 w-3" />
                 </div>
                 <span v-else class="size-1.5 rounded-full bg-white" aria-hidden="true" />
@@ -658,7 +668,10 @@ const panelComponent = computed(() => (isSidePanel.value ? 'div' : PopupHandler)
 const panelProps = computed(() => (isSidePanel.value
   ? { class: 'h-full min-h-0 w-full' }
   : { modelValue: props.modelValue, config: popupConfig.value }));
-const raw = computed(() => fetchedBooking.value || props.booking || props.event?.raw || {});
+// A reactive booking prop is an explicit authoritative override (for example,
+// the result of an in-place creator review). The internally fetched booking is
+// only the fallback used when a lightweight calendar event opens the popup.
+const raw = computed(() => props.booking || fetchedBooking.value || props.event?.raw || {});
 const snapshot = computed(() => raw.value?.eventSnapshot || {});
 const currentEvent = computed(() => raw.value?.eventCurrent || {});
 const mergedEvent = computed(() => ({ ...currentEvent.value, ...snapshot.value }));
@@ -753,20 +766,30 @@ const formattedProposedRange = computed(() => {
 });
 const formattedCurrentRange = computed(() => (startDate.value ? `${formatDateTime(startDate.value)}` : ''));
 
-// The request can no longer be acted on once its slot has started (unless it is live).
+const normalizedStatus = computed(() => firstText(raw.value?.status, raw.value?.bookingStatus, props.event?.status).toLowerCase());
+const isCancelledStatus = computed(() => normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined');
+const pendingStartElapsed = computed(() => (
+  (normalizedStatus.value === 'pending' || normalizedStatus.value === 'pending_hold')
+  && Boolean(startDate.value)
+  && now.value.getTime() >= startDate.value.getTime()
+));
+
+// Pending approval ends at the exact start boundary. Other booking states retain
+// the established live-window behavior and expire only after their end time.
 const isExpired = computed(() => {
   if (!startDate.value) return false;
+  if (pendingStartElapsed.value) return true;
   const currentMs = now.value.getTime();
   const startMs = startDate.value.getTime();
   if (endDate.value && currentMs >= startMs && currentMs < endDate.value.getTime()) return false;
   return currentMs >= startMs;
 });
-const normalizedStatus = computed(() => firstText(raw.value?.status, raw.value?.bookingStatus, props.event?.status).toLowerCase());
-const isCancelledStatus = computed(() => normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined');
+const displayStatus = computed(() => pendingStartElapsed.value ? 'cancelled' : normalizedStatus.value);
+const displayIsCancelledStatus = computed(() => displayStatus.value.startsWith('cancel') || displayStatus.value === 'declined');
 const statusKeys = { confirmed: 'calendar_event_status_confirmed', completed: 'calendar_event_status_completed', pending: 'calendar_event_status_pending', pending_hold: 'calendar_event_status_pending_hold', cancelled: 'calendar_event_status_cancelled', cancelled_user: 'calendar_event_status_cancelled', cancelled_creator: 'calendar_event_status_cancelled', declined: 'calendar_event_status_declined' };
-const statusText = computed(() => t(statusKeys[normalizedStatus.value] || 'calendar_event_status_pending'));
-const compactPendingStatus = computed(() => normalizedStatus.value === 'pending' || normalizedStatus.value === 'pending_hold');
-const statusColor = computed(() => ['confirmed', 'completed'].includes(normalizedStatus.value) ? '#22C55E' : (normalizedStatus.value.startsWith('cancel') || normalizedStatus.value === 'declined' ? '#F04438' : '#F59E0B'));
+const statusText = computed(() => t(statusKeys[displayStatus.value] || 'calendar_event_status_pending'));
+const compactPendingStatus = computed(() => displayStatus.value === 'pending' || displayStatus.value === 'pending_hold');
+const statusColor = computed(() => ['confirmed', 'completed'].includes(displayStatus.value) ? '#22C55E' : (displayIsCancelledStatus.value ? '#F04438' : '#F59E0B'));
 
 // Calendar events can be lightweight projections without negotiation metadata.
 // Prefer the authoritative booking fetched by this component before falling
@@ -935,7 +958,7 @@ const canOpenChat = computed(() => Boolean(chatPayload.value.chatId || chatPaylo
 const joinState = computed(() => getCalendarEventJoinState(props.event, { viewerRole: viewerRole.value, now: now.value }));
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinState.value.joinUrl));
 const isEnded = computed(() => joinState.value.effectiveEndDate && now.value.getTime() >= new Date(joinState.value.effectiveEndDate).getTime());
-const showMenu = computed(() => Boolean(bookingId.value) && !isEnded.value && !isCancelledStatus.value && !pendingPriceAdjustment.value);
+const showMenu = computed(() => Boolean(bookingId.value) && !isEnded.value && !isCancelledStatus.value && !pendingStartElapsed.value && !pendingPriceAdjustment.value);
 const approvalState = computed(() => getCalendarEventApprovalState(props.event, { now: now.value }));
 const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(raw.value?.meta?.currentCounterOffer));
 const canReviewBooking = computed(() => viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);

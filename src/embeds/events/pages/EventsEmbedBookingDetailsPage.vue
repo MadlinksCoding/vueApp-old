@@ -305,6 +305,7 @@ async function notifySuccessfulBookingUpdate(action, updatedItem = null, options
     action,
     item: updatedItem,
     retainOpen: options.retainOpen === true,
+    showReviewToast: options.showReviewToast === true,
     notification: buildBookingUpdateNotification(updatedItem, options.counterparty),
   });
 }
@@ -402,14 +403,15 @@ async function reviewBooking(payload, decision) {
 
     await syncBookingMessageAction(decision === "approve" ? "accepted" : "declined", decision);
 
-    const retainOpen = compactDetailsSession.value;
+    const retainOpen = viewerRole.value === "creator" && !isDirectCancelLaunch.value;
     if (retainOpen && item) {
       booking.value = item;
       calendarEvent.value = toCalendarEvent(item) || calendarEvent.value;
-      compactDetailsOpen.value = true;
+      if (compactDetailsSession.value) compactDetailsOpen.value = true;
     }
     await notifySuccessfulBookingUpdate(decision, item, {
       retainOpen,
+      showReviewToast: retainOpen && compactDetailsSession.value,
       counterparty: payload?.counterparty,
     });
   } finally {

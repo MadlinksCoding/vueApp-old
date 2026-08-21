@@ -19,6 +19,7 @@ import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { toCalendarEvent as bookingToCalendarEvent } from "@/services/bookings/utils/bookingCalendarEvent.js";
 import { resolveVisibleBookedSlotRange } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
@@ -34,6 +35,7 @@ import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
 import { showToast } from "@/utils/toastBus.js";
+import { showCreatorBookingReviewToast } from "@/utils/creatorBookingReviewToast.js";
 import { getCalendarEventJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
@@ -1973,6 +1975,26 @@ function resolveBookingIdFromPayload(payload = {}) {
     ).trim() || null;
 }
 
+function mergeReviewedBookingEvent(sourceEvent = {}, booking = null) {
+    const reviewedBooking = booking && typeof booking === "object" ? booking : null;
+    if (!reviewedBooking) return sourceEvent;
+    const mappedEvent = bookingToCalendarEvent(reviewedBooking, {
+        titleFallback: sourceEvent?.title || sourceEvent?.eventTitle || "",
+    }) || {};
+    return {
+        ...sourceEvent,
+        ...mappedEvent,
+        bookingId: reviewedBooking.bookingId || mappedEvent.bookingId || sourceEvent?.bookingId || sourceEvent?.raw?.bookingId || null,
+        eventId: reviewedBooking.eventId || mappedEvent.eventId || sourceEvent?.eventId || sourceEvent?.raw?.eventId || null,
+        status: reviewedBooking.status || reviewedBooking.bookingStatus || mappedEvent.status || sourceEvent?.status || "",
+        raw: {
+            ...(sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {}),
+            ...(mappedEvent?.raw && typeof mappedEvent.raw === "object" ? mappedEvent.raw : {}),
+            ...reviewedBooking,
+        },
+    };
+}
+
 async function reviewPendingBooking(payload, decision) {
     const bookingId = resolveBookingIdFromPayload(payload);
     if (!bookingId) {
@@ -2010,14 +2032,32 @@ async function reviewPendingBooking(payload, decision) {
             });
             return;
         }
-        showToast({
-            type: "success",
-            title: t("dashboard_booking_updated_title"),
-            message: t("dashboard_booking_updated_message", {
-                action: decision === "approve" ? "approved" : "rejected",
-            }),
-        });
+        if (!payload?.retainDetails) {
+            showToast({
+                type: "success",
+                title: t("dashboard_booking_updated_title"),
+                message: t("dashboard_booking_updated_message", {
+                    action: decision === "approve" ? "approved" : "rejected",
+                }),
+            });
+        }
+        const item = result?.data?.item || null;
         await fetchCreatorBookedSlots(true);
+        if (payload?.retainDetails) {
+            const refreshedEvent = calendarBookedSlots.value.find((event) => resolveBookingIdFromPayload({ event }) === bookingId) || null;
+            mainCalendarRef.value?.applyBookingReviewResult?.(
+                mergeReviewedBookingEvent(refreshedEvent || payload?.event || {}, item),
+            );
+            if (payload?.showReviewToast === true) {
+                showCreatorBookingReviewToast({
+                    decision,
+                    username: payload?.counterparty?.username,
+                    avatarUrl: payload?.counterparty?.avatarUrl,
+                    t,
+                });
+            }
+        }
+        return { ok: true, item };
     } finally {
         reviewPendingLoading.value = false;
     }

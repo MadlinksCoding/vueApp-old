@@ -89,13 +89,36 @@ describe('BookingDetailsPopup compact variation', () => {
     wrapper.unmount();
   });
 
+  it.each(['pending', 'pending_hold'])('reactively displays elapsed %s bookings as cancelled without mutating booking state', async (status) => {
+    const value = booking({ status });
+    const wrapper = mountCompact(value, { comparisonTime: '2027-04-25T14:14:59.999Z' });
+
+    expect(wrapper.get('[data-test="booking-details-compact-status"]').text()).toContain('Pending');
+    expect(wrapper.find('[data-test="booking-details-compact-pending-icon"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-compact-review-notice"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-compact-expired-notice"]').exists()).toBe(false);
+
+    await wrapper.setProps({ comparisonTime: '2027-04-25T14:15:00.000Z' });
+
+    expect(wrapper.get('[data-test="booking-details-compact-status"]').text()).toBe('Cancelled');
+    expect(wrapper.find('[data-test="booking-details-compact-pending-icon"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-details-compact-status-dot"]').element.style.backgroundColor).toBe('rgb(240, 68, 56)');
+    expect(wrapper.get('[data-test="booking-details-compact-expired-notice"]').text()).toContain('Request expired');
+    expect(wrapper.find('[data-test="booking-details-compact-review-notice"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-compact-accept"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-compact-review-menu"]').exists()).toBe(false);
+    expect(value.status).toBe(status);
+
+    wrapper.unmount();
+  });
+
   it('exposes the full creator review actions and keeps their existing payloads', async () => {
     const wrapper = mountCompact(booking());
 
     const surface = wrapper.get('[data-test="event-details-fan"]');
     const notice = wrapper.get('[data-test="booking-details-compact-review-notice"]');
     expect(notice.element.parentElement).toBe(surface.element);
-    expect(notice.classes()).not.toContain('p-3');
+    expect(notice.classes()).toContain('p-3');
     expect(notice.classes()).not.toContain('p-4');
     expect(wrapper.get('[data-test="booking-details-information"]').element.parentElement?.classList.contains('p-4')).toBe(true);
     expect(wrapper.find('[data-test="booking-details-compact-accept"]').exists()).toBe(true);

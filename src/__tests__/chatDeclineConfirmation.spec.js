@@ -49,6 +49,19 @@ describe("chat decline confirmation", () => {
     expect(body).toContain("closeBookingDecision({ force: true })");
   });
 
+  it("retains open creator details while keeping review toasts compact-mobile-only", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+    const body = chatWindow.slice(
+      chatWindow.indexOf("async function performBookingDecision"),
+      chatWindow.indexOf("function onDirectAccept"),
+    );
+
+    expect(body).toContain("showBookingPopup.value && activeBookingRole.value === 'creator'");
+    expect(body).toContain("compactBookingDetailsSession.value");
+    expect(body).toContain("if (!retainOpen) showBookingPopup.value = false");
+    expect(body).toContain("if (showReviewToast)");
+  });
+
   it("skips the adjustment price lookup for cancel and reject", () => {
     const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
 

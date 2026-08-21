@@ -273,6 +273,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
       action: "approve",
       retainOpen: true,
+      showReviewToast: true,
       notification: expect.objectContaining({
         fanUsername: "grapegatsby",
         fanAvatarUrl: "https://example.test/fan.jpg",
@@ -333,7 +334,12 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
       bookingId: "booking_123",
       action: "approve",
+      retainOpen: true,
+      showReviewToast: false,
     }));
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({ status: "confirmed" }));
+    expect(wrapper.getComponent(FanDetailsStub).props("layoutVariant")).toBeUndefined();
+    expect(mocks.requestClose).not.toHaveBeenCalled();
     // The chat message is mirrored and handed to the chat embed to broadcast.
     expect(mocks.flowRun).toHaveBeenCalledWith(
       "chat.updateBookingRequestMessage",
@@ -345,6 +351,37 @@ describe("EventsEmbedBookingDetailsPage", () => {
       bookingId: "booking_123",
       activityLog: expect.objectContaining({ text: "Booking accepted" }),
     }));
+  });
+
+  it("keeps creator hero details mounted with the cancelled snapshot after rejection", async () => {
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_123",
+          eventId: "event_123",
+          status: "cancelled_creator",
+          cancellation: { actor: "creator", refundedTokens: 100 },
+        },
+      },
+    });
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("reject-booking", { bookingId: "booking_123" });
+    await flushPromises();
+
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      status: "cancelled_creator",
+      cancellation: expect.objectContaining({ refundedTokens: 100 }),
+    }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      action: "reject",
+      retainOpen: true,
+      showReviewToast: false,
+    }));
+    expect(mocks.requestClose).not.toHaveBeenCalled();
   });
 
   it("forwards the embedded reject decision visibility to the WordPress host", async () => {

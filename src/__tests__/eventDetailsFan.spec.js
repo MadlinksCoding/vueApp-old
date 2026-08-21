@@ -16,6 +16,12 @@ import adjustmentCheckIcon from '@/assets/images/icons/check-black.svg';
 import adjustmentTokenIcon from '@/assets/images/icons/token-sm-calender.svg';
 import adjustmentArrowIcon from '@/assets/images/icons/arrow-right-brown.svg';
 
+const { flowRun } = vi.hoisted(() => ({ flowRun: vi.fn() }));
+
+vi.mock('@/services/flow-system/FlowHandler.js', () => ({
+  default: { run: flowRun },
+}));
+
 function booking(overrides = {}) {
   return {
     bookingId: 'booking_1',
@@ -71,6 +77,8 @@ function mountDetails(value, presentation = 'side-panel', extraProps = {}) {
 describe('EventDetailsFan', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    flowRun.mockReset();
+    flowRun.mockResolvedValue({ ok: false });
   });
 
   afterEach(() => {
@@ -540,6 +548,127 @@ describe('EventDetailsFan', () => {
 
     await wrapper.get('[data-test="booking-details-adjust"]').trigger('click');
     expect(wrapper.emitted('adjust-booking')?.[0]?.[0]).toMatchObject({ bookingId: 'booking_1', eventId: 'event_1' });
+    wrapper.unmount();
+  });
+
+  it.each(['pending', 'pending_hold'])('expires a %s request at its exact start without fabricating cancellation data', async (status) => {
+    const value = booking({
+      status,
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', {
+      userRole: 'creator',
+      canReviewPending: true,
+      comparisonTime: '2027-04-25T14:14:59.999Z',
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain('Pending');
+    expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-expired-notice"]').exists()).toBe(false);
+
+    await wrapper.setProps({ comparisonTime: '2027-04-25T14:15:00.000Z' });
+
+    const statusPill = wrapper.get('[data-test="event-details-fan-status"]');
+    expect(statusPill.text()).toContain('Cancelled');
+    expect(statusPill.get('img').attributes('src')).toBe(closeIcon);
+    expect(wrapper.get('[data-test="booking-details-expired-notice"]').text()).toContain('Request expired');
+    expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-cancelled-notice"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-cancelled-refund"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-cancellation-fee"]').exists()).toBe(false);
+    expect(value.status).toBe(status);
+
+    wrapper.unmount();
+  });
+
+  it('keeps an in-progress confirmed booking confirmed', () => {
+    const wrapper = mountDetails(booking({ status: 'confirmed', meta: {} }), 'side-panel', {
+      comparisonTime: '2027-04-25T14:20:00.000Z',
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain('Confirmed');
+    expect(wrapper.find('[data-test="booking-details-expired-notice"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['confirmed', 'booking-details-confirmed-notice'],
+    ['cancelled_creator', 'booking-details-cancelled-notice'],
+  ])('lets a reactive authoritative booking override the internally fetched pending snapshot for %s', async (status, noticeHook) => {
+    const pendingBooking = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    flowRun.mockResolvedValueOnce({ ok: true, data: { item: pendingBooking } });
+    const lightweightEvent = {
+      bookingId: pendingBooking.bookingId,
+      eventId: pendingBooking.eventId,
+      title: pendingBooking.eventTitle,
+      start: pendingBooking.startAtIso,
+      end: pendingBooking.endAtIso,
+      status: 'pending',
+      raw: { bookingId: pendingBooking.bookingId, status: 'pending' },
+    };
+    const wrapper = mount(EventDetailsFan, {
+      props: {
+        presentation: 'side-panel',
+        event: lightweightEvent,
+        userRole: 'creator',
+        canReviewPending: true,
+      },
+    });
+    await flushPromises();
+
+    expect(flowRun).toHaveBeenCalledWith('bookings.fetchBooking', { bookingId: pendingBooking.bookingId });
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain('Pending');
+    expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(true);
+
+    const authoritativeBooking = {
+      ...pendingBooking,
+      status,
+      meta: {},
+      ...(status === 'cancelled_creator' ? {
+        cancellation: { actor: 'creator', refundedTokens: 75 },
+        payment: { allocations: { bookingFee: 5, cancellationFee: 10 } },
+      } : {}),
+    };
+    await wrapper.setProps({
+      booking: authoritativeBooking,
+      event: { ...lightweightEvent, status, raw: authoritativeBooking },
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain(status === 'confirmed' ? 'Confirmed' : 'Cancelled');
+    expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(false);
+    expect(wrapper.find(`[data-test="${noticeHook}"]`).exists()).toBe(true);
+    if (status === 'cancelled_creator') {
+      expect(wrapper.get('[data-test="booking-details-cancelled-refund"]').text()).toContain('75');
+      expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('10');
+      expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('5');
+    }
+    wrapper.unmount();
+  });
+
+  it('updates an elapsed pending display from the component clock', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2027-04-25T14:14:59.000Z'));
+    const wrapper = mountDetails(booking({
+      status: 'pending',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    }), 'side-panel', { userRole: 'creator', canReviewPending: true });
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain('Pending');
+
+    await vi.advanceTimersByTimeAsync(15000);
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain('Cancelled');
+    expect(wrapper.find('[data-test="booking-details-expired-notice"]').exists()).toBe(true);
     wrapper.unmount();
   });
 

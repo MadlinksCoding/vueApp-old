@@ -275,10 +275,8 @@
           :class="[
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
             hasMobileStickyCard ? 'bottom-[7rem]' : 'bottom-2',
-            'md:bottom-2',
-            hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:left-3' : ''
+            'md:bottom-2'
           ]"
-          :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
@@ -300,6 +298,12 @@
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#0C111D" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+          <span
+            v-if="hasActionablePendingBooking"
+            aria-hidden="true"
+            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
+            data-test="calendar-actionable-pending-indicator"
+          />
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
@@ -310,6 +314,12 @@
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+          <span
+            v-if="hasActionablePendingBooking"
+            aria-hidden="true"
+            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
+            data-test="calendar-actionable-pending-indicator"
+          />
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
@@ -412,7 +422,11 @@
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0" :class="[theme.main.xHeader]">
 
-        <div :class="[theme.main.axisXLabel, 'shrink-0']">
+        <div
+          v-if="!isMobileDayEventColumnMode"
+          :class="[theme.main.axisXLabel, 'shrink-0']"
+          data-test="calendar-timezone-header"
+        >
           <div
             v-if="variant === 'default'"
             :class="[
@@ -460,10 +474,7 @@
             >
               <span
                 class="text-[0.625rem] font-bold uppercase leading-4"
-                :class="[
-                  d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]',
-                  sameDay(d, selectedDay) ? 'opacity-100' : 'opacity-80'
-                ]"
+                :class="sameDay(d, selectedDay) ? 'text-[#101828]' : 'text-[#98A2B3]'"
               >
                 {{ shortWeekdays[d.getDay()] }}
               </span>
@@ -472,7 +483,7 @@
                 :class="[
                   sameDay(d, selectedDay)
                     ? 'bg-[#0C111D] text-white'
-                    : (d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]'),
+                    : 'text-[#98A2B3]',
                   sameDay(d, today) && !sameDay(d, selectedDay) ? 'ring-1 ring-[#FB5BA2]/40' : ''
                 ]"
               >
@@ -1036,6 +1047,7 @@
       <BookingDetailsPopup
         v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
+        :booking="selectedBookingSnapshot"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         :action-loading="props.bookingActionLoading"
@@ -1043,8 +1055,8 @@
         :layout-variant="useCompactEventDetails ? 'compact' : 'hero'"
         presentation="side-panel"
         @join-call="handleJoin"
-        @approve-booking="handleApproveBooking"
-        @reject-booking="handleRejectBooking"
+        @approve-booking="handleDetailsApproveBooking"
+        @reject-booking="handleDetailsRejectBooking"
         @cancel-booking="handleCancelBooking"
         @adjust-booking="handleAdjustBooking"
         @open-chat="handleOpenChat"
@@ -1109,13 +1121,13 @@
     <Teleport to="body">
       <div
         v-if="visibleStickyCardEvents.length"
-        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden ipad-portrait:flex"
+        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden"
         data-test="tablet-sticky-card-list"
       >
         <div
           v-for="event in visibleStickyCardEvents"
           :key="stickyCardKey(event)"
-          class="sticky-booking-list-item md:hidden ipad-portrait:block"
+          class="sticky-booking-list-item md:hidden"
           :class="isPendingStickyCard(event) ? 'sticky-booking-list-item--pending' : 'sticky-booking-list-item--confirmed'"
           :data-test="isPendingStickyCard(event) ? 'tablet-sticky-pending-card' : 'mobile-join-card'"
         >
@@ -1253,6 +1265,7 @@ const newEventsPopupOpen = ref(false);
 const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
 const eventDetailsCompactSession = ref(false);
+const selectedBookingSnapshot = ref(null);
 const adjustBookingState = ref(null);
 const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
@@ -1260,6 +1273,7 @@ const isMobileCalendarOpen = ref(false);
 
 watch(eventDetailsPopupOpen, (open) => {
   emit('booking-details-visibility', Boolean(open));
+  if (!open) selectedBookingSnapshot.value = null;
 });
 
 onBeforeUnmount(() => {
@@ -1320,36 +1334,12 @@ const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.fi
   && Boolean(event.joinUrl)
 )) || null);
 
-const tabletStickyCardEvents = computed(() => normalizedStickyCardEvents.value.filter((event) => {
-  if (isPendingStickyCard(event)) {
-    return props.canReviewPending && String(props.userRole || '').toLowerCase() === 'creator';
-  }
-  return event.canJoin === true && Boolean(event.joinUrl);
-}).slice(0, 3));
-
 const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
-const hasTabletStickyCards = computed(() => tabletStickyCardEvents.value.length > 0);
-const isTabletPortraitViewport = computed(() => (
-  width.value >= 678
-  && width.value <= 1366
-  && height.value >= width.value
-));
-const hasVisibleTabletStickyCards = computed(() => (
-  isTabletPortraitViewport.value && hasTabletStickyCards.value
-));
 const visibleStickyCardEvents = computed(() => {
   if (width.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
-  return isTabletPortraitViewport.value ? tabletStickyCardEvents.value : [];
-});
-const tabletStickyCardBottom = computed(() => {
-  const cardCount = hasVisibleTabletStickyCards.value
-    ? tabletStickyCardEvents.value.length
-    : 0;
-  return cardCount > 0
-    ? `${8.25 + (cardCount - 1) * 7}rem`
-    : '0.5rem';
+  return [];
 });
 
 watch(
@@ -2061,6 +2051,18 @@ const calendarBadgeCount = computed(() => {
   return Math.max(0, Math.trunc(props.bookedSlotsCount));
 });
 
+const hasActionablePendingBooking = computed(() => {
+  if (String(props.userRole || '').trim().toLowerCase() !== 'creator') return false;
+  if (!props.canReviewPending) return false;
+
+  const now = props.joinComparisonTime || new Date();
+  return (props.events || []).some((event) => (
+    getCalendarEventApprovalState(event, { now }).canReview
+    && !isPendingPriceAdjustment(event)
+    && !isPendingCounterOffer(event)
+  ));
+});
+
 const shortWeekdays = computed(() => [
   t("date_sun_short"),
   t("date_mon_short"),
@@ -2406,6 +2408,7 @@ const dispatchEventClick = (event) => {
   // console.log('Event clicked:', event);
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
+  selectedBookingSnapshot.value = null;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
@@ -2413,6 +2416,7 @@ const dispatchEventClick = (event) => {
 const openEventDetails = (event) => {
   if (!event || typeof event !== 'object') return;
   selectedEvent.value = event;
+  selectedBookingSnapshot.value = null;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
@@ -2420,6 +2424,9 @@ const openEventDetails = (event) => {
 const applyBookingReviewResult = (event) => {
   if (!event || typeof event !== 'object' || !eventDetailsPopupOpen.value) return false;
   selectedEvent.value = event;
+  selectedBookingSnapshot.value = event?.raw && typeof event.raw === 'object'
+    ? event.raw
+    : event;
   return true;
 };
 
@@ -2446,8 +2453,17 @@ const handleOpenChat = (payload) => {
 };
 
 const handleApproveBooking = (payload) => {
-  if (eventDetailsCompactSession.value && width.value < 768) {
-    emit('approve-booking', { ...payload, retainDetails: true });
+  eventDetailsPopupOpen.value = false;
+  emit('approve-booking', payload);
+};
+
+const handleDetailsApproveBooking = (payload) => {
+  if (String(props.userRole || '').trim().toLowerCase() === 'creator') {
+    emit('approve-booking', {
+      ...payload,
+      retainDetails: true,
+      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+    });
     return;
   }
   eventDetailsPopupOpen.value = false;
@@ -2567,8 +2583,17 @@ const handleCreateEvent = (type) => {
 };
 
 const handleRejectBooking = (payload) => {
-  if (eventDetailsCompactSession.value && width.value < 768) {
-    emit('reject-booking', { ...payload, retainDetails: true });
+  eventDetailsPopupOpen.value = false;
+  emit('reject-booking', payload);
+};
+
+const handleDetailsRejectBooking = (payload) => {
+  if (String(props.userRole || '').trim().toLowerCase() === 'creator') {
+    emit('reject-booking', {
+      ...payload,
+      retainDetails: true,
+      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+    });
     return;
   }
   eventDetailsPopupOpen.value = false;
@@ -3451,12 +3476,6 @@ defineExpose({
   }
 }
 
-@media (min-width: 678px) and (max-width: 1366px) and (orientation: portrait) {
-  .sticky-booking-list-item {
-    display: block;
-  }
-}
-
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -3528,6 +3547,21 @@ defineExpose({
   animation: blink-border-blue 1.5s ease-in-out infinite;
 }
 
+@keyframes calendar-pending-dot-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+.calendar-pending-dot-blink {
+  animation: calendar-pending-dot-blink 1.2s ease-in-out infinite;
+}
+
 @keyframes month-overlay-expand {
   from {
     opacity: 0;
@@ -3541,6 +3575,10 @@ defineExpose({
 
 @media (prefers-reduced-motion: reduce) {
   .month-date-overlay {
+    animation: none;
+  }
+
+  .calendar-pending-dot-blink {
     animation: none;
   }
 }

@@ -12,6 +12,7 @@ const mainCalendarResetScrollToTop = vi.fn();
 const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
 const mainCalendarOpenEventDetails = vi.fn();
+const mainCalendarApplyBookingReviewResult = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -69,7 +70,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
-    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
@@ -179,6 +180,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       scrollToCurrentTime: mainCalendarScrollToCurrentTime,
       revealSelectedWeekDay: mainCalendarRevealSelectedWeekDay,
       openEventDetails: mainCalendarOpenEventDetails,
+      applyBookingReviewResult: mainCalendarApplyBookingReviewResult,
     },
     computed: {
       dynamicBookedEvents() {
@@ -560,6 +562,7 @@ describe("DashboardEventsFeature", () => {
     mainCalendarScrollToCurrentTime.mockReset();
     mainCalendarRevealSelectedWeekDay.mockReset();
     mainCalendarOpenEventDetails.mockReset();
+    mainCalendarApplyBookingReviewResult.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -673,6 +676,7 @@ describe("DashboardEventsFeature", () => {
     expect(callFlow.mock.calls.some(([flowName]) => flowName === "bookings.reviewPendingBooking"))
       .toBe(false);
 
+    showToast.mockClear();
     await wrapper.get("[data-test='widget-compact-approve']").trigger("click");
     await flushPromises();
 
@@ -688,10 +692,8 @@ describe("DashboardEventsFeature", () => {
         context: expect.objectContaining({ creatorId: 99 }),
       }),
     );
-    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
-      type: "success",
-      title: "Booking Updated",
-    }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "booking-review" }));
 
     expect(mainCalendarOpenEventDetails).not.toHaveBeenCalled();
     compactDetails.vm.$emit("closed");
@@ -738,6 +740,55 @@ describe("DashboardEventsFeature", () => {
       status: "confirmed",
       persistent: true,
     }));
+  });
+
+  it.each([
+    ["approve", "confirmed"],
+    ["reject", "cancelled_creator"],
+  ])("keeps retained creator hero details open after %s without showing a success toast", async (decision, reviewedStatus) => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: `booking_hero_${decision}`,
+              eventId: `event_hero_${decision}`,
+              status: reviewedStatus,
+              eventTitle: "Hero review booking",
+            },
+          },
+        };
+      }
+      return { ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } };
+    });
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    showToast.mockClear();
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit(`${decision === "approve" ? "approve" : "reject"}-booking`, {
+      bookingId: `booking_hero_${decision}`,
+      retainDetails: true,
+      showReviewToast: false,
+      event: {
+        bookingId: `booking_hero_${decision}`,
+        eventId: `event_hero_${decision}`,
+        status: "pending",
+        start: "2026-03-24T10:00:00",
+        end: "2026-03-24T10:30:00",
+        raw: { bookingId: `booking_hero_${decision}`, status: "pending" },
+      },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(mainCalendarApplyBookingReviewResult).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: `booking_hero_${decision}`,
+      status: reviewedStatus,
+      raw: expect.objectContaining({ status: reviewedStatus }),
+    }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "booking-review" }));
   });
 
   it("keeps widget compact details open when approval fails", async () => {
