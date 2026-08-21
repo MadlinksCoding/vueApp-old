@@ -59,6 +59,8 @@
         @widget-accept-details="openWidgetCompactDetails"
         @reject-booking="onRejectPendingBooking"
         @cancel-booking="onCancelBookingFromCalendar"
+        @accept-adjustment="onAcceptPriceAdjustment"
+        @decline-adjustment="onDeclinePriceAdjustment"
         @menu-action="handleWidgetMenuAction"
         @create-event="goToCreateEvent($event.type)"
         @edit-schedule-event="handleEditScheduleEvent"
@@ -620,6 +622,14 @@
       </div>
     </PopupHandler>
 
+    <BookingAdjustmentDecisionPopup
+      v-bind="priceAdjustmentDecision.popupProps.value"
+      @update:model-value="$event || closePriceAdjustmentDecision()"
+      @confirm="confirmPriceAdjustmentDecision"
+      @retry-balance="priceAdjustmentDecision.loadBalance"
+      @close="closePriceAdjustmentDecision"
+    />
+
     <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
       <div class="w-full md:w-[32.875rem] md:max-w-[90vw] rounded-t-[0.25rem] md:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
         <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
@@ -812,6 +822,13 @@ import {
 import { resolveFanIdFromContext, toNumberOr } from "@/utils/contextIds.js";
 import { normalizeDashboardBookingRole } from "@/utils/dashboardRole.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
+import { useBookingActions } from "@/composables/useBookingActions.js";
+import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
+import {
+  requestBookingDetailsTopup,
+  installBookingDetailsTopupListener,
+} from "@/embeds/events/bridge.js";
 import plusIcon from "@/assets/images/icons/plus-icon.svg"
 
 const props = defineProps({
@@ -847,6 +864,10 @@ const props = defineProps({
 
 const emit = defineEmits(["create-event", "edit-event", "open-url", "booking-details-visibility"]);
 const { t, locale } = useBookingTranslations();
+// This surface has no chat socket, so booking actions are mirrored onto the linked
+// chat message and broadcast through the host relay.
+const { syncBookingToChat } = useBookingChatSync();
+const bookingActions = useBookingActions();
 
 const isCreatePopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
@@ -860,6 +881,12 @@ const initialWeekDateRevealed = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+// Fan response to a creator's price adjustment. Confirmed against the wallet
+// balance, and may need a top-up before the booking can be re-approved.
+const priceAdjustmentBooking = ref(null);
+const priceAdjustmentLoading = ref(false);
+const pendingTopupAdjustment = ref(null);
+let removeTopupListener = null;
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
@@ -2294,6 +2321,11 @@ const reviewPendingBooking = async (payload, decision) => {
     }
 
     const item = result?.data?.item || null;
+    await syncBookingToChat(
+      item || payload?.event?.raw || payload?.booking,
+      decision === "approve" ? "accepted" : "declined",
+      decision,
+    );
     await fetchDashboardContext(true);
     const refreshedEvent = findRefreshedBookingEvent(bookingId);
     return {
@@ -2311,6 +2343,143 @@ const reviewPendingBooking = async (payload, decision) => {
   } finally {
     reviewPendingLoading.value = false;
   }
+};
+
+const priceAdjustmentDecision = useBookingAdjustmentDecision(priceAdjustmentBooking, {
+  viewerRole: () => (isCreator.value ? "creator" : "fan"),
+  processing: priceAdjustmentLoading,
+  fanId: () => normalizedFanId.value,
+});
+
+const onAcceptPriceAdjustment = (payload) => {
+  const value = payload?.booking || payload?.event?.raw || null;
+  if (!value) return;
+  priceAdjustmentBooking.value = value;
+  priceAdjustmentDecision.open("accept", payload);
+};
+
+const onDeclinePriceAdjustment = (payload) => {
+  const value = payload?.booking || payload?.event?.raw || null;
+  if (!value) return;
+  priceAdjustmentBooking.value = value;
+  priceAdjustmentDecision.open("decline", payload);
+};
+
+const closePriceAdjustmentDecision = () => {
+  if (priceAdjustmentLoading.value) return;
+  priceAdjustmentDecision.reset();
+  priceAdjustmentBooking.value = null;
+};
+
+const reportPriceAdjustmentError = (message) => {
+  const resolved = message || t("dashboard_booking_action_update_failed");
+  priceAdjustmentDecision.reportError(resolved);
+  showToast({
+    type: "error",
+    title: t("dashboard_booking_action_failed_title"),
+    message: resolved,
+  });
+};
+
+const applyPriceAdjustment = async (adjustment = {}) => {
+  const booking = priceAdjustmentBooking.value;
+  const bookingId = booking?.bookingId || booking?.id;
+  if (!bookingId) {
+    priceAdjustmentLoading.value = false;
+    reportPriceAdjustmentError(t("dashboard_booking_action_missing_id"));
+    return;
+  }
+
+  try {
+    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
+      bookingId,
+      proposedStartAtIso: adjustment.proposedStartAtIso,
+      proposedDurationMinutes: adjustment.proposedDurationMinutes,
+      proposedTokens: adjustment.proposedTokens,
+      remarks: adjustment.remarks,
+      negotiationId: adjustment.negotiationId || null,
+    });
+
+    if (!ok) {
+      reportPriceAdjustmentError(error);
+      return;
+    }
+
+    await syncBookingToChat(item || booking, "accepted", "accept_adjustment");
+    priceAdjustmentDecision.reset({ force: true });
+    priceAdjustmentBooking.value = null;
+    await fetchDashboardContext(true);
+  } catch (error) {
+    reportPriceAdjustmentError(error?.message);
+  } finally {
+    pendingTopupAdjustment.value = null;
+    priceAdjustmentLoading.value = false;
+  }
+};
+
+const declinePriceAdjustment = async (adjustment = {}) => {
+  const booking = priceAdjustmentBooking.value;
+  const bookingId = booking?.bookingId || booking?.id;
+  if (!bookingId) return;
+
+  priceAdjustmentLoading.value = true;
+  try {
+    const { ok, item, error } = await bookingActions.rejectCounterOffer({
+      bookingId,
+      offerType: "adjust",
+      negotiationId: adjustment.negotiationId || null,
+      reason: "fan_declined_price_adjustment",
+    });
+
+    if (!ok) {
+      reportPriceAdjustmentError(error);
+      return;
+    }
+
+    await syncBookingToChat(item || booking, "declined", "decline_adjustment");
+    priceAdjustmentDecision.reset({ force: true });
+    priceAdjustmentBooking.value = null;
+    await fetchDashboardContext(true);
+  } catch (error) {
+    reportPriceAdjustmentError(error?.message);
+  } finally {
+    priceAdjustmentLoading.value = false;
+  }
+};
+
+const confirmPriceAdjustmentDecision = async (payload = {}) => {
+  if (priceAdjustmentLoading.value) return;
+  const adjustment = priceAdjustmentDecision.decision.value || {};
+  priceAdjustmentDecision.reportError("");
+
+  if (payload.mode === "decline") {
+    await declinePriceAdjustment(adjustment);
+    return;
+  }
+
+  priceAdjustmentLoading.value = true;
+  if (!payload.requiresTopup) {
+    await applyPriceAdjustment(adjustment);
+    return;
+  }
+
+  const fanId = priceAdjustmentDecision.fanId.value;
+  const creatorId = priceAdjustmentDecision.creatorId.value;
+  const requiredTokens = Math.max(0, Number(payload.shortfallTokens) || 0);
+  if (!fanId || !creatorId || requiredTokens <= 0) {
+    priceAdjustmentLoading.value = false;
+    reportPriceAdjustmentError(t("booking_adjustment_topup_unavailable"));
+    return;
+  }
+
+  pendingTopupAdjustment.value = adjustment;
+  requestBookingDetailsTopup({
+    bookingId: priceAdjustmentBooking.value?.bookingId,
+    requiredTokens,
+    currentUserId: String(fanId),
+    creatorUserId: String(creatorId),
+    topupFor: "booking_confirm",
+  });
 };
 
 const onApprovePendingBooking = async (payload) => {
@@ -3207,6 +3376,11 @@ const confirmCancelBooking = async () => {
       title: t("dashboard_booking_cancelled_title"),
       message: t("dashboard_booking_cancelled_message"),
     });
+    await syncBookingToChat(
+      result?.data?.item || cancelBookingCandidate.value?.event?.raw,
+      "cancelled",
+      "cancel",
+    );
     closeCancelBookingPopup();
     await fetchDashboardContext(true);
   } finally {
@@ -3226,6 +3400,20 @@ onMounted(() => {
   document.addEventListener("click", handleClickOutside);
   document.addEventListener("keydown", handleDocumentKeydown);
   document.addEventListener("calendar:event-click", onCalendarEventClick);
+
+  // Resumes an accepted price adjustment once the host finishes the top-up.
+  removeTopupListener = installBookingDetailsTopupListener(({ ok, payload }) => {
+    if (!pendingTopupAdjustment.value) return;
+    const pendingBookingId = priceAdjustmentBooking.value?.bookingId;
+    if (payload?.bookingId && pendingBookingId && String(payload.bookingId) !== String(pendingBookingId)) return;
+    if (!ok) {
+      pendingTopupAdjustment.value = null;
+      priceAdjustmentLoading.value = false;
+      reportPriceAdjustmentError(t("fan_event_details_topup_failed"));
+      return;
+    }
+    void applyPriceAdjustment(pendingTopupAdjustment.value);
+  });
 
   if (hasDashboardContext.value) {
     loadInitialDashboardContext({ scrollToCurrentTime: true });
@@ -3300,6 +3488,7 @@ watch(() => state.view, async (nextView, previousView) => {
 });
 
 onUnmounted(() => {
+  if (removeTopupListener) removeTopupListener();
   hideScheduleTitleTooltip();
   clearCurrentTimeTimer();
   window.removeEventListener("resize", handlePositionUpdate);

@@ -1059,6 +1059,8 @@
         @reject-booking="handleDetailsRejectBooking"
         @cancel-booking="handleCancelBooking"
         @adjust-booking="handleAdjustBooking"
+        @accept-adjustment="handleAcceptAdjustment"
+        @decline-adjustment="handleDeclineAdjustment"
         @open-chat="handleOpenChat"
         @close="eventDetailsPopupOpen = false"
       />
@@ -1175,10 +1177,9 @@ import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
 import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js';
 import FlowHandler from '@/services/flow-system/FlowHandler';
-import { useChatSocket } from '@/composables/useChatSocket';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { buildBookingChatMessage } from '@/services/bookings/utils/bookingChatMessage.js';
-import { resolveUserId } from '@/utils/resolveUserId';
+import { useBookingChatSync } from '@/composables/useBookingChatSync.js';
 import { showToast } from '@/utils/toastBus.js';
 
 import MiniCalendar from './MiniCalendar.vue';
@@ -1215,7 +1216,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'widget-accept-details']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1282,7 +1283,7 @@ onBeforeUnmount(() => {
   }
 });
 
-const { sendChatMessage } = useChatSocket();
+const { broadcastBookingToChat } = useBookingChatSync();
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
 const monthViewRef = ref(null);
@@ -2490,34 +2491,30 @@ const handleAdjustBooking = (payload) => {
   adjustBookingState.value = { ...payload, booking, message, chatId: message.chat_id };
 };
 
+// The fan's response to a price adjustment needs a token-balance confirmation and
+// possibly a top-up, so the feature host owns it. The popup only emits the proposal
+// figures, so the booking it belongs to has to be attached here.
+const withSelectedBooking = (payload) => ({
+  ...payload,
+  event: selectedEvent.value,
+  booking: selectedEvent.value?.raw || null,
+});
+
+const handleAcceptAdjustment = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('accept-adjustment', withSelectedBooking(payload));
+};
+
+const handleDeclineAdjustment = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('decline-adjustment', withSelectedBooking(payload));
+};
+
 const handleAdjustSubmitted = async ({ item, booking }) => {
-  const chatId = adjustBookingState.value?.chatId;
-  const currentUserId = resolveUserId();
-
-  if (chatId && item) {
-    const recipients = [booking?.creatorId, booking?.userId]
-      .map(id => parseInt(id, 10))
-      .filter(id => !isNaN(id));
-
-    // Send original updated message to BOTH
-    sendChatMessage(item, recipients);
-
-    // Send Activity Log
-    const logRes = await FlowHandler.run('chat.sendChatActivityLog', {
-      chatId: chatId,
-      senderId: currentUserId,
-      text: 'Counter offer sent',
-      meta: {
-        is_booking_request: true,
-        decision: 'counter_offer',
-        bookingId: item.content?.booking_id,
-      }
-    });
-
-    if (logRes?.ok) {
-      sendChatMessage(logRes.data.item, recipients);
-    }
-  }
+  // AdjustBookingPopup already wrote the counter offer onto the chat message, so
+  // only the broadcast and the activity log are left — and this surface has no chat
+  // socket of its own, so they go through the host relay.
+  broadcastBookingToChat(booking || adjustBookingState.value?.booking, item, 'adjust_request');
 
   adjustBookingState.value = null;
   emit('refresh-events');

@@ -303,6 +303,62 @@ describe("fs-events-host openFanBookingPopup", () => {
     popup.destroy();
   });
 
+  it("opens token top-up for the dashboard embed as well as the details popup", () => {
+    window.openTipPopup = vi.fn();
+    const embed = window.FSEventsEmbed.mount(document.body, {
+      creatorId: 1407,
+      fanId: 25,
+      userRole: "fan",
+    });
+    const postMessage = vi.spyOn(embed.iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED",
+        payload: { bookingId: "booking_9", requiredTokens: 20, currentUserId: "25", creatorUserId: "1407" },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(window.openTipPopup).toHaveBeenCalledWith(expect.objectContaining({
+      topup_amount: 20,
+      user_id: "25",
+      creator_id: "1407",
+      topupFor: "booking_confirm",
+    }));
+
+    window.openTipPopup.mock.calls[0][0].successCallback();
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
+      payload: expect.objectContaining({ bookingId: "booking_9" }),
+    }), window.location.origin);
+
+    embed.destroy();
+  });
+
+  it("tells the dashboard embed when top-up is unavailable", () => {
+    delete window.openTipPopup;
+    const embed = window.FSEventsEmbed.mount(document.body, { creatorId: 1407, fanId: 25 });
+    const postMessage = vi.spyOn(embed.iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: embed.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED",
+        payload: { bookingId: "booking_9", requiredTokens: 20 },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED",
+      payload: expect.objectContaining({ reason: "topup_unavailable" }),
+    }), window.location.origin);
+
+    embed.destroy();
+  });
+
   it("posts translations and locale in fan booking bootstrap without putting them in the iframe URL", () => {
     const popup = window.FSEventsEmbed.openFanBookingPopup({
       creatorId: 1407,
