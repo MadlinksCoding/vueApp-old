@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   requestEventsEmbedOpenUrl: vi.fn(),
   requestEventsEmbedScrollToTop: vi.fn(),
+  notifyEventsEmbedBookingDetailsVisibility: vi.fn(),
   resetDashboardScroll: vi.fn(),
 }));
 
@@ -27,12 +28,13 @@ vi.mock("@/embeds/events/bridge.js", () => ({
   isEmbeddedIframe: () => false,
   requestEventsEmbedOpenUrl: mocks.requestEventsEmbedOpenUrl,
   requestEventsEmbedScrollToTop: mocks.requestEventsEmbedScrollToTop,
+  notifyEventsEmbedBookingDetailsVisibility: mocks.notifyEventsEmbedBookingDetailsVisibility,
 }));
 
 vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
   default: {
     name: "DashboardEventsFeature",
-    emits: ["create-event", "edit-event", "open-url"],
+    emits: ["create-event", "edit-event", "open-url", "booking-details-visibility"],
     methods: {
       resetEmbeddedMobileScrollToTop: mocks.resetDashboardScroll,
     },
@@ -41,6 +43,7 @@ vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
         <button data-test="create-private" @click="$emit('create-event', { type: 'private' })">private</button>
         <button data-test="create-group" @click="$emit('create-event', { type: 'group' })">group</button>
         <button data-test="edit-group" @click="$emit('edit-event', { eventId: 'evt_edit', type: 'group' })">edit</button>
+        <button data-test="open-details" @click="$emit('booking-details-visibility', true)">details</button>
       </div>
     `,
   },
@@ -68,6 +71,7 @@ describe("EventsEmbedEventsPage", () => {
     mocks.push.mockReset();
     mocks.requestEventsEmbedOpenUrl.mockReset();
     mocks.requestEventsEmbedScrollToTop.mockReset();
+    mocks.notifyEventsEmbedBookingDetailsVisibility.mockReset();
     mocks.resetDashboardScroll.mockReset();
     originalScrollTo = window.scrollTo;
     originalRequestAnimationFrame = window.requestAnimationFrame;
@@ -107,6 +111,17 @@ describe("EventsEmbedEventsPage", () => {
       name: "events-embed-create",
       params: { type: "group" },
     });
+  });
+
+  it("forwards booking-details visibility to the WordPress host and clears it on teardown", async () => {
+    const { default: EventsEmbedEventsPage } = await import("@/embeds/events/pages/EventsEmbedEventsPage.vue");
+    const wrapper = mount(EventsEmbedEventsPage);
+
+    await wrapper.get("[data-test='open-details']").trigger("click");
+    expect(mocks.notifyEventsEmbedBookingDetailsVisibility).toHaveBeenCalledWith(true);
+
+    wrapper.unmount();
+    expect(mocks.notifyEventsEmbedBookingDetailsVisibility).toHaveBeenLastCalledWith(false);
   });
 
   it("routes edit events to the embedded booking form in edit mode", async () => {

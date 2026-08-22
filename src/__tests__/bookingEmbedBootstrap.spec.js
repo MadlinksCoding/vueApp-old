@@ -12,10 +12,12 @@ describe("booking embed bootstrap translations", () => {
         ignored: 12,
       },
       locale: "es-MX",
+      hostViewportWidth: "390",
     });
 
     expect(normalized.translations).toEqual({ dashboard_new_events: "Nuevos eventos" });
     expect(normalized.locale).toBe("es-MX");
+    expect(normalized.hostViewportWidth).toBe(390);
   });
 
   it("normalizes fan booking translations and locale", () => {
@@ -31,5 +33,10 @@ describe("booking embed bootstrap translations", () => {
 
     expect(normalized.translations).toEqual({ fan_booking_book_now: "Reservar" });
     expect(normalized.locale).toBe("fr-CA");
+  });
+
+  it("accepts only the internal direct-cancellation initial action", () => {
+    expect(normalizeEventsEmbedBootstrap({ initialAction: " CANCEL " }).initialAction).toBe("cancel");
+    expect(normalizeEventsEmbedBootstrap({ initialAction: "approve" }).initialAction).toBe("");
   });
 });

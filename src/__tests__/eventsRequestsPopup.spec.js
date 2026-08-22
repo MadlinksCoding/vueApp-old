@@ -6,8 +6,8 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
     props: ["sections", "userRole"],
-    emits: ["approve-booking"],
-    template: `<div data-test="events-widget"><button data-test="approve-booking" @click="$emit('approve-booking', { bookingId: 'booking_pending', decision: 'approve' })">approve</button></div>`,
+    emits: ["accept-details"],
+    template: `<div data-test="events-widget"><button data-test="approve-booking" @click="$emit('accept-details', { bookingId: 'booking_pending', event: { bookingId: 'booking_pending' } })">approve</button></div>`,
   },
 }));
 
@@ -73,8 +73,8 @@ describe("EventsRequestsPopup", () => {
     await findButton(wrapper, "Pendientes").trigger("click");
     expect(wrapper.getComponent({ name: "EventsWidget" }).props("sections")).toEqual([pendingSection]);
     await wrapper.get("[data-test='approve-booking']").trigger("click");
-    expect(wrapper.emitted("approve-booking")).toEqual([[
-      { bookingId: "booking_pending", decision: "approve" },
+    expect(wrapper.emitted("accept-details")).toEqual([[
+      { bookingId: "booking_pending", event: { bookingId: "booking_pending" } },
     ]]);
   });
 

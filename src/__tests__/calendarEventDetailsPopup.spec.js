@@ -54,6 +54,51 @@ describe("CalendarEventDetailsPopup", () => {
     expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
+  it("hides an open booking menu only while a changed-price Adjust negotiation is sent", async () => {
+    const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
+    const makeBooking = (status, proposedTokens) => ({
+      bookingId: "booking_123",
+      status: "pending",
+      startAtIso: "2026-05-01T10:00:00Z",
+      endAtIso: "2026-05-01T10:30:00Z",
+      meta: {
+        currentCounterOffer: "adjust",
+        negotiation: {
+          type: "adjust",
+          status,
+          original: { totalTokens: 100 },
+          proposed: { totalTokens: proposedTokens },
+        },
+      },
+    });
+    const unchangedBooking = makeBooking("sent", 100);
+    const wrapper = mount(CalendarEventDetailsPopup, {
+      props: {
+        booking: unchangedBooking,
+        event: {
+          bookingId: "booking_123",
+          start: unchangedBooking.startAtIso,
+          end: unchangedBooking.endAtIso,
+          raw: unchangedBooking,
+        },
+      },
+    });
+
+    const trigger = wrapper.get("[data-test='calendar-event-details-menu-trigger']");
+    await trigger.trigger("click");
+    expect(trigger.attributes("aria-expanded")).toBe("true");
+
+    const pendingBooking = makeBooking("sent", 125);
+    await wrapper.setProps({ booking: pendingBooking });
+    await flushPromises();
+    expect(wrapper.find("[data-test='calendar-event-details-menu-trigger']").exists()).toBe(false);
+
+    await wrapper.setProps({ booking: makeBooking("accepted", 125) });
+    await flushPromises();
+    expect(wrapper.get("[data-test='calendar-event-details-menu-trigger']").attributes("aria-expanded"))
+      .toBe("false");
+  });
+
   it("passes reminder and extension data to the join state helper", async () => {
     const { default: CalendarEventDetailsPopup } = await import("@/components/calendar/CalendarEventDetailsPopup.vue");
 

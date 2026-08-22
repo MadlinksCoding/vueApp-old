@@ -490,6 +490,11 @@
     })();
 
     var currentUserRole = params.get('userRole') || 'fan';
+    var jwtToken = params.get('jwtToken') || '';
+    // fs-chat-host reads window.userData.jwtToken as its default; keep both in sync
+    // so TokenHandler inside the embed can authenticate.
+    window.userData = window.userData || {};
+    window.userData.jwtToken = jwtToken;
 
     var chatEmbed = window.FSChatEmbed.mountChatEmbed(document.body, {
       src:           __embedBase__ + 'chat.html',
@@ -497,6 +502,7 @@
       userRole:      currentUserRole,
       apiBaseUrl:    params.get('apiBaseUrl')    || '',
       fanUid:        params.get('fanUid')        || '',
+      jwtToken:      jwtToken,
       startHidden:   params.get('startHidden') === '1',
       autoHideWhenClosed: params.get('autoHideWhenClosed') === '1',
     });

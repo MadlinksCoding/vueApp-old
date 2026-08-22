@@ -6,9 +6,43 @@
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        class="pointer-events-auto min-w-[260px] max-w-[360px] rounded-md border px-3 py-2 shadow-lg backdrop-blur-sm"
-        :class="toastClass(toast.type)">
+        :class="toast.variant === 'booking-review'
+          ? 'pointer-events-auto fixed left-1/2 top-2 w-[calc(100vw-1rem)] max-w-[37.5rem] -translate-x-1/2 overflow-hidden border shadow-lg backdrop-blur-sm'
+          : ['pointer-events-auto min-w-[260px] max-w-[360px] rounded-md border px-3 py-2 shadow-lg backdrop-blur-sm', toastClass(toast.type)]">
+        <div
+          v-if="toast.variant === 'booking-review'"
+          class="flex min-h-[5rem] items-center gap-4 border-l-4 px-4 py-3 pr-12"
+          :class="toast.status === 'confirmed'
+            ? 'border-[#22CCB2] bg-gradient-to-r from-[#E4FAF7] to-white text-[#107E73]'
+            : 'border-[#FF4405] bg-gradient-to-r from-[#FFF0EB] to-white text-[#A52A16]'"
+          data-test="creator-booking-review-toast"
+        >
+          <div class="relative h-12 w-12 shrink-0">
+            <img
+              v-if="toast.avatarUrl"
+              :src="toast.avatarUrl"
+              :alt="toast.avatarAlt"
+              class="h-12 w-12 rounded-full object-cover"
+            />
+            <div v-else class="flex h-12 w-12 items-center justify-center rounded-full bg-[#FCE40D] text-sm font-semibold text-slate-700">
+              {{ String(toast.avatarAlt || '?').charAt(0).toUpperCase() }}
+            </div>
+            <span
+              class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-white"
+              :class="toast.status === 'confirmed' ? 'bg-[#22CCB2]' : 'bg-[#FF4405]'"
+              aria-hidden="true"
+            >{{ toast.status === 'confirmed' ? '✓' : '×' }}</span>
+          </div>
+          <div class="text-sm font-semibold leading-5 sm:text-base sm:leading-6">{{ toast.title }}</div>
+          <button
+            class="absolute right-4 top-4 text-xl leading-none text-slate-400 hover:text-slate-600"
+            type="button"
+            :aria-label="toast.closeLabel"
+            @click="removeToast(toast.id)"
+          >×</button>
+        </div>
         <div class="flex items-start justify-between gap-3">
+          <template v-if="toast.variant !== 'booking-review'">
           <div>
             <div class="text-xs font-semibold uppercase tracking-wide">{{ toast.title }}</div>
             <div class="text-sm leading-5 whitespace-pre-line">{{ toast.message }}</div>
@@ -30,6 +64,7 @@
             @click="removeToast(toast.id)">
             Close
           </button>
+          </template>
         </div>
       </div>
     </transition-group>
@@ -120,6 +155,11 @@ function onToastEvent(event) {
     actionState: "idle",
     actionAnnouncement: "",
     dedupeKey: typeof detail.dedupeKey === "string" ? detail.dedupeKey : "",
+    variant: detail.variant || "default",
+    status: detail.status || "",
+    avatarUrl: detail.avatarUrl || "",
+    avatarAlt: detail.avatarAlt || "",
+    closeLabel: detail.closeLabel || "Close",
   };
 
   toasts.value = [...toasts.value, toast];

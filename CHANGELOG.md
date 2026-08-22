@@ -1,5 +1,234 @@
 # Changelog
 
+## 2026-08-21 — Calendar Booking Actions Reach Chat
+
+Accepting, declining or cancelling a booking from the events dashboard calendar left the chat untouched — no updated request bubble, no activity log, and nothing pushed to the other party. Only the standalone booking-details popup was wired for it. This closes that gap and gives the calendar the price-adjustment actions it was missing.
+
+### Added
+
+#### `src/composables/useBookingChatSync.js`
+- **Shared Chat Mirroring** — `syncBookingToChat(booking, action, logKey)` writes the action onto the linked chat message and then asks the chat embed on the host page to broadcast it with an activity log. `broadcastBookingToChat(booking, item, logKey)` covers the case where the message was already written by one of the chat request popups, so only the broadcast is missing. The activity-log copy lives here too, keyed the way `ChatWindow` reads `decision`.
+
+#### `src/features/events/DashboardEventsFeature.vue`
+- **Price Adjustment Responses** — Fans can now accept or decline a creator's price change from the calendar's booking detail panel. The confirmation, wallet-balance breakdown, top-up round trip and re-approval mirror what the standalone booking-details page already did, via `useBookingAdjustmentDecision` and `useBookingActions`.
+
+#### `public/bookings-embed/fs-events-host.js`
+- **Dashboard Top-up Handler** — `FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED` was only handled inside the booking-details popup's message block, so a top-up requested from the dashboard embed was dropped without a reply. The dashboard block now opens the tip popup and answers with success or failure, matching the popup block.
+
+#### `src/__tests__/`
+- **New Coverage** — `bookingChatSync.spec.js` (mirror, broadcast payload, and the cases that must not reach chat) plus dashboard top-up cases in `fsEventsHost.spec.js` and payload-shape cases in `mainCalendarAdjustBooking.spec.js`.
+
+### Changed
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **One Implementation** — `syncBookingMessageAction` and the inline relay in `onTimeChangeSubmitted` now delegate to `useBookingChatSync`, so the two events surfaces share a single implementation instead of drifting.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Counter Offers Through the Host Relay** — `handleAdjustSubmitted` broadcast the updated message over its own `useChatSocket()` instance, which was constructed without a user id. It now goes through the same host relay as every other events-surface action, and the direct socket import is gone.
+
+### Fixed
+
+#### `src/features/events/DashboardEventsFeature.vue`
+- **Calendar Actions Never Reached Chat** — `reviewPendingBooking` and `confirmCancelBooking` called the booking API and refetched the dashboard, but never updated the linked chat message or asked the chat embed to broadcast it. Accept, decline and cancel now all mirror to chat, which also covers the compact widget approval that routes through the same handler.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Adjustment Events Carried No Booking** — `BookingDetailsPopup` emits only the proposal figures for `accept-adjustment` / `decline-adjustment`, with no booking or event attached. The calendar now attaches the selected booking when forwarding them; without it the host had nothing to act on and the buttons did nothing.
+
+## 2026-08-20 — Decline Confirmation & Chat Embed Read APIs
+
+### Added
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **`getChat()` / `getMessage()`** — Two read APIs on the mounted chat handle, alongside `getState()` / `refreshStats()`. `getChat({ chatId })` or `getChat({ userId, creatorId })` returns one chat; `getMessage({ chatId, messageId })` returns one message. Both resolve to `{ item }` and read only from the embed's store — no API calls, no state mutation, so the unread counters the host renders are untouched.
+- **Shared `request()` Helper** — The `getState` promise/timeout/requestId block was generalised so the three RPCs share one implementation and one pending map, answered by a new `FS_CHAT_RESPONSE` type (the original `FS_CHAT_STATE_RESPONSE` is still accepted).
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **`FS_CHAT_GET_CHAT` / `FS_CHAT_GET_MESSAGE` Handlers** — Message lookup checks the pinned messages first, since booking requests are pinned, then the chat's message list; it normalises the two shapes `chatPinnedMessages` can hold and matches on either `message_id` or `id`.
+
+#### `src/services/bookings/utils/bookingChatMessage.js`
+- **`resolveBookingChatMessage()`** — Returns the real chat message when a chat embed on the host page still holds it, otherwise the message rebuilt from booking meta. Guarded against a missing embed, a cross-origin host, and a request timeout.
+
+#### `src/services/chat/chatResolverUtils.js`
+- **`findDirectChat()`** — The direct-chat lookup lifted out of `ChatFloatingWidget` so the widget and the new RPC handler share it. Participant entries may be ids or objects, so both shapes are normalised.
+
+#### `src/__tests__/`
+- **New Specs** — `fsChatHostRpc.spec.js` (round trip, unknown request id, timeout, teardown, `getState` regression), `bookingChatMessage.spec.js` (every fallback path including a cross-origin `SecurityError`), and `chatDeclineConfirmation.spec.js` (decline wiring).
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Decline Confirms First** — Declining a pending booking from a chat bubble ran the API on the first click. It now opens `BookingAdjustmentDecisionPopup` in `reject` mode — the same refund confirmation the booking detail panel already used. The detail popup's own `reject-booking` path is untouched, since it confirms internally.
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **Real Booking Message** — The linked chat message is now resolved asynchronously and passed to `BookingDetailsPopup` as `bookingMessage`. The rebuilt message is shown immediately so the panel is never empty, then replaced once the real one arrives. Only the real message carries `content.action`, which decides whether the creator sees the time-change actions.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Counter Offer From a Self-Fetched Booking** — `getPendingCounterOffer` fell back to `props.booking`, which is null when the popup fetches the booking itself; it now reads the resolved booking.
+
+### Fixed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Reject Fell Through to Accept** — A confirmed decision with mode `reject` had no branch in `confirmBookingDecision` and would have reached `onConfirmCounter`, accepting the counter offer instead of declining the booking.
+- **Confirmation Popup Stayed Open** — `performBookingDecision` closed the detail panel but not the decision popup, which cannot close itself while the action is still marked as processing.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Timers Outliving Teardown** — `destroy()` left in-flight request timers running, so they rejected five seconds after the embed was gone. They are now cleared.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Read Requests Toggled the Widget** — Any inbound `FS_CHAT_*` message re-evaluated the floating button's visibility. The two read APIs are excluded so fetching a chat or message cannot move the UI.
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Cross-Origin Chat Access** — `window.parent.chatEmbed` was read without a guard; on a cross-origin host that throws a `SecurityError` out of the click handler.
+
+## 2026-08-20 — Booking Request Bubble & Adjust Request Fixes
+
+Follow-up to the booking details popup consolidation: aligns the chat bubble's actions with the new confirmation flow and repairs the "Adjust Request" path on the events dashboard.
+
+### Fixed
+
+#### `src/components/calendar/MainCalendar.vue`
+- **Adjust Request Submission** — Submitting an adjustment from the events dashboard failed with `BOOKING_UPDATE_MISSING_ID`. `handleAdjustBooking` stored the detail popup's payload (`{ bookingId, eventId, event, booking }`) verbatim, but `AdjustBookingPopup` is bound to `message` / `chatId` and reads the booking id from `message.content.booking_id`, so it submitted `undefined`. The handler now rebuilds the linked chat message from `booking.meta` with `buildBookingChatMessage()`, and refuses to open the popup with an error toast when the booking has no linked chat request.
+- **Counter Offer Never Reached Chat** — `handleAdjustSubmitted` read `chatId` from the same missing field, so the socket broadcast and activity log were skipped even on a successful submit. It also sent `senderId: undefined`, since `chatStore.currentUserId` is not part of the chat store's state; it now resolves the sender through `resolveUserId()`.
+- **Unused Store** — Dropped the now-unreferenced `useChatStore` import.
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Accept & Pay** — Renamed the counter-offer accept button to match the confirmation step it now opens.
+- **Kebab Menu Visibility** — The overflow menu now shows for pending and accepted requests that have not passed, replacing the previous pinned/creator condition.
+- **View Details** — Hidden on the bubble; the pinned card remains the entry point.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Menu Trimmed** — Commented out the "Ask for more time" and "Ask to reschedule" entries, leaving cancel as the only live-call action.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Unpin Empty Bookings** — Pinned booking messages whose booking has no start/end are now treated as expired and unpinned, so stale cards stop occupying the pinned slot.
+- **Top-up Failure State** — Stopped clearing the pending top-up booking on `FS_CHAT_TOPUP_FAILED`, so a failed attempt can still be resumed by a later success.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Open Chat Closes the Panel** — The "Open chat" link now emits `close` alongside `open-chat`, so the detail panel does not stay open behind the chat.
+
+#### `src/i18n/bookingTranslations.js` & `public/bookings-embed/booking-translations.en.json`
+- **New Key** — `dashboard_booking_adjust_unavailable` for the case where a booking has no linked chat request to adjust.
+
+### Added
+
+#### `src/__tests__/mainCalendarAdjustBooking.spec.js`
+- **Adjust Request Coverage** — Five cases over the rebuilt chat message, the guard for bookings without `meta.chatId` / `meta.bookingMessageId`, and the broadcast payload (recipients and resolved sender id).
+
+## 2026-08-20 — Unified Booking Details Popup Across Chat & Booking Embeds
+
+Both embeds rendered their own booking detail UI (`BookingRequestDetailPopup` in chat, `BookingDetailsPopup` everywhere else) and re-implemented the same booking writes side by side. This consolidates on a single popup, extracts the shared action logic, and lets the events embed reach the chat socket through the host page.
+
+### Added
+
+#### `src/composables/useBookingActions.js`
+- **Shared Booking Writes** — New composable holding every booking flow call used by both embeds (`reviewBooking`, `cancelBooking`, `applyPriceAdjustment`, `acceptCounterOffer`, `rejectCounterOffer`, `syncBookingMessage`), returning a uniform `{ ok, item, error }`. Host-specific side effects (socket broadcast, activity log, embed bridge, toasts) stay with the caller.
+
+#### `src/composables/useBookingAdjustmentDecision.js`
+- **Shared Decision State** — New composable that resolves every figure `BookingAdjustmentDecisionPopup` needs (session refund, booking fee, cancellation fee, wallet balance, counterparty username) from a booking and exposes them as ready-to-bind `popupProps`. Extracted from `EventsEmbedBookingDetailsPage.vue` so the chat embed can reuse it verbatim.
+
+#### `src/services/bookings/utils/bookingChatMessage.js`
+- **Booking → Chat Message** — `buildBookingChatMessage(booking)` rebuilds the linked `booking_request` message from `booking.meta.chatId` + `meta.bookingMessageId`, so any surface holding a booking can drive the message-driven chat popups without the real message.
+
+#### `src/services/bookings/utils/bookingCalendarEvent.js`
+- **Booking → Calendar Event** — Extracted `normalizeBookingForCalendar` / `toCalendarEvent` out of `EventsEmbedBookingDetailsPage.vue` so the chat embed can feed `bookingJoinUtils` the shape it expects.
+
+#### `src/services/chat/utils/chatBroadcast.js`
+- **Chat Broadcast Helpers** — `broadcastMessageUpdate` and `sendActivityLog` lifted out of `ChatWindow.vue` so `ChatFloatingWidget` can apply booking updates for a chat that is not currently open.
+
+#### `src/services/bookings/utils/bookingNegotiationUtils.js`
+- **`getPendingCounterOffer()`** — Resolves the outstanding counter offer for every type (`adjust`, `moretime`, `reschedule`), not just price adjustments, returning the proposal and negotiation id. `isPendingPriceAdjustment` is now a thin wrapper over it with its behaviour unchanged.
+
+#### `src/embeds/events/bridge.js`
+- **`requestBookingChatSync()`** — New `FS_EVENTS_BOOKING_CHAT_SYNC` message asking the chat embed on the same host page to broadcast a booking update, since the events embed has no chat socket of its own.
+
+#### `src/__tests__/bookingDetailsPopupCounterOffers.spec.js`
+- **Counter Offer Coverage** — 11 new cases covering the moretime/reschedule accept & reject actions, the rebuilt chat message payload, waiting and expired states, the creator time-change menu, `messageAction` overriding the booking status, and the no-show settlement labels.
+
+### Changed
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Counter Offer Actions** — Added `accept-counter` / `reject-counter` / `ask-more-time` / `ask-to-reschedule` emits, each carrying a full payload (`bookingId`, `offerType`, `proposed`, `negotiationId`, `message`) so hosts no longer re-derive state themselves.
+- **New Props** — `bookingMessage` and `messageAction` let a chat message drive the popup's state, and `canRequestTimeChange` opts a host into the creator's "Ask for more time" / "Ask to reschedule" menu entries. `popupConfig` merges over the slide-in config (used for a higher z-index inside chat).
+- **New States** — Fan-facing banner for a proposed new time, a "Waiting for creator response" badge, a "Request expired" notice once the slot has started, and the no-show settlement line ("Fully refunded" / "Fan Forfeited").
+- **Accept And Pay** — The fan's price-adjustment button now reads "Accept and pay", matching the confirmation step it opens.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Popup Swap** — Replaced `BookingRequestDetailPopup` with `BookingDetailsPopup`, deriving the calendar event from the cached booking and mapping the eleven chat actions onto its emits. Handlers now accept either a chat message (from the bubble) or a popup payload.
+- **Confirmation Step** — Cancellations and price-adjustment responses now confirm through `BookingAdjustmentDecisionPopup` (refund / price-increase / top-up-needed), matching the booking embed. The manual balance check in `onConfirmCounter` was dropped in favour of the popup's own `requiresTopup` / `shortfallTokens`.
+- **Shared Logic** — Booking writes now go through `useBookingActions`, and broadcast/activity-log helpers through `chatBroadcast.js`.
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Disambiguated Cancel** — `cancel-booking` now carries `{ source: 'counter_offer' | 'menu' }` so the parent can tell a fan declining an adjustment from a creator cancelling the call, which need different negotiation intents.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **`syncBookingUpdate()`** — New exposed method that refreshes the cached booking, re-renders the request bubble, socket-pushes the message and appends an activity log for updates that happened outside chat. Lives on the widget because it owns the socket and the target chat need not be open.
+
+#### `src/embeds/chat/ChatEmbedApp.vue`
+- **Booking Sync Inbound** — Handles `FS_CHAT_BOOKING_SYNC` from the host and forwards it to the widget.
+
+#### `public/bookings-embed/fs-chat-host.js`
+- **Booking Sync Relay** — Relays `FS_EVENTS_BOOKING_CHAT_SYNC` from an events embed on the same page into the chat iframe. Guarded on both the `fs-events-embed` source marker and the sending frame, so only this page's own embeds can reach chat state.
+
+#### `src/embeds/events/pages/EventsEmbedBookingDetailsPage.vue`
+- **Time Change Requests** — Creators can now open the more-time and reschedule request popups directly from the booking embed, driven by the rebuilt chat message.
+- **Counter Offer Responses** — Wired `accept-counter` / `reject-counter` so fans can respond to a proposed new time without switching to chat.
+- **Chat Mirroring** — Approve, reject and cancel now mirror onto the chat message as well, and every action asks the chat embed to broadcast it with a matching activity log.
+- **Deduplicated Logic** — The fee/refund computeds and the flow calls were replaced by the two new composables.
+
+#### `src/components/ui/popup/EventDetailsFan.vue` & `src/components/calendar/CalendarEventDetailsPopup.vue`
+- **Pass-through Events** — Both wrappers re-emit the four new counter-offer events.
+
+#### `src/components/ui/popup/BookingAdjustmentDecisionPopup.vue`
+- **Configurable Popup** — Accepts an optional `popupConfig` merged over its defaults, so a host can raise its z-index.
+
+#### `src/i18n/bookingTranslations.js`
+- **New Keys** — Added the strings for the counter-offer banner, waiting and expired notices, time-change menu entries, "Accept and pay", and the no-show settlement labels.
+
+### Fixed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **Unchecked Booking Result** — `performBookingDecision` flipped the chat message to accepted/declined even when `bookings.reviewPendingBooking` had failed. The shared composable checks the result and surfaces a toast instead.
+- **Popup Never Opened** — `PopupHandler` only opens on a `false → true` transition of `modelValue`, so mounting the detail popup with `v-if` while already visible left it hidden. The popup is now mounted with the message first and revealed on the next tick.
+- **Popup Behind Chat** — `PopupHandler` defaults to `zIndex: 2000`, below the chat window's `10000`; the chat embed now passes explicit z-indexes for both popups.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Stretched Panel** — `PopupHandler` forces `md:!w-auto` on its panel, which overrode the configured `500px` and let long adjustment remarks stretch the popup across the viewport. The surface now carries the desktop width itself.
+
+#### `src/composables/useBookingAdjustmentDecision.js`
+- **Silent Zero Balance** — A failed wallet lookup returns `null`, and `Number(null)` is `0`, so a failed fetch read as an empty wallet — showing no error and wrongly forcing a top-up on the accept flow. `null` / `undefined` / `""` are now treated as unavailable.
+
+#### `public/bookings-embed/chat-iframe.html`
+- **Missing JWT** — The test harness stored the token on `window.usersData` and never passed `jwtToken` to `mountChatEmbed`, so the embedded chat could not authenticate (`Backend JWT token is not configured`). It now sets `window.userData.jwtToken` and forwards the token to the embed.
+
+### Removed
+
+#### `src/components/ui/chat/BookingRequestDetailPopup.vue`
+- **Superseded Popup** — Deleted; `BookingDetailsPopup` now serves the chat embed as well.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **`CancelCallConfirmPopup` Wiring** — Removed, as every cancellation entry point in chat now confirms through `BookingAdjustmentDecisionPopup`.
+
+## 2026-08-17 — Booking Checkout UI Enhancements
+
+### Added
+
+#### `src/i18n/bookingTranslations.js`
+- **New Translation Keys** — Added keys for the checkout flow and payment failure UI (`common_instant_approval`, `fan_booking_minute_session`, `fan_booking_failure`).
+
+### Changed
+
+#### `src/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep4.vue`
+- **Dynamic Right Section** — Updated the static info block on desktop to dynamically display the event title, creator label, formatted date, time range, and duration based on selected props.
+- **Instant Approval Badge** — Added conditional logic to dynamically toggle between an "INSTANT APPROVAL" or "APPROVAL NEEDED" badge in the info section based on the `isInstantConfirmed` property.
+
+#### `src/components/FanBookingFlow/HelperComponents/CardForm.vue`
+- **Checkout Skeleton Overlay** — Replaced the hidden template-based skeleton loader with a native, dynamically overlaid `v-if` skeleton. Styled the skeleton bars using `bg-white/20 animate-pulse` to ensure visibility against the dark UI background during payment gateway initialization.
+
+#### `src/components/FanBookingFlow/HelperComponents/TopUpForm.vue`
+- **Custom Payment Failure Popup** — Replaced the generic error toast mechanism with a dedicated Failure modal. The new popup features a custom POS failure image (`payment-fail.png`), orange accent text, and a 5-second dynamic countdown timer that automatically closes the modal and returns the user to the form.
+
 ## 2026-08-04 — Chat Booking API Optimizations & Event Sync
 
 ### Changed

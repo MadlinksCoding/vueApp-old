@@ -15,6 +15,7 @@ import ChatFloatingWidget from '@/components/ui/chat/ChatFloatingWidget.vue'
 import { setBackendJwtToken } from '@/utils/backendJwt.js'
 import { setRuntimeTokenHandlerApiUrl } from '@/utils/TokenHandler.js'
 import { useChatStore } from '@/stores/useChatStore'
+import { findDirectChat } from '@/services/chat/chatResolverUtils'
 import { postToParent } from '@/utils/postToParent'
 import { provideBookingTranslations } from '@/i18n/bookingTranslations.js'
 
@@ -87,7 +88,15 @@ const FS_CHAT_OPEN_GROUP_CHAT     = 'FS_CHAT_OPEN_GROUP_CHAT'
 const FS_CHAT_OPEN_NEW_CHAT_POPUP = 'FS_CHAT_OPEN_NEW_CHAT_POPUP'
 const FS_CHAT_GET_STATE           = 'FS_CHAT_GET_STATE'
 const FS_CHAT_STATE_RESPONSE      = 'FS_CHAT_STATE_RESPONSE'
+const FS_CHAT_GET_CHAT            = 'FS_CHAT_GET_CHAT'
+const FS_CHAT_GET_MESSAGE         = 'FS_CHAT_GET_MESSAGE'
+const FS_CHAT_RESPONSE            = 'FS_CHAT_RESPONSE'
 const FS_CHAT_SET_FLOATING_BUTTON = 'FS_CHAT_SET_FLOATING_BUTTON'
+
+// postMessage cannot structured-clone Vue's reactive proxies.
+function clonePlain(value) {
+  return value == null ? null : JSON.parse(JSON.stringify(value))
+}
 
 const alwaysHideFloatingButton = params.get('alwaysHideFloatingButton') === '1'
 const hideFloatingButton = ref(alwaysHideFloatingButton || params.get('hideFloatingButton') === '1')
@@ -104,7 +113,8 @@ function onParentMessage(event) {
     return
   }
 
-  if( data.type.startsWith('FS_CHAT_') && data.type !== FS_CHAT_SET_FLOATING_BUTTON && data.type !== FS_CHAT_OPEN_CHAT) {
+  const isReadOnlyRequest = data.type === FS_CHAT_GET_CHAT || data.type === FS_CHAT_GET_MESSAGE
+  if( data.type.startsWith('FS_CHAT_') && data.type !== FS_CHAT_SET_FLOATING_BUTTON && data.type !== FS_CHAT_OPEN_CHAT && !isReadOnlyRequest) {
     let parentWindow = window.parent
     if ( parentWindow ) {
       try {
@@ -131,6 +141,11 @@ function onParentMessage(event) {
     widgetRef.value?.openChat(payload)
   }
 
+  // Booking updated in the events embed — mirror it into chat state and the socket.
+  if (data.type === 'FS_CHAT_BOOKING_SYNC') {
+    widgetRef.value?.syncBookingUpdate?.(data.payload || {})
+  }
+
   if (data.type === 'FS_CHAT_CLOSE') {
     widgetRef.value?.closeAll?.()
   }
@@ -146,6 +161,39 @@ function onParentMessage(event) {
   if (data.type === FS_CHAT_OPEN_GROUP_CHAT) {
     const payload = data.payload || {}
     widgetRef.value?.openGroupChat(payload)
+  }
+
+  // Read one chat out of the store — by id, or by the two participants of a
+  // direct chat. Read-only: never mutates the store or the unread counters.
+  if (data.type === FS_CHAT_GET_CHAT) {
+    const { requestId, chatId, userId, creatorId } = data.payload || {}
+    const store = useChatStore()
+
+    const item = chatId
+      ? (store.userChats || []).find((chat) => String(chat.chat_id) === String(chatId)) || null
+      : findDirectChat(store, userId, creatorId)
+
+    postToParent(FS_CHAT_RESPONSE, { requestId, data: { item: clonePlain(item) } })
+    return
+  }
+
+  // Read one message out of the store. chatId is required because messages are
+  // indexed by chat; booking requests are pinned, so look there first.
+  if (data.type === FS_CHAT_GET_MESSAGE) {
+    const { requestId, chatId, messageId } = data.payload || {}
+    const store = useChatStore()
+
+    const matches = (message) => String(message?.message_id ?? message?.id ?? '') === String(messageId)
+    let item = null
+
+    if (chatId && messageId) {
+      const pinned = store.getPinnedMessageByChatId(chatId)
+      const pinnedList = Array.isArray(pinned) ? pinned : (pinned ? [pinned] : [])
+      item = pinnedList.find(matches) || store.getMessagesByChatId(chatId).find(matches) || null
+    }
+
+    postToParent(FS_CHAT_RESPONSE, { requestId, data: { item: clonePlain(item) } })
+    return
   }
 
   if (data.type === FS_CHAT_GET_STATE) {

@@ -154,9 +154,19 @@ vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep2.vue", 
 }));
 
 vi.mock("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue", () => ({
+  __esModule: true,
+  __isTeleport: false,
+  __isKeepAlive: false,
+  name: "BookingFlowStep3",
   default: {
     name: "BookingFlowStep3",
-    template: "<div data-test='step-3'>Step 3</div>",
+    emits: ["balance-changed", "booking-created"],
+    template: `
+      <div data-test="step-3">
+        <button data-test="step-3-top-up" @click="$emit('balance-changed', { reason: 'top-up' })">top-up</button>
+        <button data-test="step-3-booking" @click="$emit('booking-created', { bookingId: 'booking_123' })">booking</button>
+      </div>
+    `,
   },
 }));
 
@@ -497,6 +507,31 @@ describe("OneOnOneBookingFlowFeature", () => {
     await wrapper.get("[data-test='booking-flow-close-button']").trigger("click");
 
     expect(wrapper.emitted("close-request")).toHaveLength(1);
+  });
+
+  it("requests parent balance refreshes for authoritative top-ups and completed bookings", async () => {
+    const { default: OneOnOneBookingFlowFeature } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowFeature.vue");
+    const wrapper = mount(OneOnOneBookingFlowFeature, {
+      props: {
+        creatorId: 1407,
+        fanId: 12,
+        previewMode: true,
+        previewEvent: { eventId: "evt_preview", title: "Preview", type: "1on1-call" },
+        previewStartStep: 3,
+      },
+    });
+
+    await flushAsync();
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    await wrapper.get("[data-test='step-3-top-up']").trigger("click");
+    await wrapper.get("[data-test='step-3-booking']").trigger("click");
+
+    expect(wrapper.emitted("balance-refresh-request")).toEqual([
+      [{ reason: "top-up" }],
+      [{ reason: "booking" }],
+    ]);
+    expect(wrapper.emitted("booking-created")).toEqual([[{ bookingId: "booking_123" }]]);
   });
 
   it("forwards step 4 close-popup as close-request", async () => {

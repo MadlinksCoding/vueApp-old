@@ -18,6 +18,37 @@ afterEach(() => {
 });
 
 describe("EventsWidget", () => {
+  it("hides and closes the booking menu while its booked slot projects a pending price adjustment", async () => {
+    const makeItem = (pendingPriceAdjustment) => ({
+      title: "Adjusted booking",
+      time: "10:00 AM",
+      sourceEvent: {
+        bookingId: "booking_adjust",
+        raw: {
+          pendingPriceAdjustment,
+        },
+      },
+    });
+    const sectionsFor = (item) => [{ title: "TODAY", items: [item], isPending: false }];
+
+    wrapper = mount(EventsWidget, {
+      props: { sections: sectionsFor(makeItem(false)) },
+    });
+
+    await wrapper.get("[data-test='events-widget-menu-trigger']").trigger("click");
+    expect(wrapper.get("[data-test='events-widget-menu']").exists()).toBe(true);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(true)) });
+    await flushPromises();
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+
+    await wrapper.setProps({ sections: sectionsFor(makeItem(false)) });
+    await flushPromises();
+    expect(wrapper.get("[data-test='events-widget-menu-trigger']").attributes("aria-expanded"))
+      .toBe("false");
+    expect(wrapper.find("[data-test='events-widget-menu']").exists()).toBe(false);
+  });
+
   it("uses pending metadata independently of the translated section title", async () => {
     const item = {
       title: "Pending booking",
@@ -90,14 +121,50 @@ describe("EventsWidget", () => {
       expect(wrapper.emitted("event-click")).toEqual([[item]]);
 
       await wrapper.get("[data-test='pending-booking-accept']").trigger("click");
-      expect(wrapper.emitted("approve-booking")).toEqual([[
+      expect(wrapper.emitted("accept-details")).toEqual([[
         {
           bookingId: `booking_${status}`,
           eventId: `event_${status}`,
-          decision: "approve",
           event: sourceEvent,
         },
       ]]);
+      expect(wrapper.emitted("approve-booking")).toBeUndefined();
+    },
+  );
+
+  it.each(["adjust", "reschedule", "more_time"])(
+    "shows Review without Accept for a pending %s counteroffer",
+    async (counterOfferType) => {
+      const item = {
+        title: "Counteroffer awaiting fan",
+        time: "10:00 AM",
+        showReply: true,
+        avatars: [{ src: "/avatar.png", name: "Fan" }],
+        sourceEvent: {
+          bookingId: "b_evt_b8157ee2-084f-4b04-a3d4-a0927551974d_1787158789480_771492",
+          eventId: "evt_b8157ee2-084f-4b04-a3d4-a0927551974d",
+          status: "pending",
+          raw: {
+            pendingCounterOffer: true,
+            pendingPriceAdjustment: counterOfferType === "adjust",
+          },
+        },
+      };
+
+      wrapper = mount(EventsWidget, {
+        props: {
+          userRole: "creator",
+          sections: [{ title: "PENDING REQUESTS", items: [item], isPending: true }],
+        },
+        global: { stubs: { TooltipIcon: true } },
+      });
+
+      expect(wrapper.find("[data-test='pending-booking-review']").exists()).toBe(true);
+      expect(wrapper.find("[data-test='pending-booking-accept']").exists()).toBe(false);
+
+      await wrapper.get("[data-test='pending-booking-review']").trigger("click");
+      expect(wrapper.emitted("event-click")).toEqual([[item]]);
+      expect(wrapper.emitted("accept-details")).toBeUndefined();
     },
   );
 

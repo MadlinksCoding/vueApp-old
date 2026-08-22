@@ -18,6 +18,7 @@ const mock = vi.hoisted(() => ({
   translations: {},
   revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
   scrollToTime: vi.fn(() => Promise.resolve(true)),
+  applyBookingReviewResult: vi.fn(() => true),
   mapEventToBookingFormState: vi.fn(() => ({
     eventType: "1on1-call",
     eventTitle: "Edited Preview",
@@ -289,6 +290,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       },
       revealSelectedWeekDay: mock.revealSelectedWeekDay,
       scrollToTime: mock.scrollToTime,
+      applyBookingReviewResult: mock.applyBookingReviewResult,
     },
     template: `
       <div data-test="calendar">
@@ -416,6 +418,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     mock.showToast.mockReset();
     mock.revealSelectedWeekDay.mockClear();
     mock.scrollToTime.mockClear();
+    mock.applyBookingReviewResult.mockClear();
     originalScrollTo = window.scrollTo;
     window.scrollTo = vi.fn();
     setWindowWidth(500);
@@ -1445,7 +1448,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     );
 
     await wrapper.get("[data-test='calendar-cancel']").trigger("click");
-    await wrapper.get("[data-test='booking-form-cancel-confirm']").trigger("click");
+    await wrapper.get("[data-test='booking-adjustment-decision-primary']").trigger("click");
     await flushPromises();
     expect(mock.engine.callFlow).toHaveBeenCalledWith(
       "bookings.cancelBooking",
@@ -1563,6 +1566,58 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       { eventId: "evt_schedule" },
       expect.any(Object),
     );
+  });
+
+  it.each([
+    ["approve", "confirmed"],
+    ["reject", "cancelled_creator"],
+  ])("keeps retained hero details updated after creator %s", async (decision, reviewedStatus) => {
+    mock.engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: `booking_retained_${decision}`,
+              eventId: `event_retained_${decision}`,
+              eventTitle: "Retained review",
+              startAtIso: "2030-01-15T10:00:00Z",
+              endAtIso: "2030-01-15T11:00:00Z",
+              status: reviewedStatus,
+              cancellation: decision === "reject" ? { actor: "creator", refundedTokens: 100 } : undefined,
+            },
+          },
+        };
+      }
+      return { ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } };
+    });
+    const { default: UnifiedBookingForm } = await import("@/components/ui/form/BookingForm/UnifiedBookingForm.vue");
+    const wrapper = mount(UnifiedBookingForm);
+    await flushPromises();
+    mock.showToast.mockClear();
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    calendar.vm.$emit(`${decision === "approve" ? "approve" : "reject"}-booking`, {
+      bookingId: `booking_retained_${decision}`,
+      retainDetails: true,
+      showReviewToast: false,
+      event: {
+        bookingId: `booking_retained_${decision}`,
+        eventId: `event_retained_${decision}`,
+        status: "pending",
+        start: "2030-01-15T10:00:00Z",
+        end: "2030-01-15T11:00:00Z",
+        raw: { bookingId: `booking_retained_${decision}`, status: "pending" },
+      },
+    });
+    await flushPromises();
+
+    expect(mock.applyBookingReviewResult).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: `booking_retained_${decision}`,
+      status: reviewedStatus,
+      raw: expect.objectContaining({ status: reviewedStatus }),
+    }));
+    expect(mock.showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
   });
 
   it("warns before leaving after the form is edited", async () => {

@@ -7,14 +7,20 @@
   var FS_EVENTS_SCROLL_TO_TOP = "FS_EVENTS_SCROLL_TO_TOP";
   var FS_EVENTS_FORM_DIRTY_STATE = "FS_EVENTS_FORM_DIRTY_STATE";
   var FS_EVENTS_FORM_OPEN_STATE = "FS_EVENTS_FORM_OPEN_STATE";
+  var FS_EVENTS_BOOKING_DETAILS_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_VISIBILITY";
   var FS_EVENTS_BOOKING_DETAILS_READY = "FS_EVENTS_BOOKING_DETAILS_READY";
   var FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST = "FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST";
   var FS_EVENTS_BOOKING_DETAILS_UPDATED = "FS_EVENTS_BOOKING_DETAILS_UPDATED";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS = "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS";
+  var FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED = "FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED";
+  var FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY = "FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY";
   var FS_FAN_BOOKING_BOOTSTRAP = "FS_FAN_BOOKING_BOOTSTRAP";
   var FS_FAN_BOOKING_CHILD_READY = "FS_FAN_BOOKING_CHILD_READY";
   var FS_FAN_BOOKING_CLOSE_REQUEST = "FS_FAN_BOOKING_CLOSE_REQUEST";
   var FS_FAN_BOOKING_CREATED = "FS_FAN_BOOKING_CREATED";
   var FS_FAN_BOOKING_FAILED = "FS_FAN_BOOKING_FAILED";
+  var FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST";
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
 
@@ -25,6 +31,7 @@
   var EVENTS_EMBED_IFRAME_CLASS = "fs-events-embed__iframe";
   var EVENTS_EMBED_IFRAME_CONTENT_CLASS = "fs-events-embed__iframe--content";
   var EVENTS_EMBED_IFRAME_VIEWPORT_CLASS = "fs-events-embed__iframe--viewport";
+  var EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS = "fs-events-embed__iframe--booking-details-open";
   var FAN_BOOKING_POPUP_CLASS = "fs-fan-booking-popup";
   var FAN_BOOKING_POPUP_OVERLAY_CLASS = "fs-fan-booking-popup__overlay";
   var FAN_BOOKING_POPUP_MODAL_CLASS = "fs-fan-booking-popup__modal";
@@ -35,6 +42,9 @@
   var FAN_BOOKING_POPUP_LOADING_HIDDEN_CLASS = "fs-fan-booking-popup__loading--hidden";
   var BOOKING_DETAILS_POPUP_OVERLAY_CLASS = "fs-booking-details-popup__overlay";
   var BOOKING_DETAILS_POPUP_PANEL_CLASS = "fs-booking-details-popup__panel";
+  var BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS = "fs-booking-details-popup__panel--decision-open";
+  var BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS = "fs-booking-details-popup__panel--decision-direct";
+  var BOOKING_DETAILS_POPUP_CLOSING_CLASS = "fs-booking-details-popup__panel--closing";
   var BOOKING_DETAILS_POPUP_IFRAME_CLASS = "fs-booking-details-popup__iframe";
   var BOOKING_DETAILS_POPUP_LOADING_CLASS = "fs-booking-details-popup__loading";
   var BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS = "fs-booking-details-popup__loading--hidden";
@@ -43,6 +53,30 @@
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
+  var tokenBalanceRefreshQueue = Promise.resolve();
+
+  function queueTokenBalanceUiRefresh(payload) {
+    tokenBalanceRefreshQueue = tokenBalanceRefreshQueue
+      .catch(function () {})
+      .then(async function () {
+        if (!global.tokenManager || typeof global.tokenManager.updateBalanceUIs !== "function") {
+          if (global.console && typeof global.console.warn === "function") {
+            global.console.warn("[FSEventsEmbed] tokenManager.updateBalanceUIs is unavailable", payload || {});
+          }
+          return;
+        }
+
+        try {
+          await global.tokenManager.updateBalanceUIs();
+        } catch (error) {
+          if (global.console && typeof global.console.error === "function") {
+            global.console.error("[FSEventsEmbed] Failed to refresh token balance UIs", error);
+          }
+        }
+      });
+
+    return tokenBalanceRefreshQueue;
+  }
 
   function isFanBookingDebugEnabled(options) {
     if (options && options.debug === true) return true;
@@ -353,9 +387,22 @@
     return Math.max(320, Math.round(height));
   }
 
+  function resolveVisibleMobileHeaderInset() {
+    var mobileHeader = document.querySelector("[data-mobile-header]");
+    if (!mobileHeader || typeof mobileHeader.getBoundingClientRect !== "function") return 0;
+
+    var style = global.getComputedStyle ? global.getComputedStyle(mobileHeader) : null;
+    if (style && (style.display === "none" || style.visibility === "hidden")) return 0;
+
+    var headerRect = mobileHeader.getBoundingClientRect();
+    if (!headerRect || headerRect.height <= 0 || headerRect.top > 0 || headerRect.bottom <= 0) return 0;
+    return Math.max(0, headerRect.bottom);
+  }
+
   function applyViewportIframeHeight(iframe, nextHeight) {
     if (!iframe) return;
-    var height = safeNumber(nextHeight, null) || resolveViewportHeight();
+    var requestedHeight = safeNumber(nextHeight, null) || resolveViewportHeight();
+    var height = Math.max(320, requestedHeight - resolveVisibleMobileHeaderInset());
     iframe.style.setProperty("--fs-events-embed-height", String(Math.max(320, Math.round(height))) + "px");
   }
 
@@ -389,26 +436,25 @@
     var behavior = payload && payload.behavior === "smooth" ? "smooth" : "auto";
 
     try {
-      if (typeof wrapper.scrollIntoView === "function") {
-        wrapper.scrollIntoView({ block: "start", inline: "nearest", behavior: behavior });
-      }
-    } catch (_error) {
-      // Fall back to absolute window scrolling below.
-    }
-
-    try {
       var rect = wrapper.getBoundingClientRect ? wrapper.getBoundingClientRect() : null;
       if (!rect) return;
 
       var pageOffset = global.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      var top = Math.max(0, rect.top + pageOffset);
+      var top = Math.max(0, rect.top + pageOffset - resolveVisibleMobileHeaderInset());
       if (typeof global.scrollTo === "function") {
         global.scrollTo({ top: top, left: 0, behavior: behavior });
+        return;
       }
     } catch (_error) {
-      if (typeof global.scrollTo === "function") {
-        global.scrollTo({ top: 0, left: 0, behavior: behavior });
+      // Fall through to the element-based fallback below.
+    }
+
+    try {
+      if (typeof wrapper.scrollIntoView === "function") {
+        wrapper.scrollIntoView({ block: "start", inline: "nearest", behavior: behavior });
       }
+    } catch (_error) {
+      // The host page does not expose a usable scrolling surface.
     }
   }
 
@@ -481,6 +527,7 @@
       creatorId: null,
       fanId: null,
       userRole: "creator",
+      initialAction: "",
       apiBaseUrl: "",
       tokenHandlerApiUrl: "",
       jwtToken: "",
@@ -520,7 +567,11 @@
     iframe.title = settings.iframeTitle;
     iframe.loading = "lazy";
     iframe.setAttribute("scrolling", "no");
-    setIframeHeightMode(iframe, "content", settings.minHeight);
+    if (String(settings.initialRoute || "").trim() === "events") {
+      setIframeHeightMode(iframe, "viewport");
+    } else {
+      setIframeHeightMode(iframe, "content", settings.minHeight);
+    }
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var hasUnsavedFormChanges = false;
@@ -582,12 +633,55 @@
       if (data.type === FS_EVENTS_RESIZE) {
         var nextHeight = safeNumber(data.payload && data.payload.height, null);
         var resizeMode = data.payload && data.payload.mode;
-        setIframeHeightMode(iframe, resizeMode === "viewport" ? "viewport" : "content", nextHeight);
+        if (resizeMode === "viewport") {
+          // The child can only measure its current iframe viewport. Using that
+          // value here creates a self-locking height loop when the iframe starts
+          // at the content-mode minimum. The parent owns the real viewport.
+          setIframeHeightMode(iframe, "viewport");
+        } else {
+          setIframeHeightMode(iframe, "content", nextHeight);
+        }
         return;
       }
 
       if (data.type === FS_EVENTS_OPEN_URL) {
         openUrl(data.payload || {}, settings);
+        return;
+      }
+
+      // The calendar surface can also need a token top-up, when a fan accepts a
+      // price increase from the booking details panel it renders inline.
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
+        var dashboardTopup = data.payload || {};
+        var dashboardTokens = Number(dashboardTopup.requiredTokens || 0);
+        var replyTopup = function (type, reason) {
+          if (!iframe.contentWindow) return;
+          iframe.contentWindow.postMessage({
+            type: type,
+            payload: { bookingId: dashboardTopup.bookingId, reason: reason },
+          }, settings.targetOrigin || "*");
+        };
+
+        if (typeof global.openTipPopup !== "function" || !Number.isFinite(dashboardTokens) || dashboardTokens <= 0) {
+          replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED, "topup_unavailable");
+          return;
+        }
+
+        global.openTipPopup({
+          creator_id: dashboardTopup.creatorUserId || 0,
+          user_id: dashboardTopup.currentUserId || 0,
+          tip_type: "token",
+          topup_amount: dashboardTokens,
+          is_call_topup_and_tip: true,
+          is_tip_from_php: true,
+          topupFor: dashboardTopup.topupFor || "booking_confirm",
+          successCallback: function () {
+            replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS);
+          },
+          failureCallback: function () {
+            replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED, "topup_failed");
+          },
+        });
         return;
       }
 
@@ -607,6 +701,13 @@
           document.body.classList.remove("event-form-open");
         }
       }
+
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_VISIBILITY) {
+        iframe.classList.toggle(
+          EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS,
+          Boolean(data.payload && data.payload.open),
+        );
+      }
     }
 
     window.addEventListener("message", onMessage);
@@ -624,6 +725,7 @@
       sendBootstrap: sendBootstrap,
       updateAuth: updateAuth,
       destroy: function () {
+        iframe.classList.remove(EVENTS_EMBED_IFRAME_BOOKING_DETAILS_OPEN_CLASS);
         window.removeEventListener("message", onMessage);
         window.removeEventListener("beforeunload", onBeforeUnload);
         window.removeEventListener("resize", syncViewportIframeHeight);
@@ -836,7 +938,7 @@
       scheduleLoadingFallbackHide();
     }
 
-    function onMessage(event) {
+    async function onMessage(event) {
       if (event.source !== iframe.contentWindow) return;
 
       var data = event.data || {};
@@ -866,6 +968,11 @@
         if (typeof settings.onBookingCreated === "function") {
           settings.onBookingCreated(data.payload || {});
         }
+        return;
+      }
+
+      if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
+        await queueTokenBalanceUiRefresh(data.payload || {});
         return;
       }
 
@@ -948,6 +1055,7 @@
       locale: "en",
       targetOrigin: window.location.origin,
       iframeTitle: "Booking details",
+      loadingLabel: "Loading...",
       closeOnOverlayClick: true,
       escToClose: true,
       returnFocusElement: null,
@@ -961,6 +1069,10 @@
     }
 
     var normalizedRole = String(settings.userRole || "creator").trim().toLowerCase() === "fan" ? "fan" : "creator";
+    var initialAction = String(settings.initialAction || "").trim().toLowerCase() === "cancel"
+      ? "cancel"
+      : "";
+    var isDirectCancelLaunch = initialAction === "cancel";
     if (normalizedRole === "fan" && safePositiveNumber(settings.fanId, null) == null) {
       throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a positive fanId for fan views.");
     }
@@ -976,6 +1088,9 @@
     var unlockBodyScroll = lockBodyScroll();
     var isDestroyed = false;
     var closeInvoked = false;
+    var bookingUpdateCloseTimer = null;
+    var bookingUpdateTransitionHandler = null;
+    var bookingUpdateCallbackInvoked = false;
 
     var overlay = createElement("div", BOOKING_DETAILS_POPUP_OVERLAY_CLASS, {
       role: "presentation",
@@ -987,12 +1102,17 @@
       "aria-label": settings.iframeTitle,
     });
     var iframe = createElement("iframe", BOOKING_DETAILS_POPUP_IFRAME_CLASS);
+    if (isDirectCancelLaunch) {
+      panel.classList.add(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+      panel.classList.add(BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS);
+      iframe.style.visibility = "hidden";
+    }
     iframe.title = settings.iframeTitle;
     iframe.loading = "eager";
     iframe.setAttribute("scrolling", "no");
 
     var loadingLayer = createElement("div", BOOKING_DETAILS_POPUP_LOADING_CLASS, {
-      "aria-label": "Loading booking details",
+      "aria-label": settings.loadingLabel,
     });
     loadingLayer.innerHTML = '<span class="fs-booking-details-popup__spinner" aria-hidden="true"></span>';
 
@@ -1008,7 +1128,9 @@
           tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
           jwtToken: settings.jwtToken || "",
           initialRoute: "booking-details",
+          initialAction: initialAction,
           bookingId: bookingId,
+          hostViewportWidth: window.innerWidth,
           creatorData: creatorData,
           translations: translations,
           locale: locale,
@@ -1028,6 +1150,7 @@
 
     function hideLoadingLayer() {
       if (!loadingLayer.parentNode) return;
+      if (isDirectCancelLaunch) iframe.style.visibility = "visible";
       loadingLayer.classList.add(BOOKING_DETAILS_POPUP_LOADING_HIDDEN_CLASS);
       global.setTimeout(function () {
         if (loadingLayer.parentNode) loadingLayer.parentNode.removeChild(loadingLayer);
@@ -1056,6 +1179,13 @@
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown);
       iframe.removeEventListener("load", sendBootstrap);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS);
+      panel.classList.remove(BOOKING_DETAILS_POPUP_CLOSING_CLASS);
+      if (bookingUpdateTransitionHandler) {
+        panel.removeEventListener("transitionend", bookingUpdateTransitionHandler);
+        bookingUpdateTransitionHandler = null;
+      }
       unlockBodyScroll();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (activeBookingDetailsPopup && activeBookingDetailsPopup.iframe === iframe) {
@@ -1067,6 +1197,36 @@
 
     function close() {
       destroy({ invokeOnClose: true });
+    }
+
+    function finishBookingUpdate(payload) {
+      if (bookingUpdateCallbackInvoked) return;
+      bookingUpdateCallbackInvoked = true;
+      if (bookingUpdateCloseTimer !== null) {
+        global.clearTimeout(bookingUpdateCloseTimer);
+        bookingUpdateCloseTimer = null;
+      }
+      destroy({ invokeOnClose: false });
+      if (typeof settings.onBookingUpdated === "function") {
+        settings.onBookingUpdated(payload || {});
+      }
+    }
+
+    function closeAfterBookingUpdate(payload) {
+      if (!isDirectCancelLaunch) {
+        panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+        // Flush the restored drawer width before applying the slide-out transform.
+        void panel.offsetWidth;
+      }
+      panel.classList.add(BOOKING_DETAILS_POPUP_CLOSING_CLASS);
+      bookingUpdateTransitionHandler = function (event) {
+        if (event.target !== panel || event.propertyName !== "transform") return;
+        finishBookingUpdate(payload);
+      };
+      panel.addEventListener("transitionend", bookingUpdateTransitionHandler);
+      bookingUpdateCloseTimer = global.setTimeout(function () {
+        finishBookingUpdate(payload);
+      }, 260);
     }
 
     function onMessage(event) {
@@ -1081,16 +1241,65 @@
         hideLoadingLayer();
         return;
       }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY) {
+        if (isDirectCancelLaunch) return;
+        panel.classList.toggle(
+          BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS,
+          data.payload && data.payload.open === true
+        );
+        return;
+      }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_CLOSE_REQUEST) {
         close();
         return;
       }
+      if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
+        var topupPayload = data.payload || {};
+        var requiredTokens = Number(topupPayload.requiredTokens || 0);
+        if (typeof global.openTipPopup !== "function" || !Number.isFinite(requiredTokens) || requiredTokens <= 0) {
+          iframe.contentWindow.postMessage({
+            type: FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED,
+            payload: { bookingId: bookingId, reason: "topup_unavailable" },
+          }, targetOrigin);
+          return;
+        }
+
+        global.openTipPopup({
+          creator_id: topupPayload.creatorUserId || 0,
+          user_id: topupPayload.currentUserId || 0,
+          tip_type: "token",
+          topup_amount: requiredTokens,
+          is_call_topup_and_tip: true,
+          is_tip_from_php: true,
+          topupFor: topupPayload.topupFor || "booking_confirm",
+          successCallback: function () {
+            if (!isDestroyed && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({
+                type: FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS,
+                payload: { bookingId: bookingId },
+              }, targetOrigin);
+            }
+          },
+          failureCallback: function () {
+            if (!isDestroyed && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({
+                type: FS_EVENTS_BOOKING_DETAILS_TOPUP_FAILED,
+                payload: { bookingId: bookingId, reason: "topup_failed" },
+              }, targetOrigin);
+            }
+          },
+        });
+        return;
+      }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_UPDATED) {
         var payload = data.payload || {};
-        destroy({ invokeOnClose: false });
-        if (typeof settings.onBookingUpdated === "function") {
-          settings.onBookingUpdated(payload);
+        if (payload.retainOpen === true) {
+          if (typeof settings.onBookingUpdated === "function") {
+            settings.onBookingUpdated(payload);
+          }
+          return;
         }
+        closeAfterBookingUpdate(payload);
         return;
       }
       if (data.type === FS_EVENTS_OPEN_URL) {
@@ -1119,8 +1328,12 @@
     iframe.addEventListener("load", sendBootstrap);
     document.body.appendChild(overlay);
 
-    // Booking IDs and authentication remain in the postMessage bootstrap payload.
-    iframe.src = settings.src;
+    // Force the lightweight HTML shell to be revalidated so a deployment cannot
+    // strand an already-open dashboard on stale hashed bundles. Booking IDs and
+    // authentication remain exclusively in the postMessage bootstrap payload.
+    iframe.src = buildIframeSrcWithQuery(settings.src, {
+      fsDetailsVersion: Date.now(),
+    });
 
     activeBookingDetailsPopup = {
       iframe: iframe,

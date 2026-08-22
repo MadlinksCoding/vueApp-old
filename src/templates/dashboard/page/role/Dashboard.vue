@@ -1,6 +1,15 @@
 <template>
   <DashboardWrapperTwoColContainer>
 
+    
+    <ButtonComponent text="Event Details Fan Popup" variant="mediaBtn" @click="eventDetailsFanOpen = true" />
+
+    <br />
+
+    <ButtonComponent text="Accept New Price" variant="mediaBtn" @click="acceptNewPriceOpen = true" />
+
+    <br />
+
     <div class="flex w-full max-w-[510px] flex-col items-center gap-3 rounded-[15px] bg-black/50 p-4 md:p-5">
       <p class="text-base font-normal leading-6 text-white">The merch you are about to purchase does not ship internationally, please confirmed you can provide address accordingly:</p>
       <div class="flex items-center gap-5 self-stretch rounded-xl bg-[rgba(16,24,40,0.6)] p-3">
@@ -301,6 +310,8 @@
     <ProfileLoginPopup v-model="profileLoginPopupOpen" />
     <ProfileMerchPopup v-model="profileMerchPopupOpen" />
     <TopUpPopup v-model="topUpPopupOpen" />
+    <BookingDetailsPopup v-model="eventDetailsFanOpen" user-role="fan" />
+    <AcceptNewPrice v-model="acceptNewPriceOpen" />
 
     <PremiumOrdersPage/>
   </DashboardWrapperTwoColContainer>
@@ -355,6 +366,8 @@ import TipPopup from "@/templates/profileAbdullah/popups/TipPopup.vue";
 import ProfileLoginPopup from "@/templates/profileAbdullah/popups/ProfileLoginPopup.vue";
 import ProfileMerchPopup from "@/templates/profileAbdullah/popups/ProfileMerchPopup.vue";
 import TopUpPopup from "@/templates/profileAbdullah/popups/TopUpPopup.vue";
+import BookingDetailsPopup from "@/components/ui/popup/BookingDetailsPopup.vue";
+import AcceptNewPrice from "@/components/ui/popup/AcceptNewPrice.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import { showToast } from "@/utils/toastBus.js";
 import PremiumOrdersPage from "../agent/PremiumOrdersPage.vue";
@@ -402,6 +415,8 @@ const tipPopupOpen = ref(false);
 const profileLoginPopupOpen = ref(false);
 const profileMerchPopupOpen = ref(false);
 const topUpPopupOpen = ref(false);
+const eventDetailsFanOpen = ref(false);
+const acceptNewPriceOpen = ref(false);
 const isClearingAllData = ref(false);
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 

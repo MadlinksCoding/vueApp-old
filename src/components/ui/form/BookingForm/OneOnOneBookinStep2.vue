@@ -1493,6 +1493,18 @@ function resolveCreatedEventName(flowResult = {}) {
   ) || t("dashboard_booked_slot");
 }
 
+function resolveCreatedEventCallType(flowResult = {}) {
+  const callType = pickTrimmedString(
+    props.engine.getState?.("eventCallType"),
+    props.engine.state?.eventCallType,
+    flowResult?.data?.item?.eventCallType,
+    flowResult?.data?.rawItem?.eventCallType,
+    "video",
+  ).toLowerCase();
+
+  return callType === "audio" ? "audio" : "video";
+}
+
 function queueBackgroundXPostSettingsSave({ eventId, creatorId }) {
   const hydrationPromise = props.xPostSettingsHydrationPromise;
   if (!hydrationPromise || typeof hydrationPromise.then !== "function") return;
@@ -1515,13 +1527,14 @@ function queueBackgroundXPostSettingsSave({ eventId, creatorId }) {
     });
 }
 
-async function notifyEventCreated({ creatorId, eventName, eventType, eventId }) {
-  console.error("Event created:", { creatorId, eventName, eventType, eventId });
+async function notifyEventCreated({ creatorId, eventName, eventType, eventId, callType }) {
+  console.error("Event created:", { creatorId, eventName, eventType, eventId, callType });
   const canUseXRepost = isCreatorAllowedForXRepost(creatorId);
   const payload = {
     creator_id: creatorId,
     event_name: eventName,
     event_type: eventType,
+    callType,
     action: "created",
     event_id: String(eventId || props.engine.getState("eventId") || ""),
     booking_name: eventName,
@@ -1695,6 +1708,7 @@ async function persistEvent() {
         eventName: resolveCreatedEventName(flowResult),
         eventType: props.engine.getState("eventType") || eventType,
         eventId: flowResult?.data?.eventId || flowResult?.data?.item?.eventId || "",
+        callType: resolveCreatedEventCallType(flowResult),
       });
 
       if (!notifyResult?.ok) {

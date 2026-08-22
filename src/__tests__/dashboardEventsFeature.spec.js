@@ -11,6 +11,8 @@ const getCalendarEventJoinState = vi.fn();
 const mainCalendarResetScrollToTop = vi.fn();
 const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
+const mainCalendarOpenEventDetails = vi.fn();
+const mainCalendarApplyBookingReviewResult = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -68,7 +70,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
-    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
@@ -177,6 +179,8 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       resetScrollToTop: mainCalendarResetScrollToTop,
       scrollToCurrentTime: mainCalendarScrollToCurrentTime,
       revealSelectedWeekDay: mainCalendarRevealSelectedWeekDay,
+      openEventDetails: mainCalendarOpenEventDetails,
+      applyBookingReviewResult: mainCalendarApplyBookingReviewResult,
     },
     computed: {
       dynamicBookedEvents() {
@@ -344,6 +348,30 @@ vi.mock("@/components/ui/popup/PopupHandler.vue", () => ({
   },
 }));
 
+vi.mock("@/components/ui/popup/BookingDetailsPopup.vue", () => ({
+  default: {
+    name: "BookingDetailsPopup",
+    props: ["modelValue", "event", "userRole", "canReviewPending", "comparisonTime", "actionLoading", "popupConfig", "layoutVariant", "compactReviewMode", "presentation"],
+    emits: ["update:modelValue", "approve-booking", "close", "closed"],
+    data: () => ({ opened: false }),
+    watch: {
+      modelValue(value) {
+        this.opened = value;
+      },
+    },
+    template: `
+      <div data-test="widget-compact-details" :data-open="String(modelValue)">
+        <button
+          v-if="opened"
+          data-test="widget-compact-approve"
+          :disabled="actionLoading"
+          @click="$emit('approve-booking', { bookingId: event.bookingId, eventId: event.eventId, decision: 'approve', event })"
+        >accept</button>
+      </div>
+    `,
+  },
+}));
+
 vi.mock("@/components/ui/toast/ToastHost.vue", () => ({
   default: {
     name: "ToastHost",
@@ -355,7 +383,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
   default: {
     name: "EventsWidget",
     props: ["sections"],
-    emits: ["join-click", "reply-click", "event-click", "menu-action", "approve-booking"],
+    emits: ["join-click", "reply-click", "event-click", "menu-action", "approve-booking", "accept-details"],
     methods: {
       isoHoursFromNow(hours) {
         return new Date(Date.now() + (hours * 60 * 60 * 1000)).toISOString();
@@ -412,7 +440,7 @@ vi.mock("@/components/calendar/EventsWidget.vue", () => ({
           </button>
           <button
             data-test="widget-approve"
-            @click="$emit('approve-booking', { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', decision: 'approve', event: { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', status: 'pending' } })"
+            @click="$emit('accept-details', { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', event: { bookingId: 'booking_widget_pending', eventId: 'event_widget_pending', status: 'pending' } })"
           >
             Approve
           </button>
@@ -533,6 +561,8 @@ describe("DashboardEventsFeature", () => {
     mainCalendarResetScrollToTop.mockReset();
     mainCalendarScrollToCurrentTime.mockReset();
     mainCalendarRevealSelectedWeekDay.mockReset();
+    mainCalendarOpenEventDetails.mockReset();
+    mainCalendarApplyBookingReviewResult.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -607,7 +637,27 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
   });
 
-  it("approves pending bookings emitted by the events widget", async () => {
+  it("opens compact details before approving a widget booking, then opens refreshed hero details", async () => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: "booking_widget_pending",
+              eventId: "event_widget_pending",
+              status: "confirmed",
+              eventTitle: "Approved widget booking",
+            },
+          },
+        };
+      }
+      return {
+        ok: true,
+        data: { events: [], bookedSlots: [], bookedSlotsIndex: {} },
+      };
+    });
+
     const wrapper = await mountDashboardEventsFeature({
       creatorId: 99,
       userRole: "creator",
@@ -616,6 +666,18 @@ describe("DashboardEventsFeature", () => {
     const approveButton = wrapper.findAll("[data-test='widget-approve']").at(-1);
     expect(approveButton).toBeTruthy();
     await approveButton.trigger("click");
+    await flushPromises();
+
+    const compactDetails = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    expect(wrapper.find("[data-test='widget-compact-approve']").exists()).toBe(true);
+    expect(compactDetails.props("layoutVariant")).toBe("compact");
+    expect(compactDetails.props("compactReviewMode")).toBe("accept-only");
+    expect(compactDetails.props("presentation")).toBe("responsive-dialog");
+    expect(callFlow.mock.calls.some(([flowName]) => flowName === "bookings.reviewPendingBooking"))
+      .toBe(false);
+
+    showToast.mockClear();
+    await wrapper.get("[data-test='widget-compact-approve']").trigger("click");
     await flushPromises();
 
     expect(callFlow).toHaveBeenCalledWith(
@@ -630,10 +692,154 @@ describe("DashboardEventsFeature", () => {
         context: expect.objectContaining({ creatorId: 99 }),
       }),
     );
-    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
-      type: "success",
-      title: "Booking Updated",
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "booking-review" }));
+
+    expect(mainCalendarOpenEventDetails).not.toHaveBeenCalled();
+    compactDetails.vm.$emit("closed");
+    await flushPromises();
+    expect(mainCalendarOpenEventDetails).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: "booking_widget_pending",
+      status: "confirmed",
+      raw: expect.objectContaining({ status: "confirmed" }),
     }));
+  });
+
+  it("keeps the EventsWidget accept-only compact popup open after mobile approval", async () => {
+    setWindowWidth(390);
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: "booking_widget_pending",
+              eventId: "event_widget_pending",
+              status: "confirmed",
+              eventTitle: "Approved widget booking",
+            },
+          },
+        };
+      }
+      return { ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } };
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    await wrapper.findAll("[data-test='widget-approve']").at(-1).trigger("click");
+    await flushPromises();
+
+    await wrapper.get("[data-test='widget-compact-approve']").trigger("click");
+    await flushPromises();
+
+    const compactDetails = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    expect(compactDetails.props("modelValue")).toBe(true);
+    expect(compactDetails.props("event")).toEqual(expect.objectContaining({ status: "confirmed" }));
+    expect(mainCalendarOpenEventDetails).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      variant: "booking-review",
+      status: "confirmed",
+      persistent: true,
+    }));
+  });
+
+  it.each([
+    ["approve", "confirmed"],
+    ["reject", "cancelled_creator"],
+  ])("keeps retained creator hero details open after %s without showing a success toast", async (decision, reviewedStatus) => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return {
+          ok: true,
+          data: {
+            item: {
+              bookingId: `booking_hero_${decision}`,
+              eventId: `event_hero_${decision}`,
+              status: reviewedStatus,
+              eventTitle: "Hero review booking",
+            },
+          },
+        };
+      }
+      return { ok: true, data: { events: [], bookedSlots: [], bookedSlotsIndex: {} } };
+    });
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    showToast.mockClear();
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit(`${decision === "approve" ? "approve" : "reject"}-booking`, {
+      bookingId: `booking_hero_${decision}`,
+      retainDetails: true,
+      showReviewToast: false,
+      event: {
+        bookingId: `booking_hero_${decision}`,
+        eventId: `event_hero_${decision}`,
+        status: "pending",
+        start: "2026-03-24T10:00:00",
+        end: "2026-03-24T10:30:00",
+        raw: { bookingId: `booking_hero_${decision}`, status: "pending" },
+      },
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(mainCalendarApplyBookingReviewResult).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: `booking_hero_${decision}`,
+      status: reviewedStatus,
+      raw: expect.objectContaining({ status: reviewedStatus }),
+    }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "booking-review" }));
+  });
+
+  it("keeps widget compact details open when approval fails", async () => {
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.reviewPendingBooking") {
+        return { ok: false, error: { message: "Approval failed" } };
+      }
+      return {
+        ok: true,
+        data: { events: [], bookedSlots: [], bookedSlotsIndex: {} },
+      };
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+
+    await wrapper.findAll("[data-test='widget-approve']").at(-1).trigger("click");
+    await flushPromises();
+    await wrapper.get("[data-test='widget-compact-approve']").trigger("click");
+    await flushPromises();
+
+    const compactDetails = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    expect(compactDetails.props("modelValue")).toBe(true);
+    expect(compactDetails.props("actionLoading")).toBe(false);
+    expect(mainCalendarOpenEventDetails).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "Approval failed",
+    }));
+  });
+
+  it("dismisses widget compact details without opening the hero drawer", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+
+    await wrapper.findAll("[data-test='widget-approve']").at(-1).trigger("click");
+    await flushPromises();
+    const compactDetails = wrapper.getComponent({ name: "BookingDetailsPopup" });
+    compactDetails.vm.$emit("update:modelValue", false);
+    compactDetails.vm.$emit("close");
+    compactDetails.vm.$emit("closed");
+    await flushPromises();
+
+    expect(wrapper.findComponent({ name: "BookingDetailsPopup" }).exists()).toBe(false);
+    expect(mainCalendarOpenEventDetails).not.toHaveBeenCalled();
+    expect(callFlow.mock.calls.some(([flowName]) => flowName === "bookings.reviewPendingBooking"))
+      .toBe(false);
   });
 
   it("selects past dates from the dashboard mini calendar and loads their range", async () => {
@@ -3963,8 +4169,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-group']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
-    expect(confirmButton).toBeTruthy();
+    const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
     await confirmButton.trigger("click");
     await flushPromises();
 
@@ -4021,8 +4226,7 @@ describe("DashboardEventsFeature", () => {
     await wrapper.find("[data-test='widget-cancel-private']").trigger("click");
     await flushPromises();
 
-    const confirmButton = wrapper.findAll("button").find((button) => button.text().includes("cancel call"));
-    expect(confirmButton).toBeTruthy();
+    const confirmButton = wrapper.get("[data-test='booking-adjustment-decision-primary']");
     await confirmButton.trigger("click");
     await flushPromises();
 
@@ -4250,6 +4454,38 @@ describe("DashboardEventsFeature", () => {
       showJoin: true,
       joinUrl: expect.stringContaining("event_id=evt_future_group"),
     }));
+  });
+
+  it("preserves the pending price adjustment projection in dashboard widget event data", async () => {
+    const bookedSlots = [{
+      bookingId: "booking_adjust_projection",
+      eventId: "evt_adjust_projection",
+      creatorId: 77,
+      startIso: isoDaysFromToday(8, 10),
+      endIso: isoDaysFromToday(8, 10, 30),
+      status: "confirmed",
+      eventTitle: "Adjusted Session",
+      eventType: "1on1-call",
+      eventCallType: "video",
+      pendingPriceAdjustment: true,
+    }];
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots,
+        widgetBookedSlots: bookedSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 77, userRole: "creator" });
+    const widgetSections = wrapper.getComponent({ name: "MainCalendar" }).props("eventsData");
+    const adjustedItem = widgetSections
+      .flatMap((section) => section.items)
+      .find((item) => item.sourceEvent?.bookingId === "booking_adjust_projection");
+
+    expect(adjustedItem.sourceEvent.raw.pendingPriceAdjustment).toBe(true);
   });
 
   it("does not show past confirmed bookings outside today in widget sections", async () => {

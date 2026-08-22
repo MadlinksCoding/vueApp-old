@@ -275,10 +275,8 @@
           :class="[
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
             hasMobileStickyCard ? 'bottom-[7rem]' : 'bottom-2',
-            'md:bottom-2',
-            hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:left-3' : ''
+            'md:bottom-2'
           ]"
-          :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
         </button>
@@ -300,6 +298,12 @@
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#0C111D" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+          <span
+            v-if="hasActionablePendingBooking"
+            aria-hidden="true"
+            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
+            data-test="calendar-actionable-pending-indicator"
+          />
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
@@ -310,6 +314,12 @@
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
               stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
+          <span
+            v-if="hasActionablePendingBooking"
+            aria-hidden="true"
+            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
+            data-test="calendar-actionable-pending-indicator"
+          />
           <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
@@ -412,7 +422,11 @@
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0" :class="[theme.main.xHeader]">
 
-        <div :class="[theme.main.axisXLabel, 'shrink-0']">
+        <div
+          v-if="!isMobileDayEventColumnMode"
+          :class="[theme.main.axisXLabel, 'shrink-0']"
+          data-test="calendar-timezone-header"
+        >
           <div
             v-if="variant === 'default'"
             :class="[
@@ -460,10 +474,7 @@
             >
               <span
                 class="text-[0.625rem] font-bold uppercase leading-4"
-                :class="[
-                  d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]',
-                  sameDay(d, selectedDay) ? 'opacity-100' : 'opacity-80'
-                ]"
+                :class="sameDay(d, selectedDay) ? 'text-[#101828]' : 'text-[#98A2B3]'"
               >
                 {{ shortWeekdays[d.getDay()] }}
               </span>
@@ -472,7 +483,7 @@
                 :class="[
                   sameDay(d, selectedDay)
                     ? 'bg-[#0C111D] text-white'
-                    : (d.getDay() === 0 ? 'text-[#FF4405]' : 'text-[#101828]'),
+                    : 'text-[#98A2B3]',
                   sameDay(d, today) && !sameDay(d, selectedDay) ? 'ring-1 ring-[#FB5BA2]/40' : ''
                 ]"
               >
@@ -996,6 +1007,7 @@
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
         @approve-booking="handleApproveBooking"
+        @accept-details="handleMobileWidgetAcceptDetails"
         @open-new-events="handleOpenNewEvents"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
@@ -1017,6 +1029,7 @@
         @event-click="handleMobileWidgetEventClick"
         @menu-action="handleMobileWidgetMenuAction"
         @approve-booking="handleApproveBooking"
+        @accept-details="handleRequestsWidgetAcceptDetails"
         @edit-schedule-event="handleMobileScheduleEdit"
         @delete-schedule-event="handleMobileScheduleDelete"
         @view-schedule-card="handleMobileScheduleCardPreview"
@@ -1031,17 +1044,23 @@
     </PopupHandler>
 
     <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
-      <CalendarEventDetailsPopup
+      <BookingDetailsPopup
         v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
+        :booking="selectedBookingSnapshot"
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
+        :action-loading="props.bookingActionLoading"
         :comparison-time="props.joinComparisonTime"
+        :layout-variant="useCompactEventDetails ? 'compact' : 'hero'"
+        presentation="side-panel"
         @join-call="handleJoin"
-        @approve-booking="handleApproveBooking"
-        @reject-booking="handleRejectBooking"
+        @approve-booking="handleDetailsApproveBooking"
+        @reject-booking="handleDetailsRejectBooking"
         @cancel-booking="handleCancelBooking"
         @adjust-booking="handleAdjustBooking"
+        @accept-adjustment="handleAcceptAdjustment"
+        @decline-adjustment="handleDeclineAdjustment"
         @open-chat="handleOpenChat"
         @close="eventDetailsPopupOpen = false"
       />
@@ -1104,13 +1123,13 @@
     <Teleport to="body">
       <div
         v-if="visibleStickyCardEvents.length"
-        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden ipad-portrait:flex"
+        class="responsive-sticky-booking-list fixed bottom-0 left-0 right-0 z-[90] flex flex-col gap-2 sm:px-3 sm:pb-3 md:hidden"
         data-test="tablet-sticky-card-list"
       >
         <div
           v-for="event in visibleStickyCardEvents"
           :key="stickyCardKey(event)"
-          class="sticky-booking-list-item md:hidden ipad-portrait:block"
+          class="sticky-booking-list-item md:hidden"
           :class="isPendingStickyCard(event) ? 'sticky-booking-list-item--pending' : 'sticky-booking-list-item--confirmed'"
           :data-test="isPendingStickyCard(event) ? 'tablet-sticky-pending-card' : 'mobile-join-card'"
         >
@@ -1119,6 +1138,7 @@
             :user-role="userRole"
             :menu-open="openStickyCardMenuKey === stickyCardKey(event)"
             @toggle-menu="toggleStickyCardMenu(event)"
+            @close-menu="closeStickyCardMenu"
             @menu-action="handleStickyCardMenuAction($event, event)"
             @join-call="handleStickyCardJoin"
             @review="handleStickyCardReview"
@@ -1148,15 +1168,19 @@ import BookingScheduleIcon from "@/components/icons/BookingScheduleIcon.vue";
 import ButtonComponent from '../dev/button/ButtonComponent.vue';
 import NewEventsPopup from './NewEventsPopup.vue';
 import CalendarMobilePopupContent from './CalendarMobilePopupContent.vue';
-import CalendarEventDetailsPopup from './CalendarEventDetailsPopup.vue';
+import BookingDetailsPopup from '@/components/ui/popup/BookingDetailsPopup.vue';
+import { createEventDetailsPopupConfig } from './eventDetailsPopupConfig.js';
 import EventsRequestsPopup from './EventsRequestsPopup.vue';
 import StickyBookingCard from './StickyBookingCard.vue';
 import MobileDateSelector from './MobileDateSelector.vue';
 import AdjustBookingPopup from '@/components/ui/chat/AdjustBookingPopup.vue';
+import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js';
 import FlowHandler from '@/services/flow-system/FlowHandler';
-import { useChatSocket } from '@/composables/useChatSocket';
-import { useChatStore } from '@/stores/useChatStore';
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import { buildBookingChatMessage } from '@/services/bookings/utils/bookingChatMessage.js';
+import { useBookingChatSync } from '@/composables/useBookingChatSync.js';
+import { showToast } from '@/utils/toastBus.js';
 
 import MiniCalendar from './MiniCalendar.vue';
 import TokenIcon from "@/assets/images/icons/token-sm-calender.svg"
@@ -1175,6 +1199,7 @@ const props = defineProps({
   theme: { type: Object, default: () => ({}) },
   userRole: { type: String, default: 'creator' },
   canReviewPending: { type: Boolean, default: true },
+  bookingActionLoading: { type: Boolean, default: false },
   dataAttrs: { type: Object, default: () => ({}) },
   consoleOverlaps: { type: Boolean, default: true },
   highlightTodayColumn: { type: Boolean, default: false },
@@ -1191,7 +1216,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1240,13 +1265,25 @@ const calendarPopupOpen = ref(false);
 const newEventsPopupOpen = ref(false);
 const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
+const eventDetailsCompactSession = ref(false);
+const selectedBookingSnapshot = ref(null);
 const adjustBookingState = ref(null);
 const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
 const isMobileCalendarOpen = ref(false);
 
-const chatStore = useChatStore();
-const { sendChatMessage } = useChatSocket();
+watch(eventDetailsPopupOpen, (open) => {
+  emit('booking-details-visibility', Boolean(open));
+  if (!open) selectedBookingSnapshot.value = null;
+});
+
+onBeforeUnmount(() => {
+  if (eventDetailsPopupOpen.value) {
+    emit('booking-details-visibility', false);
+  }
+});
+
+const { broadcastBookingToChat } = useBookingChatSync();
 const isDatePopupOpen = ref(false); // New state for Date Popup
 const expandedDate = ref(null);
 const monthViewRef = ref(null);
@@ -1298,50 +1335,32 @@ const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.fi
   && Boolean(event.joinUrl)
 )) || null);
 
-const tabletStickyCardEvents = computed(() => normalizedStickyCardEvents.value.filter((event) => {
-  if (isPendingStickyCard(event)) {
-    return props.canReviewPending && String(props.userRole || '').toLowerCase() === 'creator';
-  }
-  return event.canJoin === true && Boolean(event.joinUrl);
-}).slice(0, 3));
-
 const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
-const hasTabletStickyCards = computed(() => tabletStickyCardEvents.value.length > 0);
-const isTabletPortraitViewport = computed(() => (
-  width.value >= 678
-  && width.value <= 1366
-  && height.value >= width.value
-));
-const hasVisibleTabletStickyCards = computed(() => (
-  isTabletPortraitViewport.value && hasTabletStickyCards.value
-));
 const visibleStickyCardEvents = computed(() => {
   if (width.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
-  return isTabletPortraitViewport.value ? tabletStickyCardEvents.value : [];
-});
-const tabletStickyCardBottom = computed(() => {
-  const cardCount = hasVisibleTabletStickyCards.value
-    ? tabletStickyCardEvents.value.length
-    : 0;
-  return cardCount > 0
-    ? `${8.25 + (cardCount - 1) * 7}rem`
-    : '0.5rem';
+  return [];
 });
 
 watch(
-  () => normalizedStickyCardEvents.value.map((event) => stickyCardKey(event)),
-  (keys) => {
-    if (openStickyCardMenuKey.value && !keys.includes(openStickyCardMenuKey.value)) {
+  normalizedStickyCardEvents,
+  (events) => {
+    const openEvent = events.find((event) => stickyCardKey(event) === openStickyCardMenuKey.value);
+    if (openStickyCardMenuKey.value && (!openEvent || isPendingPriceAdjustment(openEvent))) {
       openStickyCardMenuKey.value = null;
     }
   },
+  { deep: true },
 );
 
 const toggleStickyCardMenu = (event) => {
   const key = stickyCardKey(event);
   openStickyCardMenuKey.value = openStickyCardMenuKey.value === key ? null : key;
+};
+
+const closeStickyCardMenu = () => {
+  openStickyCardMenuKey.value = null;
 };
 
 const handleStickyCardMenuAction = (action, event) => {
@@ -1526,33 +1545,19 @@ const newEventsPopupConfig = {
   lockScroll: false,
 };
 
-const eventDetailsPopupConfig = computed(() => {
-  const isIpadPortraitLarge = width.value >= 1024
-    && width.value <= 1279
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(orientation: portrait)").matches;
-
-  return {
-    actionType: width.value < 1024 ? "slidein" : (isIpadPortraitLarge ? "slidein" : "popup"),
-    from: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "right" : undefined),
-    position: width.value >= 1024 && !isIpadPortraitLarge ? "center" : undefined,
-    verticalAlign: width.value < 1024 ? "bottom" : (isIpadPortraitLarge ? "stretch" : undefined),
-    customEffect: width.value >= 1024 && !isIpadPortraitLarge ? "scale" : undefined,
-    offset: "0px",
-    speed: "250ms",
-    effect: "ease-in-out",
-    showOverlay: !(width.value >= 1024 && width.value <= 1279),
-    closeOnOutside: true,
-    lockScroll: true,
-    escToClose: true,
-    width: { default: "auto", "<1023": "98%", "1024-1279": "auto" },
-    height: "auto",
-    scrollable: false,
-    closeSpeed: "250ms",
-    closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
-    customClass: "mobile-event-details-sheet",
-  };
-});
+const shouldUseCompactEventDetails = (event) => (
+  width.value < 768
+  && String(props.userRole || '').trim().toLowerCase() === 'creator'
+  && props.canReviewPending
+  && getCalendarEventApprovalState(event, {
+    now: props.joinComparisonTime || new Date(),
+  }).canReview
+  && !isPendingCounterOffer(event)
+);
+const useCompactEventDetails = computed(() => eventDetailsCompactSession.value);
+const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value, {
+  compact: useCompactEventDetails.value,
+}));
 
 const datePopupConfig = {
   actionType: "slidein",
@@ -2047,6 +2052,18 @@ const calendarBadgeCount = computed(() => {
   return Math.max(0, Math.trunc(props.bookedSlotsCount));
 });
 
+const hasActionablePendingBooking = computed(() => {
+  if (String(props.userRole || '').trim().toLowerCase() !== 'creator') return false;
+  if (!props.canReviewPending) return false;
+
+  const now = props.joinComparisonTime || new Date();
+  return (props.events || []).some((event) => (
+    getCalendarEventApprovalState(event, { now }).canReview
+    && !isPendingPriceAdjustment(event)
+    && !isPendingCounterOffer(event)
+  ));
+});
+
 const shortWeekdays = computed(() => [
   t("date_sun_short"),
   t("date_mon_short"),
@@ -2392,13 +2409,26 @@ const dispatchEventClick = (event) => {
   // console.log('Event clicked:', event);
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
+  selectedBookingSnapshot.value = null;
+  eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
 
 const openEventDetails = (event) => {
   if (!event || typeof event !== 'object') return;
   selectedEvent.value = event;
+  selectedBookingSnapshot.value = null;
+  eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
+};
+
+const applyBookingReviewResult = (event) => {
+  if (!event || typeof event !== 'object' || !eventDetailsPopupOpen.value) return false;
+  selectedEvent.value = event;
+  selectedBookingSnapshot.value = event?.raw && typeof event.raw === 'object'
+    ? event.raw
+    : event;
+  return true;
 };
 
 const closeEventDetails = () => {
@@ -2407,10 +2437,16 @@ const closeEventDetails = () => {
 
 const handleOpenChat = (payload) => {
   if (window.self !== window.top) {
-    if (window.parent.chatEmbed && typeof window.parent.chatEmbed.openChat === 'function') {
-      window.parent.chatEmbed.openChat(payload);
-    } else {
-      console.warn('chatEmbed is not available in embed mode');
+    try {
+      // Reading `window.parent` throws on a cross-origin host.
+      const parentChat = window.parent?.chatEmbed;
+      if (typeof parentChat?.openChat === 'function') {
+        parentChat.openChat(payload);
+      } else {
+        console.warn('chatEmbed is not available in embed mode');
+      }
+    } catch (_error) {
+      console.warn('chatEmbed is not reachable from a cross-origin host');
     }
   } else {
     console.log('Open chat requested in normal mode:', payload);
@@ -2422,39 +2458,63 @@ const handleApproveBooking = (payload) => {
   emit('approve-booking', payload);
 };
 
-const handleAdjustBooking = (payload) => {
+const handleDetailsApproveBooking = (payload) => {
+  if (String(props.userRole || '').trim().toLowerCase() === 'creator') {
+    emit('approve-booking', {
+      ...payload,
+      retainDetails: true,
+      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+    });
+    return;
+  }
   eventDetailsPopupOpen.value = false;
-  adjustBookingState.value = payload;
+  emit('approve-booking', payload);
+};
+
+// AdjustBookingPopup is message-driven: it reads the booking id from
+// `message.content.booking_id` and posts back to `chatId`. The detail popup only
+// hands us the booking, so rebuild the linked chat message from its meta.
+const handleAdjustBooking = (payload) => {
+  const booking = payload?.booking || payload?.event?.raw || null;
+  const message = buildBookingChatMessage(booking);
+
+  if (!message) {
+    showToast({
+      type: 'error',
+      title: t('dashboard_booking_action_failed_title'),
+      message: t('dashboard_booking_adjust_unavailable'),
+    });
+    return;
+  }
+
+  eventDetailsPopupOpen.value = false;
+  adjustBookingState.value = { ...payload, booking, message, chatId: message.chat_id };
+};
+
+// The fan's response to a price adjustment needs a token-balance confirmation and
+// possibly a top-up, so the feature host owns it. The popup only emits the proposal
+// figures, so the booking it belongs to has to be attached here.
+const withSelectedBooking = (payload) => ({
+  ...payload,
+  event: selectedEvent.value,
+  booking: selectedEvent.value?.raw || null,
+});
+
+const handleAcceptAdjustment = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('accept-adjustment', withSelectedBooking(payload));
+};
+
+const handleDeclineAdjustment = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('decline-adjustment', withSelectedBooking(payload));
 };
 
 const handleAdjustSubmitted = async ({ item, booking }) => {
-  const chatId = adjustBookingState.value?.chatId;
-  const currentUserId = chatStore.currentUserId; 
-  
-  if (chatId && item) {
-    const recipients = [booking.creatorId, booking.userId]
-      .map(id => parseInt(id, 10))
-      .filter(id => !isNaN(id));
-
-    // Send original updated message to BOTH
-    sendChatMessage(item, recipients);
-
-    // Send Activity Log
-    const logRes = await FlowHandler.run('chat.sendChatActivityLog', {
-      chatId: chatId,
-      senderId: currentUserId,
-      text: 'Counter offer sent',
-      meta: {
-        is_booking_request: true,
-        decision: 'counter_offer',
-        bookingId: item.content?.booking_id,
-      }
-    });
-
-    if (logRes?.ok) {
-      sendChatMessage(logRes.data.item, recipients);
-    }
-  }
+  // AdjustBookingPopup already wrote the counter offer onto the chat message, so
+  // only the broadcast and the activity log are left — and this surface has no chat
+  // socket of its own, so they go through the host relay.
+  broadcastBookingToChat(booking || adjustBookingState.value?.booking, item, 'adjust_request');
 
   adjustBookingState.value = null;
   emit('refresh-events');
@@ -2481,6 +2541,16 @@ const handleMobileWidgetEventClick = (item) => {
 const handleMobileWidgetMenuAction = (payload) => {
   calendarPopupOpen.value = false;
   emit('menu-action', payload);
+};
+
+const handleMobileWidgetAcceptDetails = (payload) => {
+  calendarPopupOpen.value = false;
+  emit('widget-accept-details', payload);
+};
+
+const handleRequestsWidgetAcceptDetails = (payload) => {
+  eventsRequestsPopupOpen.value = false;
+  emit('widget-accept-details', payload);
 };
 
 const handleMobileScheduleEdit = (event) => {
@@ -2510,6 +2580,19 @@ const handleCreateEvent = (type) => {
 };
 
 const handleRejectBooking = (payload) => {
+  eventDetailsPopupOpen.value = false;
+  emit('reject-booking', payload);
+};
+
+const handleDetailsRejectBooking = (payload) => {
+  if (String(props.userRole || '').trim().toLowerCase() === 'creator') {
+    emit('reject-booking', {
+      ...payload,
+      retainDetails: true,
+      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+    });
+    return;
+  }
   eventDetailsPopupOpen.value = false;
   emit('reject-booking', payload);
 };
@@ -3369,6 +3452,7 @@ const scrollToTime = async (time, { behavior = 'smooth', viewportOffset = 0.4 } 
 
 defineExpose({
   openEventDetails,
+  applyBookingReviewResult,
   closeEventDetails,
   resetScrollToTop,
   scrollToCurrentTime,
@@ -3385,12 +3469,6 @@ defineExpose({
 
 @media (max-width: 677px) {
   .sticky-booking-list-item--confirmed:first-child {
-    display: block;
-  }
-}
-
-@media (min-width: 678px) and (max-width: 1366px) and (orientation: portrait) {
-  .sticky-booking-list-item {
     display: block;
   }
 }
@@ -3466,6 +3544,21 @@ defineExpose({
   animation: blink-border-blue 1.5s ease-in-out infinite;
 }
 
+@keyframes calendar-pending-dot-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+.calendar-pending-dot-blink {
+  animation: calendar-pending-dot-blink 1.2s ease-in-out infinite;
+}
+
 @keyframes month-overlay-expand {
   from {
     opacity: 0;
@@ -3481,21 +3574,38 @@ defineExpose({
   .month-date-overlay {
     animation: none;
   }
+
+  .calendar-pending-dot-blink {
+    animation: none;
+  }
 }
 </style>
 
 <style>
-/* Mobile Bottom Sheet for Event Details (Teleported to body) */
-@media (max-width: 1023px) {
+/* Booking details drawer (Teleported to body). The historical class name is
+   retained because other calendar consumers use it as an integration hook. */
+.mobile-event-details-sheet {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+}
+
+@media (min-width: 768px) {
   .mobile-event-details-sheet {
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    width: 492px !important;
+    max-width: 492px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-event-details-sheet {
     width: 100% !important;
     max-width: 100% !important;
-    height: auto !important;
-    border-radius: 1.5rem 1.5rem 0 0 !important;
   }
 }
 </style>

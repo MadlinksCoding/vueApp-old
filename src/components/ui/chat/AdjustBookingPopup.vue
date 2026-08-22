@@ -463,6 +463,18 @@ async function handleSubmit() {
         currentCounterOffer: 'adjust',
       },
       actor: 'creator',
+      args: {
+        negotiation: {
+          status: 'sent',
+          type: 'adjust',
+          proposal: {
+            startAtIso: newSlotDate,
+            durationMinutes: form.durationMinutes,
+            totalTokens: totalTokens.value,
+            remarks: form.remarks.trim() || null,
+          },
+        },
+      },
     })
     if (metaRes?.ok) {
       // Store proposed values in booking meta so fan-side display + accept flow can read them

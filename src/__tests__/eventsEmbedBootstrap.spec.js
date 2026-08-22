@@ -84,7 +84,9 @@ describe("events embed bootstrap", () => {
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "create-private",
+      initialAction: "",
       bookingId: "",
+      hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",
       creatorData: {
@@ -113,7 +115,9 @@ describe("events embed bootstrap", () => {
       tokenHandlerApiUrl: "https://tokens.example.com/dev",
       jwtToken: "",
       initialRoute: "events",
+      initialAction: "",
       bookingId: "",
+      hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",
       creatorData: {

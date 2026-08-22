@@ -5,9 +5,10 @@ import ChatWindow from '@/components/ui/chat/ChatWindow.vue'
 import { useChatStore } from '@/stores/useChatStore'
 import { useChatSocket } from '@/composables/useChatSocket'
 import FlowHandler from '@/services/flow-system/FlowHandler'
-import { ensureChatUsersData, resolveAndSyncChat } from '@/services/chat/chatResolverUtils'
+import { ensureChatUsersData, resolveAndSyncChat, findDirectChat } from '@/services/chat/chatResolverUtils'
 import { resolveParentUserData } from '@/utils/resolveParentUserData'
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
+import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
 import MessageTextIcon from '@/assets/images/icons/message-text-square.svg'
 import MessageTextIconPink from '@/assets/images/icons/message-text-square-pink.svg'
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
@@ -311,16 +312,7 @@ function onChatCreated(uid, newChatId) {
 }
 
 function findExistingDirectChat(targetUserId, isBookingRequest = false) {
-  const targetId = Number(targetUserId)
-  const myId = Number(currentUserId.value)
-  return chatStore.userChats.find(chat => {
-    if (chat.is_group === true || chat.is_group === 1 || chat.type === 'group') return false
-    const parts = (chatStore.chatParticipants[chat.chat_id] || []).map(Number)
-    if (parts.length !== 2 || !parts.includes(myId) || !parts.includes(targetId)) return false
-    const bookingFlag = chat.metadata?.is_booking_request === true
-    console.log("Checking chat:", chat.chat_id, "participants:", parts, "myId:", myId, "targetId:", targetId, "isBookingRequest:", isBookingRequest, "bookingFlag:", bookingFlag)
-    return isBookingRequest ? bookingFlag : true
-  })
+  return findDirectChat(chatStore, currentUserId.value, targetUserId, { bookingRequestOnly: isBookingRequest })
 }
 
 async function onStartChat({ userId, userIds, displayName, username, avatar, groupType, chatType, chatSubtype, contextFlags, metadata, groupCategory, coverImageUrl, visibilitySettings, targetUserData, fanViewUid, fanViewUserId, chatSource }) {
@@ -522,7 +514,47 @@ async function openGroupChat({
   })
 }
 
-defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll, toggleList })
+/**
+ * Applies a booking update that happened outside chat (the events embed).
+ *
+ * This lives on the widget rather than ChatWindow because the widget owns the
+ * socket, and the relevant ChatWindow may not even be mounted — the chat only has
+ * to exist, not be open.
+ */
+async function syncBookingUpdate({ chatId, bookingId, item, recipientIds = [], activityLog } = {}) {
+  console.error("syncBookingUpdate called with:", { chatId, bookingId, item, recipientIds, activityLog })
+  if (!chatId) return
+
+  if (bookingId) {
+    const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+    if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
+  }
+
+  if (item) {
+    broadcastMessageUpdate({
+      chatStore,
+      socket: socket.value,
+      chatId,
+      currentUserId: currentUserId.value,
+      item,
+      recipientIds,
+    })
+  }
+
+  if (activityLog?.text) {
+    await sendActivityLog({
+      chatStore,
+      socket: socket.value,
+      chatId,
+      currentUserId: currentUserId.value,
+      text: activityLog.text,
+      meta: activityLog.meta,
+      recipientIds,
+    })
+  }
+}
+
+defineExpose({ widgetEl, openChat, openGroupChat, openNewChatPopup, isListOpen, openChats, closeAll, toggleList, syncBookingUpdate })
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
@@ -576,9 +608,12 @@ onMounted(async () => {
     socket.value = s
     await FlowHandler.run('chat.fetchUserChats', { userId: currentUserId.value })
 
-    // Pre-fetch global chat data
-    chatStore.fetchBlockedUsers(currentUserId.value, isCreatorAccount.value).catch(() => {})
-    chatStore.fetchChatBookingsAndEvents(currentUserId.value, isCreatorAccount.value).catch(() => {})
+    // Pre-fetch global chat data. These populate caches the bubbles read, so a
+    // failure has to be visible rather than swallowed.
+    chatStore.fetchBlockedUsers(currentUserId.value, isCreatorAccount.value)
+      .catch((error) => console.error('ChatFloatingWidget: fetchBlockedUsers failed', error))
+    chatStore.fetchChatBookingsAndEvents(currentUserId.value, isCreatorAccount.value)
+      .catch((error) => console.error('ChatFloatingWidget: fetchChatBookingsAndEvents failed', error))
 
     // Collect all unique participant IDs across all chats, including current user
     const allParticipantIds = [

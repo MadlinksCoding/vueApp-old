@@ -417,12 +417,13 @@
       if (event.source !== iframe.contentWindow) return;
       var data = event.data || {};
 
-      // State response — resolve a pending getState() Promise
-      if (data.type === "FS_CHAT_STATE_RESPONSE") {
-        var pending = pendingStateRequests[data.payload && data.payload.requestId];
+      // RPC response — resolve the matching pending request() Promise
+      if (data.type === "FS_CHAT_STATE_RESPONSE" || data.type === "FS_CHAT_RESPONSE") {
+        var requestId = data.payload && data.payload.requestId;
+        var pending = pendingRequests[requestId];
         if (pending) {
           clearTimeout(pending.timer);
-          delete pendingStateRequests[data.payload.requestId];
+          delete pendingRequests[requestId];
           pending.resolve(data.payload.data || {});
         }
         return;
@@ -555,12 +556,60 @@
       openChat(data.payload || {});
     }
 
+    // Same-page iframes only: the sender must be one of this document's own frames
+    // and must not be the chat iframe itself.
+    function isEventsEmbedFrame(source) {
+      if (!source || source === iframe.contentWindow) return false;
+      for (var i = 0; i < window.frames.length; i += 1) {
+        if (window.frames[i] === source) return true;
+      }
+      return false;
+    }
+
+    // The events embed has no chat socket, so it asks us to relay booking updates
+    // into the chat iframe, which does the store update, socket push and activity log.
+    function onEventsBookingChatSync(event) {
+      var data = event.data || {};
+      if (data.type !== "FS_EVENTS_BOOKING_CHAT_SYNC") return;
+      // Only relay from an events embed on this page — anything else could make the
+      // chat persist and broadcast arbitrary messages into arbitrary chats.
+      if (data.source !== "fs-events-embed") return;
+      if (!isEventsEmbedFrame(event.source)) return;
+      if (!iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: "FS_CHAT_BOOKING_SYNC",
+        payload: data.payload || {},
+      }, "*");
+    }
+
     window.addEventListener("message", onMessage);
     window.addEventListener("message", onFanBookingMessage);
+    window.addEventListener("message", onEventsBookingChatSync);
     window.addEventListener("resize", onHostResize);
 
-    // Pending getState() requests keyed by requestId
-    var pendingStateRequests = {};
+    // In-flight RPC calls keyed by requestId
+    var pendingRequests = {};
+
+    // Sends a request to the embed and resolves when it answers with a matching
+    // requestId. The embed replies via FS_CHAT_RESPONSE (or the older
+    // FS_CHAT_STATE_RESPONSE); both are correlated in onMessage.
+    function request(type, payload, label) {
+      return new Promise(function (resolve, reject) {
+        if (!iframe.contentWindow) {
+          return reject(new Error("FSChatEmbed: iframe not ready"));
+        }
+        var requestId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        var timer = setTimeout(function () {
+          delete pendingRequests[requestId];
+          reject(new Error("FSChatEmbed." + label + ": timed out after 5s"));
+        }, 5000);
+        pendingRequests[requestId] = { resolve: resolve, timer: timer };
+        iframe.contentWindow.postMessage({
+          type: type,
+          payload: Object.assign({ requestId: requestId }, payload || {}),
+        }, "*");
+      });
+    }
 
     function toggleHiddenClass( isChatOpen = true) {
       return; // Disable hiding the widget for now, as it causes issues with the new floating button behavior
@@ -609,24 +658,28 @@
     }
 
     function getState(options) {
-      return new Promise(function (resolve, reject) {
-        if (!iframe.contentWindow) {
-          return reject(new Error("FSChatEmbed: iframe not ready"));
-        }
-        var requestId = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        var timer = setTimeout(function () {
-          delete pendingStateRequests[requestId];
-          reject(new Error("FSChatEmbed.getState: timed out after 5s"));
-        }, 5000);
-        pendingStateRequests[requestId] = { resolve: resolve, timer: timer };
-        iframe.contentWindow.postMessage({
-          type: "FS_CHAT_GET_STATE",
-          payload: {
-            requestId: requestId,
-            only: (options && Array.isArray(options.only)) ? options.only : null,
-          },
-        }, "*");
-      });
+      return request("FS_CHAT_GET_STATE", {
+        only: (options && Array.isArray(options.only)) ? options.only : null,
+      }, "getState");
+    }
+
+    // Reads one chat out of the embed's store — by chatId, or by the two
+    // participants of a direct chat. Resolves to { item: chat|null }.
+    function getChat(options) {
+      return request("FS_CHAT_GET_CHAT", {
+        chatId: (options && options.chatId) || null,
+        userId: (options && options.userId) || null,
+        creatorId: (options && options.creatorId) || null,
+      }, "getChat");
+    }
+
+    // Reads one message out of the embed's store. chatId is required because the
+    // store indexes messages by chat. Resolves to { item: message|null }.
+    function getMessage(options) {
+      return request("FS_CHAT_GET_MESSAGE", {
+        chatId: (options && options.chatId) || null,
+        messageId: (options && options.messageId) || null,
+      }, "getMessage");
     }
 
     function refreshStats() {
@@ -668,6 +721,8 @@
       openNewChatPopup: openNewChatPopup,
       setFloatingButtonVisibility: setFloatingButtonVisibility,
       getState: getState,
+      getChat: getChat,
+      getMessage: getMessage,
       refreshStats: refreshStats,
       refreshProductRecommendation: function (payload) {
         iframe.contentWindow.postMessage({
@@ -676,8 +731,14 @@
         }, "*");
       },
       destroy: function () {
+        // Drop in-flight RPCs so their timers cannot fire after teardown.
+        Object.keys(pendingRequests).forEach(function (requestId) {
+          clearTimeout(pendingRequests[requestId].timer);
+          delete pendingRequests[requestId];
+        });
         window.removeEventListener("message", onMessage);
         window.removeEventListener("message", onFanBookingMessage);
+        window.removeEventListener("message", onEventsBookingChatSync);
         window.removeEventListener("resize", onHostResize);
         if (chatContainer.parentNode) {
           chatContainer.parentNode.removeChild(chatContainer);

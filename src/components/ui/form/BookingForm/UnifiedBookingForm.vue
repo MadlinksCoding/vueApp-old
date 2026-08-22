@@ -16,8 +16,10 @@ import CalendarWeekBookingBlock from "@/components/calendar/CalendarWeekBookingB
 import NotificationCard from "@/components/dev/card/notification/NotificationCard.vue";
 import OneOnOneBookingFlowPopup from "@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import BookingAdjustmentDecisionPopup from "@/components/ui/popup/BookingAdjustmentDecisionPopup.vue";
 import ToastHost from "@/components/ui/toast/ToastHost.vue";
 import { mapAvailabilityToCalendarEvents, mapBookedSlotsToCalendarEvents } from "@/services/bookings/utils/bookingSlotUtils.js";
+import { toCalendarEvent as bookingToCalendarEvent } from "@/services/bookings/utils/bookingCalendarEvent.js";
 import { resolveVisibleBookedSlotRange } from "@/services/bookings/utils/calendarBookedSlotRange.js";
 import { addDays, startOfWeek } from "@/utils/calendarHelpers.js";
 import { useBodyOverflowHidden } from "@/composables/useBodyOverflowHidden";
@@ -33,6 +35,7 @@ import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { notifyEventsEmbedFormDirtyState, notifyEventsEmbedFormOpenState } from "@/embeds/events/bridge.js";
 import { showToast } from "@/utils/toastBus.js";
+import { showCreatorBookingReviewToast } from "@/utils/creatorBookingReviewToast.js";
 import { getCalendarEventJoinState } from "@/utils/bookingJoinUtils.js";
 import closeIcon from "@/assets/images/icons/close.png";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
@@ -1812,6 +1815,16 @@ const deleteEventCandidateTitle = computed(() => (
 const cancelBookingCandidateTitle = computed(() => (
     cancelBookingCandidate.value?.event?.title || t("common_booking")
 ));
+const cancelBookingCandidateRaw = computed(() => cancelBookingCandidate.value?.event?.raw || cancelBookingCandidate.value?.event || {});
+const cancelBookingFanUsername = computed(() => String(cancelBookingCandidateRaw.value?.fanUsername || cancelBookingCandidateRaw.value?.username || cancelBookingCandidateRaw.value?.fanDisplayName || cancelBookingCandidateRaw.value?.userDisplayName || "fan"));
+const cancelBookingRefundTokens = computed(() => {
+    const payment = cancelBookingCandidateRaw.value?.payment || {};
+    const explicit = Number(payment.total ?? cancelBookingCandidateRaw.value?.paymentTotal);
+    if (Number.isFinite(explicit)) return Math.max(0, explicit);
+    return Array.isArray(payment.lines)
+        ? payment.lines.reduce((sum, line) => sum + Math.max(0, Number(line?.amount) || 0), 0)
+        : 0;
+});
 
 const cancelBookingCandidateTime = computed(() => {
     const event = cancelBookingCandidate.value?.event;
@@ -1962,6 +1975,26 @@ function resolveBookingIdFromPayload(payload = {}) {
     ).trim() || null;
 }
 
+function mergeReviewedBookingEvent(sourceEvent = {}, booking = null) {
+    const reviewedBooking = booking && typeof booking === "object" ? booking : null;
+    if (!reviewedBooking) return sourceEvent;
+    const mappedEvent = bookingToCalendarEvent(reviewedBooking, {
+        titleFallback: sourceEvent?.title || sourceEvent?.eventTitle || "",
+    }) || {};
+    return {
+        ...sourceEvent,
+        ...mappedEvent,
+        bookingId: reviewedBooking.bookingId || mappedEvent.bookingId || sourceEvent?.bookingId || sourceEvent?.raw?.bookingId || null,
+        eventId: reviewedBooking.eventId || mappedEvent.eventId || sourceEvent?.eventId || sourceEvent?.raw?.eventId || null,
+        status: reviewedBooking.status || reviewedBooking.bookingStatus || mappedEvent.status || sourceEvent?.status || "",
+        raw: {
+            ...(sourceEvent?.raw && typeof sourceEvent.raw === "object" ? sourceEvent.raw : {}),
+            ...(mappedEvent?.raw && typeof mappedEvent.raw === "object" ? mappedEvent.raw : {}),
+            ...reviewedBooking,
+        },
+    };
+}
+
 async function reviewPendingBooking(payload, decision) {
     const bookingId = resolveBookingIdFromPayload(payload);
     if (!bookingId) {
@@ -1999,14 +2032,32 @@ async function reviewPendingBooking(payload, decision) {
             });
             return;
         }
-        showToast({
-            type: "success",
-            title: t("dashboard_booking_updated_title"),
-            message: t("dashboard_booking_updated_message", {
-                action: decision === "approve" ? "approved" : "rejected",
-            }),
-        });
+        if (!payload?.retainDetails) {
+            showToast({
+                type: "success",
+                title: t("dashboard_booking_updated_title"),
+                message: t("dashboard_booking_updated_message", {
+                    action: decision === "approve" ? "approved" : "rejected",
+                }),
+            });
+        }
+        const item = result?.data?.item || null;
         await fetchCreatorBookedSlots(true);
+        if (payload?.retainDetails) {
+            const refreshedEvent = calendarBookedSlots.value.find((event) => resolveBookingIdFromPayload({ event }) === bookingId) || null;
+            mainCalendarRef.value?.applyBookingReviewResult?.(
+                mergeReviewedBookingEvent(refreshedEvent || payload?.event || {}, item),
+            );
+            if (payload?.showReviewToast === true) {
+                showCreatorBookingReviewToast({
+                    decision,
+                    username: payload?.counterparty?.username,
+                    avatarUrl: payload?.counterparty?.avatarUrl,
+                    t,
+                });
+            }
+        }
+        return { ok: true, item };
     } finally {
         reviewPendingLoading.value = false;
     }
@@ -2460,37 +2511,18 @@ useBodyOverflowHidden({ minWidth: 1010 });
         </div>
     </div>
 
-    <PopupHandler v-model="cancelBookingPopupOpen" :config="confirmationPopupConfig">
-        <div class="w-[30.9375rem] max-w-[90vw] border border-[#EAECF0] bg-white p-4 shadow-xl">
-            <h3 class="text-base font-semibold text-gray-700">
-                {{ t("dashboard_cancel_confirm_title") }}
-            </h3>
-            <p class="mt-2 text-black">{{ t("dashboard_cancel_confirm_body") }}</p>
-            <div class="mt-2 bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                <p class="truncate font-semibold">{{ cancelBookingCandidateTitle }}</p>
-                <p v-if="cancelBookingCandidateTime" class="mt-1">{{ cancelBookingCandidateTime }}</p>
-            </div>
-            <div class="mt-2 flex items-center justify-center gap-2">
-                <button
-                    type="button"
-                    class="h-9 px-3 text-base font-medium text-[#ff4405] hover:bg-gray-50 disabled:opacity-60"
-                    :disabled="cancelBookingLoading"
-                    @click="closeCancelBookingPopup"
-                >
-                    {{ t("dashboard_cancel_confirm_back") }}
-                </button>
-                <button
-                    type="button"
-                    data-test="booking-form-cancel-confirm"
-                    class="h-9 bg-[#ff4405] px-3 text-base font-medium text-white hover:bg-[#ff692e] disabled:opacity-60"
-                    :disabled="cancelBookingLoading"
-                    @click="confirmCancelBooking"
-                >
-                    {{ cancelBookingLoading ? t("common_loading") : t("dashboard_cancel_confirm_action") }}
-                </button>
-            </div>
-        </div>
-    </PopupHandler>
+    <BookingAdjustmentDecisionPopup
+        v-model="cancelBookingPopupOpen"
+        mode="cancel"
+        actor-role="creator"
+        :event-title="cancelBookingCandidateTitle"
+        :fan-username="cancelBookingFanUsername"
+        :session-refund-tokens="cancelBookingRefundTokens"
+        :net-refund-tokens="cancelBookingRefundTokens"
+        :processing="cancelBookingLoading"
+        @confirm="confirmCancelBooking"
+        @close="closeCancelBookingPopup"
+    />
 
     <PopupHandler v-model="deleteEventPopupOpen" :config="confirmationPopupConfig">
         <div class="w-[32.875rem] max-w-[90vw] rounded border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
