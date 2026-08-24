@@ -2042,14 +2042,21 @@ async function reviewPendingBooking(payload, decision) {
                 }),
             });
         }
-        const item = result?.data?.item || null;
+        let item = result?.data?.item || null;
+        if (payload?.retainDetails && decision === "reject") {
+            if (!isCompleteCancelledBookingSnapshot(item)) {
+                mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+            }
+            item = await resolveCreatorCancellationSnapshot(payload, bookingId, item);
+        }
         await fetchCreatorBookedSlots(true);
         if (payload?.retainDetails) {
             const refreshedEvent = calendarBookedSlots.value.find((event) => resolveBookingIdFromPayload({ event }) === bookingId) || null;
             mainCalendarRef.value?.applyBookingReviewResult?.(
                 mergeReviewedBookingEvent(refreshedEvent || payload?.event || {}, item),
             );
-            if (payload?.showReviewToast === true) {
+            mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+            if (decision === "approve" && payload?.showReviewToast === true) {
                 showCreatorBookingReviewToast({
                     decision,
                     username: payload?.counterparty?.username,
@@ -2060,6 +2067,7 @@ async function reviewPendingBooking(payload, decision) {
         }
         return { ok: true, item };
     } finally {
+        mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
         reviewPendingLoading.value = false;
     }
 }

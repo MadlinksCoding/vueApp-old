@@ -2446,6 +2446,25 @@ const applyBookingReviewResult = (event) => {
 
 const applyBookingCancellationResult = (event) => applyBookingReviewResult(event);
 
+const selectedEventWithBooking = (booking) => {
+  const currentEvent = selectedEvent.value && typeof selectedEvent.value === 'object'
+    ? selectedEvent.value
+    : {};
+  const currentRaw = currentEvent?.raw && typeof currentEvent.raw === 'object'
+    ? currentEvent.raw
+    : {};
+
+  return {
+    ...currentEvent,
+    status: booking?.status || booking?.bookingStatus || currentEvent.status,
+    bookingId: booking?.bookingId || booking?.booking_id || currentEvent.bookingId,
+    raw: {
+      ...currentRaw,
+      ...(booking && typeof booking === 'object' ? booking : {}),
+    },
+  };
+};
+
 const setBookingDetailsRefreshing = (refreshing) => {
   if (!eventDetailsPopupOpen.value) return false;
   eventDetailsRefreshing.value = Boolean(refreshing);
@@ -2500,7 +2519,11 @@ const handleDetailsApproveBooking = (payload) => {
 // `message.content.booking_id` and posts back to `chatId`. The detail popup only
 // hands us the booking, so rebuild the linked chat message from its meta.
 const handleAdjustBooking = (payload) => {
-  const booking = payload?.booking || payload?.event?.raw || null;
+  const booking = payload?.booking
+    || selectedBookingSnapshot.value
+    || payload?.event?.raw
+    || selectedEvent.value?.raw
+    || null;
   const message = buildBookingChatMessage(booking);
 
   if (!message) {
@@ -2512,7 +2535,6 @@ const handleAdjustBooking = (payload) => {
     return;
   }
 
-  eventDetailsPopupOpen.value = false;
   adjustBookingState.value = { ...payload, booking, message, chatId: message.chat_id };
 };
 
@@ -2539,9 +2561,44 @@ const handleAdjustSubmitted = async ({ item, booking }) => {
   // AdjustBookingPopup already wrote the counter offer onto the chat message, so
   // only the broadcast and the activity log are left — and this surface has no chat
   // socket of its own, so they go through the host relay.
-  broadcastBookingToChat(booking || adjustBookingState.value?.booking, item, 'adjust_request');
+  const adjustmentState = adjustBookingState.value;
+  const originalBooking = adjustmentState?.booking || selectedBookingSnapshot.value || selectedEvent.value?.raw || {};
+  const bookingId = String(
+    booking?.bookingId
+      || booking?.booking_id
+      || originalBooking?.bookingId
+      || originalBooking?.booking_id
+      || selectedEvent.value?.bookingId
+      || '',
+  );
 
+  broadcastBookingToChat(booking || originalBooking, item, 'adjust_request');
   adjustBookingState.value = null;
+
+  const submittedBooking = booking && typeof booking === 'object' ? booking : null;
+  let fetchedBooking = null;
+  if (!submittedBooking || !isPendingCounterOffer(submittedBooking)) {
+    eventDetailsRefreshing.value = true;
+    try {
+      const response = bookingId
+        ? await FlowHandler.run('bookings.fetchBooking', { bookingId })
+        : null;
+      const fetched = response?.ok ? response.data?.item : null;
+      if (fetched && typeof fetched === 'object') fetchedBooking = fetched;
+    } catch {
+      // The submitted mutation snapshot remains authoritative when the follow-up
+      // fetch is unavailable.
+    } finally {
+      eventDetailsRefreshing.value = false;
+    }
+  }
+
+  const authoritativeBooking = {
+    ...(originalBooking && typeof originalBooking === 'object' ? originalBooking : {}),
+    ...(fetchedBooking && typeof fetchedBooking === 'object' ? fetchedBooking : {}),
+    ...(submittedBooking && typeof submittedBooking === 'object' ? submittedBooking : {}),
+  };
+  applyBookingReviewResult(selectedEventWithBooking(authoritativeBooking));
   emit('refresh-events');
 };
 

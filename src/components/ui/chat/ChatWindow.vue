@@ -362,8 +362,9 @@ const showBookingPopup        = ref(false)
 const compactBookingDetailsSession = ref(false)
 const bookingDetailsRefreshing = ref(false)
 const pendingFanCancellationToast = ref(null)
-const pendingDirectCreatorCancellationDetails = ref(null)
+const pendingDirectCreatorDetails = ref(null)
 const showAdjustPopup         = ref(false)
+const adjustOpenedFromDetails = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
 const showMembersPopup        = ref(false)
@@ -413,6 +414,7 @@ const membersPopupConfig = {
 }
 const activeBookingMessage = ref(null)
 const bookingActionLoading = ref(false)
+let bookingDetailsFetchEpoch = 0
 
 function handleMessagePrivately(member) {
   showMembersPopup.value = false
@@ -554,9 +556,12 @@ const bookingDecision = useBookingAdjustmentDecision(activeBookingData, {
 async function openBookingDetail(message) {
   activeBookingMessage.value = message
   const bookingId = message?.content?.booking_id
+  const fetchEpoch = ++bookingDetailsFetchEpoch
   if (bookingId && !chatStore.getBookingById(bookingId)) {
     const response = await FlowHandler.run('bookings.fetchBooking', { bookingId })
-    if (response?.ok) chatStore.setBooking(bookingId, response.data?.item || null)
+    if (response?.ok && bookingDetailsFetchEpoch === fetchEpoch) {
+      chatStore.setBooking(bookingId, response.data?.item || null)
+    }
   }
   // PopupHandler only opens on a false -> true transition, so let the popup mount
   // with the message first and flip visibility on the next tick.
@@ -566,7 +571,10 @@ async function openBookingDetail(message) {
   // Refresh booking data in background when popup opens
   if (bookingId) {
     FlowHandler.run('bookings.fetchBooking', { bookingId }).then((res) => {
-      if (res?.ok) chatStore.setBooking(bookingId, res.data?.item || null)
+      const activeBookingId = activeBookingMessage.value?.content?.booking_id
+      if (res?.ok && bookingDetailsFetchEpoch === fetchEpoch && String(activeBookingId) === String(bookingId)) {
+        chatStore.setBooking(bookingId, res.data?.item || null)
+      }
     })
   }
 }
@@ -574,7 +582,7 @@ async function openBookingDetail(message) {
 function openAdjustPopup(input) {
   const message = resolveBookingMessage(input)
   if (message) activeBookingMessage.value = message
-  showBookingPopup.value = false
+  adjustOpenedFromDetails.value = showBookingPopup.value
   showAdjustPopup.value = true
 }
 
@@ -679,7 +687,44 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       return
     }
 
-    await refreshCachedBooking(bookingId, review.item)
+    bookingDetailsFetchEpoch += 1
+
+    const originalBooking = chatStore.getBookingById(bookingId) || {}
+    let updatedBooking = null
+    if (decision === 'reject' && !isCompleteCancelledBookingSnapshot(review.item)) {
+      bookingDetailsRefreshing.value = showBookingPopup.value
+      let refreshed = null
+      try {
+        refreshed = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+      } catch {
+        refreshed = null
+      }
+      updatedBooking = {
+        ...originalBooking,
+        ...(refreshed?.ok && refreshed.data?.item ? refreshed.data.item : {}),
+        ...(review.item && typeof review.item === 'object' ? review.item : {}),
+      }
+    } else {
+      updatedBooking = await refreshCachedBooking(bookingId, review.item)
+    }
+    if (decision === 'reject') {
+      const updatedStatus = String(updatedBooking?.status || updatedBooking?.bookingStatus || '').trim().toLowerCase()
+      updatedBooking = {
+        ...originalBooking,
+        ...(updatedBooking && typeof updatedBooking === 'object' ? updatedBooking : {}),
+        bookingId,
+        status: updatedStatus === 'declined' || updatedStatus.startsWith('cancel')
+          ? updatedStatus
+          : 'cancelled_creator',
+        cancellation: {
+          ...(originalBooking?.cancellation || {}),
+          ...(updatedBooking?.cancellation || {}),
+          actor: updatedBooking?.cancellation?.actor || 'creator',
+        },
+      }
+      chatStore.setBooking(bookingId, updatedBooking)
+    }
+    bookingDetailsRefreshing.value = false
 
     const newAction = decision === 'approve' ? 'accepted' : 'declined'
     if (activeBookingMessage.value?.message_id === messageId) {
@@ -695,10 +740,21 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
     })
 
     const retainOpen = showBookingPopup.value && activeBookingRole.value === 'creator'
+    const openCreatorDetails = decision === 'reject'
+      && activeBookingRole.value === 'creator'
+      && !showBookingPopup.value
     // Declining is confirmed through the decision popup, which cannot close itself
     // while the action is still marked as processing.
     closeBookingDecision({ force: true })
     if (!retainOpen) showBookingPopup.value = false
+
+    if (openCreatorDetails) {
+      pendingDirectCreatorDetails.value = {
+        booking: updatedBooking,
+        message: bookingMessageWithAction(message, newAction),
+        action: 'reject',
+      }
+    }
 
     broadcastBookingUpdate(res?.data?.item || bookingMessageWithAction(message, newAction))
     if (res?.ok) {
@@ -713,13 +769,16 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       })
     }
 
-    showCreatorBookingReviewToast({
-      decision,
-      username: reviewPayload?.counterparty?.username || bookingSenderName.value,
-      avatarUrl: reviewPayload?.counterparty?.avatarUrl,
-      t,
-    })
+    if (decision !== 'reject') {
+      showCreatorBookingReviewToast({
+        decision,
+        username: reviewPayload?.counterparty?.username || bookingSenderName.value,
+        avatarUrl: reviewPayload?.counterparty?.avatarUrl,
+        t,
+      })
+    }
   } finally {
+    bookingDetailsRefreshing.value = false
     bookingActionLoading.value = false
   }
 }
@@ -767,20 +826,54 @@ function onRescheduleSubmitted({ item, booking: updatedBooking }) {
   showBookingPopup.value = false
 }
 
-function onAdjustSubmitted({ item, booking: updatedBooking }) {
-  showAdjustPopup.value = false
+async function onAdjustSubmitted({ item, booking: updatedBooking }) {
+  const detailsWereOpen = adjustOpenedFromDetails.value
+  const message = activeBookingMessage.value
+  const bookingId = message?.content?.booking_id
+  const originalBooking = bookingId ? (chatStore.getBookingById(bookingId) || {}) : {}
+
+  bookingDetailsFetchEpoch += 1
+
   broadcastBookingUpdate(item)
-  if (updatedBooking) {
-    const bookingId = activeBookingMessage.value?.content?.booking_id
-    if (bookingId) chatStore.setBooking(bookingId, updatedBooking)
+  const submittedBooking = updatedBooking && typeof updatedBooking === 'object'
+    ? updatedBooking
+    : null
+  let fetchedBooking = null
+  if (!submittedBooking || !isPendingCounterOffer(submittedBooking)) {
+    bookingDetailsRefreshing.value = detailsWereOpen
+    try {
+      const response = bookingId
+        ? await FlowHandler.run('bookings.fetchBooking', { bookingId })
+        : null
+      const fetched = response?.ok ? (response.data?.item || null) : null
+      if (fetched) fetchedBooking = fetched
+    } catch {
+      // Keep the successful submission snapshot when the follow-up fetch fails.
+    } finally {
+      bookingDetailsRefreshing.value = false
+    }
   }
-  const msg = activeBookingMessage.value
+
+  const authoritativeBooking = {
+    ...originalBooking,
+    ...(fetchedBooking && typeof fetchedBooking === 'object' ? fetchedBooking : {}),
+    ...(submittedBooking && typeof submittedBooking === 'object' ? submittedBooking : {}),
+  }
+  if (bookingId) chatStore.setBooking(bookingId, authoritativeBooking)
+
   sendChatActivityLog('Counter offer sent', {
     is_booking_request: true,
     decision: 'counter_offer',
-    bookingId: msg?.content?.booking_id,
+    bookingId,
   })
-  showBookingPopup.value = false
+
+  showAdjustPopup.value = false
+  adjustOpenedFromDetails.value = false
+  if (!detailsWereOpen) {
+    compactBookingDetailsSession.value = false
+    await nextTick()
+    showBookingPopup.value = true
+  }
 }
 
 // ── counter_offer responses for requestJoinCallNotification + booking_request ──
@@ -1003,6 +1096,8 @@ async function confirmBookingCancellation(message, request = {}) {
       return
     }
 
+    bookingDetailsFetchEpoch += 1
+
     if (retainCreatorDetails && !item) bookingDetailsRefreshing.value = true
     let updatedBooking = item
     try {
@@ -1056,7 +1151,11 @@ async function confirmBookingCancellation(message, request = {}) {
       }
       chatStore.setBooking(bookingId, updatedBooking)
       activeBookingMessage.value = bookingMessageWithAction(message, 'cancelled')
-      pendingDirectCreatorCancellationDetails.value = { booking: updatedBooking }
+      pendingDirectCreatorDetails.value = {
+        booking: updatedBooking,
+        message: bookingMessageWithAction(message, 'cancelled'),
+        action: 'cancel',
+      }
       closeBookingDecision({ force: true })
       onCallCancelled(res?.data?.item || updatedBooking, { keepDetailsOpen: true })
       return
@@ -1153,13 +1252,13 @@ function openBookingDecision(mode, payload) {
 }
 
 function closeBookingDecision({ force = false } = {}) {
-  if (!force) pendingDirectCreatorCancellationDetails.value = null
+  if (!force) pendingDirectCreatorDetails.value = null
   bookingDecision.reset({ force })
 }
 
 function isCancelledBookingSnapshot(item) {
   const status = String(item?.status || item?.bookingStatus || '').trim().toLowerCase()
-  return Boolean(item && status.includes('cancel'))
+  return Boolean(item && (status.includes('cancel') || status === 'declined'))
 }
 
 function isCompleteCancelledBookingSnapshot(item) {
@@ -1175,9 +1274,14 @@ function isCompleteCancelledBookingSnapshot(item) {
 }
 
 function handleBookingDecisionClosed() {
-  const pending = pendingDirectCreatorCancellationDetails.value
+  const pending = pendingDirectCreatorDetails.value
   if (!pending) return
-  pendingDirectCreatorCancellationDetails.value = null
+  pendingDirectCreatorDetails.value = null
+  if (pending.message) activeBookingMessage.value = pending.message
+  const bookingId = pending.booking?.bookingId
+    || pending.booking?.booking_id
+    || pending.message?.content?.booking_id
+  if (bookingId && pending.booking) chatStore.setBooking(bookingId, pending.booking)
   compactBookingDetailsSession.value = false
   bookingDetailsRefreshing.value = false
   showBookingPopup.value = true
@@ -3038,7 +3142,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-[28.125rem] h-[37.5rem] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
+  <div v-show="!showBookingPopup" class="flex flex-col w-[28.125rem] h-[37.5rem] rounded-t-[0.25rem] shadow-[0_0_12px_0_rgba(0,0,0,0.25)] overflow-hidden border border-zinc-200"
        :class="[hostWidth < 768 ? '!w-screen !h-screen !rounded-none !border-none' : '',
         hostWidth >= 768 && hostWidth <= 1023 ? ' w-[22.125rem] ' : '',
        ]">
@@ -3597,7 +3701,7 @@ onUnmounted(() => {
   <!-- Marks the chat embed as showing a full-screen popup (see ChatEmbedApp).
        Both popups teleport out of this tree, so neither carries the marker itself. -->
   <Teleport to="body">
-    <div v-if="showBookingPopup || bookingDecision.isOpen.value" data-fs-chat-popup style="display:none" />
+    <div v-if="showBookingPopup || bookingDecision.isOpen.value || showAdjustPopup" data-fs-chat-popup style="display:none" />
   </Teleport>
 
   <!-- Adjust booking popup -->
@@ -3606,7 +3710,7 @@ onUnmounted(() => {
     :message="activeBookingMessage"
     :chat-id="activeChatId"
     @submitted="onAdjustSubmitted"
-    @close="showAdjustPopup = false"
+    @close="showAdjustPopup = false; adjustOpenedFromDetails = false"
   />
 
   <!-- Ask for more time popup (requestJoinCallNotification) -->

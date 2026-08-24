@@ -134,7 +134,44 @@ describe("MainCalendar adjust request", () => {
     }));
     // This is the field AdjustBookingPopup reads to call bookings.updateMeta.
     expect(adjust.props("message").content.booking_id).toBe("booking_1");
+    expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
 
+    wrapper.unmount();
+  });
+
+  it("keeps the drawer mounted and applies the submitted counteroffer snapshot", async () => {
+    const wrapper = await mountCalendar();
+    const value = { ...booking({ chatId: "chat_1", bookingMessageId: "message_1" }), status: "pending" };
+    await requestAdjust(wrapper, value);
+
+    const adjusted = {
+      ...value,
+      meta: {
+        ...value.meta,
+        currentCounterOffer: "adjust",
+        negotiation: {
+          type: "adjust",
+          status: "sent",
+          actor: "creator",
+          original: { totalTokens: 100 },
+          proposed: { totalTokens: 125 },
+        },
+      },
+    };
+    wrapper.getComponent(AdjustStub).vm.$emit("submitted", {
+      item: { message_id: "message_1" },
+      booking: adjusted,
+    });
+    await vi.waitFor(() => {
+      expect(wrapper.findComponent(AdjustStub).exists()).toBe(false);
+      expect(wrapper.getComponent(DetailsStub).props("booking")).toEqual(expect.objectContaining({
+        bookingId: "booking_1",
+        meta: expect.objectContaining({ currentCounterOffer: "adjust" }),
+      }));
+    });
+
+    expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
+    expect(mocks.flowRun).not.toHaveBeenCalledWith("bookings.fetchBooking", expect.anything());
     wrapper.unmount();
   });
 

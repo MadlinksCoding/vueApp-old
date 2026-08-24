@@ -2504,15 +2504,15 @@ const onApprovePendingBooking = async (payload) => {
 const onRejectPendingBooking = async (payload) => {
   const result = await reviewPendingBooking(payload, "reject");
   if (!result?.ok || !payload?.retainDetails) return;
-  mainCalendarRef.value?.applyBookingReviewResult?.(result.event || mergeApprovedBookingEvent(payload?.event || {}, result.item));
-  if (payload?.showReviewToast === true) {
-    showCreatorBookingReviewToast({
-      decision: "reject",
-      username: payload?.counterparty?.username,
-      avatarUrl: payload?.counterparty?.avatarUrl,
-      t,
-    });
+  const bookingId = resolveBookingIdFromPayload(payload);
+  if (!isCompleteCancelledBookingSnapshot(result.item)) {
+    mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
   }
+  const updatedItem = await resolveCreatorCancellationSnapshot(payload, bookingId, result.item);
+  mainCalendarRef.value?.applyBookingReviewResult?.(
+    mergeApprovedBookingEvent(payload?.event || result.event || {}, updatedItem),
+  );
+  mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
 };
 
 const openWidgetCompactDetails = async (payload = {}) => {
