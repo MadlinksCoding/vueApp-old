@@ -30,9 +30,10 @@
             <span class="text-white text-xs font-semibold font-['Poppins'] leading-4">Join call</span>
           </button>
 
-          <div v-if="isPinned && !isPassCall && ['pending', 'accepted'].includes(resolvedAction)" class="relative">
+          <div v-if="showOptionsMenu" class="relative">
           <button
             type="button"
+            data-test="chat-booking-request-menu"
             class="shrink-0 w-5 h-5 flex items-center justify-center text-[#98A2B3] hover:text-[#5549FF] mt-0.5"
             @click.stop="toggleMenu"
           >
@@ -49,41 +50,9 @@
             class="absolute right-0 top-6 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
             @click.stop
           >
-            <!-- <button
-              v-if="resolvedAction === 'accepted'"
-              type="button"
-              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]"
-              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
-              :disabled="isPassCall"
-              @click.stop="handleAskMoreTime"
-            >
-              <span class="inline-flex w-5 h-5 items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              Ask for more time
-            </button> -->
-            <!-- <button
-              v-if="resolvedAction === 'accepted'"
-              type="button"
-              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]"
-              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
-              :disabled="isPassCall"
-              @click.stop="handleAskToReschedule"
-            >
-              <span class="inline-flex w-5 h-5 items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              Ask to reschedule
-            </button> -->
             <button
               type="button"
-              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
-              :class="{ 'pointer-events-none opacity-30 cursor-not-allowed': isPassCall }"
-              :disabled="isPassCall"
+              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
               @click.stop="handleCancelCall"
             >
               <span class="inline-flex w-5 h-5 items-center justify-center">
@@ -204,43 +173,6 @@
               <img :src="EditIcon" class="w-3.5 h-3.5" alt="" />
               Adjust Request
             </button>
-
-            <div class="relative shrink-0" @click.stop>
-              <button
-                type="button"
-                :disabled="disabled"
-                class="h-full w-10 rounded bg-[#0C111D] inline-flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-50"
-                :aria-expanded="reviewMenuOpen"
-                aria-label="More booking actions"
-                @click.stop="toggleReviewMenu"
-              >
-                <svg width="16" height="4" viewBox="0 0 16 4" fill="none" aria-hidden="true">
-                  <circle cx="2" cy="2" r="1.5" fill="white" />
-                  <circle cx="8" cy="2" r="1.5" fill="white" />
-                  <circle cx="14" cy="2" r="1.5" fill="white" />
-                </svg>
-              </button>
-
-              <div
-                v-if="reviewMenuOpen"
-                class="absolute right-0 top-11 z-[1200] w-[13rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
-                @click.stop
-              >
-                <button
-                  type="button"
-                  :disabled="disabled"
-                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2] disabled:opacity-50"
-                  @click.stop="handleDeclineBooking"
-                >
-                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                      <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
-                    </svg>
-                  </span>
-                  Decline Booking
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </template>
@@ -448,6 +380,7 @@ import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
 import EditIcon        from '@/assets/images/icons/edit-05.webp'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
 import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
+import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'
 import { showToast } from '@/utils/toastBus.js'
 
 const chatStore = useChatStore()
@@ -465,8 +398,6 @@ const emit = defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confir
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
 const menuOpen = ref(false)
-// The pending action row has its own overflow menu, separate from the header one.
-const reviewMenuOpen = ref(false)
 const remarksExpanded = ref(false)
 const remarksRef = ref(null)
 const isRemarksClamped = ref(false)
@@ -503,12 +434,8 @@ const booking = computed(() => {
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
 
-function toggleMenu() { menuOpen.value = !menuOpen.value; reviewMenuOpen.value = false }
-function toggleReviewMenu() { if (props.disabled) return; reviewMenuOpen.value = !reviewMenuOpen.value; menuOpen.value = false }
-function handleDeclineBooking() { if (props.disabled) return; reviewMenuOpen.value = false; emit('decline') }
-function handleAskMoreTime()     { if(isPassCall.value) return; menuOpen.value = false; emit('ask-more-time') }
-function handleAskToReschedule() { if(isPassCall.value) return; menuOpen.value = false; emit('ask-to-reschedule') }
-function handleCancelCall()      { if(isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
+function toggleMenu() { menuOpen.value = !menuOpen.value }
+function handleCancelCall() { if (isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
 
 function goToCalendar() {
   emit('view-details');return;
@@ -524,7 +451,7 @@ function goToCalendar() {
   window.open('/dashboard/events', '_top')
 }
 
-const handleDocumentClick = () => { menuOpen.value = false; reviewMenuOpen.value = false }
+const handleDocumentClick = () => { menuOpen.value = false }
 onMounted(() => document.addEventListener('click', handleDocumentClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
@@ -724,6 +651,12 @@ const resolvedAction = computed(() => {
 
   return chatAction || 'pending'
 })
+
+const showOptionsMenu = computed(() => shouldShowBookingOptionsMenu({
+  viewerRole: props.isCreator ? 'creator' : 'fan',
+  status: resolvedAction.value,
+  isPassed: isPassCall.value,
+}))
 
 const cancelledReason = computed(() => booking.value?.meta?.cancelled?.reason)
 const bookingStatus = computed(() => booking.value?.status || content.value?.action || '')

@@ -89,7 +89,7 @@
             <TooltipIcon v-if="isPendingSection(section)" wrapper-class="w-[14px] h-[14px]" icon-class="w-[14px] h-[14px]" :text="t('calendar_event_status_pending')" />
             </div>
             <span
-              v-if="!isPendingPriceAdjustment(event)"
+              v-if="showOptionsMenu(event)"
               class="relative flex items-center justify-center w-[1rem] h-[1rem]"
             >
               <button
@@ -113,35 +113,9 @@
                 data-test="events-widget-menu"
                 @click.stop
               >
-                <!-- <button
-                  type="button"
-                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
-                  @click.stop="onMenuAction('ask_more_time', event)"
-                >
-                  <span class="inline-flex w-5 h-5 items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                  {{ t("dashboard_ask_for_more_time") }}
-                </button> -->
-
-                <!-- <button
-                  type="button"
-                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB] pointer-events-none opacity-30 cursor-not-allowed"
-                  @click.stop="onMenuAction('ask_to_reschedule', event)"
-                >
-                  <span class="inline-flex w-5 h-5 items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                  {{ t("dashboard_ask_to_reschedule") }}
-                </button> -->
-
                 <button
                   type="button"
-                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
                   @click.stop="onMenuAction('cancel_call', event)"
                 >
                   <span class="inline-flex w-5 h-5 items-center justify-center">
@@ -307,6 +281,7 @@ import fileSearchIcon from "@/assets/images/icons/file-search-02.svg";
 import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js';
 
 
 const getEventCardStyles = (event, isPending) => {
@@ -476,6 +451,14 @@ const isPendingEvent = (event = {}) => {
   return status === "pending" || status === "pending_hold" || (!status && event.showReply === true);
 };
 
+// Widget items carry no status when the API projection omits it, so fall back to
+// the pending flag the section builder sets.
+const showOptionsMenu = (event = {}) => shouldShowBookingOptionsMenu({
+  viewerRole: viewerRole.value,
+  status: getEventStatus(event) || (isPendingEvent(event) ? "pending" : "confirmed"),
+  hasPendingPriceAdjustment: isPendingPriceAdjustment(event),
+});
+
 const shouldShowPendingActions = (event = {}) => isCreatorViewer.value && isPendingEvent(event);
 const shouldShowPendingAccept = (event = {}) => (
   shouldShowPendingActions(event) && !isPendingCounterOffer(event)
@@ -628,7 +611,7 @@ const collectProfileIds = () => {
 watch(
   () => [props.sections, props.userRole],
   () => {
-    if (openMenuId.value && isPendingPriceAdjustment(eventForMenuId(openMenuId.value))) {
+    if (openMenuId.value && !showOptionsMenu(eventForMenuId(openMenuId.value) || {})) {
       closeMenu();
     }
     collectProfileIds().forEach(fetchProfile);

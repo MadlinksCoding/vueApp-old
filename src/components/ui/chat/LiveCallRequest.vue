@@ -12,7 +12,7 @@
           {{ eventName }}
         </span>
         <button
-          v-if="!isCounterOffer && !isCancelled && !isAccepted && isCreator && !isExpired && !hasAcceptedPrevNotification"
+          v-if="showOptionsMenu"
           class="shrink-0 p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           @click.stop="toggleDropdown"
         >
@@ -141,30 +141,12 @@
       </template>
     </div>
 
-    <!-- Dropdown menu (creator + normal state only) -->
+    <!-- Dropdown menu -->
     <Transition name="dropdown">
       <div
-        v-if="showDropdown && isCreator"
+        v-if="showDropdown && showOptionsMenu"
         class="absolute right-2 top-2 z-50 min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-100 py-1"
       >
-        <!-- <button
-          class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors text-left"
-          @click.stop="$emit('ask-more-time'); closeDropdown()"
-        >
-          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Ask for more time
-        </button> -->
-        <!-- <button
-          class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors text-left"
-          @click.stop="$emit('reschedule'); closeDropdown()"
-        >
-          <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
-          </svg>
-          Ask to reschedule
-        </button> -->
         <button
           class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors text-left"
           @click.stop="$emit('cancel'); closeDropdown()"
@@ -187,6 +169,7 @@ import FlowHandler from '@/services/flow-system/FlowHandler'
 import { useChatStore } from '@/stores/useChatStore'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils.js'
 import { openScheduledMeetingOverlay } from '@/utils/bookingJoinUtils.js'
+import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 
 const props = defineProps({
@@ -208,8 +191,6 @@ const isCancelled    = computed(() => {
   const status = String(props.booking?.status || '').toLowerCase()
   return status.startsWith('cancel') || status === 'rejected' || status === 'declined'
 })
-const isAccepted     = computed(() => content.value.action === 'accepted')
-const hasAcceptedPrevNotification = computed(() => props.message?.prev_notification?.content?.action === 'accepted')
 const startDateIso = computed(() => props.booking?.startIso || props.booking?.startAtIso || content.value.start_at || content.value.slot_date)
 // ── Join ──────────────────────────────────────────────────────────────────────
 function handleJoin() {
@@ -284,6 +265,21 @@ const isExpired = computed(() => {
   const endMs = parseEndMs()
   return endMs ? now.value > endMs : false
 })
+
+// A join notification only goes out for a confirmed booking, but the booking is
+// fetched asynchronously — until it lands there is no status to trust, so the menu
+// stays hidden.
+const bookingStatus = computed(() => {
+  const status = String(props.booking?.status || '').toLowerCase()
+  if (status) return status
+  return content.value.action === 'accepted' ? 'confirmed' : String(content.value.action || '')
+})
+
+const showOptionsMenu = computed(() => !isCounterOffer.value && shouldShowBookingOptionsMenu({
+  viewerRole: props.isCreator ? 'creator' : 'fan',
+  status: bookingStatus.value,
+  isPassed: isExpired.value,
+}))
 
 const isJoinable = computed(() => {
   if (isLive.value) return true

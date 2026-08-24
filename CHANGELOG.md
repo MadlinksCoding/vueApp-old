@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-08-24 — One Rule For The Booking 3-Dot Menu
+
+Every booking card grew its own answer to "should the 3-dot menu be here?" — the chat toast keyed off the message action, the detail slide-in off four booking flags, the dashboard widget and mobile join card off nothing but the price-adjustment check. So a creator could cancel a call they had not accepted yet, and the menu survived on bookings that had already come and gone. One shared rule now decides it everywhere: creators get the menu only once the booking is confirmed, fans get it while their request awaits review and after it is confirmed, and neither side gets it under a price adjustment, on a passed booking, or on a cancelled one.
+
+### Added
+
+#### `src/services/bookings/utils/bookingMenuVisibility.js`
+- **`shouldShowBookingOptionsMenu()`** — Takes `{ viewerRole, status, isPassed, hasPendingPriceAdjustment }` and answers for every surface. A fan under a price adjustment is deliberately left with only the decline path, which is the one action that resolves the adjustment. `isCancelledBookingStatus()` is exported alongside it, since `cancelled`, `cancelled_user`, `cancelled_creator`, `rejected` and `declined` all arrive from different callers.
+
+#### `src/__tests__/bookingMenuVisibility.spec.js`
+- **New Coverage** — The rule itself across role × status × passed × adjustment, plus `BookingRequestBubble` mounted through each of those states so the creator's pending card is asserted to carry no overflow control at all.
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Menu Follows The Shared Rule** — The header menu was gated on `['pending', 'accepted'].includes(resolvedAction)`, which handed a creator a Cancel Call on a request they had not answered yet. It now asks `shouldShowBookingOptionsMenu`.
+- **Pending Review Row Is Accept + Adjust** — The black `···` beside Accept / Adjust Request, and the Decline Booking entry inside it, are gone; a creator reviewing a request has two buttons and no overflow. `reviewMenuOpen` and its handlers went with it.
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **`showMenu` Delegates** — The four-flag expression (`!isEnded && !isCancelledStatus && !pendingStartElapsed && !pendingPriceAdjustment`) is replaced by the shared rule, which adds the role/status half it was missing.
+- **Review Notices Lose Their Overflow Menus** — Both review rows, compact and full, dropped the `···` trigger and its Decline Booking dropdown.
+
+#### `src/components/ui/chat/LiveCallRequest.vue`
+- **Reminder Menu Reads The Booking** — Visibility was a six-term expression over the message action (`!isCounterOffer && !isCancelled && !isAccepted && isCreator && !isExpired && !hasAcceptedPrevNotification`) and creator-only. It now derives a status from the booking and applies the shared rule, so a fan also gets Cancel Call on a confirmed call. The menu stays hidden until the asynchronously fetched booking lands, since before that there is no status to trust.
+
+#### `src/components/calendar/EventsWidget.vue`
+- **Per-Event Visibility** — `!isPendingPriceAdjustment(event)` becomes `showOptionsMenu(event)`, which reuses the widget's own `getEventStatus` and falls back to the section's pending flag when the API projection carries no status. The watcher that closed an open menu now closes it whenever the rule stops holding, not only on a price adjustment.
+
+#### `src/components/calendar/StickyBookingCard.vue`
+- **Mobile Join Card** — Same gate, and the `close-menu` watcher follows the rule instead of the price-adjustment flag alone.
+
+### Removed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`, `src/components/ui/popup/BookingDetailsPopup.vue`, `src/components/calendar/EventsWidget.vue`, `src/components/ui/chat/LiveCallRequest.vue`
+- **Ask For More Time / Ask To Reschedule** — Deleted rather than left commented out. `StickyBookingCard` was still rendering both as permanently disabled rows; those are gone too. Each menu is down to its single Cancel entry, so the leading dividers those entries carried were dropped with them.
+
 ## 2026-08-21 — Calendar Booking Actions Reach Chat
 
 Accepting, declining or cancelling a booking from the events dashboard calendar left the chat untouched — no updated request bubble, no activity log, and nothing pushed to the other party. Only the standalone booking-details popup was wired for it. This closes that gap and gives the calendar the price-adjustment actions it was missing.

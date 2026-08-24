@@ -3540,8 +3540,7 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.emitted("join-call")).toEqual([[stickyCardEvent]]);
 
     await wrapper.get("[data-test='mobile-join-card-menu-trigger']").trigger("click");
-    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toContain("Pedir más tiempo");
-    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toContain("Pedir reprogramar");
+    expect(wrapper.get("[data-test='mobile-join-card-menu']").text()).toBe("Cancelar llamada");
 
     await wrapper.get("[data-test='mobile-join-card-cancel']").trigger("click");
     expect(wrapper.emitted("menu-action")).toEqual([[
