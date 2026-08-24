@@ -49,7 +49,7 @@ describe("chat decline confirmation", () => {
     expect(body).toContain("closeBookingDecision({ force: true })");
   });
 
-  it("retains open creator details and always raises the review toast", () => {
+  it("retains open creator details and suppresses the reject success toast", () => {
     const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
     const body = chatWindow.slice(
       chatWindow.indexOf("async function performBookingDecision"),
@@ -58,10 +58,38 @@ describe("chat decline confirmation", () => {
 
     expect(body).toContain("showBookingPopup.value && activeBookingRole.value === 'creator'");
     expect(body).toContain("if (!retainOpen) showBookingPopup.value = false");
-    // The dashboard toast is the only feedback a creator acting from a bubble gets,
-    // so it must not be gated on the compact detail session.
+    // Approval keeps its existing feedback, while rejection is represented by the
+    // refreshed terminal details notice.
     expect(body).toContain("showCreatorBookingReviewToast({");
+    expect(body).toContain("if (decision !== 'reject')");
     expect(body).not.toContain("showReviewToast");
+  });
+
+  it("hides chat without unmounting it while booking details are open", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+
+    expect(chatWindow).toContain('<div v-show="!showBookingPopup" class="flex flex-col');
+    expect(chatWindow).not.toContain('<div v-if="!showBookingPopup" class="flex flex-col');
+  });
+
+  it("layers Adjust over details and opens updated hero details after direct chat adjustment", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+    const openAdjust = chatWindow.slice(
+      chatWindow.indexOf("function openAdjustPopup"),
+      chatWindow.indexOf("function onAskMoreTime"),
+    );
+    const submitted = chatWindow.slice(
+      chatWindow.indexOf("async function onAdjustSubmitted"),
+      chatWindow.indexOf("// ── counter_offer responses"),
+    );
+
+    expect(openAdjust).toContain("adjustOpenedFromDetails.value = showBookingPopup.value");
+    expect(openAdjust).not.toContain("showBookingPopup.value = false");
+    expect(submitted).toContain("isPendingCounterOffer(submittedBooking)");
+    expect(submitted).toContain("bookings.fetchBooking");
+    expect(submitted).toContain("if (!detailsWereOpen)");
+    expect(submitted).toContain("compactBookingDetailsSession.value = false");
+    expect(submitted).toContain("showBookingPopup.value = true");
   });
 
   it("never re-broadcasts the pre-action booking message", () => {
@@ -96,10 +124,24 @@ describe("chat decline confirmation", () => {
     );
 
     expect(cancellation).toContain("const openCreatorDetails = isCreatorAccount.value && !showBookingPopup.value");
-    expect(cancellation).toContain("pendingDirectCreatorCancellationDetails.value = { booking: updatedBooking }");
+    expect(cancellation).toContain("pendingDirectCreatorDetails.value = {");
     expect(chatWindow).toContain('@closed="handleBookingDecisionClosed"');
     expect(chatWindow).toContain("compactBookingDetailsSession.value = false");
     expect(chatWindow).toContain("showBookingPopup.value = true");
+  });
+
+  it("opens terminal creator details after a direct chat reject", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+    const body = chatWindow.slice(
+      chatWindow.indexOf("async function performBookingDecision"),
+      chatWindow.indexOf("function onDirectAccept"),
+    );
+
+    expect(body).toContain("const openCreatorDetails = decision === 'reject'");
+    expect(body).toContain("pendingDirectCreatorDetails.value = {");
+    expect(body).toContain("updatedStatus.startsWith('cancel')");
+    expect(body).toContain(": 'cancelled_creator'");
+    expect(body).toContain("actor: updatedBooking?.cancellation?.actor || 'creator'");
   });
 
   it("skips the adjustment price lookup for cancel and reject", () => {

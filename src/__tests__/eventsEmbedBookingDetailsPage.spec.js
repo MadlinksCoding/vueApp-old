@@ -59,9 +59,16 @@ vi.mock("@/utils/toastBus.js", () => ({ showToast: vi.fn() }));
 
 const FanDetailsStub = {
   name: "BookingDetailsPopup",
-  props: ["modelValue", "event", "booking", "presentation", "layoutVariant", "actionLoading", "userRole", "canReviewPending", "bookingMessage"],
+  props: ["modelValue", "event", "booking", "presentation", "layoutVariant", "actionLoading", "refreshing", "userRole", "canReviewPending", "bookingMessage"],
   emits: ["cancel-booking", "close", "join-call", "open-chat", "accept-adjustment", "decline-adjustment", "approve-booking", "reject-booking", "adjust-booking", "decision-visibility"],
   template: "<div data-test='fan-details-stub' />",
+};
+
+const AdjustBookingStub = {
+  name: "AdjustBookingPopup",
+  props: ["message", "chatId"],
+  emits: ["submitted", "close"],
+  template: "<div data-test='adjust-booking-stub' />",
 };
 
 const AdjustmentDecisionStub = {
@@ -73,6 +80,7 @@ const AdjustmentDecisionStub = {
 
 const pageStubs = {
   BookingDetailsPopup: FanDetailsStub,
+  AdjustBookingPopup: AdjustBookingStub,
   BookingAdjustmentDecisionPopup: AdjustmentDecisionStub,
   ToastHost: true,
 };
@@ -400,6 +408,51 @@ describe("EventsEmbedBookingDetailsPage", () => {
       bookingId: "booking_123",
       activityLog: expect.objectContaining({ text: "Booking accepted" }),
     }));
+  });
+
+  it("layers Adjust over retained creator details and refreshes the iframe snapshot", async () => {
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("adjust-booking", { bookingId: "booking_123" });
+    await flushPromises();
+
+    expect(wrapper.getComponent(FanDetailsStub).exists()).toBe(true);
+    expect(wrapper.getComponent(AdjustBookingStub).props("chatId")).toBe("chat_1");
+    expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(true);
+
+    const adjusted = {
+      ...wrapper.getComponent(FanDetailsStub).props("booking"),
+      meta: {
+        chatId: "chat_1",
+        bookingMessageId: "message_1",
+        currentCounterOffer: "adjust",
+        negotiation: {
+          type: "adjust",
+          status: "sent",
+          actor: "creator",
+          original: { totalTokens: 100 },
+          proposed: { totalTokens: 125 },
+        },
+      },
+    };
+    wrapper.getComponent(AdjustBookingStub).vm.$emit("submitted", {
+      item: { message_id: "message_1" },
+      booking: adjusted,
+    });
+    await flushPromises();
+
+    expect(wrapper.findComponent(AdjustBookingStub).exists()).toBe(false);
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      meta: expect.objectContaining({ currentCounterOffer: "adjust" }),
+    }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      action: "adjust_request",
+      retainOpen: true,
+    }));
+    expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(false);
+    expect(mocks.requestClose).not.toHaveBeenCalled();
   });
 
   it("keeps creator hero details mounted with the cancelled snapshot after rejection", async () => {
