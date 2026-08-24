@@ -2587,7 +2587,7 @@ onBeforeUnmount(() => {
                       :style="balanceCardStyle"
                       data-testid="booking-balance-avatar-card"
                     >
-                      <div class="flex flex-col gap-3 p-4" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
+                      <div class="flex flex-col gap-3 p-4 rounded-lg overflow-hidden" style="background: linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%); backdrop-filter: blur(5px);">
 
                         <div class="flex justify-between items-center">
                           <div class="flex items-center gap-2"><p class="text-sm font-semibold text-[#FCE40D]">{{ t("common_wallet_balance") }}</p></div>
