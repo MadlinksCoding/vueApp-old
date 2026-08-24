@@ -96,7 +96,7 @@
 
               <div class="text-base font-semibold text-gray-700 flex flex-1" aria-live="polite" data-testid="adjustment-token-value">
                 <div class="flex flex-1 gap-2">
-                  <input v-model="form.adjustmentTokens" type="text" class="w-full">
+                  <input v-model="form.adjustmentTokens" type="text" class="w-full border-0 focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none">
                 </div>
                 <span class="text-base font-semibold text-gray-700 text-right"> Tokens </span>
               </div>
