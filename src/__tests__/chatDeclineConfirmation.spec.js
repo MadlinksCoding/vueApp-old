@@ -88,6 +88,20 @@ describe("chat decline confirmation", () => {
     expect(chatWindow.match(/await refreshCachedBooking\(bookingId, /g) || []).toHaveLength(4);
   });
 
+  it("opens cancelled creator details after a direct chat-menu cancellation", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+    const cancellation = chatWindow.slice(
+      chatWindow.indexOf("async function confirmBookingCancellation"),
+      chatWindow.indexOf("// A fan declining a price adjustment"),
+    );
+
+    expect(cancellation).toContain("const openCreatorDetails = isCreatorAccount.value && !showBookingPopup.value");
+    expect(cancellation).toContain("pendingDirectCreatorCancellationDetails.value = { booking: updatedBooking }");
+    expect(chatWindow).toContain('@closed="handleBookingDecisionClosed"');
+    expect(chatWindow).toContain("compactBookingDetailsSession.value = false");
+    expect(chatWindow).toContain("showBookingPopup.value = true");
+  });
+
   it("skips the adjustment price lookup for cancel and reject", () => {
     const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
 

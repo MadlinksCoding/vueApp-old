@@ -97,6 +97,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     });
     mocks.bootstrap.userRole = "creator";
     mocks.bootstrap.initialAction = "";
+    mocks.bootstrap.bookingSnapshot = null;
     mocks.bootstrap.creatorId = 1407;
     mocks.bootstrap.fanId = null;
     mocks.bootstrap.hostViewportWidth = null;
@@ -163,6 +164,54 @@ describe("EventsEmbedBookingDetailsPage", () => {
       start: "2026-08-14T10:00:00Z",
     }));
     expect(mocks.notifyReady).toHaveBeenCalledWith({ bookingId: "booking_123", ok: true });
+  });
+
+  it("renders an authenticated cancellation snapshot without refetching stale booking data", async () => {
+    mocks.bootstrap.bookingSnapshot = {
+      bookingId: "booking_123",
+      eventId: "event_123",
+      creatorId: 1407,
+      userId: 25,
+      eventTitle: "Validation call",
+      eventType: "private-event",
+      eventCallType: "video",
+      status: "cancelled_creator",
+      startAtIso: "2026-08-14T10:00:00Z",
+      endAtIso: "2026-08-14T10:10:00Z",
+      cancellation: { actor: "creator", refundedTokens: 25 },
+    };
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    expect(mocks.flowRun).not.toHaveBeenCalledWith(
+      "bookings.fetchBooking",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      status: "cancelled_creator",
+      cancellation: expect.objectContaining({ refundedTokens: 25 }),
+    }));
+  });
+
+  it("fetches once when an authenticated cancellation snapshot is incomplete", async () => {
+    mocks.bootstrap.bookingSnapshot = {
+      bookingId: "booking_123",
+      status: "cancelled_creator",
+    };
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    expect(mocks.flowRun).toHaveBeenCalledTimes(1);
+    expect(mocks.flowRun).toHaveBeenCalledWith(
+      "bookings.fetchBooking",
+      { bookingId: "booking_123" },
+      expect.any(Object),
+    );
   });
 
   it("hands the detail popup the linked chat message", async () => {

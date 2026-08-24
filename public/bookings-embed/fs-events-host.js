@@ -528,6 +528,7 @@
       fanId: null,
       userRole: "creator",
       initialAction: "",
+      bookingSnapshot: null,
       apiBaseUrl: "",
       tokenHandlerApiUrl: "",
       jwtToken: "",
@@ -1130,6 +1131,9 @@
           initialRoute: "booking-details",
           initialAction: initialAction,
           bookingId: bookingId,
+          bookingSnapshot: settings.bookingSnapshot && typeof settings.bookingSnapshot === "object"
+            ? settings.bookingSnapshot
+            : null,
           hostViewportWidth: window.innerWidth,
           creatorData: creatorData,
           translations: translations,

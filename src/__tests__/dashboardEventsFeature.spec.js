@@ -4239,6 +4239,22 @@ describe("DashboardEventsFeature", () => {
         reason: "creator_cancelled_from_events_widget",
       }),
     ]));
+    expect(showToast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "success" }));
+
+    wrapper.getComponent({ name: "BookingAdjustmentDecisionPopup" }).vm.$emit("closed");
+    await wrapper.vm.$nextTick();
+
+    expect(mainCalendarOpenEventDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: "booking_private_1",
+        status: "cancelled_creator",
+      }),
+      expect.objectContaining({
+        bookingId: "booking_private_1",
+        status: "cancelled_creator",
+        cancellation: expect.objectContaining({ actor: "creator" }),
+      }),
+    );
   });
 
   it("uses fan copy and fan cancellation payload from the dashboard widget", async () => {

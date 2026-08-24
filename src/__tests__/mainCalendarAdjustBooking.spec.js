@@ -253,4 +253,22 @@ describe("MainCalendar adjust request", () => {
     expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
     wrapper.unmount();
   });
+
+  it("opens hero details with an authoritative cancellation snapshot", async () => {
+    const wrapper = await mountCalendar();
+    const value = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
+    const cancelled = {
+      ...value,
+      status: "cancelled_creator",
+      cancellation: { actor: "creator", refundedTokens: 25 },
+    };
+    const event = { bookingId: value.bookingId, status: cancelled.status, raw: cancelled };
+
+    wrapper.vm.openEventDetails(event, cancelled);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.getComponent(DetailsStub).props("booking")).toEqual(cancelled);
+    expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
+    wrapper.unmount();
+  });
 });

@@ -311,6 +311,20 @@ async function notifySuccessfulBookingUpdate(action, updatedItem = null, options
   });
 }
 
+function isCompleteBookingSnapshot(item) {
+  if (!item || typeof item !== "object") return false;
+  const status = String(item.status || item.bookingStatus || "").trim();
+  const hasBookingDetails = Boolean(
+    item.meta
+    || item.eventSnapshot
+    || item.event
+    || item.startAtIso
+    || item.startIso
+    || item.startTime,
+  );
+  return Boolean(status && hasBookingDetails);
+}
+
 async function loadBooking() {
   const bookingId = String(bootstrap.bookingId || "").trim();
   loading.value = true;
@@ -327,11 +341,21 @@ async function loadBooking() {
   }
 
   try {
-    const result = await FlowHandler.run("bookings.fetchBooking", { bookingId }, flowOptions());
-    const item = result?.data?.item || null;
-    if (!result?.ok || !item) {
-      errorMessage.value = result?.error?.message || t("fan_event_details_load_failed");
-      return;
+    const bootstrapSnapshot = bootstrap.bookingSnapshot && typeof bootstrap.bookingSnapshot === "object"
+      ? bootstrap.bookingSnapshot
+      : null;
+    const snapshotBookingId = String(bootstrapSnapshot?.bookingId || bootstrapSnapshot?.id || "").trim();
+    let item = snapshotBookingId === bookingId && isCompleteBookingSnapshot(bootstrapSnapshot)
+      ? bootstrapSnapshot
+      : null;
+
+    if (!item) {
+      const result = await FlowHandler.run("bookings.fetchBooking", { bookingId }, flowOptions());
+      item = result?.data?.item || null;
+      if (!result?.ok || !item) {
+        errorMessage.value = result?.error?.message || t("fan_event_details_load_failed");
+        return;
+      }
     }
 
     booking.value = item;

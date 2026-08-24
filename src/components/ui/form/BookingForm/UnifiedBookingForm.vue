@@ -287,6 +287,7 @@ const reviewPendingLoading = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const pendingDirectCreatorCancellationDetails = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
@@ -2086,14 +2087,77 @@ function openCancelBookingPopup(payload = {}) {
         event: payload?.event || payload,
         origin: payload?.origin || "",
         retainDetailsOnSuccess: payload?.retainDetailsOnSuccess === true,
+        openDetailsOnSuccess: payload?.origin !== "booking-details",
     };
     cancelBookingPopupOpen.value = true;
 }
 
 function closeCancelBookingPopup() {
     if (cancelBookingLoading.value) return;
+    pendingDirectCreatorCancellationDetails.value = null;
     cancelBookingPopupOpen.value = false;
     cancelBookingCandidate.value = null;
+}
+
+function handleCancelBookingPopupClosed() {
+    const pending = pendingDirectCreatorCancellationDetails.value;
+    if (!pending) return;
+    pendingDirectCreatorCancellationDetails.value = null;
+    mainCalendarRef.value?.openEventDetails?.(pending.event, pending.booking);
+}
+
+function isCancelledBookingSnapshot(item) {
+    const status = String(item?.status || item?.bookingStatus || "").trim().toLowerCase();
+    return Boolean(item && status.includes("cancel"));
+}
+
+function isCompleteCancelledBookingSnapshot(item) {
+    if (!isCancelledBookingSnapshot(item)) return false;
+    return Boolean(
+        item?.meta
+        || item?.eventSnapshot
+        || item?.event
+        || item?.startAtIso
+        || item?.startIso
+        || item?.startTime,
+    );
+}
+
+async function resolveCreatorCancellationSnapshot(candidate, bookingId, item) {
+    if (isCompleteCancelledBookingSnapshot(item)) return item;
+
+    try {
+        const refreshed = await bookingFlow.callFlow(
+            "bookings.fetchBooking",
+            { bookingId },
+            {
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+        const fetched = refreshed?.ok ? refreshed?.data?.item || null : null;
+        if (isCompleteCancelledBookingSnapshot(fetched)) return fetched;
+    } catch {
+        // Fall through to a presentation-safe terminal snapshot.
+    }
+
+    const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
+        ? candidate.event.raw
+        : {};
+    return {
+        ...originalRaw,
+        ...(item && typeof item === "object" ? item : {}),
+        bookingId,
+        status: "cancelled_creator",
+        cancellation: {
+            ...(originalRaw?.cancellation || {}),
+            ...(item?.cancellation || {}),
+            actor: item?.cancellation?.actor || "creator",
+        },
+    };
 }
 
 async function confirmCancelBooking() {
@@ -2124,54 +2188,29 @@ async function confirmCancelBooking() {
         let updatedItem = result?.data?.item || null;
         const retainDetails = candidate?.origin === "booking-details"
             && candidate?.retainDetailsOnSuccess === true;
+        const openDetails = candidate?.origin !== "booking-details"
+            && candidate?.openDetailsOnSuccess === true;
+
+        if (retainDetails || openDetails) {
+            if (retainDetails && !isCancelledBookingSnapshot(updatedItem)) {
+                mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+            }
+            updatedItem = await resolveCreatorCancellationSnapshot(candidate, bookingId, updatedItem);
+        }
+
         cancelBookingPopupOpen.value = false;
         cancelBookingCandidate.value = null;
 
-        if (retainDetails && !updatedItem) {
-            mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
-            try {
-                const refreshed = await bookingFlow.callFlow(
-                    "bookings.fetchBooking",
-                    { bookingId },
-                    {
-                        context: {
-                            stateEngine: bookingFlow,
-                            creatorId: resolveCreatorId(),
-                            apiBaseUrl: props.apiBaseUrl || undefined,
-                        },
-                    },
-                );
-                updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
-            } catch {
-                updatedItem = null;
-            }
-        }
-
         if (retainDetails) {
-            if (!updatedItem) {
-                const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
-                    ? candidate.event.raw
-                    : {};
-                updatedItem = {
-                    ...originalRaw,
-                    bookingId,
-                    status: "cancelled_creator",
-                    cancellation: {
-                        ...(originalRaw?.cancellation || {}),
-                        actor: "creator",
-                    },
-                };
-            }
             mainCalendarRef.value?.applyBookingCancellationResult?.(
                 mergeReviewedBookingEvent(candidate?.event || {}, updatedItem),
             );
             mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
-        } else {
-            showToast({
-                type: "success",
-                title: t("dashboard_booking_cancelled_title"),
-                message: t("dashboard_booking_cancelled_message"),
-            });
+        } else if (openDetails) {
+            pendingDirectCreatorCancellationDetails.value = {
+                booking: updatedItem,
+                event: mergeReviewedBookingEvent(candidate?.event || {}, updatedItem),
+            };
         }
         await fetchCreatorBookedSlots(true);
     } finally {
@@ -2573,6 +2612,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :processing="cancelBookingLoading"
         @confirm="confirmCancelBooking"
         @close="closeCancelBookingPopup"
+        @closed="handleCancelBookingPopupClosed"
     />
 
     <PopupHandler v-model="deleteEventPopupOpen" :config="confirmationPopupConfig">

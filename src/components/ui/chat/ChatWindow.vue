@@ -361,6 +361,7 @@ const showBookingPopup        = ref(false)
 const compactBookingDetailsSession = ref(false)
 const bookingDetailsRefreshing = ref(false)
 const pendingFanCancellationToast = ref(null)
+const pendingDirectCreatorCancellationDetails = ref(null)
 const showAdjustPopup         = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
@@ -980,11 +981,14 @@ async function confirmBookingCancellation(message, request = {}) {
   const bookingId = message?.content?.booking_id
   if (!bookingId || bookingActionLoading.value) return
 
+  const originalBooking = chatStore.getBookingById(bookingId) || {}
+
   bookingActionLoading.value = true
   const retainCreatorDetails = isCreatorAccount.value
     && showBookingPopup.value
     && request?.origin === 'booking-details'
     && request?.retainDetailsOnSuccess === true
+  const openCreatorDetails = isCreatorAccount.value && !showBookingPopup.value
   try {
     const { ok, item, error } = await bookingActions.cancelBooking({
       bookingId,
@@ -1014,26 +1018,50 @@ async function confirmBookingCancellation(message, request = {}) {
           chatId: activeChatId.value, messageId: message.message_id, updates: { action: 'cancelled' },
         })
 
-    closeBookingDecision({ force: true })
-
     if (retainCreatorDetails) {
-      if (!updatedBooking) {
-        const original = chatStore.getBookingById(bookingId) || {}
+      if (!isCompleteCancelledBookingSnapshot(updatedBooking)) {
         updatedBooking = {
-          ...original,
+          ...originalBooking,
+          ...(updatedBooking && typeof updatedBooking === 'object' ? updatedBooking : {}),
           bookingId,
           status: 'cancelled_creator',
           cancellation: {
-            ...(original?.cancellation || {}),
-            actor: 'creator',
+            ...(originalBooking?.cancellation || {}),
+            ...(updatedBooking?.cancellation || {}),
+            actor: updatedBooking?.cancellation?.actor || 'creator',
           },
         }
       }
       chatStore.setBooking(bookingId, updatedBooking)
       bookingDetailsRefreshing.value = false
+      closeBookingDecision({ force: true })
       onCallCancelled(res?.data?.item || updatedBooking, { keepDetailsOpen: true })
       return
     }
+
+    if (openCreatorDetails) {
+      if (!isCompleteCancelledBookingSnapshot(updatedBooking)) {
+        updatedBooking = {
+          ...originalBooking,
+          ...(updatedBooking && typeof updatedBooking === 'object' ? updatedBooking : {}),
+          bookingId,
+          status: 'cancelled_creator',
+          cancellation: {
+            ...(originalBooking?.cancellation || {}),
+            ...(updatedBooking?.cancellation || {}),
+            actor: updatedBooking?.cancellation?.actor || 'creator',
+          },
+        }
+      }
+      chatStore.setBooking(bookingId, updatedBooking)
+      activeBookingMessage.value = bookingMessageWithAction(message, 'cancelled')
+      pendingDirectCreatorCancellationDetails.value = { booking: updatedBooking }
+      closeBookingDecision({ force: true })
+      onCallCancelled(res?.data?.item || updatedBooking, { keepDetailsOpen: true })
+      return
+    }
+
+    closeBookingDecision({ force: true })
 
     const fanDetailsWereOpen = !isCreatorAccount.value && showBookingPopup.value
     if (fanDetailsWereOpen) {
@@ -1124,7 +1152,34 @@ function openBookingDecision(mode, payload) {
 }
 
 function closeBookingDecision({ force = false } = {}) {
+  if (!force) pendingDirectCreatorCancellationDetails.value = null
   bookingDecision.reset({ force })
+}
+
+function isCancelledBookingSnapshot(item) {
+  const status = String(item?.status || item?.bookingStatus || '').trim().toLowerCase()
+  return Boolean(item && status.includes('cancel'))
+}
+
+function isCompleteCancelledBookingSnapshot(item) {
+  if (!isCancelledBookingSnapshot(item)) return false
+  return Boolean(
+    item?.meta
+    || item?.eventSnapshot
+    || item?.event
+    || item?.startAtIso
+    || item?.startIso
+    || item?.startTime,
+  )
+}
+
+function handleBookingDecisionClosed() {
+  const pending = pendingDirectCreatorCancellationDetails.value
+  if (!pending) return
+  pendingDirectCreatorCancellationDetails.value = null
+  compactBookingDetailsSession.value = false
+  bookingDetailsRefreshing.value = false
+  showBookingPopup.value = true
 }
 
 function confirmBookingDecision(payload = {}) {
@@ -3588,6 +3643,7 @@ onUnmounted(() => {
     @confirm="confirmBookingDecision"
     @retry-balance="bookingDecision.loadBalance"
     @close="closeBookingDecision()"
+    @closed="handleBookingDecisionClosed"
   />
 
   <!-- Marks the chat embed as showing a full-screen popup (see ChatEmbedApp).
