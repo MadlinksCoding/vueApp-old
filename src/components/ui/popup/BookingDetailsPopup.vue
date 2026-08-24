@@ -566,6 +566,7 @@
 
   <BookingAdjustmentDecisionPopup
     v-model="rejectDecisionOpen"
+    :popup-config="decisionPopupConfig"
     mode="reject"
     actor-role="creator"
     :event-title="rejectEventTitle"
@@ -659,6 +660,15 @@ const popupConfig = computed(() => ({
   ...(isResponsiveDialog.value ? responsiveDialogPopupConfig.value : defaultPopupConfig),
   ...props.popupConfig,
 }));
+// A z-index above 5000 is taken literally by the popup stack instead of being
+// stacked over, so a decision popup left on its own default opens *under* the panel
+// that launched it wherever the host lifted that panel — chat puts it at 10001 to
+// clear the conversation. Nothing to override when the host left the panel at the
+// default: normal stacking already lands the decision popup on top.
+const decisionPopupConfig = computed(() => {
+  const panelZ = Number(popupConfig.value?.forceZIndex ?? popupConfig.value?.zIndex);
+  return Number.isFinite(panelZ) ? { zIndex: panelZ + 1 } : null;
+});
 const isSidePanel = computed(() => props.presentation === 'side-panel');
 // PopupHandler forces `md:!w-auto` on its panel, which beats the inline width from the
 // config — so the surface has to carry the desktop width itself or long content

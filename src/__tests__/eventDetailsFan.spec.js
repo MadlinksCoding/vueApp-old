@@ -746,6 +746,33 @@ describe('EventDetailsFan', () => {
     wrapper.unmount();
   });
 
+  it('lifts the rejection confirmation above a panel the host raised', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+
+    // Chat lifts the panel over the conversation. A z-index above 5000 is taken
+    // literally by the popup stack rather than stacked over, so the confirmation has
+    // to be told to clear it or it opens underneath the chat window.
+    const inChat = mountDetails(value, 'side-panel', {
+      userRole: 'creator',
+      canReviewPending: true,
+      popupConfig: { zIndex: 10001 },
+    });
+    expect(inChat.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).props('popupConfig'))
+      .toEqual({ zIndex: 10002 });
+    inChat.unmount();
+
+    // Left at the default, normal stacking already puts the confirmation on top.
+    const standalone = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    expect(standalone.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).props('popupConfig'))
+      .toBeNull();
+    standalone.unmount();
+  });
+
   it('dismisses the creator review menu on outside click and Escape', async () => {
     const value = booking({
       status: 'pending',
