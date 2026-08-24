@@ -2703,7 +2703,7 @@ onBeforeUnmount(() => {
                     >
                       <CheckboxGroup
                         v-model="hasAcceptedAttendancePolicy"
-                        checkboxClass="m-0 mt-[1px] self-start border border-[#98A2B3] [appearance:none] w-5 h-5 rounded-[3px] bg-transparent relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#22CCEE] checked:bg-[#07F468] checked:border-[#07F468] checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.3rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-[#0C111D] checked:[&::after]:border-r-2 checked:[&::after]:border-b-2 checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                        checkboxClass="m-0 mt-[1px] self-start border border-[#98A2B3] [appearance:none] w-5 h-5 rounded-[3px] bg-transparent relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#22CCEE] checked:bg-[#07F468] checked:border-[#07F468] checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.40rem] checked:[&::after]:top-[0.20rem] checked:[&::after]:w-[0.3rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-[#0C111D] checked:[&::after]:border-r-2 checked:[&::after]:border-b-2 checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                         labelClass="flex-1 min-w-0 text-sm leading-5 text-[#EAECF0]"
                         wrapperClass="items-start"
                       >
