@@ -1,14 +1,14 @@
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-[10002] flex items-center justify-center p-4"
+      class="fixed inset-0 z-[10002] flex items-center justify-center p-0 md:p-4"
       data-fs-chat-popup
       @click.self="!submitting && $emit('close')"
     >
       <div class="absolute inset-0 bg-black/40" @click="!submitting && $emit('close')" />
 
       <div
-        class="relative z-10 p-4 gap-6 rounded-lg shadow-xl w-full max-w-[460px] bg-white flex flex-col font-['Poppins']"
+        class="relative z-10 p-4 gap-6 md:rounded-lg shadow-xl w-full max-w-[460px] bg-white flex flex-col font-['Poppins'] h-screen md:h-auto"
       >
         <!-- Header -->
         <div class="flex items-center justify-between">
@@ -94,7 +94,7 @@
                 {{ form.adjustmentTokens }} Tokens
               </output>
 
-              <div class="flex gap-2 items-center justify-end">
+              <div class="hidden gap-2 items-center justify-end">
                 <button
                 type="button"
                 class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 border border-black transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
@@ -152,6 +152,7 @@
                 btnText="black"
                 btnHoverText="#07f468"
                 :disabled="isSubmitDisabled"
+                class="fixed bottom-0 right-0 md:relative"
                 @click="handleSubmit"
               />
             </div>
