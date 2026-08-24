@@ -406,12 +406,12 @@ const joinStatusColor = (event = {}) => {
   if (statusText === "confirmed" || statusText === "live now") {
     return CONFIRMED_STATUS_DOT_COLOR;
   }
-  
+
+  if (event.statusColor) return event.statusColor;
+
   if (statusText.includes("in ") && statusText.includes("min")) {
     return "#FF4405";
   }
-
-  if (event.statusColor) return event.statusColor;
 
   return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
 };
