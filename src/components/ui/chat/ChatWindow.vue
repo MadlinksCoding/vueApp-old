@@ -101,7 +101,7 @@ const props = defineProps({
   index:         { type: Number, default: 0 },
 })
 
-const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat'])
+const emit = defineEmits(['close', 'minimize', 'chat-created', 'start-chat', 'booking-details-visibility'])
 
 
 const singleChatTargetMember = computed(() => {
@@ -356,12 +356,16 @@ const formatTime = (ts) => {
 // ── Topup flow state (iframe → parent communication) ─────────────────────────
 const _pendingTopupBookingId = ref(null)
 const _pendingTopupMessage   = ref(null)
+// Whether the details panel was up when the top-up started, so it can be closed on
+// the confirmation rather than before the fan has paid.
+const _pendingTopupDetailsOpen = ref(false)
 
 // ── Booking request popup ─────────────────────────────────────────────────────
 const showBookingPopup        = ref(false)
 const compactBookingDetailsSession = ref(false)
 const bookingDetailsRefreshing = ref(false)
 const pendingFanCancellationToast = ref(null)
+const bookingDetailsTakeover = ref(false)
 const pendingDirectCreatorDetails = ref(null)
 const showAdjustPopup         = ref(false)
 const adjustOpenedFromDetails = ref(false)
@@ -553,8 +557,12 @@ const bookingDecision = useBookingAdjustmentDecision(activeBookingData, {
   fanId: () => (isCreatorAccount.value ? null : currentUserId),
 })
 
-async function openBookingDetail(message) {
+// `takeover` marks the entry points that stand in for the conversation rather than
+// sitting over it: the creator's Review booking button hands the screen to the
+// details panel, while a View details link leaves the chat where it is.
+async function openBookingDetail(message, { takeover = false } = {}) {
   activeBookingMessage.value = message
+  bookingDetailsTakeover.value = takeover
   const bookingId = message?.content?.booking_id
   const fetchEpoch = ++bookingDetailsFetchEpoch
   if (bookingId && !chatStore.getBookingById(bookingId)) {
@@ -1049,11 +1057,12 @@ async function onConfirmCounter(input) {
     return
   }
 
-  // Close popup and ask parent to open the topup popup
+  // Only the prompt closes: the details panel stays up through the top-up so the fan
+  // keeps the booking in view, and closes once the confirmation lands.
   closeBookingDecision({ force: true })
-  showBookingPopup.value = false
   _pendingTopupBookingId.value = bookingId
   _pendingTopupMessage.value   = message
+  _pendingTopupDetailsOpen.value = showBookingPopup.value
 
   postToParent('FS_CHAT_TOPUP_REQUIRED', {
     bookingId,
@@ -1284,6 +1293,7 @@ function handleBookingDecisionClosed() {
   if (bookingId && pending.booking) chatStore.setBooking(bookingId, pending.booking)
   compactBookingDetailsSession.value = false
   bookingDetailsRefreshing.value = false
+  bookingDetailsTakeover.value = false
   showBookingPopup.value = true
 }
 
@@ -1309,11 +1319,30 @@ function onCallCancelled(updatedItem, options = {}) {
 }
 
 function handleBookingDetailsClosed() {
+  // After the close transition, so the teleported panel is gone before the host
+  // tears this conversation down.
+  if (bookingDetailsTakeover.value) {
+    bookingDetailsTakeover.value = false
+    emit('booking-details-visibility', false)
+  }
   const pending = pendingFanCancellationToast.value
   if (!pending) return
   pendingFanCancellationToast.value = null
   notifyFanBookingDecision('cancelled', pending.booking, pending.message)
 }
+
+// Open chat is a request to go back to the conversation, so the panel gives the
+// screen back instead of taking the chat down with it.
+function returnToChatFromDetails() {
+  bookingDetailsTakeover.value = false
+  showBookingPopup.value = false
+}
+
+// Only the details panel hides the conversation behind it — the decision prompt and
+// the adjust popup are meant to sit over a chat that stays where it is.
+watch(showBookingPopup, (isOpen) => {
+  if (isOpen && bookingDetailsTakeover.value) emit('booking-details-visibility', true)
+})
 
 function variantForMessage(msg) {
   if (msg.content_type === 'booking_request') return 'system'
@@ -3030,9 +3059,15 @@ function _onTopupMessage(e) {
   if (e.data.type === 'FS_CHAT_TOPUP_SUCCESS') {
     const bookingId = _pendingTopupBookingId.value
     const message   = _pendingTopupMessage.value
+    const detailsWereOpen = _pendingTopupDetailsOpen.value
     _pendingTopupBookingId.value = null
     _pendingTopupMessage.value   = null
-    if (bookingId) _doConfirmCounter(bookingId, message)
+    _pendingTopupDetailsOpen.value = false
+    if (bookingId) {
+      _doConfirmCounter(bookingId, message).finally(() => {
+        if (detailsWereOpen) showBookingPopup.value = false
+      })
+    }
   } else if (e.data.type === 'FS_CHAT_TOPUP_FAILED') {
     // _pendingTopupBookingId.value = null
     // _pendingTopupMessage.value   = null
@@ -3200,6 +3235,7 @@ onUnmounted(() => {
               :sender-name="bookingSenderName"
               pinned
               @view-details="openBookingDetail(msg)"
+              @review-booking="openBookingDetail(msg, { takeover: true })"
               @accept="onDirectAccept(msg)"
               @decline="openBookingDecision('reject', msg)"
               @adjust="openAdjustPopup(msg)"
@@ -3350,6 +3386,7 @@ onUnmounted(() => {
             :disabled="bookingActionLoading"
             :sender-name="bookingSenderName"
             @view-details="openBookingDetail(message)"
+            @review-booking="openBookingDetail(message, { takeover: true })"
             @accept="onDirectAccept(message)"
             @decline="openBookingDecision('reject', message)"
             @adjust="openAdjustPopup(message)"
@@ -3683,7 +3720,7 @@ onUnmounted(() => {
     @ask-to-reschedule="onAskToReschedule"
     @update:model-value="showBookingPopup = $event"
     @closed="handleBookingDetailsClosed"
-    @open-chat="showBookingPopup = false"
+    @open-chat="returnToChatFromDetails"
     @close="showBookingPopup = false"
   />
 
