@@ -14,10 +14,81 @@ async function flushPromises() {
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("EventsWidget", () => {
+  const menuItem = ({ status, start, end, pendingPriceAdjustment = false }) => ({
+    title: `${status} booking`,
+    sourceEvent: {
+      bookingId: `booking_${status}`,
+      status,
+      start,
+      end,
+      raw: { pendingPriceAdjustment },
+    },
+  });
+
+  it("applies the role and lifecycle menu matrix", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-24T10:00:00Z"));
+    const futureStart = "2026-08-24T11:00:00Z";
+    const futureEnd = "2026-08-24T12:00:00Z";
+    const pastEnd = "2026-08-24T09:59:59Z";
+    const render = (item, userRole) => mount(EventsWidget, {
+      props: { userRole, sections: [{ title: "BOOKINGS", items: [item] }] },
+      global: { stubs: { TooltipIcon: true } },
+    });
+
+    wrapper = render(menuItem({ status: "pending", start: futureStart, end: futureEnd }), "creator");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "confirmed", start: futureStart, end: futureEnd }), "creator");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(true);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "confirmed", start: futureStart, end: pastEnd }), "creator");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "pending_hold", start: futureStart, end: futureEnd }), "fan");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(true);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "pending", start: "2026-08-24T10:00:00Z", end: futureEnd }), "fan");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "pending", start: futureStart, end: futureEnd, pendingPriceAdjustment: true }), "fan");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+    wrapper.unmount();
+
+    wrapper = render(menuItem({ status: "cancelled_user", start: futureStart, end: futureEnd }), "fan");
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+  });
+
+  it("closes and removes a fan pending menu at the exact start boundary", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-24T10:00:00Z"));
+    const item = menuItem({
+      status: "pending",
+      start: "2026-08-24T10:00:01Z",
+      end: "2026-08-24T10:30:00Z",
+    });
+    wrapper = mount(EventsWidget, {
+      props: { userRole: "fan", sections: [{ title: "PENDING", items: [item] }] },
+      global: { stubs: { TooltipIcon: true } },
+    });
+
+    await wrapper.get("[data-test='events-widget-menu-trigger']").trigger("click");
+    expect(wrapper.find("[data-test='events-widget-menu']").exists()).toBe(true);
+    await vi.advanceTimersByTimeAsync(1001);
+    await flushPromises();
+    expect(wrapper.find("[data-test='events-widget-menu-trigger']").exists()).toBe(false);
+  });
+
   it("hides and closes the booking menu while its booked slot projects a pending price adjustment", async () => {
     const makeItem = (pendingPriceAdjustment) => ({
       title: "Adjusted booking",

@@ -337,6 +337,8 @@ const props = defineProps({
 
 const openMenuId = ref(null);
 const expandedSections = ref({});
+const menuComparisonTime = ref(Date.now());
+let menuEligibilityTimer = null;
 
 const isSectionExpanded = (sIndex) => {
   return expandedSections.value[sIndex] !== false;
@@ -404,12 +406,12 @@ const joinStatusColor = (event = {}) => {
   if (statusText === "confirmed" || statusText === "live now") {
     return CONFIRMED_STATUS_DOT_COLOR;
   }
-  
+
+  if (event.statusColor) return event.statusColor;
+
   if (statusText.includes("in ") && statusText.includes("min")) {
     return "#FF4405";
   }
-
-  if (event.statusColor) return event.statusColor;
 
   return joinButtonEnabled(event) && event.accentColor ? event.accentColor : null;
 };
@@ -443,7 +445,7 @@ const getRawEvent = (event = {}) => {
 const getEventStatus = (event = {}) => {
   const sourceEvent = getSourceEvent(event);
   const raw = getRawEvent(event);
-  return String(sourceEvent?.status || raw.status || event?.status || "").trim().toLowerCase();
+  return String(sourceEvent?.status || sourceEvent?.bookingStatus || raw.status || raw.bookingStatus || event?.status || event?.bookingStatus || "").trim().toLowerCase();
 };
 
 const isPendingEvent = (event = {}) => {
@@ -451,13 +453,66 @@ const isPendingEvent = (event = {}) => {
   return status === "pending" || status === "pending_hold" || (!status && event.showReply === true);
 };
 
-// Widget items carry no status when the API projection omits it, so fall back to
-// the pending flag the section builder sets.
-const showOptionsMenu = (event = {}) => shouldShowBookingOptionsMenu({
-  viewerRole: viewerRole.value,
-  status: getEventStatus(event) || (isPendingEvent(event) ? "pending" : "confirmed"),
-  hasPendingPriceAdjustment: isPendingPriceAdjustment(event),
-});
+const getBookingId = (event = {}) => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  return pickFirstString(sourceEvent?.bookingId, raw.bookingId, event?.bookingId);
+};
+
+const parseEventBoundary = (event = {}, boundary = "start") => {
+  const sourceEvent = getSourceEvent(event);
+  const raw = getRawEvent(event);
+  const candidates = boundary === "end"
+    ? [sourceEvent?.end, sourceEvent?.endIso, sourceEvent?.endAtIso, sourceEvent?.endsAt, sourceEvent?.endTime, raw.end, raw.endIso, raw.endAtIso, raw.endsAt, raw.endTime, event?.end, event?.endIso, event?.endAtIso, event?.endsAt, event?.endTime]
+    : [sourceEvent?.start, sourceEvent?.startIso, sourceEvent?.startAtIso, sourceEvent?.startsAt, sourceEvent?.startTime, raw.start, raw.startIso, raw.startAtIso, raw.startsAt, raw.startTime, event?.start, event?.startIso, event?.startAtIso, event?.startsAt, event?.startTime];
+  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
+  const timestamp = value == null ? Number.NaN : new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const getMenuExpiryTime = (event = {}) => {
+  const status = getEventStatus(event) || (isPendingEvent(event) ? "pending" : "confirmed");
+  if (status === "pending" || status === "pending_hold") return parseEventBoundary(event, "start");
+  if (status === "confirmed" || status === "accepted") return parseEventBoundary(event, "end");
+  return null;
+};
+
+const showOptionsMenu = (event = {}) => {
+  const status = getEventStatus(event) || (isPendingEvent(event) ? "pending" : "confirmed");
+  const expiryTime = getMenuExpiryTime(event);
+  return Boolean(getBookingId(event)) && shouldShowBookingOptionsMenu({
+    viewerRole: viewerRole.value,
+    status,
+    isPassed: expiryTime !== null && menuComparisonTime.value >= expiryTime,
+    hasPendingPriceAdjustment: isPendingPriceAdjustment(event),
+  });
+};
+
+const scheduleMenuEligibilityTimer = () => {
+  if (menuEligibilityTimer) {
+    clearTimeout(menuEligibilityTimer);
+    menuEligibilityTimer = null;
+  }
+
+  const now = Date.now();
+  let nextExpiry = null;
+  (Array.isArray(props.sections) ? props.sections : []).forEach((section) => {
+    (Array.isArray(section?.items) ? section.items : []).forEach((event) => {
+      const expiryTime = getMenuExpiryTime(event);
+      if (expiryTime !== null && expiryTime > now && (nextExpiry === null || expiryTime < nextExpiry)) {
+        nextExpiry = expiryTime;
+      }
+    });
+  });
+
+  if (nextExpiry === null) return;
+  menuEligibilityTimer = setTimeout(() => {
+    menuEligibilityTimer = null;
+    menuComparisonTime.value = Date.now();
+    if (openMenuId.value && !showOptionsMenu(eventForMenuId(openMenuId.value) || {})) closeMenu();
+    scheduleMenuEligibilityTimer();
+  }, Math.min(2147483647, Math.max(0, nextExpiry - now + 1)));
+};
 
 const shouldShowPendingActions = (event = {}) => isCreatorViewer.value && isPendingEvent(event);
 const shouldShowPendingAccept = (event = {}) => (
@@ -611,9 +666,11 @@ const collectProfileIds = () => {
 watch(
   () => [props.sections, props.userRole],
   () => {
+    menuComparisonTime.value = Date.now();
     if (openMenuId.value && !showOptionsMenu(eventForMenuId(openMenuId.value) || {})) {
       closeMenu();
     }
+    scheduleMenuEligibilityTimer();
     collectProfileIds().forEach(fetchProfile);
   },
   { immediate: true, deep: true },
@@ -629,6 +686,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
+  if (menuEligibilityTimer) clearTimeout(menuEligibilityTimer);
   profileAbortControllers.forEach((controller) => controller.abort());
   profileAbortControllers.clear();
 });

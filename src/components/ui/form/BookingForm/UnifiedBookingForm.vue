@@ -2081,7 +2081,12 @@ function openCancelBookingPopup(payload = {}) {
         });
         return;
     }
-    cancelBookingCandidate.value = { bookingId, event: payload?.event || payload };
+    cancelBookingCandidate.value = {
+        bookingId,
+        event: payload?.event || payload,
+        origin: payload?.origin || "",
+        retainDetailsOnSuccess: payload?.retainDetailsOnSuccess === true,
+    };
     cancelBookingPopupOpen.value = true;
 }
 
@@ -2092,7 +2097,8 @@ function closeCancelBookingPopup() {
 }
 
 async function confirmCancelBooking() {
-    const bookingId = cancelBookingCandidate.value?.bookingId;
+    const candidate = cancelBookingCandidate.value;
+    const bookingId = candidate?.bookingId;
     if (!bookingId || cancelBookingLoading.value) return;
     cancelBookingLoading.value = true;
     try {
@@ -2115,13 +2121,58 @@ async function confirmCancelBooking() {
             });
             return;
         }
-        showToast({
-            type: "success",
-            title: t("dashboard_booking_cancelled_title"),
-            message: t("dashboard_booking_cancelled_message"),
-        });
+        let updatedItem = result?.data?.item || null;
+        const retainDetails = candidate?.origin === "booking-details"
+            && candidate?.retainDetailsOnSuccess === true;
         cancelBookingPopupOpen.value = false;
         cancelBookingCandidate.value = null;
+
+        if (retainDetails && !updatedItem) {
+            mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+            try {
+                const refreshed = await bookingFlow.callFlow(
+                    "bookings.fetchBooking",
+                    { bookingId },
+                    {
+                        context: {
+                            stateEngine: bookingFlow,
+                            creatorId: resolveCreatorId(),
+                            apiBaseUrl: props.apiBaseUrl || undefined,
+                        },
+                    },
+                );
+                updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
+            } catch {
+                updatedItem = null;
+            }
+        }
+
+        if (retainDetails) {
+            if (!updatedItem) {
+                const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
+                    ? candidate.event.raw
+                    : {};
+                updatedItem = {
+                    ...originalRaw,
+                    bookingId,
+                    status: "cancelled_creator",
+                    cancellation: {
+                        ...(originalRaw?.cancellation || {}),
+                        actor: "creator",
+                    },
+                };
+            }
+            mainCalendarRef.value?.applyBookingCancellationResult?.(
+                mergeReviewedBookingEvent(candidate?.event || {}, updatedItem),
+            );
+            mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+        } else {
+            showToast({
+                type: "success",
+                title: t("dashboard_booking_cancelled_title"),
+                message: t("dashboard_booking_cancelled_message"),
+            });
+        }
         await fetchCreatorBookedSlots(true);
     } finally {
         cancelBookingLoading.value = false;

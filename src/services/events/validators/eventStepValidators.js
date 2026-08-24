@@ -1,3 +1,8 @@
+import {
+  MIN_AVAILABILITY_SLOT_DURATION_MINUTES,
+  MIN_SESSION_DURATION_MINUTES,
+} from "@/services/events/eventConstraints.js";
+
 function asNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -210,7 +215,9 @@ function hasSlotUnderMinimumDuration(slots = [], options = {}) {
     const end = typeof slot?.endTime === "string" ? slot.endTime.trim() : "";
     if (!start || !end) return false;
     const duration = slotDurationMinutes(slot, options);
-    return duration == null ? !hasInvalidSlotTimeOrder(slot, options) : duration < 5;
+    return duration == null
+      ? !hasInvalidSlotTimeOrder(slot, options)
+      : duration < MIN_AVAILABILITY_SLOT_DURATION_MINUTES;
   });
 }
 
@@ -348,8 +355,8 @@ export function step1Validator(state = {}) {
 
   if (!isGroupEvent) {
     const duration = asNumber(state?.duration);
-    if (duration == null || duration < 5) {
-      errors.push(asError("duration", "booking_validation_duration_min", "Session duration must be at least 5 minutes."));
+    if (duration == null || duration < MIN_SESSION_DURATION_MINUTES) {
+      errors.push(asError("duration", "booking_validation_duration_min", "Session duration must be at least 10 minutes."));
     }
 
     if (state?.allowLongerSessions) {
@@ -563,7 +570,7 @@ export function step1Validator(state = {}) {
     if (hasOneTimeSlotWithInvalidTimeOrder(state, durationOptions)) {
       errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
     } else if (hasOneTimeSlotUnderMinimumDuration(state, durationOptions)) {
-      errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
+      errors.push(asError("oneTimeAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 10 minutes."));
     }
 
     const { hasDuplicateDate, hasDuplicateSlot } = findOneTimeAvailabilityDuplicates(state);
@@ -584,7 +591,7 @@ export function step1Validator(state = {}) {
     if (hasMonthlySlotWithInvalidTimeOrder(state, durationOptions)) {
       errors.push(asError("monthlyAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
     } else if (hasMonthlySlotUnderMinimumDuration(state, durationOptions)) {
-      errors.push(asError("monthlyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
+      errors.push(asError("monthlyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 10 minutes."));
     }
     if (hasOverlappingSlots(state?.monthlyAvailability)) {
       errors.push(asError("monthlyAvailability", "booking_validation_monthly_slot_unique", "Each monthly time slot must be unique and cannot overlap another monthly slot."));
@@ -595,7 +602,7 @@ export function step1Validator(state = {}) {
     if (hasWeeklySlotWithInvalidTimeOrder(state, durationOptions)) {
       errors.push(asError("weeklyAvailability", "booking_validation_time_slot_order", "End time must be after start time."));
     } else if (hasWeeklySlotUnderMinimumDuration(state, durationOptions)) {
-      errors.push(asError("weeklyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 5 minutes."));
+      errors.push(asError("weeklyAvailability", "booking_validation_time_slot_duration_min", "Time slots must be at least 10 minutes."));
     }
     if (hasOverlappingWeeklyAvailability(state)) {
       errors.push(asError("weeklyAvailability", "booking_validation_weekly_slot_unique", "Each weekly time slot must be unique and cannot overlap another weekly slot."));

@@ -38,8 +38,8 @@ vi.mock("@/components/ui/popup/PopupHandler.vue", () => ({
 
 const DetailsStub = {
   name: "BookingDetailsPopup",
-  props: ["event"],
-  emits: ["adjust-booking", "accept-adjustment", "decline-adjustment"],
+  props: ["event", "booking", "refreshing"],
+  emits: ["adjust-booking", "accept-adjustment", "decline-adjustment", "cancel-booking"],
   template: "<div data-test='details-stub' />",
 };
 
@@ -203,6 +203,54 @@ describe("MainCalendar adjust request", () => {
       }),
     }));
 
+    wrapper.unmount();
+  });
+
+  it("keeps creator details open while forwarding ordinary cancellation intent", async () => {
+    const wrapper = await mountCalendar();
+    const value = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
+    wrapper.vm.selectedEvent = { bookingId: value.bookingId, raw: value };
+    wrapper.vm.eventDetailsPopupOpen = true;
+    await wrapper.vm.$nextTick();
+
+    wrapper.getComponent(DetailsStub).vm.$emit("cancel-booking", {
+      bookingId: value.bookingId,
+      event: wrapper.vm.selectedEvent,
+      origin: "booking-details",
+      retainDetailsOnSuccess: true,
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
+    expect(wrapper.emitted("cancel-booking")?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: "booking_1",
+      origin: "booking-details",
+      retainDetailsOnSuccess: true,
+    }));
+    wrapper.unmount();
+  });
+
+  it("applies a cancelled booking snapshot and fallback-loading state in place", async () => {
+    const wrapper = await mountCalendar();
+    const value = booking({ chatId: "chat_1", bookingMessageId: "message_1" });
+    wrapper.vm.selectedEvent = { bookingId: value.bookingId, raw: value };
+    wrapper.vm.eventDetailsPopupOpen = true;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.setBookingDetailsRefreshing(true)).toBe(true);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.getComponent(DetailsStub).props("refreshing")).toBe(true);
+
+    const cancelled = { ...value, status: "cancelled_creator", cancellation: { actor: "creator" } };
+    expect(wrapper.vm.applyBookingCancellationResult({ ...wrapper.vm.selectedEvent, status: cancelled.status, raw: cancelled })).toBe(true);
+    wrapper.vm.setBookingDetailsRefreshing(false);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.getComponent(DetailsStub).props("booking")).toEqual(expect.objectContaining({
+      status: "cancelled_creator",
+      cancellation: { actor: "creator" },
+    }));
+    expect(wrapper.vm.eventDetailsPopupOpen).toBe(true);
     wrapper.unmount();
   });
 });

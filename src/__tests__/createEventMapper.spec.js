@@ -26,6 +26,17 @@ const baseDraft = {
 };
 
 describe("createEventMapper", () => {
+  it("clamps explicit session durations below ten minutes", () => {
+    const mapped = createEventMapper({
+      ...baseDraft,
+      eventType: "1on1-call",
+      duration: 9,
+      basePrice: "120",
+    });
+
+    expect(mapped.sessionDurationMinutes).toBe(10);
+  });
+
   it("includes an explicit creator timezone for private events", () => {
     const mapped = createEventMapper({
       ...baseDraft,
