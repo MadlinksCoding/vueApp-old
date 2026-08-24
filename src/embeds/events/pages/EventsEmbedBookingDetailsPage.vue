@@ -533,7 +533,41 @@ async function confirmCancelBooking() {
     }
 
     await syncBookingMessageAction("cancelled", "cancel");
-    await notifySuccessfulBookingUpdate("cancel", item);
+    const retainOpen = viewerRole.value === "creator" && !isDirectCancelLaunch.value;
+    let updatedItem = item;
+
+    if (retainOpen && !updatedItem) {
+      adjustmentDecisionState.reset({ force: true });
+      await nextTick();
+      loading.value = true;
+      try {
+        const refreshed = await FlowHandler.run("bookings.fetchBooking", { bookingId }, flowOptions());
+        updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
+      } catch (_error) {
+        updatedItem = null;
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    if (retainOpen) {
+      if (!updatedItem) {
+        const original = booking.value && typeof booking.value === "object" ? booking.value : {};
+        updatedItem = {
+          ...original,
+          bookingId,
+          status: "cancelled_creator",
+          cancellation: {
+            ...(original?.cancellation || {}),
+            actor: "creator",
+          },
+        };
+      }
+      booking.value = updatedItem;
+      calendarEvent.value = toCalendarEvent(updatedItem) || calendarEvent.value;
+    }
+
+    await notifySuccessfulBookingUpdate("cancel", updatedItem, { retainOpen });
   } catch (error) {
     reportCancelFailure(error?.message);
   } finally {

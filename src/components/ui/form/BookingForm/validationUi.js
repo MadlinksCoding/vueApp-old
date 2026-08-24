@@ -19,7 +19,54 @@ export const BOOKING_VALIDATION_FIELD_ALIASES = Object.freeze({
 export function normalizeValidationField(field, aliases = BOOKING_VALIDATION_FIELD_ALIASES) {
   const normalized = String(field || "").trim();
   if (!normalized) return "";
-  return aliases[normalized] || normalized;
+  const [root, ...path] = normalized.split(".");
+  return [aliases[root] || root, ...path].join(".");
+}
+
+export function createValidationFormSnapshot(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(createValidationFormSnapshot);
+  if (value && typeof value === "object") {
+    return Object.keys(value).sort().reduce((snapshot, key) => {
+      snapshot[key] = createValidationFormSnapshot(value[key]);
+      return snapshot;
+    }, {});
+  }
+  return value;
+}
+
+export function collectChangedValidationFields(previous, current, path = "") {
+  if (Object.is(previous, current)) return [];
+
+  const previousIsObject = previous !== null && typeof previous === "object";
+  const currentIsObject = current !== null && typeof current === "object";
+  if (!previousIsObject || !currentIsObject || Array.isArray(previous) !== Array.isArray(current)) {
+    return path ? [path] : [];
+  }
+
+  const keys = new Set([
+    ...Object.keys(previous),
+    ...Object.keys(current),
+  ]);
+  return Array.from(keys).flatMap((key) => (
+    collectChangedValidationFields(
+      previous[key],
+      current[key],
+      path ? `${path}.${key}` : key,
+    )
+  ));
+}
+
+export function isValidationFieldTouched(field, touchedFields = []) {
+  const normalizedField = normalizeValidationField(field);
+  if (!normalizedField) return false;
+
+  return Array.from(touchedFields).some((touchedField) => {
+    const normalizedTouchedField = normalizeValidationField(touchedField);
+    return normalizedTouchedField === normalizedField
+      || normalizedTouchedField.startsWith(`${normalizedField}.`)
+      || normalizedField.startsWith(`${normalizedTouchedField}.`);
+  });
 }
 
 export function createValidationErrorMap(errors = [], formatError, aliases = BOOKING_VALIDATION_FIELD_ALIASES) {

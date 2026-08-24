@@ -360,6 +360,8 @@ const _pendingTopupMessage   = ref(null)
 // ── Booking request popup ─────────────────────────────────────────────────────
 const showBookingPopup        = ref(false)
 const compactBookingDetailsSession = ref(false)
+const bookingDetailsRefreshing = ref(false)
+const pendingFanCancellationToast = ref(null)
 const showAdjustPopup         = ref(false)
 const showMoreTimePopup       = ref(false)
 const showReschedulePopup     = ref(false)
@@ -972,14 +974,18 @@ async function onConfirmCounter(input) {
 function onCancelBooking(input) {
   const message = resolveBookingMessage(input)
   if (message) activeBookingMessage.value = message
-  void confirmBookingCancellation(message)
+  void confirmBookingCancellation(message, input)
 }
 
-async function confirmBookingCancellation(message) {
+async function confirmBookingCancellation(message, request = {}) {
   const bookingId = message?.content?.booking_id
   if (!bookingId || bookingActionLoading.value) return
 
   bookingActionLoading.value = true
+  const retainCreatorDetails = isCreatorAccount.value
+    && showBookingPopup.value
+    && request?.origin === 'booking-details'
+    && request?.retainDetailsOnSuccess === true
   try {
     const { ok, item, error } = await bookingActions.cancelBooking({
       bookingId,
@@ -993,7 +999,13 @@ async function confirmBookingCancellation(message) {
       return
     }
 
-    const updated = await refreshCachedBooking(bookingId, item)
+    if (retainCreatorDetails && !item) bookingDetailsRefreshing.value = true
+    let updatedBooking = item
+    try {
+      updatedBooking = await refreshCachedBooking(bookingId, item)
+    } catch {
+      updatedBooking = item || null
+    }
 
     const res = message.content_type === 'booking_request'
       ? await FlowHandler.run('chat.updateBookingRequestMessage', {
@@ -1004,9 +1016,37 @@ async function confirmBookingCancellation(message) {
         })
 
     closeBookingDecision({ force: true })
+
+    if (retainCreatorDetails) {
+      if (!updatedBooking) {
+        const original = chatStore.getBookingById(bookingId) || {}
+        updatedBooking = {
+          ...original,
+          bookingId,
+          status: 'cancelled_creator',
+          cancellation: {
+            ...(original?.cancellation || {}),
+            actor: 'creator',
+          },
+        }
+      }
+      chatStore.setBooking(bookingId, updatedBooking)
+      bookingDetailsRefreshing.value = false
+      onCallCancelled(res?.data?.item || updatedBooking, { keepDetailsOpen: true })
+      return
+    }
+
+    const fanDetailsWereOpen = !isCreatorAccount.value && showBookingPopup.value
+    if (fanDetailsWereOpen) {
+      pendingFanCancellationToast.value = {
+        booking: updatedBooking || chatStore.getBookingById(bookingId),
+        message,
+      }
+    }
     onCallCancelled(res?.data?.item || bookingMessageWithAction(message, 'cancelled'))
-    notifyFanBookingDecision('cancelled', updated, message)
+    if (!fanDetailsWereOpen) notifyFanBookingDecision('cancelled', updatedBooking, message)
   } finally {
+    if (retainCreatorDetails) bookingDetailsRefreshing.value = false
     bookingActionLoading.value = false
   }
 }
@@ -1098,7 +1138,7 @@ function confirmBookingDecision(payload = {}) {
   return onConfirmCounter(merged)
 }
 
-function onCallCancelled(updatedItem) {
+function onCallCancelled(updatedItem, options = {}) {
   const msg = activeBookingMessage.value
   broadcastBookingUpdate(updatedItem || bookingMessageWithAction(msg, 'cancelled'))
   sendChatActivityLog('Call cancelled', {
@@ -1106,7 +1146,14 @@ function onCallCancelled(updatedItem) {
     decision:           'call_cancelled',
     bookingId:          msg?.content?.booking_id,
   })
-  showBookingPopup.value = false
+  if (!options.keepDetailsOpen) showBookingPopup.value = false
+}
+
+function handleBookingDetailsClosed() {
+  const pending = pendingFanCancellationToast.value
+  if (!pending) return
+  pendingFanCancellationToast.value = null
+  notifyFanBookingDecision('cancelled', pending.booking, pending.message)
 }
 
 function variantForMessage(msg) {
@@ -3461,6 +3508,7 @@ onUnmounted(() => {
     :user-role="activeBookingRole"
     :can-review-pending="isCreatorAccount"
     :action-loading="bookingActionLoading"
+    :refreshing="bookingDetailsRefreshing"
     :layout-variant="useCompactBookingDetails ? 'compact' : 'hero'"
     :presentation="useCompactBookingDetails ? 'responsive-dialog' : 'popup'"
     can-request-time-change
@@ -3475,6 +3523,7 @@ onUnmounted(() => {
     @ask-more-time="onAskMoreTime"
     @ask-to-reschedule="onAskToReschedule"
     @update:model-value="showBookingPopup = $event"
+    @closed="handleBookingDetailsClosed"
     @open-chat="showBookingPopup = false"
     @close="showBookingPopup = false"
   />

@@ -21,10 +21,13 @@
   import trashIcon from '@/assets/images/icons/trash-01.svg'
   import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
   import {
+    collectChangedValidationFields,
+    createValidationFormSnapshot,
     createValidationErrorMap,
     createValidationTooltipItems,
     getFirstValidationField,
     getValidationMessages,
+    isValidationFieldTouched,
     scrollToFirstValidationWarning,
     scrollToValidationField,
   } from "./validationUi.js";
@@ -35,6 +38,7 @@
     formatBookingValidationErrors,
     useBookingTranslations,
   } from "@/i18n/bookingTranslations.js";
+  import { MIN_AVAILABILITY_SLOT_DURATION_MINUTES } from "@/services/events/eventConstraints.js";
 
   const { t } = useBookingTranslations();
 
@@ -311,16 +315,7 @@
     });
   }
 
-  const footerClass = computed(() => {
-    // if (props.embedded) {
-    //   return "sticky bottom-0 z-20 flex justify-end border-t border-slate-200/70 bg-[linear-gradient(180deg,rgba(249,250,251,0.6)_0%,rgba(249,250,251,0.96)_35%,rgba(249,250,251,1)_100%)] px-2 pt-3 md:px-4 lg:px-6";
-    // }
-    if (props.embedded) {
-       return "flex justify-end fixed bottom-0 right-0 z-10";
-    }
-
-    return "flex items-end justify-end gap-2 fixed bottom-0 right-0 z-10";
-  });
+  const footerClass = "sticky bottom-0 z-20 flex items-end justify-end gap-2";
 
   // Refs
   // Refs
@@ -427,8 +422,11 @@
   const validationErrors = ref([]);
   const validationPending = ref(true);
   const step1ValidationValid = ref(false);
+  const touchedValidationFields = ref(new Set());
   const SHOW_BOOKING_VALIDATION_TOASTS = false;
   let step1ValidationRunId = 0;
+  let validationUiReady = false;
+  let previousValidationFormSnapshot = createValidationFormSnapshot(formData.value);
 
   function formatInlineValidationError(error) {
     return formatBookingValidationErrors([error], t)?.[0] || String(error?.message || "").trim();
@@ -440,10 +438,16 @@
     return label || formatInlineValidationError(error);
   }
 
-  const validationErrorMap = computed(() => (
+  const visibleValidationErrors = computed(() => (
     showInlineValidation.value
-      ? createValidationErrorMap(validationErrors.value, formatInlineValidationError)
-      : {}
+      ? validationErrors.value
+      : validationErrors.value.filter((error) => (
+        isValidationFieldTouched(error?.field, touchedValidationFields.value)
+      ))
+  ));
+
+  const validationErrorMap = computed(() => (
+    createValidationErrorMap(visibleValidationErrors.value, formatInlineValidationError)
   ));
 
   const nextButtonSoftDisabled = computed(() => (
@@ -603,12 +607,23 @@
     });
   }
 
-  // Watch for changes and update engine state
-  // Watch for changes and update engine state
   watch(formData, (newVal) => {
+    const nextSnapshot = createValidationFormSnapshot(newVal);
+    const changedFields = collectChangedValidationFields(
+      previousValidationFormSnapshot,
+      nextSnapshot,
+    );
+    previousValidationFormSnapshot = nextSnapshot;
+
     Object.keys(newVal).forEach(key => {
       props.engine.setState(key, newVal[key], { silent: true });
     });
+    if (validationUiReady) {
+      touchedValidationFields.value = new Set([
+        ...touchedValidationFields.value,
+        ...changedFields,
+      ]);
+    }
     void validateStep1();
   }, { deep: true });
 
@@ -692,6 +707,7 @@
     props.engine.setState("bufferTime", formData.value.bufferTime, { silent: true });
     props.engine.setState("bufferUnit", formData.value.bufferUnit, { silent: true });
     void validateStep1();
+    validationUiReady = true;
   });
 
   watch(
@@ -986,7 +1002,6 @@
   }
 
   const TIME_OPTION_STEP_MINUTES = 5;
-  const MIN_SLOT_DURATION_MINUTES = 5;
   const MINUTES_PER_DAY = 24 * 60;
   const MINUTES_PER_WEEK = MINUTES_PER_DAY * 7;
   const END_OF_DAY_TIME_VALUE = "23:59";
@@ -1148,7 +1163,7 @@
     const nextStartTime = minutesToTime(startMinutes + 1);
     let nextEndTime = slot.endTime;
 
-    if (duration === MIN_SLOT_DURATION_MINUTES) {
+    if (duration === MIN_AVAILABILITY_SLOT_DURATION_MINUTES) {
       if (endMinutes >= MINUTES_PER_DAY - 1) return false;
       nextEndTime = minutesToTime(endMinutes + 1);
     }
@@ -1251,7 +1266,7 @@
 
   function hasMinimumSlotDuration(startTime = "", endTime = "") {
     const duration = getSlotDurationMinutesFromTimes(startTime, endTime);
-    return duration !== null && duration >= MIN_SLOT_DURATION_MINUTES;
+    return duration !== null && duration >= MIN_AVAILABILITY_SLOT_DURATION_MINUTES;
   }
 
   function isValidSlotCandidate(existingRanges = [], startTime = "", endTime = "") {
@@ -1380,7 +1395,7 @@
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
+    const duration = Math.max(MIN_AVAILABILITY_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       ? (preferredEndMinutes > preferredStartMinutes ? preferredEndMinutes - preferredStartMinutes : 180)
       : 180);
@@ -1421,7 +1436,7 @@
       ? translateWithFallback(uniqueKey, uniqueFallback)
       : translateWithFallback(
         "booking_validation_time_slot_duration_min",
-        "Time slots must be at least 5 minutes.",
+        "Time slots must be at least 10 minutes.",
       );
   }
 
@@ -1474,7 +1489,7 @@
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
+    const duration = Math.max(MIN_AVAILABILITY_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       && preferredEndMinutes > preferredStartMinutes
       ? preferredEndMinutes - preferredStartMinutes
@@ -1565,7 +1580,7 @@
       )
       : translateWithFallback(
         "booking_validation_time_slot_duration_min",
-        "Time slots must be at least 5 minutes.",
+        "Time slots must be at least 10 minutes.",
       );
   }
 
@@ -1792,7 +1807,7 @@
 
     const preferredStartMinutes = timeToMinutes(preferredStart);
     const preferredEndMinutes = timeToMinutes(preferredEnd);
-    const duration = Math.max(MIN_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
+    const duration = Math.max(MIN_AVAILABILITY_SLOT_DURATION_MINUTES, preferredStartMinutes !== null
       && preferredEndMinutes !== null
       ? (preferredEndMinutes > preferredStartMinutes ? preferredEndMinutes - preferredStartMinutes : 180)
       : 180);
@@ -2520,17 +2535,44 @@
 
       <BookingSectionsWrapper v-if="!isGroupBooking" :title="t('booking_session_duration')" :isRequired="true" leftIcon="https://i.ibb.co/cSjDYSdk/Icon.png">
         <div class='flex flex-col gap-5'>
-          <div class="flex items-center gap-2 mt-3 ">
-            <BaseInput type="number" placeholder="" v-model="formData.duration"
-              data-booking-validation-input-field="duration"
-              inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
-            <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2 mt-3 ">
+              <BaseInput type="number" placeholder="" v-model="formData.duration"
+                data-booking-validation-input-field="duration"
+                inputClass="px-3.5 text-gray-900 placeholder:text-gray-900 w-full text-base font-normal outline-none py-2.5 bg-white/30 rounded-tl-sm rounded-tr-sm shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] border-b border-gray-300" />
+              <div class=" text-black text-base font-medium leading-normal">{{ t("booking_minutes") }}</div>
+            </div>
+            <ValidationInlineWarning
+              :messages="fieldValidationMessages('duration')"
+              field="duration"
+              spacing-class="mt-1"
+            />
+            <div class="self-stretch min-h-16 border-b-[0.50px] border-gray-200 inline-flex justify-start items-start">
+              <div class="w-[3px] self-stretch bg-cyan-400"></div>
+              <div class="flex-1 px-2 py-3 inline-flex flex-col justify-start items-start gap-4" style="background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, rgba(255, 255, 255, 0.90) 100%), linear-gradient(0deg, rgba(34, 204, 238, 0.15) 0%, rgba(34, 204, 238, 0.15) 100%), rgba(255, 255, 255, 0.90);">
+                <div class="self-stretch inline-flex justify-end items-start gap-4">
+                  <div class="flex-1 self-stretch inline-flex flex-col justify-start items-start">
+                    <div class="self-stretch pb-2 flex flex-col justify-start items-start gap-2">
+                      <div class="self-stretch inline-flex justify-between items-start">
+                        <div class="flex-1 pr-1 pt-1 flex justify-center items-center gap-2.5">
+                          <div class="flex-1 justify-start text-cyan-600 text-sm font-semibold leading-5">{{ t("booking_call_attendance_policy_title") }}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="self-stretch flex flex-col justify-start items-start">
+                      <div class="self-stretch inline-flex justify-center items-center gap-2.5">
+                        <ul class="list-decimal ml-5">
+                          <li>{{ t("booking_call_attendance_policy_grace_summary") }}</li>
+                          <li>{{ t("booking_call_attendance_policy_creator_no_show_summary") }}</li>
+                          <li>{{ t("booking_call_attendance_policy_fan_no_show_summary") }}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <ValidationInlineWarning
-            :messages="fieldValidationMessages('duration')"
-            field="duration"
-            spacing-class="-mt-3"
-          />
           <ValidationInlineWarning
             :messages="fieldEditWarningMessages('duration')"
             purpose="edit-impact"

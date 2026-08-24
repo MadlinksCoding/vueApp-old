@@ -161,6 +161,7 @@ describe("one-on-one booking step translations", () => {
     scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
     focusDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "focus");
     vi.clearAllMocks();
+    window.localStorage.clear();
     fetchActiveSubscriptionTiers.mockResolvedValue([]);
     document.body.innerHTML = "";
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
@@ -229,7 +230,7 @@ describe("one-on-one booking step translations", () => {
 
     expect(showToast).not.toHaveBeenCalled();
     expect(wrapper.get("[data-booking-validation-field='eventTitle']").text()).toContain("Event title is required.");
-    expect(wrapper.get("[data-booking-validation-field='duration']").text()).toContain("Session duration must be at least 5 minutes.");
+    expect(wrapper.get("[data-booking-validation-field='duration']").text()).toContain("Session duration must be at least 10 minutes.");
     expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
   });
 
@@ -262,6 +263,87 @@ describe("one-on-one booking step translations", () => {
     expect(showToast).not.toHaveBeenCalled();
     expect(wrapper.get("[data-booking-validation-field='eventTitle']").text()).toContain("El titulo del evento es obligatorio.");
     expect(wrapper.get("[data-booking-validation-field='basePrice']").text()).toContain("Base price is required.");
+  });
+
+  it("updates step 1 inline validation while the user edits without clicking Next", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const state = { eventType: "1on1-call", eventTitle: "", duration: 9, basePrice: "" };
+    const engine = createEngine(state);
+    engine.validate = vi.fn(() => {
+      const errors = [];
+      if (!state.eventTitle) {
+        errors.push({ field: "eventTitle", translationKey: "booking_validation_event_title_required" });
+      }
+      if (Number(state.duration) < 10) {
+        errors.push({ field: "duration", translationKey: "booking_validation_duration_min" });
+      }
+      if (!state.basePrice) {
+        errors.push({ field: "basePrice", translationKey: "booking_validation_base_price_required" });
+      }
+      return Promise.resolve({ valid: errors.length === 0, errors });
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    await settleValidation();
+
+    unrefPublic(wrapper.vm.formData).eventTitle = "Edited title";
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-validation-field='duration']").exists()).toBe(false);
+    expect(wrapper.find("[data-booking-validation-field='eventTitle']").exists()).toBe(false);
+    expect(wrapper.find("[data-booking-validation-field='basePrice']").exists()).toBe(false);
+
+    unrefPublic(wrapper.vm.formData).eventTitle = "";
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='eventTitle']").text())
+      .toContain("Event title is required.");
+    expect(wrapper.find("[data-booking-validation-field='duration']").exists()).toBe(false);
+    expect(wrapper.find("[data-booking-validation-field='basePrice']").exists()).toBe(false);
+
+    unrefPublic(wrapper.vm.formData).duration = 8;
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='duration']").text())
+      .toContain("Session duration must be at least 10 minutes.");
+    expect(engine.goToStep).not.toHaveBeenCalled();
+
+    await wrapper.vm.goToNext();
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='eventTitle']").text())
+      .toContain("Event title is required.");
+    expect(wrapper.get("[data-booking-validation-field='basePrice']").text())
+      .toContain("Base price is required.");
+
+    unrefPublic(wrapper.vm.formData).duration = 10;
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-validation-field='duration']").exists()).toBe(false);
+  });
+
+  it("keeps the step 1 Next button footer inside the scrolling form panel", async () => {
+    const { default: OneOnOneBookinStep1 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
+    );
+    const wrapper = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+
+    expect(wrapper.vm.footerClass).toContain("sticky bottom-0");
+    expect(wrapper.vm.footerClass).not.toContain("fixed");
+    expect(wrapper.vm.footerClass).not.toContain("right-0");
   });
 
   it("shows conditional step 1 validation as fields to fill or disable", async () => {
@@ -405,7 +487,7 @@ describe("one-on-one booking step translations", () => {
         text: "Next",
         softDisabled: true,
         tooltipItems: [
-          { field: "duration", label: "Session duration must be at least 5 minutes." },
+          { field: "duration", label: "Session duration must be at least 10 minutes." },
         ],
       },
     });
@@ -749,15 +831,15 @@ describe("one-on-one booking step translations", () => {
           oneTimeAvailability: [{
             id: "date-1",
             date: today,
-            slots: [{ startTime: "23:55", endTime: "23:59" }],
+            slots: [{ startTime: "23:50", endTime: "23:59" }],
           }],
-          monthlyAvailability: [{ startTime: "23:55", endTime: "23:59" }],
+          monthlyAvailability: [{ startTime: "23:50", endTime: "23:59" }],
           weeklyAvailability: [{
             key: "sun",
             name: "Sun",
             unavailable: false,
             offHours: false,
-            slots: [{ startTime: "23:55", endTime: "23:59", offHours: false }],
+            slots: [{ startTime: "23:50", endTime: "23:59", offHours: false }],
           }],
         }),
         bookingType: "private",
@@ -778,7 +860,7 @@ describe("one-on-one booking step translations", () => {
     expect(customEndOptions.find((option) => option.value === "00:00")?.disabled).toBe(true);
   });
 
-  it("keeps 11:59 PM literal for group slots shorter than five minutes", async () => {
+  it("keeps 11:59 PM literal for group slots shorter than ten minutes", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -859,7 +941,8 @@ describe("one-on-one booking step translations", () => {
     expect(thirdSlotStartOptions.find((option) => option.value === "15:00")?.disabled).toBe(true);
     expect(thirdSlotStartOptions.find((option) => option.value === "15:05")?.disabled).toBe(true);
     expect(thirdSlotStartOptions.find((option) => option.value === "18:00")?.disabled).toBe(false);
-    expect(thirdSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(false);
+    expect(thirdSlotStartOptions.find((option) => option.value === "23:55")?.disabled).toBe(true);
+    expect(thirdSlotStartOptions.find((option) => option.value === "23:50")?.disabled).toBe(false);
 
     const thirdSlotEndOptions = customTimeDropdowns[5].props("optionFactory")();
     expect(thirdSlotEndOptions.find((option) => option.value === "12:00")?.disabled).toBe(true);
@@ -874,12 +957,12 @@ describe("one-on-one booking step translations", () => {
     expect(thirdSlot.startTime).toBe("00:00");
     expect(thirdSlot.endTime).toBe("12:00");
 
-    thirdSlot.startTime = "23:55";
+    thirdSlot.startTime = "23:50";
     thirdSlot.endTime = "21:00";
     wrapper.vm.onOneTimeSlotChanged(0, 2, "start");
     await nextTick();
 
-    expect(thirdSlot.startTime).toBe("23:55");
+    expect(thirdSlot.startTime).toBe("23:50");
     expect(thirdSlot.endTime).toBe("23:59");
   });
 
@@ -1286,7 +1369,7 @@ describe("one-on-one booking step translations", () => {
     }));
   });
 
-  it("preserves five-minute off-hours slots when adjusting a shared boundary", async () => {
+  it("preserves ten-minute off-hours slots when adjusting a shared boundary", async () => {
     const { default: OneOnOneBookinStep1 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"
     );
@@ -1297,7 +1380,7 @@ describe("one-on-one booking step translations", () => {
           repeatRule: "monthly",
           monthlyAvailability: [
             { startTime: "00:00", endTime: "03:00", offHours: false },
-            { startTime: "03:00", endTime: "03:05", offHours: true },
+            { startTime: "03:00", endTime: "03:10", offHours: true },
           ],
         }),
         bookingType: "private",
@@ -1308,13 +1391,13 @@ describe("one-on-one booking step translations", () => {
 
     expect(slots[1]).toEqual(expect.objectContaining({
       startTime: "03:01",
-      endTime: "03:06",
+      endTime: "03:11",
       offHours: true,
     }));
     expect(wrapper.vm.getMonthlyEndOptions(1)).toContainEqual(
       expect.objectContaining({
-        value: "03:06",
-        label: "3:06 AM",
+        value: "03:11",
+        label: "3:11 AM",
         disabled: false,
       }),
     );
@@ -1323,7 +1406,7 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
     expect(slots[1]).toEqual(expect.objectContaining({
       startTime: "03:00",
-      endTime: "03:05",
+      endTime: "03:10",
       offHours: false,
     }));
 
@@ -1334,8 +1417,8 @@ describe("one-on-one booking step translations", () => {
           repeatRule: "monthly",
           monthlyAvailability: [
             { startTime: "00:00", endTime: "03:00", offHours: false },
-            { startTime: "03:00", endTime: "03:05", offHours: true },
-            { startTime: "03:05", endTime: "06:00", offHours: false },
+            { startTime: "03:00", endTime: "03:10", offHours: true },
+            { startTime: "03:10", endTime: "06:00", offHours: false },
           ],
         }),
         bookingType: "private",
@@ -1344,7 +1427,7 @@ describe("one-on-one booking step translations", () => {
     });
     expect(unrefPublic(blockedWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
       startTime: "03:00",
-      endTime: "03:05",
+      endTime: "03:10",
       offHours: true,
     }));
 
@@ -1355,7 +1438,7 @@ describe("one-on-one booking step translations", () => {
           repeatRule: "monthly",
           monthlyAvailability: [
             { startTime: "00:00", endTime: "03:00", offHours: true },
-            { startTime: "03:00", endTime: "03:05", offHours: false },
+            { startTime: "03:00", endTime: "03:10", offHours: false },
           ],
         }),
         bookingType: "private",
@@ -1364,7 +1447,7 @@ describe("one-on-one booking step translations", () => {
     });
     expect(unrefPublic(reverseWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
       startTime: "03:01",
-      endTime: "03:06",
+      endTime: "03:11",
       offHours: false,
     }));
 
@@ -1375,8 +1458,8 @@ describe("one-on-one booking step translations", () => {
           repeatRule: "monthly",
           monthlyAvailability: [
             { startTime: "00:00", endTime: "03:00", offHours: true },
-            { startTime: "03:00", endTime: "03:05", offHours: false },
-            { startTime: "03:05", endTime: "06:00", offHours: true },
+            { startTime: "03:00", endTime: "03:10", offHours: false },
+            { startTime: "03:10", endTime: "06:00", offHours: true },
           ],
         }),
         bookingType: "private",
@@ -1385,7 +1468,7 @@ describe("one-on-one booking step translations", () => {
     });
     expect(unrefPublic(reverseBlockedWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
       startTime: "03:00",
-      endTime: "03:05",
+      endTime: "03:10",
       offHours: false,
     }));
 
@@ -1395,8 +1478,8 @@ describe("one-on-one booking step translations", () => {
           eventType: "1on1-call",
           repeatRule: "monthly",
           monthlyAvailability: [
-            { startTime: "21:00", endTime: "23:55", offHours: true },
-            { startTime: "23:55", endTime: "23:59", offHours: false },
+            { startTime: "21:00", endTime: "23:50", offHours: true },
+            { startTime: "23:50", endTime: "23:59", offHours: false },
           ],
         }),
         bookingType: "private",
@@ -1404,7 +1487,7 @@ describe("one-on-one booking step translations", () => {
       global: mountOptions(),
     });
     expect(unrefPublic(reverseEndOfDayWrapper.vm.monthlySlots)[1]).toEqual(expect.objectContaining({
-      startTime: "23:55",
+      startTime: "23:50",
       endTime: "23:59",
       offHours: false,
     }));
@@ -1438,7 +1521,8 @@ describe("one-on-one booking step translations", () => {
 
     expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
     expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
-    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:10")?.disabled).toBe(false);
 
     const slot = unrefPublic(wrapper.vm.oneTimeDates)[0].slots[0];
     slot.endTime = "15:00";
@@ -1446,7 +1530,7 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
 
     expect(slot.startTime).toBe("16:00");
-    expect(slot.endTime).toBe("16:05");
+    expect(slot.endTime).toBe("16:10");
   });
 
   it("disables monthly end times at or before the selected start time", async () => {
@@ -1473,7 +1557,8 @@ describe("one-on-one booking step translations", () => {
 
     expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
     expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
-    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:10")?.disabled).toBe(false);
 
     const slot = unrefPublic(wrapper.vm.monthlySlots)[0];
     slot.endTime = "15:00";
@@ -1481,7 +1566,7 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
 
     expect(slot.startTime).toBe("16:00");
-    expect(slot.endTime).toBe("16:05");
+    expect(slot.endTime).toBe("16:10");
   });
 
   it("disables weekly end times at or before the selected start time", async () => {
@@ -1515,7 +1600,8 @@ describe("one-on-one booking step translations", () => {
 
     expect(endOptions.find((option) => option.value === "15:55")?.disabled).toBe(true);
     expect(endOptions.find((option) => option.value === "16:00")?.disabled).toBe(true);
-    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(false);
+    expect(endOptions.find((option) => option.value === "16:05")?.disabled).toBe(true);
+    expect(endOptions.find((option) => option.value === "16:10")?.disabled).toBe(false);
 
     const slot = unrefPublic(wrapper.vm.weekDays)[0].slots[0];
     slot.endTime = "15:00";
@@ -1523,7 +1609,7 @@ describe("one-on-one booking step translations", () => {
     await nextTick();
 
     expect(slot.startTime).toBe("16:00");
-    expect(slot.endTime).toBe("16:05");
+    expect(slot.endTime).toBe("16:10");
   });
 
   it("requests calendar focus for edited weekly, monthly, and one-time slots", async () => {
@@ -2072,6 +2158,101 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.text()).toContain("Duracion de sesion");
     expect(wrapper.text()).toContain("Duracion");
     expect(document.body.textContent).toContain("Marcar fuera de horario");
+  });
+
+  it("renders translated attendance policy copy in the form and confirmation popups", async () => {
+    const [
+      { default: OneOnOneBookinStep1 },
+      { default: ConfirmAndPublishSchedule },
+      { default: ReadAndUnderstandPopup },
+    ] = await Promise.all([
+      import("@/components/ui/form/BookingForm/OneOnOneBookinStep1.vue"),
+      import("@/components/ui/popup/ConfirmAndPublishSchedule.vue"),
+      import("@/components/ui/popup/ReadAndUnderstandPopup.vue"),
+    ]);
+    const translations = {
+      booking_call_attendance_policy_title: "POLITICA TRADUCIDA",
+      booking_call_attendance_policy_grace_summary: "RESUMEN DE GRACIA",
+      booking_call_attendance_policy_creator_no_show_summary: "RESUMEN DEL CREADOR",
+      booking_call_attendance_policy_fan_no_show_summary: "RESUMEN DEL FAN",
+      booking_call_attendance_policy_confirmation_intro: "INTRODUCCION TRADUCIDA",
+      booking_call_attendance_policy_publish_intro: "INTRODUCCION PARA PUBLICAR",
+      booking_call_attendance_policy_grace_heading: "ENCABEZADO DE GRACIA",
+      booking_call_attendance_policy_creator_no_show_condition: "CONDICION DEL CREADOR",
+      booking_call_attendance_policy_fan_no_show_condition: "CONDICION DEL FAN",
+      booking_call_attendance_policy_full_refund: "REEMBOLSO COMPLETO",
+      booking_call_attendance_policy_publish_creator_no_show_condition: "CONDICION DEL CREADOR PUBLICANDO",
+      booking_call_attendance_policy_publish_fan_no_show_condition: "CONDICION DEL FAN PUBLICANDO",
+      booking_call_attendance_policy_publish_fan_full_refund: "REEMBOLSO AL FAN",
+      booking_call_attendance_policy_booking_cancelled: "RESERVA CANCELADA",
+      booking_call_attendance_policy_creator_full_payment: "PAGO COMPLETO AL CREADOR",
+      booking_call_attendance_policy_dont_show_again: "NO MOSTRAR DE NUEVO",
+      booking_call_attendance_policy_confirm_publish: "CONFIRMAR Y PUBLICAR",
+      booking_call_attendance_policy_confirm_submit: "CONFIRMAR Y ENVIAR",
+      booking_call_attendance_policy_icon_alt: "POLITICA DE ASISTENCIA",
+      common_back: "VOLVER",
+    };
+    const global = mountOptions(translations);
+
+    const form = shallowMount(OneOnOneBookinStep1, {
+      props: {
+        engine: createEngine({ eventType: "1on1-call" }),
+        bookingType: "private",
+      },
+      global,
+    });
+    expect(form.text()).toContain("POLITICA TRADUCIDA");
+    expect(form.text()).toContain("RESUMEN DE GRACIA");
+    expect(form.text()).toContain("RESUMEN DEL CREADOR");
+    expect(form.text()).toContain("RESUMEN DEL FAN");
+
+    const confirm = shallowMount(ConfirmAndPublishSchedule, {
+      props: { modelValue: true },
+      global,
+    });
+    expect(confirm.text()).toContain("INTRODUCCION PARA PUBLICAR");
+    expect(confirm.text()).toContain("CONDICION DEL CREADOR PUBLICANDO");
+    expect(confirm.text()).toContain("CONDICION DEL FAN PUBLICANDO");
+    expect(confirm.text()).toContain("REEMBOLSO AL FAN");
+    expect(confirm.text()).toContain("RESERVA CANCELADA");
+    expect(confirm.text()).toContain("PAGO COMPLETO AL CREADOR");
+    expect(confirm.text()).toContain("NO MOSTRAR DE NUEVO");
+    expect(confirm.text()).toContain("CONFIRMAR Y PUBLICAR");
+    expect(confirm.text()).toContain("VOLVER");
+
+    await confirm.get("[data-test='attendance-policy-confirm']").trigger("click");
+    expect(confirm.emitted("confirm")?.[0]?.[0]).toEqual({ dontShowAgain: false });
+
+    confirm.vm.dontShowAgain = true;
+    await confirm.get("[data-test='attendance-policy-confirm']").trigger("click");
+    expect(confirm.emitted("confirm")?.[1]?.[0]).toEqual({ dontShowAgain: true });
+
+    await confirm.get("[data-test='attendance-policy-back']").trigger("click");
+    expect(confirm.emitted("update:modelValue")?.at(-1)?.[0]).toBe(false);
+    expect(confirm.vm.config.closeOnOutside).toBe(true);
+    expect(confirm.vm.config.escToClose).toBe(true);
+
+    await confirm.setProps({ modelValue: false });
+    await confirm.setProps({ modelValue: true, confirming: true });
+    expect(confirm.vm.dontShowAgain).toBe(false);
+    expect(confirm.get("[data-test='attendance-policy-back']").attributes("disabled")).toBeDefined();
+    expect(confirm.get("[data-test='attendance-policy-confirm']").attributes("disabled")).toBeDefined();
+    expect(confirm.vm.config.closeOnOutside).toBe(false);
+    expect(confirm.vm.config.escToClose).toBe(false);
+
+    const read = shallowMount(ReadAndUnderstandPopup, {
+      props: { modelValue: true },
+      global,
+    });
+    expect(read.text()).toContain("ENCABEZADO DE GRACIA");
+    expect(read.text()).toContain("CONFIRMAR Y ENVIAR");
+    expect(read.get("img").attributes("alt")).toBe("POLITICA DE ASISTENCIA");
+
+    await read.get("[data-test='attendance-policy-read-confirm']").trigger("click");
+    expect(read.emitted("confirm")).toHaveLength(1);
+
+    await read.get("[data-test='attendance-policy-read-back']").trigger("click");
+    expect(read.emitted("update:modelValue")?.at(-1)?.[0]).toBe(false);
   });
 
   it("shows the description editor in group step 1", async () => {
@@ -2812,6 +2993,134 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.emitted("preview-schedule")).toHaveLength(1);
   });
 
+  it.each([
+    ["private", "1on1-call"],
+    ["group", "group-event"],
+  ])("opens attendance confirmation before publishing a valid %s event", async (bookingType, eventType) => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({ creatorId: 1407, eventType });
+    engine.validate.mockResolvedValue({ valid: true, errors: [] });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, bookingType, embedded: true },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(wrapper.vm.attendancePolicyConfirmationOpen).toBe(true);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+  });
+
+  it("does not open attendance confirmation for an invalid group event", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const engine = createEngine({ creatorId: 1407, eventType: "group-event" });
+    engine.validate.mockResolvedValue({
+      valid: false,
+      errors: [{ field: "basePrice", translationKey: "booking_validation_base_price_required" }],
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, bookingType: "group", embedded: true },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(wrapper.vm.attendancePolicyConfirmationOpen).toBe(false);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+  });
+
+  it("publishes only after attendance confirmation and keeps the popup open for retry", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    let resolvePublish;
+    const engine = createEngine({ creatorId: 1407, eventType: "1on1-call" });
+    engine.validate.mockResolvedValue({ valid: true, errors: [] });
+    engine.callFlow
+      .mockResolvedValueOnce({ ok: false, error: { message: "Publish failed" } })
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolvePublish = resolve;
+      }));
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: { engine, bookingType: "private", embedded: true },
+      global: mountOptions(),
+    });
+
+    await wrapper.vm.createEvent();
+    expect(engine.callFlow).not.toHaveBeenCalled();
+
+    await wrapper.vm.confirmAttendancePolicy();
+    await settleValidation();
+    expect(wrapper.vm.attendancePolicyConfirmationOpen).toBe(true);
+
+    const publishPromise = wrapper.vm.confirmAttendancePolicy();
+    await nextTick();
+    expect(wrapper.vm.isCreating).toBe(true);
+    expect(engine.callFlow).toHaveBeenCalledTimes(2);
+
+    await wrapper.vm.confirmAttendancePolicy();
+    expect(engine.callFlow).toHaveBeenCalledTimes(2);
+
+    resolvePublish({ ok: true, data: { eventId: "evt_confirmed" } });
+    await publishPromise;
+    await settleValidation();
+
+    expect(wrapper.vm.attendancePolicyConfirmationOpen).toBe(false);
+    expect(wrapper.emitted("created")?.[0]?.[0]).toEqual(expect.objectContaining({ mode: "create" }));
+  });
+
+  it("remembers attendance confirmation per creator and tolerates unavailable storage", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const mountForCreator = (creatorId) => {
+      const engine = createEngine({ creatorId, eventType: "1on1-call" });
+      engine.validate.mockResolvedValue({ valid: true, errors: [] });
+      engine.callFlow.mockResolvedValue({ ok: true, data: { eventId: `evt_${creatorId}` } });
+      return {
+        engine,
+        wrapper: shallowMount(OneOnOneBookinStep2, {
+          props: { engine, bookingType: "private", embedded: true },
+          global: mountOptions(),
+        }),
+      };
+    };
+
+    const first = mountForCreator(1407);
+    await first.wrapper.vm.createEvent();
+    await first.wrapper.vm.confirmAttendancePolicy({ dontShowAgain: true });
+    expect(window.localStorage.getItem("booking.callAttendancePolicy.dismissed.1407")).toBe("true");
+
+    const sameCreator = mountForCreator(1407);
+    await sameCreator.wrapper.vm.createEvent();
+    expect(sameCreator.engine.callFlow).toHaveBeenCalledTimes(1);
+    expect(sameCreator.wrapper.vm.attendancePolicyConfirmationOpen).toBe(false);
+
+    const otherCreator = mountForCreator(1408);
+    await otherCreator.wrapper.vm.createEvent();
+    expect(otherCreator.engine.callFlow).not.toHaveBeenCalled();
+    expect(otherCreator.wrapper.vm.attendancePolicyConfirmationOpen).toBe(true);
+
+    const originalGetItem = Storage.prototype.getItem;
+    const getItemSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function getItem(key) {
+      if (String(key).startsWith("booking.callAttendancePolicy.dismissed.")) {
+        throw new Error("Storage unavailable");
+      }
+      return originalGetItem.call(this, key);
+    });
+    const unavailableStorage = mountForCreator(1409);
+    await unavailableStorage.wrapper.vm.createEvent();
+    expect(unavailableStorage.wrapper.vm.attendancePolicyConfirmationOpen).toBe(true);
+    expect(unavailableStorage.engine.callFlow).not.toHaveBeenCalled();
+    getItemSpy.mockRestore();
+  });
+
   it("shows conditional submit validation as one combined field list", async () => {
     const { default: OneOnOneBookinStep2 } = await import(
       "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
@@ -2888,6 +3197,60 @@ describe("one-on-one booking step translations", () => {
     expect(wrapper.get("[data-booking-validation-field='recordingPrice']").text()).toContain("Recording price must be 0 or higher.");
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("updates step 2 inline validation while the user edits without clicking Submit", async () => {
+    const { default: OneOnOneBookinStep2 } = await import(
+      "@/components/ui/form/BookingForm/OneOnOneBookinStep2.vue"
+    );
+    const state = {
+      eventType: "1on1-call",
+      allowRecording: true,
+      recordingPrice: 0,
+      addOns: [{ title: "", description: "", priceTokens: 1 }],
+    };
+    const engine = createEngine(state);
+    engine.validate = vi.fn((step) => {
+      if (step === 1) return Promise.resolve({ valid: true, errors: [] });
+      const errors = [
+        {
+          field: "addOns.0.title",
+          translationKey: "booking_validation_addon_title_required",
+          params: { index: 1 },
+        },
+      ];
+      if (Number(state.recordingPrice) < 0) {
+        errors.push({ field: "recordingPrice", translationKey: "booking_validation_recording_price_min" });
+      }
+      return Promise.resolve({ valid: false, errors });
+    });
+    const wrapper = shallowMount(OneOnOneBookinStep2, {
+      props: {
+        engine,
+        bookingType: "private",
+      },
+      global: mountOptions(),
+    });
+    await settleValidation();
+
+    unrefPublic(wrapper.vm.formData).recordingPrice = -1;
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='recordingPrice']").text())
+      .toContain("Recording price must be 0 or higher.");
+    expect(wrapper.find("[data-booking-validation-field='addOns.0.title']").exists()).toBe(false);
+    expect(engine.callFlow).not.toHaveBeenCalled();
+
+    await wrapper.vm.createEvent();
+    await settleValidation();
+
+    expect(wrapper.get("[data-booking-validation-field='addOns.0.title']").text())
+      .toContain("Add-on service 1 title is required.");
+
+    unrefPublic(wrapper.vm.formData).recordingPrice = 0;
+    await settleValidation();
+
+    expect(wrapper.find("[data-booking-validation-field='recordingPrice']").exists()).toBe(false);
   });
 
   it("keeps step 2 submit enabled when an older failed validation resolves after a newer passing validation", async () => {
@@ -3546,6 +3909,8 @@ describe("one-on-one booking step translations", () => {
 
     const buttons = wrapper.findAll("button");
     await buttons[buttons.length - 1].trigger("click");
+    expect(engine.callFlow).not.toHaveBeenCalled();
+    await wrapper.vm.confirmAttendancePolicy();
     await Promise.resolve();
     await Promise.resolve();
 
