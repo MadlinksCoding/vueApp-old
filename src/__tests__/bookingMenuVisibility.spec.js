@@ -133,7 +133,17 @@ describe("BookingRequestBubble options menu", () => {
     expect(wrapper.find(HEADER_MENU).exists()).toBe(false);
     expect(wrapper.find(REVIEW_MENU).exists()).toBe(false);
     expect(wrapper.text()).toContain("Accept");
-    expect(wrapper.text()).toContain("Adjust Request");
+    expect(wrapper.text()).toContain("Review booking");
+  });
+
+  it("opens the booking details from the creator's review button", async () => {
+    const wrapper = await mountBubble({ status: "pending", action: "pending", isCreator: true });
+
+    // Adjusting a request is reached from the details panel this opens, not from
+    // the bubble.
+    await wrapper.get("[data-test='chat-booking-request-review']").trigger("click");
+    expect(wrapper.emitted("view-details")).toHaveLength(1);
+    expect(wrapper.emitted("adjust")).toBeUndefined();
   });
 
   it("gives the creator the cancel menu once the booking is confirmed", async () => {
