@@ -1,25 +1,8 @@
 import { showToast } from "@/utils/toastBus.js";
+import { escapeToastHtml, wordpressToastHost } from "@/utils/wordpressToastHost.js";
 
 function normalizedUsername(value, fallback = "fan") {
   return String(value || fallback).trim().replace(/^@+/, "") || fallback;
-}
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function wordpressToastHost() {
-  if (typeof window === "undefined" || window.parent === window) return null;
-  try {
-    return typeof window.parent?.showToast === "function" ? window.parent : null;
-  } catch (_error) {
-    return null;
-  }
 }
 
 export function showCreatorBookingReviewToast({ decision, username, avatarUrl, t } = {}) {
@@ -46,7 +29,7 @@ export function showCreatorBookingReviewToast({ decision, username, avatarUrl, t
       theme: "light",
       show_close: true,
       close_label: typeof t === "function" ? t("fan_booking_toast_close") : "Close notification",
-      title: escapeHtml(title),
+      title: escapeToastHtml(title),
       title_class: "fs--16 fw6 lh--24",
       icon_url: String(avatarUrl || ""),
       icon_name: avatarUrl ? "" : "profile",
