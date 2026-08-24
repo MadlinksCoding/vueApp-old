@@ -7,7 +7,7 @@ import ArrowBrownIcon from '@/assets/images/icons/arrow-right-brown.svg';
 const PopupHandlerStub = {
   name: 'PopupHandler',
   props: ['modelValue', 'config'],
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'closed'],
   template: '<div data-test="popup-handler-stub"><slot /></div>',
 };
 
@@ -257,5 +257,13 @@ describe('BookingAdjustmentDecisionPopup', () => {
 
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
     expect(wrapper.emitted('close')).toHaveLength(1);
+  });
+
+  it('forwards the popup exit completion before a coordinator opens details', async () => {
+    const wrapper = mountDecision();
+    wrapper.getComponent(PopupHandlerStub).vm.$emit('closed');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('closed')).toHaveLength(1);
   });
 });

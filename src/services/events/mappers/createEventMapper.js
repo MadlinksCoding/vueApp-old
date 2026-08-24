@@ -9,6 +9,10 @@ import {
   localDateTimeToHkt,
 } from "@/services/events/eventsApiUtils.js";
 import { normalizeBookingBufferMinutes } from "@/services/events/validators/eventStepValidators.js";
+import {
+  MIN_AVAILABILITY_SLOT_DURATION_MINUTES,
+  MIN_SESSION_DURATION_MINUTES,
+} from "@/services/events/eventConstraints.js";
 
 const HKT_TIMEZONE = "Asia/Hong_Kong";
 const DEFAULT_CREATOR_TIMEZONE = HKT_TIMEZONE;
@@ -185,7 +189,7 @@ function resolveSameDayEndHm(startHm, endHm, duration = 15) {
   const endMinutes = hmToMinutes(endHm);
   if (endMinutes > startMinutes) return endHm;
 
-  const safeDuration = Math.max(5, Number(duration) || 15);
+  const safeDuration = Math.max(MIN_SESSION_DURATION_MINUTES, Number(duration) || 15);
   const fallbackEndMinutes = Math.min(startMinutes + safeDuration, MINUTES_PER_DAY - 1);
   return fallbackEndMinutes > startMinutes ? minutesToSameDayHm(fallbackEndMinutes) : "";
 }
@@ -215,14 +219,14 @@ function inferFirstAvailabilityDuration(payload = {}) {
     const endHm = toHm(slot?.endTime, "");
     if (!startHm || !endHm) continue;
     const duration = inferDurationFromHm(startHm, endHm);
-    if (duration >= 5) return duration;
+    if (duration >= MIN_AVAILABILITY_SLOT_DURATION_MINUTES) return duration;
   }
 
   const selectedStart = toHm(payload.selectedStartTime || payload.startTime, "");
   const selectedEnd = toHm(payload.selectedEndTime || payload.endTime, "");
   if (selectedStart && selectedEnd) {
     const duration = inferDurationFromHm(selectedStart, selectedEnd);
-    if (duration >= 5) return duration;
+    if (duration >= MIN_AVAILABILITY_SLOT_DURATION_MINUTES) return duration;
   }
 
   return 15;
@@ -676,7 +680,7 @@ function mapBasePayload(payload = {}, context = {}) {
     ? null
     : pickNumeric(durationRaw, null);
   const duration = explicitDuration != null
-    ? explicitDuration
+    ? Math.max(MIN_SESSION_DURATION_MINUTES, explicitDuration)
     : (type === "group-event" ? inferFirstAvailabilityDuration(payload) : 15);
   const priceSetting = nonEmptyString(payload.priceSetting ?? payload.priceSettings, "fixedPricePerUser");
   const isGroupEventGoal = type === "group-event" && priceSetting === "eventGoal";

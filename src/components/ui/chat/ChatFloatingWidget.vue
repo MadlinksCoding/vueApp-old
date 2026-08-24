@@ -294,11 +294,33 @@ function openChatWindow(chat) {
   }
 }
 
-function closeChatWindow(uid) {
+function closeChatWindow(uid, { openList = true } = {}) {
   openChats.value = openChats.value.filter((c) => c.uid !== uid)
-  if (hostWidth.value < 1024 && openChats.value.length === 0) {
+  if (openList && hostWidth.value < 1024 && openChats.value.length === 0) {
     isListOpen.value = true
   }
+}
+
+// Opening booking details from a bubble takes the conversation off screen, so the
+// widget steps aside while the panel is up rather than sitting alongside it. The
+// window stays mounted meanwhile — it owns the panel and every popup the panel
+// opens — and is torn down once the panel has finished closing, since there is
+// nothing to come back to.
+const bookingDetailsUid = ref(null)
+// Tied to the window still being open, so the widget reappears by itself if that
+// window goes away without reporting the panel closed — the host calling closeAll,
+// or the open-chat limit trimming it.
+const bookingDetailsOpen = computed(() => bookingDetailsUid.value !== null
+  && openChats.value.some((chat) => chat.uid === bookingDetailsUid.value))
+
+function onBookingDetailsVisibility(uid, isOpen) {
+  if (isOpen) {
+    bookingDetailsUid.value = uid
+    return
+  }
+  if (bookingDetailsUid.value !== uid) return
+  bookingDetailsUid.value = null
+  closeChatWindow(uid, { openList: false })
 }
 
 function closeAll() {
@@ -522,7 +544,6 @@ async function openGroupChat({
  * to exist, not be open.
  */
 async function syncBookingUpdate({ chatId, bookingId, item, recipientIds = [], activityLog } = {}) {
-  console.error("syncBookingUpdate called with:", { chatId, bookingId, item, recipientIds, activityLog })
   if (!chatId) return
 
   if (bookingId) {
@@ -653,6 +674,7 @@ onMounted(async () => {
     <!-- Open chat windows (stack left or right of the trigger depending on alignment) -->
     <div class="flex gap-2 absolute z-[10000]"
          :class="[
+           bookingDetailsOpen ? 'invisible pointer-events-none' : '',
            isTopAligned ? 'items-start top-0' : 'items-end bottom-0 right-2',
            (hostWidth < 768 && openChats.length > 0) ? '!fixed !top-0 !left-0 !right-0 !bottom-0 !w-screen !h-screen' : '',
            isLeftAligned ? 'left-0 flex-row-reverse' : 'right-0'
@@ -688,13 +710,20 @@ onMounted(async () => {
         :host-width="hostWidth"
         @close="closeChatWindow(chat.uid)"
         @minimize="closeChatWindow(chat.uid)"
+        @booking-details-visibility="onBookingDetailsVisibility(chat.uid, $event)"
         @chat-created="(id) => onChatCreated(chat.uid, id)"
         @start-chat="onStartChat"
       />
     </div>
 
     <!-- Anchor: chat list panel + trigger button -->
-    <div class="relative flex items-end" :class="isTopAligned ? 'flex-col-reverse' : 'flex-col'">
+    <div
+      class="relative flex items-end"
+      :class="[
+        isTopAligned ? 'flex-col-reverse' : 'flex-col',
+        bookingDetailsOpen ? 'invisible pointer-events-none' : '',
+      ]"
+    >
 
       <!-- Chat list panel (floats above trigger) -->
       <ChatListPanel

@@ -19,6 +19,7 @@ const mock = vi.hoisted(() => ({
   revealSelectedWeekDay: vi.fn(() => Promise.resolve()),
   scrollToTime: vi.fn(() => Promise.resolve(true)),
   applyBookingReviewResult: vi.fn(() => true),
+  openEventDetails: vi.fn(),
   mapEventToBookingFormState: vi.fn(() => ({
     eventType: "1on1-call",
     eventTitle: "Edited Preview",
@@ -291,6 +292,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       revealSelectedWeekDay: mock.revealSelectedWeekDay,
       scrollToTime: mock.scrollToTime,
       applyBookingReviewResult: mock.applyBookingReviewResult,
+      openEventDetails: mock.openEventDetails,
     },
     template: `
       <div data-test="calendar">
@@ -419,6 +421,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     mock.revealSelectedWeekDay.mockClear();
     mock.scrollToTime.mockClear();
     mock.applyBookingReviewResult.mockClear();
+    mock.openEventDetails.mockClear();
     originalScrollTo = window.scrollTo;
     window.scrollTo = vi.fn();
     setWindowWidth(500);
@@ -1447,6 +1450,9 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       expect.any(Object),
     );
 
+    const successToastCountBeforeCancel = mock.showToast.mock.calls.filter(
+      ([toast]) => toast?.type === "success",
+    ).length;
     await wrapper.get("[data-test='calendar-cancel']").trigger("click");
     await wrapper.get("[data-test='booking-adjustment-decision-primary']").trigger("click");
     await flushPromises();
@@ -1454,6 +1460,20 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       "bookings.cancelBooking",
       expect.objectContaining({ bookingId: "booking_action", actor: "creator" }),
       expect.any(Object),
+    );
+    expect(mock.showToast.mock.calls.filter(([toast]) => toast?.type === "success")).toHaveLength(
+      successToastCountBeforeCancel,
+    );
+
+    wrapper.getComponent({ name: "BookingAdjustmentDecisionPopup" }).vm.$emit("closed");
+    await wrapper.vm.$nextTick();
+    expect(mock.openEventDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "cancelled_creator" }),
+      expect.objectContaining({
+        bookingId: "booking_action",
+        status: "cancelled_creator",
+        cancellation: expect.objectContaining({ actor: "creator" }),
+      }),
     );
 
     await wrapper.get("[data-test='calendar-join']").trigger("click");

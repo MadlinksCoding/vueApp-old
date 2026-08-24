@@ -124,7 +124,7 @@ describe('BookingDetailsPopup compact variation', () => {
     expect(wrapper.find('[data-test="booking-details-compact-accept"]').exists()).toBe(true);
     expect(wrapper.get('[data-test="booking-details-compact-review-heading"]').text()).toContain('grapegatsby');
     expect(wrapper.get('[data-test="booking-details-compact-adjust"]').text()).toContain('Adjust Detail');
-    expect(wrapper.find('[data-test="booking-details-compact-review-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-compact-review-menu"]').exists()).toBe(true);
 
     await wrapper.get('[data-test="booking-details-compact-accept"]').trigger('click');
     expect(wrapper.emitted('approve-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
@@ -138,6 +138,17 @@ describe('BookingDetailsPopup compact variation', () => {
     expect(wrapper.emitted('adjust-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
       bookingId: 'booking_compact_1',
       eventId: 'event_compact_1',
+    }));
+
+    await wrapper.get('[data-test="booking-details-compact-review-menu"]').trigger('click');
+    expect(wrapper.get('[data-test="booking-details-compact-decline"]').text()).toContain('Decline');
+    await wrapper.get('[data-test="booking-details-compact-decline"]').trigger('click');
+    wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).vm.$emit('confirm', { mode: 'reject' });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('reject-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: 'booking_compact_1',
+      eventId: 'event_compact_1',
+      decision: 'reject',
     }));
 
     const confirmedBooking = booking({ status: 'confirmed' });
@@ -180,12 +191,12 @@ describe('BookingDetailsPopup compact variation', () => {
     wrapper.unmount();
   });
 
-  it('leaves Accept alone when Adjust Detail is ineligible', () => {
+  it('keeps the decline trigger available when Adjust Detail is ineligible', () => {
     const wrapper = mountCompact(booking({ meta: {} }));
 
     expect(wrapper.find('[data-test="booking-details-compact-accept"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="booking-details-compact-adjust"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="booking-details-compact-review-menu"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-details-compact-review-menu"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
@@ -201,6 +212,29 @@ describe('BookingDetailsPopup compact variation', () => {
     wrapper.findAll('[data-test="booking-details-compact-close"]').forEach((button) => {
       expect(button.attributes('disabled')).toBeDefined();
     });
+    wrapper.unmount();
+  });
+
+  it('shows the retained-details refresh spinner without replacing the compact surface', () => {
+    const wrapper = mountCompact(booking({ status: 'confirmed' }), { refreshing: true });
+
+    expect(wrapper.find('[data-test="event-details-fan"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-refreshing"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-refreshing-spinner"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('marks creator menu cancellation as a retained booking-details action', async () => {
+    const wrapper = mountCompact(booking({ status: 'confirmed' }), { layoutVariant: 'hero' });
+
+    await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
+    await wrapper.get('[data-test="event-details-fan-cancel"]').trigger('click');
+
+    expect(wrapper.emitted('cancel-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: 'booking_compact_1',
+      origin: 'booking-details',
+      retainDetailsOnSuccess: true,
+    }));
     wrapper.unmount();
   });
 

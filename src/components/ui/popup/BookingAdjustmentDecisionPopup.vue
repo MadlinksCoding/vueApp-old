@@ -2,6 +2,7 @@
   <PopupHandler
     :modelValue="modelValue"
     @update:modelValue="handleVisibilityChange"
+    @closed="emit('closed')"
     :config="popupConfig"
   >
     <div
@@ -170,7 +171,7 @@ const props = defineProps({
   popupConfig: { type: Object, default: null },
 });
 
-const emit = defineEmits(['update:modelValue', 'confirm', 'retry-balance', 'close']);
+const emit = defineEmits(['update:modelValue', 'confirm', 'retry-balance', 'close', 'closed']);
 const { t, locale } = useBookingTranslations();
 
 const defaultPopupConfig = {

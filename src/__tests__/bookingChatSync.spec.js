@@ -59,11 +59,38 @@ describe("useBookingChatSync", () => {
     expect(mocks.requestSync).not.toHaveBeenCalled();
   });
 
-  it("does not ask the host to broadcast when the message update failed", async () => {
+  it("still relays the activity log when the message update failed", async () => {
     mocks.flowRun.mockResolvedValue({ ok: false, error: { message: "gone" } });
     const { syncBookingToChat } = useBookingChatSync();
 
-    await expect(syncBookingToChat(booking(), "declined", "reject")).resolves.toEqual({ ok: false });
-    expect(mocks.requestSync).not.toHaveBeenCalled();
+    await expect(syncBookingToChat(booking(), "declined", "reject")).resolves.toEqual({ ok: false, item: null });
+    // No message to broadcast, but the chat embed still refetches the booking from
+    // the id and posts the log — the conversation must not go silent.
+    expect(mocks.requestSync).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: "booking_1",
+      item: null,
+      activityLog: expect.objectContaining({
+        text: BOOKING_CHAT_ACTIVITY_LOGS.reject.text,
+        meta: expect.objectContaining({ decision: "declined" }),
+      }),
+    }));
+  });
+
+  it("mirrors a cancellation, which the message flow used to reject outright", async () => {
+    const { syncBookingToChat } = useBookingChatSync();
+
+    await syncBookingToChat(booking(), "cancelled", "cancel");
+
+    expect(mocks.flowRun).toHaveBeenCalledWith(
+      "chat.updateBookingRequestMessage",
+      { chatId: "chat_1", messageId: "message_1", action: "cancelled" },
+      expect.any(Object),
+    );
+    expect(mocks.requestSync).toHaveBeenCalledWith(expect.objectContaining({
+      activityLog: expect.objectContaining({
+        text: BOOKING_CHAT_ACTIVITY_LOGS.cancel.text,
+        meta: expect.objectContaining({ decision: "call_cancelled" }),
+      }),
+    }));
   });
 });

@@ -530,6 +530,7 @@ describe('EventDetailsFan', () => {
     const notice = wrapper.get('[data-test="booking-details-review-notice"]');
     const acceptButton = notice.get('[data-test="booking-details-accept"]');
     const adjustButton = notice.get('[data-test="booking-details-adjust"]');
+    const menuButton = notice.get('[data-test="booking-details-review-menu"]');
 
     expect(notice.get('[data-test="booking-details-review-actions"]').exists()).toBe(true);
     expect(notice.get('[data-test="booking-details-review-actions"]').classes()).toContain('flex-nowrap');
@@ -537,7 +538,7 @@ describe('EventDetailsFan', () => {
     expect(notice.get('img').attributes('src')).toBe('https://example.test/fan.webp');
     expect(acceptButton.classes()).toEqual(expect.arrayContaining(['flex-1', 'min-w-0']));
     expect(adjustButton.classes()).toEqual(expect.arrayContaining(['flex-1', 'min-w-0']));
-    expect(notice.find('[data-test="booking-details-review-menu"]').exists()).toBe(false);
+    expect(menuButton.classes()).toEqual(expect.arrayContaining(['h-10', 'w-10']));
     expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-close"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="event-details-fan-join"]').exists()).toBe(false);
@@ -682,11 +683,47 @@ describe('EventDetailsFan', () => {
 
     expect(wrapper.get('[data-test="booking-details-accept"]').classes()).toContain('flex-1');
     expect(wrapper.find('[data-test="booking-details-adjust"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="booking-details-review-menu"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-details-review-menu"]').classes()).toContain('w-10');
     wrapper.unmount();
   });
 
-  it('uses the profile username instead of a generic User #ID in the review notice', async () => {
+  it('keeps creator decline in the notice menu and confirms before rejecting', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      fanAvatar: 'https://example.test/fan.webp',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    const menuTrigger = wrapper.get('[data-test="booking-details-review-menu"]');
+
+    expect(menuTrigger.attributes('aria-expanded')).toBe('false');
+    await menuTrigger.trigger('click');
+    expect(menuTrigger.attributes('aria-expanded')).toBe('true');
+    expect(wrapper.get('[data-test="booking-details-review-menu-dropdown"]').text()).toContain('Decline Booking');
+
+    await wrapper.get('[data-test="booking-details-decline"]').trigger('click');
+    expect(wrapper.emitted('reject-booking')).toBeUndefined();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+    const decision = wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' });
+    expect(decision.props('modelValue')).toBe(true);
+    expect(decision.props('mode')).toBe('reject');
+    expect(decision.props('actorRole')).toBe('creator');
+    expect(decision.props('eventTitle')).toBe('Lantau cows meet up');
+    expect(decision.props('fanUsername')).toBe('grapegatsby');
+    expect(decision.props('sessionRefundTokens')).toBe(100);
+    expect(decision.props('netRefundTokens')).toBe(100);
+    expect(wrapper.emitted('decision-visibility')?.at(-1)?.[0]).toBe(true);
+
+    decision.vm.$emit('confirm', { mode: 'reject', requiresTopup: false, shortfallTokens: 0 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('reject-booking')?.[0]?.[0]).toMatchObject({ bookingId: 'booking_1', decision: 'reject' });
+    expect(wrapper.emitted('decision-visibility')?.at(-1)?.[0]).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('uses the profile username instead of a generic User #ID in creator rejection', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({ user: { username: 'profile_fan' } }),
@@ -700,8 +737,62 @@ describe('EventDetailsFan', () => {
     const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
     await flushPromises();
 
+    await wrapper.get('[data-test="booking-details-review-menu"]').trigger('click');
+    await wrapper.get('[data-test="booking-details-decline"]').trigger('click');
+
+    const decision = wrapper.getComponent({ name: 'BookingAdjustmentDecisionPopup' });
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/users/get-profile-data?id=25'), expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(wrapper.get('[data-test="booking-details-review-heading"]').text()).toContain('profile_fan');
+    expect(decision.props('fanUsername')).toBe('profile_fan');
+    wrapper.unmount();
+  });
+
+  it('lifts the rejection confirmation above a panel the host raised', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+
+    // Chat lifts the panel over the conversation. A z-index above 5000 is taken
+    // literally by the popup stack rather than stacked over, so the confirmation has
+    // to be told to clear it or it opens underneath the chat window.
+    const inChat = mountDetails(value, 'side-panel', {
+      userRole: 'creator',
+      canReviewPending: true,
+      popupConfig: { zIndex: 10001 },
+    });
+    expect(inChat.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).props('popupConfig'))
+      .toEqual({ zIndex: 10002 });
+    inChat.unmount();
+
+    // Left at the default, normal stacking already puts the confirmation on top.
+    const standalone = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    expect(standalone.getComponent({ name: 'BookingAdjustmentDecisionPopup' }).props('popupConfig'))
+      .toBeNull();
+    standalone.unmount();
+  });
+
+  it('dismisses the creator review menu on outside click and Escape', async () => {
+    const value = booking({
+      status: 'pending',
+      userId: 25,
+      fanUsername: 'grapegatsby',
+      meta: { chatId: 'chat_1', bookingMessageId: 'message_1' },
+    });
+    const wrapper = mountDetails(value, 'side-panel', { userRole: 'creator', canReviewPending: true });
+    const menuTrigger = wrapper.get('[data-test="booking-details-review-menu"]');
+
+    await menuTrigger.trigger('click');
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+
+    await menuTrigger.trigger('click');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="booking-details-review-menu-dropdown"]').exists()).toBe(false);
+    expect(wrapper.emitted('close')).toBeUndefined();
     wrapper.unmount();
   });
 

@@ -6,6 +6,8 @@ import { showToast } from '@/utils/toastBus.js';
 import { mapCreateBookingToRequest } from '@/services/bookings/mappers/createBookingMapper.js';
 import { sumEventGoalContributionsForEvent } from '@/services/bookings/utils/bookingSlotUtils.js';
 import TooltipIcon from "@/components/ui/tooltip/TooltipIcon.vue";
+import CheckboxGroup from '@/components/ui/form/checkbox/CheckboxGroup.vue';
+import ReadAndUnderstandPopup from '@/components/ui/popup/ReadAndUnderstandPopup.vue';
 import { resolveCreatorIdFromContext, resolveFanIdFromContext } from '@/utils/contextIds.js';
 import { resolveParentUserData } from '@/utils/resolveParentUserData.js';
 import { fetchUserProfileData } from '@/services/users/userProfileApi.js';
@@ -106,6 +108,9 @@ const emit = defineEmits(['booking-created', 'booking-failed', 'balance-changed'
 const { t } = useBookingTranslations();
 const isAcceptingInvite = ref(false);
 let inviteAcceptPromise = null;
+const hasAcceptedAttendancePolicy = ref(false);
+const isAttendancePolicyPopupOpen = ref(false);
+const isResumingAttendancePolicyAction = ref(false);
 
 // --- RETRIEVE DATA FROM ENGINE ---
 const bookingData = computed(() => {
@@ -2082,32 +2087,8 @@ const onTopUpAuthUpdated = async (payload = {}) => {
 };
 
 // --- BUTTON HANDLERS ---
-const handleButtonClick = async () => {
-  logFanBookingDebug('step3', 'handleButtonClick', {
-    isSubmitting: isSubmitting.value,
-    isCheckingBalance: isCheckingBalance.value,
-    hasCheckedBalance: hasCheckedBalance.value,
-    totalPrice: totalPrice.value,
-    walletBalance: walletBalance.value,
-    creatorId: resolveCreatorId(),
-    fanId: resolveFanId(),
-  });
-
+const continueBookingAction = async () => {
   if (isSubmitting.value || isCheckingBalance.value) return;
-  if (contributionInvalid.value) {
-    showToast({
-      type: 'error',
-      title: t('common_validation_failed'),
-      message: t(
-        'fan_booking_contribution_invalid',
-        {
-          min: eventGoalMinimumTokens.value,
-          max: eventGoalMaximumContribution.value,
-        },
-      ),
-    });
-    return;
-  }
 
   try {
     if (pendingTopUpExpectedBalance.value != null) {
@@ -2141,6 +2122,55 @@ const handleButtonClick = async () => {
       title: t('fan_booking_action_failed_title'),
       message: error?.message || t('fan_booking_continue_failed_message'),
     });
+  }
+};
+
+const handleButtonClick = async () => {
+  logFanBookingDebug('step3', 'handleButtonClick', {
+    isSubmitting: isSubmitting.value,
+    isCheckingBalance: isCheckingBalance.value,
+    hasCheckedBalance: hasCheckedBalance.value,
+    totalPrice: totalPrice.value,
+    walletBalance: walletBalance.value,
+    creatorId: resolveCreatorId(),
+    fanId: resolveFanId(),
+  });
+
+  if (isSubmitting.value || isCheckingBalance.value) return;
+  if (contributionInvalid.value) {
+    showToast({
+      type: 'error',
+      title: t('common_validation_failed'),
+      message: t(
+        'fan_booking_contribution_invalid',
+        {
+          min: eventGoalMinimumTokens.value,
+          max: eventGoalMaximumContribution.value,
+        },
+      ),
+    });
+    return;
+  }
+
+  if (!isGroupEvent.value && !hasAcceptedAttendancePolicy.value) {
+    isAttendancePolicyPopupOpen.value = true;
+    return;
+  }
+
+  await continueBookingAction();
+};
+
+const confirmAttendancePolicy = async () => {
+  if (isResumingAttendancePolicyAction.value) return;
+
+  isResumingAttendancePolicyAction.value = true;
+  hasAcceptedAttendancePolicy.value = true;
+  isAttendancePolicyPopupOpen.value = false;
+
+  try {
+    await continueBookingAction();
+  } finally {
+    isResumingAttendancePolicyAction.value = false;
   }
 };
 
@@ -2666,8 +2696,26 @@ onBeforeUnmount(() => {
                     </div>
                     <!-- /Wallet Balance Card -->
 
-                    <div class="w-full">
-                      <p class="text-sm text-[#EAECF0]" data-testid="booking-policy-agreement">{{ t("fan_booking_policy_agreement") }}</p>
+                    <div
+                      v-if="!isGroupEvent"
+                      class="w-full"
+                      data-testid="booking-attendance-policy-agreement"
+                    >
+                      <CheckboxGroup
+                        v-model="hasAcceptedAttendancePolicy"
+                        checkboxClass="m-0 mt-[1px] self-start border border-[#98A2B3] [appearance:none] w-5 h-5 rounded-[3px] bg-transparent relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#22CCEE] checked:bg-[#07F468] checked:border-[#07F468] checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.15rem] checked:[&::after]:w-[0.3rem] checked:[&::after]:h-[0.6rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-[#0C111D] checked:[&::after]:border-r-2 checked:[&::after]:border-b-2 checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                        labelClass="flex-1 min-w-0 text-sm leading-5 text-[#EAECF0]"
+                        wrapperClass="items-start"
+                      >
+                        <template #label>
+                          <span class="mb-4 block">{{ t("fan_booking_attendance_policy_acknowledgment") }}</span>
+                          <ol class="list-decimal pl-5 italic">
+                            <li>{{ t("fan_booking_attendance_policy_grace_period") }}</li>
+                            <li>{{ t("fan_booking_attendance_policy_creator_no_show") }}</li>
+                            <li>{{ t("fan_booking_attendance_policy_fan_no_show") }}</li>
+                          </ol>
+                        </template>
+                      </CheckboxGroup>
                     </div>
                   </div>
                 </div>
@@ -2735,6 +2783,11 @@ onBeforeUnmount(() => {
             </button>
 
           </div>
+
+          <ReadAndUnderstandPopup
+            v-model="isAttendancePolicyPopupOpen"
+            @confirm="confirmAttendancePolicy"
+          />
 
         </div>
       </div>

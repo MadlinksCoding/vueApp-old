@@ -287,6 +287,7 @@ const reviewPendingLoading = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const pendingDirectCreatorCancellationDetails = ref(null);
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
@@ -2041,14 +2042,21 @@ async function reviewPendingBooking(payload, decision) {
                 }),
             });
         }
-        const item = result?.data?.item || null;
+        let item = result?.data?.item || null;
+        if (payload?.retainDetails && decision === "reject") {
+            if (!isCompleteCancelledBookingSnapshot(item)) {
+                mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+            }
+            item = await resolveCreatorCancellationSnapshot(payload, bookingId, item);
+        }
         await fetchCreatorBookedSlots(true);
         if (payload?.retainDetails) {
             const refreshedEvent = calendarBookedSlots.value.find((event) => resolveBookingIdFromPayload({ event }) === bookingId) || null;
             mainCalendarRef.value?.applyBookingReviewResult?.(
                 mergeReviewedBookingEvent(refreshedEvent || payload?.event || {}, item),
             );
-            if (payload?.showReviewToast === true) {
+            mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+            if (decision === "approve" && payload?.showReviewToast === true) {
                 showCreatorBookingReviewToast({
                     decision,
                     username: payload?.counterparty?.username,
@@ -2059,6 +2067,7 @@ async function reviewPendingBooking(payload, decision) {
         }
         return { ok: true, item };
     } finally {
+        mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
         reviewPendingLoading.value = false;
     }
 }
@@ -2081,18 +2090,87 @@ function openCancelBookingPopup(payload = {}) {
         });
         return;
     }
-    cancelBookingCandidate.value = { bookingId, event: payload?.event || payload };
+    cancelBookingCandidate.value = {
+        bookingId,
+        event: payload?.event || payload,
+        origin: payload?.origin || "",
+        retainDetailsOnSuccess: payload?.retainDetailsOnSuccess === true,
+        openDetailsOnSuccess: payload?.origin !== "booking-details",
+    };
     cancelBookingPopupOpen.value = true;
 }
 
 function closeCancelBookingPopup() {
     if (cancelBookingLoading.value) return;
+    pendingDirectCreatorCancellationDetails.value = null;
     cancelBookingPopupOpen.value = false;
     cancelBookingCandidate.value = null;
 }
 
+function handleCancelBookingPopupClosed() {
+    const pending = pendingDirectCreatorCancellationDetails.value;
+    if (!pending) return;
+    pendingDirectCreatorCancellationDetails.value = null;
+    mainCalendarRef.value?.openEventDetails?.(pending.event, pending.booking);
+}
+
+function isCancelledBookingSnapshot(item) {
+    const status = String(item?.status || item?.bookingStatus || "").trim().toLowerCase();
+    return Boolean(item && status.includes("cancel"));
+}
+
+function isCompleteCancelledBookingSnapshot(item) {
+    if (!isCancelledBookingSnapshot(item)) return false;
+    return Boolean(
+        item?.meta
+        || item?.eventSnapshot
+        || item?.event
+        || item?.startAtIso
+        || item?.startIso
+        || item?.startTime,
+    );
+}
+
+async function resolveCreatorCancellationSnapshot(candidate, bookingId, item) {
+    if (isCompleteCancelledBookingSnapshot(item)) return item;
+
+    try {
+        const refreshed = await bookingFlow.callFlow(
+            "bookings.fetchBooking",
+            { bookingId },
+            {
+                context: {
+                    stateEngine: bookingFlow,
+                    creatorId: resolveCreatorId(),
+                    apiBaseUrl: props.apiBaseUrl || undefined,
+                },
+            },
+        );
+        const fetched = refreshed?.ok ? refreshed?.data?.item || null : null;
+        if (isCompleteCancelledBookingSnapshot(fetched)) return fetched;
+    } catch {
+        // Fall through to a presentation-safe terminal snapshot.
+    }
+
+    const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
+        ? candidate.event.raw
+        : {};
+    return {
+        ...originalRaw,
+        ...(item && typeof item === "object" ? item : {}),
+        bookingId,
+        status: "cancelled_creator",
+        cancellation: {
+            ...(originalRaw?.cancellation || {}),
+            ...(item?.cancellation || {}),
+            actor: item?.cancellation?.actor || "creator",
+        },
+    };
+}
+
 async function confirmCancelBooking() {
-    const bookingId = cancelBookingCandidate.value?.bookingId;
+    const candidate = cancelBookingCandidate.value;
+    const bookingId = candidate?.bookingId;
     if (!bookingId || cancelBookingLoading.value) return;
     cancelBookingLoading.value = true;
     try {
@@ -2115,13 +2193,33 @@ async function confirmCancelBooking() {
             });
             return;
         }
-        showToast({
-            type: "success",
-            title: t("dashboard_booking_cancelled_title"),
-            message: t("dashboard_booking_cancelled_message"),
-        });
+        let updatedItem = result?.data?.item || null;
+        const retainDetails = candidate?.origin === "booking-details"
+            && candidate?.retainDetailsOnSuccess === true;
+        const openDetails = candidate?.origin !== "booking-details"
+            && candidate?.openDetailsOnSuccess === true;
+
+        if (retainDetails || openDetails) {
+            if (retainDetails && !isCancelledBookingSnapshot(updatedItem)) {
+                mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+            }
+            updatedItem = await resolveCreatorCancellationSnapshot(candidate, bookingId, updatedItem);
+        }
+
         cancelBookingPopupOpen.value = false;
         cancelBookingCandidate.value = null;
+
+        if (retainDetails) {
+            mainCalendarRef.value?.applyBookingCancellationResult?.(
+                mergeReviewedBookingEvent(candidate?.event || {}, updatedItem),
+            );
+            mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+        } else if (openDetails) {
+            pendingDirectCreatorCancellationDetails.value = {
+                booking: updatedItem,
+                event: mergeReviewedBookingEvent(candidate?.event || {}, updatedItem),
+            };
+        }
         await fetchCreatorBookedSlots(true);
     } finally {
         cancelBookingLoading.value = false;
@@ -2522,6 +2620,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         :processing="cancelBookingLoading"
         @confirm="confirmCancelBooking"
         @close="closeCancelBookingPopup"
+        @closed="handleCancelBookingPopupClosed"
     />
 
     <PopupHandler v-model="deleteEventPopupOpen" :config="confirmationPopupConfig">

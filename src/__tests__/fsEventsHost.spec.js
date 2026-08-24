@@ -38,11 +38,17 @@ describe("fs-events-host openFanBookingPopup", () => {
   });
 
   it("opens booking details in a right-side overlay and keeps booking data out of the iframe URL", () => {
+    const bookingSnapshot = {
+      bookingId: "booking_secret_123",
+      status: "cancelled_creator",
+      cancellation: { actor: "creator", refundedTokens: 25 },
+    };
     const popup = window.FSEventsEmbed.openBookingDetailsPopup({
       bookingId: "booking_secret_123",
       creatorId: 1407,
       userRole: "creator",
       jwtToken: "jwt_secret",
+      bookingSnapshot,
     });
     const postMessage = vi.spyOn(popup.iframe.contentWindow, "postMessage");
 
@@ -59,6 +65,7 @@ describe("fs-events-host openFanBookingPopup", () => {
         payload: expect.objectContaining({
           initialRoute: "booking-details",
           bookingId: "booking_secret_123",
+          bookingSnapshot,
           jwtToken: "jwt_secret",
           hostViewportWidth: window.innerWidth,
         }),

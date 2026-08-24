@@ -43,7 +43,7 @@ vi.mock("@/services/events/eventsApiUtils.js", () => ({
 }));
 
 const HEADER_MENU = "[data-test='chat-booking-request-menu']";
-const REVIEW_MENU = "[aria-label='More booking actions']";
+const REVIEW_MENU = "[data-test='chat-booking-request-review-menu']";
 
 async function mountBubble({ status, action, isCreator, startAtIso = "2026-05-01T10:00:00Z" }) {
   mocks.booking = {
@@ -127,18 +127,37 @@ describe("BookingRequestBubble options menu", () => {
     mocks.booking = null;
   });
 
-  it("gives the creator no overflow control at all while the request is pending", async () => {
+  it("gives the creator the review row's decline menu but not the cancel menu while pending", async () => {
     const wrapper = await mountBubble({ status: "pending", action: "pending", isCreator: true });
 
+    // The header menu holds Cancel Call, which a request nobody has accepted has
+    // nothing to cancel; the review row's overflow holds Decline Booking.
     expect(wrapper.find(HEADER_MENU).exists()).toBe(false);
-    expect(wrapper.find(REVIEW_MENU).exists()).toBe(false);
     expect(wrapper.text()).toContain("Accept");
-    expect(wrapper.text()).toContain("Adjust Request");
+    expect(wrapper.text()).toContain("Review booking");
+
+    await wrapper.get(REVIEW_MENU).trigger("click");
+    await wrapper.get("[data-test='chat-booking-request-decline']").trigger("click");
+    expect(wrapper.emitted("decline")).toHaveLength(1);
+  });
+
+  it("opens the booking details from the creator's review button", async () => {
+    const wrapper = await mountBubble({ status: "pending", action: "pending", isCreator: true });
+
+    // Its own event, not `view-details`: this entry point stands in for the
+    // conversation, while a View details link leaves the chat where it is.
+    // Adjusting a request is reached from the panel it opens, not from the bubble.
+    await wrapper.get("[data-test='chat-booking-request-review']").trigger("click");
+    expect(wrapper.emitted("review-booking")).toHaveLength(1);
+    expect(wrapper.emitted("view-details")).toBeUndefined();
+    expect(wrapper.emitted("adjust")).toBeUndefined();
   });
 
   it("gives the creator the cancel menu once the booking is confirmed", async () => {
     const wrapper = await mountBubble({ status: "confirmed", action: "pending", isCreator: true });
 
+    // Reviewing is over, so the review row and its decline menu are gone with it.
+    expect(wrapper.find(REVIEW_MENU).exists()).toBe(false);
     await wrapper.get(HEADER_MENU).trigger("click");
     expect(wrapper.text()).toContain("Cancel Call");
   });

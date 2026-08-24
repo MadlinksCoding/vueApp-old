@@ -168,11 +168,51 @@
               type="button"
               :disabled="disabled"
               class="flex-1 min-w-0 px-3 py-2 rounded border border-[#344054] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#1D2939] transition-colors hover:bg-gray-50 disabled:opacity-50"
-              @click.stop="!disabled && $emit('adjust')"
+              data-test="chat-booking-request-review"
+              @click.stop="!disabled && $emit('review-booking')"
             >
-              <img :src="EditIcon" class="w-3.5 h-3.5" alt="" />
-              Adjust Request
+              <img :src="FileSearchIcon" class="w-4 h-4" alt="" />
+              Review booking
             </button>
+
+            <div class="relative shrink-0" @click.stop>
+              <button
+                type="button"
+                :disabled="disabled"
+                class="h-full w-10 rounded bg-[#0C111D] inline-flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-50"
+                :aria-expanded="reviewMenuOpen"
+                aria-label="More booking actions"
+                data-test="chat-booking-request-review-menu"
+                @click.stop="toggleReviewMenu"
+              >
+                <svg width="16" height="4" viewBox="0 0 16 4" fill="none" aria-hidden="true">
+                  <circle cx="2" cy="2" r="1.5" fill="white" />
+                  <circle cx="8" cy="2" r="1.5" fill="white" />
+                  <circle cx="14" cy="2" r="1.5" fill="white" />
+                </svg>
+              </button>
+
+              <div
+                v-if="reviewMenuOpen"
+                class="absolute right-0 top-11 z-[1200] w-[13rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  :disabled="disabled"
+                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2] disabled:opacity-50"
+                  data-test="chat-booking-request-decline"
+                  @click.stop="handleDeclineBooking"
+                >
+                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                  </span>
+                  Decline Booking
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -377,7 +417,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
-import EditIcon        from '@/assets/images/icons/edit-05.webp'
+import FileSearchIcon  from '@/assets/images/icons/file-search-02.svg'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
 import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'
@@ -393,11 +433,13 @@ const props = defineProps({
   pinned:     { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule'])
+const emit = defineEmits(['view-details', 'review-booking', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule'])
 
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
 const menuOpen = ref(false)
+// The pending action row has its own overflow menu, separate from the header one.
+const reviewMenuOpen = ref(false)
 const remarksExpanded = ref(false)
 const remarksRef = ref(null)
 const isRemarksClamped = ref(false)
@@ -434,7 +476,9 @@ const booking = computed(() => {
   return bookingId ? chatStore.getBookingById(bookingId) : null
 })
 
-function toggleMenu() { menuOpen.value = !menuOpen.value }
+function toggleMenu() { menuOpen.value = !menuOpen.value; reviewMenuOpen.value = false }
+function toggleReviewMenu() { if (props.disabled) return; reviewMenuOpen.value = !reviewMenuOpen.value; menuOpen.value = false }
+function handleDeclineBooking() { if (props.disabled) return; reviewMenuOpen.value = false; emit('decline') }
 function handleCancelCall() { if (isPassCall.value) return; menuOpen.value = false; emit('cancel-booking', { source: 'menu' }) }
 
 function goToCalendar() {
@@ -451,7 +495,7 @@ function goToCalendar() {
   window.open('/dashboard/events', '_top')
 }
 
-const handleDocumentClick = () => { menuOpen.value = false }
+const handleDocumentClick = () => { menuOpen.value = false; reviewMenuOpen.value = false }
 onMounted(() => document.addEventListener('click', handleDocumentClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick))
 
