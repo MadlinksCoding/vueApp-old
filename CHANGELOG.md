@@ -20,6 +20,15 @@ Acting on a booking from chat left the user with nothing to show for it. The das
 
 ### Fixed
 
+#### `src/services/chat/flows/updateBookingRequestMessageFlow.js`
+- **Cancellations Were Rejected Before They Left The Browser** — The action whitelist held `pending`, `accepted`, `declined` and `counter_offer` but not `cancelled`, so every cancellation failed its own client-side validation with `UPDATE_BOOKING_REQUEST_INVALID_ACTION`. The booking was cancelled, but its chat message never was — and because the events surfaces bail out of the chat relay when that write fails, a cancellation from the booking-details embed reached chat with no message update and no activity log at all. `cancelled` is now an accepted action, which also means a cancellation from chat finally persists onto the message instead of only looking right locally.
+
+#### `src/composables/useBookingChatSync.js`
+- **A Failed Message Write Silenced The Whole Relay** — `syncBookingToChat` returned early when the message update failed, skipping the host relay entirely. The activity log and the booking refetch on the chat side do not depend on that write, so it now relays regardless, with `item: null` when there is no message to broadcast.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Debug Log Removed** — `syncBookingUpdate` printed its whole payload through `console.error` on every relayed booking action.
+
 #### `src/components/ui/chat/ChatWindow.vue`
 - **No Toast For Chat Actions** — The creator review toast was gated on `retainOpen && compactBookingDetailsSession && hostWidth < 768`, so it only ever fired from a mobile compact detail session; a creator accepting or declining from a bubble got nothing. It now runs on every successful decision. Fan-side cancel, accept-adjustment and decline-adjustment raise the dashboard decision toast through `notifyFanBookingDecision`.
 - **Stale Message Re-Broadcast** — `_doConfirmCounter`, `onDeclineAdjustment` and `onCallCancelled` fell back to `|| message` when the update API answered without the stored message, pushing the *pre-action* message back over the socket and into the local store. `bookingMessageWithAction()` now supplies the message with the new action applied instead, and `performBookingDecision` — which previously skipped the broadcast entirely in that case — uses the same fallback, so the other party is no longer left on the old bubble.
