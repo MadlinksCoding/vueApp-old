@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-24 — Decline Is Back On The Pending Review Row
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`, `src/components/ui/popup/BookingDetailsPopup.vue`
+- **Pending Review Overflow Restored** — The creator's pending row is Accept / Review booking (Adjust Detail in the detail slide-in) followed by the overflow menu holding **Decline Booking**, matching the design. Removing it left declining unreachable from every live surface; the machinery behind it — `reject-booking`, the reject confirmation popup, and the host handlers in `MainCalendar`, `DashboardEventsFeature` and the embeds — was kept intact then, so this is UI only. Both review rows in the detail slide-in, compact and full, get theirs back.
+- **The Header Options Menu Is Untouched** — Creators still only see the header 3-dot menu once the booking is confirmed. That menu holds Cancel Call, which a request nobody has accepted has nothing to cancel; declining a pending request is what the review row's overflow is for.
+
+### Fixed
+
+#### `src/components/ui/popup/BookingDetailsPopup.vue`
+- **The Rejection Confirmation Opened Under The Chat Window** — `usePopupStack.bringToFront` treats a z-index above 5000 as literal and excludes those panels when stacking a normal popup, so the reject confirmation opened on its own default of 2000 — below the 10001 chat lifts the detail panel to. It is now given the panel's z-index plus one, matching what `ChatWindow` already does for the decision popup it owns. Hosts that leave the panel at the default get no override, since normal stacking already lands the confirmation on top.
+
+#### `src/__tests__/`
+- **Coverage Restored** — The decline-from-notice-menu, review-menu dismissal and rejection-username cases came back in `eventDetailsFan.spec.js`, along with the compact decline path in `bookingDetailsPopupCompact.spec.js`. `bookingMenuVisibility.spec.js` now asserts the pending bubble carries the review row's decline menu and still withholds the header cancel menu.
+
 ## 2026-08-24 — Cancellations Are Attributed To Whoever Cancelled
 
 ### Added

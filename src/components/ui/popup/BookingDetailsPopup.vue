@@ -151,6 +151,38 @@
               <span data-svg-wrapper class="relative"><img :src="EditGrayIcon" alt="" class="h-5 w-5" /></span>
               {{ t('booking_details_adjust_detail') }}
             </button>
+            <div class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
+              <button
+                type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-[#344054] bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                :aria-label="t('fan_event_details_booking_actions')"
+                :aria-expanded="reviewMenuOpen"
+                :disabled="actionLoading"
+                data-test="booking-details-compact-review-menu"
+                @click.stop="toggleReviewMenu"
+              >
+                <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
+              </button>
+              <div
+                v-if="reviewMenuOpen"
+                class="absolute bottom-11 right-0 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
+                data-test="booking-details-compact-review-menu-dropdown"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  class="inline-flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]"
+                  :disabled="actionLoading"
+                  data-test="booking-details-compact-decline"
+                  @click.stop="openRejectConfirmation"
+                >
+                  <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg>
+                  </span>
+                  {{ t('calendar_event_decline_booking') }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -279,6 +311,19 @@
                 <span data-svg-wrapper class="relative"><img :src="EditGrayIcon" alt="" class="h-5 w-5" /></span>
                 {{ t('calendar_event_adjust_request') }}
               </button>
+              <div class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
+                <button type="button" class="h-10 w-10 rounded-sm border border-[#98A2B3] bg-white inline-flex items-center justify-center hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="reviewMenuOpen" :disabled="actionLoading" data-test="booking-details-review-menu" @click.stop="toggleReviewMenu">
+                  <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
+                </button>
+                <div v-if="reviewMenuOpen" class="absolute right-0 top-11 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]" data-test="booking-details-review-menu-dropdown" @click.stop>
+                  <button type="button" class="w-full px-3 py-2.5 inline-flex items-center gap-2 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]" :disabled="actionLoading" data-test="booking-details-decline" @click.stop="openRejectConfirmation">
+                    <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg>
+                    </span>
+                    {{ t('calendar_event_decline_booking') }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -521,6 +566,7 @@
 
   <BookingAdjustmentDecisionPopup
     v-model="rejectDecisionOpen"
+    :popup-config="decisionPopupConfig"
     mode="reject"
     actor-role="creator"
     :event-title="rejectEventTitle"
@@ -556,6 +602,7 @@ import CheckBlackIcon from '@/assets/images/icons/check-black.svg';
 import ArrowBrownIcon from '@/assets/images/icons/arrow-right-brown.svg';
 import TokenIcon from '@/assets/images/icons/token-sm-calender.svg';
 import EditGrayIcon from '@/assets/images/icons/edit-02-gray.svg';
+import DotsGrayIcon from '@/assets/images/icons/dots-vertical.svg';
 import SendWhiteIcon from '@/assets/images/icons/send-01-white.svg';
 import CompactPendingIcon from '@/assets/images/icons/booking-compact-pending.svg';
 import CompactCloseIcon from '@/assets/images/icons/booking-compact-close.svg';
@@ -613,6 +660,15 @@ const popupConfig = computed(() => ({
   ...(isResponsiveDialog.value ? responsiveDialogPopupConfig.value : defaultPopupConfig),
   ...props.popupConfig,
 }));
+// A z-index above 5000 is taken literally by the popup stack instead of being
+// stacked over, so a decision popup left on its own default opens *under* the panel
+// that launched it wherever the host lifted that panel — chat puts it at 10001 to
+// clear the conversation. Nothing to override when the host left the panel at the
+// default: normal stacking already lands the decision popup on top.
+const decisionPopupConfig = computed(() => {
+  const panelZ = Number(popupConfig.value?.forceZIndex ?? popupConfig.value?.zIndex);
+  return Number.isFinite(panelZ) ? { zIndex: panelZ + 1 } : null;
+});
 const isSidePanel = computed(() => props.presentation === 'side-panel');
 // PopupHandler forces `md:!w-auto` on its panel, which beats the inline width from the
 // config — so the surface has to carry the desktop width itself or long content
