@@ -53,6 +53,7 @@ import { toCalendarEvent } from '@/services/bookings/utils/bookingCalendarEvent.
 import { isPendingCounterOffer } from '@/services/bookings/utils/bookingNegotiationUtils.js'
 import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js'
 import { broadcastMessageUpdate, sendActivityLog } from '@/services/chat/utils/chatBroadcast.js'
+import { resolveActivityLogTemplate } from '@/services/chat/utils/activityLogTemplates.js'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import galleryIcon from '@/assets/images/icons/image-03.svg'
@@ -1162,78 +1163,20 @@ function variantForMessage(msg) {
   if (msg.content_type === 'product_recommendation') return 'system'
   return null
 }
-const ActivityLogTexts = {
-  'accepted': {
-    'creator': "You have just confirmed @{audience}'s booking",
-    'audience': "@{creator} has just confirmed your booking",
-  },
-  'counter_offer_accepted': {
-    'audience': "You have just confirmed @{creator}'s adjustment",
-    'creator': "@{audience} has just confirmed your adjustment",
-  },
-  'counter_offer_declined': {
-    'audience': "You have just declined @{creator}'s adjustment",
-    'creator': "@{audience} has just declined your adjustment",
-  },
-  'declined': {
-    'creator': "You have just declined @{audience}'s booking",
-    'audience': "@{creator} has just declined your booking",
-  },
-  'counter_offer': {
-    'creator': "You have adjust the cost of the booking",
-    'audience': "@{creator} has adjust the cost of the booking",
-  },
-  'more_time_request_accepted': {
-    'audience': "You have accepted @{creator}'s more time request",
-    'creator': "@{audience} has accepted your more time request",
-  },
-  'more_time_request_rejected': {
-    'audience': "You have rejected @{creator}'s more time request",
-    'creator': "@{audience} has rejected your more time request",
-  },
-  'reschedule_request_accepted': {
-    'audience': "You have accepted @{creator}'s reschedule request",
-    'creator': "@{audience} has accepted your reschedule request",
-  },
-  'reschedule_request_rejected': {
-    'audience': "You have rejected @{creator}'s reschedule request",
-    'creator': "@{audience} has rejected your reschedule request",
-  },
-  'more_time_request_sent': {
-    'creator': "You have requested more time",
-    'audience': "@{creator} has requested more time",
-  },
-  'reschedule_request_sent': {
-    'creator': "You have requested a reschedule",
-    'audience': "@{creator} has requested a reschedule",
-  },
-  'call_cancelled': {
-    'creator': "You have cancelled the call",
-    'audience': "@{creator} has cancelled the call",
-  },
-  'send_live_call_request': {
-    'creator': "@{audience} has just sent you a live call request.",
-    'audience': "You have just sent a live call request to @{creator}.",
-  },
-};
-
 function resolveActivityLogText(message) {
   const rawText   = message.content?.text || message.text || ''
   const meta      = message.content?.meta  || message.meta || {}
   const senderId  = String(message.sender_id || message.senderId || '')
 
   // ── Step 1: template resolution for booking activity logs ────────────────
-  let workingText = rawText
-  const role     = isCreatorAccount.value ? 'creator' : 'audience'
-  if (meta.is_booking_request) {
-    const decisionMap = { approve: 'accepted', reject: 'declined', accepted: 'accepted', declined: 'declined', counter_offer: 'counter_offer', counter_offer_declined: 'counter_offer_declined', counter_offer_accepted: 'counter_offer_accepted', more_time_request_accepted: 'more_time_request_accepted', more_time_request_rejected: 'more_time_request_rejected', reschedule_request_accepted: 'reschedule_request_accepted', reschedule_request_rejected: 'reschedule_request_rejected', more_time_request_sent: 'more_time_request_sent', reschedule_request_sent: 'reschedule_request_sent', call_cancelled: 'call_cancelled' }
-    let action   = decisionMap[meta.decision] || null;
-    const template = action ? ActivityLogTexts[action]?.[role] : null
-    if (template) workingText = template
-  } else {
-    const templateText = ActivityLogTexts[rawText] ? ActivityLogTexts[rawText][role] : null
-    if (templateText) workingText = templateText
-  }
+  const template = resolveActivityLogTemplate({
+    decision: meta.decision,
+    rawText,
+    isBookingRequest: Boolean(meta.is_booking_request),
+    isCreator: isCreatorAccount.value,
+    isOwnLog: Boolean(senderId) && senderId === String(currentUserId),
+  })
+  let workingText = template || rawText
 
   // ── Step 2: generic token replacer ───────────────────────────────────────
   // Resolve creator/audience token placeholders
@@ -1248,10 +1191,15 @@ function resolveActivityLogText(message) {
 
   const nameForOther = getName(otherParticipantId);
   const nameFormat   = nameForOther ? `@${nameForOther}` : `@${otherParticipantId}`
+  // `@{actor}` names whoever sent the log, which in a group chat is not necessarily
+  // the participant `@{creator}` / `@{audience}` resolve to.
+  const senderName   = getName(senderId)
+  const actorFormat  = senderName ? `@${senderName}` : nameFormat
 
   workingText = workingText
     .replace('@{creator}',  nameFormat)
     .replace('@{audience}', nameFormat)
+    .replace('@{actor}', actorFormat)
     .replace('@{current_user}', `@${getName(currentUserId)}`);
 
   // Replace any remaining @{digits},@digits tokens with @username or @userId

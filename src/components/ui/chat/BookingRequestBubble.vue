@@ -168,10 +168,11 @@
               type="button"
               :disabled="disabled"
               class="flex-1 min-w-0 px-3 py-2 rounded border border-[#344054] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#1D2939] transition-colors hover:bg-gray-50 disabled:opacity-50"
-              @click.stop="!disabled && $emit('adjust')"
+              data-test="chat-booking-request-review"
+              @click.stop="!disabled && $emit('view-details')"
             >
-              <img :src="EditIcon" class="w-3.5 h-3.5" alt="" />
-              Adjust Request
+              <img :src="FileSearchIcon" class="w-4 h-4" alt="" />
+              Review booking
             </button>
           </div>
         </div>
@@ -377,7 +378,7 @@ import { useChatStore } from '@/stores/useChatStore'
 import ArrowRightIcon  from '@/assets/images/icons/arrow-up-right.webp'
 import ExpandIcon      from '@/assets/images/icons/arrow-up-right-02.webp'
 import HourglassIcon   from '@/assets/images/icons/hourglass-03.webp'
-import EditIcon        from '@/assets/images/icons/edit-05.webp'
+import FileSearchIcon  from '@/assets/images/icons/file-search-02.svg'
 import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
 import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'

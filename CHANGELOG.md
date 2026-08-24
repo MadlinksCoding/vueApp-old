@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-24 — Cancellations Are Attributed To Whoever Cancelled
+
+### Added
+
+#### `src/services/chat/utils/activityLogTemplates.js`
+- **Activity-Log Copy, Extracted** — `ACTIVITY_LOG_TEXTS` and the `meta.decision` alias map moved out of `ChatWindow` behind `resolveActivityLogTemplate({ decision, rawText, isBookingRequest, isCreator, isOwnLog })`, which returns the template or null so the stored text can stand. `ChatWindow` keeps the name-token replacement and gained an `@{actor}` token naming whoever sent the log — in a group chat that is not necessarily the participant `@{creator}` / `@{audience}` resolve to.
+
+#### `src/__tests__/activityLogTemplates.spec.js`
+- **New Coverage** — Actor-keyed vs role-keyed resolution, the decision aliases the two surfaces write for one outcome, the non-booking path, the null cases, and a check that every entry carries both of the keys its shape implies.
+
+### Changed
+
+#### `src/components/ui/chat/BookingRequestBubble.vue`
+- **Review Booking Replaces Adjust Request** — The creator's second pending-row button now reads **Review booking**, carries the same `file-search-02` icon the calendar's review button uses, and opens the booking detail panel (`view-details`) instead of the adjust popup. Adjusting is still reached from that panel, whose own adjust button `ChatWindow` already routes to `openAdjustPopup`.
+
+### Fixed
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **A Fan's Cancellation Was Credited To The Creator** — Every activity-log template was chosen by the reader's role, which works only while one side is the sole possible actor. Both sides can cancel a call, so a fan cancelling their own booking read back as "@creator has cancelled the call" — for the fan and for the creator alike. `call_cancelled` is now keyed `self` / `other` and resolved from the log's sender, which `resolveActivityLogText` computed but never used. Every other decision keeps its role keys, since only one side can take those.
+
 ## 2026-08-24 — Chat Booking Actions Report Back
 
 Acting on a booking from chat left the user with nothing to show for it. The dashboard toast the booking-details embed raises never appeared, and the bubble kept its pre-action state — a fan who had just cancelled still read "waiting for creator response", and so did the other side, until something happened to refetch the booking. Tapping View Details refetched it, which is why the status only corrected itself after opening the panel.
