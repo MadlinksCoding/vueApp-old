@@ -138,38 +138,6 @@
               <span data-svg-wrapper class="relative"><img :src="EditGrayIcon" alt="" class="h-5 w-5" /></span>
               {{ t('booking_details_adjust_detail') }}
             </button>
-            <div class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
-              <button
-                type="button"
-                class="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-[#344054] bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                :aria-label="t('fan_event_details_booking_actions')"
-                :aria-expanded="reviewMenuOpen"
-                :disabled="actionLoading"
-                data-test="booking-details-compact-review-menu"
-                @click.stop="toggleReviewMenu"
-              >
-                <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
-              </button>
-              <div
-                v-if="reviewMenuOpen"
-                class="absolute bottom-11 right-0 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
-                data-test="booking-details-compact-review-menu-dropdown"
-                @click.stop
-              >
-                <button
-                  type="button"
-                  class="inline-flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]"
-                  :disabled="actionLoading"
-                  data-test="booking-details-compact-decline"
-                  @click.stop="openRejectConfirmation"
-                >
-                  <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg>
-                  </span>
-                  {{ t('calendar_event_decline_booking') }}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </template>
@@ -224,19 +192,7 @@
                 <img :src="DotsWhiteIcon" alt="" class="cursor-pointer" />
               </button>
               <div v-if="menuOpen" class="absolute right-0 top-9 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden" data-test="event-details-fan-menu-dropdown" @click.stop>
-                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]" data-test="booking-details-ask-more-time" @click.stop="askMoreTime">
-                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                  </span>
-                  {{ t('booking_details_ask_more_time') }}
-                </button>
-                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]" data-test="booking-details-ask-reschedule" @click.stop="askToReschedule">
-                  <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                  </span>
-                  {{ t('booking_details_ask_reschedule') }}
-                </button>
-                <button type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]" data-test="event-details-fan-cancel" @click.stop="requestCancel">
+                <button type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]" data-test="event-details-fan-cancel" @click.stop="requestCancel">
                   <span data-svg-wrapper class="inline-flex w-5 h-5 items-center justify-center">
                     <span
                       aria-hidden="true"
@@ -310,19 +266,6 @@
                 <span data-svg-wrapper class="relative"><img :src="EditGrayIcon" alt="" class="h-5 w-5" /></span>
                 {{ t('calendar_event_adjust_request') }}
               </button>
-              <div class="relative ml-auto shrink-0" data-booking-review-menu @click.stop>
-                <button type="button" class="h-10 w-10 rounded-sm border border-[#98A2B3] bg-white inline-flex items-center justify-center hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60" :aria-label="t('fan_event_details_booking_actions')" :aria-expanded="reviewMenuOpen" :disabled="actionLoading" data-test="booking-details-review-menu" @click.stop="toggleReviewMenu">
-                  <img :src="DotsGrayIcon" alt="" class="h-5 w-5" />
-                </button>
-                <div v-if="reviewMenuOpen" class="absolute right-0 top-11 z-[1200] w-[11rem] rounded-md border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)]" data-test="booking-details-review-menu-dropdown" @click.stop>
-                  <button type="button" class="w-full px-3 py-2.5 inline-flex items-center gap-2 text-left text-sm font-medium text-[#FF4405] hover:bg-[#FFF4ED]" :disabled="actionLoading" data-test="booking-details-decline" @click.stop="openRejectConfirmation">
-                    <span data-svg-wrapper class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#FF4405" stroke-width="1.5" stroke-linecap="round" /></svg>
-                    </span>
-                    {{ t('calendar_event_decline_booking') }}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -589,6 +532,7 @@ import { getPendingCounterOffer } from '@/services/bookings/utils/bookingNegotia
 import { buildBookingChatMessage } from '@/services/bookings/utils/bookingChatMessage.js';
 import { fetchUserProfileData } from '@/services/users/userProfileApi.js';
 import FlowHandler from '@/services/flow-system/FlowHandler.js';
+import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js';
 import defaultCoverImage from '@/assets/images/icons/background.webp';
 import tokenIcon from '@/assets/images/icons/token-02.webp';
 import priceArrowIcon from '@/assets/images/icons/arrow-right-orange.svg';
@@ -599,7 +543,6 @@ import CheckBlackIcon from '@/assets/images/icons/check-black.svg';
 import ArrowBrownIcon from '@/assets/images/icons/arrow-right-brown.svg';
 import TokenIcon from '@/assets/images/icons/token-sm-calender.svg';
 import EditGrayIcon from '@/assets/images/icons/edit-02-gray.svg';
-import DotsGrayIcon from '@/assets/images/icons/dots-vertical.svg';
 import SendWhiteIcon from '@/assets/images/icons/send-01-white.svg';
 import CompactPendingIcon from '@/assets/images/icons/booking-compact-pending.svg';
 import CompactCloseIcon from '@/assets/images/icons/booking-compact-close.svg';
@@ -958,7 +901,12 @@ const canOpenChat = computed(() => Boolean(chatPayload.value.chatId || chatPaylo
 const joinState = computed(() => getCalendarEventJoinState(props.event, { viewerRole: viewerRole.value, now: now.value }));
 const canJoinCall = computed(() => joinState.value.canJoin && Boolean(joinState.value.joinUrl));
 const isEnded = computed(() => joinState.value.effectiveEndDate && now.value.getTime() >= new Date(joinState.value.effectiveEndDate).getTime());
-const showMenu = computed(() => Boolean(bookingId.value) && !isEnded.value && !isCancelledStatus.value && !pendingStartElapsed.value && !pendingPriceAdjustment.value);
+const showMenu = computed(() => Boolean(bookingId.value) && shouldShowBookingOptionsMenu({
+  viewerRole: viewerRole.value,
+  status: normalizedStatus.value,
+  isPassed: Boolean(isEnded.value) || pendingStartElapsed.value,
+  hasPendingPriceAdjustment: pendingPriceAdjustment.value,
+}));
 const approvalState = computed(() => getCalendarEventApprovalState(props.event, { now: now.value }));
 const isWaitingForResponse = computed(() => viewerRole.value === 'creator' && Boolean(raw.value?.meta?.currentCounterOffer));
 const canReviewBooking = computed(() => viewerRole.value === 'creator' && props.canReviewPending && approvalState.value.canReview && !isWaitingForResponse.value);

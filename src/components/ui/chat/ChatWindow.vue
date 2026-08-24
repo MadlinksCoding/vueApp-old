@@ -2863,7 +2863,7 @@ function _handleUnpinInterval() {
     const isCancelledOrDeclined = (msg.content_type === 'booking_request' || msg.content_type === 'requestJoinCallNotification') &&
                                   (isCancelledOrDeclinedAction || isCancelledOrDeclinedApi);
 
-    let isEmptyBooking = !booking;
+    let isEmptyBooking = false;
     const isTimeExpired = (unpinAt && new Date(unpinAt).getTime() < Date.now()) || isEmptyBooking
 
     if (isCancelledOrDeclined || isTimeExpired) {

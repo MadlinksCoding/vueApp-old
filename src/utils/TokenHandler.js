@@ -109,6 +109,24 @@ class TokenHandler {
                     freeTokens,
                     systemTokens,
                 });
+
+                // if inside an iframe, also dispatch the event to the parent window
+                if (window.parent && window.parent !== window) {
+                    window.parent.document.dispatchEvent(new CustomEvent('token:balance-retrieved', {
+                        detail: {
+                            userId: userId,
+                            receiverId,
+                            balance: {
+                                total: totalTokens,
+                                paid: paidTokens,
+                                free: freeTokens,
+                                system: systemTokens,
+                            },
+                            timestamp: Date.now(),
+                        }
+                    }));
+                }
+
                 return totalTokens;
             }
 
