@@ -47,7 +47,7 @@
           <img v-else :src="GreenCheckIcon" alt="" aria-hidden="true" />
         </div>
 
-        <div v-if="!hasPendingPriceAdjustment" class="relative" data-sticky-card-menu>
+        <div v-if="showOptionsMenu" class="relative" data-sticky-card-menu>
           <button
             type="button"
             class="flex h-5 w-5 shrink-0 items-center justify-center"
@@ -67,21 +67,7 @@
           >
             <button
               type="button"
-              disabled
-              class="w-full cursor-not-allowed px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] opacity-30"
-            >
-              {{ t('dashboard_ask_for_more_time') }}
-            </button>
-            <button
-              type="button"
-              disabled
-              class="w-full cursor-not-allowed border-t border-[#EAECF0] px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] opacity-30"
-            >
-              {{ t('dashboard_ask_to_reschedule') }}
-            </button>
-            <button
-              type="button"
-              class="w-full border-t border-[#EAECF0] px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
+              class="w-full px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
               data-test="mobile-join-card-cancel"
               @click.stop="$emit('menu-action', 'cancel_call')"
             >
@@ -198,6 +184,7 @@ import FileSearchIcon from '@/assets/images/icons/file-search-02.svg';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
 import { buildWpApiUrl } from '@/utils/wpApiBaseUrl.js';
 import { isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
+import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js';
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -220,10 +207,6 @@ const rawEvent = computed(() => (
     : {}
 ));
 const hasPendingPriceAdjustment = computed(() => isPendingPriceAdjustment(props.event));
-
-watch(hasPendingPriceAdjustment, (isPending) => {
-  if (isPending && props.menuOpen) emit('close-menu');
-});
 const bookingStatus = computed(() => String(
   sourceEvent.value?.status || rawEvent.value.status || props.event?.status || '',
 ).trim().toLowerCase());
@@ -232,6 +215,15 @@ const isPending = computed(() => (
   || bookingStatus.value === 'pending_hold'
   || (!bookingStatus.value && props.event?.showReply === true)
 ));
+const showOptionsMenu = computed(() => shouldShowBookingOptionsMenu({
+  viewerRole: viewerRole.value,
+  status: bookingStatus.value || (isPending.value ? 'pending' : 'confirmed'),
+  hasPendingPriceAdjustment: hasPendingPriceAdjustment.value,
+}));
+
+watch(showOptionsMenu, (visible) => {
+  if (!visible && props.menuOpen) emit('close-menu');
+});
 const accentColor = computed(() => props.event?.accentColor || '#5549FF');
 const showsGroup = computed(() => props.event?.isGroup === true && isCreatorViewer.value);
 const avatars = computed(() => (

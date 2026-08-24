@@ -332,48 +332,40 @@ describe('BookingDetailsPopup counter offers', () => {
     wrapper.unmount();
   });
 
-  it('offers the creator time-change actions only when opted in and the booking is confirmed', async () => {
-    const confirmed = booking({ status: 'confirmed' });
-    const withoutOptIn = mountPopup(confirmed, { userRole: 'creator' });
-    await withoutOptIn.get('[data-test="event-details-fan-menu"]').trigger('click');
-    expect(withoutOptIn.find('[data-test="booking-details-ask-more-time"]').exists()).toBe(false);
-    expect(withoutOptIn.find('[data-test="event-details-fan-cancel"]').exists()).toBe(true);
-    withoutOptIn.unmount();
+  it('gives the creator the options menu only once the booking is confirmed', async () => {
+    const pending = mountPopup(booking(), { userRole: 'creator' });
+    expect(pending.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    pending.unmount();
 
-    const wrapper = mountPopup(confirmed, { userRole: 'creator', canRequestTimeChange: true });
+    const wrapper = mountPopup(booking({ status: 'confirmed' }), { userRole: 'creator' });
     await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
 
-    await wrapper.get('[data-test="booking-details-ask-more-time"]').trigger('click');
-    expect(wrapper.emitted('ask-more-time')?.[0]?.[0]?.bookingId).toBe('booking_1');
-
-    await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
-    await wrapper.get('[data-test="booking-details-ask-reschedule"]').trigger('click');
-    expect(wrapper.emitted('ask-to-reschedule')?.[0]?.[0]?.bookingId).toBe('booking_1');
+    const dropdown = wrapper.get('[data-test="event-details-fan-menu-dropdown"]');
+    expect(dropdown.findAll('button')).toHaveLength(1);
+    expect(wrapper.find('[data-test="event-details-fan-cancel"]').exists()).toBe(true);
 
     wrapper.unmount();
   });
 
-  it('hides the creator time-change actions for a pending booking', async () => {
-    const wrapper = mountPopup(booking(), { userRole: 'creator', canRequestTimeChange: true });
+  it('keeps the fan options menu while the request is still awaiting review', async () => {
+    const wrapper = mountPopup(booking(), { userRole: 'fan' });
     await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
 
-    expect(wrapper.find('[data-test="booking-details-ask-more-time"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="booking-details-ask-reschedule"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-cancel"]').exists()).toBe(true);
 
     wrapper.unmount();
   });
 
-  it('lets the chat message action override the booking status', async () => {
-    const wrapper = mountPopup(booking({ status: 'pending' }), {
-      userRole: 'creator',
-      canRequestTimeChange: true,
-      messageAction: 'accepted',
-    });
-    await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
+  it('hides the options menu on a cancelled booking for both sides', () => {
+    const cancelled = booking({ status: 'cancelled_user' });
 
-    expect(wrapper.find('[data-test="booking-details-ask-more-time"]').exists()).toBe(true);
+    const creator = mountPopup(cancelled, { userRole: 'creator' });
+    expect(creator.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    creator.unmount();
 
-    wrapper.unmount();
+    const fan = mountPopup(cancelled, { userRole: 'fan' });
+    expect(fan.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);
+    fan.unmount();
   });
 
   it.each([
