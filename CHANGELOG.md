@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-24 — Booking Details Take Over From The Conversation
+
+### Changed
+
+#### `src/components/ui/chat/ChatWindow.vue`, `src/components/ui/chat/ChatFloatingWidget.vue`
+- **The Chat Panel Steps Aside For Booking Details** — The creator's **Review booking** button left the conversation and the chat list sitting alongside the panel it opened. That button now raises its own `review-booking` event, which opens the panel as a takeover: `ChatWindow` reports it through `booking-details-visibility` and the widget hides its window stack, list and trigger while the panel is up. Every **View details** link keeps opening the same panel over a chat that stays where it is, as does the panel reopened after a decline taken from a bubble. The decision prompt and the adjust popup never take over either, which is what the fan's accept-from-chat flow expects. The window stays mounted throughout — it owns the panel and every popup the panel opens, so unmounting it on open would destroy the panel being opened — and is torn down on the panel's `closed` event, after its transition, since there is nothing to return to. Hiding is tied to that window still being open, so the widget reappears by itself if the host calls `closeAll` or the open-chat limit trims the window.
+- **The Details Panel Survives A Top-Up** — A fan accepting a price adjustment with too few tokens had the panel closed before the top-up was even requested, and nothing reopened it on success. Only the prompt closes now; the panel stays up through the payment and closes once the confirmation lands. The WordPress tip checkout renders at z-index 999991, well above the chat container's 9998, so it is reachable over the full-viewport chat embed.
+
+#### `src/__tests__/chatBookingDetailsPanel.spec.js`
+- **New Coverage** — That only the details panel raises the visibility signal, that the close is reported after the transition rather than during it, that the window is kept mounted and then closed without the list springing open in its place, the self-healing hide, and the three top-up outcomes.
+
 ## 2026-08-24 — Decline Is Back On The Pending Review Row
 
 ### Changed

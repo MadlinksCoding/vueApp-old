@@ -144,10 +144,12 @@ describe("BookingRequestBubble options menu", () => {
   it("opens the booking details from the creator's review button", async () => {
     const wrapper = await mountBubble({ status: "pending", action: "pending", isCreator: true });
 
-    // Adjusting a request is reached from the details panel this opens, not from
-    // the bubble.
+    // Its own event, not `view-details`: this entry point stands in for the
+    // conversation, while a View details link leaves the chat where it is.
+    // Adjusting a request is reached from the panel it opens, not from the bubble.
     await wrapper.get("[data-test='chat-booking-request-review']").trigger("click");
-    expect(wrapper.emitted("view-details")).toHaveLength(1);
+    expect(wrapper.emitted("review-booking")).toHaveLength(1);
+    expect(wrapper.emitted("view-details")).toBeUndefined();
     expect(wrapper.emitted("adjust")).toBeUndefined();
   });
 

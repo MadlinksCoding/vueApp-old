@@ -169,7 +169,7 @@
               :disabled="disabled"
               class="flex-1 min-w-0 px-3 py-2 rounded border border-[#344054] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#1D2939] transition-colors hover:bg-gray-50 disabled:opacity-50"
               data-test="chat-booking-request-review"
-              @click.stop="!disabled && $emit('view-details')"
+              @click.stop="!disabled && $emit('review-booking')"
             >
               <img :src="FileSearchIcon" class="w-4 h-4" alt="" />
               Review booking
@@ -433,7 +433,7 @@ const props = defineProps({
   pinned:     { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['view-details', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule'])
+const emit = defineEmits(['view-details', 'review-booking', 'accept', 'decline', 'adjust', 'confirm-counter', 'cancel-booking', 'accept-counter', 'reject-counter', 'ask-more-time', 'ask-to-reschedule'])
 
 const content = computed(() => props.message?.content || {})
 const loading = ref(false)
