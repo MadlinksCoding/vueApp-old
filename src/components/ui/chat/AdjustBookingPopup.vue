@@ -86,13 +86,20 @@
               class="flex h-11 w-full items-center justify-between rounded-none border-b border-gray-300 bg-transparent px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]"
               data-testid="adjustment-token-stepper"
             >
-              <output
+              <!-- <output
                 class="text-base font-semibold text-gray-700"
                 aria-live="polite"
                 data-testid="adjustment-token-value"
               >
                 {{ form.adjustmentTokens }} Tokens
-              </output>
+              </output> -->
+
+              <div class="text-base font-semibold text-gray-700 flex flex-1" aria-live="polite" data-testid="adjustment-token-value">
+                <div class="flex flex-1 gap-2">
+                  <input v-model="form.adjustmentTokens" type="text" class="w-full">
+                </div>
+                <span class="text-base font-semibold text-gray-700 text-right"> Tokens </span>
+              </div>
 
               <div class="hidden gap-2 items-center justify-end">
                 <button
