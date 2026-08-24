@@ -224,18 +224,18 @@
                 <img :src="DotsWhiteIcon" alt="" class="cursor-pointer" />
               </button>
               <div v-if="menuOpen" class="absolute right-0 top-9 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden" data-test="event-details-fan-menu-dropdown" @click.stop>
-                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]" data-test="booking-details-ask-more-time" @click.stop="askMoreTime">
+                <!-- <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] hover:bg-[#F9FAFB]" data-test="booking-details-ask-more-time" @click.stop="askMoreTime">
                   <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 7V12L15 15M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                   </span>
                   {{ t('booking_details_ask_more_time') }}
-                </button>
-                <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]" data-test="booking-details-ask-reschedule" @click.stop="askToReschedule">
+                </button> -->
+                <!-- <button v-if="canAskTimeChange" type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#344054] border-t border-[#EAECF0] hover:bg-[#F9FAFB]" data-test="booking-details-ask-reschedule" @click.stop="askToReschedule">
                   <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 2V6M8 2V6M3 10H21M7 22H17C18.6569 22 20 20.6569 20 19V7C20 5.34315 18.6569 4 17 4H7C5.34315 4 4 5.34315 4 7V19C4 20.6569 5.34315 22 7 22Z" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                   </span>
                   {{ t('booking_details_ask_reschedule') }}
-                </button>
+                </button> -->
                 <button type="button" class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] border-t border-[#EAECF0] hover:bg-[#FEF3F2]" data-test="event-details-fan-cancel" @click.stop="requestCancel">
                   <span data-svg-wrapper class="inline-flex w-5 h-5 items-center justify-center">
                     <span
