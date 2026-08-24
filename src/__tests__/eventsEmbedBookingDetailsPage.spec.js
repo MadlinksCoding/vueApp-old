@@ -657,6 +657,44 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(wrapper.get("[data-test='events-embed-booking-details-page']").classes()).not.toContain("bg-gray-50");
   });
 
+  it("keeps creator details mounted and applies the authoritative ordinary-cancellation result", async () => {
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("cancel-booking", {
+      bookingId: "booking_123",
+      origin: "booking-details",
+      retainDetailsOnSuccess: true,
+    });
+    await flushPromises();
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_123",
+          eventId: "event_123",
+          status: "cancelled_creator",
+          cancellation: { actor: "creator", refundedTokens: 100 },
+        },
+      },
+    });
+
+    wrapper.getComponent(AdjustmentDecisionStub).vm.$emit("confirm", { mode: "cancel" });
+    await flushPromises();
+
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      status: "cancelled_creator",
+      cancellation: expect.objectContaining({ actor: "creator", refundedTokens: 100 }),
+    }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      action: "cancel",
+      retainOpen: true,
+      item: expect.objectContaining({ status: "cancelled_creator" }),
+    }));
+    expect(mocks.requestClose).not.toHaveBeenCalled();
+  });
+
   it("keeps the fan drawer constrained while the host processes decision popup closure", async () => {
     mocks.bootstrap.userRole = "fan";
     mocks.bootstrap.creatorId = null;

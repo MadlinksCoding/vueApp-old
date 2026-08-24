@@ -371,6 +371,10 @@ describe("BookingFlowStep3", () => {
     });
 
     await flushAsync();
+    const policyCheckbox = wrapper.find("[data-testid='booking-attendance-policy-agreement'] input[type='checkbox']");
+    if (policyCheckbox.exists()) {
+      await policyCheckbox.setValue(true);
+    }
     const buttons = wrapper.findAll("button");
     await buttons[buttons.length - 1].trigger("click");
     await flushAsync();
@@ -632,14 +636,17 @@ describe("BookingFlowStep3", () => {
     expect(avatarCard.element.style.backgroundColor).toBe("rgb(67, 97, 238)");
   });
 
-  it("translates the policy and hidden available-balance row with dynamic amounts", async () => {
+  it("translates the attendance policy and hidden available-balance row with dynamic amounts", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 1900 } });
     const engine = createEngine();
     const translator = createBookingTranslator({
       locale: "zh",
       translations: {
         fan_booking_available_balance_after_booking: "预订后可用余额",
-        fan_booking_policy_agreement: "完成预订即表示您同意预订政策。",
+        fan_booking_attendance_policy_acknowledgment: "我理解并同意以下政策：",
+        fan_booking_attendance_policy_grace_period: "预定开始后有五分钟宽限期。",
+        fan_booking_attendance_policy_creator_no_show: "创作者未到场时全额退款。",
+        fan_booking_attendance_policy_fan_no_show: "粉丝未到场时视为弃权。",
       },
     });
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
@@ -654,12 +661,134 @@ describe("BookingFlowStep3", () => {
     });
     await flushAsync();
 
-    expect(wrapper.get("[data-testid='booking-policy-agreement']").text())
-      .toBe("完成预订即表示您同意预订政策。");
+    const policy = wrapper.get("[data-testid='booking-attendance-policy-agreement']");
+    expect(policy.text()).toContain("我理解并同意以下政策：");
+    expect(policy.text()).toContain("预定开始后有五分钟宽限期。");
+    expect(policy.text()).toContain("创作者未到场时全额退款。");
+    expect(policy.text()).toContain("粉丝未到场时视为弃权。");
+    expect(policy.findAll("ol > li")).toHaveLength(3);
     const availableBalance = wrapper.get("[data-testid='booking-balance-available-after-booking']");
     expect(availableBalance.text()).toContain("预订后可用余额");
     expect(availableBalance.text()).toContain("900");
     expect(availableBalance.text()).not.toContain("29,100");
+  });
+
+  it("opens the attendance popup for an unchecked private booking and resumes once after confirmation", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    engine.callFlow.mockResolvedValue({ ok: true, data: { bookingId: "booking_policy_confirmed" } });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const actionButton = wrapper.findAll("button").at(-1);
+    await actionButton.trigger("click");
+    await flushAsync();
+
+    const popup = wrapper.getComponent({ name: "ReadAndUnderstandPopup" });
+    expect(popup.props("modelValue")).toBe(true);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
+
+    popup.vm.$emit("confirm");
+    popup.vm.$emit("confirm");
+    await flushAsync();
+
+    expect(wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").element.checked).toBe(true);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+  });
+
+  it("closes an unchecked attendance popup without continuing", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await flushAsync();
+    const popup = wrapper.getComponent({ name: "ReadAndUnderstandPopup" });
+    popup.vm.$emit("update:modelValue", false);
+    await flushAsync();
+
+    expect(popup.props("modelValue")).toBe(false);
+    expect(wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").element.checked).toBe(false);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
+  });
+
+  it("bypasses the popup when the private attendance policy is checked", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    engine.callFlow.mockResolvedValue({ ok: true, data: { bookingId: "booking_policy_checked" } });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await flushAsync();
+
+    expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+  });
+
+  it("confirms the attendance policy before entering private top-up", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+    const engine = createEngine();
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        engine.state.fanBooking.temporaryHold.temporaryHoldId = "temphold_policy_topup";
+        engine.state.fanBooking.temporaryHold.status = "active";
+        engine.state.fanBooking.temporaryHold.expiresAt = new Date(Date.now() + 600000).toISOString();
+        return { ok: true, data: { temporaryHoldId: "temphold_policy_topup" } };
+      }
+      return { ok: true, data: {} };
+    });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await flushAsync();
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createTemporaryHold")).toHaveLength(0);
+
+    wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).vm.$emit("confirm");
+    await flushAsync();
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createTemporaryHold")).toHaveLength(1);
+    expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("keeps the attendance policy accepted when a private booking fails and is retried", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 1900 } });
+    const engine = createEngine();
+    engine.callFlow.mockResolvedValue({ ok: false, error: { code: "internal_error" } });
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    const policyCheckbox = wrapper.get("[data-testid='booking-attendance-policy-agreement'] input");
+    await policyCheckbox.setValue(true);
+    const actionButton = wrapper.findAll("button").at(-1);
+    await actionButton.trigger("click");
+    await flushAsync();
+    await actionButton.trigger("click");
+    await flushAsync();
+
+    expect(policyCheckbox.element.checked).toBe(true);
+    expect(wrapper.getComponent({ name: "ReadAndUnderstandPopup" }).props("modelValue")).toBe(false);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(2);
+  });
+
+  it("does not show the private attendance acknowledgment for group events", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 3000 } });
+    const engine = createEngine();
+    configureEventGoalGroup(engine);
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+
+    expect(wrapper.find("[data-testid='booking-attendance-policy-agreement']").exists()).toBe(false);
   });
 
   it("accepts invite-only event links for authenticated fans before booking", async () => {
@@ -921,6 +1050,7 @@ describe("BookingFlowStep3", () => {
     });
 
     await flushAsync();
+    await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
     const buttons = wrapper.findAll("button");
     await buttons[buttons.length - 1].trigger("click");
     await flushAsync();

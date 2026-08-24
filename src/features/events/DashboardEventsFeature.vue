@@ -67,6 +67,7 @@
         @delete-schedule-event="openDeleteEventPopup"
         @view-schedule-card="openScheduleCardPreview"
         @booking-details-visibility="emit('booking-details-visibility', $event)"
+        @booking-details-closed="handleBookingDetailsClosed"
       >
         <template #event="{ event, style, onClick, view }">
           <div
@@ -825,6 +826,7 @@ import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
+import { showFanBookingCancellationToast } from "@/utils/fanBookingCancellationToast.js";
 import {
   requestBookingDetailsTopup,
   installBookingDetailsTopupListener,
@@ -881,6 +883,7 @@ const initialWeekDateRevealed = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const pendingFanCancellationToast = ref(null);
 // Fan response to a creator's price adjustment. Confirmed against the wallet
 // balance, and may need a top-up before the booking can be re-approved.
 const priceAdjustmentBooking = ref(null);
@@ -3323,12 +3326,25 @@ const onCancelBookingFromCalendar = (payload) => {
     });
     return;
   }
-  cancelBookingCandidate.value = { bookingId, event };
+  cancelBookingCandidate.value = {
+    bookingId,
+    event,
+    origin: payload?.origin || "",
+    retainDetailsOnSuccess: payload?.retainDetailsOnSuccess === true,
+  };
   cancelBookingPopupOpen.value = true;
 };
 
+const handleBookingDetailsClosed = () => {
+  const pending = pendingFanCancellationToast.value;
+  if (!pending) return;
+  pendingFanCancellationToast.value = null;
+  showFanBookingCancellationToast({ booking: pending.item, event: pending.event, t, locale });
+};
+
 const confirmCancelBooking = async () => {
-  const bookingId = cancelBookingCandidate.value?.bookingId;
+  const candidate = cancelBookingCandidate.value;
+  const bookingId = candidate?.bookingId;
   if (!bookingId || cancelBookingLoading.value) return;
 
   const cancellationRequest = isFan.value
@@ -3371,17 +3387,80 @@ const confirmCancelBooking = async () => {
       return;
     }
 
-    showToast({
-      type: "success",
-      title: t("dashboard_booking_cancelled_title"),
-      message: t("dashboard_booking_cancelled_message"),
-    });
+    let updatedItem = result?.data?.item || null;
     await syncBookingToChat(
-      result?.data?.item || cancelBookingCandidate.value?.event?.raw,
+      updatedItem || candidate?.event?.raw,
       "cancelled",
       "cancel",
     );
+
+    const fromDetails = candidate?.origin === "booking-details";
+    const retainCreatorDetails = isCreator.value
+      && fromDetails
+      && candidate?.retainDetailsOnSuccess === true;
+
     closeCancelBookingPopup();
+
+    if (retainCreatorDetails) {
+      if (!updatedItem) {
+        mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+        try {
+          const refreshed = await dashboardEventsEngine.callFlow(
+            "bookings.fetchBooking",
+            { bookingId },
+            {
+              context: {
+                stateEngine: dashboardEventsEngine,
+                creatorId: normalizedCreatorId.value,
+                apiBaseUrl: props.apiBaseUrl || undefined,
+              },
+            },
+          );
+          updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
+        } catch {
+          updatedItem = null;
+        }
+      }
+
+      if (!updatedItem) {
+        const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
+          ? candidate.event.raw
+          : {};
+        updatedItem = {
+          ...originalRaw,
+          bookingId,
+          status: "cancelled_creator",
+          cancellation: {
+            ...(originalRaw?.cancellation || {}),
+            actor: "creator",
+          },
+        };
+      }
+
+      mainCalendarRef.value?.applyBookingCancellationResult?.(
+        mergeApprovedBookingEvent(candidate?.event || {}, updatedItem),
+      );
+      mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+      await fetchDashboardContext(true);
+      return;
+    }
+
+    if (isFan.value) {
+      const toastPayload = { item: updatedItem, event: candidate?.event || null };
+      if (fromDetails) {
+        pendingFanCancellationToast.value = toastPayload;
+        mainCalendarRef.value?.closeEventDetails?.();
+      } else {
+        showFanBookingCancellationToast({ booking: toastPayload.item, event: toastPayload.event, t, locale });
+      }
+    } else {
+      showToast({
+        type: "success",
+        title: t("dashboard_booking_cancelled_title"),
+        message: t("dashboard_booking_cancelled_message"),
+      });
+    }
+
     await fetchDashboardContext(true);
   } finally {
     cancelBookingLoading.value = false;

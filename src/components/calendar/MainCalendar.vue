@@ -1043,7 +1043,11 @@
       />
     </PopupHandler>
 
-    <PopupHandler v-model="eventDetailsPopupOpen" :config="eventDetailsPopupConfig">
+    <PopupHandler
+      v-model="eventDetailsPopupOpen"
+      :config="eventDetailsPopupConfig"
+      @closed="handleEventDetailsClosed"
+    >
       <BookingDetailsPopup
         v-if="eventDetailsPopupOpen"
         :event="selectedEvent"
@@ -1051,6 +1055,7 @@
         :user-role="props.userRole"
         :can-review-pending="props.canReviewPending"
         :action-loading="props.bookingActionLoading"
+        :refreshing="eventDetailsRefreshing"
         :comparison-time="props.joinComparisonTime"
         :layout-variant="useCompactEventDetails ? 'compact' : 'hero'"
         presentation="side-panel"
@@ -1216,7 +1221,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'booking-details-closed', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -1267,6 +1272,7 @@ const eventsRequestsPopupOpen = ref(false);
 const eventDetailsPopupOpen = ref(false);
 const eventDetailsCompactSession = ref(false);
 const selectedBookingSnapshot = ref(null);
+const eventDetailsRefreshing = ref(false);
 const adjustBookingState = ref(null);
 const openStickyCardMenuKey = ref(null);
 const selectedEvent = ref({});
@@ -1274,7 +1280,10 @@ const isMobileCalendarOpen = ref(false);
 
 watch(eventDetailsPopupOpen, (open) => {
   emit('booking-details-visibility', Boolean(open));
-  if (!open) selectedBookingSnapshot.value = null;
+  if (!open) {
+    selectedBookingSnapshot.value = null;
+    eventDetailsRefreshing.value = false;
+  }
 });
 
 onBeforeUnmount(() => {
@@ -2410,6 +2419,7 @@ const dispatchEventClick = (event) => {
   // document.dispatchEvent(new CustomEvent('calendar:event-click', { detail: { event } }));
   selectedEvent.value = event;
   selectedBookingSnapshot.value = null;
+  eventDetailsRefreshing.value = false;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
@@ -2418,6 +2428,7 @@ const openEventDetails = (event) => {
   if (!event || typeof event !== 'object') return;
   selectedEvent.value = event;
   selectedBookingSnapshot.value = null;
+  eventDetailsRefreshing.value = false;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
 };
@@ -2431,8 +2442,20 @@ const applyBookingReviewResult = (event) => {
   return true;
 };
 
+const applyBookingCancellationResult = (event) => applyBookingReviewResult(event);
+
+const setBookingDetailsRefreshing = (refreshing) => {
+  if (!eventDetailsPopupOpen.value) return false;
+  eventDetailsRefreshing.value = Boolean(refreshing);
+  return true;
+};
+
 const closeEventDetails = () => {
   eventDetailsPopupOpen.value = false;
+};
+
+const handleEventDetailsClosed = () => {
+  emit('booking-details-closed');
 };
 
 const handleOpenChat = (payload) => {
@@ -2598,8 +2621,13 @@ const handleDetailsRejectBooking = (payload) => {
 };
 
 const handleCancelBooking = (payload) => {
-  eventDetailsPopupOpen.value = false;
-  emit('cancel-booking', payload);
+  const creator = String(props.userRole || '').trim().toLowerCase() === 'creator';
+  emit('cancel-booking', {
+    ...payload,
+    event: payload?.event || selectedEvent.value,
+    origin: 'booking-details',
+    retainDetailsOnSuccess: creator,
+  });
 };
 const getEventMinutesForDay = (ev, day = null) => {
   const dayStart = day ? SOD(day) : SOD(ev.start);
@@ -3453,6 +3481,8 @@ const scrollToTime = async (time, { behavior = 'smooth', viewportOffset = 0.4 } 
 defineExpose({
   openEventDetails,
   applyBookingReviewResult,
+  applyBookingCancellationResult,
+  setBookingDetailsRefreshing,
   closeEventDetails,
   resetScrollToTop,
   scrollToCurrentTime,

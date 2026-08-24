@@ -7,6 +7,19 @@
       data-test="event-details-fan"
       :style="{ '--event-color': eventColor }"
     >
+      <div
+        v-if="refreshing"
+        class="absolute inset-0 z-[70] flex items-center justify-center bg-white/85 backdrop-blur-[1px]"
+        data-test="booking-details-refreshing"
+      >
+        <Spinner
+          size="md"
+          thickness="2.5"
+          color="text-[#5549FF]"
+          data-test="booking-details-refreshing-spinner"
+        />
+      </div>
+
       <template v-if="isCompact">
         <div class="absolute inset-y-0 left-0 z-10 w-1" :style="{ backgroundColor: eventColor }" data-test="booking-details-compact-color-rail" />
 
@@ -555,6 +568,7 @@ const props = defineProps({
   layoutVariant: { type: String, default: 'hero' },
   compactReviewMode: { type: String, default: 'full' },
   actionLoading: { type: Boolean, default: false },
+  refreshing: { type: Boolean, default: false },
   userRole: { type: String, default: 'fan' },
   canReviewPending: { type: Boolean, default: false },
   comparisonTime: { type: [Date, String, Number], default: null },
@@ -987,7 +1001,16 @@ function confirmRejectDecision(payload = {}) {
   rejectDecisionOpen.value = false;
   rejectBooking();
 }
-function requestCancel() { menuOpen.value = false; emit('cancel-booking', { bookingId: bookingId.value, eventId: raw.value?.eventId, event: props.event }); }
+function requestCancel() {
+  menuOpen.value = false;
+  emit('cancel-booking', {
+    bookingId: bookingId.value,
+    eventId: raw.value?.eventId,
+    event: props.event,
+    origin: 'booking-details',
+    retainDetailsOnSuccess: viewerRole.value === 'creator',
+  });
+}
 // Shared payload for every chat-linked negotiation action, so hosts never have to
 // re-derive the message or the proposal from their own state.
 function counterPayload(extra = {}) {

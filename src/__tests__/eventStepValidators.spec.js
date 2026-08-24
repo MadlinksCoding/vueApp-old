@@ -95,6 +95,21 @@ describe("event step validators", () => {
     expect(result.errors.some((error) => error.field === "duration")).toBe(true);
   });
 
+  it.each([
+    { duration: 9, valid: false },
+    { duration: 10, valid: true },
+  ])("validates the ten-minute private session minimum for $duration minutes", ({ duration, valid }) => {
+    const result = step1Validator({
+      eventType: "1on1-call",
+      eventTitle: "Private call",
+      duration,
+      basePrice: 100,
+      weeklyAvailability,
+    });
+
+    expect(result.errors.some((error) => error.field === "duration")).toBe(!valid);
+  });
+
   it("rejects invalid event-goal pricing values", () => {
     const result = step1Validator({
       eventType: "group-event",
@@ -500,7 +515,7 @@ describe("event step validators", () => {
         repeatRule: "doesNotRepeat",
         oneTimeAvailability: [{
           date: "2026-06-10",
-          slots: [{ startTime: "23:55", endTime: "23:59" }],
+          slots: [{ startTime: "23:50", endTime: "23:59" }],
         }],
       },
     },
@@ -509,7 +524,7 @@ describe("event step validators", () => {
       state: {
         repeatRule: "monthly",
         dateFrom: "2026-06-10",
-        monthlyAvailability: [{ startTime: "23:55", endTime: "23:59" }],
+        monthlyAvailability: [{ startTime: "23:50", endTime: "23:59" }],
       },
     },
     {
@@ -520,7 +535,7 @@ describe("event step validators", () => {
           key: "sun",
           name: "Sun",
           unavailable: false,
-          slots: [{ startTime: "23:55", endTime: "23:59" }],
+          slots: [{ startTime: "23:50", endTime: "23:59" }],
         }],
       },
     },
@@ -553,7 +568,7 @@ describe("event step validators", () => {
     expect(result.errors.some((error) => error.field === "oneTimeAvailability")).toBe(false);
   });
 
-  it("reports group schedule slots shorter than five minutes as duration errors, not missing slots", () => {
+  it("reports group schedule slots shorter than ten minutes as duration errors, not missing slots", () => {
     const result = step1Validator({
       eventType: "group-event",
       eventTitle: "Group call",

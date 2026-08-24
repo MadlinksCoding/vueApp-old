@@ -204,6 +204,29 @@ describe('BookingDetailsPopup compact variation', () => {
     wrapper.unmount();
   });
 
+  it('shows the retained-details refresh spinner without replacing the compact surface', () => {
+    const wrapper = mountCompact(booking({ status: 'confirmed' }), { refreshing: true });
+
+    expect(wrapper.find('[data-test="event-details-fan"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-refreshing"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-refreshing-spinner"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('marks creator menu cancellation as a retained booking-details action', async () => {
+    const wrapper = mountCompact(booking({ status: 'confirmed' }), { layoutVariant: 'hero' });
+
+    await wrapper.get('[data-test="event-details-fan-menu"]').trigger('click');
+    await wrapper.get('[data-test="event-details-fan-cancel"]').trigger('click');
+
+    expect(wrapper.emitted('cancel-booking')?.[0]?.[0]).toEqual(expect.objectContaining({
+      bookingId: 'booking_compact_1',
+      origin: 'booking-details',
+      retainDetailsOnSuccess: true,
+    }));
+    wrapper.unmount();
+  });
+
   it('forwards the responsive dialog closed event after its exit animation', () => {
     const wrapper = mountCompact(booking(), { presentation: 'responsive-dialog', modelValue: true });
 

@@ -7,6 +7,7 @@ import InputComponentDashbaord from "../../../dev/input/InputComponentDashboard.
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ButtonComponent from "@/components/dev/button/ButtonComponent.vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
+import ConfirmAndPublishSchedule from "@/components/ui/popup/ConfirmAndPublishSchedule.vue";
 import TwitterRepostSettings from "@/components/ui/popup/TwitterRepostSettings.vue";
 import BookingSectionsWrapper from "../BookingForm/HelperComponents/BookingSectionsWrapper.vue";
 import BaseInput from "@/components/dev/input/BaseInput.vue";
@@ -34,10 +35,13 @@ import {
 import { resolveCreatorIdFromContext } from "@/utils/contextIds.js";
 import OptionalLabel from "./HelperComponents/OptionalLabel.vue";
 import {
+  collectChangedValidationFields,
+  createValidationFormSnapshot,
   createValidationErrorMap,
   createValidationTooltipItems,
   getFirstValidationField,
   getValidationMessages,
+  isValidationFieldTouched,
   normalizeValidationField,
   scrollToFirstValidationWarning,
   scrollToValidationField,
@@ -189,7 +193,9 @@ const emit = defineEmits([
 ]);
 const route = useRoute();
 const isCreating = ref(false);
+const attendancePolicyConfirmationOpen = ref(false);
 const DEFAULT_VUE_CREATOR_ID = 1407; // We can change creator id here(432 for maia).
+const ATTENDANCE_POLICY_SUPPRESSION_KEY_PREFIX = "booking.callAttendancePolicy.dismissed";
 const isGroupBooking = computed(() => (
   props.bookingType === "group"
   || props.engine?.state?.eventType === "group-event"
@@ -462,12 +468,25 @@ function resetXRepostFields() {
 }
 
 let validationUiReady = false;
+const touchedValidationFields = ref(new Set());
+let previousValidationFormSnapshot = createValidationFormSnapshot(formData.value);
 
 watch(formData, (newVal) => {
+  const nextSnapshot = createValidationFormSnapshot(newVal);
+  const changedFields = collectChangedValidationFields(
+    previousValidationFormSnapshot,
+    nextSnapshot,
+  );
+  previousValidationFormSnapshot = nextSnapshot;
+
   Object.keys(newVal).forEach(key => {
     props.engine.setState(key, newVal[key], { silent: true });
   });
   if (validationUiReady) {
+    touchedValidationFields.value = new Set([
+      ...touchedValidationFields.value,
+      ...changedFields,
+    ]);
     void validateCreateEventForm();
   }
 }, { deep: true, immediate: true });
@@ -529,6 +548,7 @@ onMounted(() => {
   });
   document.addEventListener("click", handleBlockedUserClickOutside);
   void validateCreateEventForm();
+  validationUiReady = true;
 });
 
 onUnmounted(() => {
@@ -795,10 +815,16 @@ function formatTooltipValidationError(error) {
   return getValidationFieldLabel(error?.field) || formatInlineValidationError(error);
 }
 
-const validationErrorMap = computed(() => (
+const visibleValidationErrors = computed(() => (
   showInlineValidation.value
-    ? createValidationErrorMap(step2ValidationErrors.value, formatInlineValidationError)
-    : {}
+    ? step2ValidationErrors.value
+    : step2ValidationErrors.value.filter((error) => (
+      isValidationFieldTouched(error?.field, touchedValidationFields.value)
+    ))
+));
+
+const validationErrorMap = computed(() => (
+  createValidationErrorMap(visibleValidationErrors.value, formatInlineValidationError)
 ));
 
 const submitButtonSoftDisabled = computed(() => (
@@ -895,8 +921,6 @@ async function goToStep2ValidationField(item = {}) {
 
   await revealStep2ValidationErrors(step2ValidationErrors.value, { field });
 }
-
-validationUiReady = true;
 
 const goToBack = async () => {
   // Back navigation should not be blocked by current-step validation.
@@ -1180,6 +1204,33 @@ function resolveCreatorId() {
     engine: props.engine,
     fallback: props.embedded ? 1 : DEFAULT_VUE_CREATOR_ID,
   });
+}
+
+function attendancePolicySuppressionKey(creatorId = resolveCreatorId()) {
+  return `${ATTENDANCE_POLICY_SUPPRESSION_KEY_PREFIX}.${String(creatorId)}`;
+}
+
+function isAttendancePolicyConfirmationSuppressed(creatorId = resolveCreatorId()) {
+  if (typeof window === "undefined") return false;
+  try {
+    const storage = window.localStorage;
+    if (!storage) return false;
+    return storage.getItem(attendancePolicySuppressionKey(creatorId)) === "true";
+  } catch (_) {
+    return false;
+  }
+}
+
+function suppressAttendancePolicyConfirmation(creatorId = resolveCreatorId()) {
+  if (typeof window === "undefined") return false;
+  try {
+    const storage = window.localStorage;
+    if (!storage) return false;
+    storage.setItem(attendancePolicySuppressionKey(creatorId), "true");
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function loadSubscriptionTierOptions() {
@@ -1736,6 +1787,19 @@ async function confirmEditChanges() {
   return persistEvent();
 }
 
+async function confirmAttendancePolicy({ dontShowAgain = false } = {}) {
+  if (isCreating.value) return false;
+  if (dontShowAgain) {
+    suppressAttendancePolicyConfirmation();
+  }
+
+  const published = await persistEvent();
+  if (published) {
+    attendancePolicyConfirmationOpen.value = false;
+  }
+  return published;
+}
+
 function closeEditConfirmation() {
   if (isCreating.value) return;
   editConfirmationPopupOpen.value = false;
@@ -1758,7 +1822,12 @@ const createEvent = async () => {
     return false;
   }
 
-  return persistEvent();
+  if (isAttendancePolicyConfirmationSuppressed()) {
+    return persistEvent();
+  }
+
+  attendancePolicyConfirmationOpen.value = true;
+  return false;
 };
 </script>
 
@@ -2495,6 +2564,11 @@ const createEvent = async () => {
       </div>
     </div>
   </PopupHandler>
+  <ConfirmAndPublishSchedule
+    v-model="attendancePolicyConfirmationOpen"
+    :confirming="isCreating"
+    @confirm="confirmAttendancePolicy"
+  />
   <PopupHandler v-if="isXRepostAllowed" v-model="xRepostPopupOpen" :config="xRepostPopupConfig">
     <TwitterRepostSettings
       v-model="xRepostPopupCheckboxModel"
