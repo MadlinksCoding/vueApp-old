@@ -2424,10 +2424,12 @@ const dispatchEventClick = (event) => {
   eventDetailsPopupOpen.value = true;
 };
 
-const openEventDetails = (event) => {
+const openEventDetails = (event, bookingSnapshot = null) => {
   if (!event || typeof event !== 'object') return;
   selectedEvent.value = event;
-  selectedBookingSnapshot.value = null;
+  selectedBookingSnapshot.value = bookingSnapshot && typeof bookingSnapshot === 'object'
+    ? bookingSnapshot
+    : null;
   eventDetailsRefreshing.value = false;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;

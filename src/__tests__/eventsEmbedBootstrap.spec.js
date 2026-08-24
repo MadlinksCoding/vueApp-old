@@ -17,6 +17,7 @@ describe("events embed bootstrap", () => {
       userRole: "creator",
       apiBaseUrl: "https://api.example.com",
       bookingId: "",
+      bookingSnapshot: { bookingId: "booking_snapshot", status: "cancelled_creator" },
       tokenHandlerApiUrl: "https://tokens.example.com/dev/",
       initialRoute: "create-group",
       creatorData: {
@@ -30,6 +31,7 @@ describe("events embed bootstrap", () => {
     expect(state.creatorId).toBe(123);
     expect(state.userRole).toBe("creator");
     expect(state.apiBaseUrl).toBe("https://api.example.com");
+    expect(state.bookingSnapshot).toEqual({ bookingId: "booking_snapshot", status: "cancelled_creator" });
     expect(state.tokenHandlerApiUrl).toBe("https://tokens.example.com/dev");
     expect(state.initialRoute).toBe("create-group");
     expect(state.creatorData).toEqual({
@@ -86,6 +88,7 @@ describe("events embed bootstrap", () => {
       initialRoute: "create-private",
       initialAction: "",
       bookingId: "",
+      bookingSnapshot: null,
       hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",
@@ -117,6 +120,7 @@ describe("events embed bootstrap", () => {
       initialRoute: "events",
       initialAction: "",
       bookingId: "",
+      bookingSnapshot: null,
       hostViewportWidth: window.innerWidth,
       translations: {},
       locale: "en",

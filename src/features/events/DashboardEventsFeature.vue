@@ -591,6 +591,7 @@
       :processing="cancelBookingLoading"
       @confirm="confirmCancelBooking"
       @close="closeCancelBookingPopup"
+      @closed="handleCancelBookingPopupClosed"
     />
     <PopupHandler v-else v-model="cancelBookingPopupOpen" :config="cancelBookingPopupConfig">
       <div class="w-[30.9375rem] border border-[#EAECF0] bg-white p-4 shadow-xl">
@@ -883,6 +884,7 @@ const initialWeekDateRevealed = ref(false);
 const cancelBookingPopupOpen = ref(false);
 const cancelBookingLoading = ref(false);
 const cancelBookingCandidate = ref(null);
+const pendingDirectCreatorCancellationDetails = ref(null);
 const pendingFanCancellationToast = ref(null);
 // Fan response to a creator's price adjustment. Confirmed against the wallet
 // balance, and may need a top-up before the booking can be re-approved.
@@ -2979,8 +2981,16 @@ const cancelBookingCandidateTime = computed(() => {
 });
 
 const closeCancelBookingPopup = () => {
+  pendingDirectCreatorCancellationDetails.value = null;
   cancelBookingPopupOpen.value = false;
   cancelBookingCandidate.value = null;
+};
+
+const handleCancelBookingPopupClosed = () => {
+  const pending = pendingDirectCreatorCancellationDetails.value;
+  if (!pending) return;
+  pendingDirectCreatorCancellationDetails.value = null;
+  mainCalendarRef.value?.openEventDetails?.(pending.event, pending.booking);
 };
 
 const allEvents = computed(() => {
@@ -3300,7 +3310,11 @@ const handleWidgetMenuAction = (payload) => {
       });
       return;
     }
-    cancelBookingCandidate.value = { bookingId, event };
+    cancelBookingCandidate.value = {
+      bookingId,
+      event,
+      openDetailsOnSuccess: isCreator.value,
+    };
     cancelBookingPopupOpen.value = true;
     return;
   }
@@ -3331,6 +3345,7 @@ const onCancelBookingFromCalendar = (payload) => {
     event,
     origin: payload?.origin || "",
     retainDetailsOnSuccess: payload?.retainDetailsOnSuccess === true,
+    openDetailsOnSuccess: isCreator.value && payload?.origin !== "booking-details",
   };
   cancelBookingPopupOpen.value = true;
 };
@@ -3340,6 +3355,60 @@ const handleBookingDetailsClosed = () => {
   if (!pending) return;
   pendingFanCancellationToast.value = null;
   showFanBookingCancellationToast({ booking: pending.item, event: pending.event, t, locale });
+};
+
+const isCancelledBookingSnapshot = (item) => {
+  const status = String(item?.status || item?.bookingStatus || "").trim().toLowerCase();
+  return Boolean(item && status.includes("cancel"));
+};
+
+const isCompleteCancelledBookingSnapshot = (item) => {
+  if (!isCancelledBookingSnapshot(item)) return false;
+  return Boolean(
+    item?.meta
+    || item?.eventSnapshot
+    || item?.event
+    || item?.startAtIso
+    || item?.startIso
+    || item?.startTime,
+  );
+};
+
+const resolveCreatorCancellationSnapshot = async (candidate, bookingId, item) => {
+  if (isCompleteCancelledBookingSnapshot(item)) return item;
+
+  try {
+    const refreshed = await dashboardEventsEngine.callFlow(
+      "bookings.fetchBooking",
+      { bookingId },
+      {
+        context: {
+          stateEngine: dashboardEventsEngine,
+          creatorId: normalizedCreatorId.value,
+          apiBaseUrl: props.apiBaseUrl || undefined,
+        },
+      },
+    );
+    const fetched = refreshed?.ok ? refreshed?.data?.item || null : null;
+    if (isCompleteCancelledBookingSnapshot(fetched)) return fetched;
+  } catch {
+    // Fall through to a presentation-safe terminal snapshot.
+  }
+
+  const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
+    ? candidate.event.raw
+    : {};
+  return {
+    ...originalRaw,
+    ...(item && typeof item === "object" ? item : {}),
+    bookingId,
+    status: "cancelled_creator",
+    cancellation: {
+      ...(originalRaw?.cancellation || {}),
+      ...(item?.cancellation || {}),
+      actor: item?.cancellation?.actor || "creator",
+    },
+  };
 };
 
 const confirmCancelBooking = async () => {
@@ -3398,49 +3467,34 @@ const confirmCancelBooking = async () => {
     const retainCreatorDetails = isCreator.value
       && fromDetails
       && candidate?.retainDetailsOnSuccess === true;
+    const openCreatorDetails = isCreator.value
+      && !fromDetails
+      && candidate?.openDetailsOnSuccess === true;
 
-    closeCancelBookingPopup();
+    if (retainCreatorDetails || openCreatorDetails) {
+      if (retainCreatorDetails && !isCancelledBookingSnapshot(updatedItem)) {
+        mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
+      }
+      updatedItem = await resolveCreatorCancellationSnapshot(candidate, bookingId, updatedItem);
+    }
+
+    cancelBookingPopupOpen.value = false;
+    cancelBookingCandidate.value = null;
 
     if (retainCreatorDetails) {
-      if (!updatedItem) {
-        mainCalendarRef.value?.setBookingDetailsRefreshing?.(true);
-        try {
-          const refreshed = await dashboardEventsEngine.callFlow(
-            "bookings.fetchBooking",
-            { bookingId },
-            {
-              context: {
-                stateEngine: dashboardEventsEngine,
-                creatorId: normalizedCreatorId.value,
-                apiBaseUrl: props.apiBaseUrl || undefined,
-              },
-            },
-          );
-          updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
-        } catch {
-          updatedItem = null;
-        }
-      }
-
-      if (!updatedItem) {
-        const originalRaw = candidate?.event?.raw && typeof candidate.event.raw === "object"
-          ? candidate.event.raw
-          : {};
-        updatedItem = {
-          ...originalRaw,
-          bookingId,
-          status: "cancelled_creator",
-          cancellation: {
-            ...(originalRaw?.cancellation || {}),
-            actor: "creator",
-          },
-        };
-      }
-
       mainCalendarRef.value?.applyBookingCancellationResult?.(
         mergeApprovedBookingEvent(candidate?.event || {}, updatedItem),
       );
       mainCalendarRef.value?.setBookingDetailsRefreshing?.(false);
+      await fetchDashboardContext(true);
+      return;
+    }
+
+    if (openCreatorDetails) {
+      pendingDirectCreatorCancellationDetails.value = {
+        booking: updatedItem,
+        event: mergeApprovedBookingEvent(candidate?.event || {}, updatedItem),
+      };
       await fetchDashboardContext(true);
       return;
     }
@@ -3453,12 +3507,6 @@ const confirmCancelBooking = async () => {
       } else {
         showFanBookingCancellationToast({ booking: toastPayload.item, event: toastPayload.event, t, locale });
       }
-    } else {
-      showToast({
-        type: "success",
-        title: t("dashboard_booking_cancelled_title"),
-        message: t("dashboard_booking_cancelled_message"),
-      });
     }
 
     await fetchDashboardContext(true);
