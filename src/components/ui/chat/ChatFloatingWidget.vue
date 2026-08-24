@@ -522,7 +522,6 @@ async function openGroupChat({
  * to exist, not be open.
  */
 async function syncBookingUpdate({ chatId, bookingId, item, recipientIds = [], activityLog } = {}) {
-  console.error("syncBookingUpdate called with:", { chatId, bookingId, item, recipientIds, activityLog })
   if (!chatId) return
 
   if (bookingId) {

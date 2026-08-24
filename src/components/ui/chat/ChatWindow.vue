@@ -43,6 +43,7 @@ import { fetchBannedWords, filterBannedWords } from '@/utils/bannedWordsFilter.j
 import { addParticipantsInChunks } from '@/services/chat/chatParticipantUtils'
 import { showToast } from '@/utils/toastBus.js'
 import { showCreatorBookingReviewToast } from '@/utils/creatorBookingReviewToast.js'
+import { showBookingDecisionToast } from '@/utils/bookingDecisionToast.js'
 import { postToParent } from '@/utils/postToParent'
 import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
@@ -114,7 +115,7 @@ const singleChatTargetMember = computed(() => {
 })
 
 const chatStore = useChatStore()
-const { t } = useBookingTranslations()
+const { t, locale } = useBookingTranslations()
 const currentUserId = props.currentUserId ? String(props.currentUserId) : resolveUserId()
 const isCheckingBlock = ref(false)
 const localIsBlocked = ref(false)
@@ -608,6 +609,50 @@ function broadcastBookingUpdate(item) {
   })
 }
 
+// `chat.updateBookingRequestMessage` can answer without the stored message. Falling
+// back to the untouched message would re-broadcast the state we just moved away
+// from, leaving both sides on the old bubble until something refetches the booking.
+function bookingMessageWithAction(message, action) {
+  if (!message) return null
+  return { ...message, content: { ...(message.content || {}), action } }
+}
+
+// The bubble reads its status from the cached booking, so an action that answers
+// without the updated record has to be followed by a refetch — otherwise the card
+// keeps its pre-action state until something else happens to reload it.
+async function refreshCachedBooking(bookingId, item) {
+  if (!bookingId) return item || null
+  if (item) {
+    chatStore.setBooking(bookingId, item)
+    return item
+  }
+  const res = await FlowHandler.run('bookings.fetchBooking', { bookingId })
+  const fetched = res?.ok ? (res.data?.item || null) : null
+  if (fetched) chatStore.setBooking(bookingId, fetched)
+  return fetched
+}
+
+// The booking-details embed gets the dashboard toast from its host bridge; chat has
+// none, so it raises the same toast itself. Creator-side accept/decline keeps its
+// own copy in showCreatorBookingReviewToast.
+function notifyFanBookingDecision(decision, bookingItem, message) {
+  if (isCreatorAccount.value) return
+  const participants = chatStore.chatParticipants[activeChatId.value] || []
+  const otherId = participants.find((id) => String(id) !== String(currentUserId))
+  const otherData = otherId ? chatStore.chatUsersData[String(otherId)] : null
+  const detailMessage = message || activeBookingMessage.value
+  showBookingDecisionToast({
+    decision,
+    booking: bookingItem || activeBookingData.value,
+    bookingId: bookingItem?.bookingId || detailMessage?.content?.booking_id || '',
+    counterpartyName: bookingSenderName.value,
+    counterpartyAvatarUrl: otherData?.avatar || otherData?.avatar_url || otherData?.profile_image || '',
+    onDetail: detailMessage ? () => { void openBookingDetail(detailMessage) } : null,
+    t,
+    locale: locale.value || 'en',
+  })
+}
+
 // Booking actions reach these handlers from two places: the message bubble passes
 // the chat message directly, the detail popup passes a payload wrapping it.
 function resolveBookingMessage(input) {
@@ -630,7 +675,7 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       return
     }
 
-    if (review.item) chatStore.setBooking(bookingId, review.item)
+    await refreshCachedBooking(bookingId, review.item)
 
     const newAction = decision === 'approve' ? 'accepted' : 'declined'
     if (activeBookingMessage.value?.message_id === messageId) {
@@ -646,16 +691,13 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
     })
 
     const retainOpen = showBookingPopup.value && activeBookingRole.value === 'creator'
-    const showReviewToast = retainOpen
-      && compactBookingDetailsSession.value
-      && Number(props.hostWidth || window.innerWidth) < 768
     // Declining is confirmed through the decision popup, which cannot close itself
     // while the action is still marked as processing.
     closeBookingDecision({ force: true })
     if (!retainOpen) showBookingPopup.value = false
 
+    broadcastBookingUpdate(res?.data?.item || bookingMessageWithAction(message, newAction))
     if (res?.ok) {
-      broadcastBookingUpdate(res.data?.item)
       const eventTitle = message.content?.event_title || ''
       const logText = decision === 'approve'
         ? `Booking accepted${eventTitle ? `: ${eventTitle}` : ''}`
@@ -667,14 +709,12 @@ async function performBookingDecision(message, decision, reviewPayload = {}) {
       })
     }
 
-    if (showReviewToast) {
-      showCreatorBookingReviewToast({
-        decision,
-        username: reviewPayload?.counterparty?.username,
-        avatarUrl: reviewPayload?.counterparty?.avatarUrl,
-        t,
-      })
-    }
+    showCreatorBookingReviewToast({
+      decision,
+      username: reviewPayload?.counterparty?.username || bookingSenderName.value,
+      avatarUrl: reviewPayload?.counterparty?.avatarUrl,
+      t,
+    })
   } finally {
     bookingActionLoading.value = false
   }
@@ -862,7 +902,7 @@ async function _doConfirmCounter(bookingId, message) {
     }
 
     // Keep cached booking fresh
-    if (item) chatStore.setBooking(bookingId, item)
+    const updated = await refreshCachedBooking(bookingId, item)
 
     // Update the chat message action to 'accepted' (mirrors performBookingDecision)
     const messageId = message?.message_id
@@ -874,7 +914,8 @@ async function _doConfirmCounter(bookingId, message) {
         })
       : null
 
-    broadcastBookingUpdate(updateRes?.data?.item || message)
+    broadcastBookingUpdate(updateRes?.data?.item || bookingMessageWithAction(message, 'accepted'))
+    notifyFanBookingDecision('confirmed', updated, message)
     sendChatActivityLog('Counter offer accepted', {
       is_booking_request: true,
       decision:           'counter_offer_accepted',
@@ -939,7 +980,7 @@ async function confirmBookingCancellation(message) {
 
   bookingActionLoading.value = true
   try {
-    const { ok, error } = await bookingActions.cancelBooking({
+    const { ok, item, error } = await bookingActions.cancelBooking({
       bookingId,
       actor: isCreatorAccount.value ? 'creator' : 'fan',
       intent: 'normal',
@@ -951,6 +992,8 @@ async function confirmBookingCancellation(message) {
       return
     }
 
+    const updated = await refreshCachedBooking(bookingId, item)
+
     const res = message.content_type === 'booking_request'
       ? await FlowHandler.run('chat.updateBookingRequestMessage', {
           chatId: activeChatId.value, messageId: message.message_id, action: 'cancelled',
@@ -960,7 +1003,8 @@ async function confirmBookingCancellation(message) {
         })
 
     closeBookingDecision({ force: true })
-    onCallCancelled(res?.data?.item)
+    onCallCancelled(res?.data?.item || bookingMessageWithAction(message, 'cancelled'))
+    notifyFanBookingDecision('cancelled', updated, message)
   } finally {
     bookingActionLoading.value = false
   }
@@ -976,7 +1020,7 @@ async function onDeclineAdjustment(input) {
   try {
     const cached = chatStore.getBookingById(bookingId)
     const offerType = input?.offerType || cached?.meta?.currentCounterOffer || cached?.meta?.negotiation?.type || 'adjust'
-    const { ok, error } = await bookingActions.rejectCounterOffer({
+    const { ok, item, error } = await bookingActions.rejectCounterOffer({
       bookingId,
       offerType,
       negotiationId: input?.negotiationId || cached?.meta?.negotiation?.negotiationId || null,
@@ -996,8 +1040,11 @@ async function onDeclineAdjustment(input) {
           chatId: activeChatId.value, messageId: message.message_id, updates: { action: 'declined' },
         })
 
+    const updated = await refreshCachedBooking(bookingId, item)
+
     closeBookingDecision({ force: true })
-    broadcastBookingUpdate(res?.data?.item || message)
+    broadcastBookingUpdate(res?.data?.item || bookingMessageWithAction(message, 'declined'))
+    notifyFanBookingDecision('cancelled', updated, message)
     sendChatActivityLog('Counter offer declined', {
       is_booking_request: true,
       decision: 'counter_offer_declined',
@@ -1052,7 +1099,7 @@ function confirmBookingDecision(payload = {}) {
 
 function onCallCancelled(updatedItem) {
   const msg = activeBookingMessage.value
-  broadcastBookingUpdate(updatedItem || msg)
+  broadcastBookingUpdate(updatedItem || bookingMessageWithAction(msg, 'cancelled'))
   sendChatActivityLog('Call cancelled', {
     is_booking_request: true,
     decision:           'call_cancelled',

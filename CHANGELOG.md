@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-24 — Chat Booking Actions Report Back
+
+Acting on a booking from chat left the user with nothing to show for it. The dashboard toast the booking-details embed raises never appeared, and the bubble kept its pre-action state — a fan who had just cancelled still read "waiting for creator response", and so did the other side, until something happened to refetch the booking. Tapping View Details refetched it, which is why the status only corrected itself after opening the panel.
+
+### Added
+
+#### `src/utils/bookingDecisionToast.js`
+- **`showBookingDecisionToast()`** — The fan-facing "your session is confirmed / cancelled" dashboard toast, raised from chat. The booking-details embed gets this for free — it posts `FS_EVENTS_BOOKING_DETAILS_UPDATED` and the WordPress host renders the toast from the payload — but chat has no such bridge, so it calls the host's `showToast` global directly. Copy, refund states (`full` / `partial` / `none`) and the option bag are kept in step with `booking-reminders-fan.js`; `formatBookingDecisionSchedule()` reproduces its `24-08-2026 03:00 PM-03:05 PM` range. Detail reopens the booking inside chat rather than launching the booking-details embed the dashboard's own toast opens — the reader is already in the conversation the booking belongs to. The host only binds that link when it is handed a non-empty href, so the action needs both a booking id and a callback to appear.
+
+#### `src/components/ui/toast/ToastHost.vue`
+- **`booking-decision` Variant** — The standalone fallback shares the `booking-review` surface but adds the body copy and the Detail action, so a dev run without a WordPress host shows the same information the dashboard toast does. `toastBus` passes a `detailAction` through for it.
+
+#### `src/utils/wordpressToastHost.js`
+- **Shared Host Bridge** — `wordpressToastHost()` and `escapeToastHtml()` lifted out of `creatorBookingReviewToast.js`, which now imports them, so both toasts resolve the host the same way and fall back to the in-app bus together.
+
+#### `src/__tests__/`
+- **New Coverage** — `bookingDecisionToast.spec.js` (copy per refund state, schedule formatting, host bridge vs in-app fallback, HTML escaping) plus cases in `chatDeclineConfirmation.spec.js` for the unconditional review toast, the patched broadcast, and the cache refresh.
+
+### Fixed
+
+#### `src/services/chat/flows/updateBookingRequestMessageFlow.js`
+- **Cancellations Were Rejected Before They Left The Browser** — The action whitelist held `pending`, `accepted`, `declined` and `counter_offer` but not `cancelled`, so every cancellation failed its own client-side validation with `UPDATE_BOOKING_REQUEST_INVALID_ACTION`. The booking was cancelled, but its chat message never was — and because the events surfaces bail out of the chat relay when that write fails, a cancellation from the booking-details embed reached chat with no message update and no activity log at all. `cancelled` is now an accepted action, which also means a cancellation from chat finally persists onto the message instead of only looking right locally.
+
+#### `src/composables/useBookingChatSync.js`
+- **A Failed Message Write Silenced The Whole Relay** — `syncBookingToChat` returned early when the message update failed, skipping the host relay entirely. The activity log and the booking refetch on the chat side do not depend on that write, so it now relays regardless, with `item: null` when there is no message to broadcast.
+
+#### `src/components/ui/chat/ChatFloatingWidget.vue`
+- **Debug Log Removed** — `syncBookingUpdate` printed its whole payload through `console.error` on every relayed booking action.
+
+#### `src/components/ui/chat/ChatWindow.vue`
+- **No Toast For Chat Actions** — The creator review toast was gated on `retainOpen && compactBookingDetailsSession && hostWidth < 768`, so it only ever fired from a mobile compact detail session; a creator accepting or declining from a bubble got nothing. It now runs on every successful decision. Fan-side cancel, accept-adjustment and decline-adjustment raise the dashboard decision toast through `notifyFanBookingDecision`.
+- **Stale Message Re-Broadcast** — `_doConfirmCounter`, `onDeclineAdjustment` and `onCallCancelled` fell back to `|| message` when the update API answered without the stored message, pushing the *pre-action* message back over the socket and into the local store. `bookingMessageWithAction()` now supplies the message with the new action applied instead, and `performBookingDecision` — which previously skipped the broadcast entirely in that case — uses the same fallback, so the other party is no longer left on the old bubble.
+- **Cached Booking Never Refreshed** — `confirmBookingCancellation` and `onDeclineAdjustment` discarded the updated booking the action returned and never touched the cache, so the bubble kept reading the pre-action status. All four write paths now go through `refreshCachedBooking()`, which stores the returned record or refetches when the response carries none.
+
 ## 2026-08-24 — One Rule For The Booking 3-Dot Menu
 
 Every booking card grew its own answer to "should the 3-dot menu be here?" — the chat toast keyed off the message action, the detail slide-in off four booking flags, the dashboard widget and mobile join card off nothing but the price-adjustment check. So a creator could cancel a call they had not accepted yet, and the menu survived on bookings that had already come and gone. One shared rule now decides it everywhere: creators get the menu only once the booking is confirmed, fans get it while their request awaits review and after it is confirmed, and neither side gets it under a price adjustment, on a passed booking, or on a cancelled one.

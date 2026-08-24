@@ -2,6 +2,11 @@ import { fail, ok } from "@/services/flow-system/flowTypes.js";
 import { getHttpStatus } from "@/services/flow-system/runtime/httpMetaRuntime.js";
 import { getChatApiBaseUrl, asFlowError } from "@/services/chat/chatApiUtils.js";
 
+// A cancelled booking is a state the bubble renders and `_handleUnpinInterval`
+// unpins on, so it belongs here alongside the negotiation outcomes — leaving it out
+// rejected every cancellation before it reached the chat message.
+const BOOKING_MESSAGE_ACTIONS = ["pending", "accepted", "declined", "cancelled", "counter_offer"];
+
 export async function updateBookingRequestMessageFlow({ payload, context, api }) {
   const baseUrl = getChatApiBaseUrl(context);
   const { chatId, messageId, action, slotDate, eventTitle, text, meta } = payload;
@@ -10,8 +15,11 @@ export async function updateBookingRequestMessageFlow({ payload, context, api })
     return fail({ code: "UPDATE_BOOKING_REQUEST_MISSING_FIELDS", message: "chatId and messageId are required." });
   }
 
-  if (action && !["pending", "accepted", "declined", "counter_offer"].includes(action)) {
-    return fail({ code: "UPDATE_BOOKING_REQUEST_INVALID_ACTION", message: "action must be \"pending\", \"accepted\", \"declined\", or \"counter_offer\"." });
+  if (action && !BOOKING_MESSAGE_ACTIONS.includes(action)) {
+    return fail({
+      code: "UPDATE_BOOKING_REQUEST_INVALID_ACTION",
+      message: `action must be one of ${BOOKING_MESSAGE_ACTIONS.map((value) => `"${value}"`).join(", ")}.`,
+    });
   }
 
   try {

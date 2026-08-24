@@ -66,18 +66,20 @@ export function useBookingChatSync({ flowOptions } = {}) {
     if (!chatId || !messageId || !action) return { ok: false };
 
     const { ok, item } = await bookingActions.syncBookingMessage({ chatId, messageId, action });
-    if (!ok) return { ok: false };
 
+    // Relay even when the message write failed. The chat embed refetches the booking
+    // from the id and posts the activity log independently, so bailing out here used
+    // to leave the conversation with no sign the action ever happened.
     const bookingId = booking?.bookingId || booking?.id || null;
     requestBookingChatSync({
       chatId,
       bookingId,
-      item,
+      item: ok ? item : null,
       recipientIds: recipientsOf(booking),
       activityLog: buildActivityLog(logKey, bookingId),
     });
 
-    return { ok: true, item };
+    return { ok, item: ok ? item : null };
   }
 
   return { syncBookingToChat, broadcastBookingToChat };

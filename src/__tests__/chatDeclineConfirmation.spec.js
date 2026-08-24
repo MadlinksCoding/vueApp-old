@@ -49,7 +49,7 @@ describe("chat decline confirmation", () => {
     expect(body).toContain("closeBookingDecision({ force: true })");
   });
 
-  it("retains open creator details while keeping review toasts compact-mobile-only", () => {
+  it("retains open creator details and always raises the review toast", () => {
     const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
     const body = chatWindow.slice(
       chatWindow.indexOf("async function performBookingDecision"),
@@ -57,9 +57,35 @@ describe("chat decline confirmation", () => {
     );
 
     expect(body).toContain("showBookingPopup.value && activeBookingRole.value === 'creator'");
-    expect(body).toContain("compactBookingDetailsSession.value");
     expect(body).toContain("if (!retainOpen) showBookingPopup.value = false");
-    expect(body).toContain("if (showReviewToast)");
+    // The dashboard toast is the only feedback a creator acting from a bubble gets,
+    // so it must not be gated on the compact detail session.
+    expect(body).toContain("showCreatorBookingReviewToast({");
+    expect(body).not.toContain("showReviewToast");
+  });
+
+  it("never re-broadcasts the pre-action booking message", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+
+    expect(chatWindow).toContain("function bookingMessageWithAction(message, action)");
+    // `|| message` would push the stale action back over the socket, leaving the
+    // other side on the pending bubble until it refetched the booking.
+    expect(chatWindow).not.toMatch(/broadcastBookingUpdate\([^)]*\|\|\s*message\)/);
+    for (const action of ["newAction", "'accepted'", "'cancelled'", "'declined'"]) {
+      expect(chatWindow).toContain(`bookingMessageWithAction(message, ${action})`);
+    }
+  });
+
+  it("refreshes the cached booking after every write, even without a returned item", () => {
+    const chatWindow = source("src/components/ui/chat/ChatWindow.vue");
+    const helper = chatWindow.slice(
+      chatWindow.indexOf("async function refreshCachedBooking"),
+      chatWindow.indexOf("// The booking-details embed gets the dashboard toast"),
+    );
+
+    expect(helper).toContain("bookings.fetchBooking");
+    expect(helper).toContain("chatStore.setBooking(bookingId, fetched)");
+    expect(chatWindow.match(/await refreshCachedBooking\(bookingId, /g) || []).toHaveLength(4);
   });
 
   it("skips the adjustment price lookup for cancel and reject", () => {
