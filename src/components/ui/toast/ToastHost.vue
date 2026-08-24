@@ -6,11 +6,11 @@
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        :class="toast.variant === 'booking-review'
+        :class="isBookingToast(toast)
           ? 'pointer-events-auto fixed left-1/2 top-2 w-[calc(100vw-1rem)] max-w-[37.5rem] -translate-x-1/2 overflow-hidden border shadow-lg backdrop-blur-sm'
           : ['pointer-events-auto min-w-[260px] max-w-[360px] rounded-md border px-3 py-2 shadow-lg backdrop-blur-sm', toastClass(toast.type)]">
         <div
-          v-if="toast.variant === 'booking-review'"
+          v-if="isBookingToast(toast)"
           class="flex min-h-[5rem] items-center gap-4 border-l-4 px-4 py-3 pr-12"
           :class="toast.status === 'confirmed'
             ? 'border-[#22CCB2] bg-gradient-to-r from-[#E4FAF7] to-white text-[#107E73]'
@@ -33,7 +33,22 @@
               aria-hidden="true"
             >{{ toast.status === 'confirmed' ? '✓' : '×' }}</span>
           </div>
-          <div class="text-sm font-semibold leading-5 sm:text-base sm:leading-6">{{ toast.title }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold leading-5 sm:text-base sm:leading-6">{{ toast.title }}</div>
+            <template v-if="toast.variant === 'booking-decision'">
+              <div class="mt-1 text-sm leading-5 text-slate-700">{{ toast.message }}</div>
+              <button
+                v-if="toast.detailAction"
+                class="mt-1 inline-flex items-center gap-1 text-xs font-semibold underline"
+                type="button"
+                data-test="booking-decision-toast-detail"
+                @click="toast.detailAction.run()"
+              >
+                {{ toast.detailAction.label }}
+                <span aria-hidden="true">↗</span>
+              </button>
+            </template>
+          </div>
           <button
             class="absolute right-4 top-4 text-xl leading-none text-slate-400 hover:text-slate-600"
             type="button"
@@ -42,7 +57,7 @@
           >×</button>
         </div>
         <div class="flex items-start justify-between gap-3">
-          <template v-if="toast.variant !== 'booking-review'">
+          <template v-if="!isBookingToast(toast)">
           <div>
             <div class="text-xs font-semibold uppercase tracking-wide">{{ toast.title }}</div>
             <div class="text-sm leading-5 whitespace-pre-line">{{ toast.message }}</div>
@@ -81,6 +96,10 @@ let nextToastId = 1;
 let nextHostId = 1;
 let listenerCount = 0;
 let listenerAttached = false;
+
+function isBookingToast(toast) {
+  return toast.variant === "booking-review" || toast.variant === "booking-decision";
+}
 
 function toastClass(type) {
   if (type === "success") {
@@ -160,6 +179,9 @@ function onToastEvent(event) {
     avatarUrl: detail.avatarUrl || "",
     avatarAlt: detail.avatarAlt || "",
     closeLabel: detail.closeLabel || "Close",
+    detailAction: detail.detailAction && typeof detail.detailAction.run === "function"
+      ? { ...detail.detailAction }
+      : null,
   };
 
   toasts.value = [...toasts.value, toast];

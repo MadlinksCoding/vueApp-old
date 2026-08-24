@@ -92,9 +92,6 @@ describe("showBookingDecisionToast", () => {
     expect(type).toBe("destructive");
     expect(options.title).toBe(expectedTitle);
     expect(options.small_icon_name).toBe("x-close");
-    // The chat bubble already links to the booking.
-    expect(options.show_cta).toBe(false);
-    expect(options.link).toBe("");
   });
 
   it("drops the schedule from the copy when the booking has no usable range", () => {
@@ -122,6 +119,7 @@ describe("showBookingDecisionToast", () => {
     })).toBe(true);
 
     expect(mocks.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      variant: "booking-decision",
       type: "error",
       status: "declined",
       title: "Your session with nhs0801 has been cancelled and refunded",
@@ -136,6 +134,75 @@ describe("showBookingDecisionToast", () => {
 
     expect(hostToast.mock.calls[0][1]).toBe("success");
     expect(hostToast.mock.calls[0][3].title).toContain("Creator");
+  });
+
+  it("hands the host a Detail link that runs the callback instead of navigating", () => {
+    const hostToast = installHost();
+    const onDetail = vi.fn();
+    const preventDefault = vi.fn();
+
+    showBookingDecisionToast({
+      decision: "cancelled",
+      booking: cancelled({ paymentStatus: "refunded" }),
+      bookingId: "booking 1",
+      counterpartyName: "nhs0801",
+      onDetail,
+      t,
+      locale: "en-US",
+    });
+
+    const options = hostToast.mock.calls[0][3];
+    expect(options.linkText).toBe("Detail");
+    // The host only binds its click handler when the href is non-empty.
+    expect(options.link).toBe("#booking-details-booking%201");
+    expect(options.closeOnLinkClick).toBe(false);
+
+    options.onLinkClick({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(onDetail).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the link out when there is nothing for Detail to open", () => {
+    const hostToast = installHost();
+
+    showBookingDecisionToast({
+      decision: "cancelled",
+      booking: cancelled(),
+      bookingId: "booking_1",
+      counterpartyName: "nhs0801",
+      t,
+    });
+    expect(hostToast.mock.calls[0][3].link).toBe("");
+
+    showBookingDecisionToast({
+      decision: "cancelled",
+      booking: { paymentStatus: "refunded" },
+      counterpartyName: "nhs0801",
+      onDetail: vi.fn(),
+      t,
+    });
+    expect(hostToast.mock.calls[1][3].link).toBe("");
+  });
+
+  it("carries the Detail action into the in-app fallback", () => {
+    vi.spyOn(window, "parent", "get").mockReturnValue(window);
+    const onDetail = vi.fn();
+
+    showBookingDecisionToast({
+      decision: "cancelled",
+      booking: cancelled({ paymentStatus: "refunded" }),
+      bookingId: "booking_1",
+      counterpartyName: "nhs0801",
+      onDetail,
+      t,
+      locale: "en-US",
+    });
+
+    const payload = mocks.showToast.mock.calls[0][0];
+    expect(payload.variant).toBe("booking-decision");
+    expect(payload.detailAction.label).toBe("Detail");
+    payload.detailAction.run();
+    expect(onDetail).toHaveBeenCalledTimes(1);
   });
 
   it("escapes counterparty text before it reaches the host's markup", () => {

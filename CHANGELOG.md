@@ -7,7 +7,10 @@ Acting on a booking from chat left the user with nothing to show for it. The das
 ### Added
 
 #### `src/utils/bookingDecisionToast.js`
-- **`showBookingDecisionToast()`** — The fan-facing "your session is confirmed / cancelled" dashboard toast, raised from chat. The booking-details embed gets this for free — it posts `FS_EVENTS_BOOKING_DETAILS_UPDATED` and the WordPress host renders the toast from the payload — but chat has no such bridge, so it calls the host's `showToast` global directly. Copy, refund states (`full` / `partial` / `none`) and the option bag are kept in step with `booking-reminders-fan.js`; `formatBookingDecisionSchedule()` reproduces its `24-08-2026 03:00 PM-03:05 PM` range. The toast carries no CTA of its own: the host's Detail link opens the booking-details embed, which is not what a fan reading their chat is asking for.
+- **`showBookingDecisionToast()`** — The fan-facing "your session is confirmed / cancelled" dashboard toast, raised from chat. The booking-details embed gets this for free — it posts `FS_EVENTS_BOOKING_DETAILS_UPDATED` and the WordPress host renders the toast from the payload — but chat has no such bridge, so it calls the host's `showToast` global directly. Copy, refund states (`full` / `partial` / `none`) and the option bag are kept in step with `booking-reminders-fan.js`; `formatBookingDecisionSchedule()` reproduces its `24-08-2026 03:00 PM-03:05 PM` range. Detail reopens the booking inside chat rather than launching the booking-details embed the dashboard's own toast opens — the reader is already in the conversation the booking belongs to. The host only binds that link when it is handed a non-empty href, so the action needs both a booking id and a callback to appear.
+
+#### `src/components/ui/toast/ToastHost.vue`
+- **`booking-decision` Variant** — The standalone fallback shares the `booking-review` surface but adds the body copy and the Detail action, so a dev run without a WordPress host shows the same information the dashboard toast does. `toastBus` passes a `detailAction` through for it.
 
 #### `src/utils/wordpressToastHost.js`
 - **Shared Host Bridge** — `wordpressToastHost()` and `escapeToastHtml()` lifted out of `creatorBookingReviewToast.js`, which now imports them, so both toasts resolve the host the same way and fall back to the in-app bus together.

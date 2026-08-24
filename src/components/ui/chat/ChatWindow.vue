@@ -635,16 +635,19 @@ async function refreshCachedBooking(bookingId, item) {
 // The booking-details embed gets the dashboard toast from its host bridge; chat has
 // none, so it raises the same toast itself. Creator-side accept/decline keeps its
 // own copy in showCreatorBookingReviewToast.
-function notifyFanBookingDecision(decision, bookingItem) {
+function notifyFanBookingDecision(decision, bookingItem, message) {
   if (isCreatorAccount.value) return
   const participants = chatStore.chatParticipants[activeChatId.value] || []
   const otherId = participants.find((id) => String(id) !== String(currentUserId))
   const otherData = otherId ? chatStore.chatUsersData[String(otherId)] : null
+  const detailMessage = message || activeBookingMessage.value
   showBookingDecisionToast({
     decision,
     booking: bookingItem || activeBookingData.value,
+    bookingId: bookingItem?.bookingId || detailMessage?.content?.booking_id || '',
     counterpartyName: bookingSenderName.value,
     counterpartyAvatarUrl: otherData?.avatar || otherData?.avatar_url || otherData?.profile_image || '',
+    onDetail: detailMessage ? () => { void openBookingDetail(detailMessage) } : null,
     t,
     locale: locale.value || 'en',
   })
@@ -912,7 +915,7 @@ async function _doConfirmCounter(bookingId, message) {
       : null
 
     broadcastBookingUpdate(updateRes?.data?.item || bookingMessageWithAction(message, 'accepted'))
-    notifyFanBookingDecision('confirmed', updated)
+    notifyFanBookingDecision('confirmed', updated, message)
     sendChatActivityLog('Counter offer accepted', {
       is_booking_request: true,
       decision:           'counter_offer_accepted',
@@ -1001,7 +1004,7 @@ async function confirmBookingCancellation(message) {
 
     closeBookingDecision({ force: true })
     onCallCancelled(res?.data?.item || bookingMessageWithAction(message, 'cancelled'))
-    notifyFanBookingDecision('cancelled', updated)
+    notifyFanBookingDecision('cancelled', updated, message)
   } finally {
     bookingActionLoading.value = false
   }
@@ -1041,7 +1044,7 @@ async function onDeclineAdjustment(input) {
 
     closeBookingDecision({ force: true })
     broadcastBookingUpdate(res?.data?.item || bookingMessageWithAction(message, 'declined'))
-    notifyFanBookingDecision('cancelled', updated)
+    notifyFanBookingDecision('cancelled', updated, message)
     sendChatActivityLog('Counter offer declined', {
       is_booking_request: true,
       decision: 'counter_offer_declined',

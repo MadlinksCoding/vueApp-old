@@ -28,6 +28,9 @@ function normalizeToast(input) {
     avatarUrl: input?.avatarUrl || "",
     avatarAlt: input?.avatarAlt || "",
     closeLabel: input?.closeLabel || "Close",
+    detailAction: input?.detailAction && typeof input.detailAction.run === "function"
+      ? { ...input.detailAction }
+      : null,
   };
 }
 

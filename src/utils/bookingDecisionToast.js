@@ -39,8 +39,10 @@ export function formatBookingDecisionSchedule(startAtIso, endAtIso, locale = "en
 export function showBookingDecisionToast({
   decision,
   booking = null,
+  bookingId = "",
   counterpartyName = "",
   counterpartyAvatarUrl = "",
+  onDetail = null,
   t,
   locale = "en",
 } = {}) {
@@ -59,6 +61,13 @@ export function showBookingDecisionToast({
   const title = translate(`${prefix}_title`, { creator });
   const message = translate(`${prefix}_message${schedule ? "" : "_no_date"}`, { creator, schedule });
   if (!title && !message) return false;
+
+  // The host only binds the Detail link when it is given a non-empty href, so both
+  // the target and the handler have to be present for the action to appear.
+  const detailBookingId = String(bookingId || booking?.bookingId || "").trim();
+  const detail = typeof onDetail === "function" && detailBookingId
+    ? { label: translate("fan_booking_toast_detail") || "Detail", run: onDetail }
+    : null;
 
   const host = wordpressToastHost();
   if (host) {
@@ -82,17 +91,28 @@ export function showBookingDecisionToast({
       small_icon_name: confirmed ? "check" : "x-close",
       small_icon_class: "w--16 h--16",
       small_icon_wrapper_class: "flex justify-center items-center w--32 h--32 br--8 absolute",
-      // The chat bubble already links to the booking, so this toast has no CTA of
-      // its own — the host's Detail link opens the booking-details embed, which is
-      // not what a fan reading their chat is asking for.
       show_cta: false,
-      link: "",
+      // Detail reopens the booking inside chat rather than launching the
+      // booking-details embed the dashboard's own toast opens — the reader is
+      // already in the conversation the booking belongs to.
+      ...(detail
+        ? {
+          linkText: detail.label,
+          link: `#booking-details-${encodeURIComponent(detailBookingId)}`,
+          link_icon_name: "arrow-up-right",
+          closeOnLinkClick: false,
+          onLinkClick: (event) => {
+            event?.preventDefault?.();
+            detail.run();
+          },
+        }
+        : { link: "" }),
     });
     return true;
   }
 
   showToast({
-    variant: "booking-review",
+    variant: "booking-decision",
     type: confirmed ? "success" : "error",
     status: confirmed ? "confirmed" : "declined",
     title,
@@ -100,6 +120,7 @@ export function showBookingDecisionToast({
     avatarUrl: String(counterpartyAvatarUrl || ""),
     avatarAlt: creator,
     closeLabel: translate("fan_booking_toast_close") || "Close notification",
+    detailAction: detail,
     persistent: true,
     dedupeKey: `fan-booking-decision-${confirmed ? "confirmed" : "cancelled"}`,
   });
