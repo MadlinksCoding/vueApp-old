@@ -7,6 +7,13 @@ const mocks = vi.hoisted(() => ({
   requestEventsEmbedScrollToTop: vi.fn(),
   notifyEventsEmbedBookingDetailsVisibility: vi.fn(),
   resetDashboardScroll: vi.fn(),
+  bootstrap: {
+    creatorId: 1407,
+    fanId: null,
+    userRole: "creator",
+    apiBaseUrl: "https://api.example.com",
+    hostViewportWidth: 820,
+  },
 }));
 
 vi.mock("vue-router", () => ({
@@ -16,12 +23,7 @@ vi.mock("vue-router", () => ({
 }));
 
 vi.mock("@/embeds/events/bootstrap.js", () => ({
-  useEventsEmbedBootstrap: () => ({
-    creatorId: 1407,
-    fanId: null,
-    userRole: "creator",
-    apiBaseUrl: "https://api.example.com",
-  }),
+  useEventsEmbedBootstrap: () => mocks.bootstrap,
 }));
 
 vi.mock("@/embeds/events/bridge.js", () => ({
@@ -34,6 +36,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
 vi.mock("@/features/events/DashboardEventsFeature.vue", () => ({
   default: {
     name: "DashboardEventsFeature",
+    props: ["creatorId", "fanId", "userRole", "apiBaseUrl", "responsiveViewportWidth", "embedded"],
     emits: ["create-event", "edit-event", "open-url", "booking-details-visibility"],
     methods: {
       resetEmbeddedMobileScrollToTop: mocks.resetDashboardScroll,
@@ -81,6 +84,7 @@ describe("EventsEmbedEventsPage", () => {
       return 1;
     };
     setWindowWidth(500);
+    mocks.bootstrap.hostViewportWidth = 820;
   });
 
   afterEach(() => {
@@ -99,6 +103,13 @@ describe("EventsEmbedEventsPage", () => {
       name: "events-embed-create",
       params: { type: "private" },
     });
+  });
+
+  it("passes the reactive host viewport width into the dashboard calendar", async () => {
+    const { default: EventsEmbedEventsPage } = await import("@/embeds/events/pages/EventsEmbedEventsPage.vue");
+    const wrapper = mount(EventsEmbedEventsPage);
+
+    expect(wrapper.getComponent({ name: "DashboardEventsFeature" }).props("responsiveViewportWidth")).toBe(820);
   });
 
   it("routes group create events to the embedded booking form", async () => {
@@ -158,6 +169,7 @@ describe("EventsEmbedEventsPage", () => {
 
   it("does not reset embedded dashboard scroll on desktop mount", async () => {
     setWindowWidth(1024);
+    mocks.bootstrap.hostViewportWidth = 1024;
     const { default: EventsEmbedEventsPage } = await import("@/embeds/events/pages/EventsEmbedEventsPage.vue");
     mount(EventsEmbedEventsPage);
 

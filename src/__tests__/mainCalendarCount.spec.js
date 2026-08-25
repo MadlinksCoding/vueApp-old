@@ -1595,30 +1595,27 @@ describe("MainCalendar all events count", () => {
   });
 
   it("uses matching reserved axis geometry for tablet portrait", async () => {
+    setWindowWidth(820);
+    setWindowHeight(1180);
     const wrapper = await mountCalendar([], {
       initialView: "week",
       dayColumnMode: "events",
     });
+    await selectCalendarView(wrapper, "week");
 
-    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toEqual(
-      expect.arrayContaining(["ipad-portrait-small:flex-row-reverse"]),
-    );
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row-reverse");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").attributes("style")).toContain("flex-direction: row-reverse");
     expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toEqual(
-      expect.arrayContaining(["flex-row-reverse", "ipad-portrait-small:flex-row-reverse", "md:flex-row"]),
+      expect.arrayContaining(["flex-row-reverse"]),
     );
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").attributes("style")).toContain("flex-direction: row-reverse");
     expect(wrapper.get("[data-test='calendar-week-event-header']").classes()).toEqual(
-      expect.arrayContaining([
-        "pl-0",
-        "md:pl-2",
-        "ipad-portrait-small:pl-0",
-        "ipad-portrait-small:pr-2",
-        "md:pr-0",
-      ]),
+      expect.arrayContaining(["pl-0", "pr-2"]),
     );
 
     const timeAxisClasses = wrapper.get("[data-cal-time-axis]").classes();
-    expect(timeAxisClasses).toEqual(expect.arrayContaining(["absolute", "md:relative"]));
-    expect(timeAxisClasses).not.toContain("ipad-portrait-small:absolute");
+    expect(timeAxisClasses).toContain("relative");
+    expect(timeAxisClasses).not.toContain("absolute");
   });
 
   it("reserves the tablet Day time axis in both the date header and body", async () => {
@@ -1631,17 +1628,60 @@ describe("MainCalendar all events count", () => {
 
     expect(wrapper.get("[data-test='calendar-timezone-header']").exists()).toBe(true);
     expect(wrapper.get("[data-test='calendar-day-event-header']").classes()).toEqual(
-      expect.arrayContaining([
-        "pl-0",
-        "md:pl-2",
-        "ipad-portrait-small:pl-0",
-        "ipad-portrait-small:pr-2",
-        "md:pr-0",
-      ]),
+      expect.arrayContaining(["pl-0", "pr-2"]),
     );
     expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toEqual(
-      expect.arrayContaining(["flex-row-reverse", "ipad-portrait-small:flex-row-reverse", "md:flex-row"]),
+      expect.arrayContaining(["flex-row-reverse"]),
     );
+  });
+
+  it("uses an embedded 820px host width when the iframe itself is only 730px", async () => {
+    setWindowWidth(730);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+      tabletWeekEventLaneMinWidthPx: 96,
+      responsiveViewportWidth: 820,
+    });
+    await selectCalendarView(wrapper, "week");
+
+    const headerTrack = () => wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = () => wrapper.get("[data-cal-time-grid] span.relative");
+    const timeAxis = () => wrapper.get("[data-cal-time-axis]");
+
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(true);
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row-reverse");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row-reverse");
+    expect(timeAxis().classes()).toContain("relative");
+    expect(timeAxis().classes()).not.toContain("absolute");
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+    expect(bodyTrack().attributes("style")).toBe(headerTrack().attributes("style"));
+
+    setWindowHeight(784);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.setProps({ responsiveViewportWidth: 798 });
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").attributes("style")).toContain("flex-direction: row");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-week-event-header']").classes())
+      .toEqual(expect.arrayContaining(["pl-2", "pr-0"]));
+    expect(bodyTrack().attributes("style")).toBe(headerTrack().attributes("style"));
+
+    await wrapper.setProps({ responsiveViewportWidth: 767 });
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(false);
+    expect(timeAxis().classes()).toContain("absolute");
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+
+    await wrapper.setProps({ responsiveViewportWidth: 1023 });
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(true);
+    expect(timeAxis().classes()).toContain("relative");
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+
+    await wrapper.setProps({ responsiveViewportWidth: 1024 });
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row");
   });
 
   it("keeps Month weekday tracks inside the same border geometry as date cells", async () => {
@@ -1671,7 +1711,10 @@ describe("MainCalendar all events count", () => {
       [label, `common_${label}`].includes(button.text().trim().toLowerCase())
     ));
 
-    expect(wrapper.get("[data-test='calendar-day-event-header']").classes()).toContain("pl-0");
+    const usesReservedLeftAxis = viewportWidth >= 768
+      && !(viewportWidth < 1024 && viewportWidth < viewportHeight);
+    expect(wrapper.get("[data-test='calendar-day-event-header']").classes())
+      .toContain(usesReservedLeftAxis ? "pl-2" : "pl-0");
     expect(wrapper.find("[data-test='calendar-timezone-header']").exists())
       .toBe(viewportWidth >= 768);
 

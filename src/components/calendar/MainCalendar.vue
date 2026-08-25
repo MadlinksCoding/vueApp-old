@@ -433,7 +433,12 @@
 
 
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:flex-row-reverse ipad-portrait-small:border-b md:border-b-0" :class="[theme.main.xHeader]" data-test="calendar-time-grid-header">
+      <div
+        class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0"
+        :class="[theme.main.xHeader, usesRightTimeAxis ? 'flex-row-reverse' : 'flex-row']"
+        :style="{ flexDirection: usesRightTimeAxis ? 'row-reverse' : 'row' }"
+        data-test="calendar-time-grid-header"
+      >
 
         <div
           v-if="!isPhoneEventColumnMode"
@@ -462,8 +467,11 @@
 
         <div
           v-if="isDayEventColumnMode"
-          class="flex min-w-0 w-full items-center h-[5.125rem] pl-0 md:pl-2 ipad-portrait-small:pl-0 ipad-portrait-small:pr-2 md:pr-0"
-          :class="isMobileDayEventColumnMode ? 'gap-0' : 'gap-4'"
+          class="flex min-w-0 w-full items-center h-[5.125rem]"
+          :class="[
+            isMobileDayEventColumnMode ? 'gap-0' : 'gap-4',
+            responsiveAxisHeaderPaddingClass
+          ]"
           :data-date="activeDayIso"
           :data-selected="sameDay(activeDay, selectedDay) ? 'true' : 'false'"
           data-test="calendar-day-event-header"
@@ -541,7 +549,8 @@
 
         <div
           v-else-if="isWeekEventColumnMode"
-          class="flex min-w-0 w-full items-center pl-0 md:pl-2 ipad-portrait-small:pl-0 ipad-portrait-small:pr-2 md:pr-0"
+          class="flex min-w-0 w-full items-center"
+          :class="responsiveAxisHeaderPaddingClass"
           data-test="calendar-week-event-header"
         >
           <div
@@ -646,8 +655,16 @@
         ref="timeGridScrollRef"
         data-cal-time-scroll
         data-test="calendar-time-grid-scroll"
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row relative">
-        <div class="flex flex-col shrink-0 absolute md:relative top-0 right-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative"
+        :class="usesRightTimeAxis ? 'flex-row-reverse' : 'flex-row'"
+        :style="{ flexDirection: usesRightTimeAxis ? 'row-reverse' : 'row' }"
+      >
+        <div
+          class="flex flex-col shrink-0 top-0 right-0"
+          :class="isPhoneEventColumnMode ? 'absolute' : 'relative'"
+          data-cal-time-axis
+          :style="{ height: gridMetrics.totalHeight + 'px' }"
+        >
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + idx + '-' + t"
             :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(idx) ? ' !text-[#F06] !font-semibold' : '']"
             data-test="calendar-time-label"
@@ -1237,6 +1254,7 @@ const props = defineProps({
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
   tabletWeekEventLaneMinWidthPx: { type: Number, default: 0 },
+  responsiveViewportWidth: { type: Number, default: null },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
   joinComparisonTime: { type: Date, default: null },
   stickyCardEvents: { type: Array, default: () => [] },
@@ -1248,6 +1266,12 @@ const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const height = ref(window.innerHeight);
+const canonicalViewportWidth = computed(() => {
+  const suppliedWidth = Number(props.responsiveViewportWidth);
+  return Number.isFinite(suppliedWidth) && suppliedWidth > 0
+    ? suppliedWidth
+    : width.value;
+});
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const calendarRootRef = ref(null);
@@ -1283,7 +1307,7 @@ const currentTimeMs = ref(Date.now());
 // State for dropdown
 const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
-const availableViewOptions = computed(() => (width.value < 678 ? ['day'] : ['day', 'week', 'month']));
+const availableViewOptions = computed(() => (canonicalViewportWidth.value < 678 ? ['day'] : ['day', 'week', 'month']));
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
 const showLegend = ref(false);
@@ -1375,7 +1399,7 @@ const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.fi
 
 const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
 const visibleStickyCardEvents = computed(() => {
-  if (width.value < 678) {
+  if (canonicalViewportWidth.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
   return [];
@@ -1489,7 +1513,7 @@ const resolveEventSlotName = (event = {}) => {
 };
 
 const handleMonthDateClick = (d) => {
-  if (window.innerWidth >= 1024) {
+  if (canonicalViewportWidth.value >= 1024) {
     const hasEvents = monthBookingEventsForDay(d).length > 0
       || monthAvailabilityEventsForDay(d).length > 0;
 
@@ -1554,14 +1578,14 @@ const calendarPopupConfig = {
 };
 
 const isEventsRequestsTabletLandscape = computed(() => (
-  width.value >= 678
-  && width.value < 1366
-  && width.value > height.value
+  canonicalViewportWidth.value >= 678
+  && canonicalViewportWidth.value < 1366
+  && canonicalViewportWidth.value > height.value
 ));
 
 const eventsRequestsPopupConfig = computed(() => {
   const tabletLandscape = isEventsRequestsTabletLandscape.value;
-  const mobile = width.value < 678;
+  const mobile = canonicalViewportWidth.value < 678;
 
   return {
     actionType: "slidein",
@@ -1596,7 +1620,7 @@ const newEventsPopupConfig = {
 };
 
 const shouldUseCompactEventDetails = (event) => (
-  width.value < 768
+  canonicalViewportWidth.value < 768
   && String(props.userRole || '').trim().toLowerCase() === 'creator'
   && props.canReviewPending
   && getCalendarEventApprovalState(event, {
@@ -1605,7 +1629,7 @@ const shouldUseCompactEventDetails = (event) => (
   && !isPendingCounterOffer(event)
 );
 const useCompactEventDetails = computed(() => eventDetailsCompactSession.value);
-const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value, {
+const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(canonicalViewportWidth.value, {
   compact: useCompactEventDetails.value,
 }));
 
@@ -1661,8 +1685,8 @@ const tabletWeekEventLaneMinWidthPx = computed(() => {
   const configuredWidth = Number(props.tabletWeekEventLaneMinWidthPx);
   if (
     !isWeekEventColumnMode.value
-    || width.value < 768
-    || width.value >= 1024
+    || canonicalViewportWidth.value < 768
+    || canonicalViewportWidth.value >= 1024
     || !Number.isFinite(configuredWidth)
     || configuredWidth <= 0
   ) {
@@ -1677,12 +1701,27 @@ const usesTabletWeekEventLaneMinimum = computed(() => (
 ));
 
 const isMobileDayEventColumnMode = computed(() => (
-  isDayEventColumnMode.value && width.value < 1024
+  isDayEventColumnMode.value && canonicalViewportWidth.value < 1024
 ));
 
 const isPhoneEventColumnMode = computed(() => (
-  isEventColumnMode.value && width.value < 768
+  isEventColumnMode.value && canonicalViewportWidth.value < 768
 ));
+
+const usesRightTimeAxis = computed(() => (
+  isPhoneEventColumnMode.value
+  || (
+    isEventColumnMode.value
+    && canonicalViewportWidth.value >= 768
+    && canonicalViewportWidth.value < 1024
+    && canonicalViewportWidth.value < height.value
+  )
+));
+
+const responsiveAxisHeaderPaddingClass = computed(() => {
+  if (isPhoneEventColumnMode.value) return 'pl-0 pr-0';
+  return usesRightTimeAxis.value ? 'pl-0 pr-2' : 'pl-2 pr-0';
+});
 
 function formatLocalDateKey(date) {
   const value = new Date(date);
@@ -2695,7 +2734,7 @@ const handleDetailsApproveBooking = (payload) => {
     emit('approve-booking', {
       ...payload,
       retainDetails: true,
-      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+      showReviewToast: eventDetailsCompactSession.value && canonicalViewportWidth.value < 768,
     });
     return;
   }
@@ -2859,7 +2898,7 @@ const handleDetailsRejectBooking = (payload) => {
     emit('reject-booking', {
       ...payload,
       retainDetails: true,
-      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+      showReviewToast: eventDetailsCompactSession.value && canonicalViewportWidth.value < 768,
     });
     return;
   }
@@ -3322,7 +3361,7 @@ function scheduleMonthAvailabilityLayout() {
 }
 
 async function positionMonthDateOverlay(day = expandedDate.value) {
-  if (!day || width.value < 1024 || effectiveView.value !== 'month') return;
+  if (!day || canonicalViewportWidth.value < 1024 || effectiveView.value !== 'month') return;
 
   await nextTick();
   if (!expandedDate.value || !sameDay(day, expandedDate.value)) return;
@@ -3361,7 +3400,7 @@ async function positionMonthDateOverlay(day = expandedDate.value) {
 }
 
 function handleMonthOverlayOutsideClick(event) {
-  if (width.value < 1024 || !expandedDate.value) return;
+  if (canonicalViewportWidth.value < 1024 || !expandedDate.value) return;
   const target = event.target;
   if (monthOverlayRef.value?.contains(target)) return;
   if (target?.closest?.('[data-date]')) return;
@@ -3369,7 +3408,7 @@ function handleMonthOverlayOutsideClick(event) {
 }
 
 function handleMonthOverlayKeydown(event) {
-  if (event.key === 'Escape' && width.value >= 1024 && expandedDate.value) {
+  if (event.key === 'Escape' && canonicalViewportWidth.value >= 1024 && expandedDate.value) {
     closeMonthDateOverlay();
   }
 }
@@ -3380,7 +3419,7 @@ watch([effectiveView, processedEventsByDay], () => {
 }, { flush: 'post' });
 
 watch(expandedMonthEventCount, () => {
-  if (expandedDate.value && width.value >= 1024) {
+  if (expandedDate.value && canonicalViewportWidth.value >= 1024) {
     positionMonthDateOverlay();
   }
 });
@@ -3511,7 +3550,7 @@ const setView = (v) => {
 };
 
 const ensureMobileEventDayView = () => {
-  if (width.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
+  if (canonicalViewportWidth.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
   if (view.value === 'day') return false;
 
   setView('day');
@@ -3550,15 +3589,12 @@ const updateNowLine = () => {
   const pct = ((cur - sMin) / Math.max(1, (eMin - sMin))) * 100;
   nowY.value = Math.min(100, Math.max(0, pct));
 };
-const handleResize = () => {
-  const previousWidth = width.value;
-  width.value = window.innerWidth;
-  height.value = window.innerHeight;
-  const enteredMobile = previousWidth >= 1024 && width.value < 1024;
+const applyResponsiveViewportChange = (previousWidth, nextWidth) => {
+  const enteredMobile = previousWidth >= 1024 && nextWidth < 1024;
 
-  if ((previousWidth < 1024) !== (width.value < 1024)) {
+  if ((previousWidth < 1024) !== (nextWidth < 1024)) {
     closeMonthDateOverlay();
-  } else if (width.value >= 1024 && expandedDate.value) {
+  } else if (nextWidth >= 1024 && expandedDate.value) {
     positionMonthDateOverlay();
   }
 
@@ -3566,8 +3602,22 @@ const handleResize = () => {
     ensureMobileEventDayView();
   }
 
+  scheduleMonthAvailabilityLayout();
   scheduleWeekAlignment();
 };
+
+const handleResize = () => {
+  const previousResponsiveWidth = canonicalViewportWidth.value;
+  width.value = window.innerWidth;
+  height.value = window.innerHeight;
+  if (previousResponsiveWidth === canonicalViewportWidth.value) {
+    applyResponsiveViewportChange(previousResponsiveWidth, canonicalViewportWidth.value);
+  }
+};
+
+watch(canonicalViewportWidth, (nextWidth, previousWidth) => {
+  applyResponsiveViewportChange(previousWidth, nextWidth);
+}, { flush: 'sync' });
 
 const handleOrientationChange = () => {
   handleResize();
@@ -3584,7 +3634,7 @@ const toggleViewSelector = () => {
 
 // Close dropdown if clicked outside
 const handleClickOutside = (event) => {
-  if (width.value >= 1024) {
+  if (canonicalViewportWidth.value >= 1024) {
   if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
     isDropdownOpen.value = false;
     isViewSelectorOpen.value = false;

@@ -69,7 +69,7 @@ vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "tabletWeekEventLaneMinWidthPx", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
@@ -667,6 +667,16 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("minEventHeightPx")).toBe(40);
     expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBe(96);
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+  });
+
+  it("forwards the embedded host viewport width to MainCalendar", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+      responsiveViewportWidth: 820,
+    });
+
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("responsiveViewportWidth")).toBe(820);
   });
 
   it("uses the same reserved axis width for the dashboard header and body on tablets", async () => {

@@ -29,12 +29,14 @@ import {
   announceEventsEmbedReady,
   installEventsEmbedAuthUpdateListener,
   installEventsEmbedBootstrapListener,
+  installEventsEmbedHostViewportListener,
   isEmbeddedIframe,
   notifyEventsEmbedResize,
 } from "@/embeds/events/bridge.js";
 import {
   applyEventsEmbedBootstrap,
   applyEventsEmbedAuthUpdate,
+  applyEventsEmbedHostViewport,
   readEventsEmbedBootstrapFromUrl,
   useEventsEmbedBootstrap,
 } from "@/embeds/events/bootstrap.js";
@@ -57,6 +59,7 @@ const viewportRootStyle = computed(() => ({
 
 let removeBootstrapListener = () => {};
 let removeAuthUpdateListener = () => {};
+let removeHostViewportListener = () => {};
 let resizeObserver = null;
 let viewportSyncTimers = [];
 
@@ -122,6 +125,9 @@ onMounted(async () => {
   removeAuthUpdateListener = installEventsEmbedAuthUpdateListener((payload) => {
     applyEventsEmbedAuthUpdate(payload);
   });
+  removeHostViewportListener = installEventsEmbedHostViewportListener((payload) => {
+    applyEventsEmbedHostViewport(payload);
+  });
 
   const fallbackBootstrap = readEventsEmbedBootstrapFromUrl();
   if (fallbackBootstrap) {
@@ -158,6 +164,7 @@ watch(() => route.fullPath, async () => {
 onBeforeUnmount(() => {
   removeBootstrapListener();
   removeAuthUpdateListener();
+  removeHostViewportListener();
   resizeObserver?.disconnect();
   viewportSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
   viewportSyncTimers = [];
