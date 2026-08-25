@@ -6,6 +6,7 @@
       :fan-id="bootstrap.fanId"
       :user-role="bootstrap.userRole"
       :api-base-url="bootstrap.apiBaseUrl"
+      :responsive-viewport-width="bootstrap.hostViewportWidth"
       :embedded="true"
       @create-event="handleCreateEvent"
       @edit-event="handleEditEvent"
@@ -32,7 +33,10 @@ const bootstrap = useEventsEmbedBootstrap();
 const eventsScrollRoot = ref(null);
 const dashboardFeatureRef = ref(null);
 
-const isMobileViewport = () => typeof window !== "undefined" && window.innerWidth < 1024;
+const isMobileViewport = () => {
+  const responsiveWidth = Number(bootstrap.hostViewportWidth) || window.innerWidth;
+  return responsiveWidth < 1024;
+};
 
 const waitForFrame = () => new Promise((resolve) => {
   if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {

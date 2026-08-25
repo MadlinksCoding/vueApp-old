@@ -1,6 +1,7 @@
 (function (global) {
   var FS_EVENTS_BOOTSTRAP = "FS_EVENTS_BOOTSTRAP";
   var FS_EVENTS_AUTH_UPDATE = "FS_EVENTS_AUTH_UPDATE";
+  var FS_EVENTS_HOST_VIEWPORT_UPDATE = "FS_EVENTS_HOST_VIEWPORT_UPDATE";
   var FS_EVENTS_CHILD_READY = "FS_EVENTS_CHILD_READY";
   var FS_EVENTS_RESIZE = "FS_EVENTS_RESIZE";
   var FS_EVENTS_OPEN_URL = "FS_EVENTS_OPEN_URL";
@@ -576,9 +577,37 @@
 
     var targetOrigin = normalizeTargetOrigin(settings.targetOrigin);
     var hasUnsavedFormChanges = false;
+    var hostViewportSyncTimers = [];
+
+    function resolveHostViewportWidth() {
+      var visualWidth = safeNumber(global.visualViewport && global.visualViewport.width, null);
+      var layoutWidth = safeNumber(global.innerWidth, null);
+      return Math.max(1, Math.round(layoutWidth || visualWidth || 1));
+    }
+
+    function sendHostViewport() {
+      if (!iframe.isConnected || !iframe.contentWindow) return;
+
+      iframe.contentWindow.postMessage({
+        type: FS_EVENTS_HOST_VIEWPORT_UPDATE,
+        payload: { hostViewportWidth: resolveHostViewportWidth() },
+      }, targetOrigin);
+    }
+
+    function scheduleHostViewportSync(delays) {
+      hostViewportSyncTimers.forEach(function (timerId) {
+        global.clearTimeout(timerId);
+      });
+      hostViewportSyncTimers = [];
+
+      (delays || [0, 120, 320]).forEach(function (delay) {
+        hostViewportSyncTimers.push(global.setTimeout(sendHostViewport, delay));
+      });
+    }
 
     function syncViewportIframeHeight() {
       refreshViewportIframeHeight(iframe);
+      scheduleHostViewportSync();
     }
 
     function onBeforeUnload(event) {
@@ -605,6 +634,7 @@
           creatorData: creatorData,
           translations: translations,
           locale: locale,
+          hostViewportWidth: resolveHostViewportWidth(),
         },
       }, targetOrigin);
     }
@@ -716,9 +746,11 @@
     window.addEventListener("resize", syncViewportIframeHeight);
     window.addEventListener("orientationchange", syncViewportIframeHeight);
     global.visualViewport && global.visualViewport.addEventListener && global.visualViewport.addEventListener("resize", syncViewportIframeHeight);
+    global.visualViewport && global.visualViewport.addEventListener && global.visualViewport.addEventListener("scroll", syncViewportIframeHeight);
     container.innerHTML = "";
     wrapper.appendChild(iframe);
     container.appendChild(wrapper);
+    scheduleHostViewportSync();
 
     var embedHandle = {
       root: wrapper,
@@ -732,6 +764,11 @@
         window.removeEventListener("resize", syncViewportIframeHeight);
         window.removeEventListener("orientationchange", syncViewportIframeHeight);
         global.visualViewport && global.visualViewport.removeEventListener && global.visualViewport.removeEventListener("resize", syncViewportIframeHeight);
+        global.visualViewport && global.visualViewport.removeEventListener && global.visualViewport.removeEventListener("scroll", syncViewportIframeHeight);
+        hostViewportSyncTimers.forEach(function (timerId) {
+          global.clearTimeout(timerId);
+        });
+        hostViewportSyncTimers = [];
         if (wrapper.parentNode === container) {
           container.removeChild(wrapper);
         }

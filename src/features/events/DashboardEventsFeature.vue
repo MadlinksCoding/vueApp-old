@@ -47,6 +47,7 @@
         day-column-mode="events"
         :fit-day-event-columns="true"
         :tablet-week-event-lane-min-width-px="96"
+        :responsive-viewport-width="responsiveViewportWidth"
         :show-current-time-across-dates="true"
         time-start="00:00"
         time-end="24:00"
@@ -890,6 +891,10 @@ const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
+  },
+  responsiveViewportWidth: {
+    type: Number,
+    default: null,
   },
   refreshSignal: {
     type: [String, Number, Boolean],

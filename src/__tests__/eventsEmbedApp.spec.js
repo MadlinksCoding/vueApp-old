@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   announceEventsEmbedReady: vi.fn(),
   installEventsEmbedBootstrapListener: vi.fn(() => vi.fn()),
   installEventsEmbedAuthUpdateListener: vi.fn(() => vi.fn()),
+  installEventsEmbedHostViewportListener: vi.fn(() => vi.fn()),
+  applyEventsEmbedHostViewport: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({
@@ -29,6 +31,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
   announceEventsEmbedReady: mocks.announceEventsEmbedReady,
   installEventsEmbedBootstrapListener: mocks.installEventsEmbedBootstrapListener,
   installEventsEmbedAuthUpdateListener: mocks.installEventsEmbedAuthUpdateListener,
+  installEventsEmbedHostViewportListener: mocks.installEventsEmbedHostViewportListener,
   isEmbeddedIframe: () => false,
   notifyEventsEmbedResize: mocks.notifyEventsEmbedResize,
 }));
@@ -36,6 +39,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
 vi.mock("@/embeds/events/bootstrap.js", () => ({
   applyEventsEmbedBootstrap: vi.fn((payload = {}) => payload),
   applyEventsEmbedAuthUpdate: vi.fn((payload = {}) => payload),
+  applyEventsEmbedHostViewport: mocks.applyEventsEmbedHostViewport,
   readEventsEmbedBootstrapFromUrl: vi.fn(() => null),
   useEventsEmbedBootstrap: () => mocks.bootstrap,
 }));
@@ -83,6 +87,8 @@ describe("EventsEmbedApp viewport height sync", () => {
     mocks.announceEventsEmbedReady.mockReset();
     mocks.installEventsEmbedBootstrapListener.mockClear();
     mocks.installEventsEmbedAuthUpdateListener.mockClear();
+    mocks.installEventsEmbedHostViewportListener.mockClear();
+    mocks.applyEventsEmbedHostViewport.mockReset();
     mocks.route.name = "events-embed-events";
     mocks.route.fullPath = "/events";
     mocks.bootstrap.bootstrapped = true;
@@ -144,5 +150,26 @@ describe("EventsEmbedApp viewport height sync", () => {
     await flushPromises();
 
     expect(mocks.notifyEventsEmbedResize).toHaveBeenLastCalledWith(700, { mode: "viewport" });
+  });
+
+  it("applies host viewport updates without replacing the embed route and cleans up the listener", async () => {
+    const removeHostViewportListener = vi.fn();
+    let hostViewportHandler;
+    mocks.installEventsEmbedHostViewportListener.mockImplementationOnce((handler) => {
+      hostViewportHandler = handler;
+      return removeHostViewportListener;
+    });
+    const { default: EventsEmbedApp } = await import("@/embeds/events/EventsEmbedApp.vue");
+    const wrapper = mount(EventsEmbedApp);
+    await flushPromises();
+    mocks.router.replace.mockClear();
+
+    hostViewportHandler({ hostViewportWidth: 820 });
+
+    expect(mocks.applyEventsEmbedHostViewport).toHaveBeenCalledWith({ hostViewportWidth: 820 });
+    expect(mocks.router.replace).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+    expect(removeHostViewportListener).toHaveBeenCalledTimes(1);
   });
 });
