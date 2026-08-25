@@ -363,7 +363,7 @@ export const bookingMessages = {
   booking_call_attendance_policy_confirmation_intro: "Before you submit your booking, please confirm that you have read and understand the call attendance policy below:",
   booking_call_attendance_policy_publish_intro: "Before you publish your booking schedule, please confirm that you have read and understand the call attendance policy below:",
   booking_call_attendance_policy_grace_heading: "A 5-minute grace period applies after the scheduled start time:",
-  booking_call_attendance_policy_creator_no_show_condition: "If the creator doesn't show up within the grace period",
+  booking_call_attendance_policy_creator_no_show_condition: "If creator doesn't show up within the grace period",
   booking_call_attendance_policy_fan_no_show_condition: "If you don't show up within the grace period",
   booking_call_attendance_policy_full_refund: "You will receive a full refund",
   booking_call_attendance_policy_publish_creator_no_show_condition: "If the creator doesn't show up within the grace period",

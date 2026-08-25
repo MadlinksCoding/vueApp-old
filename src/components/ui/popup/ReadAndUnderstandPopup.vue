@@ -4,7 +4,7 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="config"
   >
-    <div class="h-full w-full p-5 bg-gray-900/90 md:rounded-[10px] backdrop-blur-[50px] inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
+    <div class="h-full w-full p-5 max-w-[520px] bg-gray-900/90 md:rounded-[10px] backdrop-blur-[50px] inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
   <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center gap-6 pr-1">
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch inline-flex justify-between items-start">
