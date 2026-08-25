@@ -30,6 +30,32 @@ describe("EventsWidget", () => {
     },
   });
 
+  it("shows the month and day on the left and the time below the title", () => {
+    wrapper = mount(EventsWidget, {
+      props: {
+        sections: [{
+          title: "TODAY",
+          isPending: false,
+          items: [{
+            monthName: "AUGUST",
+            dayName: "TUE",
+            dayNumber: "25",
+            time: "2:15pm-2:45pm",
+            title: "Fan call",
+            avatars: [],
+          }],
+        }],
+      },
+      global: { stubs: { TooltipIcon: true } },
+    });
+
+    expect(wrapper.get("[data-test='events-widget-month']").text()).toBe("AUGUST");
+    expect(wrapper.get("[data-test='events-widget-day']").text()).toBe("25");
+    expect(wrapper.get("[data-test='events-widget-time']").text()).toBe("2:15pm-2:45pm");
+    expect(wrapper.get("[data-test='events-widget-time']").element.previousElementSibling?.textContent)
+      .toContain("Fan call");
+  });
+
   it("applies the role and lifecycle menu matrix", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-24T10:00:00Z"));

@@ -85,7 +85,7 @@ const presentationStyle = computed(() => {
   if (isPast.value) {
     return {
       backgroundColor: "#D9DCE6",
-      border: "1px solid #C8CDD8",
+      border: "0",
       color: "#98A2B3",
       boxShadow: "none",
       zIndex: 2,
