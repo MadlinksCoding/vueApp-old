@@ -62,7 +62,7 @@ vi.mock("@/components/calendar/MiniCalendar.vue", () => ({
 vi.mock("@/components/ui/popup/PopupHandler.vue", () => ({
   default: {
     name: "PopupHandler",
-    props: ["modelValue"],
+    props: ["modelValue", "config"],
     template: "<div v-if='modelValue'><slot /></div>",
   },
 }));
@@ -299,6 +299,17 @@ async function openFilters(wrapper) {
   await wrapper.get("[data-test='all-events-count']").trigger("click");
 }
 
+async function selectCalendarView(wrapper, label) {
+  const normalizedLabel = String(label).toLowerCase();
+  const button = wrapper.findAll("button").find((candidate) => (
+    [normalizedLabel, `common_${normalizedLabel}`]
+      .includes(candidate.text().trim().toLowerCase())
+  ));
+  expect(button).toBeTruthy();
+  await button.trigger("click");
+  await wrapper.vm.$nextTick();
+}
+
 async function openMobilePopup(wrapper) {
   await wrapper.get("[data-test='calendar-mobile-popup-trigger']").trigger("click");
 }
@@ -313,6 +324,19 @@ async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+}
+
+function makeHorizontalScroller(element, {
+  clientWidth = 100,
+  scrollWidth = 280,
+  scrollLeft = 0,
+} = {}) {
+  Object.defineProperties(element, {
+    clientWidth: { configurable: true, writable: true, value: clientWidth },
+    scrollWidth: { configurable: true, writable: true, value: scrollWidth },
+    scrollLeft: { configurable: true, writable: true, value: scrollLeft },
+  });
+  return element;
 }
 
 beforeEach(() => {
@@ -367,6 +391,12 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.text()).toContain("Mostrar leyenda");
     expect(wrapper.text()).toContain("UTC +08");
     expect(wrapper.text()).toContain("12a. m.");
+
+    const legendToggle = wrapper.get("[data-test='calendar-legend-toggle']");
+    const legend = wrapper.get("[data-test='calendar-legend']");
+    expect(legendToggle.classes()).toEqual(expect.arrayContaining(["hidden", "md:flex"]));
+    expect(legend.classes()).toEqual(expect.arrayContaining(["hidden", "md:flex", "flex-col", "lg:flex-row"]));
+    expect(legend.classes()).not.toContain("ipad-portrait:hidden");
 
     await wrapper.get("[data-test='checkbox-group-input']").setValue(true);
 
@@ -730,11 +760,11 @@ describe("MainCalendar all events count", () => {
     expect(mobilePopupCounts(wrapper)).toEqual(["2", "2"]);
   });
 
-  it("shows zero in both responsive popup badges when there are no events", async () => {
+  it("hides both responsive popup badges when there are no events", async () => {
     const wrapper = await mountCalendar([]);
 
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
-    expect(mobilePopupCounts(wrapper)).toEqual(["0", "0"]);
+    expect(mobilePopupCounts(wrapper)).toEqual([]);
   });
 
   it("keeps the desktop event count separate from the iPad and phone booked-slot count", async () => {
@@ -754,7 +784,7 @@ describe("MainCalendar all events count", () => {
 
     await wrapper.setProps({ bookedSlotsCount: 0 });
     expect(wrapper.get("[data-test='all-events-count']").text()).toBe("0");
-    expect(mobilePopupCounts(wrapper)).toEqual(["0", "0"]);
+    expect(mobilePopupCounts(wrapper)).toEqual([]);
   });
 
   it("blinks the mobile calendar icon only for creator-actionable pending bookings", async () => {
@@ -1157,7 +1187,142 @@ describe("MainCalendar all events count", () => {
     expect(widthPercent(emptyGroup) * 1.04).toBeCloseTo(8);
   });
 
+  it.each([768, 820, 1023])("uses a 96px minimum for every sparse tablet Week lane at %ipx", async (viewportWidth) => {
+    setWindowWidth(viewportWidth);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+      tabletWeekEventLaneMinWidthPx: 96,
+    });
+    await selectCalendarView(wrapper, "week");
+
+    const headerTrack = wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = wrapper.get("[data-cal-time-grid] span.relative");
+    const headerDays = wrapper.findAll("[data-test='calendar-week-event-header-day']");
+    const bodyGroups = wrapper.findAll("[data-test='calendar-week-event-day-group']");
+
+    expect(headerTrack.attributes("style")).toContain("width: 100%");
+    expect(headerTrack.attributes("style")).toContain("min-width: 672px");
+    expect(bodyTrack.attributes("style")).toBe(headerTrack.attributes("style"));
+    expect(headerDays).toHaveLength(7);
+    expect(headerDays.every((day) => day.attributes("data-week-day-units") === "1")).toBe(true);
+    expect(headerDays.every((day) => day.attributes("data-week-day-min-width-px") === "96")).toBe(true);
+    expect(headerDays.map((day) => day.attributes("style")))
+      .toEqual(bodyGroups.map((group) => group.attributes("style").replace(/; height: [^;]+/, "")));
+  });
+
+  it("allocates tablet Week width units for simultaneous booking lanes", async () => {
+    setWindowWidth(820);
+    const overlappingBookings = Array.from({ length: 3 }, (_, index) => makeEvent({
+      id: `overlap_${index + 1}`,
+      eventId: "evt_overlap",
+      title: `Overlap ${index + 1}`,
+      start: new Date(2026, 3, 23, 10, 0, 0),
+      end: new Date(2026, 3, 23, 10, 30, 0),
+      isAvailabilityBlock: false,
+    }));
+    const wrapper = await mountCalendar(
+      [
+        ...overlappingBookings,
+        makeEvent({
+          id: "separate_booking",
+          eventId: "evt_separate",
+          title: "Separate schedule",
+          start: new Date(2026, 3, 23, 12, 0, 0),
+          end: new Date(2026, 3, 23, 12, 30, 0),
+          isAvailabilityBlock: false,
+        }),
+      ],
+      {
+        initialView: "week",
+        dayColumnMode: "events",
+        minEventHeightPx: 40,
+        tabletWeekEventLaneMinWidthPx: 96,
+      },
+    );
+    await selectCalendarView(wrapper, "week");
+
+    const selectedDate = localDateKey(baseDate);
+    const selectedHeader = wrapper.get(`[data-test='calendar-week-event-header-day'][data-date='${selectedDate}']`);
+    const selectedGroup = wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${selectedDate}']`);
+    const columnGrid = selectedGroup.get("[data-test='calendar-week-event-day-columns']");
+    const track = wrapper.get("[data-test='calendar-week-event-header-track']");
+
+    expect(selectedHeader.attributes("data-week-day-units")).toBe("4");
+    expect(selectedHeader.attributes("data-week-day-min-width-px")).toBe("384");
+    expect(selectedGroup.attributes("data-week-day-units")).toBe("4");
+    expect(columnGrid.attributes("style")).toContain("minmax(0, 3fr) minmax(0, 1fr)");
+    expect(track.attributes("style")).toContain("min-width: 960px");
+    expect(selectedHeader.attributes("style")).toBe(selectedGroup.attributes("style").replace(/ height: [^;]+;/, ""));
+  });
+
+  it.each([767, 1024])("keeps the existing Week percentage sizing at the %ipx tablet boundary", async (viewportWidth) => {
+    setWindowWidth(viewportWidth);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+      tabletWeekEventLaneMinWidthPx: 96,
+    });
+    await selectCalendarView(wrapper, "week");
+
+    const headerTrack = wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = wrapper.get("[data-cal-time-grid] span.relative");
+
+    expect(headerTrack.attributes("style")).toContain("width: 100%");
+    expect(headerTrack.attributes("style")).toContain("min-width: 100%");
+    expect(headerTrack.attributes("style")).not.toContain("672px");
+    expect(bodyTrack.attributes("style")).toBe(headerTrack.attributes("style"));
+    expect(wrapper.find("[data-week-day-min-width-px]").exists()).toBe(false);
+  });
+
+  it("switches tablet Week sizing cleanly at the responsive boundaries", async () => {
+    setWindowWidth(820);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+      tabletWeekEventLaneMinWidthPx: 96,
+    });
+    await selectCalendarView(wrapper, "week");
+    const headerTrack = () => wrapper.get("[data-test='calendar-week-event-header-track']");
+
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+
+    setWindowWidth(767);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.vm.$nextTick();
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+
+    setWindowWidth(768);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.vm.$nextTick();
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+
+    setWindowWidth(1024);
+    window.dispatchEvent(new Event("orientationchange"));
+    await wrapper.vm.$nextTick();
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+  });
+
+  it("does not apply the tablet Week lane minimum to Day or Month", async () => {
+    setWindowWidth(820);
+    const wrapper = await mountCalendar([], {
+      initialView: "day",
+      dayColumnMode: "events",
+      fitDayEventColumns: true,
+      tabletWeekEventLaneMinWidthPx: 96,
+    });
+
+    const dayTrack = wrapper.get("[data-cal-time-grid] span.relative");
+    expect(dayTrack.attributes("style")).toContain("min-width: 100%");
+    expect(dayTrack.attributes("style")).not.toContain("672px");
+
+    await selectCalendarView(wrapper, "month");
+    expect(wrapper.get("[data-test='calendar-month-view']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='calendar-week-event-header-track']").exists()).toBe(false);
+  });
+
   it("recalculates week widths from event columns left visible by filters", async () => {
+    setWindowWidth(820);
     const wrapper = await mountCalendar(
       [
         makeEvent({
@@ -1182,12 +1347,19 @@ describe("MainCalendar all events count", () => {
           isAvailabilityBlock: false,
         }),
       ],
-      { initialView: "week", dayColumnMode: "events" },
+      {
+        initialView: "week",
+        dayColumnMode: "events",
+        tabletWeekEventLaneMinWidthPx: 96,
+      },
     );
+    await selectCalendarView(wrapper, "week");
     const selectedDate = localDateKey(baseDate);
     const selectedGroup = () => wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${selectedDate}']`);
+    const headerTrack = () => wrapper.get("[data-test='calendar-week-event-header-track']");
 
     expect(selectedGroup().attributes("data-week-day-units")).toBe("3");
+    expect(headerTrack().attributes("style")).toContain("min-width: 864px");
 
     await openFilters(wrapper);
     await wrapper.get("[data-test='show-schedule-off']").trigger("click");
@@ -1195,6 +1367,7 @@ describe("MainCalendar all events count", () => {
 
     expect(selectedGroup().attributes("data-week-day-units")).toBe("1");
     expect(selectedGroup().attributes("data-week-day-base-width")).toBe("8%");
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
   });
 
   it("selects a clicked week event header date and rerenders the selected day", async () => {
@@ -1393,6 +1566,250 @@ describe("MainCalendar all events count", () => {
     expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
     expect(headerScroll.scrollLeft).toBe(72);
     expect(bodyScroll.scrollLeft).toBe(72);
+  });
+
+  it("keeps native Week header and body offsets identical when their raw overflow differs", async () => {
+    const wrapper = await mountCalendar(
+      [makeEvent({ eventId: "evt_week_native_sync", slot: "availability" })],
+      { initialView: "week", dayColumnMode: "events" },
+    );
+    const header = wrapper.get("[data-test='calendar-week-event-header-scroll']");
+    const body = wrapper.get("[data-test='calendar-week-event-body-scroll']");
+    const headerScroll = makeHorizontalScroller(header.element, { scrollWidth: 280 });
+    const bodyScroll = makeHorizontalScroller(body.element, { scrollWidth: 284 });
+
+    headerScroll.scrollLeft = 72;
+    await header.trigger("scroll");
+    expect(headerScroll.scrollLeft).toBe(72);
+    expect(bodyScroll.scrollLeft).toBe(72);
+
+    bodyScroll.scrollLeft = 150;
+    await body.trigger("scroll");
+    expect(headerScroll.scrollLeft).toBe(150);
+    expect(bodyScroll.scrollLeft).toBe(150);
+
+    bodyScroll.scrollLeft = 182;
+    await body.trigger("scroll");
+    expect(headerScroll.scrollLeft).toBe(180);
+    expect(bodyScroll.scrollLeft).toBe(180);
+  });
+
+  it("uses matching reserved axis geometry for tablet portrait", async () => {
+    setWindowWidth(820);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+    });
+    await selectCalendarView(wrapper, "week");
+
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row-reverse");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").attributes("style")).toContain("flex-direction: row-reverse");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toEqual(
+      expect.arrayContaining(["flex-row-reverse"]),
+    );
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").attributes("style")).toContain("flex-direction: row-reverse");
+    expect(wrapper.get("[data-test='calendar-week-event-header']").classes()).toEqual(
+      expect.arrayContaining(["pl-0", "pr-2"]),
+    );
+
+    const timeAxisClasses = wrapper.get("[data-cal-time-axis]").classes();
+    expect(timeAxisClasses).toContain("relative");
+    expect(timeAxisClasses).not.toContain("absolute");
+  });
+
+  it("reserves the tablet Day time axis in both the date header and body", async () => {
+    setWindowWidth(820);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar([], {
+      initialView: "day",
+      dayColumnMode: "events",
+    });
+
+    expect(wrapper.get("[data-test='calendar-timezone-header']").exists()).toBe(true);
+    expect(wrapper.get("[data-test='calendar-day-event-header']").classes()).toEqual(
+      expect.arrayContaining(["pl-0", "pr-2"]),
+    );
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toEqual(
+      expect.arrayContaining(["flex-row-reverse"]),
+    );
+  });
+
+  it("uses an embedded 820px host width when the iframe itself is only 730px", async () => {
+    setWindowWidth(730);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+      tabletWeekEventLaneMinWidthPx: 96,
+      responsiveViewportWidth: 820,
+    });
+    await selectCalendarView(wrapper, "week");
+
+    const headerTrack = () => wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = () => wrapper.get("[data-cal-time-grid] span.relative");
+    const timeAxis = () => wrapper.get("[data-cal-time-axis]");
+
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(true);
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row-reverse");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row-reverse");
+    expect(timeAxis().classes()).toContain("relative");
+    expect(timeAxis().classes()).not.toContain("absolute");
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+    expect(bodyTrack().attributes("style")).toBe(headerTrack().attributes("style"));
+
+    setWindowHeight(784);
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.setProps({ responsiveViewportWidth: 798 });
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").attributes("style")).toContain("flex-direction: row");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-week-event-header']").classes())
+      .toEqual(expect.arrayContaining(["pl-2", "pr-0"]));
+    expect(bodyTrack().attributes("style")).toBe(headerTrack().attributes("style"));
+
+    await wrapper.setProps({ responsiveViewportWidth: 767 });
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(false);
+    expect(timeAxis().classes()).toContain("absolute");
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+
+    await wrapper.setProps({ responsiveViewportWidth: 1023 });
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(true);
+    expect(timeAxis().classes()).toContain("relative");
+    expect(headerTrack().attributes("style")).toContain("min-width: 672px");
+
+    await wrapper.setProps({ responsiveViewportWidth: 1024 });
+    expect(headerTrack().attributes("style")).toContain("min-width: 100%");
+    expect(wrapper.get("[data-test='calendar-time-grid-header']").classes()).toContain("flex-row");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("flex-row");
+  });
+
+  it("keeps Month weekday tracks inside the same border geometry as date cells", async () => {
+    const wrapper = await mountCalendar([], { initialView: "month" });
+
+    expect(wrapper.get("[data-test='calendar-month-week-header']").classes())
+      .toContain("px-px");
+    expect(wrapper.get("[data-test='calendar-month-week-row']").classes())
+      .toEqual(expect.arrayContaining(["grid", "grid-cols-7"]));
+  });
+
+  it.each([
+    ["phone", 390, 852, true],
+    ["small tablet portrait", 768, 1024, true],
+    ["tablet portrait", 820, 1180, true],
+    ["large tablet portrait", 960, 1280, true],
+    ["tablet landscape", 1180, 820, true],
+    ["desktop", 1440, 900, true],
+  ])("keeps responsive view geometry consistent on %s", async (_label, viewportWidth, viewportHeight, supportsAllViews) => {
+    setWindowWidth(viewportWidth);
+    setWindowHeight(viewportHeight);
+    const wrapper = await mountCalendar([], {
+      initialView: "day",
+      dayColumnMode: "events",
+    });
+    const viewButton = (label) => wrapper.findAll("button").find((button) => (
+      [label, `common_${label}`].includes(button.text().trim().toLowerCase())
+    ));
+
+    const usesReservedLeftAxis = viewportWidth >= 768
+      && !(viewportWidth < 1024 && viewportWidth < viewportHeight);
+    expect(wrapper.get("[data-test='calendar-day-event-header']").classes())
+      .toContain(usesReservedLeftAxis ? "pl-2" : "pl-0");
+    expect(wrapper.find("[data-test='calendar-timezone-header']").exists())
+      .toBe(viewportWidth >= 768);
+
+    if (!supportsAllViews) return;
+
+    await viewButton("week").trigger("click");
+    await wrapper.vm.$nextTick();
+    const weekHeaders = wrapper.findAll("[data-test='calendar-week-event-header-day']");
+    const weekGroups = wrapper.findAll("[data-test='calendar-week-event-day-group']");
+    expect(weekHeaders).toHaveLength(7);
+    expect(weekGroups).toHaveLength(7);
+    expect(weekHeaders.map((header) => header.attributes("style")))
+      .toEqual(weekGroups.map((group) => group.attributes("style").replace(/; height: [^;]+/, "")));
+
+    await viewButton("month").trigger("click");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get("[data-test='calendar-month-week-header']").element.children)
+      .toHaveLength(7);
+    expect(wrapper.get("[data-test='calendar-month-week-row']").element.children)
+      .toHaveLength(7);
+    expect(wrapper.get("[data-test='calendar-month-week-header']").classes())
+      .toContain("px-px");
+  });
+
+  it("reapplies canonical Week progress after resize and orientation settling", async () => {
+    setWindowWidth(820);
+    const wrapper = await mountCalendar(
+      [makeEvent({ eventId: "evt_week_resize_sync", slot: "availability" })],
+      {
+        initialView: "week",
+        dayColumnMode: "events",
+        tabletWeekEventLaneMinWidthPx: 96,
+      },
+    );
+    await selectCalendarView(wrapper, "week");
+    await vi.advanceTimersByTimeAsync(3000);
+    const header = wrapper.get("[data-test='calendar-week-event-header-scroll']");
+    const body = wrapper.get("[data-test='calendar-week-event-body-scroll']");
+    const headerScroll = makeHorizontalScroller(header.element, { scrollWidth: 300 });
+    const bodyScroll = makeHorizontalScroller(body.element, { scrollWidth: 304 });
+
+    headerScroll.scrollLeft = 100;
+    await header.trigger("scroll");
+
+    headerScroll.scrollWidth = 400;
+    bodyScroll.scrollWidth = 404;
+    window.dispatchEvent(new Event("resize"));
+    await wrapper.vm.$nextTick();
+    expect(headerScroll.scrollLeft).toBe(150);
+    expect(bodyScroll.scrollLeft).toBe(150);
+
+    headerScroll.scrollWidth = 500;
+    bodyScroll.scrollWidth = 504;
+    await vi.advanceTimersByTimeAsync(80);
+    expect(headerScroll.scrollLeft).toBe(200);
+    expect(bodyScroll.scrollLeft).toBe(200);
+
+    bodyScroll.scrollLeft = 100;
+    await body.trigger("scroll");
+    headerScroll.scrollWidth = 300;
+    bodyScroll.scrollWidth = 304;
+    window.dispatchEvent(new Event("orientationchange"));
+    await wrapper.vm.$nextTick();
+    expect(headerScroll.scrollLeft).toBe(50);
+    expect(bodyScroll.scrollLeft).toBe(50);
+  });
+
+  it("removes Week alignment listeners and cancels scheduled work on unmount", async () => {
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    const removeEventListener = vi.spyOn(window, "removeEventListener");
+    const clearTimeout = vi.spyOn(window, "clearTimeout");
+    const requestAnimationFrame = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(73);
+    const cancelAnimationFrame = vi.spyOn(window, "cancelAnimationFrame");
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+    });
+
+    await wrapper.vm.$nextTick();
+    const orientationHandler = addEventListener.mock.calls.find(([eventName]) => (
+      eventName === "orientationchange"
+    ))?.[1];
+    expect(orientationHandler).toEqual(expect.any(Function));
+
+    wrapper.unmount();
+
+    expect(removeEventListener).toHaveBeenCalledWith("orientationchange", orientationHandler);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(73);
+    expect(clearTimeout).toHaveBeenCalled();
+
+    requestAnimationFrame.mockRestore();
+    cancelAnimationFrame.mockRestore();
+    clearTimeout.mockRestore();
+    removeEventListener.mockRestore();
+    addEventListener.mockRestore();
   });
 
   it("drags the week date header without treating the drag as a date click", async () => {
@@ -1673,13 +2090,16 @@ describe("MainCalendar all events count", () => {
 
     expect(strip.exists()).toBe(true);
     expect(wrapper.find("[data-test='calendar-timezone-header']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='calendar-day-event-header']").classes()).toContain("pl-0");
     expect(stripDates).toHaveLength(7);
     expect(stripDates.every((button) => button.classes().includes("min-w-[25%]"))).toBe(true);
     expect(selectedDate?.attributes("data-date")).toBe(localDateKey(todayDate));
     expect(selectedDate?.attributes("data-today")).toBe("true");
+    expect(selectedDate?.classes()).toContain("opacity-100");
     expect(selectedDate?.find("span:first-child").classes()).toContain("text-[#101828]");
-    expect(unselectedDate?.find("span:first-child").classes()).toContain("text-[#98A2B3]");
-    expect(unselectedDate?.find("span:nth-child(2)").classes()).toContain("text-[#98A2B3]");
+    expect(unselectedDate?.classes()).toContain("opacity-30");
+    expect(unselectedDate?.find("span:first-child").classes()).toContain("text-[#101828]");
+    expect(unselectedDate?.find("span:nth-child(2)").classes()).toContain("text-[#101828]");
     expect(wrapper.find("[data-test='calendar-day-event-title']").exists()).toBe(false);
 
     expect(bodyColumns).toHaveLength(1);
@@ -2530,13 +2950,35 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.emitted("view-changed")).toEqual([["day"], ["week"], ["month"]]);
   });
 
-  it("smoothly reveals the selected date when desktop switches from Day to Week", async () => {
-    setWindowWidth(1280);
+  it("clears residual Week horizontal offset before rendering Day content", async () => {
+    const wrapper = await mountCalendar([], {
+      initialView: "week",
+      dayColumnMode: "events",
+    });
+    const bodyScroll = wrapper.get("[data-test='calendar-week-event-body-scroll']").element;
+    Object.defineProperty(bodyScroll, "scrollLeft", {
+      configurable: true,
+      writable: true,
+      value: 96,
+    });
+    const dayButton = wrapper.findAll("button").find((button) => (
+      ["day", "common_day"].includes(button.text().trim().toLowerCase())
+    ));
+
+    await dayButton.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(bodyScroll.scrollLeft).toBe(0);
+  });
+
+  it.each(["day", "month"])("keeps the selected date centered without a jump after %s to Week", async (previousView) => {
+    setWindowWidth(820);
 
     const originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
     const originalScrollTo = window.HTMLElement.prototype.scrollTo;
     const originalClientWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "clientWidth");
     const originalScrollWidth = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "scrollWidth");
+    let expandedWeek = false;
     const scrollTo = vi.fn(function scrollToWeekDate({ left }) {
       this.scrollLeft = left;
     });
@@ -2546,21 +2988,25 @@ describe("MainCalendar all events count", () => {
         return { left: 0, right: 400, top: 0, bottom: 64, width: 400, height: 64, x: 0, y: 0, toJSON: () => ({}) };
       }
       if (this.getAttribute?.("data-test") === "calendar-week-event-header-day" && this.getAttribute("data-selected") === "true") {
-        return { left: 600, right: 800, top: 0, bottom: 64, width: 200, height: 64, x: 600, y: 0, toJSON: () => ({}) };
+        return expandedWeek
+          ? { left: 600, right: 800, top: 0, bottom: 64, width: 200, height: 64, x: 600, y: 0, toJSON: () => ({}) }
+          : { left: 100, right: 300, top: 0, bottom: 64, width: 200, height: 64, x: 100, y: 0, toJSON: () => ({}) };
       }
       return originalGetBoundingClientRect.call(this);
     };
     Object.defineProperty(window.HTMLElement.prototype, "clientWidth", {
       configurable: true,
       get() {
-        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 400;
+        if (["calendar-week-event-header-scroll", "calendar-week-event-body-scroll"].includes(this.getAttribute?.("data-test"))) return 400;
         return originalClientWidth?.get?.call(this) ?? 0;
       },
     });
     Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", {
       configurable: true,
       get() {
-        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 1400;
+        if (["calendar-week-event-header-scroll", "calendar-week-event-body-scroll"].includes(this.getAttribute?.("data-test"))) {
+          return expandedWeek ? 1400 : 800;
+        }
         return originalScrollWidth?.get?.call(this) ?? 0;
       },
     });
@@ -2576,11 +3022,32 @@ describe("MainCalendar all events count", () => {
         || button.text().trim().toLowerCase() === `common_${label}`
       ));
 
+      if (previousView === "month") {
+        await viewButton("month").trigger("click");
+        await wrapper.vm.$nextTick();
+      }
       await viewButton("week").trigger("click");
       await wrapper.vm.$nextTick();
 
-      expect(scrollTo).toHaveBeenCalledTimes(1);
-      expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+      const headerScroll = wrapper.get("[data-test='calendar-week-event-header-scroll']").element;
+      const bodyScroll = wrapper.get("[data-test='calendar-week-event-body-scroll']").element;
+      const weekScrollToCalls = () => scrollTo.mock.calls.filter((_, index) => (
+        ["calendar-week-event-header-scroll", "calendar-week-event-body-scroll"]
+          .includes(scrollTo.mock.instances[index]?.getAttribute?.("data-test"))
+      ));
+      expect(weekScrollToCalls()).toHaveLength(0);
+      expect(headerScroll.scrollLeft).toBe(0);
+      expect(bodyScroll.scrollLeft).toBe(0);
+
+      expandedWeek = true;
+      await wrapper.setProps({
+        events: [makeEvent({ eventId: "evt_expanded_week", slot: "availability" })],
+      });
+      await flushPromises();
+
+      expect(weekScrollToCalls()).toHaveLength(0);
+      expect(headerScroll.scrollLeft).toBe(500);
+      expect(bodyScroll.scrollLeft).toBe(500);
       expect(wrapper.get("[data-test='calendar-week-event-header-day'][data-selected='true']").attributes("data-date")).toBe(localDateKey(baseDate));
     } finally {
       window.HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
@@ -2615,14 +3082,14 @@ describe("MainCalendar all events count", () => {
     Object.defineProperty(window.HTMLElement.prototype, "clientWidth", {
       configurable: true,
       get() {
-        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 400;
+        if (["calendar-week-event-header-scroll", "calendar-week-event-body-scroll"].includes(this.getAttribute?.("data-test"))) return 400;
         return originalClientWidth?.get?.call(this) ?? 0;
       },
     });
     Object.defineProperty(window.HTMLElement.prototype, "scrollWidth", {
       configurable: true,
       get() {
-        if (this.getAttribute?.("data-test") === "calendar-week-event-header-scroll") return 1400;
+        if (["calendar-week-event-header-scroll", "calendar-week-event-body-scroll"].includes(this.getAttribute?.("data-test"))) return 1400;
         return originalScrollWidth?.get?.call(this) ?? 0;
       },
     });
@@ -2642,8 +3109,9 @@ describe("MainCalendar all events count", () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.emitted("date-selected")?.at(-1)?.[0]).toEqual(new Date(2026, 3, 23, 9, 0, 0));
-      expect(scrollTo).toHaveBeenCalledTimes(1);
-      expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
+      expect(scrollTo).toHaveBeenCalledTimes(2);
+      expect(scrollTo).toHaveBeenNthCalledWith(1, { left: 500, behavior: "smooth" });
+      expect(scrollTo).toHaveBeenNthCalledWith(2, { left: 500, behavior: "smooth" });
       expect(wrapper.get("[data-test='calendar-week-event-header-day'][data-selected='true']").attributes("data-today")).toBe("true");
     } finally {
       window.HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
@@ -3096,6 +3564,60 @@ describe("MainCalendar all events count", () => {
     await openMobilePopup(wrapper);
 
     expect(wrapper.getComponent({ name: "CalendarMobilePopupContent" }).props("eventsData")).toEqual(eventsData);
+  });
+
+  it("updates the open events requests popup presentation when a tablet rotates", async () => {
+    setWindowWidth(820);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar([]);
+    const popupTriggers = wrapper.findAll("[data-test='calendar-mobile-popup-trigger']");
+
+    await popupTriggers.at(-1).trigger("click");
+    const eventsRequestsHandler = wrapper.findAllComponents({ name: "PopupHandler" })[1];
+
+    expect(eventsRequestsHandler.props("modelValue")).toBe(true);
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "bottom",
+      width: { default: "100%" },
+      height: { default: "100%" },
+      forceHeight: true,
+    }));
+
+    setWindowWidth(1180);
+    setWindowHeight(820);
+    await nextTick();
+
+    expect(eventsRequestsHandler.props("modelValue")).toBe(true);
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "right",
+      width: { default: "480px" },
+      height: { default: "100%" },
+      forceHeight: true,
+    }));
+
+    setWindowWidth(820);
+    setWindowHeight(1180);
+    await nextTick();
+
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "bottom",
+      width: { default: "100%" },
+      height: { default: "100%" },
+      forceHeight: true,
+    }));
+  });
+
+  it("uses a sixty-percent bottom sheet for events requests on mobile", async () => {
+    setWindowWidth(393);
+    setWindowHeight(852);
+    const wrapper = await mountCalendar([]);
+    const eventsRequestsHandler = wrapper.findAllComponents({ name: "PopupHandler" })[1];
+
+    expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
+      from: "bottom",
+      height: { default: "60%" },
+      forceHeight: true,
+    }));
   });
 
   it("passes booking schedule data to the mobile popup", async () => {

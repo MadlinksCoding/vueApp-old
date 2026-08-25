@@ -179,6 +179,28 @@ describe("events embed bootstrap", () => {
     expect(state.bootstrapped).toBe(true);
   });
 
+  it("updates only the reactive host viewport width", async () => {
+    const {
+      applyEventsEmbedBootstrap,
+      applyEventsEmbedHostViewport,
+      useEventsEmbedBootstrap,
+    } = await import("@/embeds/events/bootstrap.js");
+
+    applyEventsEmbedBootstrap({
+      creatorId: 55,
+      userRole: "creator",
+      initialRoute: "create-group",
+      hostViewportWidth: 820,
+    });
+    applyEventsEmbedHostViewport({ hostViewportWidth: 960 });
+
+    const state = useEventsEmbedBootstrap();
+    expect(state.hostViewportWidth).toBe(960);
+    expect(state.creatorId).toBe(55);
+    expect(state.initialRoute).toBe("create-group");
+    expect(state.bootstrapped).toBe(true);
+  });
+
   it("accepts a booking-details route with a sanitized booking id", async () => {
     const {
       applyEventsEmbedBootstrap,

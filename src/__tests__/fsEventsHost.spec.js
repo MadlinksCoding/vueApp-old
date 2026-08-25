@@ -446,6 +446,7 @@ describe("fs-events-host openFanBookingPopup", () => {
           initialRoute: "create-group",
           translations: { dashboard_new_events: "Nuevos eventos" },
           locale: "fr-CA",
+          hostViewportWidth: window.innerWidth,
         }),
       }),
       window.location.origin,
@@ -775,6 +776,51 @@ describe("fs-events-host openFanBookingPopup", () => {
     visualViewport.height = 700;
     visualViewport.dispatchEvent(new Event("resize"));
     expect(embed.iframe.style.getPropertyValue("--fs-events-embed-height")).toBe("590px");
+  });
+
+  it("reactively posts settled host viewport widths and stops after destroy", () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 820,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const embed = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+      initialRoute: "events",
+    });
+    const postMessage = vi.spyOn(embed.iframe.contentWindow, "postMessage");
+
+    vi.advanceTimersByTime(0);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_HOST_VIEWPORT_UPDATE",
+      payload: { hostViewportWidth: 820 },
+    }, window.location.origin);
+
+    postMessage.mockClear();
+    window.innerWidth = 960;
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(320);
+    expect(postMessage.mock.calls.filter(([message]) => (
+      message.type === "FS_EVENTS_HOST_VIEWPORT_UPDATE"
+      && message.payload.hostViewportWidth === 960
+    ))).toHaveLength(3);
+
+    postMessage.mockClear();
+    embed.destroy();
+    window.innerWidth = 1023;
+    window.dispatchEvent(new Event("orientationchange"));
+    vi.advanceTimersByTime(500);
+    expect(postMessage).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: originalInnerWidth,
+    });
   });
 
   it("posts auth updates to the active booking popup without remounting", () => {

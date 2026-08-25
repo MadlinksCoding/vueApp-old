@@ -53,22 +53,18 @@
         @click="$emit('event-click', event)"
       >
       
-      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[6.25rem] h-[6.25rem]">
+      <section class="flex gap-1 px-[0.5rem] py-[0.5rem] w-full min-h-[6.25rem] h-auto">
           <div 
-            class="w-[0.25rem] h-full rounded-[0.875rem]"
+            class="w-[0.25rem] self-stretch rounded-[0.875rem]"
             :class="event.borderClass"
             :style="isPendingSection(section)
               ? { background: '#fff' }
               : (event.accentColor ? { backgroundColor: event.accentColor } : null)"
           ></div>
           
-          <span v-if="event.time" class="flex items-start justify-center w-[3.4375rem] h-auto shrink-0 py-2">
-            <p class="text-[0.6875rem] text-gray-700 font-medium leading-[1rem]">{{ event.time }}</p>
-          </span>
-          
-          <span v-else class="flex flex-col py-2 justify-start items-center w-[3.375rem] h-auto shrink-0">
-             <p class="text-[0.75rem] text-gray-700 font-semibold leading-[1.125rem] uppercase">{{ event.dayName }}</p>
-             <p class="text-[1.125rem] text-gray-700 font-semibold leading-[1.75rem]">{{ event.dayNumber }}</p>
+          <span class="flex flex-col py-2 justify-start items-center w-[3.375rem] h-auto shrink-0" data-test="events-widget-date">
+             <p class="text-[0.75rem] text-gray-700 font-semibold leading-[1.125rem] uppercase" data-test="events-widget-month">{{ event.monthName || event.dayName }}</p>
+             <p class="text-[1.125rem] text-gray-700 font-semibold leading-[1.75rem]" data-test="events-widget-day">{{ event.dayNumber }}</p>
           </span>
 
           <span class="flex flex-col gap-[0.25rem] h-auto flex-1 min-w-0"> 
@@ -128,7 +124,11 @@
               </div>
             </span>
             </div>
-            <!-- <span class="text-xs font-semibold text-gray-500">{{ event.dayName }} {{ event.time }}</span> -->
+            <span
+              v-if="event.time"
+              class="text-xs font-semibold leading-[1.125rem] text-gray-700"
+              data-test="events-widget-time"
+            >{{ event.time }}</span>
 
             <div class="flex gap-1.5 items-start flex-1">
               <span class="flex flex-1 min-w-0" >

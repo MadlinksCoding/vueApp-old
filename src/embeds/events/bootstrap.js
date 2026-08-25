@@ -129,6 +129,14 @@ export function applyEventsEmbedAuthUpdate(payload = {}) {
   return bootstrapState.jwtToken;
 }
 
+export function applyEventsEmbedHostViewport(payload = {}) {
+  const hostViewportWidth = toNumberOr(payload.hostViewportWidth, null);
+  bootstrapState.hostViewportWidth = Number.isFinite(hostViewportWidth) && hostViewportWidth > 0
+    ? hostViewportWidth
+    : null;
+  return bootstrapState.hostViewportWidth;
+}
+
 export function readEventsEmbedBootstrapFromUrl() {
   if (typeof window === "undefined") return null;
 

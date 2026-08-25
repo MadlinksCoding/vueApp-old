@@ -125,7 +125,10 @@
 
         <div class="flex items-center gap-2" ref="dropdownContainer">
         <!-- View selector dropdown -->
-          <div class="px-2 hidden lg:flex items-center gap-2">
+          <div
+            class="px-2 hidden md:flex items-center gap-2"
+            data-test="calendar-legend-toggle"
+          >
             <CheckboxGroup :label="t('dashboard_calendar_show_legend')" v-model="showLegend"
               checkboxClass="appearance-none bg-white border border-[#D0D5DD] rounded-[0.25rem] w-4 min-w-4 h-4 checked:bg-[#FF0066] checked:border-[#FF0066] checked:relative checked:after:content-[''] checked:after:absolute checked:after:left-[0.3rem] checked:after:top-[0.15rem] checked:after:w-1 checked:after:h-2 checked:after:border checked:after:border-solid checked:after:border-t-0 checked:after:border-l-0 checked:after:border-white checked:after:border-b-2 checked:after:border-r-2 checked:after:rotate-45 checked:after:box-border cursor-pointer"
               labelClass="text-xs font-semibold leading-normal tracking-[0.0175rem] text-[#0C111D] cursor-pointer uppercase mt-[0.125rem] whitespace-nowrap"
@@ -304,7 +307,10 @@
             class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
             data-test="calendar-actionable-pending-indicator"
           />
-          <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
+          <div
+            v-if="calendarBadgeCount > 0"
+            class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center"
+          >
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
         </div>
@@ -320,7 +326,10 @@
             class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
             data-test="calendar-actionable-pending-indicator"
           />
-          <div class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center">
+          <div
+            v-if="calendarBadgeCount > 0"
+            class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center"
+          >
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
         </div>
@@ -328,9 +337,13 @@
         </div>
       </div>
 
-      <div v-show="showLegend" class="w-full hidden ipad-portrait:hidden lg:flex items-start gap-2 self-stretch rounded-[10px]">
+      <div
+        v-show="showLegend"
+        class="w-full hidden md:flex flex-col lg:flex-row items-start gap-2 self-stretch rounded-[10px]"
+        data-test="calendar-legend"
+      >
         <!-- Event type -->
-        <div class="flex flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+        <div class="flex w-full lg:w-auto flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
           <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase whitespace-nowrap">{{ t("dashboard_calendar_legend_event_type") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
@@ -352,7 +365,7 @@
         </div>
         <!-- /Event type -->
          <!-- Status -->
-        <div class="flex flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+        <div class="flex w-full lg:w-auto flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
           <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_status") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
@@ -420,10 +433,15 @@
 
 
     <div ref="timeGridBodyRef" v-if="effectiveView !== 'month'" data-cal-time-grid class="h-full flex flex-col ipad-portrait-small:px-0 ipad-portrait-large:px-0 md:px-0 w-full overflow-hidden relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0" :class="[theme.main.xHeader]">
+      <div
+        class="flex shrink-0 border-b border-[#98A2B3] ipad-portrait-small:border-b md:border-b-0"
+        :class="[theme.main.xHeader, usesRightTimeAxis ? 'flex-row-reverse' : 'flex-row']"
+        :style="{ flexDirection: usesRightTimeAxis ? 'row-reverse' : 'row' }"
+        data-test="calendar-time-grid-header"
+      >
 
         <div
-          v-if="!isMobileDayEventColumnMode"
+          v-if="!isPhoneEventColumnMode"
           :class="[theme.main.axisXLabel, 'shrink-0']"
           data-test="calendar-timezone-header"
         >
@@ -449,8 +467,11 @@
 
         <div
           v-if="isDayEventColumnMode"
-          class="flex min-w-0 w-full items-center h-[5.125rem] pl-2"
-          :class="isMobileDayEventColumnMode ? 'gap-0' : 'gap-4'"
+          class="flex min-w-0 w-full items-center h-[5.125rem]"
+          :class="[
+            isMobileDayEventColumnMode ? 'gap-0' : 'gap-4',
+            responsiveAxisHeaderPaddingClass
+          ]"
           :data-date="activeDayIso"
           :data-selected="sameDay(activeDay, selectedDay) ? 'true' : 'false'"
           data-test="calendar-day-event-header"
@@ -465,7 +486,8 @@
               v-for="d in mobileDayStripDays"
               :key="'mobile-day-' + formatLocalDateKey(d)"
               type="button"
-              class="flex min-w-[25%] w-[25%] shrink-0 snap-start flex-col items-center justify-center gap-1 px-1 py-1 text-center"
+              class="flex min-w-[25%] w-[25%] shrink-0 snap-start flex-col items-center justify-center gap-1 px-1 py-1 text-center transition-opacity"
+              :class="sameDay(d, selectedDay) ? 'opacity-100' : 'opacity-30'"
               :data-date="formatLocalDateKey(d)"
               :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'"
               :data-today="sameDay(d, today) ? 'true' : 'false'"
@@ -473,8 +495,7 @@
               @click="selectMobileDayDate(d)"
             >
               <span
-                class="text-[0.625rem] font-bold uppercase leading-4"
-                :class="sameDay(d, selectedDay) ? 'text-[#101828]' : 'text-[#98A2B3]'"
+                class="text-[0.625rem] font-bold uppercase leading-4 text-[#101828]"
               >
                 {{ shortWeekdays[d.getDay()] }}
               </span>
@@ -483,7 +504,7 @@
                 :class="[
                   sameDay(d, selectedDay)
                     ? 'bg-[#0C111D] text-white'
-                    : 'text-[#98A2B3]',
+                    : 'text-[#101828]',
                   sameDay(d, today) && !sameDay(d, selectedDay) ? 'ring-1 ring-[#FB5BA2]/40' : ''
                 ]"
               >
@@ -528,7 +549,8 @@
 
         <div
           v-else-if="isWeekEventColumnMode"
-          class="flex min-w-0 w-full items-center pl-2"
+          class="flex min-w-0 w-full items-center"
+          :class="responsiveAxisHeaderPaddingClass"
           data-test="calendar-week-event-header"
         >
           <div
@@ -538,6 +560,7 @@
             data-test="calendar-week-event-header-scroll"
             @scroll="syncWeekHorizontalScroll('header')"
             @wheel="handleWeekHorizontalWheel($event, 'header')"
+            @pointerdown="cancelWeekSelectedRevealSettlement"
             @mousedown="beginWeekHeaderMouseDrag"
             @click.capture="handleWeekHeaderClickCapture"
           >
@@ -558,6 +581,7 @@
                 :data-today="sameDay(group.day, today) ? 'true' : 'false'"
                 :data-week-day-units="group.widthUnits"
                 :data-week-day-base-width="`${group.baseWidthPercent}%`"
+                :data-week-day-min-width-px="group.minWidthPx || undefined"
                 data-test="calendar-week-event-header-day"
                 @click="selectWeekDate(group.day)"
               >
@@ -630,8 +654,17 @@
       <div
         ref="timeGridScrollRef"
         data-cal-time-scroll
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex-row-reverse ipad-portrait-small:flex-row-reverse md:flex-row relative">
-        <div class="flex flex-col shrink-0 absolute ipad-portrait-small:absolute md:relative top-0 right-0" data-cal-time-axis :style="{ height: gridMetrics.totalHeight + 'px' }">
+        data-test="calendar-time-grid-scroll"
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative"
+        :class="usesRightTimeAxis ? 'flex-row-reverse' : 'flex-row'"
+        :style="{ flexDirection: usesRightTimeAxis ? 'row-reverse' : 'row' }"
+      >
+        <div
+          class="flex flex-col shrink-0 top-0 right-0"
+          :class="isPhoneEventColumnMode ? 'absolute' : 'relative'"
+          data-cal-time-axis
+          :style="{ height: gridMetrics.totalHeight + 'px' }"
+        >
           <div v-for="(t, idx) in range.labels" :key="'slot-label-' + idx + '-' + t"
             :class="[theme.main.axisYRow, 'shrink-0', isNowLabel(idx) ? ' !text-[#F06] !font-semibold' : '']"
             data-test="calendar-time-label"
@@ -653,6 +686,7 @@
           :style="{ height: gridMetrics.totalHeight + 'px' }"
           @scroll="syncWeekHorizontalScroll('body')"
           @wheel="handleWeekBodyWheel"
+          @pointerdown="cancelWeekSelectedRevealSettlement"
         >
         <span
           class="w-full min-w-0 relative rounded-md"
@@ -717,6 +751,7 @@
               :data-expired="sd(group.day) < today ? 'true' : 'false'"
               :data-week-day-units="group.widthUnits"
               :data-week-day-base-width="`${group.baseWidthPercent}%`"
+              :data-week-day-min-width-px="group.minWidthPx || undefined"
               data-test="calendar-week-event-day-group"
               @click.self="selectWeekDate(group.day)"
             >
@@ -796,7 +831,10 @@
 
     <div ref="monthViewRef" v-if="effectiveView === 'month'" class="flex flex-col px-1 md:px-0 w-full h-full overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-2" data-test="calendar-month-view">
 
-      <div class="grid grid-cols-7 shrink-0 top-0 sticky w-full backdrop-blur-md z-10">
+      <div
+        class="grid grid-cols-7 shrink-0 top-0 sticky w-full px-px backdrop-blur-md z-10"
+        data-test="calendar-month-week-header"
+      >
         <div v-for="(w, index) in shortWeekdays" :key="w"
           class="text-center text-sm font-semibold uppercase mb-[0.625rem]"
           :class="index === 0 ? 'text-[#FF4405]' : 'text-[#0C111D]'">
@@ -1215,6 +1253,8 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 },
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
+  tabletWeekEventLaneMinWidthPx: { type: Number, default: 0 },
+  responsiveViewportWidth: { type: Number, default: null },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
   joinComparisonTime: { type: Date, default: null },
   stickyCardEvents: { type: Array, default: () => [] },
@@ -1226,6 +1266,12 @@ const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const height = ref(window.innerHeight);
+const canonicalViewportWidth = computed(() => {
+  const suppliedWidth = Number(props.responsiveViewportWidth);
+  return Number.isFinite(suppliedWidth) && suppliedWidth > 0
+    ? suppliedWidth
+    : width.value;
+});
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const calendarRootRef = ref(null);
@@ -1241,6 +1287,13 @@ const monthBookingVisibleCounts = ref({});
 const monthAvailabilityVisibleCounts = ref({});
 let monthAvailabilityResizeObserver = null;
 let monthAvailabilityLayoutFrame = null;
+let weekHorizontalScrollProgress = 0;
+let weekAlignmentFrame = null;
+let weekAlignmentUnmounted = false;
+let weekAlignmentScheduleId = 0;
+let weekSelectedRevealActive = false;
+let weekSelectedRevealExpiryTimer = null;
+const weekAlignmentTimers = new Set();
 const weekHeaderMouseDrag = ref({
   active: false,
   dragging: false,
@@ -1254,7 +1307,7 @@ const currentTimeMs = ref(Date.now());
 // State for dropdown
 const isDropdownOpen = ref(false);
 const isViewSelectorOpen = ref(false);
-const availableViewOptions = computed(() => (width.value < 678 ? ['day'] : ['day', 'week', 'month']));
+const availableViewOptions = computed(() => (canonicalViewportWidth.value < 678 ? ['day'] : ['day', 'week', 'month']));
 const dropdownContainer = ref(null);
 const showSchedule = ref(true); // Checkbox state
 const showLegend = ref(false);
@@ -1346,7 +1399,7 @@ const mobileStickyCardEvent = computed(() => normalizedStickyCardEvents.value.fi
 
 const hasMobileStickyCard = computed(() => Boolean(mobileStickyCardEvent.value));
 const visibleStickyCardEvents = computed(() => {
-  if (width.value < 678) {
+  if (canonicalViewportWidth.value < 678) {
     return mobileStickyCardEvent.value ? [mobileStickyCardEvent.value] : [];
   }
   return [];
@@ -1460,7 +1513,7 @@ const resolveEventSlotName = (event = {}) => {
 };
 
 const handleMonthDateClick = (d) => {
-  if (window.innerWidth >= 1024) {
+  if (canonicalViewportWidth.value >= 1024) {
     const hasEvents = monthBookingEventsForDay(d).length > 0
       || monthAvailabilityEventsForDay(d).length > 0;
 
@@ -1524,21 +1577,33 @@ const calendarPopupConfig = {
   closeEffect: "cubic-bezier(0.4, 0, 0.2, 1)",
 };
 
-const eventsRequestsPopupConfig = {
-  actionType: "slidein",
-  from: "bottom",
-  offset: "0px",
-  speed: "300ms",
-  effect: "ease-in-out",
-  showOverlay: true,
-  closeOnOutside: true,
-  lockScroll: true,
-  escToClose: true,
-  width: { default: "100%" },
-  height: { default: "80%" },
-  scrollable: false,
-  closeSpeed: "250ms",
-};
+const isEventsRequestsTabletLandscape = computed(() => (
+  canonicalViewportWidth.value >= 678
+  && canonicalViewportWidth.value < 1366
+  && canonicalViewportWidth.value > height.value
+));
+
+const eventsRequestsPopupConfig = computed(() => {
+  const tabletLandscape = isEventsRequestsTabletLandscape.value;
+  const mobile = canonicalViewportWidth.value < 678;
+
+  return {
+    actionType: "slidein",
+    from: tabletLandscape ? "right" : "bottom",
+    offset: "0px",
+    speed: "300ms",
+    effect: "ease-in-out",
+    showOverlay: true,
+    closeOnOutside: true,
+    lockScroll: true,
+    escToClose: true,
+    width: { default: tabletLandscape ? "480px" : "100%" },
+    height: { default: mobile ? "60%" : "100%" },
+    forceHeight: true,
+    scrollable: false,
+    closeSpeed: "250ms",
+  };
+});
 
 const newEventsPopupConfig = {
   actionType: "slidein",
@@ -1555,7 +1620,7 @@ const newEventsPopupConfig = {
 };
 
 const shouldUseCompactEventDetails = (event) => (
-  width.value < 768
+  canonicalViewportWidth.value < 768
   && String(props.userRole || '').trim().toLowerCase() === 'creator'
   && props.canReviewPending
   && getCalendarEventApprovalState(event, {
@@ -1564,7 +1629,7 @@ const shouldUseCompactEventDetails = (event) => (
   && !isPendingCounterOffer(event)
 );
 const useCompactEventDetails = computed(() => eventDetailsCompactSession.value);
-const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(width.value, {
+const eventDetailsPopupConfig = computed(() => createEventDetailsPopupConfig(canonicalViewportWidth.value, {
   compact: useCompactEventDetails.value,
 }));
 
@@ -1616,9 +1681,47 @@ const isWeekEventColumnMode = computed(() => (
   isEventColumnMode.value && effectiveView.value === 'week'
 ));
 
-const isMobileDayEventColumnMode = computed(() => (
-  isDayEventColumnMode.value && width.value < 1024
+const tabletWeekEventLaneMinWidthPx = computed(() => {
+  const configuredWidth = Number(props.tabletWeekEventLaneMinWidthPx);
+  if (
+    !isWeekEventColumnMode.value
+    || canonicalViewportWidth.value < 768
+    || canonicalViewportWidth.value >= 1024
+    || !Number.isFinite(configuredWidth)
+    || configuredWidth <= 0
+  ) {
+    return 0;
+  }
+
+  return configuredWidth;
+});
+
+const usesTabletWeekEventLaneMinimum = computed(() => (
+  tabletWeekEventLaneMinWidthPx.value > 0
 ));
+
+const isMobileDayEventColumnMode = computed(() => (
+  isDayEventColumnMode.value && canonicalViewportWidth.value < 1024
+));
+
+const isPhoneEventColumnMode = computed(() => (
+  isEventColumnMode.value && canonicalViewportWidth.value < 768
+));
+
+const usesRightTimeAxis = computed(() => (
+  isPhoneEventColumnMode.value
+  || (
+    isEventColumnMode.value
+    && canonicalViewportWidth.value >= 768
+    && canonicalViewportWidth.value < 1024
+    && canonicalViewportWidth.value < height.value
+  )
+));
+
+const responsiveAxisHeaderPaddingClass = computed(() => {
+  if (isPhoneEventColumnMode.value) return 'pl-0 pr-0';
+  return usesRightTimeAxis.value ? 'pl-0 pr-2' : 'pl-2 pr-0';
+});
 
 function formatLocalDateKey(date) {
   const value = new Date(date);
@@ -1983,9 +2086,26 @@ const weekEventDayGroups = computed(() => {
   if (!isWeekEventColumnMode.value) return [];
 
   return weekDays.value.map((day) => {
-    const columns = eventColumnsForDay(day);
+    const columns = eventColumnsForDay(day).map((column) => {
+      if (!usesTabletWeekEventLaneMinimum.value || column.isEmpty) {
+        return { ...column, widthUnits: 1 };
+      }
+
+      const laneUnits = eventsForDay(day)
+        .filter((event) => (
+          event.isAvailabilityBlock !== true
+          && resolveDayColumnEventId(event) === column.eventId
+        ))
+        .reduce((maximum, event) => (
+          Math.max(maximum, Number(event.overlapLaneCount) || 1)
+        ), 1);
+
+      return { ...column, widthUnits: laneUnits };
+    });
     const eventCount = columns.filter((column) => !column.isEmpty).length;
-    const widthUnits = Math.max(eventCount, 1);
+    const widthUnits = usesTabletWeekEventLaneMinimum.value
+      ? columns.reduce((total, column) => total + Math.max(Number(column.widthUnits) || 1, 1), 0)
+      : Math.max(eventCount, 1);
 
     return {
       day,
@@ -1994,6 +2114,9 @@ const weekEventDayGroups = computed(() => {
       isSelected: sameDay(day, selectedDay.value),
       widthUnits,
       baseWidthPercent: widthUnits * 8,
+      minWidthPx: usesTabletWeekEventLaneMinimum.value
+        ? widthUnits * tabletWeekEventLaneMinWidthPx.value
+        : 0,
     };
   });
 });
@@ -2004,6 +2127,15 @@ const weekEventTotalWidthUnits = computed(() => (
 
 const weekEventTrackStyle = computed(() => {
   if (!isWeekEventColumnMode.value) return {};
+
+  if (usesTabletWeekEventLaneMinimum.value) {
+    const minimumTrackWidth = weekEventTotalWidthUnits.value * tabletWeekEventLaneMinWidthPx.value;
+
+    return {
+      width: '100%',
+      minWidth: `${minimumTrackWidth}px`,
+    };
+  }
 
   const trackWidthPercent = Math.max(100, weekEventTotalWidthUnits.value * 8);
 
@@ -2024,7 +2156,11 @@ const weekEventDayGroupStyle = (group = {}) => {
 };
 
 const eventColumnsGridStyle = (columns = []) => ({
-  gridTemplateColumns: `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`,
+  gridTemplateColumns: usesTabletWeekEventLaneMinimum.value
+    ? columns
+      .map((column) => `minmax(0, ${Math.max(Number(column.widthUnits) || 1, 1)}fr)`)
+      .join(' ')
+    : `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`,
 });
 
 const timeGridColumnStyle = computed(() => {
@@ -2234,56 +2370,148 @@ const centerMobileDayStrip = ({ behavior = 'smooth' } = {}) => {
   });
 };
 
+const getWeekHorizontalScrollElements = () => (
+  [weekHeaderScrollRef.value, weekBodyScrollRef.value].filter(Boolean)
+);
+
+const getWeekSharedScrollMax = () => {
+  const elements = getWeekHorizontalScrollElements();
+  if (elements.length < 2) return 0;
+
+  return Math.min(...elements.map((element) => (
+    Math.max(0, element.scrollWidth - element.clientWidth)
+  )));
+};
+
+const applyWeekHorizontalScrollProgress = ({ behavior = 'auto' } = {}) => {
+  if (!isWeekEventColumnMode.value) return;
+
+  const elements = getWeekHorizontalScrollElements();
+  if (elements.length < 2) return;
+
+  const sharedMax = getWeekSharedScrollMax();
+  weekHorizontalScrollProgress = Math.max(0, Math.min(1, weekHorizontalScrollProgress));
+  const targetLeft = sharedMax * weekHorizontalScrollProgress;
+
+  elements.forEach((element) => {
+    if (Math.abs(element.scrollLeft - targetLeft) <= 0.5) return;
+
+    if (behavior !== 'auto' && typeof element.scrollTo === 'function') {
+      element.scrollTo({ left: targetLeft, behavior });
+      return;
+    }
+
+    element.scrollLeft = targetLeft;
+  });
+};
+
+const setWeekHorizontalScrollLeft = (left, { behavior = 'auto' } = {}) => {
+  const sharedMax = getWeekSharedScrollMax();
+  weekHorizontalScrollProgress = sharedMax > 0
+    ? Math.max(0, Math.min(sharedMax, left)) / sharedMax
+    : 0;
+  applyWeekHorizontalScrollProgress({ behavior });
+};
+
 const syncWeekHorizontalScroll = (source) => {
   if (!isWeekEventColumnMode.value) return;
 
   const sourceEl = source === 'header' ? weekHeaderScrollRef.value : weekBodyScrollRef.value;
-  const targetEl = source === 'header' ? weekBodyScrollRef.value : weekHeaderScrollRef.value;
-  if (!sourceEl || !targetEl) return;
+  if (!sourceEl) return;
 
-  const sourceMax = Math.max(0, sourceEl.scrollWidth - sourceEl.clientWidth);
-  const targetMax = Math.max(0, targetEl.scrollWidth - targetEl.clientWidth);
-  const ratio = sourceMax > 0 ? sourceEl.scrollLeft / sourceMax : 0;
-  const targetLeft = targetMax > 0 ? ratio * targetMax : sourceEl.scrollLeft;
+  setWeekHorizontalScrollLeft(sourceEl.scrollLeft);
+};
 
-  // Ignore the matching scroll event generated by this assignment. Comparing
-  // positions avoids a header/body feedback loop without dropping user input.
-  if (Math.abs(targetEl.scrollLeft - targetLeft) > 0.5) {
-    targetEl.scrollLeft = targetLeft;
+const cancelWeekSelectedRevealSettlement = () => {
+  weekSelectedRevealActive = false;
+  if (weekSelectedRevealExpiryTimer != null) {
+    window.clearTimeout(weekSelectedRevealExpiryTimer);
+    weekSelectedRevealExpiryTimer = null;
   }
 };
 
-const revealSelectedWeekDay = ({ behavior = 'smooth' } = {}) => {
+const beginWeekSelectedRevealSettlement = () => {
+  cancelWeekSelectedRevealSettlement();
+  weekSelectedRevealActive = true;
+  weekSelectedRevealExpiryTimer = window.setTimeout(() => {
+    weekSelectedRevealActive = false;
+    weekSelectedRevealExpiryTimer = null;
+  }, 3000);
+};
+
+const revealSelectedWeekDayNow = ({ behavior = 'smooth' } = {}) => {
+  if (!isWeekEventColumnMode.value) return false;
+
+  const scroller = weekHeaderScrollRef.value;
+  const selected = scroller?.querySelector?.('[data-selected="true"]');
+  if (!scroller || !selected) return false;
+
+  const scrollerRect = scroller.getBoundingClientRect();
+  const selectedRect = selected.getBoundingClientRect();
+  const scrollerCenter = scrollerRect.left + (scrollerRect.width / 2);
+  const selectedCenter = selectedRect.left + (selectedRect.width / 2);
+  const delta = selectedCenter - scrollerCenter;
+  const maxScrollLeft = getWeekSharedScrollMax();
+  const targetLeft = Math.max(0, Math.min(maxScrollLeft, scroller.scrollLeft + delta));
+
+  if (Math.abs(targetLeft - scroller.scrollLeft) < 1) return true;
+
+  setWeekHorizontalScrollLeft(targetLeft, { behavior });
+  return true;
+};
+
+const cancelWeekAlignmentSchedule = () => {
+  weekAlignmentScheduleId += 1;
+  if (weekAlignmentFrame != null && typeof window.cancelAnimationFrame === 'function') {
+    window.cancelAnimationFrame(weekAlignmentFrame);
+  }
+  weekAlignmentFrame = null;
+
+  weekAlignmentTimers.forEach((timer) => window.clearTimeout(timer));
+  weekAlignmentTimers.clear();
+};
+
+const scheduleWeekAlignment = () => {
+  cancelWeekAlignmentSchedule();
+  const scheduleId = weekAlignmentScheduleId;
+
   nextTick(() => {
-    if (!isWeekEventColumnMode.value || width.value < 1024) return;
+    if (weekAlignmentUnmounted || scheduleId !== weekAlignmentScheduleId || !isWeekEventColumnMode.value) return;
 
-    const scroller = weekHeaderScrollRef.value;
-    const selected = scroller?.querySelector?.('[data-selected="true"]');
-    if (!scroller || !selected) return;
+    const applySettledAlignment = () => {
+      if (weekSelectedRevealActive) {
+        revealSelectedWeekDayNow({ behavior: 'auto' });
+        return;
+      }
+      applyWeekHorizontalScrollProgress();
+    };
 
-    const scrollerRect = scroller.getBoundingClientRect();
-    const selectedRect = selected.getBoundingClientRect();
-    let delta = 0;
+    applySettledAlignment();
 
-    if (selectedRect.left < scrollerRect.left) {
-      delta = selectedRect.left - scrollerRect.left;
-    } else if (selectedRect.right > scrollerRect.right) {
-      delta = selectedRect.right - scrollerRect.right;
+    if (typeof window.requestAnimationFrame === 'function') {
+      weekAlignmentFrame = window.requestAnimationFrame(() => {
+        weekAlignmentFrame = null;
+        if (!weekAlignmentUnmounted && scheduleId === weekAlignmentScheduleId) applySettledAlignment();
+      });
     }
 
-    if (Math.abs(delta) < 1) return;
+    const settleDelays = weekSelectedRevealActive ? [80, 180, 500, 900] : [80, 180];
+    settleDelays.forEach((delay) => {
+      const timer = window.setTimeout(() => {
+        weekAlignmentTimers.delete(timer);
+        if (!weekAlignmentUnmounted && scheduleId === weekAlignmentScheduleId) applySettledAlignment();
+      }, delay);
+      weekAlignmentTimers.add(timer);
+    });
+  });
+};
 
-    const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-    const targetLeft = Math.max(0, Math.min(maxScrollLeft, scroller.scrollLeft + delta));
-    if (Math.abs(targetLeft - scroller.scrollLeft) < 1) return;
+const revealSelectedWeekDay = ({ behavior = 'smooth', settle = false } = {}) => {
+  if (settle) beginWeekSelectedRevealSettlement();
 
-    if (typeof scroller.scrollTo === 'function') {
-      scroller.scrollTo({ left: targetLeft, behavior });
-      return;
-    }
-
-    scroller.scrollLeft = targetLeft;
-    syncWeekHorizontalScroll('header');
+  nextTick(() => {
+    revealSelectedWeekDayNow({ behavior });
+    if (settle) scheduleWeekAlignment();
   });
 };
 
@@ -2297,14 +2525,14 @@ const scrollWeekHorizontally = (source, delta) => {
   const element = getWeekHorizontalScrollElement(source);
   if (!element) return false;
 
-  const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+  const maxScrollLeft = getWeekSharedScrollMax();
   if (maxScrollLeft <= 1) return false;
 
   const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, element.scrollLeft + delta));
   if (Math.abs(nextScrollLeft - element.scrollLeft) < 0.5) return false;
 
-  element.scrollLeft = nextScrollLeft;
-  syncWeekHorizontalScroll(source);
+  cancelWeekSelectedRevealSettlement();
+  setWeekHorizontalScrollLeft(nextScrollLeft);
   return true;
 };
 
@@ -2357,9 +2585,8 @@ const moveWeekHeaderMouseDrag = (event) => {
   const element = weekHeaderScrollRef.value;
   if (!element) return;
 
-  const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
-  element.scrollLeft = Math.max(0, Math.min(maxScrollLeft, drag.startLeft + delta));
-  syncWeekHorizontalScroll('header');
+  const maxScrollLeft = getWeekSharedScrollMax();
+  setWeekHorizontalScrollLeft(Math.max(0, Math.min(maxScrollLeft, drag.startLeft + delta)));
   event.preventDefault();
 };
 
@@ -2507,7 +2734,7 @@ const handleDetailsApproveBooking = (payload) => {
     emit('approve-booking', {
       ...payload,
       retainDetails: true,
-      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+      showReviewToast: eventDetailsCompactSession.value && canonicalViewportWidth.value < 768,
     });
     return;
   }
@@ -2671,7 +2898,7 @@ const handleDetailsRejectBooking = (payload) => {
     emit('reject-booking', {
       ...payload,
       retainDetails: true,
-      showReviewToast: eventDetailsCompactSession.value && width.value < 768,
+      showReviewToast: eventDetailsCompactSession.value && canonicalViewportWidth.value < 768,
     });
     return;
   }
@@ -3134,7 +3361,7 @@ function scheduleMonthAvailabilityLayout() {
 }
 
 async function positionMonthDateOverlay(day = expandedDate.value) {
-  if (!day || width.value < 1024 || effectiveView.value !== 'month') return;
+  if (!day || canonicalViewportWidth.value < 1024 || effectiveView.value !== 'month') return;
 
   await nextTick();
   if (!expandedDate.value || !sameDay(day, expandedDate.value)) return;
@@ -3173,7 +3400,7 @@ async function positionMonthDateOverlay(day = expandedDate.value) {
 }
 
 function handleMonthOverlayOutsideClick(event) {
-  if (width.value < 1024 || !expandedDate.value) return;
+  if (canonicalViewportWidth.value < 1024 || !expandedDate.value) return;
   const target = event.target;
   if (monthOverlayRef.value?.contains(target)) return;
   if (target?.closest?.('[data-date]')) return;
@@ -3181,17 +3408,18 @@ function handleMonthOverlayOutsideClick(event) {
 }
 
 function handleMonthOverlayKeydown(event) {
-  if (event.key === 'Escape' && width.value >= 1024 && expandedDate.value) {
+  if (event.key === 'Escape' && canonicalViewportWidth.value >= 1024 && expandedDate.value) {
     closeMonthDateOverlay();
   }
 }
 
 watch([effectiveView, processedEventsByDay], () => {
   nextTick(scheduleMonthAvailabilityLayout);
+  scheduleWeekAlignment();
 }, { flush: 'post' });
 
 watch(expandedMonthEventCount, () => {
-  if (expandedDate.value && width.value >= 1024) {
+  if (expandedDate.value && canonicalViewportWidth.value >= 1024) {
     positionMonthDateOverlay();
   }
 });
@@ -3293,20 +3521,36 @@ const nowLineTopPx = computed(() => {
   return minuteToGridOffset(minute);
 });
 
+const resetWeekHorizontalPosition = () => {
+  cancelWeekSelectedRevealSettlement();
+  weekHorizontalScrollProgress = 0;
+
+  nextTick(() => {
+    [weekHeaderScrollRef.value, weekBodyScrollRef.value]
+      .filter(Boolean)
+      .forEach((element) => {
+        element.scrollLeft = 0;
+      });
+  });
+};
+
 const setView = (v) => {
   closeMonthDateOverlay();
   const previousView = view.value;
   view.value = v;
+  if (v !== 'week') resetWeekHorizontalPosition();
   emit('view-changed', v);
   if (v === 'day') {
     selectTodayForMobileDay();
-  } else if (v === 'week' && previousView === 'day') {
-    revealSelectedWeekDay();
+  } else if (v === 'week' && previousView !== 'week') {
+    revealSelectedWeekDay({ behavior: 'auto', settle: true });
+  } else if (v === 'week') {
+    scheduleWeekAlignment();
   }
 };
 
 const ensureMobileEventDayView = () => {
-  if (width.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
+  if (canonicalViewportWidth.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
   if (view.value === 'day') return false;
 
   setView('day');
@@ -3345,21 +3589,38 @@ const updateNowLine = () => {
   const pct = ((cur - sMin) / Math.max(1, (eMin - sMin))) * 100;
   nowY.value = Math.min(100, Math.max(0, pct));
 };
-const handleResize = () => {
-  const previousWidth = width.value;
-  width.value = window.innerWidth;
-  height.value = window.innerHeight;
-  const enteredMobile = previousWidth >= 1024 && width.value < 1024;
+const applyResponsiveViewportChange = (previousWidth, nextWidth) => {
+  const enteredMobile = previousWidth >= 1024 && nextWidth < 1024;
 
-  if ((previousWidth < 1024) !== (width.value < 1024)) {
+  if ((previousWidth < 1024) !== (nextWidth < 1024)) {
     closeMonthDateOverlay();
-  } else if (width.value >= 1024 && expandedDate.value) {
+  } else if (nextWidth >= 1024 && expandedDate.value) {
     positionMonthDateOverlay();
   }
 
   if (enteredMobile) {
     ensureMobileEventDayView();
   }
+
+  scheduleMonthAvailabilityLayout();
+  scheduleWeekAlignment();
+};
+
+const handleResize = () => {
+  const previousResponsiveWidth = canonicalViewportWidth.value;
+  width.value = window.innerWidth;
+  height.value = window.innerHeight;
+  if (previousResponsiveWidth === canonicalViewportWidth.value) {
+    applyResponsiveViewportChange(previousResponsiveWidth, canonicalViewportWidth.value);
+  }
+};
+
+watch(canonicalViewportWidth, (nextWidth, previousWidth) => {
+  applyResponsiveViewportChange(previousWidth, nextWidth);
+}, { flush: 'sync' });
+
+const handleOrientationChange = () => {
+  handleResize();
 };
 
 // Toggle function
@@ -3373,7 +3634,7 @@ const toggleViewSelector = () => {
 
 // Close dropdown if clicked outside
 const handleClickOutside = (event) => {
-  if (width.value >= 1024) {
+  if (canonicalViewportWidth.value >= 1024) {
   if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
     isDropdownOpen.value = false;
     isViewSelectorOpen.value = false;
@@ -3381,10 +3642,12 @@ const handleClickOutside = (event) => {
   }
 };
 onMounted(() => {
+  weekAlignmentUnmounted = false;
   document.addEventListener('click', handleClickOutside);
   document.addEventListener('click', handleMonthOverlayOutsideClick);
   document.addEventListener('keydown', handleMonthOverlayKeydown);
   window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', handleOrientationChange);
   window.addEventListener('mousemove', moveWeekHeaderMouseDrag);
   window.addEventListener('mouseup', endWeekHeaderMouseDrag);
   if (typeof window.ResizeObserver === 'function') {
@@ -3399,9 +3662,14 @@ onMounted(() => {
     selectTodayForMobileDay();
   }
   scheduleMonthAvailabilityLayout();
+  scheduleWeekAlignment();
 });
 onBeforeUnmount(() => {
+  weekAlignmentUnmounted = true;
+  cancelWeekAlignmentSchedule();
+  cancelWeekSelectedRevealSettlement();
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('orientationchange', handleOrientationChange);
   window.removeEventListener('mousemove', moveWeekHeaderMouseDrag);
   window.removeEventListener('mouseup', endWeekHeaderMouseDrag);
   monthAvailabilityResizeObserver?.disconnect();
@@ -3447,6 +3715,8 @@ const resetElementScroll = (element) => {
 };
 
 const resetScrollToTop = () => {
+  cancelWeekSelectedRevealSettlement();
+  weekHorizontalScrollProgress = 0;
   resetElementScroll(calendarRootRef.value);
   resetElementScroll(timeGridBodyRef.value);
   resetElementScroll(timeGridScrollRef.value);
