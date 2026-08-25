@@ -47,20 +47,20 @@
           <!-- {{ isPassCall?  'Actions unavailable for this booking' : 'You can take actions on this booking'  }} -->
           <div
             v-if="menuOpen"
-            class="absolute right-0 top-6 z-[1200] w-[14rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+            class="absolute right-0 top-6 z-[1200] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
             @click.stop
           >
             <button
               type="button"
-              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2]"
+              class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] whitespace-nowrap"
               @click.stop="handleCancelCall"
             >
-              <span class="inline-flex w-5 h-5 items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M10 14L21 3M14 10L3 21M4.5 8.5C3.5 6.5 3.5 4.5 5 3C7 1 10 2 12.5 4.5L19.5 11.5C22 14 23 17 21 19C19.5 20.5 17.5 20.5 15.5 19.5" stroke="#F04438" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              Cancel Call
+              <span class="inline-flex w-5 h-5 items-center justify-center" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
+                  </svg>
+                </span>
+              Cancel Booking
             </button>
           </div>
         </div>
@@ -167,7 +167,7 @@
             <button
               type="button"
               :disabled="disabled"
-              class="flex-1 min-w-0 px-3 py-2 rounded border border-[#344054] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#1D2939] transition-colors hover:bg-gray-50 disabled:opacity-50"
+              class="flex-1 min-w-0 px-3 py-2 rounded border border-[#FF4405] bg-white inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-[#FF4405] transition-colors hover:bg-gray-50 disabled:opacity-50"
               data-test="chat-booking-request-review"
               @click.stop="!disabled && $emit('review-booking')"
             >
@@ -194,13 +194,13 @@
 
               <div
                 v-if="reviewMenuOpen"
-                class="absolute right-0 top-11 z-[1200] w-[13rem] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
+                class="absolute right-0 top-11 z-[1200] rounded-[0.375rem] border border-[#EAECF0] bg-white shadow-[0_10px_20px_rgba(0,0,0,0.15)] overflow-hidden"
                 @click.stop
               >
                 <button
                   type="button"
                   :disabled="disabled"
-                  class="w-full flex items-center gap-2 px-3 py-3 text-left text-[0.8rem] font-semibold text-[#F04438] hover:bg-[#FEF3F2] disabled:opacity-50"
+                  class="w-full flex items-center gap-2 px-3 py-2 text-left text-[0.8rem] font-semibold text-[#F04438] disabled:opacity-50 whitespace-nowrap"
                   data-test="chat-booking-request-decline"
                   @click.stop="handleDeclineBooking"
                 >
@@ -209,7 +209,7 @@
                       <path d="M13.5 4.5L4.5 13.5M4.5 4.5L13.5 13.5" stroke="#F04438" stroke-width="1.5" stroke-linecap="round" />
                     </svg>
                   </span>
-                  Decline Booking
+                  Cancel Booking
                 </button>
               </div>
             </div>
@@ -422,6 +422,7 @@ import { hktDateTimeToLocalDate } from '@/services/events/eventsApiUtils'
 import { openScheduledMeetingOverlay, getBookingJoinState } from '@/utils/bookingJoinUtils.js'
 import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js'
 import { showToast } from '@/utils/toastBus.js'
+import CloseIcon from '@/assets/images/icons/x-close-white.svg';
 
 const chatStore = useChatStore()
 

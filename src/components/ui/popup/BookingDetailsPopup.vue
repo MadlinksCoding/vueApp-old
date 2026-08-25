@@ -190,7 +190,7 @@
       <template v-else>
       <div class="self-stretch relative bg-black/25 backdrop-blur-[5px] flex flex-col justify-start items-start">
         <div class="self-stretch px-4 pt-12 pb-2 min-h-[18.75rem] relative bg-gradient-to-b from-amber-400/5 to-amber-400/30 flex flex-col justify-end items-start gap-4" data-test="event-details-fan-hero">
-          <div class="h-6 p-1.5 bg-stone-900/50 rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
+          <div class="h-6 p-1.5 bg-[rgba(29,29,29,0.5)] rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
             <div data-property-1="decline" data-size="Default" class="size-4 p-px flex justify-start items-center gap-2.5">
               <div class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5" :style="{ backgroundColor: statusColor }">
                 <div v-if="displayIsCancelledStatus" data-svg-wrapper class="relative">
@@ -198,6 +198,16 @@
                 </div>
                 <span v-else class="size-1.5 rounded-full bg-white" aria-hidden="true" />
               </div>
+              <!-- <div class="size-4 rounded-[50px] flex justify-center items-center gap-2.5">
+                <div  data-svg-wrapper class="relative">
+                  <img :src="HelpCircleIcon" alt="" class="h-4 w-4" />
+                </div>
+              </div>
+              <div class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5 bg-[#07F468]">
+                <div  data-svg-wrapper class="relative">
+                  <img :src="CheckBlackIcon" alt="" class="h-2.5 w-2.5" />
+                </div>
+              </div> -->
             </div>
             <div class="justify-start text-white text-xs font-normal font-['Poppins'] leading-4 line-clamp-1">{{ statusText }}</div>
           </div>
@@ -241,7 +251,7 @@
                   <span data-svg-wrapper class="inline-flex w-5 h-5 items-center justify-center">
                     <span
                       aria-hidden="true"
-                      class="h-6 w-6 bg-[#F04438]"
+                      class="h-5 w-5 bg-[#F04438]"
                       :style="{ maskImage: `url(${CloseIcon})`, WebkitMaskImage: `url(${CloseIcon})`, maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center', maskSize: 'contain', WebkitMaskSize: 'contain' }"
                     />
                   </span>
@@ -606,6 +616,7 @@ import DotsGrayIcon from '@/assets/images/icons/dots-vertical.svg';
 import SendWhiteIcon from '@/assets/images/icons/send-01-white.svg';
 import CompactPendingIcon from '@/assets/images/icons/booking-compact-pending.svg';
 import CompactCloseIcon from '@/assets/images/icons/booking-compact-close.svg';
+import HelpCircleIcon from '@/assets/images/icons/help-circle.svg';
 
 defineOptions({ name: 'BookingDetailsPopup' });
 

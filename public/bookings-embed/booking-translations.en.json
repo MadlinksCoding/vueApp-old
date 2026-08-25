@@ -61,7 +61,7 @@
   "booking_call_attendance_policy_confirm_submit": "Confirm & Submit",
   "booking_call_attendance_policy_confirmation_intro": "Before you submit your booking, please confirm that you have read and understand the call attendance policy below:",
   "booking_call_attendance_policy_creator_full_payment": "Creator receives full payment from the fan",
-  "booking_call_attendance_policy_creator_no_show_condition": "If the creator doesn't show up within the grace period",
+  "booking_call_attendance_policy_creator_no_show_condition": "If creator doesn't show up within the grace period",
   "booking_call_attendance_policy_creator_no_show_summary": "Creator no-show → booking cancelled, full refund to fan.",
   "booking_call_attendance_policy_dont_show_again": "Don't show again",
   "booking_call_attendance_policy_fan_no_show_condition": "If you don't show up within the grace period",
