@@ -3579,7 +3579,8 @@ describe("MainCalendar all events count", () => {
     expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
       from: "bottom",
       width: { default: "100%" },
-      height: { default: "80%" },
+      height: { default: "100%" },
+      forceHeight: true,
     }));
 
     setWindowWidth(1180);
@@ -3591,6 +3592,7 @@ describe("MainCalendar all events count", () => {
       from: "right",
       width: { default: "480px" },
       height: { default: "100%" },
+      forceHeight: true,
     }));
 
     setWindowWidth(820);
@@ -3600,11 +3602,12 @@ describe("MainCalendar all events count", () => {
     expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
       from: "bottom",
       width: { default: "100%" },
-      height: { default: "80%" },
+      height: { default: "100%" },
+      forceHeight: true,
     }));
   });
 
-  it("uses a half-height bottom sheet for events requests on mobile", async () => {
+  it("uses a sixty-percent bottom sheet for events requests on mobile", async () => {
     setWindowWidth(393);
     setWindowHeight(852);
     const wrapper = await mountCalendar([]);
@@ -3612,7 +3615,7 @@ describe("MainCalendar all events count", () => {
 
     expect(eventsRequestsHandler.props("config")).toEqual(expect.objectContaining({
       from: "bottom",
-      height: { default: "50%" },
+      height: { default: "60%" },
       forceHeight: true,
     }));
   });
