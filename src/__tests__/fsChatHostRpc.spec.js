@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The host is a plain IIFE; eval keeps each mount independent (import would cache it).
-function mountHost() {
+function mountHost(userRole = "fan") {
   const hostSource = readFileSync(
     resolve(process.cwd(), "public/bookings-embed/fs-chat-host.js"),
     "utf8",
@@ -13,7 +13,7 @@ function mountHost() {
   return window.FSChatEmbed.mountChatEmbed(document.body, {
     src: "/bookings-embed/chat.html",
     currentUserId: "2615",
-    userRole: "fan",
+    userRole,
     apiBaseUrl: "http://localhost:3001",
   });
 }
@@ -36,6 +36,9 @@ describe("fs-chat-host RPC", () => {
   let postMessage;
 
   beforeEach(() => {
+    delete window.__fsTokenBalanceUiRefreshState;
+    delete window.tokenManager;
+    delete window.openTipPopup;
     handle = mountHost();
     postMessage = vi.spyOn(handle.iframe.contentWindow, "postMessage");
   });
@@ -121,5 +124,65 @@ describe("fs-chat-host RPC", () => {
     await Promise.resolve();
 
     expect(settled).not.toHaveBeenCalled();
+  });
+
+  it("refreshes WordPress balance widgets for authenticated fan booking messages", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: handle.iframe.contentWindow,
+      data: {
+        type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST",
+        payload: { reason: "chat-booking-update", action: "cancel", bookingId: "booking-1" },
+      },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores balance refresh messages from unrelated windows and creator chat sessions", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { action: "cancel" } },
+    }));
+
+    handle.destroy();
+    handle = mountHost("creator");
+    window.dispatchEvent(new MessageEvent("message", {
+      source: handle.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { action: "cancel" } },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).not.toHaveBeenCalled();
+  });
+
+  it("queues a fan balance refresh before resuming a successful chat top-up", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    window.openTipPopup = vi.fn((options) => options.successCallback());
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: handle.iframe.contentWindow,
+      data: {
+        type: "FS_CHAT_TOPUP_REQUIRED",
+        payload: { bookingId: "booking-2", requiredTokens: 5, currentUserId: 2615, creatorUserId: 1407 },
+      },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "FS_CHAT_TOPUP_SUCCESS",
+      payload: { bookingId: "booking-2" },
+    }, "*");
   });
 });

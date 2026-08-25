@@ -12,6 +12,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     delete window.FSScheduledCallOverlay;
     delete window.tokenManager;
     delete window.openTipPopup;
+    delete window.__fsTokenBalanceUiRefreshState;
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
       ok: false,
       text: () => Promise.resolve(""),
@@ -1073,6 +1074,27 @@ describe("fs-events-host openFanBookingPopup", () => {
     consoleError.mockRestore();
   });
 
+  it("continues processing later refreshes after one refresh rejects", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const updateBalanceUIs = vi.fn()
+      .mockRejectedValueOnce(new Error("temporary refresh failure"))
+      .mockResolvedValueOnce(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
+
+    for (const reason of ["first", "second"]) {
+      window.dispatchEvent(new MessageEvent("message", {
+        source: popup.iframe.contentWindow,
+        data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { reason } },
+        origin: window.location.origin,
+      }));
+    }
+    for (let index = 0; index < 12; index += 1) await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(2);
+    consoleError.mockRestore();
+  });
+
   it("contains balance refresh requests when the WordPress token manager is unavailable", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const popup = window.FSEventsEmbed.openFanBookingPopup({ creatorId: 1407, fanId: 25 });
@@ -1091,6 +1113,93 @@ describe("fs-events-host openFanBookingPopup", () => {
       { reason: "top-up" },
     );
     consoleWarn.mockRestore();
+  });
+
+  it("refreshes balances for fan Events and booking-details iframes only", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const events = window.FSEventsEmbed.mount(container, {
+      fanId: 25,
+      userRole: "fan",
+    });
+    window.dispatchEvent(new MessageEvent("message", {
+      source: events.iframe.contentWindow,
+      data: {
+        type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST",
+        payload: { action: "decline_adjustment", bookingId: "booking-events" },
+      },
+    }));
+
+    const details = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking-details",
+      fanId: 25,
+      userRole: "fan",
+    });
+    window.dispatchEvent(new MessageEvent("message", {
+      source: details.iframe.contentWindow,
+      data: {
+        type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST",
+        payload: { action: "accept_adjustment", bookingId: "booking-details" },
+      },
+    }));
+
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects fan-balance messages from creator and unrelated Events frames", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const events = window.FSEventsEmbed.mount(container, {
+      creatorId: 1407,
+      userRole: "creator",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: events.iframe.contentWindow,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { action: "cancel" } },
+    }));
+    window.dispatchEvent(new MessageEvent("message", {
+      source: window,
+      data: { type: "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST", payload: { action: "cancel" } },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).not.toHaveBeenCalled();
+  });
+
+  it("queues a balance refresh when a fan booking-details top-up succeeds", async () => {
+    const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
+    window.tokenManager = { updateBalanceUIs };
+    window.openTipPopup = vi.fn((options) => options.successCallback());
+    const details = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking-topup",
+      fanId: 25,
+      userRole: "fan",
+    });
+    const postMessage = vi.spyOn(details.iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: details.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED",
+        payload: { bookingId: "booking-topup", requiredTokens: 3, currentUserId: 25, creatorUserId: 1407 },
+      },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
+      payload: { bookingId: "booking-topup" },
+    }, window.location.origin);
   });
 
   it("opens scheduled meeting URLs through the shared WordPress overlay", () => {

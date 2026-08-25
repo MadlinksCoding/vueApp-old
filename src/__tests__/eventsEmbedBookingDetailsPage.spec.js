@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   requestTopup: vi.fn(),
   installTopup: vi.fn(),
   requestChatSync: vi.fn(),
+  requestBalanceRefresh: vi.fn(),
   topupHandler: null,
   tokenGet: vi.fn(),
   profileFetch: vi.fn(),
@@ -56,6 +57,9 @@ vi.mock("@/i18n/bookingTranslations.js", () => ({
 }));
 
 vi.mock("@/utils/toastBus.js", () => ({ showToast: vi.fn() }));
+vi.mock("@/utils/fanTokenBalanceRefresh.js", () => ({
+  requestFanTokenBalanceRefresh: mocks.requestBalanceRefresh,
+}));
 
 const FanDetailsStub = {
   name: "BookingDetailsPopup",
@@ -73,7 +77,7 @@ const AdjustBookingStub = {
 
 const AdjustmentDecisionStub = {
   name: "BookingAdjustmentDecisionPopup",
-  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "creatorUsername", "creatorName", "eventTitle", "actorRole", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
+  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "bookingFeeRefundable", "cancellationFeeRefundable", "creatorUsername", "creatorName", "eventTitle", "actorRole", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
   emits: ["update:modelValue", "confirm", "retry-balance", "close"],
   template: "<div v-if='modelValue' data-test='adjustment-decision-stub' />",
 };
@@ -93,6 +97,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     mocks.notifyDecisionVisibility.mockReset();
     mocks.requestClose.mockReset();
     mocks.requestTopup.mockReset();
+    mocks.requestBalanceRefresh.mockReset();
     mocks.tokenGet.mockReset();
     mocks.tokenGet.mockResolvedValue(1000);
     mocks.profileFetch.mockReset();
@@ -148,6 +153,45 @@ describe("EventsEmbedBookingDetailsPage", () => {
     decision.vm.$emit("close");
     await flushPromises();
     expect(mocks.requestClose).toHaveBeenCalledWith({ bookingId: "booking_123" });
+  });
+
+  it("projects pending fan cancellation with booking fee retained and cancellation fee refunded", async () => {
+    mocks.bootstrap.userRole = "fan";
+    mocks.bootstrap.initialAction = "cancel";
+    mocks.bootstrap.creatorId = null;
+    mocks.bootstrap.fanId = 25;
+    mocks.flowRun.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        item: {
+          bookingId: "booking_123",
+          eventId: "event_123",
+          creatorId: 1407,
+          userId: 25,
+          status: "pending",
+          startAtIso: "2027-08-14T10:00:00Z",
+          endAtIso: "2027-08-14T10:10:00Z",
+          payment: {
+            total: 10,
+            paymentPolicyVersion: 2,
+            allocations: { service: 7, bookingFee: 1, cancellationFee: 2 },
+          },
+          eventSnapshot: { enableCancellationFee: true, cancellationFeeTokens: 2 },
+        },
+      },
+    });
+
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+    const decision = wrapper.getComponent(AdjustmentDecisionStub);
+
+    expect(decision.props("sessionRefundTokens")).toBe(10);
+    expect(decision.props("bookingFeeTokens")).toBe(1);
+    expect(decision.props("cancellationFeeTokens")).toBe(2);
+    expect(decision.props("bookingFeeRefundable")).toBe(false);
+    expect(decision.props("cancellationFeeRefundable")).toBe(true);
+    expect(decision.props("netRefundTokens")).toBe(9);
   });
 
   it("fetches the exact booking and renders it in side-panel mode", async () => {
@@ -394,6 +438,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
       retainOpen: true,
       showReviewToast: false,
     }));
+    expect(mocks.requestBalanceRefresh).not.toHaveBeenCalled();
     expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({ status: "confirmed" }));
     expect(wrapper.getComponent(FanDetailsStub).props("layoutVariant")).toBeUndefined();
     expect(mocks.requestClose).not.toHaveBeenCalled();
@@ -566,6 +611,11 @@ describe("EventsEmbedBookingDetailsPage", () => {
         endAtIso: "2026-08-14T10:10:00Z",
       }),
     }));
+    expect(mocks.requestBalanceRefresh).toHaveBeenCalledWith({
+      reason: "booking-details-update",
+      action: "accept_adjustment",
+      bookingId: "booking_123",
+    });
     expect(decision.props("modelValue")).toBe(false);
     expect(mocks.notifyDecisionVisibility).toHaveBeenLastCalledWith(false);
   });
@@ -612,6 +662,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(decision.props("sessionRefundTokens")).toBe(1020);
     expect(decision.props("bookingFeeTokens")).toBe(20);
     expect(decision.props("cancellationFeeTokens")).toBe(100);
+    expect(decision.props("bookingFeeRefundable")).toBe(false);
+    expect(decision.props("cancellationFeeRefundable")).toBe(false);
     expect(wrapper.find("[data-test='booking-details-cancel-confirm']").exists()).toBe(false);
     expect(mocks.profileFetch).not.toHaveBeenCalled();
     expect(mocks.flowRun).not.toHaveBeenCalledWith("bookings.cancelBooking", expect.anything(), expect.anything());
@@ -639,6 +691,11 @@ describe("EventsEmbedBookingDetailsPage", () => {
         refundState: "partial",
       }),
     }));
+    expect(mocks.requestBalanceRefresh).toHaveBeenCalledWith({
+      reason: "booking-details-update",
+      action: "cancel",
+      bookingId: "booking_123",
+    });
     expect(decision.props("modelValue")).toBe(false);
   });
 
@@ -901,6 +958,11 @@ describe("EventsEmbedBookingDetailsPage", () => {
       action: "decline_adjustment",
       notification: expect.objectContaining({ startAtIso: "2026-08-14T10:00:00Z" }),
     }));
+    expect(mocks.requestBalanceRefresh).toHaveBeenCalledWith({
+      reason: "booking-details-update",
+      action: "decline_adjustment",
+      bookingId: "booking_123",
+    });
     expect(decision.props("modelValue")).toBe(false);
   });
 
@@ -984,6 +1046,9 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(decision.props("sessionRefundTokens")).toBe(1020);
     expect(decision.props("bookingFeeTokens")).toBe(20);
     expect(decision.props("cancellationFeeTokens")).toBe(100);
+    expect(decision.props("bookingFeeRefundable")).toBe(true);
+    expect(decision.props("cancellationFeeRefundable")).toBe(true);
+    expect(decision.props("netRefundTokens")).toBe(1020);
   });
 
   it("falls back to configured cancellation fees when legacy allocations are missing", async () => {
@@ -1018,6 +1083,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(decision.props("sessionRefundTokens")).toBe(1110);
     expect(decision.props("bookingFeeTokens")).toBe(10);
     expect(decision.props("cancellationFeeTokens")).toBe(100);
+    expect(decision.props("bookingFeeRefundable")).toBe(true);
+    expect(decision.props("cancellationFeeRefundable")).toBe(true);
   });
 
   it("uses enabled event booking-fee configuration only when payment data has no fee allocation or line", async () => {
@@ -1052,6 +1119,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(decision.props("sessionRefundTokens")).toBe(925);
     expect(decision.props("bookingFeeTokens")).toBe(25);
     expect(decision.props("cancellationFeeTokens")).toBe(0);
+    expect(decision.props("bookingFeeRefundable")).toBe(true);
   });
 
   it("waives the cancellation deduction while retaining the gross refundable allocation", async () => {
@@ -1095,6 +1163,7 @@ describe("EventsEmbedBookingDetailsPage", () => {
 
     expect(decision.props("sessionRefundTokens")).toBe(1000);
     expect(decision.props("bookingFeeTokens")).toBe(0);
-    expect(decision.props("cancellationFeeTokens")).toBe(0);
+    expect(decision.props("cancellationFeeTokens")).toBe(100);
+    expect(decision.props("cancellationFeeRefundable")).toBe(true);
   });
 });

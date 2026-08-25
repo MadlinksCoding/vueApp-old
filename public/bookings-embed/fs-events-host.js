@@ -54,10 +54,20 @@
   var EVENTS_FORM_UNSAVED_CHANGES_MESSAGE = "You will lose all your changes if you leave.";
   var fanBookingSkeletonTemplateCache = null;
   var fanBookingSkeletonTemplatePromise = null;
-  var tokenBalanceRefreshQueue = Promise.resolve();
+  var TOKEN_BALANCE_REFRESH_STATE_KEY = "__fsTokenBalanceUiRefreshState";
+
+  function getTokenBalanceRefreshState() {
+    var state = global[TOKEN_BALANCE_REFRESH_STATE_KEY];
+    if (!state || typeof state !== "object" || !state.queue || typeof state.queue.then !== "function") {
+      state = { queue: Promise.resolve() };
+      global[TOKEN_BALANCE_REFRESH_STATE_KEY] = state;
+    }
+    return state;
+  }
 
   function queueTokenBalanceUiRefresh(payload) {
-    tokenBalanceRefreshQueue = tokenBalanceRefreshQueue
+    var state = getTokenBalanceRefreshState();
+    state.queue = state.queue
       .catch(function () {})
       .then(async function () {
         if (!global.tokenManager || typeof global.tokenManager.updateBalanceUIs !== "function") {
@@ -76,7 +86,7 @@
         }
       });
 
-    return tokenBalanceRefreshQueue;
+    return state.queue;
   }
 
   function isFanBookingDebugEnabled(options) {
@@ -680,6 +690,13 @@
         return;
       }
 
+      if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
+        if (String(settings.userRole || "creator").trim().toLowerCase() === "fan") {
+          void queueTokenBalanceUiRefresh(data.payload || {});
+        }
+        return;
+      }
+
       // The calendar surface can also need a token top-up, when a fan accepts a
       // price increase from the booking details panel it renders inline.
       if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
@@ -707,6 +724,13 @@
           is_tip_from_php: true,
           topupFor: dashboardTopup.topupFor || "booking_confirm",
           successCallback: function () {
+            if (String(settings.userRole || "creator").trim().toLowerCase() === "fan") {
+              void queueTokenBalanceUiRefresh({
+                reason: "events-top-up",
+                action: "top-up",
+                bookingId: dashboardTopup.bookingId,
+              });
+            }
             replyTopup(FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS);
           },
           failureCallback: function () {
@@ -1294,6 +1318,12 @@
         close();
         return;
       }
+      if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
+        if (normalizedRole === "fan") {
+          void queueTokenBalanceUiRefresh(data.payload || {});
+        }
+        return;
+      }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED) {
         var topupPayload = data.payload || {};
         var requiredTokens = Number(topupPayload.requiredTokens || 0);
@@ -1314,6 +1344,13 @@
           is_tip_from_php: true,
           topupFor: topupPayload.topupFor || "booking_confirm",
           successCallback: function () {
+            if (normalizedRole === "fan") {
+              void queueTokenBalanceUiRefresh({
+                reason: "booking-details-top-up",
+                action: "top-up",
+                bookingId: bookingId,
+              });
+            }
             if (!isDestroyed && iframe.contentWindow) {
               iframe.contentWindow.postMessage({
                 type: FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS,
