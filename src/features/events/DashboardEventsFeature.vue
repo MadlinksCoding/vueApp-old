@@ -64,6 +64,8 @@
         @cancel-booking="onCancelBookingFromCalendar"
         @accept-adjustment="onAcceptPriceAdjustment"
         @decline-adjustment="onDeclinePriceAdjustment"
+        @accept-counter="onAcceptCounterOffer"
+        @reject-counter="onRejectCounterOffer"
         @menu-action="handleWidgetMenuAction"
         @create-event="goToCreateEvent($event.type)"
         @edit-schedule-event="handleEditScheduleEvent"
@@ -865,6 +867,7 @@ import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
 import { showFanBookingCancellationToast } from "@/utils/fanBookingCancellationToast.js";
+import { requestFanTokenBalanceRefresh } from "@/utils/fanTokenBalanceRefresh.js";
 import {
   requestBookingDetailsTopup,
   installBookingDetailsTopupListener,
@@ -1056,6 +1059,11 @@ const normalizedFanId = computed(() => resolveFanIdFromContext({
 const dashboardRole = computed(() => normalizeDashboardBookingRole(props.userRole));
 const isCreator = computed(() => dashboardRole.value === "creator");
 const isFan = computed(() => dashboardRole.value === "fan");
+
+const refreshFanTokenBalance = (action, bookingId, reason = "events-booking-update") => {
+  if (!isFan.value) return false;
+  return requestFanTokenBalanceRefresh({ reason, action, bookingId });
+};
 const hasDashboardContext = computed(() => (
   isFan.value
     ? normalizedFanId.value != null
@@ -2547,6 +2555,8 @@ const applyPriceAdjustment = async (adjustment = {}) => {
       return;
     }
 
+    refreshFanTokenBalance("accept_adjustment", bookingId);
+
     await syncBookingToChat(item || booking, "accepted", "accept_adjustment");
     priceAdjustmentDecision.reset({ force: true });
     priceAdjustmentBooking.value = null;
@@ -2578,6 +2588,8 @@ const declinePriceAdjustment = async (adjustment = {}) => {
       return;
     }
 
+    refreshFanTokenBalance("decline_adjustment", bookingId);
+
     await syncBookingToChat(item || booking, "declined", "decline_adjustment");
     priceAdjustmentDecision.reset({ force: true });
     priceAdjustmentBooking.value = null;
@@ -2588,6 +2600,59 @@ const declinePriceAdjustment = async (adjustment = {}) => {
     priceAdjustmentLoading.value = false;
   }
 };
+
+const updateFanCounterOffer = async (payload = {}, decision) => {
+  if (!isFan.value || reviewPendingLoading.value) return;
+  const booking = payload?.booking || payload?.event?.raw || {};
+  const bookingId = String(payload?.bookingId || booking?.bookingId || booking?.booking_id || "").trim();
+  const offerType = payload?.offerType;
+  if (!bookingId || !offerType) return;
+
+  reviewPendingLoading.value = true;
+  try {
+    const result = decision === "accept"
+      ? await bookingActions.acceptCounterOffer({
+          bookingId,
+          offerType,
+          proposedSlotDate: payload?.proposed?.proposedSlotDate,
+          negotiationId: payload?.negotiationId || null,
+        })
+      : await bookingActions.rejectCounterOffer({
+          bookingId,
+          offerType,
+          negotiationId: payload?.negotiationId || null,
+        });
+
+    if (!result?.ok) {
+      showToast({
+        type: "error",
+        title: t("dashboard_booking_action_failed_title"),
+        message: result?.error || t("dashboard_booking_action_update_failed"),
+      });
+      return;
+    }
+
+    const action = decision === "accept" ? "accept_counter" : "reject_counter";
+    refreshFanTokenBalance(action, bookingId);
+    await syncBookingToChat(
+      result.item || booking,
+      decision === "accept" ? "accepted" : "declined",
+      action,
+    );
+
+    if (result.item) {
+      mainCalendarRef.value?.applyBookingReviewResult?.(
+        mergeApprovedBookingEvent(payload?.event || {}, result.item),
+      );
+    }
+    await fetchDashboardContext(true);
+  } finally {
+    reviewPendingLoading.value = false;
+  }
+};
+
+const onAcceptCounterOffer = (payload) => updateFanCounterOffer(payload, "accept");
+const onRejectCounterOffer = (payload) => updateFanCounterOffer(payload, "reject");
 
 const confirmPriceAdjustmentDecision = async (payload = {}) => {
   if (priceAdjustmentLoading.value) return;
@@ -3597,6 +3662,8 @@ const confirmCancelBooking = async () => {
       });
       return;
     }
+
+    refreshFanTokenBalance("cancel", bookingId);
 
     let updatedItem = result?.data?.item || null;
     await syncBookingToChat(

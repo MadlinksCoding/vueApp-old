@@ -13,6 +13,7 @@ const mainCalendarScrollToCurrentTime = vi.fn();
 const mainCalendarRevealSelectedWeekDay = vi.fn();
 const mainCalendarOpenEventDetails = vi.fn();
 const mainCalendarApplyBookingReviewResult = vi.fn();
+const requestFanTokenBalanceRefresh = vi.fn();
 
 function setByPath(target, path, value) {
   const segments = String(path).split(".");
@@ -61,6 +62,10 @@ vi.mock("@/utils/toastBus.js", () => ({
   showToast,
 }));
 
+vi.mock("@/utils/fanTokenBalanceRefresh.js", () => ({
+  requestFanTokenBalanceRefresh,
+}));
+
 vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
   ...(await importOriginal()),
   getCalendarEventJoinState,
@@ -70,7 +75,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
     props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
-    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
+    emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "accept-adjustment", "decline-adjustment", "accept-counter", "reject-counter", "cancel-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
@@ -593,6 +598,7 @@ describe("DashboardEventsFeature", () => {
     mainCalendarRevealSelectedWeekDay.mockReset();
     mainCalendarOpenEventDetails.mockReset();
     mainCalendarApplyBookingReviewResult.mockReset();
+    requestFanTokenBalanceRefresh.mockReset();
 
     callFlow.mockResolvedValue({
       ok: true,
@@ -4648,6 +4654,11 @@ describe("DashboardEventsFeature", () => {
         reason: "fan_cancelled_from_events_widget",
       }),
     ]));
+    expect(requestFanTokenBalanceRefresh).toHaveBeenCalledWith({
+      reason: "events-booking-update",
+      action: "cancel",
+      bookingId: "booking_private_1",
+    });
   });
 
   it("shows the booking fee warning only when the selected fan booking includes a booking fee", async () => {

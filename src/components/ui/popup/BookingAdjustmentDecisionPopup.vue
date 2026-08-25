@@ -88,21 +88,21 @@
                   </div>
                 </div>
 
-                <div v-if="isCancellationMode && bookingFee > 0" class="self-stretch inline-flex justify-between items-center" data-test="booking-adjustment-booking-fee-row">
+                <div v-if="isCancellationMode && retainedBookingFee > 0" class="self-stretch inline-flex justify-between items-center" data-test="booking-adjustment-booking-fee-row">
                   <div class="justify-start text-white text-sm font-medium leading-5">{{ t('booking_adjustment_booking_fee') }}</div>
                   <div class="size- inline-flex justify-start items-center gap-1">
                     <div class="justify-center text-white text-lg font-semibold leading-7">-</div>
                     <div data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" class="h-[24px] w-[24px]" /></div>
-                    <div class="justify-center text-white text-base font-semibold leading-6" data-test="booking-adjustment-booking-fee">{{ formatAmount(bookingFee) }}</div>
+                    <div class="justify-center text-white text-base font-semibold leading-6" data-test="booking-adjustment-booking-fee">{{ formatAmount(retainedBookingFee) }}</div>
                   </div>
                 </div>
 
-                <div v-if="isCancellationMode && cancellationFee > 0" class="self-stretch inline-flex justify-between items-center" data-test="booking-adjustment-cancellation-fee-row">
+                <div v-if="isCancellationMode && retainedCancellationFee > 0" class="self-stretch inline-flex justify-between items-center" data-test="booking-adjustment-cancellation-fee-row">
                   <div class="justify-start text-white text-sm font-medium leading-5">{{ t('booking_adjustment_cancellation_fee') }}</div>
                   <div class="size- inline-flex justify-start items-center gap-1">
                     <div class="justify-center text-white text-lg font-semibold leading-7">-</div>
                     <div data-svg-wrapper class="relative"><img :src="TokenIcon" alt="" class="h-[24px] w-[24px]" /></div>
-                    <div class="justify-center text-white text-base font-semibold leading-6" data-test="booking-adjustment-cancellation-fee">{{ formatAmount(cancellationFee) }}</div>
+                    <div class="justify-center text-white text-base font-semibold leading-6" data-test="booking-adjustment-cancellation-fee">{{ formatAmount(retainedCancellationFee) }}</div>
                   </div>
                 </div>
 
@@ -158,6 +158,8 @@ const props = defineProps({
   sessionRefundTokens: { type: [Number, String], default: null },
   bookingFeeTokens: { type: [Number, String], default: 0 },
   cancellationFeeTokens: { type: [Number, String], default: 0 },
+  bookingFeeRefundable: { type: Boolean, default: false },
+  cancellationFeeRefundable: { type: Boolean, default: false },
   creatorUsername: { type: String, default: '' },
   creatorName: { type: String, default: '' },
   eventTitle: { type: String, default: '' },
@@ -203,6 +205,10 @@ const balanceAvailable = computed(() => props.walletBalance !== '' && props.wall
 const balance = computed(() => finiteAmount(props.walletBalance));
 const bookingFee = computed(() => finiteAmount(props.bookingFeeTokens));
 const cancellationFee = computed(() => finiteAmount(props.cancellationFeeTokens));
+const bookingFeeRefundable = computed(() => Boolean(props.bookingFeeRefundable));
+const cancellationFeeRefundable = computed(() => Boolean(props.cancellationFeeRefundable));
+const retainedBookingFee = computed(() => bookingFeeRefundable.value ? 0 : bookingFee.value);
+const retainedCancellationFee = computed(() => cancellationFeeRefundable.value ? 0 : cancellationFee.value);
 const sessionRefund = computed(() => finiteAmount(props.sessionRefundTokens, originalPrice.value));
 const netRefund = computed(() => finiteAmount(props.netRefundTokens, sessionRefund.value));
 const adjustmentAmount = computed(() => isCancellationMode.value
@@ -220,7 +226,7 @@ const primaryTransactionAmount = computed(() => isCancellationMode.value
   ? sessionRefund.value
   : (priceRefund.value || priceIncrease.value));
 const projectedBalance = computed(() => isCancellationMode.value
-  ? balance.value + sessionRefund.value - bookingFee.value - cancellationFee.value
+  ? balance.value + sessionRefund.value - retainedBookingFee.value - retainedCancellationFee.value
   : balance.value + priceRefund.value - priceIncrease.value);
 const creatorLabel = computed(() => props.creatorUsername || props.creatorName || t('common_creator'));
 const eventLabel = computed(() => props.eventTitle || t('common_booking'));
@@ -233,7 +239,7 @@ const headingKey = computed(() => {
   if (isCreatorRefundDecision.value) return 'booking_adjustment_creator_cancel_heading';
   if (isReviewRejection.value) return 'calendar_event_decline_confirm';
   if (isCancellationMode.value) {
-    return bookingFee.value > 0 || cancellationFee.value > 0
+    return retainedBookingFee.value > 0 || retainedCancellationFee.value > 0
       ? 'booking_adjustment_cancel_fee_heading'
       : 'booking_adjustment_cancel_heading';
   }

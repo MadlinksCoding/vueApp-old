@@ -149,6 +149,41 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0 });
   });
 
+  it('absorbs refundable fees into the gross refund and renders only retained fees', () => {
+    const wrapper = mountDecision({
+      mode: 'cancel',
+      walletBalance: 318,
+      sessionRefundTokens: 10,
+      bookingFeeTokens: 1,
+      cancellationFeeTokens: 2,
+      cancellationFeeRefundable: true,
+    });
+
+    const bookingFeeRow = wrapper.get('[data-test="booking-adjustment-booking-fee-row"]');
+    expect(bookingFeeRow.text()).toContain('-');
+    expect(bookingFeeRow.get('[data-test="booking-adjustment-booking-fee"]').classes()).toContain('text-white');
+    expect(wrapper.find('[data-test="booking-adjustment-cancellation-fee-row"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-adjustment-transaction-amount"]').text()).toBe('10');
+    expect(wrapper.get('[data-test="booking-adjustment-projected-balance"]').text()).toBe('327');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).toContain('charge will apply');
+  });
+
+  it('does not use the charge warning when every displayed fee is refundable', () => {
+    const wrapper = mountDecision({
+      mode: 'decline',
+      sessionRefundTokens: 10,
+      bookingFeeTokens: 1,
+      cancellationFeeTokens: 2,
+      bookingFeeRefundable: true,
+      cancellationFeeRefundable: true,
+    });
+
+    expect(wrapper.find('[data-test="booking-adjustment-booking-fee-row"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="booking-adjustment-cancellation-fee-row"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-adjustment-projected-balance"]').text()).toBe('30,010');
+    expect(wrapper.get('[data-test="booking-adjustment-decision-heading"]').text()).not.toContain('charge will apply');
+  });
+
   it('omits the cancellation fee row when the policy waives it', () => {
     const wrapper = mountDecision({ mode: 'decline', sessionRefundTokens: 1000, cancellationFeeTokens: 0 });
 

@@ -1104,6 +1104,8 @@
         @adjust-booking="handleAdjustBooking"
         @accept-adjustment="handleAcceptAdjustment"
         @decline-adjustment="handleDeclineAdjustment"
+        @accept-counter="handleAcceptCounter"
+        @reject-counter="handleRejectCounter"
         @open-chat="handleOpenChat"
         @close="eventDetailsPopupOpen = false"
       />
@@ -1261,7 +1263,7 @@ const props = defineProps({
   stickyCardEvent: { type: Object, default: null }
 });
 
-const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'booking-details-closed', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment']);
+const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'booking-details-closed', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment', 'accept-counter', 'reject-counter']);
 const { t, locale } = useBookingTranslations();
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
@@ -2782,6 +2784,14 @@ const handleAcceptAdjustment = (payload) => {
 const handleDeclineAdjustment = (payload) => {
   eventDetailsPopupOpen.value = false;
   emit('decline-adjustment', withSelectedBooking(payload));
+};
+
+const handleAcceptCounter = (payload) => {
+  emit('accept-counter', withSelectedBooking(payload));
+};
+
+const handleRejectCounter = (payload) => {
+  emit('reject-counter', withSelectedBooking(payload));
 };
 
 const handleAdjustSubmitted = async ({ item, booking }) => {

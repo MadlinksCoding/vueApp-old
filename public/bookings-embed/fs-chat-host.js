@@ -1,7 +1,41 @@
 (function (global) {
   var CHAT_EMBED_WIDTH = 360;
   var CHAT_EMBED_HEIGHT = 600;
+  var FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST";
+  var TOKEN_BALANCE_REFRESH_STATE_KEY = "__fsTokenBalanceUiRefreshState";
   var activeChatEmbeds = [];
+
+  function getTokenBalanceRefreshState() {
+    var state = global[TOKEN_BALANCE_REFRESH_STATE_KEY];
+    if (!state || typeof state !== "object" || !state.queue || typeof state.queue.then !== "function") {
+      state = { queue: Promise.resolve() };
+      global[TOKEN_BALANCE_REFRESH_STATE_KEY] = state;
+    }
+    return state;
+  }
+
+  function queueTokenBalanceUiRefresh(payload) {
+    var state = getTokenBalanceRefreshState();
+    state.queue = state.queue
+      .catch(function () {})
+      .then(async function () {
+        if (!global.tokenManager || typeof global.tokenManager.updateBalanceUIs !== "function") {
+          if (global.console && typeof global.console.warn === "function") {
+            global.console.warn("[FSChatEmbed] tokenManager.updateBalanceUIs is unavailable", payload || {});
+          }
+          return;
+        }
+
+        try {
+          await global.tokenManager.updateBalanceUIs();
+        } catch (error) {
+          if (global.console && typeof global.console.error === "function") {
+            global.console.error("[FSChatEmbed] Failed to refresh token balance UIs", error);
+          }
+        }
+      });
+    return state.queue;
+  }
 
   function buildIframeSrcWithQuery(src, query) {
     var baseUrl = typeof src === "string" && src ? src : "";
@@ -491,6 +525,10 @@
             extBtn.setAttribute("data-animation-blink-widget", "false");
           }
         }
+      } else if (data.type === FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST) {
+        if (String(settings.userRole || "").trim().toLowerCase() === "fan") {
+          void queueTokenBalanceUiRefresh(data.payload || {});
+        }
       } else if (data.type === "FS_CHAT_TOPUP_REQUIRED") {
         var p = data.payload || {};
         if (typeof window.openTipPopup === "function") {
@@ -503,6 +541,13 @@
             is_tip_from_php: true,
             topupFor: p.topupFor || "booking_confirm",
             successCallback: function () {
+              if (String(settings.userRole || "").trim().toLowerCase() === "fan") {
+                void queueTokenBalanceUiRefresh({
+                  reason: "chat-top-up",
+                  action: "top-up",
+                  bookingId: p.bookingId,
+                });
+              }
               iframe.contentWindow.postMessage({ type: "FS_CHAT_TOPUP_SUCCESS", payload: { bookingId: p.bookingId } }, "*");
             },
             failureCallback: function () {

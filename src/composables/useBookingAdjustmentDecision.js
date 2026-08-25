@@ -96,6 +96,29 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     return finiteNonNegative(decision.value?.originalTokens);
   });
 
+  const bookingStatus = computed(() => String(
+    bookingValue.value?.status
+      ?? bookingValue.value?.bookingStatus
+      ?? eventValue.value?.raw?.bookingStatus
+      ?? eventValue.value?.raw?.status
+      ?? eventValue.value?.bookingStatus
+      ?? eventValue.value?.status
+      ?? "",
+  ).trim().toLowerCase());
+
+  const advanceCancellationFeeWaived = computed(() => {
+    const advanceEnabled = truthyFlag(firstDefined(eventSources.value, ["allowAdvanceCancelToAvoidMinCharge", "allowAdvanceCancellation"]));
+    const advanceQuantity = finiteNonNegative(firstDefined(eventSources.value, ["advanceCancelWindowQuantity", "advanceCancelWindow", "advanceVoid"]));
+    const advanceUnit = String(firstDefined(eventSources.value, ["advanceCancelWindowUnit"]) || "").trim().toLowerCase();
+    const unitMs = advanceUnit.startsWith("day") ? 86400000 : advanceUnit.startsWith("hour") ? 3600000 : advanceUnit.startsWith("minute") ? 60000 : 0;
+    const startAt = Date.parse(bookingValue.value?.startAtIso || eventValue.value?.start || "");
+    return advanceEnabled
+      && advanceQuantity > 0
+      && unitMs > 0
+      && Number.isFinite(startAt)
+      && startAt - Date.now() >= advanceQuantity * unitMs;
+  });
+
   const bookingFeeTokens = computed(() => {
     const allocations = payment.value?.allocations;
     if (allocations && typeof allocations === "object" && Object.prototype.hasOwnProperty.call(allocations, "bookingFee")) {
@@ -130,13 +153,22 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     const enabled = allocated > 0 || truthyFlag(firstDefined(eventSources.value, ["enableCancellationFee"]));
     if (!enabled) return 0;
 
-    const advanceEnabled = truthyFlag(firstDefined(eventSources.value, ["allowAdvanceCancelToAvoidMinCharge", "allowAdvanceCancellation"]));
-    const advanceQuantity = finiteNonNegative(firstDefined(eventSources.value, ["advanceCancelWindowQuantity", "advanceCancelWindow", "advanceVoid"]));
-    const advanceUnit = String(firstDefined(eventSources.value, ["advanceCancelWindowUnit"]) || "").trim().toLowerCase();
-    const unitMs = advanceUnit.startsWith("day") ? 86400000 : advanceUnit.startsWith("hour") ? 3600000 : advanceUnit.startsWith("minute") ? 60000 : 0;
-    const startAt = Date.parse(bookingValue.value?.startAtIso || eventValue.value?.start || "");
-    if (advanceEnabled && advanceQuantity > 0 && unitMs > 0 && Number.isFinite(startAt) && startAt - Date.now() >= advanceQuantity * unitMs) return 0;
     return allocated || configured;
+  });
+
+  // Mirror BookingsManager.paymentDecisionsForOutcome for the fan-facing preview.
+  // The fee amounts remain gross allocations; these flags only say whether each
+  // allocation will be released or retained during the pending action.
+  const bookingFeeRefundable = computed(() => (
+    viewerRole.value === "fan" && mode.value === "decline"
+  ));
+  const cancellationFeeRefundable = computed(() => {
+    if (viewerRole.value !== "fan") return false;
+    if (mode.value === "decline") return true;
+    if (mode.value !== "cancel") return false;
+    if (["pending", "pending_hold"].includes(bookingStatus.value)) return true;
+    if (["confirmed", "accepted"].includes(bookingStatus.value)) return advanceCancellationFeeWaived.value;
+    return false;
   });
 
   const sessionRefundTokens = computed(() => {
@@ -156,7 +188,12 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
 
   const netRefundTokens = computed(() => (viewerRole.value === "creator"
     ? sessionRefundTokens.value
-    : Math.max(0, sessionRefundTokens.value - bookingFeeTokens.value - cancellationFeeTokens.value)));
+    : Math.max(
+      0,
+      sessionRefundTokens.value
+        - (bookingFeeRefundable.value ? 0 : bookingFeeTokens.value)
+        - (cancellationFeeRefundable.value ? 0 : cancellationFeeTokens.value),
+    )));
 
   watch([viewerRole, creatorId, fanId, storedCreatorUsername, storedFanUsername], async ([role, creator, fan, storedUsername, storedFan]) => {
     if (profileController) {
@@ -253,6 +290,8 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     sessionRefundTokens: sessionRefundTokens.value,
     bookingFeeTokens: bookingFeeTokens.value,
     cancellationFeeTokens: cancellationFeeTokens.value,
+    bookingFeeRefundable: bookingFeeRefundable.value,
+    cancellationFeeRefundable: cancellationFeeRefundable.value,
     creatorUsername: creatorUsername.value,
     creatorName: creatorName.value,
     eventTitle: eventTitle.value,

@@ -45,6 +45,10 @@ import { showToast } from '@/utils/toastBus.js'
 import { showCreatorBookingReviewToast } from '@/utils/creatorBookingReviewToast.js'
 import { showBookingDecisionToast } from '@/utils/bookingDecisionToast.js'
 import { postToParent } from '@/utils/postToParent'
+import {
+  getFanBookingBalanceTransition,
+  requestFanTokenBalanceRefresh,
+} from '@/utils/fanTokenBalanceRefresh.js'
 import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMediaBadge.js'
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
 import { useBookingActions } from '@/composables/useBookingActions.js'
@@ -168,6 +172,20 @@ const isCreatorAccount = computed(() => {
     || window.userSpecifiData?.currentUser?.isCreator === true
     || localStorage.getItem('isCreator') === 'true'
 })
+
+const locallyRefreshedTerminalFanBookings = new Set()
+
+function refreshFanTokenBalance(action, bookingId, reason = 'chat-booking-update') {
+  if (isCreatorAccount.value) return false
+  if (
+    reason === 'chat-booking-update'
+    && bookingId
+    && ['cancel', 'decline_adjustment', 'reject_counter'].includes(String(action || '').toLowerCase())
+  ) {
+    locallyRefreshedTerminalFanBookings.add(String(bookingId))
+  }
+  return requestFanTokenBalanceRefresh({ reason, action, bookingId })
+}
 
 // Resolve the other participant's username for "@name" in the booking bubble
 const bookingSenderName = computed(() => {
@@ -909,6 +927,7 @@ async function onAcceptCounter(input) {
     })
 
     if (ok) {
+      refreshFanTokenBalance('accept_counter', bookingId)
       const resMessage = message.content_type === 'booking_request'
         ? await FlowHandler.run('chat.updateBookingRequestMessage', {
             chatId:    activeChatId.value,
@@ -958,6 +977,7 @@ async function onRejectCounter(input) {
         showToast({ type: 'error', title: 'Failed', message: cancelRes.error || 'Could not cancel booking.' })
         return
       }
+      refreshFanTokenBalance('reject_counter', bookingId)
     }
 
     const res = message.content_type === 'booking_request'
@@ -1005,6 +1025,8 @@ async function _doConfirmCounter(bookingId, message) {
       showToast({ type: 'error', title: 'Failed', message: error || 'Could not confirm booking.' })
       return
     }
+
+    refreshFanTokenBalance('accept_adjustment', bookingId)
 
     // Keep cached booking fresh
     const updated = await refreshCachedBooking(bookingId, item)
@@ -1104,6 +1126,8 @@ async function confirmBookingCancellation(message, request = {}) {
       showToast({ type: 'error', title: 'Failed', message: error || 'Could not cancel booking.' })
       return
     }
+
+    refreshFanTokenBalance('cancel', bookingId)
 
     bookingDetailsFetchEpoch += 1
 
@@ -1208,6 +1232,8 @@ async function onDeclineAdjustment(input) {
       showToast({ type: 'error', title: 'Failed', message: error || 'Could not cancel booking.' })
       return
     }
+
+    refreshFanTokenBalance('decline_adjustment', bookingId)
 
     const res = message.content_type === 'booking_request'
       ? await FlowHandler.run('chat.updateBookingRequestMessage', {
@@ -2694,6 +2720,34 @@ watch(pinnedBookingMessages, (newVal) => {
     }
   });
 }, { immediate: true, deep: true })
+
+const observedFanBalanceTransitionSignatures = computed(() => {
+  if (isCreatorAccount.value) return []
+
+  return allMessages.value.flatMap((message) => {
+    if (!['booking_request', 'requestJoinCallNotification'].includes(message?.content_type)) return []
+    const bookingId = String(message?.content?.booking_id || '').trim()
+    if (!bookingId) return []
+    const transition = getFanBookingBalanceTransition(
+      message,
+      chatStore.getBookingById(bookingId) || {},
+    )
+    return transition ? [transition] : []
+  })
+})
+
+const observedFanBalanceRefreshes = new Set()
+watch(observedFanBalanceTransitionSignatures, (nextEntries, previousEntries = []) => {
+  if (isCreatorAccount.value || bookingActionLoading.value) return
+  const previousSignatures = new Set(previousEntries.map((entry) => entry.signature))
+
+  nextEntries.forEach((entry) => {
+    if (locallyRefreshedTerminalFanBookings.has(String(entry.bookingId))) return
+    if (previousSignatures.has(entry.signature) || observedFanBalanceRefreshes.has(entry.signature)) return
+    observedFanBalanceRefreshes.add(entry.signature)
+    refreshFanTokenBalance(entry.action, entry.bookingId, 'chat-observed-booking-update')
+  })
+})
 
 // ── Read receipts via IntersectionObserver ────────────────────────────────────
 const flexChatRef  = ref(null)

@@ -153,6 +153,7 @@ import { resolveBookingRefundState } from "@/services/bookings/utils/bookingRefu
 import { isPendingCounterOffer } from "@/services/bookings/utils/bookingNegotiationUtils.js";
 import { getCalendarEventApprovalState } from "@/utils/bookingJoinUtils.js";
 import { showToast } from "@/utils/toastBus.js";
+import { requestFanTokenBalanceRefresh } from "@/utils/fanTokenBalanceRefresh.js";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
@@ -318,8 +319,17 @@ async function notifySuccessfulBookingUpdate(action, updatedItem = null, options
     await nextTick();
   }
 
+  const bookingId = String(updatedItem?.bookingId || booking.value?.bookingId || bootstrap.bookingId || "").trim();
+  if (viewerRole.value === "fan") {
+    requestFanTokenBalanceRefresh({
+      reason: "booking-details-update",
+      action,
+      bookingId,
+    });
+  }
+
   notifyBookingDetailsUpdated({
-    bookingId: String(updatedItem?.bookingId || booking.value?.bookingId || bootstrap.bookingId || "").trim(),
+    bookingId,
     action,
     item: updatedItem,
     retainOpen: options.retainOpen === true,
