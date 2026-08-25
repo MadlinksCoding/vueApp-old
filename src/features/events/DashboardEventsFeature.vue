@@ -17,10 +17,11 @@
     ]"
   >
     <div class="flex w-full h-full">
-      <MainCalendar
+      <div class="relative h-full min-w-0 flex-1">
+        <MainCalendar
         ref="mainCalendarRef"
         :class="[
-          'flex-1 w-full h-full relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
+          'w-full h-full relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
           embedded ? 'lg:overflow-y-auto' : 'overflow-y-auto'
         ]"
         variant="default"
@@ -29,12 +30,12 @@
         :focus-date="state.focus"
         :selected-date="state.selected"
         :initial-view="state.view"
-        :events="events1"
+        :events="displayedCalendarEvents"
         :events-data="eventsData"
         :booked-slots-count="bookedSlotsCount"
         :booking-schedule-events="bookingScheduleEvents"
         :booking-schedule-booked-slots-index="dashboardEventsEngine.state.events.bookedSlotsIndex"
-        :show-booking-schedule-list="isCreator && !dashboardEventsEngine.state.events.loading"
+        :show-booking-schedule-list="isCreator && !calendarRangeLoading"
         :theme="theme1"
         :user-role="dashboardRole"
         :can-review-pending="isCreator"
@@ -45,6 +46,7 @@
         :highlight-today-column="true"
         day-column-mode="events"
         :fit-day-event-columns="true"
+        :tablet-week-event-lane-min-width-px="96"
         :show-current-time-across-dates="true"
         time-start="00:00"
         time-end="24:00"
@@ -96,7 +98,7 @@
             <template v-if="!event?.isAvailabilityBlock">
               <div class="flex items-center min-w-0 w-full">
                 <div
-                  class="flex min-w-0 w-full items-center gap-1 overflow-hidden font-medium py-[0.125rem] px-1"
+                  class="month-booking-title-region flex min-w-0 w-full items-center gap-1 overflow-hidden font-medium py-[0.125rem] px-1"
                   data-test="dashboard-calendar-booking-title"
                 >
                   <component
@@ -150,7 +152,7 @@
               </div>
               <div
                 v-else
-                class="flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1"
+                class="month-booking-time-region flex min-w-0 items-center gap-1 text-[0.625rem] opacity-90 py-[0.125rem] px-1"
                 data-test="dashboard-calendar-booking-time"
               >
                 <template v-if="view === 'month' && getCalendarBookingUrgencyText(event)">
@@ -174,7 +176,7 @@
                   >
                     <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                   </span>
-                  <span class="min-w-0 truncate">
+                  <span class="month-booking-time-text min-w-0 truncate">
                     {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                   </span>
                 </template>
@@ -204,7 +206,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div
-                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                class="month-booking-title-region flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
                 data-test="dashboard-calendar-booking-title"
               >
                 <component
@@ -216,7 +218,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
+              <div class="month-booking-time-region flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -224,7 +226,7 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">
+                <span class="month-booking-time-text min-w-0 truncate">
                   {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                 </span>
               </div>
@@ -253,7 +255,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div
-                class="flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
+                class="month-booking-title-region flex min-w-0 items-center gap-1 overflow-hidden font-semibold"
                 data-test="dashboard-calendar-booking-title"
               >
                 <component
@@ -265,7 +267,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
+              <div class="month-booking-time-region flex min-w-0 items-center gap-1 opacity-90 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -273,7 +275,7 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">
+                <span class="month-booking-time-text min-w-0 truncate">
                   {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                 </span>
               </div>
@@ -302,7 +304,7 @@
           >
             <template v-if="!event?.isAvailabilityBlock">
               <div
-                class="flex min-w-0 items-center gap-1 overflow-hidden font-bold text-[0.75rem]"
+                class="month-booking-title-region flex min-w-0 items-center gap-1 overflow-hidden font-bold text-[0.75rem]"
                 data-test="dashboard-calendar-booking-title"
               >
                 <component
@@ -314,7 +316,7 @@
                 />
                 <span class="min-w-0 truncate">{{ event.title }}</span>
               </div>
-              <div class="flex min-w-0 items-center gap-1 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
+              <div class="month-booking-time-region flex min-w-0 items-center gap-1 text-[0.625rem]" data-test="dashboard-calendar-booking-time">
                 <span
                   class="shrink-0"
                   data-test="dashboard-calendar-booking-status-icon"
@@ -322,7 +324,7 @@
                 >
                   <PendingStatus :status="getBookedSlotIndicatorStatus(event)" />
                 </span>
-                <span class="min-w-0 truncate">
+                <span class="month-booking-time-text min-w-0 truncate">
                   {{ hhmm(event.start) }}<template v-if="view !== 'month'"> - {{ hhmm(event.end) }}</template>
                 </span>
               </div>
@@ -395,7 +397,41 @@
             />
           </div>
         </template>
-      </MainCalendar>
+        </MainCalendar>
+
+        <div
+          v-if="calendarRangeUnavailable"
+          class="absolute inset-0 z-[85] flex items-center justify-center bg-[#F9FAFB]/80 px-6 text-center backdrop-blur-[1px]"
+          data-test="dashboard-calendar-range-overlay"
+          :aria-busy="calendarRangeLoading ? 'true' : 'false'"
+        >
+          <div
+            v-if="calendarRangeBlockingError"
+            class="flex max-w-sm flex-col items-center gap-3 rounded-xl border border-red-100 bg-white/95 px-5 py-4 text-sm text-red-700 shadow-sm"
+            data-test="dashboard-calendar-range-error"
+            role="alert"
+          >
+            <span>{{ calendarRangeBlockingError }}</span>
+            <button
+              type="button"
+              class="font-semibold underline underline-offset-2"
+              data-test="dashboard-calendar-range-retry"
+              @click="fetchDashboardContext(true, { refreshWidgets: false })"
+            >
+              {{ t("common_retry") }}
+            </button>
+          </div>
+          <div
+            v-else
+            class="flex flex-col items-center gap-3 text-sm font-medium text-[#475467]"
+            data-test="dashboard-calendar-range-loading"
+            role="status"
+          >
+            <span class="h-7 w-7 animate-spin rounded-full border-2 border-[#F1C1D9] border-t-[#F06]" aria-hidden="true" />
+            <span>{{ t("common_loading") }}</span>
+          </div>
+        </div>
+      </div>
 
       <div
         :class="['hidden ipad-portrait:hidden ipad-portrait-large:hidden lg:flex lg:w-[22vw] lg:min-w-[25rem] lg:max-w-[28rem] xl:max-w-[30rem] flex-col gap-4 px-2 lg:px-6 lg:pt-4 xl:pt-4 md:px-4 h-full', !embedded && 'lg:pt-6 xl:pt-12']"
@@ -1090,6 +1126,47 @@ const state = reactive({
   view: initialDashboardView,
 });
 
+const CALENDAR_SNAPSHOT_CACHE_LIMIT = 12;
+const calendarSnapshotCache = new Map();
+const loadedCalendarSnapshotKey = ref(null);
+
+const calendarContextKey = () => (
+  isFan.value
+    ? `fan:${normalizedFanId.value ?? "none"}`
+    : `creator:${normalizedCreatorId.value ?? "none"}`
+);
+
+const resolveCalendarSnapshotDescriptor = ({
+  focusDate = state.focus,
+  view = state.view,
+} = {}) => {
+  const range = resolveVisibleBookedSlotRange({ focusDate, view });
+  return {
+    range,
+    key: `${calendarContextKey()}:${range.key}`,
+  };
+};
+
+const activeCalendarSnapshotKey = computed(() => (
+  resolveCalendarSnapshotDescriptor().key
+));
+
+const calendarRangeUnavailable = computed(() => (
+  activeCalendarSnapshotKey.value !== loadedCalendarSnapshotKey.value
+));
+
+const calendarRangeLoading = computed(() => (
+  calendarRangeUnavailable.value
+  && dashboardEventsEngine.state.events.loading
+));
+
+const calendarRangeBlockingError = computed(() => (
+  calendarRangeUnavailable.value
+  && !calendarRangeLoading.value
+    ? dashboardEventsEngine.state.events.error
+    : null
+));
+
 const theme1 = computed(() => ({
   mini: {
     wrapper: "flex flex-col w-full font-medium text-[#0C111D] mt-0 gap-[0.625rem] rounded-xl w-[17.375rem] p-2",
@@ -1110,7 +1187,7 @@ const theme1 = computed(() => ({
     axisXLabel: "flex flex-col justify-end pb-[0.75rem] w-[2.8rem] md:w-[4.8rem]",
     axisXDay: "py-1 text-center h-[3.995rem]",
     axisXToday: "bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center",
-    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] lg:w-[4.8rem] text-gray-700 text-xs font-medium leading-4",
+    axisYRow: "dashboard-events-calendar-time-label h-[3.914rem] uppercase text-right pr-2 w-[2.4rem] md:w-[4.8rem] text-gray-700 text-xs font-medium leading-4",
     colBase: "relative bg-white/20",
     gridRow: "h-[4rem] border-b border-gray-400",
     eventBase: "absolute mx-1 rounded-md border border-stone-100 bg-white p-2 text-xs shadow-sm",
@@ -1349,10 +1426,18 @@ function getCalendarEventStyle(event) {
     };
   }
 
-  if (
-    isPastBookedCalendarEvent(event)
-    || isApprovalExpiredPendingCalendarEvent(event)
-  ) {
+  if (isPastBookedCalendarEvent(event)) {
+    return {
+      backgroundColor: "#D9DCE6",
+      border: "0",
+      borderBottom: "0",
+      boxShadow: "none",
+      color: "#98A2B3",
+      zIndex: 2,
+    };
+  }
+
+  if (isApprovalExpiredPendingCalendarEvent(event)) {
     return {
       backgroundColor: "#D9DCE6",
       border: "1px solid #C8CDD8",
@@ -1836,33 +1921,12 @@ function toWidgetItem(event, options = {}) {
   const showJoinButton = shouldShowJoinButtonForEvent(event, joinState, options);
   const statusInfo = getWidgetStatusInfo(event, startDate, endDate, accentColor);
 
-  if (options.layout === "today") {
-    return {
-      time: formatWidgetTime(startDate, endDate),
-      title: event.title,
-      titleColorClass: styles.titleColorClass,
-      borderClass: styles.borderClass,
-      bgClass: "bg-gradient-to-r from-gray-50/50 to-gray-50/20",
-      showJoin: showJoinButton,
-      canJoin: joinState.canJoin,
-      joinUrl: joinState.joinUrl,
-      joinAvailableAtIso: joinState.joinAvailableAtIso,
-      statusText: statusInfo.text,
-      statusColor: statusInfo.color,
-      showReply: options.showReply === true,
-      avatars: makeAvatar(event),
-      profile: makeCounterpartProfile(event),
-      sourceEvent: event,
-      accentColor,
-      isGroup,
-      groupText: isGroup ? getWidgetGroupText(event) : undefined,
-      participantCount,
-    };
-  }
-
   return {
-    dayName: startDate.toLocaleDateString(locale.value, { weekday: "short" }).toUpperCase(),
-    dayNumber: String(startDate.getDate()),
+    monthName: startDate
+      .toLocaleDateString(locale.value, { month: "long" })
+      .toLocaleUpperCase(locale.value),
+    dayNumber: startDate.toLocaleDateString(locale.value, { day: "numeric" }),
+    time: formatWidgetTime(startDate, endDate),
     title: event.title,
     titleColorClass: styles.titleColorClass,
     borderClass: styles.borderClass,
@@ -1885,6 +1949,7 @@ function toWidgetItem(event, options = {}) {
 }
 
 function resetEventsState() {
+  resetCalendarSnapshotCache();
   dashboardEventsEngine.setState("events.error", null, { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.list", [], { reason: "events-reset", silent: true });
@@ -1895,6 +1960,44 @@ function resetEventsState() {
   dashboardEventsEngine.setState("events.bookedSlotsRaw", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.widgetBookedSlotsRaw", [], { reason: "events-reset", silent: true });
   dashboardEventsEngine.setState("events.bookedSlotsIndex", {}, { reason: "events-reset", silent: true });
+}
+
+function resetCalendarSnapshotCache() {
+  calendarSnapshotCache.clear();
+  loadedCalendarSnapshotKey.value = null;
+  lastLoadedCalendarRangeKey = null;
+}
+
+function invalidateInactiveCalendarSnapshots(activeKey) {
+  for (const key of calendarSnapshotCache.keys()) {
+    if (key !== activeKey) calendarSnapshotCache.delete(key);
+  }
+}
+
+function storeCalendarSnapshot(snapshot) {
+  if (!snapshot?.key) return;
+  calendarSnapshotCache.delete(snapshot.key);
+  calendarSnapshotCache.set(snapshot.key, snapshot);
+
+  while (calendarSnapshotCache.size > CALENDAR_SNAPSHOT_CACHE_LIMIT) {
+    const oldestKey = calendarSnapshotCache.keys().next().value;
+    if (oldestKey == null) break;
+    calendarSnapshotCache.delete(oldestKey);
+  }
+}
+
+function applyCalendarSnapshot(snapshot, reason = "events-snapshot") {
+  if (!snapshot?.key) return false;
+
+  dashboardEventsEngine.setState("events.catalogEvents", snapshot.catalogEvents, { reason, silent: true });
+  dashboardEventsEngine.setState("events.rawEvents", snapshot.rawEvents, { reason, silent: true });
+  dashboardEventsEngine.setState("events.bookedSlotsRaw", snapshot.bookedSlotsRaw, { reason, silent: true });
+  dashboardEventsEngine.setState("events.bookedSlotsIndex", snapshot.bookedSlotsIndex, { reason, silent: true });
+  dashboardEventsEngine.setState("events.bookedList", snapshot.bookedCalendarSlots, { reason, silent: true });
+  dashboardEventsEngine.setState("events.list", snapshot.calendarSlots, { reason, silent: true });
+  loadedCalendarSnapshotKey.value = snapshot.key;
+  lastLoadedCalendarRangeKey = snapshot.rangeKey;
+  return true;
 }
 
 function buildCalendarSlotsFromContext({
@@ -2047,10 +2150,25 @@ const fetchDashboardContext = async (
     return;
   }
 
-  const visibleRange = resolveVisibleBookedSlotRange({
-    focusDate: state.focus,
-    view: state.view,
+  const requestFocusDate = new Date(state.focus);
+  const requestView = state.view;
+  const {
+    range: visibleRange,
+    key: requestSnapshotKey,
+  } = resolveCalendarSnapshotDescriptor({
+    focusDate: requestFocusDate,
+    view: requestView,
   });
+  const cachedSnapshot = calendarSnapshotCache.get(requestSnapshotKey);
+
+  if (cachedSnapshot) {
+    // Refresh the cache's recency and activate it before revalidating. A forced
+    // refresh keeps the matching range visible, but drops all inactive ranges.
+    storeCalendarSnapshot(cachedSnapshot);
+    applyCalendarSnapshot(cachedSnapshot, "events-cache-hit");
+  }
+  if (forceRefresh) invalidateInactiveCalendarSnapshots(requestSnapshotKey);
+
   const widgetRange = refreshWidgets
     ? resolveUpcomingWidgetBookedSlotRange({ now: currentTime.value })
     : null;
@@ -2059,6 +2177,7 @@ const fetchDashboardContext = async (
 
   dashboardEventsEngine.setState("creatorId", creatorId, { reason: "events-fetch", silent: true });
   dashboardEventsEngine.setState("fanId", fanId, { reason: "events-fetch", silent: true });
+  dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
   dashboardEventsEngine.setState("events.loading", true, { reason: "events-fetch", silent: true });
 
   const result = await dashboardEventsEngine.callFlow(
@@ -2112,27 +2231,40 @@ const fetchDashboardContext = async (
       ? buildBookedSlotsIndex(combinedBookedSlotsRaw)
       : (result?.data?.bookedSlotsIndex || {});
 
-    dashboardEventsEngine.setState("events.catalogEvents", catalogEvents, { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.rawEvents", rawEvents, { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.bookedSlotsRaw", bookedSlotsRaw, { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.bookedSlotsIndex", bookedSlotsIndex, { reason: "events-fetch", silent: true });
-
     const { bookedCalendarSlots, calendarSlots } = buildCalendarSlotsFromContext({
       catalogEvents,
       bookedSlotsRaw,
       bookedSlotsIndex,
-      focusDate: state.focus,
-      view: state.view,
+      focusDate: requestFocusDate,
+      view: requestView,
     });
-    dashboardEventsEngine.setState("events.bookedList", bookedCalendarSlots, { reason: "events-fetch", silent: true });
-    dashboardEventsEngine.setState("events.list", calendarSlots, { reason: "events-fetch", silent: true });
+
+    const snapshot = {
+      key: requestSnapshotKey,
+      rangeKey: visibleRange.key,
+      catalogEvents,
+      rawEvents,
+      bookedSlotsRaw,
+      bookedSlotsIndex,
+      bookedCalendarSlots,
+      calendarSlots,
+      loadedAt: Date.now(),
+    };
+    storeCalendarSnapshot(snapshot);
+
+    // A response may finish just as the user moves to a different range. It is
+    // still useful as a cache entry, but must never replace the active range.
+    if (requestSnapshotKey === activeCalendarSnapshotKey.value) {
+      applyCalendarSnapshot(snapshot, "events-fetch");
+    }
+
     if (widgetBookedSlotsRaw) {
       const { bookedCalendarSlots: widgetBookedList } = buildCalendarSlotsFromContext({
         catalogEvents,
         bookedSlotsRaw: widgetBookedSlotsRaw,
         bookedSlotsIndex: {},
-        focusDate: state.focus,
-        view: state.view,
+        focusDate: requestFocusDate,
+        view: requestView,
       });
       dashboardEventsEngine.setState("events.widgetBookedSlotsRaw", widgetBookedSlotsRaw, { reason: "events-fetch", silent: true });
       dashboardEventsEngine.setState("events.widgetBookedList", widgetBookedList, { reason: "events-fetch", silent: true });
@@ -2149,23 +2281,23 @@ const fetchDashboardContext = async (
       );
     }
     dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
-    lastLoadedCalendarRangeKey = visibleRange.key;
   }
 
   dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
-  await nextTick();
-  if (
+  const shouldRevealInitialWeek = (
     !initialWeekDateRevealed.value
     && state.view === "week"
     && typeof window !== "undefined"
     && window.innerWidth >= 1024
     && typeof mainCalendarRef.value?.revealSelectedWeekDay === "function"
-  ) {
+  );
+  if (shouldRevealInitialWeek || scrollToCurrentTime) await nextTick();
+  if (shouldRevealInitialWeek) {
     initialWeekDateRevealed.value = true;
     mainCalendarRef.value.revealSelectedWeekDay({ behavior: "smooth" });
   }
   if (scrollToCurrentTime) {
-    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "auto" });
   }
 };
 
@@ -3108,6 +3240,11 @@ const events1 = computed(() => {
         : BOOKING_MIN_HEIGHT_PX,
     }));
 });
+const displayedCalendarEvents = computed(() => (
+  activeCalendarSnapshotKey.value === loadedCalendarSnapshotKey.value
+    ? events1.value
+    : []
+));
 const miniEvents = computed(() => {
   const combined = [
     ...(events1.value || []),
@@ -3559,6 +3696,14 @@ onMounted(() => {
 watch([normalizedCreatorId, normalizedFanId, dashboardRole], ([nextCreatorId, nextFanId, nextRole], [previousCreatorId, previousFanId, previousRole]) => {
   if (!isMounted.value) return;
 
+  if (
+    nextCreatorId !== previousCreatorId
+    || nextFanId !== previousFanId
+    || nextRole !== previousRole
+  ) {
+    resetCalendarSnapshotCache();
+  }
+
   if (nextRole === "fan") {
     if (nextFanId == null) {
       resetEventsState();
@@ -3604,13 +3749,25 @@ watch(() => state.view, async (nextView, previousView) => {
     || (previousView === "week" && nextView === "day")
   );
 
-  if (shouldScrollToCurrentTime) {
+  const refreshPromise = isMounted.value && hasDashboardContext.value
+    ? requestCalendarContextRefresh()
+    : Promise.resolve();
+  const targetSnapshotAlreadyActive = !calendarRangeUnavailable.value;
+
+  if (shouldScrollToCurrentTime && targetSnapshotAlreadyActive) {
     await nextTick();
-    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "smooth" });
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "auto" });
   }
 
-  if (isMounted.value && hasDashboardContext.value) {
-    await requestCalendarContextRefresh();
+  await refreshPromise;
+
+  if (
+    shouldScrollToCurrentTime
+    && !targetSnapshotAlreadyActive
+    && !calendarRangeUnavailable.value
+  ) {
+    await nextTick();
+    await mainCalendarRef.value?.scrollToCurrentTime?.({ behavior: "auto" });
   }
 });
 
@@ -3647,31 +3804,37 @@ defineExpose({
 }
 
 .month-booking-row > :first-child {
+  display: contents;
+}
+
+.month-booking-row .month-booking-title-region {
+  display: contents;
+}
+
+.month-booking-row .month-booking-time-region {
+  display: contents;
+}
+
+.month-booking-row [data-test="dashboard-calendar-booking-icon"],
+.month-booking-row [data-test="dashboard-calendar-booking-status-icon"],
+.month-booking-row [data-test="dashboard-calendar-booking-countdown-indicator"] {
+  flex: 0 0 auto;
+}
+
+.month-booking-row .month-booking-title-region > :last-child {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
-}
-
-.month-booking-row [data-test="dashboard-calendar-booking-title"] {
-  min-width: 0;
-  width: auto;
-  flex: 1 1 auto;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.month-booking-row [data-test="dashboard-calendar-booking-time"] {
-  min-width: max-content;
-  flex: 0 0 auto;
-  overflow: visible;
-  padding: 0;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.month-booking-row [data-test="dashboard-calendar-booking-time"] > :last-child {
-  min-width: max-content;
-  overflow: visible;
-  text-overflow: clip;
+.month-booking-row .month-booking-time-text,
+.month-booking-row .month-booking-time-region > [data-test="dashboard-calendar-booking-countdown"] {
+  min-width: 0;
+  flex: 0 1000 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 </style>

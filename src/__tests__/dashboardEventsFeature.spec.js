@@ -69,12 +69,13 @@ vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "dayColumnMode", "fitDayEventColumns", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "tabletWeekEventLaneMinWidthPx", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
         availabilityTestView: "month",
         bookingTestView: "month",
+        pastBookingTestView: "month",
         monthExpandedDay: new Date("2026-03-23T00:00:00"),
         monthExpandedEvents: [
           {
@@ -222,7 +223,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
           :event="monthPastBookedEvent"
           :style="undefined"
           :onClick="handleMonthEventClick"
-          view="month"
+          :view="pastBookingTestView"
         />
         <slot
           name="event"
@@ -493,6 +494,35 @@ async function flushPromises() {
   await Promise.resolve();
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function calendarContextResponse(title, suffix = title.toLowerCase().replace(/\s+/g, "_")) {
+  return {
+    ok: true,
+    data: {
+      events: [],
+      bookedSlots: [{
+        bookingId: `booking_${suffix}`,
+        eventId: `event_${suffix}`,
+        eventTitle: title,
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:00:00+08:00",
+        endIso: "2026-03-23T10:30:00+08:00",
+        status: "confirmed",
+      }],
+      bookedSlotsIndex: {},
+    },
+  };
+}
+
 async function mountDashboardEventsFeature(props = {}, translations = {}) {
   const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
   const wrapper = mount(DashboardEventsFeature, {
@@ -631,10 +661,24 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledTimes(1);
     expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledWith({ behavior: "smooth" });
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
-    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "smooth" });
-    expect(wrapper.getComponent({ name: "MainCalendar" }).props("showCurrentTimeAcrossDates")).toBe(true);
-    expect(wrapper.getComponent({ name: "MainCalendar" }).props("minEventHeightPx")).toBe(40);
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledWith({ behavior: "auto" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    expect(mainCalendar.props("showCurrentTimeAcrossDates")).toBe(true);
+    expect(mainCalendar.props("minEventHeightPx")).toBe(40);
+    expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBe(96);
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+  });
+
+  it("uses the same reserved axis width for the dashboard header and body on tablets", async () => {
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const calendarTheme = wrapper.getComponent({ name: "MainCalendar" }).props("theme");
+
+    expect(calendarTheme.main.axisXLabel).toContain("md:w-[4.8rem]");
+    expect(calendarTheme.main.axisYRow).toContain("md:w-[4.8rem]");
+    expect(calendarTheme.main.axisYRow).not.toContain("lg:w-[4.8rem]");
   });
 
   it("opens compact details before approving a widget booking, then opens refreshed hero details", async () => {
@@ -1108,6 +1152,234 @@ describe("DashboardEventsFeature", () => {
       ]);
   });
 
+  it("masks an uncached view until its complete calendar snapshot is ready", async () => {
+    const dayFetch = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Week snapshot", "week"))
+      .mockImplementationOnce(() => dayFetch.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Week snapshot" }),
+    ]);
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+
+    expect(mainCalendar.props("events")).toEqual([]);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-loading']").exists()).toBe(true);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-overlay']").attributes("aria-busy")).toBe("true");
+
+    dayFetch.resolve(calendarContextResponse("Day snapshot", "day"));
+    await flushPromises();
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='dashboard-calendar-range-overlay']").exists()).toBe(false);
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Day snapshot" }),
+    ]);
+  });
+
+  it("restores a cached range immediately and revalidates it without an empty state", async () => {
+    const dayFetch = createDeferred();
+    const weekRevalidation = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Cached week", "cached_week"))
+      .mockImplementationOnce(() => dayFetch.promise)
+      .mockImplementationOnce(() => weekRevalidation.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    dayFetch.resolve(calendarContextResponse("Cached day", "cached_day"));
+    await flushPromises();
+    await flushPromises();
+
+    mainCalendar.vm.$emit("view-changed", "week");
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='dashboard-calendar-range-overlay']").exists()).toBe(false);
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Cached week" }),
+    ]);
+
+    weekRevalidation.resolve(calendarContextResponse("Fresh week", "fresh_week"));
+    await flushPromises();
+    await flushPromises();
+
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Fresh week" }),
+    ]);
+  });
+
+  it("shows a blocking retry state for an uncached failure but keeps cached data on refresh failure", async () => {
+    const dayFailure = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Stable week", "stable_week"))
+      .mockImplementationOnce(() => dayFailure.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    dayFailure.resolve({ ok: false, error: { message: "Day range failed" } });
+    await flushPromises();
+    await flushPromises();
+
+    expect(mainCalendar.props("events")).toEqual([]);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-error']").text()).toContain("Day range failed");
+
+    callFlow.mockResolvedValueOnce(calendarContextResponse("Recovered day", "recovered_day"));
+    await wrapper.get("[data-test='dashboard-calendar-range-retry']").trigger("click");
+    await flushPromises();
+    await flushPromises();
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Recovered day" }),
+    ]);
+
+    const cachedFailure = createDeferred();
+    callFlow.mockImplementationOnce(() => cachedFailure.promise);
+    await wrapper.setProps({ refreshSignal: "revalidate-day" });
+    await flushPromises();
+
+    expect(wrapper.find("[data-test='dashboard-calendar-range-overlay']").exists()).toBe(false);
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Recovered day" }),
+    ]);
+
+    cachedFailure.resolve({ ok: false, error: { message: "Background refresh failed" } });
+    await flushPromises();
+    await flushPromises();
+    expect(wrapper.find("[data-test='dashboard-calendar-range-overlay']").exists()).toBe(false);
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Recovered day" }),
+    ]);
+  });
+
+  it("cannot commit an older response after a rapid Day to Month change", async () => {
+    const dayFetch = createDeferred();
+    const monthFetch = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Initial week", "initial_week"))
+      .mockImplementationOnce(() => dayFetch.promise)
+      .mockImplementationOnce(() => monthFetch.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    mainCalendar.vm.$emit("view-changed", "month");
+    await flushPromises();
+
+    monthFetch.resolve(calendarContextResponse("Current month", "current_month"));
+    await flushPromises();
+    await flushPromises();
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Current month" }),
+    ]);
+
+    dayFetch.resolve(calendarContextResponse("Stale day", "stale_day"));
+    await flushPromises();
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Current month" }),
+    ]);
+  });
+
+  it("clears range snapshots when the dashboard identity changes", async () => {
+    const identityFetch = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Creator 99", "creator_99"))
+      .mockImplementationOnce(() => identityFetch.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    await wrapper.setProps({ creatorId: 100 });
+    await flushPromises();
+
+    expect(mainCalendar.props("events")).toEqual([]);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-loading']").exists()).toBe(true);
+
+    identityFetch.resolve(calendarContextResponse("Creator 100", "creator_100"));
+    await flushPromises();
+    await flushPromises();
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Creator 100" }),
+    ]);
+  });
+
+  it("caps the calendar snapshot cache at the twelve most recent ranges", async () => {
+    const evictedRangeFetch = createDeferred();
+    let firstFromIso = null;
+    let revisitFirstRange = false;
+
+    callFlow.mockImplementation((flowName, payload) => {
+      if (flowName !== "bookings.fetchDashboardBookingContext") {
+        return Promise.resolve({ ok: true, data: {} });
+      }
+      firstFromIso ||= payload.fromIso;
+      if (revisitFirstRange && payload.fromIso === firstFromIso) {
+        return evictedRangeFetch.promise;
+      }
+      return Promise.resolve(calendarContextResponse(`Range ${payload.fromIso}`, payload.fromIso));
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    for (let index = 1; index <= 12; index += 1) {
+      mainCalendar.vm.$emit("update:focus-date", new Date(2026, 2, 23 + (index * 7), 9, 0, 0));
+      await flushPromises();
+    }
+
+    revisitFirstRange = true;
+    mainCalendar.vm.$emit("update:focus-date", new Date(2026, 2, 23, 9, 0, 0));
+    await flushPromises();
+
+    expect(mainCalendar.props("events")).toEqual([]);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-loading']").exists()).toBe(true);
+
+    evictedRangeFetch.resolve(calendarContextResponse("Reloaded oldest range", "reloaded_oldest"));
+    await flushPromises();
+    await flushPromises();
+  });
+
+  it("invalidates inactive snapshots on a forced refresh", async () => {
+    const evictedDayFetch = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Initial week", "forced_week"))
+      .mockResolvedValueOnce(calendarContextResponse("Initial day", "forced_day"))
+      .mockResolvedValueOnce(calendarContextResponse("Refreshed week", "refreshed_week"))
+      .mockResolvedValueOnce(calendarContextResponse("Forced week", "forced_week_latest"))
+      .mockImplementationOnce(() => evictedDayFetch.promise);
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    mainCalendar.vm.$emit("view-changed", "week");
+    await flushPromises();
+
+    await wrapper.setProps({ refreshSignal: "force-week" });
+    await flushPromises();
+
+    mainCalendar.vm.$emit("view-changed", "day");
+    await flushPromises();
+    expect(mainCalendar.props("events")).toEqual([]);
+    expect(wrapper.get("[data-test='dashboard-calendar-range-loading']").exists()).toBe(true);
+
+    evictedDayFetch.resolve(calendarContextResponse("Reloaded day", "reloaded_day"));
+    await flushPromises();
+    await flushPromises();
+  });
+
   it("scrolls to the current time on Day and Week view changes without changing the selected date", async () => {
     const wrapper = await mountDashboardEventsFeature({
       creatorId: 99,
@@ -1123,7 +1395,7 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(1);
-    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "smooth" });
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "auto" });
     expect(mainCalendar.props("focusDate").getTime()).toBe(initialFocusDate.getTime());
     expect(mainCalendar.props("selectedDate").getTime()).toBe(initialSelectedDate.getTime());
 
@@ -1131,7 +1403,7 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     expect(mainCalendarScrollToCurrentTime).toHaveBeenCalledTimes(2);
-    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "smooth" });
+    expect(mainCalendarScrollToCurrentTime).toHaveBeenLastCalledWith({ behavior: "auto" });
     expect(mainCalendar.props("focusDate").getTime()).toBe(initialFocusDate.getTime());
     expect(mainCalendar.props("selectedDate").getTime()).toBe(initialSelectedDate.getTime());
 
@@ -1641,8 +1913,23 @@ describe("DashboardEventsFeature", () => {
     const bookingIcon = bookingMarker.get("[data-test='dashboard-calendar-booking-icon']");
     expect(bookingIcon.attributes("data-booking-icon-type")).toBe("private");
     expect(bookingIcon.get("path").attributes("stroke")).toBe("currentColor");
-    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']").attributes("data-booking-status-icon")).toBe("confirmed");
-    expect(bookingMarker.get("[data-test='dashboard-calendar-booking-time']").text()).toBe("12:00pm");
+    const bookingStatusIcon = bookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']");
+    expect(bookingStatusIcon.attributes("data-booking-status-icon")).toBe("confirmed");
+    expect(bookingStatusIcon.classes()).toContain("shrink-0");
+    const bookingTitle = bookingMarker.get("[data-test='dashboard-calendar-booking-title']");
+    const bookingTime = bookingMarker.get("[data-test='dashboard-calendar-booking-time']");
+    expect(bookingTime.text()).toBe("12:00pm");
+    expect(bookingTitle.classes()).toContain("month-booking-title-region");
+    expect(bookingTime.classes()).toContain("month-booking-time-region");
+    expect(bookingTime.element.lastElementChild?.classList).toContain("month-booking-time-text");
+    expect(bookingTime.element.lastElementChild?.classList).toContain("truncate");
+    expect(bookingIcon.classes()).toContain("shrink-0");
+    for (const marker of bookingMarkers.filter((candidate) => candidate.find("[data-test='dashboard-calendar-booking-time']").exists())) {
+      expect(marker.get("[data-test='dashboard-calendar-booking-icon']").classes()).toContain("shrink-0");
+      const fixedIndicator = marker.find("[data-test='dashboard-calendar-booking-status-icon'], [data-test='dashboard-calendar-booking-countdown-indicator']");
+      expect(fixedIndicator.exists()).toBe(true);
+      expect(fixedIndicator.classes()).toContain("shrink-0");
+    }
     expect(bookingMarker.find("[data-test='dashboard-calendar-join-call']").exists()).toBe(false);
 
     bookingMarker.element.getBoundingClientRect = vi.fn(() => ({
@@ -1687,8 +1974,10 @@ describe("DashboardEventsFeature", () => {
     expect(pastBookingMarker.text()).toContain("7:30am");
     expect(pastBookingMarker.text()).not.toContain("8:30am");
     expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
-    expect(pastBookingMarker.element.style.borderTopColor).toBe("rgb(200, 205, 216)");
-    expect(pastBookingMarker.element.style.borderTopWidth).toBe("1px");
+    expect(pastBookingMarker.element.style.borderTopWidth).toBe("0px");
+    expect(pastBookingMarker.element.style.borderRightWidth).toBe("0px");
+    expect(pastBookingMarker.element.style.borderBottomWidth).toBe("0px");
+    expect(pastBookingMarker.element.style.borderLeftWidth).toBe("0px");
     expect(pastBookingMarker.classes()).toContain("cursor-pointer");
     expect(pastBookingMarker.classes()).toContain("rounded-[0.25rem]");
     expect(pastBookingMarker.element.style.boxShadow).toBe("none");
@@ -1775,6 +2064,33 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.element.style.backgroundImage).toBe("");
     expect(availabilityMarker.attributes("style")).not.toContain("repeating-linear-gradient");
     expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
+  });
+
+  it("removes the border from grey past bookings in day, week, and month views", async () => {
+    const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
+    const wrapper = mount(DashboardEventsFeature, {
+      props: {
+        creatorId: 77,
+        userRole: "creator",
+      },
+    });
+    await flushPromises();
+
+    const calendar = wrapper.getComponent({ name: "MainCalendar" });
+
+    for (const view of ["day", "week", "month"]) {
+      await calendar.setData({ pastBookingTestView: view });
+      const pastBookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+        .find((marker) => marker.text().includes("Month Past Booked Slot"));
+
+      expect(pastBookingMarker).toBeTruthy();
+      expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
+      expect(pastBookingMarker.element.style.borderTopWidth).toBe("0px");
+      expect(pastBookingMarker.element.style.borderRightWidth).toBe("0px");
+      expect(pastBookingMarker.element.style.borderBottomWidth).toBe("0px");
+      expect(pastBookingMarker.element.style.borderLeftWidth).toBe("0px");
+      expect(pastBookingMarker.classes()).toContain(view === "month" ? "static" : "absolute");
+    }
   });
 
   it("changes a confirmed month booking countdown to live now for the active call", async () => {
@@ -2882,7 +3198,12 @@ describe("DashboardEventsFeature", () => {
     const todayItem = widgetSections
       .find((section) => section.title === "TODAY")
       .items.find((item) => item.title === "Private Color Skin");
-    expect(todayItem.accentColor).toBe("#28C76F");
+    expect(todayItem).toEqual(expect.objectContaining({
+      accentColor: "#28C76F",
+      monthName: "MARCH",
+      dayNumber: "23",
+      time: "10:00am-10:30am",
+    }));
   });
 
   it("passes the earliest-starting currently joinable confirmed booking to the mobile sticky card", async () => {

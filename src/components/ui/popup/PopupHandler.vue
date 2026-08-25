@@ -94,7 +94,7 @@ const props = defineProps({
    *   actionType: "popup" | "slidein",
    *   speed, effect, customEffect, closeSpeed, closeEffect,
    *   showOverlay, closeOnOutside, lockScroll, zIndex, forceZIndex,
-   *   width: {...}, height: {...},
+   *   width: {...}, height: {...}, forceHeight,
    *   from: "left" | "right" | "top" | "bottom",
    *   offset: "0px" | "30px" | number,
    *   resetOnClose, customClass, containerClass, containerAttrs,
@@ -152,6 +152,7 @@ const defaults = {
   forceZIndex: null,
   width: { default: '600px' },
   height: { default: '500px' }, // popup default height
+  forceHeight: false,
   from: 'left', // slide-in default
   offset: '0px',
   resetOnClose: true,
@@ -370,6 +371,7 @@ async function openPanel() {
 }
 
 function closePanel() {
+  clearOrientationSyncTimers();
   const panel = panelRef.value;
   if (!panel) return;
 
@@ -504,6 +506,10 @@ function validateSizeValue(value, name) {
 }
 
 // -------------------- Style application --------------------
+function setPanelHeight(panel, value) {
+  panel.style.setProperty('height', String(value), cfg.value.forceHeight ? 'important' : '');
+}
+
 function applyInitialStyles(panel) {
   const w = resolveResponsive(cfg.value.width);
   const h = resolveResponsive(cfg.value.height);
@@ -524,12 +530,19 @@ function applyInitialStyles(panel) {
   // --- POPUP LOGIC ---
   if (isPopup.value) {
     // ... (Popup logic same as before) ...
-    panel.style.height = (normalizedH ?? '500px'); // Restore popup height logic
+    setPanelHeight(panel, normalizedH ?? '500px'); // Restore popup height logic
     
     const pos = resolveResponsive(cfg.value.position) || 'center';
-    if (isFullW) { panel.style.left = '0'; panel.style.right = '0'; } else { panel.style.left = '50%'; }
+    if (isFullW) {
+      panel.style.left = '0';
+      panel.style.right = '0';
+    } else {
+      panel.style.left = '50%';
+      panel.style.right = 'auto';
+    }
     if (isFullH) { panel.style.top = '0'; panel.style.bottom = '0'; } 
     else {
+      panel.style.bottom = 'auto';
       if (pos === 'top-center') panel.style.top = '0';
       else panel.style.top = '50%';
     }
@@ -573,20 +586,20 @@ function applyInitialStyles(panel) {
       if (vAlign === 'stretch') {
         panel.style.top = '0';
         panel.style.bottom = '0';
-        panel.style.height = '100%';
+        setPanelHeight(panel, '100%');
       } else if (vAlign === 'bottom') {
         panel.style.top = 'auto';
         panel.style.bottom = '0px'; // Thora gap bottom se
-        panel.style.height = (normalizedH ?? 'auto'); // Auto height
+        setPanelHeight(panel, normalizedH ?? 'auto'); // Auto height
       } else if (vAlign === 'top') {
         panel.style.top = '20px'; // Thora gap top se
         panel.style.bottom = 'auto';
-        panel.style.height = (normalizedH ?? 'auto');
+        setPanelHeight(panel, normalizedH ?? 'auto');
       } else {
         // center
         panel.style.top = '50%';
         panel.style.bottom = 'auto';
-        panel.style.height = (normalizedH ?? 'auto');
+        setPanelHeight(panel, normalizedH ?? 'auto');
         // Note: transform will need specific handling below for center, but bottom is priority here
       }
 
@@ -615,7 +628,7 @@ function applyInitialStyles(panel) {
         panel.style.transform = 'translateY(100%)';
       }
       panel.style.width = (normalizedW ?? '100%');
-      panel.style.height = (normalizedH ?? 'auto');
+      setPanelHeight(panel, normalizedH ?? 'auto');
     }
 
     if (isInstantOpen()) {
@@ -656,6 +669,17 @@ function applyEnterStyles(panel) {
        panel.style.transform = 'translate(0, 0)';
     }
   }
+}
+
+function syncVisiblePanelLayout() {
+  if (!isVisible.value) return;
+  const panel = panelRef.value;
+  if (!panel) return;
+
+  // Apply the same geometry as a fresh open, then restore the entered state in
+  // the same task so viewport changes do not replay the opening animation.
+  applyInitialStyles(panel);
+  applyEnterStyles(panel);
 }
 
 function applyLeaveStyles(panel) {
@@ -758,35 +782,43 @@ watch(() => props.modelValue, (nv) => {
 }, { immediate: false });
 
 watch(() => cfg.value.width, () => {
-  if (!isVisible.value) return;
-  const panel = panelRef.value;
-  if (!panel) return;
-  panel.style.width = resolveResponsive(cfg.value.width);
+  syncVisiblePanelLayout();
 });
 watch(() => cfg.value.height, () => {
-  if (!isVisible.value) return;
-  const panel = panelRef.value;
-  if (!panel) return;
-  panel.style.height = resolveResponsive(cfg.value.height);
-  panel.style.maxHeight = window.innerHeight + 'px';
+  syncVisiblePanelLayout();
 });
 
+let orientationSyncTimers = [];
+
+function clearOrientationSyncTimers() {
+  orientationSyncTimers.forEach((timerId) => window.clearTimeout(timerId));
+  orientationSyncTimers = [];
+}
+
 function handleWindowResize() {
+  syncVisiblePanelLayout();
+}
+
+function handleOrientationChange() {
   if (!isVisible.value) return;
-  const panel = panelRef.value;
-  if (!panel) return;
-  // Re-apply width/height responsively
-  if (cfg.value.width) panel.style.width = resolveResponsive(cfg.value.width);
-  if (cfg.value.height) panel.style.height = resolveResponsive(cfg.value.height);
-  panel.style.maxHeight = window.innerHeight + 'px';
+  clearOrientationSyncTimers();
+
+  // Some tablet browsers expose intermediate dimensions during rotation.
+  // Recheck after the orientation event and twice more as the viewport settles.
+  [0, 150, 350].forEach((delay) => {
+    orientationSyncTimers.push(window.setTimeout(syncVisiblePanelLayout, delay));
+  });
 }
 
 onMounted(() => {
   window.addEventListener('resize', handleWindowResize, { passive: true });
+  window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize);
+  window.removeEventListener('orientationchange', handleOrientationChange);
+  clearOrientationSyncTimers();
   // Remove document click listener if it was added
   if (!cfg.value.showOverlay && cfg.value.closeOnOutside) {
     document.removeEventListener('click', handleDocumentClick);
