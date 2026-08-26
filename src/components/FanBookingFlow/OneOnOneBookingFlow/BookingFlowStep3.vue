@@ -2318,7 +2318,7 @@ onBeforeUnmount(() => {
 
           <div class="relative flex-1 flex w-full lg:flex-row h-auto flex-col justify-between md:min-h-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none] z-[1]">
 
-            <div class="flex-1 h-full  flex-col px-2 lg:px-6 pt-2 lg:pt-3 lg:pb-0 gap-3 bg-[#0C111D]/50 lg:overflow-hidden h-auto md:max-h-none lg:h-[43.75rem]">
+            <div class="flex-1 h-full  flex-col px-2 pb-[5rem] lg:px-6 pt-2 lg:pt-3 lg:pb-0 gap-3 bg-[#0C111D]/50 lg:overflow-hidden h-auto md:max-h-none lg:h-[43.75rem]">
               <template v-if="!isTopUpSubstep">
                 <div class="flex flex-col gap-8 pt-12 md:overflow-y-auto h-full flex-1 pb-[6.25rem] md:pb-[4.5rem] relative z-[1]">
                   <div class="rounded-lg bg-white/10 p-3 md:p-5 hidden flex-col gap-3">
