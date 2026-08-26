@@ -28,11 +28,14 @@ A single, reusable Vue 3 SFC that handles BOTH centered popups and slide-ins.
       :role="ariaRole"
       :aria-modal="isModal ? 'true' : undefined"
       :tabindex="isModal ? -1 : undefined"
-      :class="containerClassList"
+      :class="[
+        containerClassList,
+        'relative !w-full !h-dvh',
+        isPreviewModeActive ? 'lg:!w-auto lg:!h-auto' : 'md:!w-auto md:!h-auto'
+      ]"
       v-bind="containerBindAttrs"
       @keydown.esc.prevent.stop="onEsc"
       @click.stop
-      class="relative !w-full lg:!w-auto !h-dvh lg:!h-auto"
     >
       <!-- Optional loader (rendered via config.loader.component) -->
       <div
@@ -128,8 +131,19 @@ const props = defineProps({
   teleportTo: {
     type: String,
     default: 'body'
+  },
+  /**
+   * Optional preview mode flag
+   */
+  isPreviewMode: {
+    type: Boolean,
+    default: false
   }
 });
+
+const isPreviewModeActive = computed(() => (
+  props.isPreviewMode || Boolean(props.config?.isPreviewMode || props.config?.previewMode)
+));
 
 const emit = defineEmits([
   'update:modelValue',
