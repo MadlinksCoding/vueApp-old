@@ -2283,7 +2283,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
         @change.capture="markFormDirtyFromUserInteraction"
     >
         <ToastHost />
-        <div :class="[embedded ? '' : '', 'flex w-full flex-col lg:flex-row gap-4 lg:gap-0']">
+        <div :class="[embedded ? '' : '', 'flex w-full h-full lg:h-auto flex-col lg:flex-row gap-4 lg:gap-0']">
             <div
                 :class="[
                     embedded

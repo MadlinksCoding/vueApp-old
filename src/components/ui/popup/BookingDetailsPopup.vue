@@ -192,22 +192,21 @@
         <div class="self-stretch px-4 pt-12 pb-2 min-h-[18.75rem] relative bg-gradient-to-b from-amber-400/5 to-amber-400/30 flex flex-col justify-end items-start gap-4" data-test="event-details-fan-hero">
           <div class="h-6 p-1.5 bg-[rgba(29,29,29,0.5)] rounded-[50px] inline-flex justify-start items-center gap-1" data-test="event-details-fan-status">
             <div data-property-1="decline" data-size="Default" class="size-4 p-px flex justify-start items-center gap-2.5">
-              <div class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5" :style="{ backgroundColor: statusColor }">
-                <div v-if="displayIsCancelledStatus" data-svg-wrapper class="relative">
+              <div v-if="displayIsCancelledStatus" class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5" :style="{ backgroundColor: statusColor }">
+                <div data-svg-wrapper class="relative">
                   <img :src="CloseIcon" alt="" class="h-3 w-3" />
                 </div>
-                <span v-else class="size-1.5 rounded-full bg-white" aria-hidden="true" />
               </div>
-              <!-- <div class="size-4 rounded-[50px] flex justify-center items-center gap-2.5">
+              <div v-else-if="compactPendingStatus" class="size-4 rounded-[50px] flex justify-center items-center gap-2.5">
                 <div  data-svg-wrapper class="relative">
                   <img :src="HelpCircleIcon" alt="" class="h-4 w-4" />
                 </div>
               </div>
-              <div class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5 bg-[#07F468]">
+              <div v-else class="size-3.5 rounded-[50px] flex justify-center items-center gap-2.5 bg-[#07F468]">
                 <div  data-svg-wrapper class="relative">
                   <img :src="CheckBlackIcon" alt="" class="h-2.5 w-2.5" />
                 </div>
-              </div> -->
+              </div>
             </div>
             <div class="justify-start text-white text-xs font-normal font-['Poppins'] leading-4 line-clamp-1">{{ statusText }}</div>
           </div>

@@ -66,15 +66,16 @@ const isGroupEvent = computed(() => String(
 
 const eventIcon = computed(() => (isGroupEvent.value ? GroupCallIcon : PhoneIcon));
 
-const indicatorStatus = computed(() => {
-  if (status.value.includes("pending")) return "pending";
-  if (["cancel", "declin", "reject"].some((value) => status.value.includes(value))) return "declined";
-  return "confirmed";
-});
-
 const isPast = computed(() => {
   const end = new Date(props.event?.end);
   return !Number.isNaN(end.getTime()) && end.getTime() < Date.now();
+});
+
+const indicatorStatus = computed(() => {
+  if (isPast.value) return "past";
+  if (status.value.includes("pending")) return "pending";
+  if (["cancel", "declin", "reject"].some((value) => status.value.includes(value))) return "declined";
+  return "confirmed";
 });
 
 const presentationStyle = computed(() => {

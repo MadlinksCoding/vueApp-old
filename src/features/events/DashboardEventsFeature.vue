@@ -335,7 +335,7 @@
           </div>
         </template>
 
-        <template #event-availability="{ event, style, view }">
+        <template #event-availability="{ event, style, view, onClick }">
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
@@ -352,9 +352,9 @@
             role="button"
             tabindex="0"
             :aria-label="t('dashboard_booking_schedule_menu_aria', { title: event.title || t('dashboard_booking_schedule_untitled_event') })"
-            @click.stop="openAvailabilityScheduleMenu(event, $event)"
-            @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
-            @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+            @click.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
+            @keydown.enter.prevent.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
+            @keydown.space.prevent.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
           >
             <span
               v-if="event.title && (view === 'month' || !event.hideAvailabilityTitle)"
@@ -671,7 +671,7 @@
     />
 
     <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
-      <div class="w-full md:w-[32.875rem] md:max-w-[90vw] rounded-t-[0.25rem] md:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+      <div class="w-full lg:w-[32.875rem] lg:max-w-[90vw] rounded-t-[0.25rem] lg:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
         <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
           {{ deleteEventConfirmTitle }}
         </h3>
@@ -1747,6 +1747,8 @@ function getCalendarSlotIconSizeClass(view) {
 }
 
 function getBookedSlotIndicatorStatus(event = {}) {
+  if (isPastBookedCalendarEvent(event)) return "past";
+
   const status = resolveBookingStatus(event);
   if (status.includes("pending")) return "pending";
   if (
@@ -3439,6 +3441,7 @@ const onSelectFromMini = (date) => {
 };
 
 const onSelectFromMain = (date) => {
+  closeAvailabilityScheduleMenu();
   state.selected = new Date(date);
   state.focus = new Date(date);
   requestCalendarContextRefresh();
