@@ -1119,7 +1119,11 @@ describe("MainCalendar all events count", () => {
     expect(dayGroups).toHaveLength(7);
     expect(wrapper.get("[data-test='calendar-week-event-header-track']").attributes("style")).toContain("width: 100%");
     expect(wrapper.get("[data-cal-time-grid] span.relative").attributes("style")).toContain("width: 100%");
-    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-auto");
+    const weekBodyScrollClasses = wrapper.get("[data-test='calendar-week-event-body-scroll']").classes();
+    expect(weekBodyScrollClasses).toContain("overflow-x-auto");
+    expect(weekBodyScrollClasses).toContain("touch-pan-x");
+    expect(weekBodyScrollClasses).toContain("touch-pan-y");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("overflow-y-auto");
 
     expect(selectedHeader.attributes("data-week-day-units")).toBe("2");
     expect(selectedHeader.attributes("data-week-day-base-width")).toBe("16%");
@@ -1411,6 +1415,144 @@ describe("MainCalendar all events count", () => {
 
     expect(selectedGroup.attributes("data-date")).toBe(localDateKey(targetDate));
     expect(targetColumn.attributes("data-event-id")).toBe("evt_target");
+  });
+
+  it("selects an unselected rendered Week booking day before opening its details", async () => {
+    const selectedDate = new Date(2026, 3, 23);
+    const targetDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [{
+        ...makeEvent({
+          id: "booking_spanning_days",
+          eventId: "evt_spanning_days",
+          title: "Spanning booking",
+          start: new Date(2026, 3, 23, 23, 30, 0),
+          end: new Date(2026, 3, 24, 1, 0, 0),
+          isAvailabilityBlock: false,
+        }),
+      }],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "week",
+        dayColumnMode: "events",
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, day, onClick, style }">
+              <button
+                data-test="gated-week-booking"
+                :data-date="day.toISOString().slice(0, 10)"
+                :style="style"
+                @click="onClick(event)"
+              >{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const targetGroupSelector = `[data-test='calendar-week-event-day-group'][data-date='${localDateKey(targetDate)}']`;
+    await wrapper.get(targetGroupSelector).get("[data-test='gated-week-booking']").trigger("click");
+
+    expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(localDateKey(wrapper.emitted("update:focus-date")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
+
+    await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
+    await wrapper.vm.$nextTick();
+    await wrapper.get(targetGroupSelector).get("[data-test='gated-week-booking']").trigger("click");
+
+    expect(wrapper.get("[data-test='event-details']").text()).toContain("Spanning booking");
+  });
+
+  it("selects an unselected Week availability day before running its deferred action", async () => {
+    const selectedDate = new Date(2026, 3, 23);
+    const targetDate = new Date(2026, 3, 24);
+    const deferredAction = vi.fn();
+    const wrapper = await mountCalendar(
+      [{
+        ...makeEvent({
+          id: "availability_target_day",
+          eventId: "evt_availability_target_day",
+          title: "Target availability",
+          start: new Date(2026, 3, 24, 10, 0, 0),
+          end: new Date(2026, 3, 24, 11, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+        deferredAction,
+      }],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "week",
+        dayColumnMode: "events",
+      },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day, onClick, style }">
+              <button
+                data-test="gated-week-availability"
+                :data-date="day.toISOString().slice(0, 10)"
+                :style="style"
+                @click="onClick(event, event.deferredAction)"
+              >{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const targetGroupSelector = `[data-test='calendar-week-event-day-group'][data-date='${localDateKey(targetDate)}']`;
+    await wrapper.get(targetGroupSelector).get("[data-test='gated-week-availability']").trigger("click");
+
+    expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(deferredAction).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
+    await wrapper.vm.$nextTick();
+    await wrapper.get(targetGroupSelector).get("[data-test='gated-week-availability']").trigger("click");
+
+    expect(deferredAction).toHaveBeenCalledTimes(1);
+    expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
+  });
+
+  it("keeps Day booking activation direct even when its retained selection differs", async () => {
+    const selectedDate = new Date(2026, 3, 23);
+    const focusDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [makeEvent({
+        id: "day_direct_booking",
+        eventId: "evt_day_direct_booking",
+        title: "Direct Day booking",
+        start: new Date(2026, 3, 24, 10, 0, 0),
+        end: new Date(2026, 3, 24, 11, 0, 0),
+        isAvailabilityBlock: false,
+      })],
+      {
+        focusDate,
+        selectedDate,
+        initialView: "day",
+        dayColumnMode: "events",
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, onClick }">
+              <button data-test="direct-day-booking" @click="onClick(event)">{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    await wrapper.get("[data-test='direct-day-booking']").trigger("click");
+
+    expect(wrapper.get("[data-test='event-details']").text()).toContain("Direct Day booking");
+    expect(wrapper.emitted("date-selected")).toBeUndefined();
   });
 
   it("moves between weeks without selecting the same weekday in the destination week", async () => {
@@ -3510,6 +3652,125 @@ describe("MainCalendar all events count", () => {
     expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(false);
   });
 
+  it("selects and expands an unselected desktop Month booking before opening its details", async () => {
+    setWindowWidth(1280);
+    const selectedDate = new Date(2026, 3, 23);
+    const targetDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [makeEvent({
+        id: "month_gated_booking",
+        eventId: "evt_month_gated_booking",
+        title: "Gated Month booking",
+        start: new Date(2026, 3, 24, 10, 0, 0),
+        end: new Date(2026, 3, 24, 11, 0, 0),
+        isAvailabilityBlock: false,
+      })],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "month",
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, day, onClick }">
+              <button
+                data-test="gated-month-booking"
+                :data-date="day.toISOString().slice(0, 10)"
+                @click.stop="onClick(event)"
+              >{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const monthView = wrapper.get("[data-test='calendar-month-view']").element;
+    const targetDayButton = findMonthDayButton(wrapper, 24);
+    Object.defineProperty(monthView, "clientWidth", { configurable: true, value: 700 });
+    Object.defineProperty(monthView, "clientHeight", { configurable: true, value: 500 });
+    monthView.getBoundingClientRect = () => ({ left: 0, top: 0, width: 700, height: 500, right: 700, bottom: 500 });
+    targetDayButton.element.getBoundingClientRect = () => ({ left: 200, top: 100, width: 100, height: 120, right: 300, bottom: 220 });
+
+    await targetDayButton.get("[data-test='gated-month-booking']").trigger("click");
+
+    expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(wrapper.get("[data-test='calendar-month-date-overlay']").attributes("data-date")).toBe(localDateKey(targetDate));
+    expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
+
+    await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
+    await wrapper.vm.$nextTick();
+    await wrapper
+      .get("[data-test='calendar-month-date-overlay']")
+      .get("[data-test='gated-month-booking']")
+      .trigger("click");
+
+    expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(false);
+    expect(wrapper.get("[data-test='event-details']").text()).toContain("Gated Month booking");
+  });
+
+  it("selects and expands an unselected desktop Month availability before running its deferred action", async () => {
+    setWindowWidth(1280);
+    const selectedDate = new Date(2026, 3, 23);
+    const targetDate = new Date(2026, 3, 24);
+    const deferredAction = vi.fn();
+    const wrapper = await mountCalendar(
+      [{
+        ...makeEvent({
+          id: "month_gated_availability",
+          eventId: "evt_month_gated_availability",
+          title: "Gated Month availability",
+          start: new Date(2026, 3, 24, 10, 0, 0),
+          end: new Date(2026, 3, 24, 11, 0, 0),
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+        deferredAction,
+      }],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "month",
+      },
+      {
+        slots: {
+          "event-availability": `
+            <template #event-availability="{ event, day, onClick }">
+              <button
+                data-test="gated-month-availability"
+                :data-date="day.toISOString().slice(0, 10)"
+                @click.stop="onClick(event, event.deferredAction)"
+              >{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    const monthView = wrapper.get("[data-test='calendar-month-view']").element;
+    const targetDayButton = findMonthDayButton(wrapper, 24);
+    Object.defineProperty(monthView, "clientWidth", { configurable: true, value: 700 });
+    Object.defineProperty(monthView, "clientHeight", { configurable: true, value: 500 });
+    monthView.getBoundingClientRect = () => ({ left: 0, top: 0, width: 700, height: 500, right: 700, bottom: 500 });
+    targetDayButton.element.getBoundingClientRect = () => ({ left: 200, top: 100, width: 100, height: 120, right: 300, bottom: 220 });
+
+    await targetDayButton.get("[data-test='gated-month-availability']").trigger("click");
+
+    expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(wrapper.get("[data-test='calendar-month-date-overlay']").attributes("data-date")).toBe(localDateKey(targetDate));
+    expect(deferredAction).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
+    await wrapper.vm.$nextTick();
+    await wrapper
+      .get("[data-test='calendar-month-date-overlay']")
+      .get("[data-test='gated-month-availability']")
+      .trigger("click");
+
+    expect(deferredAction).toHaveBeenCalledTimes(1);
+    expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
+  });
+
   it("keeps custom month events on their named slots", async () => {
     const wrapper = await mountCalendar(
       [
@@ -3728,6 +3989,55 @@ describe("MainCalendar all events count", () => {
     expect(expanded.text()).toContain("10:00am-11:00am");
     expect(expanded.text()).not.toContain("Apples");
     expect(expanded.text()).not.toContain("Mangoes");
+  });
+
+  it("selects and expands an unselected responsive Month booking before opening details", async () => {
+    setWindowWidth(820);
+    const selectedDate = new Date(2026, 3, 23);
+    const targetDate = new Date(2026, 3, 24);
+    const wrapper = await mountCalendar(
+      [makeEvent({
+        id: "responsive_month_gated",
+        eventId: "evt_responsive_month_gated",
+        title: "Responsive gated booking",
+        start: new Date(2026, 3, 24, 10, 0, 0),
+        end: new Date(2026, 3, 24, 11, 0, 0),
+        status: "confirmed",
+        isAvailabilityBlock: false,
+      })],
+      {
+        focusDate: selectedDate,
+        selectedDate,
+        initialView: "month",
+      },
+      {
+        slots: {
+          event: `
+            <template #event="{ event, day, onClick }">
+              <button
+                data-test="responsive-gated-month-booking"
+                :data-date="day.toISOString().slice(0, 10)"
+                @click.stop="onClick(event)"
+              >{{ event.title }}</button>
+            </template>
+          `,
+        },
+      },
+    );
+
+    await findMonthDayButton(wrapper, 24)
+      .get("[data-test='responsive-gated-month-booking']")
+      .trigger("click");
+
+    expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
+    expect(wrapper.get("[data-test='month-expanded-default']").text()).toContain("Responsive gated booking");
+    expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
+
+    await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
+    await wrapper.vm.$nextTick();
+    await wrapper.get("[data-test='month-expanded-event']").trigger("click");
+
+    expect(wrapper.get("[data-test='event-details']").text()).toContain("Responsive gated booking");
   });
 
   it("does not expand mobile month rows for availability-only dates", async () => {
