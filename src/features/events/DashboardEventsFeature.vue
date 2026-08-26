@@ -672,7 +672,7 @@
     />
 
     <PopupHandler v-if="isCreator" v-model="deleteEventPopupOpen" :config="deleteEventPopupConfig">
-      <div class="w-full md:w-[32.875rem] md:max-w-[90vw] rounded-t-[0.25rem] md:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
+      <div class="w-full lg:w-[32.875rem] lg:max-w-[90vw] rounded-t-[0.25rem] lg:rounded-[0.25rem] border border-[#EAECF0] bg-white px-4 py-5 shadow-xl">
         <h3 class="text-[1rem] font-semibold leading-6 text-gray-700">
           {{ deleteEventConfirmTitle }}
         </h3>
