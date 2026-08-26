@@ -310,6 +310,7 @@
         if (!btnHasMoved) {
           if (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3) {
             btnHasMoved = true;
+            extBtn.classList.remove("anchor-left", "anchor-right", "anchor-top", "anchor-bottom", "edge-left", "edge-right", "edge-top", "edge-bottom");
             extBtn.classList.add("dragging");
             document.head.appendChild(iframeDragStyle);
           } else {
