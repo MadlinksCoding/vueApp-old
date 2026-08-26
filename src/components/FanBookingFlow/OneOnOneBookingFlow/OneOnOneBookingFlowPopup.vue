@@ -48,6 +48,7 @@ const oneOnOneBookingFlowPopupConfig = {
     :modelValue="modelValue"
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="oneOnOneBookingFlowPopupConfig"
+    :is-preview-mode="previewMode"
   >
     <OneOnOneBookingFlowFeature
       v-if="modelValue"

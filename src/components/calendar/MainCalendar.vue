@@ -1629,7 +1629,7 @@ const eventsRequestsPopupConfig = computed(() => {
     lockScroll: true,
     escToClose: true,
     width: { default: tabletLandscape ? "480px" : "100%" },
-    height: { default: mobile ? "60%" : "100%" },
+    height: "60%",
     forceHeight: true,
     scrollable: false,
     closeSpeed: "250ms",
