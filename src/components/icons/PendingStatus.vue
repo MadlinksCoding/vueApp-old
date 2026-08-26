@@ -9,6 +9,11 @@
     class="rounded-full bg-[#FF4405] flex items-center justify-center aspect-square flex-shrink-0"
     :style="{ width: displayWidth, height: displayHeight }"
   ></div>
+  <div
+    v-else-if="normalizedStatus === 'past'"
+    class="rounded-full bg-[#98A2B3] flex items-center justify-center aspect-square flex-shrink-0"
+    :style="{ width: displayWidth, height: displayHeight }"
+  ></div>
   <svg
     v-else
     xmlns="http://www.w3.org/2000/svg"
@@ -63,6 +68,9 @@ const normalizedStatus = computed(() => {
   if (['declined', 'decline', 'cancelled', 'canceled', 'cancel', 'rejected', 'reject'].includes(val)) {
     return 'declined';
   }
+  if (val === 'past') {
+    return 'past';
+  }
   return 'pending';
 });
 
@@ -74,4 +82,3 @@ const displayHeight = computed(() => {
   return typeof props.height === 'number' ? `${props.height}px` : props.height;
 });
 </script>
-

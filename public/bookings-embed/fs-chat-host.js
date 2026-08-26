@@ -287,6 +287,9 @@
 
     var isDraggingBtn = false;
     var btnHasMoved = false;
+    
+    var iframeDragStyle = document.createElement("style");
+    iframeDragStyle.innerHTML = "iframe { pointer-events: none !important; }";
 
     function initBtnDrag(e) {
       var startX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
@@ -308,6 +311,7 @@
           if (Math.abs(clientX - startX) > 3 || Math.abs(clientY - startY) > 3) {
             btnHasMoved = true;
             extBtn.classList.add("dragging");
+            document.head.appendChild(iframeDragStyle);
           } else {
             return; // Ignore small movements (like a click)
           }
@@ -346,10 +350,15 @@
         if (!isDraggingBtn) return;
         isDraggingBtn = false;
         extBtn.classList.remove("dragging");
+        if (iframeDragStyle.parentNode) {
+          iframeDragStyle.parentNode.removeChild(iframeDragStyle);
+        }
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onEnd);
         document.removeEventListener("touchmove", onMove);
         document.removeEventListener("touchend", onEnd);
+        document.removeEventListener("mouseleave", onEnd);
+        window.removeEventListener("blur", onEnd);
 
         if (btnHasMoved) {
           snapToEdges();
@@ -360,6 +369,10 @@
       document.addEventListener("mouseup", onEnd);
       document.addEventListener("touchmove", onMove, { passive: false });
       document.addEventListener("touchend", onEnd);
+      
+      // Also catch mouseleave on document or blur to ensure drop completes
+      document.addEventListener("mouseleave", onEnd);
+      window.addEventListener("blur", onEnd);
     }
 
     extBtn.addEventListener("mousedown", initBtnDrag);
