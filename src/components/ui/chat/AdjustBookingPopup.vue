@@ -83,7 +83,7 @@
           <div class="flex flex-col gap-2">
             <label class="text-gray-700 text-base font-medium">Adjustment ( Original Price = {{ baseTokens }} Tokens )</label>
             <div
-              class="flex h-11 w-full items-center justify-between rounded-none border-b border-gray-300 bg-transparent px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)]"
+              class="flex h-11 w-full items-center justify-between rounded-none border-b border-gray-300 bg-transparent px-1.5 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] gap-4"
               data-testid="adjustment-token-stepper"
             >
               <!-- <output
@@ -101,10 +101,10 @@
                 <span class="text-base font-semibold text-gray-700 text-right"> Tokens </span>
               </div>
 
-              <div class="hidden gap-2 items-center justify-end">
+              <div class="flex gap-2 items-center justify-end">
                 <button
                 type="button"
-                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 border border-black transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
                 aria-label="Decrease adjustment by 1 token"
                 data-testid="adjustment-token-minus"
                 :disabled="!canDecrementAdjustment"
@@ -121,7 +121,7 @@
 
               <button
                 type="button"
-                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 border border-black transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
+                class="flex h-8 w-8 shrink-0 touch-none select-none items-center justify-center rounded-full bg-transparent hover:!bg-black/10 transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-bg-black/50 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-20"
                 aria-label="Increase adjustment by 1 token"
                 data-testid="adjustment-token-plus"
                 @click="handleAdjustmentClick(1, $event)"
