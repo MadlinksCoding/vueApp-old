@@ -315,7 +315,7 @@
     });
   }
 
-  const footerClass = "sticky bottom-0 z-20 flex items-end justify-end gap-2";
+  const footerClass = "fixed right-0 bottom-0 md:sticky bottom-0 z-20 flex items-end justify-end gap-2";
 
   // Refs
   // Refs
