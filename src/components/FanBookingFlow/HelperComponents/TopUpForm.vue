@@ -100,6 +100,13 @@ const discountPercentage = computed(() => activeTier.value?.discount_percentage 
 const balanceAfterTopUp   = computed(() => props.walletBalance + selectedAmount.value);
 const balanceAfterBooking = computed(() => balanceAfterTopUp.value - props.totalPrice);
 
+const isAmountBelowDefault = computed(() => {
+  const current = Number(amountInput.value);
+  let defaultAmount = Math.max(props.topUpAmount, minPurchase.value);
+
+  return current < defaultAmount;
+});
+
 const isLoggedIn = computed(() => Number(window?.userData?.userID) > 0 );
 
 const hasEmail  = computed(() => isLoggedIn.value || billingEmail.value?.trim().includes('@'));
@@ -107,6 +114,7 @@ const canSubmit = computed(() =>
   !isFormLoading.value && !isProcessing.value && hasEmail.value
   && !guestFormRef.value?.requiresLogin
   && Boolean(cardFormRef.value?.canPay)
+  && !isAmountBelowDefault.value
 );
 
 function resolveFanUserId() {
@@ -256,13 +264,18 @@ async function selectAmount(amount) {
 
 let amountDebounceTimer = null;
 function onAmountInput(event) {
-  const raw = Number(event.target.value);
-  if (!Number.isFinite(raw) || raw <= 0) return;
-  const clamped = Math.min(Math.max(Math.round(raw), minPurchase.value), maxPurchase.value);
-  amountInput.value = clamped;
+  const val = event.target.value;
+  amountInput.value = val;
+  const raw = Number(val);
+  if (isNaN(raw)) return;
+  let minAllowed = Math.max(props.topUpAmount, minPurchase.value);
+
   clearTimeout(amountDebounceTimer);
   amountDebounceTimer = setTimeout(() => {
-    selectAmount(clamped);
+    if (raw > 0 && raw >= minAllowed) {
+      const clamped = Math.min(Math.round(raw), maxPurchase.value);
+      selectAmount(clamped);
+    }
   }, 600);
 }
 
@@ -490,6 +503,17 @@ onBeforeUnmount(() => {
                 {{ preset.toLocaleString() }}
               </div>
             </div>
+          </div>
+          
+          <div v-if="isAmountBelowDefault" class="flex items-center gap-2 mt-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span class="text-[#f43f5e] text-sm font-normal font-['Poppins']">
+              You need to have at least {{ Math.max(props.topUpAmount, minPurchase) }} tokens to proceed with the booking.
+            </span>
           </div>
         </div>
       </div>
