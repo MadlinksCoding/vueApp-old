@@ -2724,7 +2724,7 @@ onBeforeUnmount(() => {
               <template v-else>
                 <div
                   v-if="requiresTemporaryHold"
-                  class="mb-3 rounded-[8px] border border-white/20 bg-black/40 p-3 relative z-[1]"
+                  class="mb-3 rounded-[8px] bg-black/40 p-3 relative z-[1]"
                   data-testid="temporary-hold-banner"
                 >
                   <p v-if="holdLoading" class="text-xs text-yellow-200 font-medium">{{ t("fan_booking_reserving_slot") }}</p>

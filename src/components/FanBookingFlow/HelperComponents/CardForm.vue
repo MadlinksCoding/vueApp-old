@@ -232,7 +232,7 @@ defineExpose({
         ref="changeCardBtn"
         type="button"
         @click="showCardList = !showCardList"
-        class="inline-flex items-center gap-1 text-xs text-[#22CCEE] cursor-pointer select-none"
+        class="inline-flex items-center gap-1 text-xs text-white cursor-pointer select-none"
       >
         <span>{{ t("fan_booking_change_card") }}</span>
         <svg
@@ -240,7 +240,7 @@ defineExpose({
           class="transition-transform duration-200"
           :class="{ 'rotate-180': showCardList }"
         >
-          <path d="M1 2.5L4 5.5L7 2.5" stroke="#22CCEE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M1 2.5L4 5.5L7 2.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>

@@ -102,21 +102,21 @@ const maskedNumber = computed(() => {
 
     <div
       v-else
-      class="flex items-center gap-6 bg-black/25 rounded-md px-4 py-2 border border-[#EAECF080]"
+      class="flex items-center gap-6 bg-black/25 rounded-md px-4 py-2"
     >
       <div class="flex justify-between items-center gap-2 py-2 w-full">
         <div
           class="flex items-center gap-2 flex-grow cursor-pointer"
           @click="$emit('chosen')"
         >
-          <div class="flex items-center gap-2 flex-grow">
+          <div class="flex items-center gap-2 flex-grow justify-between">
             <span
               class="text-base font-medium truncate whitespace-nowrap text-white flex-grow max-w-[100px] sm:max-w-none"
             >
               {{ holderName || "No Name" }}
             </span>
             <span
-              class="text-base font-medium whitespace-nowrap text-white flex-grow"
+              class="text-base font-medium whitespace-nowrap text-white flex-auto max-w-[8ch] text-right flex flex-row-reverse truncate"
             >
               {{ maskedNumber }}
             </span>
