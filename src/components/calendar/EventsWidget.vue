@@ -10,7 +10,7 @@
           >
             {{ section.title }}
           </h3>
-          <div class="px-2 py-1 h-[18px] flex hidden items-center justify-center rounded-full"
+          <div class="px-2 py-1 h-[18px] flex items-center justify-center rounded-full"
                 :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
             <span class="text-sm font-semibold text-white">3</span>
           </div>
@@ -130,7 +130,7 @@
               data-test="events-widget-time"
             >{{ event.time }}</span>
 
-            <div class="flex gap-1.5 items-start flex-1">
+            <div class="flex gap-1.5 items-start flex-1 flex-col">
               <span class="flex flex-1 min-w-0" >
                 
                 <template v-if="shouldShowSingleProfile(event)">
@@ -181,12 +181,29 @@
 
               <div
                 v-if="shouldShowPendingActions(event)"
-                class="flex w-[5.4375rem] shrink-0 flex-col gap-2"
+                class="flex flex-1 self-stretch shrink-0 gap-2"
                 data-test="pending-booking-actions"
               >
+
+
+                <button
+                  v-if="shouldShowPendingAccept(event)"
+                  type="button"
+                  class="flex h-7 w-full items-center flex-1 self-stretch justify-center gap-1 rounded bg-[#07F468] px-2 py-1"
+                  data-test="pending-booking-accept"
+                  @click.stop="handleApprove(event)"
+                >
+                  <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <img :src="CheckCircle" alt="" aria-hidden="true" class="h-4 w-4 brightness-0" />
+                  </span>
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#0C111D]">
+                    {{ t("calendar_event_accept") }}
+                  </span>
+                </button>
+
                 <button
                   type="button"
-                  class="flex h-[1.6875rem] w-full items-center justify-center gap-1 rounded border border-[#FF4405] bg-white px-2 py-1"
+                  class="flex h-[1.6875rem] w-full self-stretch items-center justify-center gap-1 rounded border border-[#FF4405] bg-white px-2 py-1"
                   data-test="pending-booking-review"
                   @click.stop="handleReview(event)"
                 >
@@ -196,21 +213,6 @@
                   </span>
                   <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#FF4405]">
                     {{ t("calendar_event_review") }}
-                  </span>
-                </button>
-
-                <button
-                  v-if="shouldShowPendingAccept(event)"
-                  type="button"
-                  class="flex h-7 w-full items-center justify-center gap-1 rounded border border-[#07F468] bg-white px-2 py-1"
-                  data-test="pending-booking-accept"
-                  @click.stop="handleApprove(event)"
-                >
-                  <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center">
-                    <img :src="GreenCheckIcon" alt="" aria-hidden="true" />
-                  </span>
-                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#079455]">
-                    {{ t("calendar_event_accept") }}
                   </span>
                 </button>
               </div>
@@ -282,6 +284,7 @@ import IndicatorDot from "../icons/IndicatorDot.vue";
 import GreenCheckIcon from "@/assets/images/icons/green-check.svg"
 import { isPendingCounterOffer, isPendingPriceAdjustment } from '@/services/bookings/utils/bookingNegotiationUtils.js';
 import { shouldShowBookingOptionsMenu } from '@/services/bookings/utils/bookingMenuVisibility.js';
+import CheckCircle from "@/assets/images/icons/check-circle.svg"
 
 
 const getEventCardStyles = (event, isPending) => {

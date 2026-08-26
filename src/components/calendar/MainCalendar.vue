@@ -278,7 +278,7 @@
           :class="[
             'flex fixed left-2 lg:hidden justify-center px-6 py-3 items-center rounded-full bg-white shadow-[0_0_12px_-2px_rgba(251,91,162,0.25),0_2px_4px_-2px_rgba(251,91,162,0.06)] z-[95] transition-all duration-300',
             hasMobileStickyCard ? 'bottom-[7rem]' : 'bottom-2',
-            'md:bottom-2'
+            'md:bottom-5'
           ]"
           @click="goToday" data-main-today>
           <p class="font-medium text-sm text-[#FB5BA2] uppercase">{{ t("common_today") }}</p>
@@ -295,7 +295,7 @@
           <!-- Mobile filter dropdown removed, replaced by Teleport below -->
 
         </div>
-        <div class="cursor-pointer hidden ipad-portrait-large:flex p-2 relative" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
+        <div dffdgfdgdgd class="cursor-pointer hidden ipad-portrait-large:flex p-2 relative" data-test="calendar-mobile-popup-trigger" @click="calendarPopupOpen = true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
@@ -304,35 +304,58 @@
           <span
             v-if="hasActionablePendingBooking"
             aria-hidden="true"
-            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
+            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 w-8 h-8 z-[-2] rounded-full bg-white -translate-x-1/2 -translate-y-1/2"
             data-test="calendar-actionable-pending-indicator"
           />
           <div
             v-if="calendarBadgeCount > 0"
-            class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center"
+            class="absolute top-1 right-1 min-w-4 p-1 h-4 bg-[#F06] rounded-[8px] flex items-center justify-center z-20"
           >
             <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
           </div>
         </div>
-         <div class="cursor-pointer flex lg:hidden p-2 relative" data-test="calendar-mobile-popup-trigger" @click="eventsRequestsPopupOpen = true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
-              stroke="#667085" stroke-width="1.78" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span
-            v-if="hasActionablePendingBooking"
-            aria-hidden="true"
-            class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F04438]"
-            data-test="calendar-actionable-pending-indicator"
-          />
-          <div
-            v-if="calendarBadgeCount > 0"
-            class="absolute top-0 right-0 p-1 h-4 bg-[#F06] rounded-full flex items-center justify-center"
+         <div
+            class="cursor-pointer flex lg-small:hidden p-2 relative"
+            data-test="calendar-mobile-popup-trigger"
+            @click="eventsRequestsPopupOpen = true"
           >
-            <span data-test="calendar-mobile-popup-count" class="text-white text-[10px] font-semibold">{{ calendarBadgeCount }}</span>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="relative z-10"
+            >
+              <path
+                d="M21 10H3M16 2V6M8 2V6M7.8 22H16.2C17.8802 22 18.7202 22 19.362 21.673C19.9265 21.3854 20.3854 20.9265 20.673 20.362C21 19.7202 21 18.8802 21 17.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V17.2C3 18.8802 3 19.7202 3.32698 20.362C3.6146 20.9265 4.07354 21.3854 4.63803 21.673C5.27976 22 6.11984 22 7.8 22Z"
+                stroke="#667085"
+                stroke-width="1.78"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+
+            <!-- Pulsing ring -->
+            <span
+              v-if="hasActionablePendingBooking"
+              aria-hidden="true"
+              class="calendar-pending-dot-blink pointer-events-none absolute left-1/2 top-1/2 w-8 h-8 z-[-2] rounded-full bg-white -translate-x-1/2 -translate-y-1/2"
+            />
+
+            <!-- Badge -->
+            <div
+              v-if="calendarBadgeCount > 0"
+              class="absolute top-1 right-1 min-w-4 p-1 h-4 bg-[#F06] rounded-[8px] flex items-center justify-center z-20"
+            >
+              <span
+                data-test="calendar-mobile-popup-count"
+                class="text-white text-[10px] font-semibold"
+              >
+                {{ calendarBadgeCount }}
+              </span>
+            </div>
           </div>
-        </div>
 
         </div>
       </div>
@@ -393,9 +416,9 @@
 
     <!-- default-header-theme-2 -->
     <div v-else-if="variant === 'theme2'"
-      class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem]">
+      class="flex flex-wrap lg:flex-nowrap items-center justify-between w-full mb-[3rem] ipad-portrait-large:items-start">
 
-      <div class="flex items-center gap-3 order-1">
+      <div class="flex items-center gap-3 order-1 ipad-portrait-large:flex-col ipad-portrait-large:items-start">
         <div class="font-bold w-[9rem]" :class="theme.main.title">{{ title }}</div>
         <span class="flex items-center justify-between">
           <button class="w-[2rem] h-[2rem] flex items-center justify-center" @click="shift(-1)" data-main-prev>
@@ -421,7 +444,7 @@
       </div>
 
       <button @click="$emit('preview-schedule')"
-        class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3">
+        class="px-2 py-2.5 rounded-full outline-none border border-[#F1C1D9] text-brand-textPink text-xs font-medium flex items-center gap-2 hover:bg-pink-100 transition-colors order-2 lg:order-3 whitespace-nowrap">
         {{ t("common_preview_booking_schedule") }}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
           stroke-linecap="round" stroke-linejoin="round" class="mb-[0.063rem]">
@@ -655,7 +678,7 @@
         ref="timeGridScrollRef"
         data-cal-time-scroll
         data-test="calendar-time-grid-scroll"
-        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative"
+        class="flex items-start gap-2 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative pb-[5rem] sm:pb-0"
         :class="usesRightTimeAxis ? 'flex-row-reverse' : 'flex-row'"
         :style="{ flexDirection: usesRightTimeAxis ? 'row-reverse' : 'row' }"
       >
@@ -3913,19 +3936,25 @@ defineExpose({
   animation: blink-border-blue 1.5s ease-in-out infinite;
 }
 
-@keyframes calendar-pending-dot-blink {
-  0%, 100% {
+@keyframes calendar-pending-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 102, 0.4);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
   }
-  50% {
-    opacity: 0.15;
-    transform: translate(-50%, -50%) scale(0.8);
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 0, 102, 0);
+    opacity: 1;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 102, 0);
+    opacity: 1;
   }
 }
 
 .calendar-pending-dot-blink {
-  animation: calendar-pending-dot-blink 1.2s ease-in-out infinite;
+  animation: calendar-pending-pulse 1s ease-out infinite;
 }
 
 @keyframes month-overlay-expand {

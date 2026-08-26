@@ -151,10 +151,10 @@
 @media (max-width: 767px) {
 
   #fs-chat-external-btn {
-    padding: 8px; /* Match p-2 from original mobile UI */
+    padding: 12px; /* Match p-2 from original mobile UI */
     border-radius: 9999px !important; /* Force rounded-full on mobile */
-    height: 48px !important;
-    width: 48px !important;
+    height: 56px !important;
+    width: 56px !important;
   }
   #fs-chat-external-btn-text {
     display: none;
@@ -185,7 +185,7 @@
 
   [data-dashboard-page="dashboard/events"] #fs-chat-external-btn.edge-bottom.anchor-none.mobile,
   [data-dashboard-page="dashboard/events"] #fs-chat-external-btn.mobile.edge-right.anchor-bottom{
-    bottom: 4rem !important; /* Shift up by 16px to avoid overlapping with "Create Event" button */
+    bottom: 4.5rem !important; /* Shift up by 16px to avoid overlapping with "Create Event" button */
   }
 }
 

@@ -217,7 +217,7 @@ export const bookingMessages = {
   calendar_event_reminder_not_set: "Reminder not set",
   calendar_event_minutes_before: "{count} minutes before",
   calendar_event_open_chat: "Open chat",
-  calendar_event_review: "REVIEW",
+  calendar_event_review: "REVIEW BOOKING",
   calendar_event_accept: "ACCEPT",
   calendar_event_decline: "DECLINE",
   calendar_event_reject_confirm: "Are you sure you want to reject this booking?",

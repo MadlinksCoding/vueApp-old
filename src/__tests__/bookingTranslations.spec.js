@@ -19,7 +19,7 @@ describe("bookingTranslations", () => {
     expect(t("dashboard_booking_schedule_view_schedule")).toBe("View Booking Schedule");
     expect(t("dashboard_events_requests_title")).toBe("Events & Requests");
     expect(t("dashboard_events_requests_schedule_tab")).toBe("Schedule");
-    expect(t("calendar_event_review")).toBe("REVIEW");
+    expect(t("calendar_event_review")).toBe("REVIEW BOOKING");
     expect(t("booking_details_confirmed_with_counterparty", { counterparty: "grapegatsby" }))
       .toBe("Your event with @grapegatsby has been confirmed.");
     expect(t("dashboard_booking_menu_aria", { title: "Office Hours" }))

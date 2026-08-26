@@ -569,7 +569,6 @@
         'fixed right-2 md:right-5 z-[95] transition-all duration-300',
         isStickyCardVisible ? 'bottom-[7rem]' : 'bottom-2',
         'md:bottom-5',
-        hasVisibleTabletStickyCards ? 'ipad-portrait:bottom-[var(--sticky-card-tablet-bottom)] ipad-portrait-small:right-3' : ''
       ]" :style="{ '--sticky-card-tablet-bottom': tabletStickyCardBottom }" ref="floatingPopupTrigger" data-test="dashboard-floating-create-event">
         <!-- For Tablet and Mobile-->
         <button
