@@ -17,6 +17,10 @@ const showBookingPolicyDetails = ref(false);
 const { t, locale } = useBookingTranslations();
 
 const props = defineProps({
+  isPreviewMode: {
+    type: Boolean,
+    default: false,
+  },
   timeDisplay: {
     type: String,
     default: '-'
@@ -238,6 +242,7 @@ const longerSessionDiscountTokens = computed(() => (
     : 0
 ));
 
+
 const longerDiscountMinimumSessionCount = computed(() => {
   const configuredSessions = positiveNumber(eventField("discountMinSessions"), 0);
   if (configuredSessions > 0) return Math.ceil(configuredSessions);
@@ -329,9 +334,12 @@ const groupPolicyItems = computed(() => {
 
 <template>
   <div
-    class="flex-none md:max-w-[25.5rem] h-auto lg:max-h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0" style="background: linear-gradient(0deg, rgba(34, 204, 238, 0.20) 0%, rgba(34, 204, 238, 0.20) 100%), rgba(12, 17, 29, 0.50);
+    class="flex-none h-auto lg:max-h-[43.75rem] w-full bg-[rgba(12,17,29,0.59)] relative backdrop-blur-[5px] p-0" style="background: linear-gradient(0deg, rgba(34, 204, 238, 0.20) 0%, rgba(34, 204, 238, 0.20) 100%), rgba(12, 17, 29, 0.50);
 "
-    :class="props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-0 lg:p-0'"
+    :class="[
+      props.isPreviewMode ? 'md:max-w-full lg:max-w-[25.5rem]' : 'md:max-w-[25.5rem]',
+      props.isGroupEvent ? 'md:p-0 lg:p-0 overflow-hidden lg:h-auto' : 'md:p-0 lg:p-0'
+    ]"
   >
     <template v-if="props.isGroupEvent">
       <div class="absolute inset-0 bg-[#7A174A]/70 pointer-events-none"></div>
@@ -429,13 +437,18 @@ const groupPolicyItems = computed(() => {
           </div>
           <!-- /User details section -->
 
-          <!-- Session Cost -->
-          <div class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0" data-testid="booking-sidebar-session-cost">
+          <div
+            class="flex flex-col gap-2 md:gap-4 px-3"
+            :class="props.isPreviewMode ? 'md:px-0' : 'lg:px-0'"
+            data-testid="booking-sidebar-session-cost"
+          >
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-[#2CE]">{{ t("fan_booking_session_cost") }}</h3>
+
                 <span
-                  class="cursor-pointer md:hidden"
+                  class="flex cursor-pointer"
+                  :class="props.isPreviewMode ? 'lg:hidden' : 'md:hidden'"
                   v-tooltip.top="t('fan_booking_total_session_cost')"
                   @click="showSessionCostDetails = !showSessionCostDetails"
                 >
@@ -454,7 +467,7 @@ const groupPolicyItems = computed(() => {
               </div>
               <div
                 class="flex-col md:gap-2"
-                :class="[showSessionCostDetails ? 'flex' : 'hidden md:flex']"
+                :class="[showSessionCostDetails ? 'flex' : (props.isPreviewMode ? 'hidden lg:flex' : 'hidden md:flex')]"
               >
                 <div class="flex flex-row justify-between items-center text-white" data-testid="booking-sidebar-normal-hour">
                   <div class="flex items-center">
@@ -527,7 +540,8 @@ const groupPolicyItems = computed(() => {
 
           <!-- Date and Time -->
           <div
-            class="flex flex-col gap-2 md:gap-4 px-3 lg:px-0"
+            class="flex flex-col gap-2 md:gap-4 px-3"
+            :class="props.isPreviewMode ? 'md:px-0' : 'lg:px-0'"
             data-testid="booking-sidebar-date-time"
           >
             <div class="flex flex-col gap-1">
@@ -588,7 +602,8 @@ const groupPolicyItems = computed(() => {
             <div class="flex gap-1 md:gap-2 items-center justify-between">
               <h3 class="text-sm font-medium text-[#2CE] leading-5">{{ t("fan_booking_booking_policy") }}</h3>
               <span
-                class="cursor-pointer md:hidden"
+                class="flex cursor-pointer"
+                :class="props.isPreviewMode ? 'lg:hidden' : 'md:hidden'"
                 @click="showBookingPolicyDetails = !showBookingPolicyDetails"
               >
                 <svg
@@ -606,7 +621,7 @@ const groupPolicyItems = computed(() => {
             </div>
             <div
               class="flex-col gap-1 md:gap-3"
-              :class="[showBookingPolicyDetails ? 'flex' : 'hidden md:flex']"
+              :class="[showBookingPolicyDetails ? 'flex' : (props.isPreviewMode ? 'hidden lg:flex' : 'hidden md:flex')]"
             >
               <ul class="text-sm font-normal pl-1 text-[#EAECF0] w-full list-outside wrap leading-5">
                 <li class="flex items-start gap-2">

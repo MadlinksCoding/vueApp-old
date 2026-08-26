@@ -2212,10 +2212,20 @@ onBeforeUnmount(() => {
     <div :class="['h-full lg:rounded-[20px] md:bg-black lg:py-0 lg:bg-transparent lg:p-0 flex items-center', !embedded && 'md:bg-black']">
       <div class="w-full h-full lg:h-auto md:rounded-[20px] relative" :style="popupBackgroundStyle">
         <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(0deg,rgba(12,17,29,0.5)_0%,rgba(12,17,29,0.5)_100%)]"></div>
-        <div class="md:rounded-bl-[20px] md:rounded-br-[0px] h-dvh max-h-dvh lg:h-auto md:rounded-t-[20px] bg-[#0C111D]/50 flex flex-col md:flex-row backdrop-blur-[5px] overflow-hidden">
+        <div
+          class="h-dvh max-h-dvh lg:h-auto bg-[#0C111D]/50 flex flex-col md:flex-row backdrop-blur-[5px] overflow-hidden"
+          :class="[
+            isPreviewMode
+              ? 'lg:rounded-bl-[20px] lg:rounded-br-[0px] lg:rounded-t-[20px] md:rounded-none'
+              : 'md:rounded-bl-[20px] md:rounded-br-[0px] md:rounded-t-[20px]'
+          ]"
+        >
 
-        <div class="w-full h-dvh max-h-dvh lg:h-auto flex flex-col md:flex-row overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]">
+        <div :class="['w-full h-dvh max-h-dvh lg:h-auto flex flex-col md:flex-row overflow-y-auto md:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-order-style:none] [scrollbar-width:none]', isPreviewMode
+      ? 'md:flex-col lg:flex-row' /* Classes when preview mode is TRUE */
+      : 'md:flex-row' /* Classes when preview mode is FALSE */]">
           <OneOnOneBookingFlowLeftSideBar
+            :is-preview-mode="isPreviewMode"
             :time-display="formattedTimeRange"
             :date-display="headerDateDisplay"
             :subtotal="totalPrice"
