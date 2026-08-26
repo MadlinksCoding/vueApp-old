@@ -111,7 +111,7 @@ const maskedNumber = computed(() => {
         >
           <div class="flex items-center gap-2 flex-grow justify-between">
             <span
-              class="text-base font-medium truncate whitespace-nowrap text-white flex-grow max-w-[100px] sm:max-w-none"
+              class="text-base font-medium truncate whitespace-nowrap text-white flex-grow max-w-[90px] sm:max-w-none"
             >
               {{ holderName || "No Name" }}
             </span>
