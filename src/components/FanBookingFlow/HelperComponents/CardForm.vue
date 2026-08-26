@@ -249,7 +249,7 @@ defineExpose({
     <div class="relative" ref="dropdownContainer">
 
       <!-- Selected card display -->
-      <div v-if="paymentMethod === 'token' && selectedCard" class="border border-[#22CCEE] rounded-md">
+      <div v-if="paymentMethod === 'token' && selectedCard" class="border border-white/10 rounded-md">
         <PaymentMethodLoggedIn
           variant="default"
           :holder-name="selectedCard.card_holder_name"
