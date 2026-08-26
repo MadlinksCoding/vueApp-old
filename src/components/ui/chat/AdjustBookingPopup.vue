@@ -28,7 +28,7 @@
         </div>
 
         <!-- Content -->
-        <div v-else class="pb-6 overflow-y-auto overscroll-contain max-h-[85vh] flex flex-col gap-6">
+        <div v-else class="pb-6 md:pb-0 overflow-y-auto overscroll-contain max-h-[85vh] flex flex-col gap-6">
 
           <!-- Personal Request (read-only) -->
           <div v-if="personalRequestText" class="flex flex-col gap-2">
@@ -159,7 +159,7 @@
                 btnText="black"
                 btnHoverText="#07f468"
                 :disabled="isSubmitDisabled"
-                class="fixed bottom-0 right-0 md:relative"
+                class="fixed bottom-0 right-0 md:absolute"
                 @click="handleSubmit"
               />
             </div>
