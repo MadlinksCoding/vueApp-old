@@ -341,7 +341,7 @@ function handlePaymentError(message) {
     failureCountdown.value--;
     if (failureCountdown.value <= 0) {
       closePaymentFailure();
-      emit('payment-failed', _response);
+      emit('payment-failed', { error_message: message });
     }
   }, 1000);
 }
@@ -807,6 +807,10 @@ onBeforeUnmount(() => {
         </button>
         
         <h2 class="text-[#FF5A00] text-2xl font-bold font-['Poppins'] mb-4">{{ t("fan_booking_failure", "Failure") }}</h2>
+        
+        <p v-if="paymentError" class="text-white text-sm font-normal font-['Poppins'] text-center mb-4 px-2">
+          {{ paymentError }}
+        </p>
         
         <div class="w-48 h-48 rounded-2xl mb-4 flex items-center justify-center">
           <img src="http://fansocial.app/wp-content/plugins/fansocial/dev/call-checkout/images/payment-fail.png" alt="Payment Failed" class="max-w-full max-h-full object-contain" />
