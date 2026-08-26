@@ -47,7 +47,10 @@
         :class="[
           event.bgClass || 'bg-customGrey',
           isPendingSection(section) &&
-            'border-[1.5px] border-white bg-white/10 pending-blink-shadow'
+            'border-[1.5px] border-white bg-white/10',
+          isPendingSection(section) &&
+            eIndex === 0 &&
+            'pending-blink-shadow'
         ]"
         :style="getEventCardStyles(event, isPendingSection(section))"
         @click="$emit('event-click', event)"
@@ -63,7 +66,7 @@
           ></div>
           
           <span class="flex flex-col py-2 justify-start items-center w-[3.375rem] h-auto shrink-0" data-test="events-widget-date">
-             <p class="text-[0.75rem] text-gray-700 font-semibold leading-[1.125rem] uppercase" data-test="events-widget-month">{{ event.monthName || event.dayName }}</p>
+             <p class="text-[0.75rem] text-gray-700 font-semibold leading-[1.125rem] uppercase" data-test="events-widget-month">{{ (event.monthName || event.dayName)?.substring(0, 3) }}</p>
              <p class="text-[1.125rem] text-gray-700 font-semibold leading-[1.75rem]" data-test="events-widget-day">{{ event.dayNumber }}</p>
           </span>
 
@@ -189,7 +192,7 @@
                 <button
                   v-if="shouldShowPendingAccept(event)"
                   type="button"
-                  class="flex h-7 w-full items-center flex-1 self-stretch justify-center gap-1 rounded bg-[#07F468] px-2 py-1"
+                  class="flex h-7 w-full items-center self-stretch justify-center gap-1 rounded bg-[#07F468] px-2 py-1"
                   data-test="pending-booking-accept"
                   @click.stop="handleApprove(event)"
                 >
@@ -710,12 +713,13 @@ onBeforeUnmount(() => {
 
 @keyframes blink-card-shadow {
   0%, 100% {
-    box-shadow: 0 0 12px 0 var(--shadow-color-75),
-                0 4px 8px -2px var(--shadow-color-10),
-                0 2px 4px -2px var(--shadow-color-06);
+    box-shadow: 0 0 10px 0 #F06,
+                0 4px 8px -2px rgba(255, 0, 102, 0.1),
+                0 2px 4px -2px rgba(255, 0, 102, 0.06);
   }
+
   50% {
-    box-shadow: 0 0 12px 0 transparent,
+    box-shadow: 0 0 10px 0 transparent,
                 0 4px 8px -2px transparent,
                 0 2px 4px -2px transparent;
   }

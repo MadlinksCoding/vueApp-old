@@ -3530,7 +3530,7 @@ const styleBlock = (ev, day = null) => {
   if (usesAdaptiveEventLayout.value) {
     if (ev.isAvailabilityBlock) {
       const availabilityHeight = roundLayoutPx(Math.max(0, endPx - baseTopPx));
-      return `top:${roundLayoutPx(topPx)}px;height:${availabilityHeight}px;left:2px;right:2px;`;
+      return `top:${roundLayoutPx(topPx)}px;height:${availabilityHeight}px;left:0px;right:2px;`;
     }
 
     const naturalHeightPx = Math.max(
@@ -3543,7 +3543,7 @@ const styleBlock = (ev, day = null) => {
     const lane = Math.max(0, Math.min(laneCount - 1, Number(ev.overlapLane) || 0));
 
     if (laneCount === 1) {
-      return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
+      return `top:${topPx}px;height:${heightPx}px;left:0px;right:0px;`;
     }
 
     const laneWidthPercent = 100 / laneCount;
