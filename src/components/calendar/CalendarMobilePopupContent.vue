@@ -1,5 +1,5 @@
 <template>
-    <div class="bg-white outline-none  p-4 flex flex-col gap-4 w-full h-full 
+    <div class="bg-white min-w-[480px] outline-none  p-4 flex flex-col gap-4 w-full h-full 
         overflow-y-auto  box-border">
         
         <!-- Header with Close Button -->

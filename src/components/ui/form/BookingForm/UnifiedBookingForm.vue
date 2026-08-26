@@ -1117,7 +1117,7 @@ const theme2 = {
         wrapper: 'relative flex flex-col gap-[0px] overflow-hidden rounded-xl',
         title: ' text-base font-semibold text-slate-800 ',
         xHeader: '',
-        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.8rem] min-h-[5rem]',
+        axisXLabel: 'flex flex-col justify-end pb-[0.75rem] w-[4.8rem]',
         axisXDay: 'py-1 text-center min-h-[5rem] text-slate-500 font-medium',
         axisXToday: 'bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto',
         axisYRow: 'booking-form-calendar-time-label h-[7.5rem] text-right pr-2 w-[4.8rem] shrink-0 uppercase text-slate-400 text-[0.688rem] font-medium leading-4 pt-1',

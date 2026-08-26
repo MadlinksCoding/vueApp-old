@@ -21,17 +21,18 @@ export default {
         md: "678px",
         lg: "1010px",
         xl: "1365px",
+        'lg-small': '934px',
         'ipad-portrait': {
           raw: '(max-width: 1366px) and (orientation: portrait)',
         },
         'ipad-portrait-large': {
-          raw: '(min-width: 1024px) and (max-width: 1279px)',
+          raw: '(min-width: 934px) and (max-width: 1189px)',
         },
         'ipad-portrait-small': {
           raw: '(min-width: 678px) and (max-width: 933px) and (orientation: portrait)',
         },
         'ipad-landscape-large': {
-          raw: '(min-width: 1280px) and (max-width: 1365px) and (orientation: landscape)',
+          raw: '(min-width: 1190px) and (max-width: 1365px) and (orientation: landscape)',
         },
       },
       fontFamily: {
