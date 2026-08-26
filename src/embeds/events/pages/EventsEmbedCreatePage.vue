@@ -1,5 +1,5 @@
 <template>
-  <div ref="createScrollRoot" class="h-full overflow-hidden md:overflow-y-auto">
+  <div ref="createScrollRoot" class="h-full overflow-hidden lg:overflow-y-auto">
     <UnifiedBookingForm
       :key="formKey"
       :type="normalizedType"
