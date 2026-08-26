@@ -335,7 +335,7 @@
           </div>
         </template>
 
-        <template #event-availability="{ event, style, view }">
+        <template #event-availability="{ event, style, view, onClick }">
           <div
             :class="[
               view === 'month' ? 'static' : 'absolute',
@@ -352,9 +352,9 @@
             role="button"
             tabindex="0"
             :aria-label="t('dashboard_booking_schedule_menu_aria', { title: event.title || t('dashboard_booking_schedule_untitled_event') })"
-            @click.stop="openAvailabilityScheduleMenu(event, $event)"
-            @keydown.enter.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
-            @keydown.space.prevent.stop="openAvailabilityScheduleMenu(event, $event)"
+            @click.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
+            @keydown.enter.prevent.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
+            @keydown.space.prevent.stop="onClick(event, () => openAvailabilityScheduleMenu(event, $event))"
           >
             <span
               v-if="event.title && (view === 'month' || !event.hideAvailabilityTitle)"
@@ -1748,6 +1748,8 @@ function getCalendarSlotIconSizeClass(view) {
 }
 
 function getBookedSlotIndicatorStatus(event = {}) {
+  if (isPastBookedCalendarEvent(event)) return "past";
+
   const status = resolveBookingStatus(event);
   if (status.includes("pending")) return "pending";
   if (
@@ -3440,6 +3442,7 @@ const onSelectFromMini = (date) => {
 };
 
 const onSelectFromMain = (date) => {
+  closeAvailabilityScheduleMenu();
   state.selected = new Date(date);
   state.focus = new Date(date);
   requestCalendarContextRefresh();

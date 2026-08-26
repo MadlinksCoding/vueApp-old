@@ -15,6 +15,7 @@ import chatArrowIcon from '@/assets/images/icons/arrow-up-right-blue.svg';
 import adjustmentCheckIcon from '@/assets/images/icons/check-black.svg';
 import adjustmentTokenIcon from '@/assets/images/icons/token-sm-calender.svg';
 import adjustmentArrowIcon from '@/assets/images/icons/arrow-right-brown.svg';
+import pendingStatusIcon from '@/assets/images/icons/help-circle.svg';
 
 const { flowRun } = vi.hoisted(() => ({ flowRun: vi.fn() }));
 
@@ -551,6 +552,28 @@ describe('EventDetailsFan', () => {
     wrapper.unmount();
   });
 
+  it.each([
+    ['pending', pendingStatusIcon],
+    ['pending_hold', pendingStatusIcon],
+    ['confirmed', adjustmentCheckIcon],
+    ['completed', adjustmentCheckIcon],
+    ['cancelled', closeIcon],
+    ['cancelled_user', closeIcon],
+    ['cancelled_creator', closeIcon],
+    ['declined', closeIcon],
+  ])('renders exactly one hero status icon for %s', (status, expectedIcon) => {
+    const wrapper = mountDetails(
+      booking({ status, meta: {} }),
+      'side-panel',
+      { comparisonTime: '2027-04-25T14:14:59.999Z' },
+    );
+    const statusImages = wrapper.get('[data-test="event-details-fan-status"]').findAll('img');
+
+    expect(statusImages).toHaveLength(1);
+    expect(statusImages[0].attributes('src')).toBe(expectedIcon);
+    wrapper.unmount();
+  });
+
   it.each(['pending', 'pending_hold'])('expires a %s request at its exact start without fabricating cancellation data', async (status) => {
     const value = booking({
       status,
@@ -573,7 +596,9 @@ describe('EventDetailsFan', () => {
 
     const statusPill = wrapper.get('[data-test="event-details-fan-status"]');
     expect(statusPill.text()).toContain('Cancelled');
-    expect(statusPill.get('img').attributes('src')).toBe(closeIcon);
+    const statusImages = statusPill.findAll('img');
+    expect(statusImages).toHaveLength(1);
+    expect(statusImages[0].attributes('src')).toBe(closeIcon);
     expect(wrapper.get('[data-test="booking-details-expired-notice"]').text()).toContain('Request expired');
     expect(wrapper.find('[data-test="booking-details-review-notice"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="event-details-fan-menu"]').exists()).toBe(false);

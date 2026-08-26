@@ -680,7 +680,7 @@
           :class="shouldFitDayEventColumns
             ? 'overflow-x-hidden'
             : ((isWeekEventColumnMode || isDayEventColumnMode)
-              ? 'overflow-x-auto overscroll-x-contain touch-pan-x'
+              ? 'overflow-x-auto overscroll-x-contain touch-pan-x touch-pan-y'
               : 'overflow-x-hidden')"
           data-test="calendar-week-event-body-scroll"
           :style="{ height: gridMetrics.totalHeight + 'px' }"
@@ -724,15 +724,15 @@
                 :style="{ height: gridMetrics.totalHeight + 'px' }">
                 <template v-for="ev in eventsForEventColumn(column)" :key="ev.id||ev.title+ev.start">
                   <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="activeDay" :view="effectiveView"
-                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, activeDay)" :onClick="(event, action) => activateEventForDay(event, activeDay, action)"></slot>
                   <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="activeDay" :view="effectiveView"
-                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, activeDay)" :onClick="(event, action) => activateEventForDay(event, activeDay, action)"></slot>
                   <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="activeDay" :view="effectiveView"
-                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, activeDay)" :onClick="(event, action) => activateEventForDay(event, activeDay, action)"></slot>
                   <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="activeDay" :view="effectiveView"
-                    :style="styleBlock(ev, activeDay)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, activeDay)" :onClick="(event, action) => activateEventForDay(event, activeDay, action)"></slot>
                   <slot v-else name="event" :event="ev" :day="activeDay" :view="effectiveView" :style="styleBlock(ev, activeDay)"
-                    :onClick="dispatchEventClick"></slot>
+                    :onClick="(event, action) => activateEventForDay(event, activeDay, action)"></slot>
                 </template>
               </div>
 
@@ -781,15 +781,15 @@
                     :style="{ height: gridMetrics.totalHeight + 'px' }">
                     <template v-for="ev in eventsForEventColumn(column, group.day)" :key="ev.id||ev.title+ev.start">
                       <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="group.day" :view="effectiveView"
-                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                        :style="styleBlock(ev, group.day)" :onClick="(event, action) => activateEventForDay(event, group.day, action)"></slot>
                       <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="group.day" :view="effectiveView"
-                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                        :style="styleBlock(ev, group.day)" :onClick="(event, action) => activateEventForDay(event, group.day, action)"></slot>
                       <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="group.day" :view="effectiveView"
-                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                        :style="styleBlock(ev, group.day)" :onClick="(event, action) => activateEventForDay(event, group.day, action)"></slot>
                       <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="group.day" :view="effectiveView"
-                        :style="styleBlock(ev, group.day)" :onClick="dispatchEventClick"></slot>
+                        :style="styleBlock(ev, group.day)" :onClick="(event, action) => activateEventForDay(event, group.day, action)"></slot>
                       <slot v-else name="event" :event="ev" :day="group.day" :view="effectiveView" :style="styleBlock(ev, group.day)"
-                        :onClick="dispatchEventClick"></slot>
+                        :onClick="(event, action) => activateEventForDay(event, group.day, action)"></slot>
                     </template>
                   </div>
 
@@ -810,15 +810,15 @@
                 :style="{ height: gridMetrics.totalHeight + 'px' }">
                 <template v-for="ev in eventsForBodyDay(d)" :key="ev.id||ev.title+ev.start">
                   <slot v-if="ev.slot === 'availability'" name="event-availability" :event="ev" :day="d" :view="effectiveView"
-                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, d)" :onClick="(event, action) => activateEventForDay(event, d, action)"></slot>
                   <slot v-else-if="ev.slot === 'alt'" name="event-alt" :event="ev" :day="d" :view="effectiveView"
-                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, d)" :onClick="(event, action) => activateEventForDay(event, d, action)"></slot>
                   <slot v-else-if="ev.slot === 'custom'" name="event-custom" :event="ev" :day="d" :view="effectiveView"
-                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, d)" :onClick="(event, action) => activateEventForDay(event, d, action)"></slot>
                   <slot v-else-if="ev.slot === 'custom2'" name="event-custom2" :event="ev" :day="d" :view="effectiveView"
-                    :style="styleBlock(ev, d)" :onClick="dispatchEventClick"></slot>
+                    :style="styleBlock(ev, d)" :onClick="(event, action) => activateEventForDay(event, d, action)"></slot>
                   <slot v-else name="event" :event="ev" :day="d" :view="effectiveView" :style="styleBlock(ev, d)"
-                    :onClick="dispatchEventClick"></slot>
+                    :onClick="(event, action) => activateEventForDay(event, d, action)"></slot>
                 </template>
               </div>
 
@@ -884,7 +884,7 @@
                   >
                     <div class="min-w-0 flex-1 overflow-hidden">
                       <slot :name="resolveEventSlotName(booking)" :event="booking" :day="d" view="month"
-                        :onClick="dispatchEventClick" />
+                        :onClick="(event, action) => activateEventForDay(event, d, action)" />
                     </div>
                     <span
                       v-if="bookingIndex === visibleMonthBookingEventsForDay(d).length - 1 && monthHiddenBookingCount(d) > 0"
@@ -916,7 +916,7 @@
                       :event="availability"
                       :day="d"
                       view="month"
-                      :onClick="dispatchEventClick"
+                      :onClick="(event, action) => activateEventForDay(event, d, action)"
                     />
                   </div>
                   <span
@@ -932,7 +932,7 @@
           </div>
 
           <div v-if="isRowExpanded(row) && expandedDayEvents.length > 0" class="w-full transition-all duration-300 lg:hidden">
-            <slot name="month-expanded" :events="expandedDayEvents" :day="expandedDate" :onClick="dispatchEventClick">
+            <slot name="month-expanded" :events="expandedDayEvents" :day="expandedDate" :onClick="(event, action) => activateEventForDay(event, expandedDate, action)">
               <div class="w-full p-2 bg-black/10 flex flex-col gap-2" data-test="month-expanded-default">
                 <button
                   v-for="event in expandedDayEvents"
@@ -940,7 +940,7 @@
                   type="button"
                   class="w-full min-h-[4.125rem] pr-1 bg-gradient-to-r from-gray-50/50 to-gray-50/20 rounded inline-flex gap-1.5 overflow-hidden text-left shadow-sm"
                   data-test="month-expanded-event"
-                  @click.stop="dispatchEventClick(event)"
+                  @click.stop="activateEventForDay(event, expandedDate)"
                 >
                   <div class="w-1 shrink-0" :style="{ backgroundColor: monthEventAccent(event) }" />
                   <div class="flex-1 min-w-0 py-2 flex gap-2">
@@ -1020,7 +1020,7 @@
                 :event="availability"
                 :day="expandedDate"
                 view="month"
-                :onClick="dispatchEventClick"
+                :onClick="(event, action) => activateEventForDay(event, expandedDate, action)"
               />
             </template>
           </div>
@@ -1550,9 +1550,15 @@ function closeMonthDateOverlay() {
   monthOverlayStyle.value = {};
 }
 
-function handleMonthOverlayBookingClick(event) {
-  closeMonthDateOverlay();
-  dispatchEventClick(event);
+function handleMonthOverlayBookingClick(event, action) {
+  activateEventForDay(event, expandedDate.value, () => {
+    closeMonthDateOverlay();
+    if (typeof action === 'function') {
+      action();
+      return;
+    }
+    dispatchEventClick(event);
+  });
 }
 
 
@@ -2651,6 +2657,31 @@ const dispatchEventClick = (event) => {
   eventDetailsRefreshing.value = false;
   eventDetailsCompactSession.value = shouldUseCompactEventDetails(event);
   eventDetailsPopupOpen.value = true;
+};
+
+const activateEventForDay = (event, day = null, action = null) => {
+  const renderedDay = day ? new Date(day) : null;
+  const hasRenderedDay = renderedDay && !Number.isNaN(renderedDay.getTime());
+  const isUnselectedRenderedDay = hasRenderedDay && (
+    !selectedDay.value || !sameDay(renderedDay, selectedDay.value)
+  );
+
+  if (isUnselectedRenderedDay && effectiveView.value === 'week') {
+    selectWeekDate(renderedDay);
+    return false;
+  }
+
+  if (isUnselectedRenderedDay && effectiveView.value === 'month') {
+    handleMonthDateClick(renderedDay);
+    return false;
+  }
+
+  if (typeof action === 'function') {
+    action();
+  } else {
+    dispatchEventClick(event);
+  }
+  return true;
 };
 
 const openEventDetails = (event, bookingSnapshot = null) => {

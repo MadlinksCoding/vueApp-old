@@ -162,7 +162,11 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
       };
     },
     methods: {
-      handleMonthEventClick(event) {
+      handleMonthEventClick(event, action) {
+        if (typeof action === "function") {
+          action();
+          return;
+        }
         this.$emit("month-event-click", event);
       },
       emitScheduleEdit() {
@@ -2082,7 +2086,11 @@ describe("DashboardEventsFeature", () => {
     expect(availabilityMarker.attributes("style")).not.toContain("rgba(102, 112, 133");
   });
 
-  it("removes the border from grey past bookings in day, week, and month views", async () => {
+  it("uses a solid grey indicator for every past-booking status in day, week, and month views", async () => {
+    getCalendarEventJoinState.mockReturnValue({
+      canJoin: false,
+      joinUrl: null,
+    });
     const { default: DashboardEventsFeature } = await import("@/features/events/DashboardEventsFeature.vue");
     const wrapper = mount(DashboardEventsFeature, {
       props: {
@@ -2093,19 +2101,53 @@ describe("DashboardEventsFeature", () => {
     await flushPromises();
 
     const calendar = wrapper.getComponent({ name: "MainCalendar" });
+    const pastStatuses = ["confirmed", "completed", "cancelled_creator", "declined", "pending"];
 
     for (const view of ["day", "week", "month"]) {
-      await calendar.setData({ pastBookingTestView: view });
-      const pastBookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
-        .find((marker) => marker.text().includes("Month Past Booked Slot"));
+      for (const status of pastStatuses) {
+        await calendar.setData({
+          pastBookingTestView: view,
+          monthPastBookedEvent: {
+            ...calendar.vm.monthPastBookedEvent,
+            status,
+          },
+        });
+        const pastBookingMarker = wrapper.findAll("[data-test='dashboard-month-booking-marker']")
+          .find((marker) => marker.text().includes("Month Past Booked Slot"));
 
-      expect(pastBookingMarker).toBeTruthy();
-      expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
-      expect(pastBookingMarker.element.style.borderTopWidth).toBe("0px");
-      expect(pastBookingMarker.element.style.borderRightWidth).toBe("0px");
-      expect(pastBookingMarker.element.style.borderBottomWidth).toBe("0px");
-      expect(pastBookingMarker.element.style.borderLeftWidth).toBe("0px");
-      expect(pastBookingMarker.classes()).toContain(view === "month" ? "static" : "absolute");
+        expect(pastBookingMarker).toBeTruthy();
+        expect(pastBookingMarker.element.style.backgroundColor).toBe("rgb(217, 220, 230)");
+        expect(pastBookingMarker.element.style.borderTopWidth).toBe("0px");
+        expect(pastBookingMarker.element.style.borderRightWidth).toBe("0px");
+        expect(pastBookingMarker.element.style.borderBottomWidth).toBe("0px");
+        expect(pastBookingMarker.element.style.borderLeftWidth).toBe("0px");
+        expect(pastBookingMarker.classes()).toContain(view === "month" ? "static" : "absolute");
+        const markerIndicator = pastBookingMarker.get("[data-test='dashboard-calendar-booking-status-icon']");
+        expect(markerIndicator.attributes("data-booking-status-icon")).toBe("past");
+        expect(markerIndicator.find("svg").exists()).toBe(false);
+        expect(markerIndicator.get("div").classes()).toContain("bg-[#98A2B3]");
+
+        pastBookingMarker.element.getBoundingClientRect = vi.fn(() => ({
+          left: 120,
+          right: 260,
+          top: 120,
+          bottom: 180,
+          width: 140,
+          height: 60,
+          x: 120,
+          y: 120,
+          toJSON: () => ({}),
+        }));
+        await pastBookingMarker.trigger("mouseenter");
+        const tooltipIndicator = wrapper.get("[data-test='dashboard-booking-tooltip-status-icon']");
+        expect(tooltipIndicator.attributes("data-booking-tooltip-status-icon")).toBe("past");
+        expect(tooltipIndicator.find("svg").exists()).toBe(false);
+        expect(tooltipIndicator.get("div").classes()).toContain("bg-[#98A2B3]");
+        await pastBookingMarker.trigger("mouseleave");
+
+        await pastBookingMarker.trigger("click");
+        expect(calendar.emitted("month-event-click")?.at(-1)?.[0]).toEqual(expect.objectContaining({ status }));
+      }
     }
   });
 
@@ -4157,6 +4199,20 @@ describe("DashboardEventsFeature", () => {
     expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+
+    await availabilityMarker.trigger("keydown", { key: "Enter" });
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
+
+    await availabilityMarker.trigger("keydown", { key: " " });
+    expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(true);
+
+    wrapper.getComponent({ name: "MainCalendar" }).vm.$emit("date-selected", new Date("2026-03-24T00:00:00"));
     await flushPromises();
     expect(wrapper.find("[data-test='booking-schedule-menu']").exists()).toBe(false);
 
