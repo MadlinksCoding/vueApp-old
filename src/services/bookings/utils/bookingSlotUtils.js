@@ -846,6 +846,23 @@ export function buildBookedSlotsIndex(slots = []) {
   return index;
 }
 
+export function mergeBookedSlotsIndexes(...indexes) {
+  const merged = {};
+  indexes.forEach((index) => {
+    if (!index || typeof index !== "object") return;
+    Object.entries(index).forEach(([eventId, byDate]) => {
+      if (!byDate || typeof byDate !== "object") return;
+      if (!merged[eventId]) merged[eventId] = {};
+      Object.entries(byDate).forEach(([dateIso, rows]) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        if (!merged[eventId][dateIso]) merged[eventId][dateIso] = [];
+        merged[eventId][dateIso].push(...rows);
+      });
+    });
+  });
+  return merged;
+}
+
 export function isSlotBooked({ eventId, localDateIso, slot, bookedSlotsIndex = {} }) {
   if (!eventId || !localDateIso || !slot) return false;
 

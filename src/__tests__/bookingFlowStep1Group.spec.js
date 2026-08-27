@@ -88,6 +88,7 @@ function groupEvent(dateIso, overrides = {}) {
 async function mountStep1({
   event,
   bookedSlots = [],
+  temporaryHoldSlots = [],
   contextFanId = 2615,
   rootFanId = undefined,
   rootUserId = undefined,
@@ -101,6 +102,7 @@ async function mountStep1({
       catalog: {
         events: [event],
         bookedSlotsIndex: buildBookedSlotsIndex(bookedSlots),
+        temporaryHoldSlotsIndex: buildBookedSlotsIndex(temporaryHoldSlots),
       },
       context: {
         ...(contextFanId !== undefined ? { fanId: contextFanId } : {}),
@@ -169,6 +171,42 @@ describe("BookingFlowStep1 group cards", () => {
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBe(180);
     expect(engine.state.fanBooking.selection.selectedAddOns).toEqual([]);
     expect(engine.state.fanBooking.selection.personalRequestText).toBe("");
+  });
+
+  it("counts another fan's active hold toward group capacity", async () => {
+    const dateIso = localDateOffset(1);
+    const event = groupEvent(dateIso, {
+      maxAttendees: 2,
+      raw: {
+        enableMaxAttendees: true,
+        maxAttendees: 2,
+      },
+    });
+    const bookedSlots = [{
+      bookingId: "booking_confirmed",
+      eventId: event.eventId,
+      startIso: `${dateIso}T10:00:00`,
+      endIso: `${dateIso}T13:00:00`,
+      status: "confirmed",
+    }];
+    const temporaryHoldSlots = [{
+      eventId: event.eventId,
+      startIso: `${dateIso}T10:00:00`,
+      endIso: `${dateIso}T13:00:00`,
+      status: "temporary_hold",
+      expiresAt: Date.now() + 600_000,
+    }];
+
+    const { engine, wrapper } = await mountStep1({
+      event,
+      bookedSlots,
+      temporaryHoldSlots,
+    });
+
+    expect(wrapper.text()).toContain("2 fans already joined");
+    expect(wrapper.text()).toContain("Fully Booked");
+    expect(wrapper.text()).not.toContain("JOIN EVENT");
+    expect(engine.goToStep).not.toHaveBeenCalled();
   });
 
   it("stores fixed off-hour token pricing when a group card routes directly to payment", async () => {

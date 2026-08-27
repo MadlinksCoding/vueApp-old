@@ -51,6 +51,20 @@ function readCachedBookedSlots(context) {
   return Array.isArray(cached) ? cached : [];
 }
 
+function readCachedTemporaryHoldSlots(context) {
+  const engine = context?.stateEngine;
+  if (!engine || typeof engine.getState !== "function") return [];
+  const cached = engine.getState("fanBooking.catalog.temporaryHoldSlots");
+  return Array.isArray(cached) ? cached : [];
+}
+
+function retainUnexpiredTemporaryHoldSlots(slots = [], nowMs = Date.now()) {
+  return (Array.isArray(slots) ? slots : []).filter((slot) => {
+    const expiresAtMs = Date.parse(slot?.expiresAt || "");
+    return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
+  });
+}
+
 function mergeEventScopedBookedSlots(context, eventId, bookedSlots = []) {
   const normalizedEventId = String(eventId || "").trim();
   if (!normalizedEventId) return bookedSlots;
@@ -60,6 +74,37 @@ function mergeEventScopedBookedSlots(context, eventId, bookedSlots = []) {
     ...cachedBookedSlots.filter((slot) => String(slot?.eventId || "").trim() !== normalizedEventId),
     ...bookedSlots,
   ];
+}
+
+function mergeEventScopedTemporaryHoldSlots(context, eventId, temporaryHoldSlots = []) {
+  const normalizedEventId = String(eventId || "").trim();
+  if (!normalizedEventId) return [];
+  const cached = retainUnexpiredTemporaryHoldSlots(readCachedTemporaryHoldSlots(context));
+  return [
+    ...cached.filter((slot) => String(slot?.eventId || "").trim() !== normalizedEventId),
+    ...temporaryHoldSlots,
+  ];
+}
+
+function mapAvailabilityHolds(response, eventId) {
+  const nowMs = Date.now();
+  return (Array.isArray(response?.holds) ? response.holds : [])
+    .filter((hold) => {
+      const startMs = Date.parse(hold?.startIso || "");
+      const endMs = Date.parse(hold?.endIso || "");
+      const expiresAtMs = Date.parse(hold?.expiresAt || "");
+      return Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+        && Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
+    })
+    .map((hold) => ({
+      eventId: String(hold.eventId || eventId),
+      startIso: hold.startIso,
+      endIso: hold.endIso,
+      expiresAt: hold.expiresAt,
+      capacityUnits: 1,
+      status: "temporary_hold",
+      availabilityType: "temporary_hold",
+    }));
 }
 
 function resolveCombinedStatus(eventsStatus, eventsNotModified, bookedSlotsResponse) {
@@ -119,15 +164,26 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       ? readCachedRawEvents(context)
       : (Array.isArray(eventsResponse?.items) ? eventsResponse.items : []);
 
-    const bookedSlotsResult = await fetchAllBookedSlotPages({
-      api,
-      url: resolveBookedSlotsEndpoint(baseUrl, payload),
-      params: buildBookedSlotParams(payload, {
-        includeEventId: true,
+    const normalizedEventId = String(payload?.eventId || "").trim();
+    const [bookedSlotsResult, availabilityResponse] = await Promise.all([
+      fetchAllBookedSlotPages({
+        api,
+        url: resolveBookedSlotsEndpoint(baseUrl, payload),
+        params: buildBookedSlotParams(payload, {
+          includeEventId: true,
+        }),
+        signal: context.signal,
+        timeoutMs: context.requestTimeoutMs,
       }),
-      signal: context.signal,
-      timeoutMs: context.requestTimeoutMs,
-    });
+      normalizedEventId
+        ? api.get(`${baseUrl}/temporary-holds/availability`, {
+          params: { eventId: normalizedEventId },
+          headers,
+          signal: context.signal,
+          timeoutMs: context.requestTimeoutMs,
+        }).catch((error) => ({ ok: false, error }))
+        : Promise.resolve({ ok: true, holds: [] }),
+    ]);
     const bookedSlotsResponse = bookedSlotsResult.response;
 
     if (!bookedSlotsResult.ok || bookedSlotsResponse?.ok === false) {
@@ -140,6 +196,16 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
 
     const fetchedBookedSlots = Array.isArray(bookedSlotsResponse?.slots) ? bookedSlotsResponse.slots : [];
     const bookedSlots = mergeEventScopedBookedSlots(context, payload?.eventId, fetchedBookedSlots);
+    const temporaryHoldAvailabilityStale = Boolean(normalizedEventId && availabilityResponse?.ok === false);
+    const fetchedTemporaryHoldSlots = temporaryHoldAvailabilityStale
+      ? retainUnexpiredTemporaryHoldSlots(readCachedTemporaryHoldSlots(context))
+        .filter((slot) => String(slot?.eventId || "") === normalizedEventId)
+      : mapAvailabilityHolds(availabilityResponse, normalizedEventId);
+    const temporaryHoldSlots = mergeEventScopedTemporaryHoldSlots(
+      context,
+      normalizedEventId,
+      fetchedTemporaryHoldSlots,
+    );
     let isFirstBookingForCreator = null;
     let eventBookingCountsByEventId = {};
 
@@ -196,6 +262,8 @@ export async function fetchCreatorBookingContextFlow({ payload, context, api }) 
       {
         rawEvents,
         bookedSlots,
+        temporaryHoldSlots,
+        temporaryHoldAvailabilityStale,
         isFirstBookingForCreator,
         eventBookingCountsByEventId,
         stats: bookedSlotsResponse?.stats || {},

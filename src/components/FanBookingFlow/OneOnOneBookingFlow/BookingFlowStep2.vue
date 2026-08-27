@@ -20,6 +20,7 @@ import {
   hmToLabel,
   isRangeBooked,
   isSlotBookedByUser,
+  mergeBookedSlotsIndexes,
 } from '@/services/bookings/utils/bookingSlotUtils.js';
 import { addMinutesToHm, extractDateIso, hktDateTimeToLocalDate, toHm } from '@/services/events/eventsApiUtils.js';
 import {
@@ -61,6 +62,11 @@ const props = defineProps({
 const { t, locale } = useBookingTranslations();
 const selectedEvent = computed(() => props.engine.getState('fanBooking.context.selectedEvent') || null);
 const bookedSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {});
+const temporaryHoldSlotsIndex = computed(() => props.engine.getState('fanBooking.catalog.temporaryHoldSlotsIndex') || {});
+const availabilitySlotsIndex = computed(() => mergeBookedSlotsIndexes(
+  bookedSlotsIndex.value,
+  temporaryHoldSlotsIndex.value,
+));
 const fanId = computed(() => props.engine.getState('fanBooking.context.fanId') ?? null);
 const creatorPresentation = computed(() => resolveCreatorPresentation({
   explicitCreatorData: props.engine.getState('fanBooking.context.creatorPresentation'),
@@ -425,7 +431,7 @@ const actionFooterClass = computed(() => (
 function buildCandidateSlotsForDisplayDate(
   event,
   displayDateIso,
-  bookedIndex = bookedSlotsIndex.value,
+  bookedIndex = availabilitySlotsIndex.value,
 ) {
   if (!event || !displayDateIso) return [];
 
@@ -453,7 +459,7 @@ function buildCandidateSlotsForDisplayDate(
   return Array.from(deduped.values()).sort((a, b) => a.startMs - b.startMs);
 }
 
-function buildDisplaySlot(slot, bookedIndex = bookedSlotsIndex.value) {
+function buildDisplaySlot(slot, bookedIndex = availabilitySlotsIndex.value) {
   const canonicalLocalDateIso = slot.localDateIso;
   const uiSlot = createSlotUiModel({
     event: selectedEvent.value,
@@ -494,11 +500,11 @@ const candidateSlots = computed(() => {
   return buildCandidateSlotsForDisplayDate(
     selectedEvent.value,
     selectedDateIso.value,
-    bookedSlotsIndex.value,
+    availabilitySlotsIndex.value,
   );
 });
 
-function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverride = bookedSlotsIndex.value) {
+function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverride = availabilitySlotsIndex.value) {
   if (!slot || !Number.isFinite(slot.startMs)) return false;
 
   const normalizedDuration = Number(durationMinutes || 0);
@@ -518,7 +524,7 @@ function canDurationFitSelectedSlot(slot, durationMinutes, bookedSlotsIndexOverr
   });
 }
 
-function buildTimeSlotsForBookedIndex(latestBookedSlotsIndex = bookedSlotsIndex.value) {
+function buildTimeSlotsForBookedIndex(latestBookedSlotsIndex = availabilitySlotsIndex.value) {
   if (!selectedEvent.value || !selectedDateIso.value) return [];
 
   return buildCandidateSlotsForDisplayDate(
@@ -544,7 +550,10 @@ function resolveSelectedSnapshotAvailability(snapshot = {}) {
     return { available: true, slot: null, duration: null };
   }
 
-  const latestBookedSlotsIndex = props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {};
+  const latestBookedSlotsIndex = mergeBookedSlotsIndexes(
+    props.engine.getState('fanBooking.catalog.bookedSlotsIndex') || {},
+    props.engine.getState('fanBooking.catalog.temporaryHoldSlotsIndex') || {},
+  );
   const latestTimeSlots = buildTimeSlotsForBookedIndex(latestBookedSlotsIndex);
   const matchedSlot = latestTimeSlots.find((slot) => (
     (
@@ -716,7 +725,6 @@ const isFirstBookingForCreator = computed(() => (
 const shouldAutoRefreshAvailability = computed(() => (
   !isPreviewMode.value
   && !isPreviewReadOnly.value
-  && !isGroupEvent.value
   && Boolean(selectedEvent.value)
   && typeof props.refreshBookingContext === 'function'
 ));
@@ -836,9 +844,7 @@ async function autoSelectGroupAndGoToPayment() {
 
   const event = selectedEvent.value;
   const currentFanId = fanId.value ?? resolveFanId();
-  const resolvedBookedSlotsIndex = bookedSlotsIndex.value && Object.keys(bookedSlotsIndex.value).length > 0
-    ? bookedSlotsIndex.value
-    : (props.engine.state?.fanBooking?.catalog?.bookedSlotsIndex || {});
+  const resolvedBookedSlotsIndex = availabilitySlotsIndex.value;
   const next = computeNextAvailableSlot(event, resolvedBookedSlotsIndex, 45, {
     skipBookedByUserId: currentFanId,
   });
@@ -1429,7 +1435,7 @@ const nextDurationBlockingBooking = computed(() => {
     eventId: selectedEvent.value?.eventId,
     startMs: Number(selectedSlot.startMs),
     endMs: targetEndMs,
-    bookedSlotsIndex: bookedSlotsIndex.value,
+    bookedSlotsIndex: availabilitySlotsIndex.value,
   });
 
   return blockingRows
@@ -1645,14 +1651,14 @@ const events1 = computed(() => {
     if (minSelectableDateIso.value && dateIso < minSelectableDateIso.value) continue;
     if (maxSelectableDateIso.value && dateIso > maxSelectableDateIso.value) continue;
 
-    const slots = buildCandidateSlotsForDisplayDate(event, dateIso, bookedSlotsIndex.value);
+    const slots = buildCandidateSlotsForDisplayDate(event, dateIso, availabilitySlotsIndex.value);
     const free = slots.some((slot) => {
       const uiSlot = createSlotUiModel({
         event,
         eventId: event.eventId,
         localDateIso: slot.localDateIso,
         slot,
-        bookedSlotsIndex: bookedSlotsIndex.value,
+        bookedSlotsIndex: availabilitySlotsIndex.value,
       });
       if (uiSlot.disabled) return false;
       if (isGroupEvent.value && fanId.value != null) {

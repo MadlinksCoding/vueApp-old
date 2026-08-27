@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from "vue";
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import OneOnOneBookingFlowFeature from "./OneOnOneBookingFlowFeature.vue";
 
@@ -23,6 +24,23 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue", "booking-created", "booking-failed", "edit-schedule"]);
+const featureRef = ref(null);
+const isClosing = ref(false);
+
+async function handlePopupVisibilityChange(value) {
+  if (value) {
+    emit("update:modelValue", true);
+    return;
+  }
+  if (isClosing.value) return;
+  isClosing.value = true;
+  try {
+    await featureRef.value?.prepareForClose?.();
+  } finally {
+    emit("update:modelValue", false);
+    isClosing.value = false;
+  }
+}
 
 const oneOnOneBookingFlowPopupConfig = {
   actionType: "popup",
@@ -46,11 +64,12 @@ const oneOnOneBookingFlowPopupConfig = {
 <template>
   <PopupHandler
     :modelValue="modelValue"
-    @update:modelValue="(val) => emit('update:modelValue', val)"
+    @update:modelValue="handlePopupVisibilityChange"
     :config="oneOnOneBookingFlowPopupConfig"
     :is-preview-mode="previewMode"
   >
     <OneOnOneBookingFlowFeature
+      ref="featureRef"
       v-if="modelValue"
       :creator-id="creatorId"
       :fan-id="fanId"
@@ -64,7 +83,7 @@ const oneOnOneBookingFlowPopupConfig = {
       :preview-start-step="previewStartStep"
       :preview-read-only="previewReadOnly"
       :step1-primary-action="step1PrimaryAction"
-      @close-request="emit('update:modelValue', false)"
+      @close-request="handlePopupVisibilityChange(false)"
       @booking-created="emit('booking-created', $event)"
       @booking-failed="emit('booking-failed', $event)"
       @edit-schedule="emit('edit-schedule', $event)"

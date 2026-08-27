@@ -6,6 +6,7 @@ import {
   countGroupSlotBookings,
   hmToLabel,
   isSlotBookedByUser,
+  mergeBookedSlotsIndexes,
   resolveGroupCapacity,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
@@ -50,6 +51,11 @@ const props = defineProps({
 const { t, locale } = useBookingTranslations();
 const events = computed(() => props.engine.getState("fanBooking.catalog.events") || []);
 const bookedSlotsIndex = computed(() => props.engine.getState("fanBooking.catalog.bookedSlotsIndex") || {});
+const temporaryHoldSlotsIndex = computed(() => props.engine.getState("fanBooking.catalog.temporaryHoldSlotsIndex") || {});
+const availabilitySlotsIndex = computed(() => mergeBookedSlotsIndexes(
+  bookedSlotsIndex.value,
+  temporaryHoldSlotsIndex.value,
+));
 const fanId = computed(() => resolveCurrentFanId());
 const isLoading = computed(() => Boolean(props.engine.getState("fanBooking.ui.catalogLoading")));
 const loadError = computed(() => props.engine.getState("fanBooking.ui.catalogError") || "");
@@ -146,7 +152,7 @@ function eventGoalMinimumTokens(event = {}) {
 function groupNextAvailable(event = {}) {
   const currentFanId = fanId.value;
   const options = currentFanId ? { skipBookedByUserId: currentFanId } : {};
-  return computeNextAvailableSlot(event, bookedSlotsIndex.value, 45, options);
+  return computeNextAvailableSlot(event, availabilitySlotsIndex.value, 45, options);
 }
 
 function localDateIsoFromDate(value) {
@@ -170,7 +176,7 @@ function groupDisplayFallback(event = {}) {
 
   const [slot] = buildCandidateSlotsForEventDate(event, localDateIso, {
     eventId,
-    bookedSlotsIndex: bookedSlotsIndex.value,
+    bookedSlotsIndex: availabilitySlotsIndex.value,
     applyBufferAfterBooked: false,
   });
   if (!slot) return null;
@@ -273,7 +279,7 @@ function groupCardStats(event = {}) {
   const capacity = resolveGroupCapacity(event);
   const hasCapacity = Number.isFinite(capacity);
   const joined = displaySlot && eventId
-    ? countGroupSlotBookings({ eventId, slot: displaySlot, bookedSlotsIndex: bookedSlotsIndex.value })
+    ? countGroupSlotBookings({ eventId, slot: displaySlot, bookedSlotsIndex: availabilitySlotsIndex.value })
     : 0;
   const remainingSpots = hasCapacity ? Math.max(0, capacity - joined) : null;
   const goal = eventGoalTokens(event);
@@ -347,7 +353,7 @@ function addOnPreview(event = {}) {
 function nextAvailableLabel(event = {}) {
   const next = isGroupEvent(event)
     ? groupNextAvailable(event)
-    : computeNextAvailableSlot(event, bookedSlotsIndex.value, 45);
+    : computeNextAvailableSlot(event, availabilitySlotsIndex.value, 45);
   if (!next) return t("fan_booking_no_upcoming_free_slot");
 
   const date = new Date(`${next.dateIso}T00:00:00`);
