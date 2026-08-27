@@ -2560,7 +2560,7 @@
                       </div>
                     </div>
                     <div class="self-stretch flex flex-col justify-start items-start">
-                      <div class="self-stretch inline-flex justify-center items-center gap-2.5">
+                      <div class="self-stretch inline-flex justify-start items-center gap-2.5">
                         <ul class="list-decimal ml-5">
                           <li>{{ t("booking_call_attendance_policy_grace_summary") }}</li>
                           <li>{{ t("booking_call_attendance_policy_creator_no_show_summary") }}</li>
