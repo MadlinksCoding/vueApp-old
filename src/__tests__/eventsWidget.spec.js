@@ -30,6 +30,33 @@ describe("EventsWidget", () => {
     },
   });
 
+  it("shows item counts for populated sections and hides the count when items are missing", () => {
+    wrapper = mount(EventsWidget, {
+      props: {
+        sections: [
+          {
+            title: "TODAY",
+            items: [
+              { title: "First booking", avatars: [] },
+              { title: "Second booking", avatars: [] },
+            ],
+          },
+          {
+            title: "PENDING",
+            isPending: true,
+            items: [{ title: "Pending booking", avatars: [] }],
+          },
+          { title: "EMPTY", items: [] },
+          { title: "UPCOMING" },
+        ],
+      },
+      global: { stubs: { TooltipIcon: true } },
+    });
+
+    expect(wrapper.findAll("[data-test='events-widget-section-count-badge']").map((badge) => badge.text()))
+      .toEqual(["2", "1"]);
+  });
+
   it("shows the month and day on the left and the time below the title", () => {
     wrapper = mount(EventsWidget, {
       props: {
@@ -49,7 +76,7 @@ describe("EventsWidget", () => {
       global: { stubs: { TooltipIcon: true } },
     });
 
-    expect(wrapper.get("[data-test='events-widget-month']").text()).toBe("AUGUST");
+    expect(wrapper.get("[data-test='events-widget-month']").text()).toBe("AUG");
     expect(wrapper.get("[data-test='events-widget-day']").text()).toBe("25");
     expect(wrapper.get("[data-test='events-widget-time']").text()).toBe("2:15pm-2:45pm");
     expect(wrapper.get("[data-test='events-widget-time']").element.previousElementSibling?.textContent)
