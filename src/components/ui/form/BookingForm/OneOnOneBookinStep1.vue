@@ -2560,7 +2560,7 @@
                       </div>
                     </div>
                     <div class="self-stretch flex flex-col justify-start items-start">
-                      <div class="self-stretch inline-flex justify-center items-center gap-2.5">
+                      <div class="self-stretch inline-flex justify-start items-center gap-2.5">
                         <ul class="list-decimal ml-5">
                           <li>{{ t("booking_call_attendance_policy_grace_summary") }}</li>
                           <li>{{ t("booking_call_attendance_policy_creator_no_show_summary") }}</li>
@@ -2580,7 +2580,7 @@
           />
           <div class="self-stretch flex flex-col justify-center items-start gap-2">
             <CheckboxGroup v-model="formData.allowLongerSessions" :label="t('booking_allow_longer_sessions')"
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="flex items-center gap-2" />
             <div :class="['ml-6 transition-opacity duration-200',
                         !formData.allowLongerSessions ? 'opacity-50' : 'opacity-100']">
@@ -2657,7 +2657,7 @@
                 </div>
                 <TooltipIcon
                   :text="t('booking_buffer_time_tooltip')"
-                  tooltipClass="!max-w-[12rem] right-auto lg:translate-x-[-90%]"
+                  tooltipClass="!max-w-[12rem] lg:translate-x-[-90%]"
                   class="ml-1 !mt-0 mb-3"
                 />
               </div>
@@ -2689,7 +2689,7 @@
           <div v-if="isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.enableMaxAttendees" :label="t('booking_group_maximum_participants')"  
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2"/>
               <TooltipIcon :text="t('booking_group_maximum_participants_tooltip')" />
@@ -2715,7 +2715,7 @@
           <div v-if="!isGroupBooking" class="self-stretch flex flex-col justify-center items-start gap-3">
             <!-- <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.setMaxBookings" :label="t('booking_set_max_bookings_day')"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon :text="t('booking_max_bookings_tooltip')"/>
@@ -2724,7 +2724,7 @@
             <div class="flex gap-2">
               <CheckboxGroup
                 v-model="formData.setMaxBookings"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal flex items-center !inline-block relative"
                 wrapperClass="flex items-center gap-2"
               >
@@ -2810,7 +2810,7 @@
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_longer_session_discount')"  
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
 
@@ -2863,7 +2863,7 @@
 
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <CheckboxGroup v-model="formData.enableFirstTimeDiscount" :label="t('booking_enable_first_time_discount_short')"  
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
               wrapperClass="flex items-center gap-2 mb-3" />
 
@@ -2901,7 +2901,7 @@
           <div class="self-stretch flex flex-col justify-center items-start gap-3">
             <div class="flex gap-2 items-center">
               <CheckboxGroup v-model="formData.enableBookingFee" :label="t('booking_enable_booking_fee')"  
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon :text="t('booking_booking_fee_tooltip')" />
@@ -2936,7 +2936,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-2">
               <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.allowInstantBooking" :label="t('booking_allow_instant_booking')"  
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 mt-[0.063rem] text-base leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3" midImg="https://i.ibb.co/G418dSPz/Icon.png" />
 
@@ -2982,7 +2982,7 @@
               >
                 <CheckboxGroup v-model="formData.enableRescheduleFee" :label="t('booking_enable_reschedule_fee')"
                   :disabled="!rescheduleFeeSettingEnabled"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox disabled:cursor-not-allowed disabled:bg-gray-100 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox disabled:cursor-not-allowed disabled:bg-gray-100 checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                   :wrapper-class="rescheduleFeeSettingEnabled ? 'flex items-center gap-2' : 'flex items-center gap-2 !cursor-not-allowed'" />
 
@@ -3020,7 +3020,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-1">
               <div class="flex gap-2 items-center">
                 <CheckboxGroup v-model="formData.enableCancellationFee" :label="t('booking_enable_cancellation_fee')"  
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                   wrapperClass="flex items-center gap-2" />
 
@@ -3055,7 +3055,7 @@
             <div :class="['ml-7 flex flex-col justify-start items-start gap-2',!formData.enableCancellationFee ? 'opacity-50 pointer-events-none':'opacity-100']">
               <CheckboxGroup v-model="formData.allowAdvanceCancellation"
                 :label="t('booking_allow_advance_cancellation')"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50':'opacity-100']">
@@ -3154,7 +3154,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <CheckboxGroup v-model="formData.enableLongerDiscount" :label="t('booking_enable_discount_recurring')"
                 :disabled="isPricingLocked"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
 
@@ -3223,7 +3223,7 @@
             <div class="self-stretch flex flex-col justify-center items-start gap-3">
               <CheckboxGroup v-model="formData.enableMinContributionPerUser" :label="t('booking_group_min_contribution_per_user')"
                 :disabled="isPricingLocked"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <div class="inline-flex justify-start items-center gap-2">
@@ -3272,7 +3272,7 @@
                 v-model="formData.enableCancellationFee"
                 :label="t(formData.priceSetting === 'fixedPricePerUser' ? 'booking_group_cancellation_fee' : 'booking_group_refund_before_event_start')"
                 :disabled="isPricingLocked"
-                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                 labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                 wrapperClass="flex items-center gap-2" />
               <TooltipIcon v-if="!isPricingLocked" :text="t('booking_cancellation_fee_tooltip')" />
@@ -3303,7 +3303,7 @@
           <div class="self-stretch flex flex-col justify-start items-start gap-3">
             <CheckboxGroup v-model="formData.allowAdvanceCancellation" :label="t('booking_group_cancel_advance_void_fee')"
               :disabled="isPricingLocked"
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
               wrapperClass="flex items-center gap-2" />
             <div :class="['flex items-center gap-2', !formData.allowAdvanceCancellation ? 'opacity-50 pointer-events-none' : 'opacity-100']">
@@ -3353,7 +3353,7 @@
           <div :class="['self-stretch flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4', !formData.addOffHourSurcharge ? 'opacity-50':'opacity-100']">
             <CheckboxGroup v-model="formData.addOffHourSurcharge" :label="t('common_add')"
               data-test="off-hour-surcharge-toggle"
-              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+              checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
               labelClass="text-gray-700 text-base mt-[0.063rem] leading-normal" wrapperClass="!w-auto flex-none flex items-center gap-2" />
             <div class="flex min-w-0 w-full flex-1 items-center gap-2" data-test="off-hour-surcharge-controls">
               <BaseInput type="number" placeholder="" v-model="formData.offHourSurchargeTokens"
@@ -3546,7 +3546,7 @@
                       />
                     </div>
 
-                    <div class="pl-1 flex justify-start items-center gap-2">
+                    <div class="pl-1 flex justify-start items-center gap-1 md:gap-2">
                       <span v-if="isScheduleLocked" class="flex items-center justify-center">
                         <button type="button"
                           class="w-6 h-6 rounded-full text-gray-600 flex items-center justify-center opacity-40 cursor-not-allowed hover:bg-transparent"
@@ -3649,7 +3649,7 @@
                 />
               </div>
 
-              <div class="pl-1 flex justify-start items-center gap-2">
+              <div class="pl-1 flex justify-start items-center gap-1 md:gap-2">
               <span v-if="isScheduleLocked" class="flex items-center justify-center">
                 <button
                   type="button"
@@ -3845,7 +3845,7 @@
                    
                 </div>
                 <CheckboxGroup v-model="formData.disableChatDuringCall" :label="t('booking_disable_chat_during_call')"
-                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                  checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                   labelClass="text-slate-700 text-base mt-[0.063rem] leading-normal"
                   wrapperClass="flex items-center gap-2 mb-3 mt-2" />
                 
@@ -3871,7 +3871,7 @@
                 </div>
                 <div class="inline-flex justify-start items-center gap-2">
                   <CheckboxGroup v-model="formData.requestExtendSession"
-                    checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.45rem] checked:[&::after]:top-[0.25rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
+                    checkboxClass="m-0 border border-gray-300 [appearance:none] w-4 h-4 rounded bg-white relative cursor-pointer outline-none focus:outline-none checked:bg-checkbox checked:border-checkbox checked:[&::after]:content-[''] checked:[&::after]:absolute checked:[&::after]:left-[0.35rem] checked:[&::after]:top-[0.2rem] checked:[&::after]:w-[0.25rem] checked:[&::after]:h-[0.5rem] checked:[&::after]:border checked:[&::after]:border-solid checked:[&::after]:border-white checked:[&::after]:border-r-[0.125rem] checked:[&::after]:border-b-[0.125rem] checked:[&::after]:border-t-0 checked:[&::after]:border-l-0 checked:[&::after]:rotate-45"
                     labelClass="hidden"
                     wrapperClass="!w-auto flex-none flex items-center" />
                   <div :class="['flex justify-start items-end gap-2',!formData.requestExtendSession ? 'opacity-50':'opacity-100']">

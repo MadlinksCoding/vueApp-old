@@ -4,7 +4,7 @@
     @update:modelValue="(val) => emit('update:modelValue', val)"
     :config="config"
   >
-    <div class="h-full w-full p-5 max-w-[520px] bg-white/90 md:rounded-[10px] backdrop-blur-[50px] inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
+    <div class="h-full w-full p-5 max-w-[520px] md:min-w-[520px] bg-white/90 md:rounded-[10px] backdrop-blur-[50px] inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
   <div class="flex-1 overflow-y-auto overflow-x-hidden w-full flex flex-col items-center gap-6 pr-1">
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch inline-flex justify-between items-start">
@@ -13,7 +13,7 @@
   </div>
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch text-center justify-start text-gray-700 text-lg font-semibold  leading-7">{{ t("booking_call_attendance_policy_grace_heading") }}</div>
-    <div class="flex flex-col flex-col-reverse md:flex-row self-stretch">
+    <div class="flex flex-col md:flex-row self-stretch">
       <div class="flex flex-col self-stretch flex-1">
         <div class="self-stretch p-2.5 bg-gray-400/20 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-center items-center gap-2.5">
           <div class="flex-1 text-center justify-start font-semibold  leading-6">{{ t("booking_call_attendance_policy_publish_creator_no_show_condition") }}</div>
@@ -50,12 +50,12 @@
   <div class="self-stretch flex-shrink-0 mt-auto inline-flex justify-start items-center gap-2 flex-col flex-col-reverse md:flex-row pt-2">
     <button
       type="button"
-      class="flex-1 self-stretch h-10 min-w-24 px-6 py-2 bg-[#0C111D] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+      class="flex-1 self-stretch h-10 min-w-24 px-6 py-2 border border-[#0C111D] flex justify-center items-center gap-2.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
       data-test="attendance-policy-back"
       :disabled="confirming"
       @click="closePopup"
     >
-      <div class="justify-start text-[#07F468] text-base font-medium  leading-6 cursor-pointer">{{ t("common_back") }}</div>
+      <div class="justify-start text-[#0C111D] text-base font-medium  leading-6 cursor-pointer">{{ t("common_back") }}</div>
     </button>
     <button
       type="button"
@@ -72,7 +72,10 @@
         role="status"
         :aria-label="t('common_loading')"
       />
-      <div v-else class="justify-start text-[#0C111D] text-base font-medium  leading-6 whitespace-nowrap">{{ t("booking_call_attendance_policy_confirm_publish") }}</div>
+      <div v-else class="flex gap-2 items-center">
+        <img  :src="UploadCloudIcon"/>
+        <div  class="justify-start text-[#0C111D] text-base font-medium  leading-6 whitespace-nowrap">{{ t("booking_call_attendance_policy_confirm_publish") }}</div>
+      </div>
     </button>
   </div>
 </div>
@@ -84,6 +87,7 @@ import { computed, ref, watch } from 'vue';
 import PopupHandler from "@/components/ui/popup/PopupHandler.vue";
 import CheckboxGroup from "@/components/ui/form/checkbox/CheckboxGroup.vue";
 import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
+import UploadCloudIcon from '@/assets/images/icons/upload-cloud-01.svg'
 
 const props = defineProps({
   modelValue: {
