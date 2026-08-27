@@ -13,7 +13,7 @@
   </div>
   <div class="self-stretch flex flex-col justify-start items-start gap-2">
     <div class="self-stretch text-center justify-start text-gray-700 text-lg font-semibold  leading-7">{{ t("booking_call_attendance_policy_grace_heading") }}</div>
-    <div class="flex flex-col flex-col-reverse md:flex-row self-stretch">
+    <div class="flex flex-col md:flex-row self-stretch">
       <div class="flex flex-col self-stretch flex-1">
         <div class="self-stretch p-2.5 bg-gray-400/20 outline outline-1 outline-offset-[-0.50px] outline-slate-600 inline-flex justify-center items-center gap-2.5">
           <div class="flex-1 text-center justify-start font-semibold  leading-6">{{ t("booking_call_attendance_policy_publish_creator_no_show_condition") }}</div>
