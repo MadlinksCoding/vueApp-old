@@ -3560,7 +3560,7 @@ const styleBlock = (ev, day = null) => {
   let heightPx = endPx - baseTopPx;
   heightPx = Math.max(minHeightPx, heightPx);
 
-  return `top:${topPx}px;height:${heightPx}px;left:2px;right:2px;`;
+  return `top:${topPx}px;height:${heightPx}px;left:0px;right:2px;`;
 };
 
 const currentMinute = () => {
