@@ -80,6 +80,19 @@ function createEngine() {
   });
 }
 
+function matchingTemporaryHold(temporaryHoldId, { userId = 2615 } = {}) {
+  return {
+    temporaryHoldId,
+    eventId: "evt_123",
+    userId,
+    startIso: "2026-03-24T10:00:00.000Z",
+    endIso: "2026-03-24T10:15:00.000Z",
+    status: "active",
+    expiresAt: new Date(Date.now() + 600000).toISOString(),
+    secondsRemaining: 600,
+  };
+}
+
 function configureEventGoalGroup(engine, overrides = {}) {
   engine.state.bookingDetails = {
     ...engine.state.bookingDetails,
@@ -742,6 +755,10 @@ describe("BookingFlowStep3", () => {
         engine.state.fanBooking.temporaryHold.expiresAt = new Date(Date.now() + 600000).toISOString();
         return { ok: true, data: { temporaryHoldId: "temphold_policy_topup" } };
       }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        const hold = matchingTemporaryHold("temphold_policy_topup");
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
       return { ok: true, data: {} };
     });
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
@@ -862,6 +879,12 @@ describe("BookingFlowStep3", () => {
     engine.state.fanBooking.context.isFirstBookingForCreator = true;
     engine.state.bookingDetails.displayTimezoneOffsetMinutes = 480;
     engine.state.bookingDetails.displayTimezoneLabel = "GMT+08:00";
+    engine.state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_change_schedule",
+      status: "active",
+      guestHoldToken: null,
+    };
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
 
     const wrapper = mount(BookingFlowStep3, {
@@ -888,7 +911,15 @@ describe("BookingFlowStep3", () => {
     expect(text).not.toContain("224.99");
 
     await wrapper.get("button").trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.goToStep).toHaveBeenCalledWith(2);
+    });
 
+    expect(engine.callFlow).toHaveBeenCalledWith(
+      "bookings.releaseTemporaryHold",
+      { temporaryHoldId: "temphold_change_schedule" },
+      expect.objectContaining({ context: expect.objectContaining({ requestTimeoutMs: 3000 }) }),
+    );
     expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "change-schedule" });
     expect(engine.goToStep).toHaveBeenCalledWith(2);
   });
@@ -896,6 +927,12 @@ describe("BookingFlowStep3", () => {
   it("navigates back to previous step when back button is clicked", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 1900 } });
     const engine = createEngine();
+    engine.state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_back",
+      status: "active",
+      guestHoldToken: null,
+    };
+    engine.callFlow.mockResolvedValue({ ok: true, data: {} });
     const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
 
     const wrapper = mount(BookingFlowStep3, {
@@ -908,7 +945,15 @@ describe("BookingFlowStep3", () => {
     expect(backButton.exists()).toBe(true);
 
     await backButton.trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.goToStep).toHaveBeenCalledWith(2);
+    });
 
+    expect(engine.callFlow).toHaveBeenCalledWith(
+      "bookings.releaseTemporaryHold",
+      { temporaryHoldId: "temphold_back" },
+      expect.any(Object),
+    );
     expect(engine.forceSubstep).toHaveBeenCalledWith(null, { intent: "back" });
     expect(engine.goToStep).toHaveBeenCalledWith(2);
   });
@@ -1026,13 +1071,12 @@ describe("BookingFlowStep3", () => {
       }
 
       if (flowName === "bookings.getTemporaryHoldStatus") {
+        const hold = matchingTemporaryHold("temphold_evt_123_1_1", { userId: 0 });
         return {
           ok: true,
           data: {
-            temporaryHoldId: "temphold_evt_123_1_1",
-            status: "active",
-            expiresAt: new Date(Date.now() + 600000).toISOString(),
-            secondsRemaining: 600,
+            ...hold,
+            temporaryHold: hold,
           },
         };
       }
@@ -1069,6 +1113,177 @@ describe("BookingFlowStep3", () => {
       }),
     );
     expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("revalidates and reuses the same hold after a failed payment retry", async () => {
+    tokenGet
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockResolvedValue({ data: { balance: 1000 } });
+    const engine = createEngine();
+    let statusChecks = 0;
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        return { ok: true, data: { temporaryHoldId: "temphold_retry" } };
+      }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        statusChecks += 1;
+        const hold = matchingTemporaryHold("temphold_retry");
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "booking_after_payment_retry", eventId: "evt_123" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+    });
+
+    engine.substep = "topup";
+    await vi.dynamicImportSettled();
+    await flushAsync();
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("payment-failed");
+    engine.substep = "summary";
+    await flushAsync();
+
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.getTemporaryHoldStatus").length).toBeGreaterThanOrEqual(2);
+    });
+    engine.substep = "topup";
+    await flushAsync();
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_retry",
+    });
+    await vi.waitFor(() => {
+      expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    });
+
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createTemporaryHold")).toHaveLength(1);
+    expect(statusChecks).toBeGreaterThanOrEqual(3);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(4);
+  });
+
+  it("releases and replaces a recovered hold whose booking fingerprint does not match", async () => {
+    tokenGet.mockResolvedValue({ data: { balance: 300 } });
+    const engine = createEngine();
+    engine.state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_wrong_slot",
+      status: "active",
+      expiresAt: new Date(Date.now() + 600000).toISOString(),
+      secondsRemaining: 600,
+    };
+    engine.callFlow.mockImplementation(async (flowName, payload) => {
+      if (flowName === "bookings.getTemporaryHoldStatus" && payload?.temporaryHoldId === "temphold_wrong_slot") {
+        const hold = {
+          ...matchingTemporaryHold("temphold_wrong_slot"),
+          startIso: "2026-03-24T11:00:00.000Z",
+          endIso: "2026-03-24T11:15:00.000Z",
+        };
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      if (flowName === "bookings.releaseTemporaryHold") return { ok: true, data: {} };
+      if (flowName === "bookings.createTemporaryHold") {
+        return { ok: true, data: { temporaryHoldId: "temphold_replacement" } };
+      }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        const hold = matchingTemporaryHold("temphold_replacement");
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+    });
+
+    const lifecycleCalls = engine.callFlow.mock.calls
+      .filter(([name]) => [
+        "bookings.getTemporaryHoldStatus",
+        "bookings.releaseTemporaryHold",
+        "bookings.createTemporaryHold",
+      ].includes(name))
+      .map(([name]) => name);
+    expect(lifecycleCalls).toEqual([
+      "bookings.getTemporaryHoldStatus",
+      "bookings.releaseTemporaryHold",
+      "bookings.createTemporaryHold",
+      "bookings.getTemporaryHoldStatus",
+    ]);
+    expect(engine.getState("fanBooking.temporaryHold.temporaryHoldId")).toBe("temphold_replacement");
+    expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+  });
+
+  it("keeps purchased tokens and returns to scheduling when post-top-up hold repair fails", async () => {
+    tokenGet
+      .mockResolvedValueOnce({ data: { balance: 300 } })
+      .mockResolvedValue({ data: { balance: 1000 } });
+    const engine = createEngine();
+    let createAttempts = 0;
+    let statusChecks = 0;
+    engine.callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.createTemporaryHold") {
+        createAttempts += 1;
+        return createAttempts === 1
+          ? { ok: true, data: { temporaryHoldId: "temphold_post_topup" } }
+          : { ok: false, error: { code: "slot_already_held", message: "This slot is already temporarily held" } };
+      }
+      if (flowName === "bookings.getTemporaryHoldStatus") {
+        statusChecks += 1;
+        const hold = statusChecks <= 2
+          ? matchingTemporaryHold("temphold_post_topup")
+          : {
+              ...matchingTemporaryHold("temphold_post_topup"),
+              eventId: "evt_other",
+            };
+        return { ok: true, data: { ...hold, temporaryHold: hold } };
+      }
+      if (flowName === "bookings.releaseTemporaryHold") return { ok: true, data: {} };
+      if (flowName === "bookings.createBooking") {
+        return { ok: true, data: { bookingId: "must_not_be_created" } };
+      }
+      return { ok: true, data: {} };
+    });
+
+    const { default: BookingFlowStep3 } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/BookingFlowStep3.vue");
+    const wrapper = mount(BookingFlowStep3, { props: { engine, embedded: true } });
+    await flushAsync();
+    await wrapper.get("[data-testid='booking-attendance-policy-agreement'] input").setValue(true);
+    await wrapper.findAll("button").at(-1).trigger("click");
+    await vi.waitFor(() => {
+      expect(engine.forceSubstep).toHaveBeenCalledWith("topup", { intent: "topup-needed" });
+    });
+    engine.substep = "topup";
+    await vi.dynamicImportSettled();
+    await flushAsync();
+
+    wrapper.getComponent({ name: "TopUpForm" }).vm.$emit("success", {
+      userId: 2615,
+      backendJwtToken: "jwt_after_topup",
+    });
+    await vi.waitFor(() => {
+      expect(engine.goToStep).toHaveBeenCalledWith(2);
+    });
+
+    expect(createAttempts).toBe(2);
+    expect(engine.callFlow.mock.calls.filter(([name]) => name === "bookings.createBooking")).toHaveLength(0);
+    expect(engine.forceSubstep.mock.calls.filter(([substep]) => substep === "topup")).toHaveLength(1);
+    expect(engine.goToStep).toHaveBeenCalledWith(2);
+    expect(engine.getState("bookingDetails.walletBalance")).toBe(1000);
+    expect(wrapper.emitted("balance-changed")).toEqual([[{ reason: "top-up" }]]);
   });
 
   it("translates temporary hold validation failures before wrapper error codes", async () => {

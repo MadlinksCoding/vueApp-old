@@ -366,7 +366,7 @@ export const flowRegistry = {
       localCache: {
         enabled: true,
         ttlMs: 30000,
-        version: 1,
+        version: 2,
         varyByPayload: true,
       },
       readFrom: {
@@ -390,6 +390,9 @@ export const flowRegistry = {
         { type: "stateEngine", key: "fanBooking.catalog.rawEvents", mode: "set", select: "rawEvents", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.bookedSlots", mode: "set", select: "bookedSlots", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.bookedSlotsIndex", mode: "set", select: "bookedSlotsIndex", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.temporaryHoldSlots", mode: "set", select: "temporaryHoldSlots", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.temporaryHoldSlotsIndex", mode: "set", select: "temporaryHoldSlotsIndex", hydrateOnReadHit: true },
+        { type: "stateEngine", key: "fanBooking.catalog.temporaryHoldAvailabilityStale", mode: "set", select: "temporaryHoldAvailabilityStale", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.context.isFirstBookingForCreator", mode: "set", select: "isFirstBookingForCreator", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.context.eventBookingCountsByEventId", mode: "set", select: "eventBookingCountsByEventId", hydrateOnReadHit: true },
         { type: "stateEngine", key: "fanBooking.catalog.meta", mode: "set", select: "meta", hydrateOnReadHit: true },

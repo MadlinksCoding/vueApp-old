@@ -554,7 +554,8 @@ describe("OneOnOneBookingFlowFeature", () => {
 
     const onClosePopup = asyncWrapper.vm.$.vnode.props?.onClosePopup;
     expect(typeof onClosePopup).toBe("function");
-    onClosePopup();
+    await onClosePopup();
+    await flushPromises();
 
     expect(wrapper.emitted("close-request")).toHaveLength(1);
   });
