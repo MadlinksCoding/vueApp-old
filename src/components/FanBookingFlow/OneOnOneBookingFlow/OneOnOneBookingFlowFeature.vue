@@ -174,6 +174,9 @@ const engine = createFlowStateEngine({
         rawEvents: [],
         bookedSlots: [],
         bookedSlotsIndex: {},
+        temporaryHoldSlots: [],
+        temporaryHoldSlotsIndex: {},
+        temporaryHoldAvailabilityStale: false,
         cachedResponse: null,
         meta: {
           etag: null,
@@ -532,6 +535,9 @@ async function loadBookingContext({ forceRefresh = false, silent = false, preser
         creatorId,
         fanId,
         apiBaseUrl: props.apiBaseUrl || undefined,
+        requestHeaders: engine.getState("fanBooking.temporaryHold.guestHoldToken")
+          ? { "X-Guest-Hold-Token": engine.getState("fanBooking.temporaryHold.guestHoldToken") }
+          : {},
       },
     },
   );
@@ -753,12 +759,12 @@ function initializeChatSocketSafely(fanId) {
 }
 
 async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
-  if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) return;
-  if (isReleasingHold.value) return;
-  if (hasBookingCreated()) return;
+  if (props.previewMode || engine.getState("fanBooking.ui.previewMode")) return true;
+  if (isReleasingHold.value) return false;
+  if (hasBookingCreated()) return true;
 
   const temporaryHoldId = getActiveTemporaryHoldId();
-  if (!temporaryHoldId) return;
+  if (!temporaryHoldId) return true;
 
   isReleasingHold.value = true;
   try {
@@ -770,6 +776,7 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
           stateEngine: engine,
           apiBaseUrl: props.apiBaseUrl || undefined,
           requestHeaders: getGuestHoldHeaders(),
+          requestTimeoutMs: 3000,
         },
         forceRefresh: true,
         skipDestinationRead: true,
@@ -784,10 +791,35 @@ async function releaseTemporaryHoldIfNeeded({ silent = false } = {}) {
         message,
       });
     }
+    if (result?.ok) {
+      engine.setState("fanBooking.temporaryHold", {
+        temporaryHoldId: null,
+        status: "none",
+        expiresAt: null,
+        secondsRemaining: 0,
+        createdAt: null,
+        checkedAt: null,
+        guestSessionId: null,
+        guestHoldToken: null,
+      }, { reason: "temporary-hold-released-on-close", silent: true });
+    }
+    return Boolean(result?.ok);
   } finally {
     isReleasingHold.value = false;
   }
 }
+
+async function prepareForClose() {
+  await releaseTemporaryHoldIfNeeded({ silent: true });
+  return true;
+}
+
+async function requestClose() {
+  await prepareForClose();
+  emit("close-request");
+}
+
+defineExpose({ prepareForClose });
 
 onMounted(async () => {
   logFanBookingDebug("feature", "mounted", {
@@ -923,7 +955,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       <div class="relative h-dvh w-full md:h-[41rem] md:w-[25rem]">
         <button
           type="button"
-          @click="emit('close-request')"
+          @click="requestClose"
           data-test="booking-flow-close-button"
           class="pointer-events-auto absolute top-2 right-2 md:top-4 md:right-[2px] lg:top-[-1.2rem] lg:right-[-1.2rem] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
         >
@@ -933,7 +965,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
     </div>
     <div
         v-if="showWrapperCloseButton"
-        @click="emit('close-request')"
+        @click="requestClose"
         data-test="booking-flow-close-button"
         class="absolute top-2 right-2 md:top-1 md:right-2 lg:top-[-1.2rem] lg:right-[-1.2rem] z-[999] p-2 w-10 h-10 lg:w-12 lg:h-12 flex justify-center items-center bg-black/25 md:bg-white/10 rounded-full backdrop-blur-[10px] cursor-pointer"
       >
@@ -946,7 +978,7 @@ const showWrapperCloseButton = computed(() => engine.step === 2 || engine.step =
       :step1-primary-action="step1PrimaryAction"
       :api-base-url="apiBaseUrl"
       :refresh-booking-context="refreshBookingContext"
-      @close-popup="emit('close-request')"
+      @close-popup="requestClose"
       @retry-catalog="previewMode ? loadPreviewContext() : loadBookingContext({ forceRefresh: true })"
       @balance-changed="handleBalanceChanged"
       @booking-created="handleBookingCreated"

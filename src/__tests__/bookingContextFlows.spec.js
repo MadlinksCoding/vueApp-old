@@ -419,6 +419,7 @@ describe("booking context flows", () => {
         stats: { total: 1 },
         __meta: { status: 200 },
       },
+	  { ok: true, holds: [] },
     ]);
 
     const result = await fetchCreatorBookingContextFlow({
@@ -466,6 +467,7 @@ describe("booking context flows", () => {
         stats: { total: 1 },
         __meta: { status: 200 },
       },
+	  { ok: true, holds: [] },
     ]);
 
     const result = await fetchCreatorBookingContextFlow({
@@ -508,6 +510,7 @@ describe("booking context flows", () => {
         stats: { total: 0 },
         __meta: { status: 200 },
       },
+	  { ok: true, holds: [] },
     ]);
 
     const result = await fetchCreatorBookingContextFlow({
@@ -540,6 +543,7 @@ describe("booking context flows", () => {
         stats: { total: 1 },
         __meta: { status: 200 },
       },
+	  { ok: true, holds: [] },
       {
         ok: true,
         isFirstBookingForCreator: false,
@@ -568,8 +572,8 @@ describe("booking context flows", () => {
         params: expect.objectContaining({ eventId: "event_77" }),
       }),
     );
-    expect(api.get).toHaveBeenNthCalledWith(
-      4,
+		expect(api.get).toHaveBeenNthCalledWith(
+			5,
       "https://api.example.test/bookings/fans/2615/event-booking-counts",
       expect.objectContaining({
         params: expect.objectContaining({
@@ -578,6 +582,75 @@ describe("booking context flows", () => {
         }),
       }),
     );
-    expect(result.data.eventBookingCountsByEventId).toEqual({ event_77: 2 });
-  });
+		expect(result.data.eventBookingCountsByEventId).toEqual({ event_77: 2 });
+	});
+
+	it("loads anonymous temporary holds separately from confirmed bookings", async () => {
+		const expiresAt = new Date(Date.now() + 300000).toISOString();
+		const api = createApi([
+			{ items: [{ id: "event_77", title: "Event" }], __meta: { status: 200 } },
+			{ slots: [freshBookedSlot], next: null, __meta: { status: 200 } },
+			{
+				ok: true,
+				holds: [{
+					eventId: "event_77",
+					startIso: "2030-01-15T10:30:00Z",
+					endIso: "2030-01-15T10:40:00Z",
+					expiresAt,
+					capacityUnits: 1,
+				}],
+			},
+		]);
+
+		const result = await fetchCreatorBookingContextFlow({
+			payload: { creatorId: 1407, eventId: "event_77" },
+			context: { apiBaseUrl: "https://api.example.test", requestHeaders: { Authorization: "Bearer token" } },
+			api,
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.data.bookedSlots).toEqual([freshBookedSlot]);
+		expect(result.data.temporaryHoldSlots).toEqual([
+			expect.objectContaining({ eventId: "event_77", status: "temporary_hold", expiresAt }),
+		]);
+		expect(result.data.temporaryHoldAvailabilityStale).toBe(false);
+		expect(api.get).toHaveBeenCalledWith(
+			"https://api.example.test/temporary-holds/availability",
+			expect.objectContaining({
+				params: { eventId: "event_77" },
+				headers: { Authorization: "Bearer token" },
+			}),
+		);
+	});
+
+	it("retains only unexpired cached temporary holds when availability refresh fails", async () => {
+		const unexpired = {
+			eventId: "event_77",
+			startIso: "2030-01-15T10:30:00Z",
+			endIso: "2030-01-15T10:40:00Z",
+			expiresAt: new Date(Date.now() + 300000).toISOString(),
+			status: "temporary_hold",
+		};
+		const expired = { ...unexpired, startIso: "2030-01-15T11:00:00Z", expiresAt: new Date(Date.now() - 1000).toISOString() };
+		const api = createApi([
+			{ items: [{ id: "event_77", title: "Event" }], __meta: { status: 200 } },
+			{ slots: [], next: null, __meta: { status: 200 } },
+			{ ok: false, error: "temporary_failure" },
+		]);
+
+		const result = await fetchCreatorBookingContextFlow({
+			payload: { creatorId: 1407, eventId: "event_77" },
+			context: {
+				apiBaseUrl: "https://api.example.test",
+				stateEngine: {
+					getState: vi.fn((path) => path === "fanBooking.catalog.temporaryHoldSlots" ? [unexpired, expired] : []),
+				},
+			},
+			api,
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.data.temporaryHoldAvailabilityStale).toBe(true);
+		expect(result.data.temporaryHoldSlots).toEqual([unexpired]);
+	});
 });

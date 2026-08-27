@@ -10,9 +10,16 @@
           >
             {{ section.title }}
           </h3>
-          <div class="px-2 py-1 h-[18px] flex items-center justify-center rounded-full"
-                :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'">
-            <span class="text-sm font-semibold text-white">3</span>
+          <div
+            v-if="section.items && section.items.length > 0"
+            class="px-2 py-1 h-[18px] flex items-center justify-center rounded-full"
+            :class="isPendingSection(section) ? 'bg-[#F79009]' : 'bg-[#98A2B3]'"
+            data-test="events-widget-section-count-badge"
+          >
+            <span
+              class="text-sm font-semibold text-white"
+              data-test="events-widget-section-count"
+            >{{ section.items?.length ?? 0 }}</span>
           </div>
         </div>
         <button

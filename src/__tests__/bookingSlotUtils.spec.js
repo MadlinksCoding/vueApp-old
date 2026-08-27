@@ -7,8 +7,10 @@ import {
   isSlotBooked,
   isSlotBookedByUser,
   computeNextAvailableSlot,
+	countGroupSlotBookings,
   mapBookedSlotsToCalendarEvents,
   mapAvailabilityToCalendarEvents,
+	mergeBookedSlotsIndexes,
   resolveBookedSlotEffectiveEndIso,
   sumEventGoalContributionsForSlot,
 } from "@/services/bookings/utils/bookingSlotUtils.js";
@@ -160,6 +162,28 @@ describe("booking slot utilities", () => {
 
     expect(isRangeBooked({ eventId, startMs, endMs, bookedSlotsIndex })).toBe(true);
   });
+
+	it("combines temporary holds for occupancy without changing booking contribution totals", () => {
+		const bookingIndex = buildBookedSlotsIndex([{
+			bookingId: "booking_contribution",
+			eventId,
+			startIso: `${localDateIso}T10:00:00`,
+			endIso: `${localDateIso}T10:30:00`,
+			status: "confirmed",
+			contributionTokens: 250,
+		}]);
+		const holdIndex = buildBookedSlotsIndex([{
+			eventId,
+			startIso: `${localDateIso}T10:00:00`,
+			endIso: `${localDateIso}T10:30:00`,
+			status: "temporary_hold",
+		}]);
+		const combined = mergeBookedSlotsIndexes(bookingIndex, holdIndex);
+		const slot = makeSlot();
+
+		expect(countGroupSlotBookings({ eventId, slot, bookedSlotsIndex: combined })).toBe(2);
+		expect(sumEventGoalContributionsForSlot({ eventId, slot, bookedSlotsIndex: bookingIndex })).toBe(250);
+	});
 
   it("uses the latest held or captured extension as a booked slot's effective end", () => {
     const slot = {

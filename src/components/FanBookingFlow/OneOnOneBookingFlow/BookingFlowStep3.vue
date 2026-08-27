@@ -1605,7 +1605,78 @@ async function refreshTemporaryHoldStatus(temporaryHoldId) {
   });
 }
 
-async function ensureTemporaryHold() {
+function currentTemporaryHoldFingerprint() {
+  const payload = preflightBookingPayload().previewPayload || {};
+  return {
+    eventId: payload.eventId || null,
+    userId: isGuestFlow.value ? 0 : resolveFanId(),
+    startIso: payload.startIso || null,
+    endIso: payload.endIso || null,
+  };
+}
+
+function isoInstantsMatch(left, right) {
+  const leftMs = Date.parse(left || '');
+  const rightMs = Date.parse(right || '');
+  return Number.isFinite(leftMs) && Number.isFinite(rightMs) && leftMs === rightMs;
+}
+
+function temporaryHoldMatchesCurrentBooking(hold = {}) {
+  const expected = currentTemporaryHoldFingerprint();
+  return String(hold?.eventId || '') === String(expected.eventId || '')
+    && String(hold?.userId ?? '') === String(expected.userId ?? '')
+    && isoInstantsMatch(hold?.startIso, expected.startIso)
+    && isoInstantsMatch(hold?.endIso, expected.endIso);
+}
+
+function clearTemporaryHoldState(reason = 'temporary-hold-cleared') {
+  clearHoldTimer();
+  secondsRemaining.value = 0;
+  props.engine.setState('fanBooking.temporaryHold', {
+    temporaryHoldId: null,
+    status: 'none',
+    expiresAt: null,
+    secondsRemaining: 0,
+    createdAt: null,
+    checkedAt: null,
+    guestSessionId: props.engine.getState('fanBooking.temporaryHold.guestSessionId') || null,
+    guestHoldToken: null,
+  }, { reason, silent: true });
+}
+
+function storeValidatedTemporaryHold(hold = {}) {
+  props.engine.setState('fanBooking.temporaryHold', {
+    ...temporaryHold.value,
+    temporaryHoldId: hold.temporaryHoldId,
+    eventId: hold.eventId,
+    userId: hold.userId,
+    startIso: hold.startIso,
+    endIso: hold.endIso,
+    status: hold.status || 'active',
+    expiresAt: hold.expiresAt || null,
+    secondsRemaining: Number(hold.secondsRemaining || 0),
+    createdAt: hold.createdAt || null,
+    checkedAt: new Date().toISOString(),
+  }, { reason: 'temporary-hold-validated', silent: true });
+}
+
+async function releaseTemporaryHoldForRepair(temporaryHoldId) {
+  if (!temporaryHoldId) return true;
+  const result = await props.engine.callFlow('bookings.releaseTemporaryHold', { temporaryHoldId }, {
+    context: {
+      stateEngine: props.engine,
+      apiBaseUrl: props.apiBaseUrl || undefined,
+      requestHeaders: guestHoldHeaders(),
+      requestTimeoutMs: 3000,
+    },
+    forceRefresh: true,
+    skipDestinationRead: true,
+  });
+  if (result?.ok) clearTemporaryHoldState('temporary-hold-released-for-repair');
+  return Boolean(result?.ok);
+}
+
+async function ensureTemporaryHold({ allowRepair = true } = {}) {
   if (hasBookingCreated.value) return true;
   if (!requiresTemporaryHold.value) {
     clearHoldTimer();
@@ -1623,12 +1694,23 @@ async function ensureTemporaryHold() {
 
     if (existingId) {
       const statusResult = await refreshTemporaryHoldStatus(existingId);
-      if (statusResult?.ok) {
+      const hold = statusResult?.data?.temporaryHold || null;
+      if (statusResult?.ok && temporaryHoldMatchesCurrentBooking(hold)) {
+        storeValidatedTemporaryHold(hold);
         applyHoldTimer({
           expiresAt: statusResult.data?.expiresAt || props.engine.getState('fanBooking.temporaryHold.expiresAt'),
           initialSeconds: statusResult.data?.secondsRemaining || 0,
         });
         return true;
+      }
+      if (statusResult?.ok && allowRepair) {
+        const released = await releaseTemporaryHoldForRepair(existingId);
+        if (!released) {
+          holdError.value = t('fan_booking_hold_release_failed_message');
+          return false;
+        }
+      } else {
+        clearTemporaryHoldState('temporary-hold-status-invalid');
       }
     }
 
@@ -1648,12 +1730,22 @@ async function ensureTemporaryHold() {
       const existingTemporaryHoldId = createResult?.error?.details?.existingTemporaryHoldId || null;
       if (existingTemporaryHoldId) {
         const statusResult = await refreshTemporaryHoldStatus(existingTemporaryHoldId);
-        if (statusResult?.ok) {
+        const hold = statusResult?.data?.temporaryHold || null;
+        if (statusResult?.ok && temporaryHoldMatchesCurrentBooking(hold)) {
+          storeValidatedTemporaryHold(hold);
           applyHoldTimer({
             expiresAt: statusResult.data?.expiresAt || props.engine.getState('fanBooking.temporaryHold.expiresAt'),
             initialSeconds: statusResult.data?.secondsRemaining || 0,
           });
           return true;
+        }
+        if (statusResult?.ok && allowRepair) {
+          const released = await releaseTemporaryHoldForRepair(existingTemporaryHoldId);
+          if (!released) {
+            holdError.value = t('fan_booking_hold_release_failed_message');
+            return false;
+          }
+          return ensureTemporaryHold({ allowRepair: false });
         }
       }
 
@@ -1679,6 +1771,15 @@ async function ensureTemporaryHold() {
       holdError.value = getHoldStatusMessage(statusResult);
       return false;
     }
+
+    const createdHold = statusResult.data?.temporaryHold || null;
+    if (!temporaryHoldMatchesCurrentBooking(createdHold)) {
+      await releaseTemporaryHoldForRepair(latestHoldId);
+      holdError.value = t('fan_booking_error_temporary_hold_mismatch');
+      return false;
+    }
+
+    storeValidatedTemporaryHold(createdHold);
 
     applyHoldTimer({
       expiresAt: statusResult.data?.expiresAt || props.engine.getState('fanBooking.temporaryHold.expiresAt'),
@@ -1864,6 +1965,20 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
   isSubmitting.value = true;
 
   try {
+    if (isTopUpDone && requiresTemporaryHold.value) {
+      const holdOk = await ensureTemporaryHold();
+      if (!holdOk) {
+        showToast({
+          type: 'error',
+          title: t('fan_booking_could_not_hold_slot_title'),
+          message: holdError.value || t('fan_booking_hold_expired_reserve_again'),
+        });
+        await props.engine.forceSubstep(null, { intent: 'topup-hold-revalidation-failed' });
+        props.engine.goToStep(2);
+        return;
+      }
+    }
+
     const preflight = preflightBookingPayload();
     if (!preflight.ok) {
       emit('booking-failed', {
@@ -1993,6 +2108,10 @@ const finalizeBooking = async ({ isTopUpDone = false, nextWalletBalance = null }
 
 const handleChangeSchedule = async () => {
   if (isSubmitting.value || isCheckingBalance.value || holdLoading.value) return;
+  const currentHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+  if (currentHoldId) {
+    await releaseTemporaryHoldForRepair(currentHoldId);
+  }
   await props.engine.forceSubstep(null, { intent: 'change-schedule' });
   props.engine.goToStep(isGroupEvent.value ? 1 : 2);
 };
@@ -2002,6 +2121,10 @@ const handleBack = async () => {
   if (paymentSubstep.value === PAYMENT_SUBSTEP_TOPUP) {
     await goBackToPaymentSummary();
     return;
+  }
+  const currentHoldId = props.engine.getState('fanBooking.temporaryHold.temporaryHoldId');
+  if (currentHoldId) {
+    await releaseTemporaryHoldForRepair(currentHoldId);
   }
   await props.engine.forceSubstep(null, { intent: 'back' });
   props.engine.goToStep(isGroupEvent.value ? 1 : 2);

@@ -257,4 +257,54 @@ describe("OneOnOneBookingFlowPopup", () => {
       }),
     );
   });
+
+  it("waits for hold release before closing and still closes when release fails", async () => {
+    availableEvents = [{ eventId: "evt_alpha", title: "Alpha Event" }];
+    const { default: OneOnOneBookingFlowPopup } = await import("@/components/FanBookingFlow/OneOnOneBookingFlow/OneOnOneBookingFlowPopup.vue");
+    const wrapper = mount(OneOnOneBookingFlowPopup, { props: { modelValue: true } });
+    await flushAsync();
+
+    engine.state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_close_wait",
+      status: "active",
+      guestHoldToken: "guest-token",
+    };
+    let resolveRelease;
+    const releasePromise = new Promise((resolve) => { resolveRelease = resolve; });
+    callFlow.mockImplementation(async (flowName) => {
+      if (flowName === "bookings.releaseTemporaryHold") return releasePromise;
+      return { ok: true, data: {} };
+    });
+
+    wrapper.getComponent({ name: "PopupHandler" }).vm.$emit("update:modelValue", false);
+    await flushAsync();
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+
+    resolveRelease({ ok: true, data: {} });
+    await flushAsync();
+    expect(wrapper.emitted("update:modelValue")).toEqual([[false]]);
+    expect(engine.state.fanBooking.temporaryHold.temporaryHoldId).toBe(null);
+    expect(callFlow).toHaveBeenCalledWith(
+      "bookings.releaseTemporaryHold",
+      { temporaryHoldId: "temphold_close_wait" },
+      expect.objectContaining({
+        context: expect.objectContaining({ requestTimeoutMs: 3000 }),
+      }),
+    );
+
+    engine.state.fanBooking.temporaryHold = {
+      temporaryHoldId: "temphold_close_failure",
+      status: "active",
+    };
+    callFlow.mockImplementation(async (flowName) => (
+      flowName === "bookings.releaseTemporaryHold"
+        ? { ok: false, error: { message: "network failed" } }
+        : { ok: true, data: {} }
+    ));
+    wrapper.getComponent({ name: "PopupHandler" }).vm.$emit("update:modelValue", false);
+    await flushAsync();
+
+    expect(wrapper.emitted("update:modelValue")).toEqual([[false], [false]]);
+    expect(engine.state.fanBooking.temporaryHold.temporaryHoldId).toBe("temphold_close_failure");
+  });
 });

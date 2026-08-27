@@ -132,6 +132,7 @@ function createMountedStep({
   bookingDetails = {},
   selection = {},
   bookedSlotsIndex = {},
+	temporaryHoldSlotsIndex = {},
   fanId = 2615,
   isFirstBookingForCreator = false,
   componentProps = {},
@@ -142,6 +143,7 @@ function createMountedStep({
     fanBooking: {
       catalog: {
         bookedSlotsIndex,
+		temporaryHoldSlotsIndex,
       },
       context: {
         fanId,
@@ -1028,7 +1030,7 @@ describe("BookingFlowStep2", () => {
     ]);
   });
 
-  it("periodically refreshes private availability but not group auto-routing", async () => {
+	it("periodically refreshes private and group availability", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2030-01-15T09:00:00"));
     const privateRefresh = vi.fn(() => Promise.resolve({ ok: true }));
@@ -1085,9 +1087,34 @@ describe("BookingFlowStep2", () => {
     await vi.advanceTimersByTimeAsync(15000);
     await flushStep2();
 
-    expect(groupRefresh).not.toHaveBeenCalled();
-    groupWrapper.unmount();
-  });
+		expect(groupRefresh).toHaveBeenCalledWith({
+			silent: true,
+			preserveSelectedEvent: true,
+		});
+		groupWrapper.unmount();
+	});
+
+	it("disables a private slot range held by another fan", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+		const temporaryHoldSlotsIndex = buildBookedSlotsIndex([{
+			eventId: "evt_private_1",
+			startIso: "2030-01-15T10:00:00",
+			endIso: "2030-01-15T10:30:00",
+			status: "temporary_hold",
+		}]);
+		const { wrapperPromise } = createMountedStep({
+			selectedEvent: createPrivateEvent("2030-01-15"),
+			temporaryHoldSlotsIndex,
+		});
+		const wrapper = await wrapperPromise;
+		await flushStep2();
+
+		const slots = wrapper.findAll("[data-testid='booking-flow-time-slot']");
+		expect(slots[0].classes()).toContain("cursor-not-allowed");
+		expect(slots[1].classes()).toContain("cursor-pointer");
+		wrapper.unmount();
+	});
 
   it("clamps the preserved scroll position when refreshed slot columns become narrower", async () => {
     vi.useFakeTimers();
@@ -1215,6 +1242,46 @@ describe("BookingFlowStep2", () => {
     expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
     expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBeNull();
     expect(engine.state.bookingDetails.selectedTime).toBeNull();
+    expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
+      type: "error",
+      message: "This slot has already been booked. Try booking a different slot",
+    }));
+  });
+
+  it("blocks Continue and clears the selected private slot when refresh finds another fan's hold", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2030-01-15T09:00:00"));
+    const refreshBookingContext = vi.fn(async () => ({ ok: true }));
+    const { engine, wrapperPromise } = createMountedStep({
+      dateIso: "2030-01-15",
+      selectedEvent: createPrivateEvent("2030-01-15"),
+      componentProps: {
+        refreshBookingContext,
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await flushStep2();
+
+    refreshBookingContext.mockImplementationOnce(async () => {
+      engine.state.fanBooking.catalog.temporaryHoldSlotsIndex = buildBookedSlotsIndex([{
+        eventId: "evt_private_1",
+        startIso: "2030-01-15T10:00:00",
+        endIso: "2030-01-15T10:30:00",
+        expiresAt: new Date("2030-01-15T09:10:00").getTime(),
+        status: "temporary_hold",
+      }]);
+      return { ok: true };
+    });
+
+    await findPaymentSummaryButton(wrapper).trigger("click");
+    await flushStep2();
+
+    expect(engine.goToStep).not.toHaveBeenCalledWith(3);
+    expect(engine.state.fanBooking.selection.selectedSlot).toBeNull();
+    expect(engine.state.fanBooking.selection.selectedDurationMinutes).toBeNull();
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({
       type: "error",
       message: "This slot has already been booked. Try booking a different slot",
