@@ -366,7 +366,7 @@
         data-test="calendar-legend"
       >
         <!-- Event type -->
-        <div class="flex w-full lg:w-auto flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+        <div class="flex w-full lg:w-auto flex-1 items-start justify-between gap-2 border border-[#F06] rounded-[50px] bg-white px-5 py-2">
           <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase whitespace-nowrap">{{ t("dashboard_calendar_legend_event_type") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
@@ -388,7 +388,7 @@
         </div>
         <!-- /Event type -->
          <!-- Status -->
-        <div class="flex w-full lg:w-auto flex-1 items-start justify-between gap-2 rounded-[50px] bg-[rgba(251,91,162,0.10)] px-5 py-2">
+        <div class="flex w-full lg:w-auto flex-1 items-start justify-between border border-[#F06] gap-2 rounded-[50px] bg-white px-5 py-2">
           <span class="font-medium text-xs leading-[18px] text-[#F06] uppercase">{{ t("dashboard_calendar_legend_status") }}</span>
           <div class="flex justify-end items-start gap-5">
             <!-- Item-1 -->
@@ -865,14 +865,14 @@
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 flex flex-col border border-white bg-[#FCFCFD]/25">
+      <div class="flex-1 flex flex-col border border-white bg-[#FCFCFD]/25">
 
         <div v-for="(row, rowIndex) in monthRows" :key="'row-' + rowIndex" class="contents">
 
           <div class="grid min-h-0 grid-cols-7 flex-1 overflow-hidden" data-test="calendar-month-week-row">
             <button v-for="(d, i) in row" :key="'m-' + i" :ref="(element) => setMonthCellRef(formatLocalDateKey(d), element)" type="button" :data-date="d.toISOString().slice(0, 10)" :data-selected="sameDay(d, selectedDay) ? 'true' : 'false'" @click="handleMonthDateClick(d)" :class="[
               theme.month.cellBase,
-              'min-h-0 overflow-hidden',
+              'aspect-[3/4] overflow-hidden',
               d.getMonth() !== cursor.getMonth() ? theme.month.outside : '',
               (highlightTodayColumn && sameDay(d, today)) ? theme.month.today : '',
               sameDay(d, selectedDay) ? theme.month.selected : '',
