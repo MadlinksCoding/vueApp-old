@@ -569,6 +569,13 @@ function setNavigatorTouchPoints(value) {
   });
 }
 
+function setDocumentVisibilityState(value) {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value,
+  });
+}
+
 function isoTodayAt(hour, minute = 0) {
   const value = new Date();
   value.setHours(hour, minute, 0, 0);
@@ -630,6 +637,7 @@ describe("DashboardEventsFeature", () => {
     setWindowWidth(1024);
     setWindowHeight(768);
     setNavigatorTouchPoints(0);
+    setDocumentVisibilityState("hidden");
     window.localStorage.clear();
   });
 
@@ -637,6 +645,7 @@ describe("DashboardEventsFeature", () => {
     setWindowWidth(1024);
     setWindowHeight(768);
     setNavigatorTouchPoints(0);
+    setDocumentVisibilityState("visible");
     window.localStorage.clear();
     vi.useRealTimers();
   });
@@ -677,6 +686,180 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("minEventHeightPx")).toBe(40);
     expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBe(96);
     expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("polls the shared dashboard booking context every ten seconds and updates calendars and widgets", async () => {
+    setDocumentVisibilityState("visible");
+    const refreshedSlot = {
+      bookingId: "booking_polled",
+      eventId: "event_polled",
+      eventTitle: "Polled booking",
+      eventType: "1on1-call",
+      startIso: isoTodayAt(10),
+      endIso: isoTodayAt(10, 30),
+      status: "confirmed",
+    };
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { events: [], bookedSlots: [], widgetBookedSlots: [], bookedSlotsIndex: {} },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [refreshedSlot],
+          widgetBookedSlots: [refreshedSlot],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledTimes(2);
+    expect(callFlow.mock.calls[1]).toEqual([
+      "bookings.fetchDashboardBookingContext",
+      expect.objectContaining({
+        creatorId: 99,
+        widgetFromIso: expect.any(String),
+        widgetToIso: expect.any(String),
+      }),
+      expect.objectContaining({ forceRefresh: true }),
+    ]);
+
+    const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
+    expect(mainCalendar.props("events")).toEqual([
+      expect.objectContaining({ title: "Polled booking" }),
+    ]);
+    expect(mainCalendar.props("bookedSlotsCount")).toBe(1);
+    expect(Object.keys(mainCalendar.props("bookingScheduleBookedSlotsIndex")))
+      .toContain("event_polled");
+    expect(wrapper.findAllComponents({ name: "EventsWidget" }).some((widget) => (
+      widget.props("sections").some((section) => (
+        section.items?.some((item) => item.title === "Polled booking")
+      ))
+    ))).toBe(true);
+
+    wrapper.unmount();
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(callFlow).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps stale dashboard data visible and silently retries after a polling failure", async () => {
+    setDocumentVisibilityState("visible");
+    const pollFailure = createDeferred();
+    const stableSlot = {
+      bookingId: "booking_stable_poll",
+      eventId: "event_stable_poll",
+      eventTitle: "Stable polling booking",
+      eventType: "1on1-call",
+      startIso: isoTodayAt(10),
+      endIso: isoTodayAt(10, 30),
+      status: "confirmed",
+    };
+    callFlow
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [stableSlot],
+          widgetBookedSlots: [stableSlot],
+          bookedSlotsIndex: {},
+        },
+      })
+      .mockImplementationOnce(() => pollFailure.promise)
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          events: [],
+          bookedSlots: [stableSlot],
+          widgetBookedSlots: [stableSlot],
+          bookedSlotsIndex: {},
+        },
+      });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledTimes(2);
+    expect(engine.state.events.loading).toBe(false);
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("events"))
+      .toEqual([expect.objectContaining({ title: "Stable polling booking" })]);
+    expect(wrapper.findAllComponents({ name: "EventsWidget" })).not.toHaveLength(0);
+
+    pollFailure.resolve({ ok: false, error: { message: "Temporary poll failure" } });
+    await flushPromises();
+
+    expect(engine.state.events.error).toBeNull();
+    expect(wrapper.text()).not.toContain("Temporary poll failure");
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("events"))
+      .toEqual([expect.objectContaining({ title: "Stable polling booking" })]);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flushPromises();
+    expect(callFlow).toHaveBeenCalledTimes(3);
+
+    wrapper.unmount();
+  });
+
+  it("pauses polling while hidden and refreshes immediately when visible again", async () => {
+    setDocumentVisibilityState("visible");
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    setDocumentVisibilityState("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(callFlow).toHaveBeenCalledTimes(1);
+
+    setDocumentVisibilityState("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+    expect(callFlow).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(callFlow).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+    expect(callFlow).toHaveBeenCalledTimes(3);
+
+    wrapper.unmount();
+  });
+
+  it("does not start a poll while another dashboard-context request is active", async () => {
+    setDocumentVisibilityState("visible");
+    const manualRefresh = createDeferred();
+    callFlow
+      .mockResolvedValueOnce(calendarContextResponse("Initial polling snapshot"))
+      .mockImplementationOnce(() => manualRefresh.promise)
+      .mockResolvedValueOnce(calendarContextResponse("Later polling snapshot"));
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    await wrapper.setProps({ refreshSignal: "manual-refresh-in-flight" });
+    await flushPromises();
+    expect(callFlow).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(callFlow).toHaveBeenCalledTimes(2);
+
+    manualRefresh.resolve(calendarContextResponse("Manual polling snapshot"));
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(callFlow).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await flushPromises();
+    expect(callFlow).toHaveBeenCalledTimes(3);
+
+    wrapper.unmount();
   });
 
   it("forwards the embedded host viewport width to MainCalendar", async () => {
@@ -2783,6 +2966,7 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("refreshes the shared join clock immediately on visibility and focus recovery", async () => {
+    setDocumentVisibilityState("visible");
     vi.setSystemTime(new Date("2026-03-23T09:54:10"));
     const joinWindowStart = new Date("2026-03-23T09:55:00").getTime();
     getCalendarEventJoinState.mockImplementation((_event, { now }) => ({
@@ -2811,6 +2995,8 @@ describe("DashboardEventsFeature", () => {
 
     expect(mainCalendar.props("joinComparisonTime").getTime())
       .toBe(new Date("2026-03-23T09:55:20").getTime());
+
+    wrapper.unmount();
   });
 
   it("shows an interactive schedule-title hover card in every main calendar view", async () => {
