@@ -140,13 +140,16 @@
               data-test="events-widget-time"
             >{{ event.time }}</span>
 
-            <div class="flex gap-1.5 items-start flex-1 flex-col">
+            <div
+                class="flex gap-1.5 items-start flex-1"
+                :class="shouldShowJoinButton(event) ? 'flex-row' : 'flex-col'"
+              >
               <span class="flex flex-1 min-w-0" >
                 
                 <template v-if="shouldShowSingleProfile(event)">
                   <span
                     v-if="isProfileLoading(event)"
-                    class="inline-flex items-center gap-1"
+                    class="inline-flex items-center gap-1 "
                     data-test="event-profile-skeleton"
                   >
                     <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
@@ -221,13 +224,13 @@
                     <IndicatorDot color="#FF4405" size="7" class="absolute left-[-2px] top-[-2px]" />
                     <img :src="fileSearchIcon" alt="" aria-hidden="true" />
                   </span>
-                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#FF4405]">
+                  <span class="text-xs font-semibold uppercase leading-[1.125rem] text-[#FF4405] whitespace-nowrap">
                     {{ t("calendar_event_review") }}
                   </span>
                 </button>
               </div>
 
-              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end w-[5.4375rem] self-stretch gap-1">
+              <div v-else-if="shouldShowJoinButton(event)" class="flex flex-col items-end justify-end self-stretch gap-1">
               <span class="flex items-center gap-[0.25rem]">
                 <div
                   data-test="join-status-dot"
@@ -242,7 +245,7 @@
                 >{{ event.statusText }}</p>
               </span>
 
-              <span v-if="joinButtonEnabled(event)" class="relative inline-flex w-full">
+              <span v-if="joinButtonEnabled(event)" class="relative inline-flex">
                 <button
                   data-test="events-widget-join-call"
                   class="blink-border-effect flex h-[1.5rem] w-full items-center justify-between gap-[0.25rem] rounded-[0.25rem] bg-[#07F468] px-2 py-[3px] outline-none transition-colors"
