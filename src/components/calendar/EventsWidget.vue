@@ -146,7 +146,7 @@
                 <template v-if="shouldShowSingleProfile(event)">
                   <span
                     v-if="isProfileLoading(event)"
-                    class="inline-flex items-center gap-1"
+                    class="inline-flex items-center gap-1 "
                     data-test="event-profile-skeleton"
                   >
                     <span class="z-[30] w-5 h-5 rounded-full shrink-0 bg-[#E6E6E6] animate-skeleton-loading"></span>
