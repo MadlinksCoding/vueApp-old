@@ -2489,7 +2489,7 @@
             <div class=""><span class="text-slate-700 text-xs font-normal leading-none">{{ t("booking_event_image") }} </span></div>
             <div class="w-full">
               <!-- Uploaded image preview with delete button -->
-              <div v-if="formData.eventImageUrl" class="relative mb-2">
+              <div v-if="formData.eventImageUrl" class="relative mb-2"> 
                 <img
                   :src="formData.eventImageUrl"
                   :alt="t('booking_event_image_preview_alt')"
