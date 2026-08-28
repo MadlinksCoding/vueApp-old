@@ -992,8 +992,12 @@ function refreshCurrentTime() {
 }
 
 function handleCurrentTimeVisibilityChange() {
-  if (document.visibilityState === "hidden") return;
+  if (document.visibilityState === "hidden") {
+    clearDashboardPollTimer();
+    return;
+  }
   refreshCurrentTime();
+  void runDashboardPoll();
 }
 const calendarTooltip = reactive({
   visible: false,
@@ -2150,10 +2154,50 @@ const rebuildAvailabilityForFocusDate = () => {
 
 let dashboardFetchGeneration = 0;
 let lastLoadedCalendarRangeKey = null;
+let dashboardContextRequestsInFlight = 0;
+let dashboardPollTimer = null;
+const DASHBOARD_BOOKING_POLL_INTERVAL_MS = 10_000;
+
+const clearDashboardPollTimer = () => {
+  if (dashboardPollTimer == null) return;
+  window.clearTimeout(dashboardPollTimer);
+  dashboardPollTimer = null;
+};
+
+const scheduleDashboardPoll = () => {
+  clearDashboardPollTimer();
+  if (!isMounted.value || !hasDashboardContext.value) return;
+  if (document.visibilityState === "hidden") return;
+
+  dashboardPollTimer = window.setTimeout(() => {
+    dashboardPollTimer = null;
+    void runDashboardPoll();
+  }, DASHBOARD_BOOKING_POLL_INTERVAL_MS);
+};
+
+const runDashboardPoll = async () => {
+  clearDashboardPollTimer();
+  if (!isMounted.value || !hasDashboardContext.value) return;
+  if (document.visibilityState === "hidden") return;
+
+  if (dashboardContextRequestsInFlight > 0) {
+    scheduleDashboardPoll();
+    return;
+  }
+
+  try {
+    await fetchDashboardContext(true, { backgroundRefresh: true });
+  } catch {
+    // Poll failures are intentionally silent; the last successful snapshot
+    // remains visible and the next scheduled poll will retry.
+  } finally {
+    scheduleDashboardPoll();
+  }
+};
 
 const fetchDashboardContext = async (
   forceRefresh = false,
-  { refreshWidgets = true, scrollToCurrentTime = false } = {},
+  { refreshWidgets = true, scrollToCurrentTime = false, backgroundRefresh = false } = {},
 ) => {
   const creatorId = normalizedCreatorId.value;
   const fanId = normalizedFanId.value;
@@ -2191,45 +2235,55 @@ const fetchDashboardContext = async (
 
   dashboardEventsEngine.setState("creatorId", creatorId, { reason: "events-fetch", silent: true });
   dashboardEventsEngine.setState("fanId", fanId, { reason: "events-fetch", silent: true });
-  dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
-  dashboardEventsEngine.setState("events.loading", true, { reason: "events-fetch", silent: true });
+  if (!backgroundRefresh) {
+    dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
+    dashboardEventsEngine.setState("events.loading", true, { reason: "events-fetch", silent: true });
+  }
 
-  const result = await dashboardEventsEngine.callFlow(
-    "bookings.fetchDashboardBookingContext",
-    {
-      creatorId: isCreator.value ? creatorId : null,
-      fanId: isFan.value ? fanId : null,
-      userRole: dashboardRole.value,
-      status: "active",
-      fromIso: visibleRange.fromIso,
-      toIso: visibleRange.toIso,
-      slotLimit: 1000,
-      statusIn: MAIN_CALENDAR_BOOKING_STATUSES.join(","),
-      ...(widgetRange
-        ? {
-            widgetFromIso: widgetRange.fromIso,
-            widgetToIso: widgetRange.toIso,
-            widgetStatusIn: WIDGET_BOOKING_STATUSES.join(","),
-          }
-        : {}),
-    },
-    {
-      forceRefresh,
-      context: {
-        stateEngine: dashboardEventsEngine,
-        creatorId,
-        apiBaseUrl: props.apiBaseUrl || undefined,
+  let result;
+  dashboardContextRequestsInFlight += 1;
+  try {
+    result = await dashboardEventsEngine.callFlow(
+      "bookings.fetchDashboardBookingContext",
+      {
+        creatorId: isCreator.value ? creatorId : null,
+        fanId: isFan.value ? fanId : null,
+        userRole: dashboardRole.value,
+        status: "active",
+        fromIso: visibleRange.fromIso,
+        toIso: visibleRange.toIso,
+        slotLimit: 1000,
+        statusIn: MAIN_CALENDAR_BOOKING_STATUSES.join(","),
+        ...(widgetRange
+          ? {
+              widgetFromIso: widgetRange.fromIso,
+              widgetToIso: widgetRange.toIso,
+              widgetStatusIn: WIDGET_BOOKING_STATUSES.join(","),
+            }
+          : {}),
       },
-    },
-  );
+      {
+        forceRefresh,
+        context: {
+          stateEngine: dashboardEventsEngine,
+          creatorId,
+          apiBaseUrl: props.apiBaseUrl || undefined,
+        },
+      },
+    );
+  } finally {
+    dashboardContextRequestsInFlight = Math.max(0, dashboardContextRequestsInFlight - 1);
+  }
 
   if (fetchGeneration !== dashboardFetchGeneration) return;
 
   if (!result?.ok) {
-    const message = result?.meta?.uiErrors?.[0]
-      || result?.error?.message
-      || t("dashboard_load_failed_message");
-    dashboardEventsEngine.setState("events.error", message, { reason: "events-fetch" });
+    if (!backgroundRefresh) {
+      const message = result?.meta?.uiErrors?.[0]
+        || result?.error?.message
+        || t("dashboard_load_failed_message");
+      dashboardEventsEngine.setState("events.error", message, { reason: "events-fetch" });
+    }
   } else {
     const catalogEvents = Array.isArray(result?.data?.events) ? result.data.events : [];
     const rawEvents = Array.isArray(result?.data?.rawEvents) ? result.data.rawEvents : [];
@@ -2297,7 +2351,9 @@ const fetchDashboardContext = async (
     dashboardEventsEngine.setState("events.error", null, { reason: "events-fetch", silent: true });
   }
 
-  dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
+  if (!backgroundRefresh) {
+    dashboardEventsEngine.setState("events.loading", false, { reason: "events-fetch", silent: true });
+  }
   const shouldRevealInitialWeek = (
     !initialWeekDateRevealed.value
     && state.view === "week"
@@ -3754,7 +3810,8 @@ onMounted(() => {
   });
 
   if (hasDashboardContext.value) {
-    loadInitialDashboardContext({ scrollToCurrentTime: true });
+    void loadInitialDashboardContext({ scrollToCurrentTime: true })
+      .finally(scheduleDashboardPoll);
   } else {
     initialDashboardLoadComplete.value = true;
     resetEventsState();
@@ -3780,21 +3837,25 @@ watch([normalizedCreatorId, normalizedFanId, dashboardRole], ([nextCreatorId, ne
 
   if (nextRole === "fan") {
     if (nextFanId == null) {
+      clearDashboardPollTimer();
       resetEventsState();
       return;
     }
     if (nextFanId !== previousFanId || nextRole !== previousRole) {
       fetchDashboardContext(true);
+      scheduleDashboardPoll();
     }
     return;
   }
 
   if (nextCreatorId == null) {
+    clearDashboardPollTimer();
     resetEventsState();
     return;
   }
   if (nextCreatorId !== previousCreatorId || nextRole !== previousRole) {
     fetchDashboardContext(true);
+    scheduleDashboardPoll();
   }
 });
 
@@ -3849,6 +3910,7 @@ onUnmounted(() => {
   if (removeTopupListener) removeTopupListener();
   hideScheduleTitleTooltip();
   clearCurrentTimeTimer();
+  clearDashboardPollTimer();
   window.removeEventListener("resize", handlePositionUpdate);
   window.removeEventListener("scroll", handlePositionUpdate, true);
   window.removeEventListener("focus", refreshCurrentTime);
