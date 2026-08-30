@@ -277,6 +277,43 @@ describe("fs-events-host openFanBookingPopup", () => {
     popup.destroy();
   });
 
+  it("transitions a retained direct creator cancellation into the existing details panel", () => {
+    const onBookingUpdated = vi.fn();
+    const popup = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking_creator_cancel",
+      creatorId: 1407,
+      userRole: "creator",
+      initialAction: "cancel",
+      onBookingUpdated,
+    });
+    const panel = popup.overlay.querySelector(".fs-booking-details-popup__panel");
+    const payload = {
+      bookingId: "booking_creator_cancel",
+      action: "cancel",
+      retainOpen: true,
+      item: { bookingId: "booking_creator_cancel", status: "cancelled_creator" },
+    };
+
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-open")).toBe(true);
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-direct")).toBe(true);
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: popup.iframe.contentWindow,
+      data: { type: "FS_EVENTS_BOOKING_DETAILS_UPDATED", payload },
+      origin: window.location.origin,
+    }));
+
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-open")).toBe(false);
+    expect(panel.classList.contains("fs-booking-details-popup__panel--decision-direct")).toBe(false);
+    expect(panel.classList.contains("fs-booking-details-popup__panel--closing")).toBe(false);
+    expect(document.body.contains(popup.overlay)).toBe(true);
+    expect(document.querySelectorAll("[data-fs-booking-details-popup]")).toHaveLength(1);
+    expect(onBookingUpdated).toHaveBeenCalledTimes(1);
+    expect(onBookingUpdated).toHaveBeenCalledWith(payload);
+
+    popup.destroy();
+  });
+
   it("opens token top-up only for messages from the active booking-details iframe", async () => {
     window.openTipPopup = vi.fn();
     const popup = window.FSEventsEmbed.openBookingDetailsPopup({
