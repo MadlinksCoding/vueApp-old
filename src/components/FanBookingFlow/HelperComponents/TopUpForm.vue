@@ -481,7 +481,7 @@ onBeforeUnmount(() => {
                       -{{ discountPercentage }}%
                     </div>
                   </div>
-                  <div class="text-right justify-end text-white text-sm font-medium font-['Poppins'] leading-5">
+                  <div data-testid="top-up-usd-display" class="text-right justify-end text-white text-sm font-medium font-['Poppins'] leading-5">
                     ≈ USD$ {{ topUpUSD }}
                   </div>
                 </div>
@@ -712,16 +712,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
-                    <p class="text-lg font-semibold text-white">{{ remainingBalance.toLocaleString() }}</p>
-                  </div>
-                </div>
-                <div class="flex flex-row justify-between items-center text-white">
-                  <div class="flex items-center">
-                    <p class="text-sm font-semibold text-white">{{ t("fan_booking_top_up_payment") }}</p>
-                  </div>
-                  <div class="flex justify-center items-center gap-1">
-                    <div class="w-4 h-4 flex justify-center items-center"></div>
-                    <p class="text-lg font-semibold text-white">USD$ {{ topUpUSD }}</p>
+                    <p data-testid="top-up-balance-after-booking" class="text-lg font-semibold text-white">{{ balanceAfterBooking.toLocaleString() }}</p>
                   </div>
                 </div>
                 <!-- Mandatory purchase -->
@@ -823,4 +814,3 @@ onBeforeUnmount(() => {
     </div>
   </Teleport>
 </template>
-

@@ -5,6 +5,7 @@ import BookingFlowStep4 from "@/components/FanBookingFlow/OneOnOneBookingFlow/Bo
 
 const bridgeMocks = vi.hoisted(() => ({
   requestFanBookingOpenChat: vi.fn(),
+  requestFanBookingOpenDetails: vi.fn(),
 }));
 
 vi.mock("@/embeds/fanBooking/bridge.js", () => bridgeMocks);
@@ -27,6 +28,7 @@ function createState({ approvalStatus = "auto", event = {}, bookingDetails = {},
     fanBooking: {
       context: {
         creatorId: 1407,
+        fanId: 25,
         creatorPresentation: {
           avatar: "/creator.webp",
           name: "Dynamic Creator",
@@ -112,8 +114,8 @@ describe("BookingFlowStep4", () => {
       event: { allowInstantBooking: true },
     });
     const translations = {
-      fan_booking_request_sent_to_creator: "Solicitud enviada a {creator}",
-      fan_booking_pending_message: "Esperando aprobación",
+      fan_booking_step4_pending_title: "Solicitud enviada",
+      fan_booking_step4_pending_message: "Esperando aprobación",
       fan_booking_approval_required: "REQUIERE APROBACIÓN",
       fan_booking_booking_policy: "POLÍTICA",
       fan_booking_policy_hold_fee: "Retención traducida",
@@ -123,10 +125,11 @@ describe("BookingFlowStep4", () => {
     };
     const { wrapper } = mountStep4(state, { locale: "es", translations });
 
-    expect(wrapper.get("[data-testid='step4-status-title']").text()).toBe("Solicitud enviada a Dynamic Creator");
+    expect(wrapper.get("[data-testid='step4-status-title']").text()).toBe("Solicitud enviada");
     expect(wrapper.get("[data-testid='step4-status-message']").text()).toBe("Esperando aprobación");
-    expect(wrapper.get("[data-testid='step4-approval-desktop']").text()).toBe("REQUIERE APROBACIÓN");
-    expect(wrapper.find("[data-testid='step4-calendar-action-desktop']").exists()).toBe(false);
+    expect(wrapper.get("[data-testid='step4-approval-mobile']").text()).toBe("REQUIERE APROBACIÓN");
+    expect(wrapper.find("[data-testid='step4-calendar-action-desktop']").exists()).toBe(true);
+    expect(wrapper.find("[data-testid='step4-calendar-action-mobile']").exists()).toBe(true);
     expect(wrapper.get("[data-testid='step4-policy']").text()).toContain("POLÍTICA");
     expect(wrapper.findAll("[data-testid='step4-policy-item']").map((item) => item.text())).toEqual([
       "Retención traducida",
@@ -193,7 +196,7 @@ describe("BookingFlowStep4", () => {
     expect(wrapper.find("[data-testid='step4-message-action-desktop']").exists()).toBe(false);
   });
 
-  it("runs available actions and redirects incomplete booking state", async () => {
+  it("runs available actions and returns incomplete booking state to payment", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const state = createState();
     const { wrapper } = mountStep4(state, {
@@ -204,7 +207,8 @@ describe("BookingFlowStep4", () => {
     expect(bridgeMocks.requestFanBookingOpenChat).toHaveBeenCalledWith({ chatId: "chat_123", userId: "1407" });
     expect(wrapper.emitted("close-popup")).toHaveLength(1);
     await wrapper.get("[data-testid='step4-calendar-action-desktop']").trigger("click");
-    expect(openSpy).toHaveBeenCalledWith("/dashboard/events", "_top");
+    expect(bridgeMocks.requestFanBookingOpenDetails).toHaveBeenCalledWith({ bookingId: "booking_123" });
+    expect(openSpy).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("Translated calendar");
     await wrapper.get("[data-test='booking-flow-step4-close-button']").trigger("click");
     expect(wrapper.emitted("close-popup")).toHaveLength(2);
@@ -214,5 +218,37 @@ describe("BookingFlowStep4", () => {
     const { engine: incompleteEngine } = mountStep4(incompleteState);
     expect(incompleteEngine.goToStep).toHaveBeenCalledWith(3);
     openSpy.mockRestore();
+  });
+
+  it("resolves booking detail IDs from result and engine-level fallbacks", async () => {
+    const resultState = createState();
+    delete resultState.fanBooking.booking.bookingId;
+    delete resultState.fanBooking.booking.result.item.bookingId;
+    resultState.fanBooking.booking.result.bookingId = "booking_from_result";
+    const { wrapper: resultWrapper } = mountStep4(resultState);
+
+    await resultWrapper.get("[data-testid='step4-calendar-action-desktop']").trigger("click");
+    expect(bridgeMocks.requestFanBookingOpenDetails).toHaveBeenLastCalledWith({
+      bookingId: "booking_from_result",
+    });
+
+    const engineState = createState();
+    delete engineState.fanBooking.booking.result.item.bookingId;
+    engineState.fanBooking.booking.bookingId = "booking_from_engine";
+    const { wrapper: engineWrapper } = mountStep4(engineState);
+
+    await engineWrapper.get("[data-testid='step4-calendar-action-desktop']").trigger("click");
+    expect(bridgeMocks.requestFanBookingOpenDetails).toHaveBeenLastCalledWith({
+      bookingId: "booking_from_engine",
+    });
+  });
+
+  it("hides booking detail actions for guest bookings", () => {
+    const state = createState();
+    state.fanBooking.context.fanId = 0;
+    const { wrapper } = mountStep4(state);
+
+    expect(wrapper.find("[data-testid='step4-calendar-action-desktop']").exists()).toBe(false);
+    expect(wrapper.find("[data-testid='step4-calendar-action-mobile']").exists()).toBe(false);
   });
 });

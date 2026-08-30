@@ -11,7 +11,10 @@ import {
 import { resolveCreatorPresentation } from './creatorPresentation.js';
 import { useEventBackgroundImage } from './useEventBackgroundImage.js';
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js';
-import { requestFanBookingOpenChat } from '@/embeds/fanBooking/bridge.js';
+import {
+  requestFanBookingOpenChat,
+  requestFanBookingOpenDetails,
+} from '@/embeds/fanBooking/bridge.js';
 
 const props = defineProps({
   engine: {
@@ -92,6 +95,19 @@ const eventTitle = computed(() => (
 
 const creatorLabel = computed(() => normalizeText(creatorPresentation.value.name) || t('common_creator'));
 
+const bookingId = computed(() => {
+  const value = props.engine.getState('fanBooking.booking.bookingId')
+    || bookingResult.value?.bookingId
+    || bookingItem.value?.bookingId;
+  return value === null || value === undefined ? '' : String(value).trim();
+});
+const fanId = computed(() => Number(props.engine.getState('fanBooking.context.fanId')));
+const canViewBookingDetails = computed(() => (
+  Boolean(bookingId.value)
+  && Number.isFinite(fanId.value)
+  && fanId.value > 0
+));
+
 const creatorChatId = computed(() =>
   props.engine.getState('fanBooking.booking.chatId')
   || bookingItem.value?.meta?.chatId
@@ -106,7 +122,8 @@ const creatorUserId = computed(() =>
 const canMessageCreator = computed(() => Boolean(creatorChatId.value || creatorUserId.value));
 
 function handleViewCalendar() {
-  window.open('/dashboard/events', '_top')
+  if (!canViewBookingDetails.value) return;
+  requestFanBookingOpenDetails({ bookingId: bookingId.value });
 }
 
 function handleMessageCreator() {
@@ -288,7 +305,7 @@ onMounted(() => {
                   <div class="text-center justify-start text-[#07F468] text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
                 </div>
                 <div
-                  v-if="isInstantConfirmed"
+                  v-if="canViewBookingDetails"
                   class="self-stretch h-10 min-w-24 px-4 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2 cursor-pointer rounded-sm mb-6"
                   data-testid="step4-calendar-action-desktop"
                   @click="handleViewCalendar"
@@ -476,7 +493,7 @@ onMounted(() => {
                   <div class="text-center justify-start text-[#07F468] text-base font-medium leading-6">{{ t("fan_booking_message_creator", { creator: creatorLabel }) }}</div>
                 </div>
                 <div
-                  v-if="isInstantConfirmed"
+                  v-if="canViewBookingDetails"
                   class="self-stretch h-10 min-w-24 px-4 py-2 bg-[#07F468] inline-flex justify-center items-center gap-2 cursor-pointer rounded-sm mb-6"
                   data-testid="step4-calendar-action-mobile"
                   @click="handleViewCalendar"
