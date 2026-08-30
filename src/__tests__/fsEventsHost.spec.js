@@ -277,7 +277,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     popup.destroy();
   });
 
-  it("opens token top-up only for messages from the active booking-details iframe", () => {
+  it("opens token top-up only for messages from the active booking-details iframe", async () => {
     window.openTipPopup = vi.fn();
     const popup = window.FSEventsEmbed.openBookingDetailsPopup({
       bookingId: "booking_123",
@@ -302,7 +302,7 @@ describe("fs-events-host openFanBookingPopup", () => {
       topupFor: "booking_confirm",
     }));
 
-    window.openTipPopup.mock.calls[0][0].successCallback();
+    await window.openTipPopup.mock.calls[0][0].successCallback();
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
       payload: { bookingId: "booking_123" },
@@ -311,7 +311,7 @@ describe("fs-events-host openFanBookingPopup", () => {
     popup.destroy();
   });
 
-  it("opens token top-up for the dashboard embed as well as the details popup", () => {
+  it("opens token top-up for the dashboard embed as well as the details popup", async () => {
     window.openTipPopup = vi.fn();
     const embed = window.FSEventsEmbed.mount(document.body, {
       creatorId: 1407,
@@ -336,7 +336,7 @@ describe("fs-events-host openFanBookingPopup", () => {
       topupFor: "booking_confirm",
     }));
 
-    window.openTipPopup.mock.calls[0][0].successCallback();
+    await window.openTipPopup.mock.calls[0][0].successCallback();
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
       payload: expect.objectContaining({ bookingId: "booking_9" }),
@@ -1177,7 +1177,11 @@ describe("fs-events-host openFanBookingPopup", () => {
   it("queues a balance refresh when a fan booking-details top-up succeeds", async () => {
     const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
     window.tokenManager = { updateBalanceUIs };
-    window.openTipPopup = vi.fn((options) => options.successCallback());
+    let successPromise;
+    window.openTipPopup = vi.fn((options) => {
+      successPromise = options.successCallback();
+      return successPromise;
+    });
     const details = window.FSEventsEmbed.openBookingDetailsPopup({
       bookingId: "booking-topup",
       fanId: 25,
@@ -1192,14 +1196,53 @@ describe("fs-events-host openFanBookingPopup", () => {
         payload: { bookingId: "booking-topup", requiredTokens: 3, currentUserId: 25, creatorUserId: 1407 },
       },
     }));
-    await Promise.resolve();
-    await Promise.resolve();
+    await successPromise;
 
     expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
     expect(postMessage).toHaveBeenCalledWith({
       type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
       payload: { bookingId: "booking-topup" },
     }, window.location.origin);
+  });
+
+  it("does not notify booking details of top-up success until the WordPress refresh settles", async () => {
+    let resolveRefresh;
+    let successPromise;
+    const updateBalanceUIs = vi.fn(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+    window.tokenManager = { updateBalanceUIs };
+    window.openTipPopup = vi.fn((options) => {
+      successPromise = options.successCallback();
+      return successPromise;
+    });
+    const details = window.FSEventsEmbed.openBookingDetailsPopup({
+      bookingId: "booking-deferred-topup",
+      fanId: 25,
+      userRole: "fan",
+    });
+    const postMessage = vi.spyOn(details.iframe.contentWindow, "postMessage");
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: details.iframe.contentWindow,
+      data: {
+        type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_REQUIRED",
+        payload: { bookingId: "booking-deferred-topup", requiredTokens: 100, currentUserId: 25, creatorUserId: 1407 },
+      },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
+    }), expect.anything());
+
+    resolveRefresh();
+    await successPromise;
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "FS_EVENTS_BOOKING_DETAILS_TOPUP_SUCCESS",
+      payload: { bookingId: "booking-deferred-topup" },
+    }, window.location.origin);
+    details.destroy();
   });
 
   it("opens scheduled meeting URLs through the shared WordPress overlay", () => {

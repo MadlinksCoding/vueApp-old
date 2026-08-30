@@ -97,14 +97,29 @@ describe("fan top-up from the details panel", () => {
   });
 
   it("closes the panel once the confirmation lands", () => {
+    const resumeBlock = chatWindow.slice(
+      chatWindow.indexOf("async function resumePendingChatTopup()"),
+      chatWindow.indexOf("function _onTopupMessage(e)"),
+    );
+    expect(resumeBlock).toContain("resumePriceAdjustmentAfterTopup");
+    expect(resumeBlock).toContain("minimumBalanceTokens: _pendingTopupMinimumBalance.value");
+    expect(resumeBlock).toContain("applyAdjustment: () => _doConfirmCounter");
+    expect(resumeBlock).toContain("if (detailsWereOpen) showBookingPopup.value = false");
+    // The coordinator gates this callback on balance readiness before it writes.
+    expect(resumeBlock.indexOf("resumePriceAdjustmentAfterTopup"))
+      .toBeLessThan(resumeBlock.indexOf("showBookingPopup.value = false"));
+  });
+
+  it("rechecks a completed top-up instead of opening checkout again", () => {
+    expect(chatWindow).toContain('@retry-after-topup="resumePendingChatTopup"');
+    expect(chatWindow).toContain("bookingDecision.markTopupCompleted(true)");
+    expect(chatWindow).toContain("booking_adjustment_topup_sync_timeout");
     const successBlock = chatWindow.slice(
       chatWindow.indexOf("if (e.data.type === 'FS_CHAT_TOPUP_SUCCESS')"),
       chatWindow.indexOf("} else if (e.data.type === 'FS_CHAT_TOPUP_FAILED')"),
     );
-    expect(successBlock).toContain("if (detailsWereOpen) showBookingPopup.value = false");
-    // After the confirmation, not before it.
-    expect(successBlock.indexOf("_doConfirmCounter"))
-      .toBeLessThan(successBlock.indexOf("showBookingPopup.value = false"));
+    expect(successBlock).toContain("resumePendingChatTopup");
+    expect(successBlock).not.toContain("_doConfirmCounter");
   });
 
   it("leaves the panel alone when the top-up fails", () => {

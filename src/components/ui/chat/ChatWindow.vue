@@ -53,6 +53,7 @@ import { getSpendingRequirementMediaBadge } from '@/utils/spendingRequirementMed
 import { useBookingTranslations } from '@/i18n/bookingTranslations.js'
 import { useBookingActions } from '@/composables/useBookingActions.js'
 import { useBookingAdjustmentDecision } from '@/composables/useBookingAdjustmentDecision.js'
+import { resumePriceAdjustmentAfterTopup } from '@/utils/bookingTopupResume.js'
 import { toCalendarEvent } from '@/services/bookings/utils/bookingCalendarEvent.js'
 import { isPendingCounterOffer } from '@/services/bookings/utils/bookingNegotiationUtils.js'
 import { getCalendarEventApprovalState } from '@/utils/bookingJoinUtils.js'
@@ -374,6 +375,8 @@ const formatTime = (ts) => {
 // ── Topup flow state (iframe → parent communication) ─────────────────────────
 const _pendingTopupBookingId = ref(null)
 const _pendingTopupMessage   = ref(null)
+const _pendingTopupMinimumBalance = ref(0)
+let _topupResumeController = null
 // Whether the details panel was up when the top-up started, so it can be closed on
 // the confirmation rather than before the fan has paid.
 const _pendingTopupDetailsOpen = ref(false)
@@ -1006,24 +1009,25 @@ async function onRejectCounter(input) {
   }
 }
 
-async function _doConfirmCounter(bookingId, message) {
+async function _doConfirmCounter(bookingId, message, { reportFailure = true } = {}) {
   bookingActionLoading.value = true
 
   try {
     // Read proposed values from booking meta (stored by AdjustBookingPopup via updateMeta)
     const cachedBooking = chatStore.getBookingById(bookingId)
     const adjustMeta    = cachedBooking?.meta?.adjust || {}
-    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
+    const outcome = await bookingActions.applyPriceAdjustment({
       bookingId,
       proposedStartAtIso: adjustMeta.proposedSlotDate,
       proposedTokens:     adjustMeta.proposedTokens,
       remarks:            adjustMeta.proposedRemarks,
       negotiationId:      cachedBooking?.meta?.negotiation?.negotiationId || null,
     })
+    const { ok, item, error } = outcome
 
     if (!ok) {
-      showToast({ type: 'error', title: 'Failed', message: error || 'Could not confirm booking.' })
-      return
+      if (reportFailure) showToast({ type: 'error', title: 'Failed', message: error || 'Could not confirm booking.' })
+      return outcome
     }
 
     refreshFanTokenBalance('accept_adjustment', bookingId)
@@ -1048,6 +1052,11 @@ async function _doConfirmCounter(bookingId, message) {
       decision:           'counter_offer_accepted',
       bookingId,
     })
+    return outcome
+  } catch (error) {
+    const outcome = { ok: false, error: error?.message || 'Could not confirm booking.' }
+    if (reportFailure) showToast({ type: 'error', title: 'Failed', message: outcome.error })
+    return outcome
   } finally {
     bookingActionLoading.value = false
   }
@@ -1084,6 +1093,11 @@ async function onConfirmCounter(input) {
   closeBookingDecision({ force: true })
   _pendingTopupBookingId.value = bookingId
   _pendingTopupMessage.value   = message
+  _pendingTopupMinimumBalance.value = Math.max(
+    0,
+    Number(input.requiredBalanceTokens)
+      || (Number(input.proposedTokens || 0) - Number(input.originalTokens || 0)),
+  )
   _pendingTopupDetailsOpen.value = showBookingPopup.value
 
   postToParent('FS_CHAT_TOPUP_REQUIRED', {
@@ -1288,6 +1302,13 @@ function openBookingDecision(mode, payload) {
 
 function closeBookingDecision({ force = false } = {}) {
   if (!force) pendingDirectCreatorDetails.value = null
+  if (!force && _pendingTopupBookingId.value) {
+    if (_topupResumeController) _topupResumeController.abort()
+    _pendingTopupBookingId.value = null
+    _pendingTopupMessage.value = null
+    _pendingTopupMinimumBalance.value = 0
+    _pendingTopupDetailsOpen.value = false
+  }
   bookingDecision.reset({ force })
 }
 
@@ -3108,20 +3129,57 @@ watch(pinnedBookingMessages, (msgs) => {
   })
 }, { immediate: true })
 
+async function resumePendingChatTopup() {
+  const bookingId = _pendingTopupBookingId.value
+  const message = _pendingTopupMessage.value
+  const detailsWereOpen = _pendingTopupDetailsOpen.value
+  if (!bookingId || _topupResumeController) return
+
+  const controller = new AbortController()
+  _topupResumeController = controller
+  try {
+    const resumed = await resumePriceAdjustmentAfterTopup({
+      decisionState: bookingDecision,
+      minimumBalanceTokens: _pendingTopupMinimumBalance.value,
+      applyAdjustment: () => _doConfirmCounter(bookingId, message, { reportFailure: false }),
+      signal: controller.signal,
+    })
+    if (controller.signal.aborted) return
+    if (resumed.ok) {
+      _pendingTopupBookingId.value = null
+      _pendingTopupMessage.value = null
+      _pendingTopupMinimumBalance.value = 0
+      _pendingTopupDetailsOpen.value = false
+      closeBookingDecision({ force: true })
+      if (detailsWereOpen) showBookingPopup.value = false
+      return
+    }
+    if (resumed.stage === 'balance') {
+      const fallback = adjustmentFromBooking(bookingId)
+      bookingDecision.open('accept', fallback)
+      bookingDecision.markTopupCompleted(true)
+      if (resumed.readiness?.reason === 'unavailable') {
+        bookingDecision.reportBalanceError(t('booking_adjustment_balance_unavailable'))
+      } else {
+        bookingDecision.reportError(t('booking_adjustment_topup_sync_timeout'))
+      }
+      return
+    }
+    const messageText = resumed.outcome?.error || 'Could not confirm booking.'
+    showToast({ type: 'error', title: 'Failed', message: messageText })
+    _pendingTopupBookingId.value = null
+    _pendingTopupMessage.value = null
+    _pendingTopupMinimumBalance.value = 0
+    _pendingTopupDetailsOpen.value = false
+  } finally {
+    if (_topupResumeController === controller) _topupResumeController = null
+  }
+}
+
 function _onTopupMessage(e) {
   if (!e.data || typeof e.data !== 'object') return
   if (e.data.type === 'FS_CHAT_TOPUP_SUCCESS') {
-    const bookingId = _pendingTopupBookingId.value
-    const message   = _pendingTopupMessage.value
-    const detailsWereOpen = _pendingTopupDetailsOpen.value
-    _pendingTopupBookingId.value = null
-    _pendingTopupMessage.value   = null
-    _pendingTopupDetailsOpen.value = false
-    if (bookingId) {
-      _doConfirmCounter(bookingId, message).finally(() => {
-        if (detailsWereOpen) showBookingPopup.value = false
-      })
-    }
+    void resumePendingChatTopup()
   } else if (e.data.type === 'FS_CHAT_TOPUP_FAILED') {
     // _pendingTopupBookingId.value = null
     // _pendingTopupMessage.value   = null
@@ -3223,6 +3281,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (_topupResumeController) _topupResumeController.abort()
   window.removeEventListener('message', _onTopupMessage)
   _observer?.disconnect()
   _observer = null
@@ -3785,6 +3844,7 @@ onUnmounted(() => {
     @update:model-value="$event || closeBookingDecision()"
     @confirm="confirmBookingDecision"
     @retry-balance="bookingDecision.loadBalance"
+    @retry-after-topup="resumePendingChatTopup"
     @close="closeBookingDecision()"
     @closed="handleBookingDecisionClosed"
   />

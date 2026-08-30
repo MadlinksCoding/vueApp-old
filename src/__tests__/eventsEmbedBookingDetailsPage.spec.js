@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   requestBalanceRefresh: vi.fn(),
   topupHandler: null,
   tokenGet: vi.fn(),
+  tokenWaitForBalance: vi.fn(),
   profileFetch: vi.fn(),
   bootstrap: {
     bookingId: "booking_123",
@@ -45,7 +46,7 @@ vi.mock("@/embeds/events/bridge.js", () => ({
 }));
 
 vi.mock("@/utils/TokenHandler.js", () => ({
-  default: { get: mocks.tokenGet },
+  default: { get: mocks.tokenGet, waitForBalance: mocks.tokenWaitForBalance },
 }));
 
 vi.mock("@/services/users/userProfileApi.js", () => ({
@@ -77,8 +78,8 @@ const AdjustBookingStub = {
 
 const AdjustmentDecisionStub = {
   name: "BookingAdjustmentDecisionPopup",
-  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "bookingFeeRefundable", "cancellationFeeRefundable", "creatorUsername", "creatorName", "eventTitle", "actorRole", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "processing"],
-  emits: ["update:modelValue", "confirm", "retry-balance", "close"],
+  props: ["modelValue", "mode", "originalTokens", "proposedTokens", "walletBalance", "sessionRefundTokens", "bookingFeeTokens", "cancellationFeeTokens", "bookingFeeRefundable", "cancellationFeeRefundable", "creatorUsername", "creatorName", "eventTitle", "actorRole", "fanUsername", "netRefundTokens", "balanceLoading", "balanceError", "actionError", "topupCompleted", "processing"],
+  emits: ["update:modelValue", "confirm", "retry-balance", "retry-after-topup", "close"],
   template: "<div v-if='modelValue' data-test='adjustment-decision-stub' />",
 };
 
@@ -100,6 +101,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     mocks.requestBalanceRefresh.mockReset();
     mocks.tokenGet.mockReset();
     mocks.tokenGet.mockResolvedValue(1000);
+    mocks.tokenWaitForBalance.mockReset();
+    mocks.tokenWaitForBalance.mockResolvedValue({ ready: true, reason: "ready", balance: 110, attempts: 3, elapsedMs: 750 });
     mocks.profileFetch.mockReset();
     mocks.profileFetch.mockResolvedValue(null);
     mocks.topupHandler = null;
@@ -796,7 +799,8 @@ describe("EventsEmbedBookingDetailsPage", () => {
     await flushPromises();
 
     expect(decision.props("modelValue")).toBe(true);
-    expect(decision.props("balanceError")).toBe("Cancellation unavailable");
+    expect(decision.props("balanceError")).toBe("");
+    expect(decision.props("actionError")).toBe("Cancellation unavailable");
     expect(mocks.notifyUpdated).not.toHaveBeenCalled();
   });
 
@@ -897,11 +901,36 @@ describe("EventsEmbedBookingDetailsPage", () => {
     wrapper.getComponent(FanDetailsStub).vm.$emit("accept-adjustment", { originalTokens: 100, proposedTokens: 120, negotiationId: "neg_1" });
     await flushPromises();
     expect(mocks.requestTopup).not.toHaveBeenCalled();
-    wrapper.getComponent(AdjustmentDecisionStub).vm.$emit("confirm", { mode: "accept", requiresTopup: true, shortfallTokens: 15 });
+    let resolveBalanceReadiness;
+    mocks.tokenWaitForBalance.mockReturnValueOnce(new Promise((resolve) => {
+      resolveBalanceReadiness = resolve;
+    }));
+    wrapper.getComponent(AdjustmentDecisionStub).vm.$emit("confirm", {
+      mode: "accept",
+      requiresTopup: true,
+      shortfallTokens: 15,
+      requiredBalanceTokens: 20,
+    });
     await flushPromises();
     expect(mocks.requestTopup).toHaveBeenCalledWith(expect.objectContaining({ requiredTokens: 15 }));
 
     mocks.topupHandler({ ok: true, payload: { bookingId: "booking_123" } });
+    await flushPromises();
+    expect(mocks.tokenWaitForBalance).toHaveBeenCalledWith(expect.objectContaining({
+      minimumBalance: 20,
+      timeoutMs: expect.any(Number),
+    }));
+    const readinessOptions = mocks.tokenWaitForBalance.mock.calls[0][0];
+    expect(readinessOptions.timeoutMs).toBeGreaterThan(0);
+    expect(readinessOptions.timeoutMs).toBeLessThanOrEqual(15000);
+    expect(mocks.flowRun).not.toHaveBeenCalledWith(
+      "bookings.renegotiateBooking",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(mocks.notifyUpdated).not.toHaveBeenCalled();
+
+    resolveBalanceReadiness({ ready: true, reason: "ready", balance: 20, attempts: 3, elapsedMs: 750 });
     await flushPromises();
     expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({ action: "accept_adjustment" }));
   });
@@ -925,8 +954,52 @@ describe("EventsEmbedBookingDetailsPage", () => {
     const decision = wrapper.getComponent(AdjustmentDecisionStub);
     expect(decision.props("modelValue")).toBe(true);
     expect(decision.props("processing")).toBe(false);
-    expect(decision.props("balanceError")).toBe("fan_event_details_topup_failed");
+    expect(decision.props("balanceError")).toBe("");
+    expect(decision.props("actionError")).toBe("fan_event_details_topup_failed");
     expect(mocks.notifyUpdated).not.toHaveBeenCalled();
+  });
+
+  it("rechecks a completed top-up without reopening checkout when balance lookup was unavailable", async () => {
+    mocks.bootstrap.userRole = "fan";
+    mocks.bootstrap.creatorId = null;
+    mocks.bootstrap.fanId = 25;
+    mocks.tokenGet.mockResolvedValue(5);
+    mocks.tokenWaitForBalance
+      .mockResolvedValueOnce({ ready: false, reason: "unavailable", balance: null, attempts: 3, elapsedMs: 15000 })
+      .mockResolvedValueOnce({ ready: true, reason: "ready", balance: 20, attempts: 1, elapsedMs: 0 });
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    wrapper.getComponent(FanDetailsStub).vm.$emit("accept-adjustment", {
+      originalTokens: 100,
+      proposedTokens: 120,
+      negotiationId: "neg_1",
+    });
+    await flushPromises();
+    const decision = wrapper.getComponent(AdjustmentDecisionStub);
+    decision.vm.$emit("confirm", {
+      mode: "accept",
+      requiresTopup: true,
+      shortfallTokens: 15,
+      requiredBalanceTokens: 20,
+    });
+    await flushPromises();
+
+    mocks.topupHandler({ ok: true, payload: { bookingId: "booking_123" } });
+    await flushPromises();
+
+    expect(decision.props("topupCompleted")).toBe(true);
+    expect(decision.props("balanceError")).toBe("booking_adjustment_balance_unavailable");
+    expect(decision.props("actionError")).toBe("");
+    expect(mocks.requestTopup).toHaveBeenCalledTimes(1);
+    expect(mocks.notifyUpdated).not.toHaveBeenCalled();
+
+    decision.vm.$emit("retry-after-topup");
+    await flushPromises();
+
+    expect(mocks.requestTopup).toHaveBeenCalledTimes(1);
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({ action: "accept_adjustment" }));
   });
 
   it("confirms before declining an adjustment and cancels with negotiation intent", async () => {

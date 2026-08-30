@@ -1191,6 +1191,77 @@ describe("MainCalendar all events count", () => {
     expect(widthPercent(emptyGroup) * 1.04).toBeCloseTo(8);
   });
 
+  it("uses a minimum width for sparse week event lanes and empty dates when configured", async () => {
+    const twoEventDate = new Date(2026, 3, 23);
+    const emptyDate = new Date(2026, 3, 20);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        eventId: "minimum_one",
+        title: "Minimum one",
+        start: new Date(2026, 3, 23, 9, 0, 0),
+        end: new Date(2026, 3, 23, 10, 0, 0),
+      }),
+      makeEvent({
+        eventId: "minimum_two",
+        title: "Minimum two",
+        start: new Date(2026, 3, 23, 11, 0, 0),
+        end: new Date(2026, 3, 23, 12, 0, 0),
+      }),
+    ], {
+      initialView: "week",
+      dayColumnMode: "events",
+      minWeekEventColumnWidth: "5.625rem",
+    });
+
+    const headerTrack = wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = wrapper.get("[data-cal-time-grid] span.relative");
+    const twoEventHeader = wrapper.get(`[data-test='calendar-week-event-header-day'][data-date='${localDateKey(twoEventDate)}']`);
+    const twoEventGroup = wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${localDateKey(twoEventDate)}']`);
+    const emptyHeader = wrapper.get(`[data-test='calendar-week-event-header-day'][data-date='${localDateKey(emptyDate)}']`);
+    const emptyGroup = wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${localDateKey(emptyDate)}']`);
+
+    expect(headerTrack.attributes("style")).toContain("width: 100%");
+    expect(headerTrack.attributes("style")).toContain("min-width: 45rem");
+    expect(bodyTrack.attributes("style")).toBe(headerTrack.attributes("style"));
+    expect(twoEventHeader.attributes("style")).toContain("width: 25%");
+    expect(twoEventGroup.attributes("style")).toContain("width: 25%");
+    expect(twoEventGroup.get("[data-test='calendar-week-event-day-columns']").attributes("style"))
+      .toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
+    expect(emptyHeader.attributes("style")).toContain("width: 12.5%");
+    expect(emptyGroup.attributes("style")).toContain("width: 12.5%");
+    expect(emptyGroup.get("[data-test='calendar-week-event-column']").attributes("data-empty-column")).toBe("true");
+    expect(wrapper.get("[data-test='calendar-week-event-header-scroll']").classes()).toContain("overflow-x-auto");
+    expect(wrapper.get("[data-test='calendar-week-event-body-scroll']").classes()).toContain("overflow-x-auto");
+    expect(wrapper.get("[data-test='calendar-time-grid-scroll']").classes()).toContain("overflow-y-auto");
+  });
+
+  it("increases the minimum week track width when dense lanes require horizontal overflow", async () => {
+    const denseDate = new Date(2026, 3, 23);
+    const denseEvents = Array.from({ length: 9 }, (_, index) => makeEvent({
+      eventId: `minimum_dense_${index + 1}`,
+      title: `Minimum dense ${index + 1}`,
+      start: new Date(2026, 3, 23, 9 + index, 0, 0),
+      end: new Date(2026, 3, 23, 10 + index, 0, 0),
+    }));
+    const wrapper = await mountCalendar(denseEvents, {
+      initialView: "week",
+      dayColumnMode: "events",
+      minWeekEventColumnWidth: "5.625rem",
+    });
+
+    const headerTrack = wrapper.get("[data-test='calendar-week-event-header-track']");
+    const bodyTrack = wrapper.get("[data-cal-time-grid] span.relative");
+    const denseGroup = wrapper.get(`[data-test='calendar-week-event-day-group'][data-date='${localDateKey(denseDate)}']`);
+
+    expect(headerTrack.attributes("style")).toContain("width: 100%");
+    expect(headerTrack.attributes("style")).toContain("min-width: 84.375rem");
+    expect(bodyTrack.attributes("style")).toBe(headerTrack.attributes("style"));
+    expect(denseGroup.attributes("data-week-day-units")).toBe("9");
+    expect(denseGroup.attributes("style")).toContain("width: 60%");
+    expect(denseGroup.get("[data-test='calendar-week-event-day-columns']").attributes("style"))
+      .toContain("grid-template-columns: repeat(9, minmax(0, 1fr))");
+  });
+
   it.each([768, 820, 1023])("uses a 96px minimum for every sparse tablet Week lane at %ipx", async (viewportWidth) => {
     setWindowWidth(viewportWidth);
     const wrapper = await mountCalendar([], {

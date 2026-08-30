@@ -51,7 +51,7 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(primary.text()).toBe('Cancel & Refund @grapegatsby');
 
     await primary.trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'reject', requiresTopup: false, shortfallTokens: 0 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'reject', requiresTopup: false, shortfallTokens: 0, requiredBalanceTokens: 0 });
   });
 
   it('does not expose a generic User #ID as the fan username', () => {
@@ -78,7 +78,7 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(wrapper.get('[data-test="booking-adjustment-decision-primary"]').classes()).toContain('bg-[#07F468]');
 
     await wrapper.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'accept', requiresTopup: false, shortfallTokens: 0 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'accept', requiresTopup: false, shortfallTokens: 0, requiredBalanceTokens: 0 });
   });
 
   it('renders an affordable increase with the correct deduction', () => {
@@ -101,7 +101,12 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(primary.text()).toBe('TOP UP & PAY');
 
     await primary.trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'accept', requiresTopup: true, shortfallTokens: 285 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({
+      mode: 'accept',
+      requiresTopup: true,
+      shortfallTokens: 285,
+      requiredBalanceTokens: 335,
+    });
   });
 
   it('renders the red decline flow with gross refund, booking and cancellation fees, and net projected balance', async () => {
@@ -124,7 +129,7 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(primary.text()).toBe('PROCEED TO CANCEL BOOKING');
 
     await primary.trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'decline', requiresTopup: false, shortfallTokens: 0 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'decline', requiresTopup: false, shortfallTokens: 0, requiredBalanceTokens: 0 });
   });
 
   it('renders ordinary cancellation with the same fee-aware presentation and emits cancel mode', async () => {
@@ -146,7 +151,7 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(primary.text()).toBe('PROCEED TO CANCEL BOOKING');
 
     await primary.trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0, requiredBalanceTokens: 0 });
   });
 
   it('absorbs refundable fees into the gross refund and renders only retained fees', () => {
@@ -245,6 +250,35 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(failed.emitted('retry-balance')).toHaveLength(1);
     expect(failed.emitted('confirm')).toBeUndefined();
 
+    const actionFailed = mountDecision({
+      actionError: 'Top-up succeeded, but balance is still updating',
+      topupCompleted: true,
+      walletBalance: 50,
+    });
+    expect(actionFailed.get('[data-test="booking-adjustment-action-error"]').text()).toContain('still updating');
+    expect(actionFailed.get('[data-test="booking-adjustment-decision-primary"]').text()).toBe('CHECK AGAIN');
+    await actionFailed.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
+    expect(actionFailed.emitted('retry-after-topup')).toHaveLength(1);
+    expect(actionFailed.emitted('retry-balance')).toBeUndefined();
+    expect(actionFailed.emitted('confirm')).toBeUndefined();
+
+    const completedTopupWithLookupFailure = mountDecision({
+      balanceError: 'Could not retrieve your wallet balance',
+      topupCompleted: true,
+      walletBalance: null,
+    });
+    expect(completedTopupWithLookupFailure.get('[data-test="booking-adjustment-decision-primary"]').text()).toBe('CHECK AGAIN');
+    await completedTopupWithLookupFailure.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
+    expect(completedTopupWithLookupFailure.emitted('retry-after-topup')).toHaveLength(1);
+    expect(completedTopupWithLookupFailure.emitted('retry-balance')).toBeUndefined();
+    expect(completedTopupWithLookupFailure.emitted('confirm')).toBeUndefined();
+
+    const completedTopupWithStaleBalance = mountDecision({ topupCompleted: true, walletBalance: 50 });
+    expect(completedTopupWithStaleBalance.get('[data-test="booking-adjustment-decision-primary"]').text()).toBe('CHECK AGAIN');
+    await completedTopupWithStaleBalance.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
+    expect(completedTopupWithStaleBalance.emitted('retry-after-topup')).toHaveLength(1);
+    expect(completedTopupWithStaleBalance.emitted('confirm')).toBeUndefined();
+
     const processing = mountDecision({ processing: true });
     await processing.get('[data-test="booking-adjustment-decision-close"]').trigger('click');
     expect(processing.emitted('close')).toBeUndefined();
@@ -268,7 +302,7 @@ describe('BookingAdjustmentDecisionPopup', () => {
     expect(wrapper.get('[data-test="booking-adjustment-decision-primary"]').text()).toBe('Cancel & Refund @grapegatsby');
 
     await wrapper.get('[data-test="booking-adjustment-decision-primary"]').trigger('click');
-    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0 });
+    expect(wrapper.emitted('confirm')?.[0]?.[0]).toEqual({ mode: 'cancel', requiresTopup: false, shortfallTokens: 0, requiredBalanceTokens: 0 });
   });
 
   it('preserves the reference popup structure, assets, and responsive configuration', () => {
