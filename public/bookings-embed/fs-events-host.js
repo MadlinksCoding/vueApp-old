@@ -1135,6 +1135,7 @@
       ? "cancel"
       : "";
     var isDirectCancelLaunch = initialAction === "cancel";
+    var directCancelDecisionActive = isDirectCancelLaunch;
     if (normalizedRole === "fan" && safePositiveNumber(settings.fanId, null) == null) {
       throw new Error("FSEventsEmbed.openBookingDetailsPopup requires a positive fanId for fan views.");
     }
@@ -1278,7 +1279,7 @@
     }
 
     function closeAfterBookingUpdate(payload) {
-      if (!isDirectCancelLaunch) {
+      if (!directCancelDecisionActive) {
         panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
         // Flush the restored drawer width before applying the slide-out transform.
         void panel.offsetWidth;
@@ -1307,7 +1308,7 @@
         return;
       }
       if (data.type === FS_EVENTS_BOOKING_DETAILS_DECISION_VISIBILITY) {
-        if (isDirectCancelLaunch) return;
+        if (directCancelDecisionActive) return;
         panel.classList.toggle(
           BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS,
           data.payload && data.payload.open === true
@@ -1372,6 +1373,11 @@
       if (data.type === FS_EVENTS_BOOKING_DETAILS_UPDATED) {
         var payload = data.payload || {};
         if (payload.retainOpen === true) {
+          if (directCancelDecisionActive) {
+            directCancelDecisionActive = false;
+            panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_OPEN_CLASS);
+            panel.classList.remove(BOOKING_DETAILS_POPUP_DECISION_DIRECT_CLASS);
+          }
           if (typeof settings.onBookingUpdated === "function") {
             settings.onBookingUpdated(payload);
           }
