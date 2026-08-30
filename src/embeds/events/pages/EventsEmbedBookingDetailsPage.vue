@@ -120,6 +120,7 @@
       @update:model-value="$event || resetAdjustmentDecision()"
       @confirm="confirmAdjustmentDecision"
       @retry-balance="adjustmentDecisionState.loadBalance"
+      @retry-after-topup="resumePendingTopupAdjustment"
       @close="resetAdjustmentDecision"
     />
 
@@ -158,6 +159,7 @@ import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
+import { resumePriceAdjustmentAfterTopup } from "@/utils/bookingTopupResume.js";
 
 const bootstrap = useEventsEmbedBootstrap();
 const { t } = useBookingTranslations();
@@ -190,6 +192,7 @@ watch(booking, async (value) => {
   }
 }, { immediate: true });
 let removeTopupListener = null;
+let topupResumeController = null;
 const viewerRole = computed(() => normalizeDashboardBookingRole(bootstrap.userRole));
 const isDirectCancelLaunch = computed(() => bootstrap.initialAction === "cancel");
 const hostViewportWidth = computed(() => Number(bootstrap.hostViewportWidth));
@@ -745,16 +748,16 @@ async function syncBookingMessageAction(action, logKey = null) {
   await syncBookingToChat(booking.value, action, logKey);
 }
 
-async function applyPriceAdjustment(adjustment = {}) {
+async function applyPriceAdjustment(adjustment = {}, { reportFailure = true } = {}) {
   const bookingId = String(booking.value?.bookingId || bootstrap.bookingId || "").trim();
   if (!bookingId) {
-    actionLoading.value = false;
-    actionError(t("fan_event_details_missing_booking_id"));
-    return;
+    const outcome = { ok: false, error: t("fan_event_details_missing_booking_id") };
+    if (reportFailure) actionError(outcome.error);
+    return outcome;
   }
 
   try {
-    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
+    const outcome = await bookingActions.applyPriceAdjustment({
       bookingId,
       proposedStartAtIso: adjustment.proposedStartAtIso,
       proposedDurationMinutes: adjustment.proposedDurationMinutes,
@@ -762,19 +765,20 @@ async function applyPriceAdjustment(adjustment = {}) {
       remarks: adjustment.remarks,
       negotiationId: adjustment.negotiationId || null,
     });
+    const { ok, item, error } = outcome;
 
     if (!ok) {
-      actionError(error || t("fan_event_details_adjustment_confirm_failed"));
-      return;
+      if (reportFailure) actionError(error || t("fan_event_details_adjustment_confirm_failed"));
+      return outcome;
     }
 
     await syncBookingMessageAction("accepted", "accept_adjustment");
     await notifySuccessfulBookingUpdate("accept_adjustment", item);
+    return outcome;
   } catch (error) {
-    actionError(error?.message || t("fan_event_details_adjustment_confirm_failed"));
-  } finally {
-    pendingTopupAdjustment.value = null;
-    actionLoading.value = false;
+    const outcome = { ok: false, error: error?.message || t("fan_event_details_adjustment_confirm_failed") };
+    if (reportFailure) actionError(outcome.error);
+    return outcome;
   }
 }
 
@@ -824,6 +828,8 @@ async function confirmDeclineAdjustment() {
 
 function resetAdjustmentDecision() {
   if (actionLoading.value) return;
+  if (topupResumeController) topupResumeController.abort();
+  pendingTopupAdjustment.value = null;
   if (isDirectCancelLaunch.value) {
     closePanel();
     return;
@@ -851,7 +857,11 @@ async function confirmAdjustmentDecision(payload = {}) {
 
   actionLoading.value = true;
   if (!payload.requiresTopup) {
-    await applyPriceAdjustment(adjustmentDecision.value);
+    try {
+      await applyPriceAdjustment(adjustmentDecision.value);
+    } finally {
+      actionLoading.value = false;
+    }
     return;
   }
 
@@ -864,7 +874,14 @@ async function confirmAdjustmentDecision(payload = {}) {
     return;
   }
 
-  pendingTopupAdjustment.value = adjustmentDecision.value;
+  const requiredBalanceTokens = finiteNonNegative(
+    payload.requiredBalanceTokens,
+    Math.max(0, finiteNonNegative(adjustmentDecision.value?.proposedTokens) - finiteNonNegative(adjustmentDecision.value?.originalTokens)),
+  );
+  pendingTopupAdjustment.value = {
+    adjustment: adjustmentDecision.value,
+    requiredBalanceTokens,
+  };
   requestBookingDetailsTopup({
     bookingId: bootstrap.bookingId,
     requiredTokens,
@@ -872,6 +889,45 @@ async function confirmAdjustmentDecision(payload = {}) {
     creatorUserId: String(creatorId),
     topupFor: "booking_confirm",
   });
+}
+
+async function resumePendingTopupAdjustment() {
+  const pending = pendingTopupAdjustment.value;
+  if (!pending || actionLoading.value && topupResumeController) return;
+
+  if (topupResumeController) topupResumeController.abort();
+  const controller = new AbortController();
+  topupResumeController = controller;
+  actionLoading.value = true;
+  adjustmentDecisionState.reportError("");
+
+  try {
+    const resumed = await resumePriceAdjustmentAfterTopup({
+      decisionState: adjustmentDecisionState,
+      minimumBalanceTokens: pending.requiredBalanceTokens,
+      applyAdjustment: () => applyPriceAdjustment(pending.adjustment, { reportFailure: false }),
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted) return;
+    if (resumed.ok) {
+      pendingTopupAdjustment.value = null;
+      adjustmentDecisionState.markTopupCompleted(false);
+      return;
+    }
+    if (resumed.stage === "balance") {
+      if (resumed.readiness?.reason === "unavailable") {
+        adjustmentDecisionState.reportBalanceError(t("booking_adjustment_balance_unavailable"));
+      } else {
+        adjustmentDecisionState.reportError(t("booking_adjustment_topup_sync_timeout"));
+      }
+    } else {
+      actionError(resumed.outcome?.error || t("fan_event_details_adjustment_confirm_failed"));
+      pendingTopupAdjustment.value = null;
+    }
+  } finally {
+    if (topupResumeController === controller) topupResumeController = null;
+    actionLoading.value = false;
+  }
 }
 
 onMounted(() => {
@@ -884,12 +940,13 @@ onMounted(() => {
       actionError(t("fan_event_details_topup_failed"));
       return;
     }
-    void applyPriceAdjustment(pendingTopupAdjustment.value);
+    void resumePendingTopupAdjustment();
   });
   void loadBooking();
 });
 
 onBeforeUnmount(() => {
+  if (topupResumeController) topupResumeController.abort();
   notifyBookingDetailsDecisionVisibility(false);
   if (removeTopupListener) removeTopupListener();
 });

@@ -554,9 +554,9 @@
             is_call_topup_and_tip: true,
             is_tip_from_php: true,
             topupFor: p.topupFor || "booking_confirm",
-            successCallback: function () {
+            successCallback: async function () {
               if (String(settings.userRole || "").trim().toLowerCase() === "fan") {
-                void queueTokenBalanceUiRefresh({
+                await queueTokenBalanceUiRefresh({
                   reason: "chat-top-up",
                   action: "top-up",
                   bookingId: p.bookingId,

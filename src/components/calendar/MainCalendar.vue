@@ -1278,6 +1278,7 @@ const props = defineProps({
   minEventHeightPx: { type: Number, default: 0 },
   dayColumnMode: { type: String, default: 'dates' },
   fitDayEventColumns: { type: Boolean, default: false },
+  minWeekEventColumnWidth: { type: String, default: '' },
   tabletWeekEventLaneMinWidthPx: { type: Number, default: 0 },
   responsiveViewportWidth: { type: Number, default: null },
   showCurrentTimeAcrossDates: { type: Boolean, default: false },
@@ -1712,6 +1713,17 @@ const isWeekEventColumnMode = computed(() => (
   isEventColumnMode.value && effectiveView.value === 'week'
 ));
 
+const minWeekEventColumnWidth = computed(() => {
+  const configuredWidth = String(props.minWeekEventColumnWidth || '').trim();
+  return /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em)$/.test(configuredWidth)
+    ? configuredWidth
+    : '';
+});
+
+const usesMinWeekEventColumnWidth = computed(() => (
+  isWeekEventColumnMode.value && Boolean(minWeekEventColumnWidth.value)
+));
+
 const tabletWeekEventLaneMinWidthPx = computed(() => {
   const configuredWidth = Number(props.tabletWeekEventLaneMinWidthPx);
   if (
@@ -2118,7 +2130,7 @@ const weekEventDayGroups = computed(() => {
 
   return weekDays.value.map((day) => {
     const columns = eventColumnsForDay(day).map((column) => {
-      if (!usesTabletWeekEventLaneMinimum.value || column.isEmpty) {
+      if (usesMinWeekEventColumnWidth.value || !usesTabletWeekEventLaneMinimum.value || column.isEmpty) {
         return { ...column, widthUnits: 1 };
       }
 
@@ -2159,6 +2171,13 @@ const weekEventTotalWidthUnits = computed(() => (
 const weekEventTrackStyle = computed(() => {
   if (!isWeekEventColumnMode.value) return {};
 
+  if (usesMinWeekEventColumnWidth.value) {
+    return {
+      width: '100%',
+      minWidth: multiplyCssLength(minWeekEventColumnWidth.value, weekEventTotalWidthUnits.value),
+    };
+  }
+
   if (usesTabletWeekEventLaneMinimum.value) {
     const minimumTrackWidth = weekEventTotalWidthUnits.value * tabletWeekEventLaneMinWidthPx.value;
 
@@ -2176,6 +2195,12 @@ const weekEventTrackStyle = computed(() => {
   };
 });
 
+function multiplyCssLength(length, multiplier) {
+  const match = String(length || '').match(/^([\d.]+)(px|rem|em)$/);
+  if (!match) return length;
+  return `${Number(match[1]) * multiplier}${match[2]}`;
+}
+
 const weekEventDayGroupStyle = (group = {}) => {
   const totalWidthUnits = Math.max(weekEventTotalWidthUnits.value, 1);
   const groupWidthPercent = (Math.max(Number(group.widthUnits) || 1, 1) / totalWidthUnits) * 100;
@@ -2187,7 +2212,9 @@ const weekEventDayGroupStyle = (group = {}) => {
 };
 
 const eventColumnsGridStyle = (columns = []) => ({
-  gridTemplateColumns: usesTabletWeekEventLaneMinimum.value
+  gridTemplateColumns: usesMinWeekEventColumnWidth.value
+    ? `repeat(${Math.max(1, columns.length)}, minmax(0, 1fr))`
+    : usesTabletWeekEventLaneMinimum.value
     ? columns
       .map((column) => `minmax(0, ${Math.max(Number(column.widthUnits) || 1, 1)}fr)`)
       .join(' ')

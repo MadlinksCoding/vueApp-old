@@ -1840,7 +1840,7 @@ function positionAvailabilityScheduleMenu(domEvent) {
     if (typeof window === "undefined") return;
     const trigger = domEvent?.currentTarget || domEvent?.target;
     const menuWidth = 196;
-    const menuHeight = 176;
+    const menuHeight = 144;
     const gap = 8;
     const padding = 8;
     let left = Number.isFinite(domEvent?.clientX) ? domEvent.clientX : padding;
@@ -2489,7 +2489,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
                 <MainCalendar v-else ref="mainCalendarRef" class="w-full px-2 md:px-4 lg:px-6 pt-6" variant="theme2" :focus-date="state.focus" :selected-date="state.selected" :events="events2"
                     :theme="theme2" :data-attrs="{ 'data-calendar': 'main-2' }" :console-overlaps="true"
                     :highlight-today-column="true" time-start="00:00" time-end="24:00" :slot-minutes="60"
-                    day-column-mode="events" :row-height-px="120" :min-event-height-px="0"
+                    day-column-mode="events" min-week-event-column-width="5.625rem" :row-height-px="120" :min-event-height-px="0"
                     @date-selected="onSelectFromMain"
                     @update:focus-date="onFocusFromMain"
                     @preview-schedule="previewSchedule = true"
@@ -2656,6 +2656,7 @@ useBodyOverflowHidden({ minWidth: 1010 });
     <BookingScheduleMenu
         :open="availabilityScheduleMenu.open"
         :event="availabilityScheduleMenu.event"
+        :show-edit="false"
         position-class="fixed"
         :menu-style="availabilityScheduleMenuStyle"
         @edit="requestEditScheduleEvent"

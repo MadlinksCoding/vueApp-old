@@ -10,6 +10,7 @@
     @click.stop
   >
     <button
+      v-if="showEdit"
       type="button"
       class="w-full flex p-2 items-center gap-2 text-xs font-semibold text-gray-700 hover:bg-gray-200"
       @click.stop="selectAction('edit')"
@@ -75,6 +76,10 @@ const props = defineProps({
   menuStyle: {
     type: Object,
     default: () => ({}),
+  },
+  showEdit: {
+    type: Boolean,
+    default: true,
   },
 });
 

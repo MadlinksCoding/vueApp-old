@@ -167,7 +167,11 @@ describe("fs-chat-host RPC", () => {
   it("queues a fan balance refresh before resuming a successful chat top-up", async () => {
     const updateBalanceUIs = vi.fn().mockResolvedValue(undefined);
     window.tokenManager = { updateBalanceUIs };
-    window.openTipPopup = vi.fn((options) => options.successCallback());
+    let successPromise;
+    window.openTipPopup = vi.fn((options) => {
+      successPromise = options.successCallback();
+      return successPromise;
+    });
 
     window.dispatchEvent(new MessageEvent("message", {
       source: handle.iframe.contentWindow,
@@ -176,13 +180,45 @@ describe("fs-chat-host RPC", () => {
         payload: { bookingId: "booking-2", requiredTokens: 5, currentUserId: 2615, creatorUserId: 1407 },
       },
     }));
-    await Promise.resolve();
-    await Promise.resolve();
+    await successPromise;
 
     expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
     expect(postMessage).toHaveBeenCalledWith({
       type: "FS_CHAT_TOPUP_SUCCESS",
       payload: { bookingId: "booking-2" },
+    }, "*");
+  });
+
+  it("does not notify chat of top-up success until the WordPress refresh settles", async () => {
+    let resolveRefresh;
+    let successPromise;
+    const updateBalanceUIs = vi.fn(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+    window.tokenManager = { updateBalanceUIs };
+    window.openTipPopup = vi.fn((options) => {
+      successPromise = options.successCallback();
+      return successPromise;
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: handle.iframe.contentWindow,
+      data: {
+        type: "FS_CHAT_TOPUP_REQUIRED",
+        payload: { bookingId: "booking-deferred", requiredTokens: 100, currentUserId: 2615, creatorUserId: 1407 },
+      },
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(updateBalanceUIs).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_CHAT_TOPUP_SUCCESS",
+    }), expect.anything());
+
+    resolveRefresh();
+    await successPromise;
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "FS_CHAT_TOPUP_SUCCESS",
+      payload: { bookingId: "booking-deferred" },
     }, "*");
   });
 });

@@ -59,7 +59,7 @@ class TokenHandler {
         };
     }
 
-    static async get({ userId, receiverId = null, defaultValue = null } = {}) {
+    static async get({ userId, receiverId = null, defaultValue = null, signal } = {}) {
         let url = "";
 
         try {
@@ -73,6 +73,7 @@ class TokenHandler {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: this.getAuthHeaders(),
+                ...(signal ? { signal } : {}),
             });
 
             logFanBookingDebug("token-handler", "get:http-response", {
@@ -134,14 +135,149 @@ class TokenHandler {
             return res;
         }
         catch (error) {
-            console.error('There has been a problem with your fetch operation:', error);
+            const wasAborted = error?.name === "AbortError" || signal?.aborted;
+            if (!wasAborted) {
+                console.error('There has been a problem with your fetch operation:', error);
+            }
             logFanBookingDebug("token-handler", "get:error", {
                 message: error?.message || String(error),
                 name: error?.name || null,
+                aborted: wasAborted,
                 url,
             });
             return defaultValue;
         }
+    }
+
+    /**
+     * Wait until the beneficiary-aware usable balance reaches a required amount.
+     * Token credits are queried through a secondary index and may not be visible
+     * immediately after checkout reports success, so booking hold adjustments must
+     * gate on this authoritative read instead of a cosmetic balance UI refresh.
+     */
+    static async waitForBalance({
+        userId,
+        receiverId,
+        minimumBalance,
+        timeoutMs = 15000,
+        delaysMs = [250, 500, 1000, 2000],
+        initialDelayMs = 0,
+        signal,
+    } = {}) {
+        const required = Number(minimumBalance);
+        const timeout = Math.max(0, Number(timeoutMs) || 0);
+        const schedule = Array.isArray(delaysMs) && delaysMs.length > 0
+            ? delaysMs.map((value) => Math.max(0, Number(value) || 0))
+            : [250, 500, 1000, 2000];
+        const startedAt = Date.now();
+        let attempts = 0;
+        let lastBalance = null;
+        let hadValidBalance = false;
+
+        const result = (ready, reason) => ({
+            ready,
+            reason,
+            balance: lastBalance,
+            attempts,
+            elapsedMs: Math.max(0, Date.now() - startedAt),
+        });
+
+        if (!userId || receiverId === null || receiverId === undefined || !Number.isFinite(required) || required < 0) {
+            return result(false, "invalid_request");
+        }
+        if (signal?.aborted) return result(false, "aborted");
+
+        const wait = (duration) => new Promise((resolve) => {
+            if (signal?.aborted) {
+                resolve(false);
+                return;
+            }
+            if (duration <= 0) {
+                resolve(true);
+                return;
+            }
+            let timerId = null;
+            const onAbort = () => {
+                clearTimeout(timerId);
+                signal?.removeEventListener("abort", onAbort);
+                resolve(false);
+            };
+            timerId = setTimeout(() => {
+                signal?.removeEventListener("abort", onAbort);
+                resolve(true);
+            }, duration);
+            signal?.addEventListener("abort", onAbort, { once: true });
+        });
+
+        const readBalance = (duration) => new Promise((resolve) => {
+            const requestController = new AbortController();
+            let settled = false;
+            let timerId = null;
+            const finish = (reason, value = null) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timerId);
+                signal?.removeEventListener("abort", onAbort);
+                resolve({ reason, value });
+            };
+            const onAbort = () => {
+                requestController.abort();
+                finish("aborted");
+            };
+
+            if (signal?.aborted) {
+                finish("aborted");
+                return;
+            }
+
+            signal?.addEventListener("abort", onAbort, { once: true });
+            timerId = setTimeout(() => {
+                requestController.abort();
+                finish("deadline");
+            }, Math.max(0, duration));
+
+            Promise.resolve(this.get({
+                userId,
+                receiverId,
+                defaultValue: null,
+                signal: requestController.signal,
+            })).then(
+                (value) => finish("value", value),
+                () => finish("value", null),
+            );
+        });
+
+        if (initialDelayMs > 0) {
+            const continued = await wait(Math.min(Math.max(0, Number(initialDelayMs) || 0), timeout));
+            if (!continued || signal?.aborted) return result(false, "aborted");
+        }
+
+        while (!signal?.aborted) {
+            const elapsedBeforeRead = Math.max(0, Date.now() - startedAt);
+            const readBudget = timeout - elapsedBeforeRead;
+            if (readBudget <= 0) break;
+            attempts += 1;
+            const read = await readBalance(readBudget);
+            if (read.reason === "aborted") return result(false, "aborted");
+            if (read.reason === "deadline") break;
+            const value = read.value;
+            const numeric = Number(value);
+            if (value !== null && value !== undefined && value !== "" && Number.isFinite(numeric)) {
+                hadValidBalance = true;
+                lastBalance = Math.max(0, numeric);
+                if (lastBalance >= required) return result(true, "ready");
+            }
+
+            const elapsed = Math.max(0, Date.now() - startedAt);
+            const remaining = timeout - elapsed;
+            if (remaining <= 0) break;
+            const delay = schedule[Math.min(attempts - 1, schedule.length - 1)];
+            const continued = await wait(Math.min(delay, remaining));
+            if (!continued) return result(false, "aborted");
+        }
+
+        if (signal?.aborted) return result(false, "aborted");
+        return result(false, hadValidBalance ? "timeout" : "unavailable");
     }
 
     static async deduct({ userId, amount, args } = {}) {

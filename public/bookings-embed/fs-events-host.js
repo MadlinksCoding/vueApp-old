@@ -723,9 +723,9 @@
           is_call_topup_and_tip: true,
           is_tip_from_php: true,
           topupFor: dashboardTopup.topupFor || "booking_confirm",
-          successCallback: function () {
+          successCallback: async function () {
             if (String(settings.userRole || "creator").trim().toLowerCase() === "fan") {
-              void queueTokenBalanceUiRefresh({
+              await queueTokenBalanceUiRefresh({
                 reason: "events-top-up",
                 action: "top-up",
                 bookingId: dashboardTopup.bookingId,
@@ -1343,9 +1343,9 @@
           is_call_topup_and_tip: true,
           is_tip_from_php: true,
           topupFor: topupPayload.topupFor || "booking_confirm",
-          successCallback: function () {
+          successCallback: async function () {
             if (normalizedRole === "fan") {
-              void queueTokenBalanceUiRefresh({
+              await queueTokenBalanceUiRefresh({
                 reason: "booking-details-top-up",
                 action: "top-up",
                 bookingId: bookingId,
