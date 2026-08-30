@@ -158,6 +158,88 @@ describe("EventsEmbedBookingDetailsPage", () => {
     expect(mocks.requestClose).toHaveBeenCalledWith({ bookingId: "booking_123" });
   });
 
+  it("transitions a direct creator cancellation into retained cancelled details", async () => {
+    mocks.bootstrap.initialAction = "cancel";
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    expect(wrapper.findComponent(FanDetailsStub).exists()).toBe(false);
+    mocks.flowRun
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          item: {
+            bookingId: "booking_123",
+            status: "cancelled_creator",
+            cancellation: { actor: "creator", refundedTokens: 75 },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          item: {
+            bookingId: "booking_123",
+            eventId: "event_123",
+            eventTitle: "Validation call",
+            eventType: "private-event",
+            eventCallType: "video",
+            status: "cancelled_creator",
+            startAtIso: "2026-08-14T10:00:00Z",
+            endAtIso: "2026-08-14T10:10:00Z",
+            cancellation: { actor: "creator", refundedTokens: 75 },
+          },
+        },
+      });
+
+    wrapper.getComponent(AdjustmentDecisionStub).vm.$emit("confirm", { mode: "cancel" });
+    await flushPromises();
+
+    expect(mocks.flowRun).toHaveBeenCalledWith(
+      "bookings.fetchBooking",
+      { bookingId: "booking_123" },
+      expect.any(Object),
+    );
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      status: "cancelled_creator",
+      cancellation: expect.objectContaining({ actor: "creator", refundedTokens: 75 }),
+    }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: "booking_123",
+      action: "cancel",
+      retainOpen: true,
+      item: expect.objectContaining({ status: "cancelled_creator" }),
+    }));
+    expect(mocks.requestClose).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a presentable terminal snapshot when direct creator cancellation cannot refetch", async () => {
+    mocks.bootstrap.initialAction = "cancel";
+    const { default: Page } = await import("@/embeds/events/pages/EventsEmbedBookingDetailsPage.vue");
+    const wrapper = mount(Page, { global: { stubs: pageStubs } });
+    await flushPromises();
+
+    mocks.flowRun
+      .mockResolvedValueOnce({ ok: true, data: { item: null } })
+      .mockResolvedValueOnce({ ok: false, error: { message: "Refresh unavailable" } });
+
+    wrapper.getComponent(AdjustmentDecisionStub).vm.$emit("confirm", { mode: "cancel" });
+    await flushPromises();
+
+    expect(wrapper.getComponent(FanDetailsStub).props("booking")).toEqual(expect.objectContaining({
+      bookingId: "booking_123",
+      status: "cancelled_creator",
+      cancellation: expect.objectContaining({ actor: "creator" }),
+    }));
+    expect(mocks.notifyUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      action: "cancel",
+      retainOpen: true,
+      item: expect.objectContaining({ status: "cancelled_creator" }),
+    }));
+    expect(mocks.requestClose).not.toHaveBeenCalled();
+  });
+
   it("projects pending fan cancellation with booking fee retained and cancellation fee refunded", async () => {
     mocks.bootstrap.userRole = "fan";
     mocks.bootstrap.initialAction = "cancel";

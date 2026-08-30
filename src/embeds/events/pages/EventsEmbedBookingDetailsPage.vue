@@ -26,7 +26,7 @@
     </div>
 
     <div
-      v-else-if="!isDirectCancelLaunch"
+      v-else-if="showBookingDetails"
       class="booking-details-fan-surface h-full min-h-0"
       data-test="booking-details-fan-surface"
     >
@@ -207,6 +207,10 @@ const compactMobileDetailsEligible = computed(() => (
 ));
 const useCompactMobileDetails = computed(() => compactDetailsSession.value);
 const directCancelOpened = ref(false);
+const directCreatorCancellationResolved = ref(false);
+const showBookingDetails = computed(() => (
+  !isDirectCancelLaunch.value || directCreatorCancellationResolved.value
+));
 
 function finiteNonNegative(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
@@ -686,38 +690,16 @@ async function confirmCancelBooking() {
     }
 
     await syncBookingMessageAction("cancelled", "cancel");
-    const retainOpen = viewerRole.value === "creator" && !isDirectCancelLaunch.value;
+    const retainOpen = viewerRole.value === "creator";
     let updatedItem = item;
 
-    if (retainOpen && !updatedItem) {
-      adjustmentDecisionState.reset({ force: true });
-      await nextTick();
-      loading.value = true;
-      try {
-        const refreshed = await FlowHandler.run("bookings.fetchBooking", { bookingId }, flowOptions());
-        updatedItem = refreshed?.ok ? refreshed?.data?.item || null : null;
-      } catch (_error) {
-        updatedItem = null;
-      } finally {
-        loading.value = false;
-      }
-    }
-
     if (retainOpen) {
-      if (!updatedItem) {
-        const original = booking.value && typeof booking.value === "object" ? booking.value : {};
-        updatedItem = {
-          ...original,
-          bookingId,
-          status: "cancelled_creator",
-          cancellation: {
-            ...(original?.cancellation || {}),
-            actor: "creator",
-          },
-        };
-      }
-      booking.value = updatedItem;
-      calendarEvent.value = toCalendarEvent(updatedItem) || calendarEvent.value;
+      updatedItem = await resolveRetainedBookingSnapshot(updatedItem, {
+        bookingId,
+        creatorTerminal: true,
+      });
+      applyRetainedBookingSnapshot(updatedItem);
+      if (isDirectCancelLaunch.value) directCreatorCancellationResolved.value = true;
     }
 
     await notifySuccessfulBookingUpdate("cancel", updatedItem, { retainOpen });
