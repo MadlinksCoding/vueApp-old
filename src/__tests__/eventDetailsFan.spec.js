@@ -274,11 +274,80 @@ describe('EventDetailsFan', () => {
     wrapper.unmount();
   });
 
+  it('renders zero as a valid session cost', () => {
+    const wrapper = mountDetails(booking({ payment: { total: 0 }, meta: {}, status: 'confirmed' }));
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('0');
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-missing"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('renders the translated missing-cost fallback without a token icon', () => {
     const wrapper = mountDetails(booking({ payment: {}, meta: {}, status: 'confirmed' }));
 
     expect(wrapper.get('[data-test="event-details-fan-session-cost-missing"]').text()).toBe('Not set');
     expect(wrapper.find('[data-test="event-details-fan-session-cost-icon"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['confirmed', 'fan'],
+    ['confirmed', 'creator'],
+    ['cancelled_user', 'fan'],
+    ['cancelled_user', 'creator'],
+  ])('shows both active fees alongside session cost for a %s %s', (status, userRole) => {
+    const wrapper = mountDetails(booking({
+      payment: { total: 1335, allocations: { bookingFee: 35, cancellationFee: 100 } },
+      meta: {},
+      status,
+    }), 'side-panel', { userRole });
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,335');
+    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('100');
+    expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('35');
+    wrapper.unmount();
+  });
+
+  it('uses booking-level fee fallbacks when payment allocations are unavailable', () => {
+    const wrapper = mountDetails(booking({
+      payment: { total: 100 },
+      cancellationFeeTokens: '11',
+      bookingFeeTokens: '6',
+      meta: {},
+      status: 'confirmed',
+    }));
+
+    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('11');
+    expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('6');
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['cancellation fee only', { cancellationFee: '12', bookingFee: 0 }, true, false],
+    ['booking fee only', { cancellationFee: 'invalid', bookingFee: '7' }, false, true],
+    ['no positive fees', { cancellationFee: 0, bookingFee: null }, false, false],
+  ])('shows each active fee independently for %s', (_label, allocations, showsCancellationFee, showsBookingFee) => {
+    const wrapper = mountDetails(booking({
+      payment: { total: 100, allocations },
+      meta: {},
+      status: 'pending',
+    }));
+
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="booking-details-cancellation-fee"]').exists()).toBe(showsCancellationFee);
+    expect(wrapper.find('[data-test="booking-details-booking-fee"]').exists()).toBe(showsBookingFee);
+    wrapper.unmount();
+  });
+
+  it('keeps active fees visible with a pending price adjustment', () => {
+    const wrapper = mountDetails(booking({
+      payment: { total: 100, allocations: { cancellationFee: 10, bookingFee: 5 } },
+    }));
+
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('100');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('135');
+    expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('10');
+    expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('5');
     wrapper.unmount();
   });
 
@@ -445,6 +514,16 @@ describe('EventDetailsFan', () => {
     const wrapper = mountDetails(booking());
 
     expect(wrapper.get('[data-test="event-details-fan-cover"]').attributes('src')).toBe(defaultCoverImage);
+    wrapper.unmount();
+  });
+
+  it('uses the canonical event image URL stored in the booking snapshot', () => {
+    const eventImageUrl = 'https://www.w3schools.com/tags/img_girl.jpg';
+    const wrapper = mountDetails(booking({
+      eventSnapshot: { eventImageUrl },
+    }));
+
+    expect(wrapper.get('[data-test="event-details-fan-cover"]').attributes('src')).toBe(eventImageUrl);
     wrapper.unmount();
   });
 
@@ -828,7 +907,7 @@ describe('EventDetailsFan', () => {
       fanUsername: 'grapegatsby',
       meta: {},
       cancellation: { actor: 'creator', refundedTokens: 335, cancellationFeeTokens: 100 },
-      payment: { allocations: { bookingFee: 20, cancellationFee: 100 } },
+      payment: { total: 435, allocations: { bookingFee: 20, cancellationFee: 100 } },
     }), 'side-panel', { userRole: 'creator' });
 
     expect(wrapper.get('[data-test="booking-details-cancelled-heading"]').text()).toContain('@grapegatsby');
@@ -836,9 +915,10 @@ describe('EventDetailsFan', () => {
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').text()).toContain('100');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').text()).toContain('20');
     expect(wrapper.get('[data-test="booking-details-cost-tiles"]').classes()).toEqual(expect.arrayContaining(['flex-row', 'flex-wrap']));
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('435');
     expect(wrapper.get('[data-test="booking-details-cancellation-fee"]').classes()).toContain('flex-col');
     expect(wrapper.get('[data-test="booking-details-booking-fee"]').classes()).toContain('flex-col');
-    expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="event-details-fan-session-cost-standard"]').exists()).toBe(true);
     wrapper.unmount();
   });
 

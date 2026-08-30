@@ -119,21 +119,7 @@
     </template>
 
     <template v-else>
-      <div v-if="showCancelledFees" class="self-stretch inline-flex justify-start items-start gap-4" data-test="booking-details-cancelled-fees">
-        <div data-svg-wrapper class="relative"><img :src="CostIcon" alt="" /></div>
-        <div class="flex-1 min-w-0 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
-          <div v-if="positiveAmount(cancellationFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-cancellation-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(cancellationFee) }}</span>
-          </div>
-          <div v-if="positiveAmount(bookingFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-booking-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(bookingFee) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="self-stretch inline-flex justify-start items-start gap-4">
+      <div class="self-stretch inline-flex justify-start items-start gap-4">
         <div data-svg-wrapper class="relative"><img :src="CostIcon" alt="" /></div>
         <div class="flex-1 min-w-0 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
           <div class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
@@ -154,6 +140,14 @@
               <div class="text-center text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-value">{{ formatTokens(sessionCost) }}</div>
             </div>
             <div v-else class="text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
+          </div>
+          <div v-if="positiveAmount(cancellationFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-cancellation-fee">
+            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
+            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(cancellationFee) }}</span>
+          </div>
+          <div v-if="positiveAmount(bookingFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-booking-fee">
+            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
+            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(bookingFee) }}</span>
           </div>
         </div>
       </div>
@@ -198,7 +192,6 @@ const props = defineProps({
   canOpenChat: { type: Boolean, default: false },
   chatPayload: { type: Object, default: () => ({}) },
   additionalRequestLines: { type: Array, default: () => [] },
-  showCancelledFees: { type: Boolean, default: false },
   sessionCost: { type: [Number, String], default: null },
   sessionDeposit: { type: [Number, String], default: null },
   cancellationFee: { type: [Number, String], default: null },

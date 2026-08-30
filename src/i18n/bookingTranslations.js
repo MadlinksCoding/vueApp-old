@@ -290,6 +290,8 @@ export const bookingMessages = {
   booking_adjustment_checking_balance: "Checking balance...",
   booking_adjustment_balance_unavailable: "Could not retrieve your wallet balance. Please try again.",
   booking_adjustment_retry_balance: "RETRY BALANCE",
+  booking_adjustment_check_again: "CHECK AGAIN",
+  booking_adjustment_topup_sync_timeout: "Your top-up succeeded, but your wallet balance is still updating. Please check again.",
   booking_adjustment_refund_from_price: "Refund from price adjustment",
   booking_adjustment_subtotal: "Subtotal",
   booking_adjustment_session_cost_refund: "Session cost refund",

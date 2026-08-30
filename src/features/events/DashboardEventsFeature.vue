@@ -667,6 +667,7 @@
       @update:model-value="$event || closePriceAdjustmentDecision()"
       @confirm="confirmPriceAdjustmentDecision"
       @retry-balance="priceAdjustmentDecision.loadBalance"
+      @retry-after-topup="resumePendingPriceAdjustment"
       @close="closePriceAdjustmentDecision"
     />
 
@@ -865,6 +866,7 @@ import { useBookingTranslations } from "@/i18n/bookingTranslations.js";
 import { useBookingChatSync } from "@/composables/useBookingChatSync.js";
 import { useBookingActions } from "@/composables/useBookingActions.js";
 import { useBookingAdjustmentDecision } from "@/composables/useBookingAdjustmentDecision.js";
+import { resumePriceAdjustmentAfterTopup } from "@/utils/bookingTopupResume.js";
 import { showFanBookingCancellationToast } from "@/utils/fanBookingCancellationToast.js";
 import { requestFanTokenBalanceRefresh } from "@/utils/fanTokenBalanceRefresh.js";
 import {
@@ -935,6 +937,7 @@ const priceAdjustmentBooking = ref(null);
 const priceAdjustmentLoading = ref(false);
 const pendingTopupAdjustment = ref(null);
 let removeTopupListener = null;
+let topupResumeController = null;
 const deleteEventPopupOpen = ref(false);
 const deleteEventLoading = ref(false);
 const deleteEventCandidate = ref(null);
@@ -2574,6 +2577,8 @@ const onDeclinePriceAdjustment = (payload) => {
 
 const closePriceAdjustmentDecision = () => {
   if (priceAdjustmentLoading.value) return;
+  if (topupResumeController) topupResumeController.abort();
+  pendingTopupAdjustment.value = null;
   priceAdjustmentDecision.reset();
   priceAdjustmentBooking.value = null;
 };
@@ -2588,17 +2593,17 @@ const reportPriceAdjustmentError = (message) => {
   });
 };
 
-const applyPriceAdjustment = async (adjustment = {}) => {
+const applyPriceAdjustment = async (adjustment = {}, { reportFailure = true } = {}) => {
   const booking = priceAdjustmentBooking.value;
   const bookingId = booking?.bookingId || booking?.id;
   if (!bookingId) {
-    priceAdjustmentLoading.value = false;
-    reportPriceAdjustmentError(t("dashboard_booking_action_missing_id"));
-    return;
+    const outcome = { ok: false, error: t("dashboard_booking_action_missing_id") };
+    if (reportFailure) reportPriceAdjustmentError(outcome.error);
+    return outcome;
   }
 
   try {
-    const { ok, item, error } = await bookingActions.applyPriceAdjustment({
+    const outcome = await bookingActions.applyPriceAdjustment({
       bookingId,
       proposedStartAtIso: adjustment.proposedStartAtIso,
       proposedDurationMinutes: adjustment.proposedDurationMinutes,
@@ -2606,10 +2611,11 @@ const applyPriceAdjustment = async (adjustment = {}) => {
       remarks: adjustment.remarks,
       negotiationId: adjustment.negotiationId || null,
     });
+    const { ok, item, error } = outcome;
 
     if (!ok) {
-      reportPriceAdjustmentError(error);
-      return;
+      if (reportFailure) reportPriceAdjustmentError(error);
+      return outcome;
     }
 
     refreshFanTokenBalance("accept_adjustment", bookingId);
@@ -2618,11 +2624,11 @@ const applyPriceAdjustment = async (adjustment = {}) => {
     priceAdjustmentDecision.reset({ force: true });
     priceAdjustmentBooking.value = null;
     await fetchDashboardContext(true);
+    return outcome;
   } catch (error) {
-    reportPriceAdjustmentError(error?.message);
-  } finally {
-    pendingTopupAdjustment.value = null;
-    priceAdjustmentLoading.value = false;
+    const outcome = { ok: false, error: error?.message || t("dashboard_booking_action_update_failed") };
+    if (reportFailure) reportPriceAdjustmentError(outcome.error);
+    return outcome;
   }
 };
 
@@ -2723,7 +2729,11 @@ const confirmPriceAdjustmentDecision = async (payload = {}) => {
 
   priceAdjustmentLoading.value = true;
   if (!payload.requiresTopup) {
-    await applyPriceAdjustment(adjustment);
+    try {
+      await applyPriceAdjustment(adjustment);
+    } finally {
+      priceAdjustmentLoading.value = false;
+    }
     return;
   }
 
@@ -2736,7 +2746,14 @@ const confirmPriceAdjustmentDecision = async (payload = {}) => {
     return;
   }
 
-  pendingTopupAdjustment.value = adjustment;
+  const fallbackRequiredBalance = Math.max(
+    0,
+    Number(adjustment.proposedTokens || 0) - Number(adjustment.originalTokens || 0),
+  );
+  pendingTopupAdjustment.value = {
+    adjustment,
+    requiredBalanceTokens: Math.max(0, Number(payload.requiredBalanceTokens) || fallbackRequiredBalance),
+  };
   requestBookingDetailsTopup({
     bookingId: priceAdjustmentBooking.value?.bookingId,
     requiredTokens,
@@ -2744,6 +2761,44 @@ const confirmPriceAdjustmentDecision = async (payload = {}) => {
     creatorUserId: String(creatorId),
     topupFor: "booking_confirm",
   });
+};
+
+const resumePendingPriceAdjustment = async () => {
+  const pending = pendingTopupAdjustment.value;
+  if (!pending || priceAdjustmentLoading.value && topupResumeController) return;
+
+  if (topupResumeController) topupResumeController.abort();
+  const controller = new AbortController();
+  topupResumeController = controller;
+  priceAdjustmentLoading.value = true;
+  priceAdjustmentDecision.reportError("");
+
+  try {
+    const resumed = await resumePriceAdjustmentAfterTopup({
+      decisionState: priceAdjustmentDecision,
+      minimumBalanceTokens: pending.requiredBalanceTokens,
+      applyAdjustment: () => applyPriceAdjustment(pending.adjustment, { reportFailure: false }),
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted) return;
+    if (resumed.ok) {
+      pendingTopupAdjustment.value = null;
+      return;
+    }
+    if (resumed.stage === "balance") {
+      if (resumed.readiness?.reason === "unavailable") {
+        priceAdjustmentDecision.reportBalanceError(t("booking_adjustment_balance_unavailable"));
+      } else {
+        priceAdjustmentDecision.reportError(t("booking_adjustment_topup_sync_timeout"));
+      }
+    } else {
+      reportPriceAdjustmentError(resumed.outcome?.error || t("dashboard_booking_action_update_failed"));
+      pendingTopupAdjustment.value = null;
+    }
+  } finally {
+    if (topupResumeController === controller) topupResumeController = null;
+    priceAdjustmentLoading.value = false;
+  }
 };
 
 const onApprovePendingBooking = async (payload) => {
@@ -3806,7 +3861,7 @@ onMounted(() => {
       reportPriceAdjustmentError(t("fan_event_details_topup_failed"));
       return;
     }
-    void applyPriceAdjustment(pendingTopupAdjustment.value);
+    void resumePendingPriceAdjustment();
   });
 
   if (hasDashboardContext.value) {
@@ -3907,6 +3962,7 @@ watch(() => state.view, async (nextView, previousView) => {
 });
 
 onUnmounted(() => {
+  if (topupResumeController) topupResumeController.abort();
   if (removeTopupListener) removeTopupListener();
   hideScheduleTitleTooltip();
   clearCurrentTimeTimer();

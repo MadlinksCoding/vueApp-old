@@ -58,6 +58,8 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
   const walletBalance = ref(null);
   const balanceLoading = ref(false);
   const balanceError = ref("");
+  const actionError = ref("");
+  const topupCompleted = ref(false);
   const fetchedCreatorUsername = ref("");
   const fetchedFanUsername = ref("");
   let profileController = null;
@@ -253,6 +255,22 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     }
   }
 
+  async function waitForRequiredBalance(minimumBalance, options = {}) {
+    const result = await TokenHandler.waitForBalance({
+      userId: fanId.value,
+      receiverId: creatorId.value,
+      minimumBalance,
+      timeoutMs: options.timeoutMs ?? 15000,
+      initialDelayMs: options.initialDelayMs ?? 0,
+      signal: options.signal,
+    });
+    if (Number.isFinite(Number(result?.balance))) {
+      walletBalance.value = Math.max(0, Number(result.balance));
+    }
+    if (result?.ready) balanceError.value = "";
+    return result;
+  }
+
   function open(nextMode, adjustment = null) {
     mode.value = nextMode === "cancel"
       ? "cancel"
@@ -260,6 +278,8 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     decision.value = adjustment;
     walletBalance.value = null;
     balanceError.value = "";
+    actionError.value = "";
+    topupCompleted.value = false;
     isOpen.value = true;
     // A creator cancelling or rejecting never spends tokens, so skip the lookup.
     if (!(viewerRole.value === "creator" && (mode.value === "cancel" || mode.value === "reject"))) {
@@ -275,10 +295,22 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     walletBalance.value = null;
     balanceLoading.value = false;
     balanceError.value = "";
+    actionError.value = "";
+    topupCompleted.value = false;
   }
 
   function reportError(message) {
+    actionError.value = message || "";
+    if (actionError.value) balanceError.value = "";
+  }
+
+  function reportBalanceError(message) {
     balanceError.value = message || "";
+    if (balanceError.value) actionError.value = "";
+  }
+
+  function markTopupCompleted(value = true) {
+    topupCompleted.value = Boolean(value);
   }
 
   const popupProps = computed(() => ({
@@ -300,6 +332,8 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     netRefundTokens: netRefundTokens.value,
     balanceLoading: balanceLoading.value,
     balanceError: balanceError.value,
+    actionError: actionError.value,
+    topupCompleted: topupCompleted.value,
     processing: processing.value,
   }));
 
@@ -320,7 +354,10 @@ export function useBookingAdjustmentDecision(booking, options = {}) {
     open,
     reset,
     loadBalance,
+    waitForRequiredBalance,
     reportError,
+    reportBalanceError,
+    markTopupCompleted,
   };
 }
 

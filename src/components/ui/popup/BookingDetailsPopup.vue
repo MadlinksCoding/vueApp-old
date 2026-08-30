@@ -549,10 +549,9 @@
             :can-open-chat="canOpenChat"
             :chat-payload="chatPayload"
             :additional-request-lines="additionalRequestLines"
-            :show-cancelled-fees="showCancelledFees"
             :session-cost="paymentTotal"
-            :cancellation-fee="cancelledCancellationFee"
-            :booking-fee="cancelledBookingFee"
+            :cancellation-fee="activeCancellationFee"
+            :booking-fee="activeBookingFee"
             :pending-price-adjustment="pendingPriceAdjustment"
             :adjustment="adjustment"
             :reminder-text="reminderText"
@@ -713,7 +712,25 @@ const viewerRole = computed(() => String(props.userRole || 'fan').trim().toLower
 const counterpartyId = computed(() => viewerRole.value === 'creator' ? fanId.value : creatorId.value);
 const titleText = computed(() => firstText(props.event?.title, raw.value?.eventTitle, mergedEvent.value?.title) || t('calendar_event_untitled_booking'));
 const storedEventColor = computed(() => normalizeColor(props.event?.color || raw.value?.eventColorSkin || mergedEvent.value?.eventColorSkin));
-const coverImage = computed(() => firstText(raw.value?.eventImage, raw.value?.coverImage, raw.value?.imageUrl, mergedEvent.value?.coverImage, mergedEvent.value?.coverImageUrl, mergedEvent.value?.imageUrl, mergedEvent.value?.image) || defaultCoverImage);
+const coverImage = computed(() => firstText(
+  raw.value?.eventImage,
+  raw.value?.eventImageUrl,
+  raw.value?.coverImage,
+  raw.value?.coverImageUrl,
+  raw.value?.imageUrl,
+  mergedEvent.value?.eventImage,
+  mergedEvent.value?.eventImageUrl,
+  mergedEvent.value?.coverImage,
+  mergedEvent.value?.coverImageUrl,
+  mergedEvent.value?.imageUrl,
+  mergedEvent.value?.image,
+  props.event?.eventImage,
+  props.event?.eventImageUrl,
+  props.event?.coverImage,
+  props.event?.coverImageUrl,
+  props.event?.imageUrl,
+  props.event?.image,
+) || defaultCoverImage);
 const eventType = computed(() => firstText(raw.value?.eventType, mergedEvent.value?.eventType, mergedEvent.value?.type));
 const callType = computed(() => firstText(raw.value?.eventCallType, mergedEvent.value?.eventCallType, mergedEvent.value?.callType));
 const isGroupEvent = computed(() => eventType.value.toLowerCase().includes('group'));
@@ -923,7 +940,6 @@ const activeBookingFee = computed(() => finiteNumber(paymentAllocations.value.bo
   ?? finiteNumber(mergedEvent.value?.bookingFeeTokens));
 const rejectEventTitle = computed(() => firstText(raw.value?.eventTitle, mergedEvent.value?.title, props.event?.title) || t('calendar_event_untitled_booking'));
 const rejectRefundTokens = computed(() => finiteNumber(paymentTotal.value) ?? 0);
-const hasSessionCost = computed(() => finiteNumber(paymentTotal.value) != null);
 const reminderText = computed(() => { const minutes = finiteNumber(raw.value?.reminderMinutes ?? mergedEvent.value?.callReminderMinutesBefore ?? mergedEvent.value?.remindBeforeMinutes); return minutes && minutes > 0 ? t('calendar_event_minutes_before', { count: minutes }) : t('calendar_event_reminder_not_set'); });
 const additionalRequestLines = computed(() => {
   const lines = [];
@@ -1017,8 +1033,6 @@ const cancelledRefundTokens = computed(() => finiteNumber(cancellation.value.ref
   ?? finiteNumber(raw.value?.paymentSettlement?.releasedTotal)
   ?? finiteNumber(raw.value?.payment?.settlement?.releasedTotal)
   ?? finiteNumber(raw.value?.settlement?.releasedTotal));
-const cancelledCancellationFee = computed(() => finiteNumber(cancellation.value.cancellationFeeTokens) ?? finiteNumber(raw.value?.payment?.allocations?.cancellationFee) ?? 0);
-const cancelledBookingFee = computed(() => finiteNumber(raw.value?.payment?.allocations?.bookingFee) ?? finiteNumber(raw.value?.payment?.bookingFeeAmountTokens) ?? 0);
 const cancelledReason = computed(() => firstText(cancellation.value.reason, raw.value?.meta?.cancelled?.reason));
 // A no-show auto-cancel settles differently for each side, so both need to see it.
 const noShowNotice = computed(() => {
@@ -1030,11 +1044,10 @@ const noShowNotice = computed(() => {
   }
   return '';
 });
-// The cancellation notice is written from the creator's perspective (headings, fee
-// breakdown), so fans only get the no-show settlement line.
+// The cancellation notice is written from the creator's perspective, so fans only
+// get the no-show settlement line.
 const showCreatorCancellationNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'creator');
 const showFanNoShowNotice = computed(() => isCancelledStatus.value && viewerRole.value === 'fan' && Boolean(noShowNotice.value));
-const showCancelledFees = computed(() => showCreatorCancellationNotice.value && (cancelledCancellationFee.value > 0 || cancelledBookingFee.value > 0));
 const cancelledNoticeHeading = computed(() => cancelledActor.value === 'creator'
   ? t('booking_details_cancelled_by_creator', { fan: creatorName.value || t('common_fan') })
   : t('booking_details_cancelled_by_fan', { fan: creatorName.value || t('common_fan') }));

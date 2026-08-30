@@ -121,6 +121,7 @@
               </template>
 
               <div v-if="balanceError" class="self-stretch text-sm font-medium leading-5 text-red-300" role="alert" data-test="booking-adjustment-balance-error">{{ balanceError }}</div>
+              <div v-else-if="actionError" class="self-stretch text-sm font-medium leading-5 text-red-300" role="alert" data-test="booking-adjustment-action-error">{{ actionError }}</div>
             </div>
           </div>
         </div>
@@ -168,12 +169,14 @@ const props = defineProps({
   netRefundTokens: { type: [Number, String], default: null },
   balanceLoading: { type: Boolean, default: false },
   balanceError: { type: String, default: '' },
+  actionError: { type: String, default: '' },
+  topupCompleted: { type: Boolean, default: false },
   processing: { type: Boolean, default: false },
   // Merged over the PopupHandler config (e.g. a higher zIndex inside chat).
   popupConfig: { type: Object, default: null },
 });
 
-const emit = defineEmits(['update:modelValue', 'confirm', 'retry-balance', 'close', 'closed']);
+const emit = defineEmits(['update:modelValue', 'confirm', 'retry-balance', 'retry-after-topup', 'close', 'closed']);
 const { t, locale } = useBookingTranslations();
 
 const defaultPopupConfig = {
@@ -285,6 +288,7 @@ const primaryButtonClass = computed(() => {
 const primaryButtonText = computed(() => {
   if (props.processing) return t('fan_booking_processing');
   if (props.balanceLoading) return t('booking_adjustment_checking_balance');
+  if (props.topupCompleted) return t('booking_adjustment_check_again');
   if (props.balanceError) return t('booking_adjustment_retry_balance');
   if (isCreatorRefundDecision.value) return t('booking_adjustment_creator_cancel_action', { fan: fanLabel.value });
   if (isReviewRejection.value) return t('calendar_event_decline_booking');
@@ -314,6 +318,10 @@ function closePopup() {
 
 function handlePrimaryAction() {
   if (props.balanceLoading || props.processing) return;
+  if (props.topupCompleted) {
+    emit('retry-after-topup');
+    return;
+  }
   if (props.balanceError) {
     emit('retry-balance');
     return;
@@ -322,6 +330,7 @@ function handlePrimaryAction() {
     mode: normalizedMode.value,
     requiresTopup: requiresTopup.value,
     shortfallTokens: requiresTopup.value ? Math.max(0, priceIncrease.value - balance.value) : 0,
+    requiredBalanceTokens: normalizedMode.value === 'accept' ? priceIncrease.value : 0,
   });
 }
 </script>

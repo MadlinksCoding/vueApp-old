@@ -282,7 +282,7 @@ vi.mock("@/components/ui/form/BookingForm/GroupBookingStep2.vue", () => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["events", "variant", "dayColumnMode", "rowHeightPx", "focusDate", "selectedDate"],
+    props: ["events", "variant", "dayColumnMode", "minWeekEventColumnWidth", "rowHeightPx", "focusDate", "selectedDate"],
     emits: ["approve-booking", "reject-booking", "cancel-booking", "join-call", "refresh-events", "date-selected"],
     methods: {
       noop() {},
@@ -1527,7 +1527,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     }));
   });
 
-  it("opens saved availability actions, emits confirmed edit navigation, and deletes through the flow engine", async () => {
+  it("hides dropdown editing, keeps schedule-card editing, and deletes through the flow engine", async () => {
     mock.engine.callFlow.mockResolvedValueOnce({
       ok: true,
       data: {
@@ -1556,9 +1556,13 @@ describe("UnifiedBookingForm mobile step scroll", () => {
     const wrapper = mount(UnifiedBookingForm);
     await flushPromises();
 
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("minWeekEventColumnWidth")).toBe("5.625rem");
+
     await wrapper.get("[data-test='calendar-existing-availability-block']").trigger("click");
     let menuButtons = wrapper.get("[data-test='booking-schedule-menu']").findAll("button");
-    await menuButtons[1].trigger("click");
+    expect(menuButtons).toHaveLength(4);
+    expect(menuButtons.map((button) => button.text())).not.toContain("common_edit");
+    await menuButtons[0].trigger("click");
     await flushPromises();
     const openSchedulePreview = wrapper.findAllComponents({ name: "OneOnOneBookingFlowPopup" })
       .find((popup) => popup.props("modelValue") === true);
@@ -1566,9 +1570,7 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       eventId: "evt_schedule",
     }));
 
-    await wrapper.get("[data-test='calendar-existing-availability-block']").trigger("click");
-    menuButtons = wrapper.get("[data-test='booking-schedule-menu']").findAll("button");
-    await menuButtons[0].trigger("click");
+    openSchedulePreview.vm.$emit("edit-schedule", openSchedulePreview.props("previewEvent"));
     await flushPromises();
     expect(wrapper.emitted("edit-event")?.at(-1)).toEqual([expect.objectContaining({
       eventId: "evt_schedule",
@@ -1586,6 +1588,20 @@ describe("UnifiedBookingForm mobile step scroll", () => {
       { eventId: "evt_schedule" },
       expect.any(Object),
     );
+  });
+
+  it("keeps the shared schedule menu Edit action enabled by default", async () => {
+    const { default: BookingScheduleMenu } = await import("@/components/calendar/BookingScheduleMenu.vue");
+    const wrapper = mount(BookingScheduleMenu, {
+      props: {
+        open: true,
+        event: { eventId: "evt_default_menu" },
+      },
+    });
+
+    const buttons = wrapper.get("[data-test='booking-schedule-menu']").findAll("button");
+    expect(buttons).toHaveLength(5);
+    expect(buttons[0].text()).toBe("common_edit");
   });
 
   it.each([

@@ -15,16 +15,48 @@ function readError(result) {
 }
 
 function settle(result) {
+  const code = String(result?.error?.code || "");
+  const statusFromCode = code.startsWith("HTTP_") ? Number(code.slice(5)) : null;
+  const statusCode = Number(result?.meta?.status || statusFromCode || 0) || null;
+  const details = result?.error?.details || null;
+  const backendError = String(
+    details?.error
+      || details?.details?.error
+      || details?.data?.error
+      || "",
+  );
   return {
     ok: Boolean(result?.ok),
     item: result?.data?.item || null,
     error: result?.ok ? "" : readError(result),
+    code,
+    statusCode,
+    backendError,
+    details,
     result,
   };
 }
 
 function failure(error) {
-  return { ok: false, item: null, error: error || "", result: null };
+  return {
+    ok: false,
+    item: null,
+    error: error || "",
+    code: "",
+    statusCode: null,
+    backendError: "",
+    details: null,
+    result: null,
+  };
+}
+
+export function isHeldPaymentBalanceFailure(outcome) {
+  if (!outcome || outcome.ok) return false;
+  const statusCode = Number(outcome.statusCode || 0);
+  const code = String(outcome.code || outcome?.result?.error?.code || "");
+  const backendError = String(outcome.backendError || "").toLowerCase();
+  return (statusCode === 402 || code === "HTTP_402")
+    && backendError === "token_hold_adjustment_failed";
 }
 
 export function useBookingActions({ flowOptions = () => ({}) } = {}) {
