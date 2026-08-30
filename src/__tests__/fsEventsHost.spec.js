@@ -885,6 +885,78 @@ describe("fs-events-host openFanBookingPopup", () => {
     );
   });
 
+  it("opens booking details above the active fan booking flow and closes overlays topmost-first", () => {
+    const bookingPopup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 25,
+      apiBaseUrl: "https://bookings.example.test",
+      tokenHandlerApiUrl: "https://tokens.example.test",
+      jwtToken: "jwt_fan_details",
+      creatorData: { name: "Profile Creator" },
+      translations: { fan_event_details_iframe_title: "Translated details" },
+      locale: "de-DE",
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: bookingPopup.iframe.contentWindow,
+      data: {
+        source: "fs-fan-booking-embed",
+        type: "FS_FAN_BOOKING_OPEN_DETAILS",
+        payload: { bookingId: " booking_from_success " },
+      },
+      origin: window.location.origin,
+    }));
+
+    const detailsOverlay = document.querySelector("[data-fs-booking-details-popup]");
+    const detailsIframe = detailsOverlay?.querySelector(".fs-booking-details-popup__iframe");
+    expect(detailsOverlay).not.toBeNull();
+    expect(detailsIframe).not.toBeNull();
+    expect(document.body.contains(bookingPopup.overlay)).toBe(true);
+
+    const postMessage = vi.spyOn(detailsIframe.contentWindow, "postMessage");
+    detailsIframe.dispatchEvent(new Event("load"));
+    expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: "FS_EVENTS_BOOTSTRAP",
+      payload: expect.objectContaining({
+        bookingId: "booking_from_success",
+        fanId: 25,
+        userRole: "fan",
+        apiBaseUrl: "https://bookings.example.test",
+        tokenHandlerApiUrl: "https://tokens.example.test",
+        jwtToken: "jwt_fan_details",
+        locale: "de-DE",
+      }),
+    }), window.location.origin);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.querySelector("[data-fs-booking-details-popup]")).toBeNull();
+    expect(document.body.contains(bookingPopup.overlay)).toBe(true);
+    expect(document.activeElement).toBe(bookingPopup.iframe);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.body.contains(bookingPopup.overlay)).toBe(false);
+  });
+
+  it("ignores booking detail requests from guest booking flows", () => {
+    const bookingPopup = window.FSEventsEmbed.openFanBookingPopup({
+      creatorId: 1407,
+      fanId: 0,
+    });
+
+    window.dispatchEvent(new MessageEvent("message", {
+      source: bookingPopup.iframe.contentWindow,
+      data: {
+        source: "fs-fan-booking-embed",
+        type: "FS_FAN_BOOKING_OPEN_DETAILS",
+        payload: { bookingId: "booking_guest" },
+      },
+      origin: window.location.origin,
+    }));
+
+    expect(document.querySelector("[data-fs-booking-details-popup]")).toBeNull();
+    expect(document.body.contains(bookingPopup.overlay)).toBe(true);
+  });
+
   it("broadcasts auth updates to active events embeds and forgets destroyed embeds", () => {
     const firstContainer = document.createElement("div");
     const secondContainer = document.createElement("div");

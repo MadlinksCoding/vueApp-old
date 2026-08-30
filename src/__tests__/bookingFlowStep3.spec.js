@@ -903,8 +903,8 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Creator Name");
     expect(text).toContain("15 Minute x 2 sessions (30 Min.)");
     expect(text).toContain("1,000");
-    expect(text).toContain("USD$ 60.00");
-    expect(text).toContain("=USD$ 6.00");
+    expect(text).not.toContain("USD$ 60.00");
+    expect(text).not.toContain("=USD$ 6.00");
     expect(text).toContain("This booking needs to be approved by Creator Name before your session is confirmed.");
     expect(text).not.toContain("@model");
     expect(text).not.toContain("09 Dec 2026");
@@ -2173,7 +2173,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Recurring Event Discount (25%)");
     expect(text).toContain("Off-hour Surcharge");
     expect(text).toContain("113");
-    expect(text).toContain("USD$ 6.78");
+    expect(text).not.toContain("USD$ 6.78");
     expect(text.indexOf("Recurring Event Discount (25%)")).toBeLessThan(text.indexOf("Off-hour Surcharge"));
     expect(text.indexOf("Off-hour Surcharge")).toBeLessThan(text.indexOf("Session Total"));
   });
@@ -2229,7 +2229,7 @@ describe("BookingFlowStep3", () => {
     expect(text).not.toContain("Off-hour Surcharge");
   });
 
-  it("translates the conditionally refundable booking-fee tooltip", async () => {
+  it("uses booking deposit terminology and translates its conditionally refundable tooltip", async () => {
     tokenGet.mockResolvedValue({ data: { balance: 3000 } });
     const engine = createEngine();
     engine.state.fanBooking.context.selectedEvent.raw.enableBookingFee = true;
@@ -2253,6 +2253,8 @@ describe("BookingFlowStep3", () => {
     await flushAsync();
 
     expect(wrapper.text()).toContain("部分创作者可能收取不可退还的附加费。");
+    expect(wrapper.text()).toContain("Booking deposit included");
+    expect(wrapper.text()).not.toContain("Booking fee included");
   });
 
   it("continues rendering longer-session and first-time discount payment lines", async () => {
@@ -2295,7 +2297,7 @@ describe("BookingFlowStep3", () => {
     expect(text).toContain("Longer Session Discount");
     expect(text).toContain("First Time Discount");
     expect(text).toContain("140");
-    expect(text).toContain("USD$ 8.40");
+    expect(text).not.toContain("USD$ 8.40");
   });
 
   it("renders translated recording metadata while using the canonical mapped total", async () => {
@@ -2333,7 +2335,7 @@ describe("BookingFlowStep3", () => {
     expect(addOns[0].attributes("data-addon-kind")).toBe("recording");
     expect(addOns[0].text()).toContain("录制我们的会话");
     expect(wrapper.text()).toContain("120");
-    expect(wrapper.text()).toContain("USD$ 7.20");
+    expect(wrapper.text()).not.toContain("USD$ 7.20");
   });
 
   it("shows the captured booking payment total on the success screen", async () => {
