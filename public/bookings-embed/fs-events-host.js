@@ -24,6 +24,7 @@
   var FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST = "FS_FAN_BOOKING_BALANCE_REFRESH_REQUEST";
   var FS_FAN_BOOKING_DEBUG = "FS_FAN_BOOKING_DEBUG";
   var FS_FAN_BOOKING_AUTH_UPDATE = "FS_FAN_BOOKING_AUTH_UPDATE";
+  var FS_FAN_BOOKING_OPEN_DETAILS = "FS_FAN_BOOKING_OPEN_DETAILS";
 
   var activeOneOnOnePopup = null;
   var activeBookingDetailsPopup = null;
@@ -1038,6 +1039,31 @@
         return;
       }
 
+      if (data.type === FS_FAN_BOOKING_OPEN_DETAILS) {
+        var detailsPayload = data.payload || {};
+        var detailsBookingId = typeof detailsPayload.bookingId === "string" || typeof detailsPayload.bookingId === "number"
+          ? String(detailsPayload.bookingId).trim()
+          : "";
+        var detailsFanId = safePositiveNumber(settings.fanId, null);
+        if (!detailsBookingId || detailsFanId == null) return;
+
+        openBookingDetailsPopup({
+          src: "/wp-content/plugins/fansocial/bookings-embed/dashboard.html",
+          bookingId: detailsBookingId,
+          fanId: detailsFanId,
+          userRole: "fan",
+          apiBaseUrl: settings.apiBaseUrl || "",
+          tokenHandlerApiUrl: settings.tokenHandlerApiUrl || "",
+          jwtToken: settings.jwtToken || "",
+          creatorData: creatorData,
+          translations: translations,
+          locale: locale,
+          targetOrigin: targetOrigin,
+          returnFocusElement: iframe,
+        });
+        return;
+      }
+
       if (data.type === FS_FAN_BOOKING_FAILED) {
         if (typeof settings.onBookingFailed === "function") {
           settings.onBookingFailed(data.payload || {});
@@ -1047,6 +1073,7 @@
 
     function onKeyDown(event) {
       if (!settings.escToClose) return;
+      if (activeBookingDetailsPopup) return;
       if (event.key === "Escape") {
         close();
       }

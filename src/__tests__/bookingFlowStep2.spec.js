@@ -512,6 +512,31 @@ describe("BookingFlowStep2", () => {
     expect(noFeeWrapper.find("[data-testid='booking-flow-step2-summary-booking-fee-notice']").exists()).toBe(false);
   });
 
+  it("uses booking deposit terminology for a positive configured allocation", async () => {
+    const baseEvent = createPrivateEvent("2030-01-15");
+    const { wrapperPromise } = createMountedStep({
+      selectedEvent: {
+        ...baseEvent,
+        enableBookingFee: true,
+        bookingFeeTokens: 15,
+        raw: {
+          ...baseEvent.raw,
+          enableBookingFee: true,
+          bookingFeeTokens: 15,
+        },
+      },
+    });
+    const wrapper = await wrapperPromise;
+    await flushStep2();
+
+    await wrapper.get("[data-testid='booking-flow-time-slot']").trigger("click");
+    await nextTick();
+
+    const notice = wrapper.get("[data-testid='booking-flow-step2-summary-booking-fee-notice']");
+    expect(notice.text()).toBe("A non-refundable booking deposit of 15 Tokens applied.");
+    expect(notice.text()).not.toContain("booking fee");
+  });
+
   it("prices and preserves translated recording selections by stable add-on kind", async () => {
     const baseEvent = createPrivateEvent("2030-01-15");
     const selectedEvent = {

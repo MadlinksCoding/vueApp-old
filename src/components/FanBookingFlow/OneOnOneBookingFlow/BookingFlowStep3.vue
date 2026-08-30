@@ -2676,7 +2676,6 @@ onBeforeUnmount(() => {
                                 </span>
                                 <span class="whitespace-nowrap">{{ t("fan_booking_booking_fee_included") }}</span>
                               </div>
-                              <span class="text-sm text-[FCE40D] text-right">={{ tokensToUsdDisplay(bookingFeeAmount) }}</span>
                             </div>
                           </div>
 
@@ -2727,7 +2726,6 @@ onBeforeUnmount(() => {
                               <div class="w-4 h-4 flex justify-center items-center"><img :src="bookingFlowTokenIcon" alt="token-icon" /></div>
                               <p class="text-lg font-semibold">{{ formatTokenExact(totalPrice) }}</p>
                             </div>
-                            <span class="text-sm text-[#FCE40D] whitespace-nowrap">={{ amountDueUsdDisplay }}</span>
                           </div>
                         </div>
                       </div>

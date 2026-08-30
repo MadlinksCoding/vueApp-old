@@ -37,6 +37,16 @@ describe("bookingTranslations", () => {
     expect(t("dashboard_context_missing", { role: "creator" })).toBe("The events embed will load once a valid creator id is provided.");
   });
 
+  it("uses booking deposit terminology throughout the fan booking flow", () => {
+    const { t } = createBookingTranslator();
+
+    expect(t("fan_booking_booking_fee")).toBe("Booking Deposit");
+    expect(t("fan_booking_booking_fee_heading")).toBe("BOOKING DEPOSIT");
+    expect(t("fan_booking_booking_fee_included")).toBe("Booking deposit included");
+    expect(t("fan_booking_non_refundable_booking_fee_applied", { tokens: 15 }))
+      .toBe("A non-refundable booking deposit of 15 Tokens applied.");
+  });
+
   it("translates the future-bookings edit warning", () => {
     const { t } = createBookingTranslator({
       translations: {
