@@ -80,20 +80,21 @@ export function useChatSocket(userId) {
     if (body.content_type === 'activity_log') {
       const meta = body.content?.meta || body.meta || {};
       const decision = meta.decision;
+      console.log('Activity log meta:', meta);
       if (['reject', 'decline', 'cancel'].includes(decision)) {
-        console.log('Activity log decision:', decision);
-        // const ud = resolveParentUserData();
-        // const isCreator = ud?.accountType === 'creator'
-        //   || window.userSpecifiData?.currentUser?.isCreator === true
-        //   || localStorage.getItem('isCreator') === 'true';
+        console.error('Activity log decision:', decision);
+        const ud = resolveParentUserData();
+        const isCreator = ud?.accountType === 'creator'
+          || window.userSpecifiData?.currentUser?.isCreator === true
+          || localStorage.getItem('isCreator') === 'true';
 
-        // if (!isCreator) {
-        //   requestFanTokenBalanceRefresh({
-        //     reason: 'chat-activity-log',
-        //     action: decision,
-        //     bookingId: meta.booking_id || body.content?.booking_id || body.booking_id
-        //   });
-        // }
+        if (!isCreator) {
+          requestFanTokenBalanceRefresh({
+            reason: 'chat-activity-log',
+            action: decision,
+            bookingId: meta.booking_id || body.content?.booking_id || body.booking_id
+          });
+        }
       }
     }
 
