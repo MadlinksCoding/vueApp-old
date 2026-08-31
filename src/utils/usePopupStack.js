@@ -5,6 +5,8 @@
 let overlayEl = null;
 let overlayActive = false;
 let overlayVisible = false;
+let overlayHideTimer = null;
+let overlayTransitionHandler = null;
 let lockCount = 0;
 const stack = []; // { el: HTMLElement, baseZ: number }
 
@@ -19,6 +21,7 @@ function ensureOverlay() {
     // background: 'rgba(0,0,0,0.4)',
     transition: 'opacity 150ms ease',
     visibility: 'hidden',
+    pointerEvents: 'none',
     zIndex: '1999', // will be overridden dynamically
     width: '100vw',
 height: '100vh',
@@ -109,18 +112,48 @@ export function usePopupStack() {
 
   function setOverlayVisible(visible) {
     ensureOverlay();
-    overlayVisible = !!visible;
+    const nextVisible = !!visible;
+    if (!nextVisible && !overlayVisible && overlayEl.style.visibility === 'hidden') {
+      overlayEl.style.opacity = '0';
+      overlayEl.style.pointerEvents = 'none';
+      return;
+    }
+    overlayVisible = nextVisible;
+    clearOverlayHideCompletion();
     if (overlayVisible) {
       overlayEl.style.visibility = 'visible';
+      overlayEl.style.pointerEvents = 'auto';
       requestAnimationFrame(() => {
         overlayEl.style.opacity = '1';
       });
     } else {
       overlayEl.style.opacity = '0';
-      overlayEl.addEventListener('transitionend', () => {
-        if (!overlayVisible) overlayEl.style.visibility = 'hidden';
-      }, { once: true });
+      const finishHiding = () => {
+        clearOverlayHideCompletion();
+        if (overlayVisible) return;
+        overlayEl.style.visibility = 'hidden';
+        overlayEl.style.pointerEvents = 'none';
+      };
+      overlayTransitionHandler = (event) => {
+        if (event.target !== overlayEl || event.propertyName !== 'opacity') return;
+        finishHiding();
+      };
+      overlayEl.addEventListener('transitionend', overlayTransitionHandler);
+      overlayEl.addEventListener('transitioncancel', overlayTransitionHandler);
+      overlayHideTimer = window.setTimeout(finishHiding, 250);
     }
+  }
+
+  function clearOverlayHideCompletion() {
+    if (overlayHideTimer !== null) {
+      window.clearTimeout(overlayHideTimer);
+      overlayHideTimer = null;
+    }
+    if (overlayEl && overlayTransitionHandler) {
+      overlayEl.removeEventListener('transitionend', overlayTransitionHandler);
+      overlayEl.removeEventListener('transitioncancel', overlayTransitionHandler);
+    }
+    overlayTransitionHandler = null;
   }
 
   function bodyScrollLock(shouldLock) {

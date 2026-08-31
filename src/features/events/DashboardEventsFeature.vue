@@ -3582,6 +3582,12 @@ const onSelectFromMini = (date) => {
   state.selected = new Date(date);
   state.focus = new Date(date);
   requestCalendarContextRefresh();
+  void nextTick(() => {
+    mainCalendarRef.value?.revealSelectedWeekDay?.({
+      behavior: "smooth",
+      settle: true,
+    });
+  });
 };
 
 const onSelectFromMain = (date) => {
