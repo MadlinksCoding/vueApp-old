@@ -104,6 +104,109 @@ describe("MiniCalendar", () => {
     expect(dot.classes()).toContain("border");
   });
 
+  it("renders separate pending and confirmed booking-status dots", () => {
+    const wrapper = mountCalendar({
+      monthDate: new Date("2030-05-01T00:00:00"),
+      selectedDate: new Date("2030-05-17T00:00:00"),
+      eventDotMode: "booking-status",
+      events: [
+        { id: "pending-1", start: "2030-05-15T10:00:00", end: "2030-05-15T10:30:00", status: "pending" },
+        { id: "pending-2", start: "2030-05-15T11:00:00", end: "2030-05-15T11:30:00", status: "pending_hold" },
+        { id: "confirmed-1", start: "2030-05-16T10:00:00", end: "2030-05-16T10:30:00", status: "confirmed" },
+        { id: "mixed-pending", start: "2030-05-17T10:00:00", end: "2030-05-17T10:30:00", status: "pending" },
+        { id: "mixed-confirmed", start: "2030-05-17T11:00:00", end: "2030-05-17T11:30:00", status: "confirmed" },
+      ],
+      theme: {
+        mini: {
+          selected: "selected",
+          bookingStatusDots: "booking-status-dots",
+        },
+      },
+    });
+
+    const pendingDay = wrapper.get('[data-date="2030-05-15"]');
+    const confirmedDay = wrapper.get('[data-date="2030-05-16"]');
+    const mixedDay = wrapper.get('[data-date="2030-05-17"]');
+
+    expect(pendingDay.findAll('[data-booking-status-dot="pending"]')).toHaveLength(1);
+    expect(pendingDay.find('[data-booking-status-dot="confirmed"]').exists()).toBe(false);
+    expect(confirmedDay.find('[data-booking-status-dot="pending"]').exists()).toBe(false);
+    expect(confirmedDay.findAll('[data-booking-status-dot="confirmed"]')).toHaveLength(1);
+    expect(mixedDay.findAll("[data-booking-status-dot]").map((dot) => dot.attributes("data-booking-status-dot")))
+      .toEqual(["pending", "confirmed"]);
+    expect(mixedDay.get('[data-booking-status-dot="pending"]').classes()).toContain("bg-[#FF4405]");
+    expect(mixedDay.get('[data-booking-status-dot="confirmed"]').classes()).toContain("bg-[#07F468]");
+  });
+
+  it("keeps booking-status colors on today", () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const wrapper = mountCalendar({
+      monthDate: today,
+      selectedDate: tomorrow,
+      eventDotMode: "booking-status",
+      events: [
+        { start: today, end: today, status: "pending" },
+        { start: today, end: today, status: "confirmed" },
+      ],
+    });
+    const dateKey = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    const todayButton = wrapper.get(`[data-date="${dateKey}"]`);
+
+    expect(todayButton.get('[data-booking-status-dot="pending"]').classes()).toContain("bg-[#FF4405]");
+    expect(todayButton.get('[data-booking-status-dot="confirmed"]').classes()).toContain("bg-[#07F468]");
+  });
+
+  it("ignores non-booking statuses in booking-status mode", () => {
+    const wrapper = mountCalendar({
+      monthDate: new Date("2030-05-01T00:00:00"),
+      eventDotMode: "booking-status",
+      events: [
+        { start: "2030-05-15T10:00:00", end: "2030-05-15T10:30:00", status: "available", slot: "availability", isAvailabilityBlock: true },
+        { start: "2030-05-16T10:00:00", end: "2030-05-16T10:30:00", status: "completed" },
+        { start: "2030-05-17T10:00:00", end: "2030-05-17T10:30:00", status: "cancelled_user" },
+        { start: "2030-05-18T10:00:00", end: "2030-05-18T10:30:00", status: "declined" },
+        { start: "2030-05-19T10:00:00", end: "2030-05-19T10:30:00", status: "rejected" },
+        { start: "2030-05-20T10:00:00", end: "2030-05-20T10:30:00", status: "unknown" },
+      ],
+    });
+
+    for (let day = 15; day <= 20; day += 1) {
+      expect(wrapper.get(`[data-date="2030-05-${day}"]`).find('[data-has-events="true"]').exists()).toBe(false);
+    }
+  });
+
+  it("renders booking-status dots across multi-day ranges and still hides past dots", () => {
+    const futureWrapper = mountCalendar({
+      monthDate: new Date("2030-05-01T00:00:00"),
+      eventDotMode: "booking-status",
+      events: [{
+        start: "2030-05-21T23:30:00",
+        end: "2030-05-23T00:30:00",
+        status: "confirmed",
+      }],
+    });
+
+    for (const day of [21, 22, 23]) {
+      expect(futureWrapper.get(`[data-date="2030-05-${day}"]`).find('[data-booking-status-dot="confirmed"]').exists()).toBe(true);
+    }
+
+    const pastWrapper = mountCalendar({
+      monthDate: new Date("2020-01-01T00:00:00"),
+      eventDotMode: "booking-status",
+      hidePastDots: true,
+      allowPastDates: true,
+      events: [{ start: "2020-01-15T10:00:00", end: "2020-01-15T10:30:00", status: "confirmed" }],
+    });
+
+    expect(pastWrapper.get('[data-date="2020-01-15"]').find('[data-has-events="true"]').exists()).toBe(false);
+  });
+
   it("applies selected background class to selected date", () => {
     const futureDate = new Date(Date.now() + 86400000);
     const wrapper = mountCalendar({

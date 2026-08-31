@@ -444,6 +444,7 @@
           :month-date="state.focus"
           :selected-date="state.selected || state.focus"
           :events="miniEvents"
+          event-dot-mode="booking-status"
           :theme="theme1"
           :hide-past-dots="true"
           :allow-past-dates="true"
@@ -1199,6 +1200,9 @@ const theme1 = computed(() => ({
     dot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#ff4405]",
     selectedDot: "!bg-[#ff4405]",
     pendingDot: "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full !bg-transparent border border-[#101828]",
+    bookingStatusDots: "absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center justify-center gap-0.5 pointer-events-none z-10",
+    bookingPendingDot: "block w-1 h-1 rounded-full bg-[#FF4405]",
+    bookingConfirmedDot: "block w-1 h-1 rounded-full bg-[#07F468]",
   },
   main: {
     wrapper: `relative flex flex-col gap-2 lg:gap-6 overflow-hidden rounded-0 h-full p-0 ipad-portrait-small:p-0 ipad-portrait-large:p-0 ipad-portrait-large:pt-6 md:px-4 lg:pl-6 lg:pr-0 pt-6 lg:pt-4 bg-[rgba(242,244,247,0.5)] md:bg-transparent ${props.embedded ? '' : ''}`,
@@ -2183,6 +2187,8 @@ const runDashboardPoll = async () => {
   clearDashboardPollTimer();
   if (!isMounted.value || !hasDashboardContext.value) return;
   if (document.visibilityState === "hidden") return;
+
+  currentTime.value = new Date();
 
   if (dashboardContextRequestsInFlight > 0) {
     scheduleDashboardPoll();
@@ -3446,6 +3452,7 @@ const displayedCalendarEvents = computed(() => (
     : []
 ));
 const miniEvents = computed(() => {
+  const now = currentTime.value;
   const combined = [
     ...(events1.value || []),
     ...(allEvents.value || []),
@@ -3454,10 +3461,18 @@ const miniEvents = computed(() => {
   const seen = new Set();
   return combined.filter((event) => {
     if (!event) return false;
+    if (event.isAvailabilityBlock === true || event.slot === "availability") return false;
+    const status = resolveBookingStatus(event);
+    if (!PENDING_BOOKING_STATUSES.has(status) && status !== "confirmed") return false;
+    if (PENDING_BOOKING_STATUSES.has(status)) {
+      if (!getCalendarEventApprovalState(event, { now }).canReview) return false;
+    } else if (!hasNotEnded(event, now)) {
+      return false;
+    }
     const id = String(event.id || event.eventId || event.bookingId || `${event.start}-${event.title}`);
     if (seen.has(id)) return false;
     seen.add(id);
-    return !isCancelledOrDeclinedBooking(event);
+    return true;
   });
 });
 

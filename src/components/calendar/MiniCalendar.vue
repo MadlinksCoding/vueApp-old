@@ -33,22 +33,42 @@
             d.getDay() === 0 ? 'text-[#FF6A6A]' : ''
           ]">
           <span class="text-[0.75rem] ">{{ d.getDate() }}</span>
-          <span
-            v-if="dotMap[localDateKey(d)] && (!hidePastDots || d >= today)"
-            :class="[
-              'absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
-              dotMap[localDateKey(d)].hasPending
-                ? ((sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today)))
-                    ? 'w-1 h-1 !bg-transparent border border-white'
-                    : (theme.mini?.pendingDot || 'w-1 h-1 !bg-transparent border border-[#101828]'))
-                : [
-                    theme.mini?.dot || 'w-1 h-1 bg-[#101828]',
-                    (sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today))) ? (theme.mini?.selectedDot || '!bg-white') : ''
-                  ]
-            ]"
-            data-has-events="true"
-            :data-pending="dotMap[localDateKey(d)].hasPending ? 'true' : 'false'"
-          ></span>
+          <template v-if="dotMap[localDateKey(d)] && (!hidePastDots || d >= today)">
+            <span
+              v-if="eventDotMode === 'booking-status'"
+              :class="theme.mini?.bookingStatusDots || 'absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center justify-center gap-0.5 pointer-events-none z-10'"
+              data-has-events="true"
+              :data-pending="dotMap[localDateKey(d)].hasPending ? 'true' : 'false'"
+              :data-confirmed="dotMap[localDateKey(d)].hasConfirmed ? 'true' : 'false'"
+            >
+              <span
+                v-if="dotMap[localDateKey(d)].hasPending"
+                :class="theme.mini?.bookingPendingDot || 'block w-1 h-1 rounded-full bg-[#FF4405]'"
+                data-booking-status-dot="pending"
+              ></span>
+              <span
+                v-if="dotMap[localDateKey(d)].hasConfirmed"
+                :class="theme.mini?.bookingConfirmedDot || 'block w-1 h-1 rounded-full bg-[#07F468]'"
+                data-booking-status-dot="confirmed"
+              ></span>
+            </span>
+            <span
+              v-else
+              :class="[
+                'absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full pointer-events-none block z-10',
+                dotMap[localDateKey(d)].hasPending
+                  ? ((sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today)))
+                      ? 'w-1 h-1 !bg-transparent border border-white'
+                      : (theme.mini?.pendingDot || 'w-1 h-1 !bg-transparent border border-[#101828]'))
+                  : [
+                      theme.mini?.dot || 'w-1 h-1 bg-[#101828]',
+                      (sameDay(d, selectedDate) || (todayUsesSelectedDot && sameDay(d, today))) ? (theme.mini?.selectedDot || '!bg-white') : ''
+                    ]
+              ]"
+              data-has-events="true"
+              :data-pending="dotMap[localDateKey(d)].hasPending ? 'true' : 'false'"
+            ></span>
+          </template>
         </button>
 
           <div v-else class="w-[2.339rem] h-[2.313rem]"></div>
@@ -72,6 +92,11 @@ export default {
     monthDate: { type: Date, required: true },
     selectedDate: { type: Date, default: null },
     events: { type: Array, default: () => [] },
+    eventDotMode: {
+      type: String,
+      default: "event",
+      validator: (value) => ["event", "booking-status"].includes(value),
+    },
     hidePastDots: { type: Boolean, default: false },
     todayUsesSelectedDot: { type: Boolean, default: true },
     theme: { type: Object, default: () => ({}) },
@@ -165,7 +190,15 @@ export default {
         if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return;
 
         const status = String(ev.status || ev.bookingStatus || ev.state || ev.raw?.status || "").toLowerCase();
-        const isPending = status === "pending" || status === "pending_hold" || status.includes("pending") || Boolean(ev.isPending);
+        const hasPendingBookingStatus = status === "pending" || status === "pending_hold";
+        const hasConfirmedBookingStatus = status === "confirmed";
+        const usesBookingStatuses = this.eventDotMode === "booking-status";
+
+        if (usesBookingStatuses && !hasPendingBookingStatus && !hasConfirmedBookingStatus) return;
+
+        const isPending = usesBookingStatuses
+          ? hasPendingBookingStatus
+          : hasPendingBookingStatus || status.includes("pending") || Boolean(ev.isPending);
 
         for (let d = new Date(s); d <= e; d = addDays(d, 1)) {
           const k = this.localDateKey(d);
@@ -175,7 +208,7 @@ export default {
           m[k].count += 1;
           if (isPending) {
             m[k].hasPending = true;
-          } else {
+          } else if (!usesBookingStatuses || hasConfirmedBookingStatus) {
             m[k].hasConfirmed = true;
           }
         }

@@ -954,7 +954,7 @@
             </button>
           </div>
 
-          <div v-if="isRowExpanded(row) && expandedDayEvents.length > 0" class="w-full transition-all duration-300 lg:hidden">
+          <div v-if="!usesMonthDateOverlay && isRowExpanded(row) && expandedDayEvents.length > 0" class="w-full transition-all duration-300">
             <slot name="month-expanded" :events="expandedDayEvents" :day="expandedDate" :onClick="(event, action) => activateEventForDay(event, expandedDate, action)">
               <div class="w-full p-2 bg-black/10 flex flex-col gap-2" data-test="month-expanded-default">
                 <button
@@ -993,7 +993,7 @@
       </div>
 
       <div
-        v-if="width >= 1024 && expandedDate && expandedMonthEventCount > 0"
+        v-if="usesMonthDateOverlay && expandedDate && expandedMonthEventCount > 0"
         ref="monthOverlayRef"
         class="month-date-overlay absolute z-30 flex flex-col overflow-hidden border border-[#344054] bg-white/95 shadow-[0_12px_32px_rgba(16,24,40,0.22)] backdrop-blur-md"
         data-test="calendar-month-date-overlay"
@@ -1289,6 +1289,8 @@ const props = defineProps({
 
 const emit = defineEmits(['date-selected', 'update:focus-date', 'view-changed', 'preview-schedule', 'join-call', 'reply-click', 'approve-booking', 'reject-booking', 'cancel-booking', 'menu-action', 'create-event', 'edit-schedule-event', 'delete-schedule-event', 'view-schedule-card', 'refresh-events', 'booking-details-visibility', 'booking-details-closed', 'widget-accept-details', 'accept-adjustment', 'decline-adjustment', 'accept-counter', 'reject-counter']);
 const { t, locale } = useBookingTranslations();
+const MONTH_DATE_OVERLAY_MIN_WIDTH = 678;
+const isMonthDateOverlayViewport = (viewportWidth) => viewportWidth >= MONTH_DATE_OVERLAY_MIN_WIDTH;
 const today = ref(SOD(new Date()));
 const width = ref(window.innerWidth);
 const height = ref(window.innerHeight);
@@ -1298,6 +1300,7 @@ const canonicalViewportWidth = computed(() => {
     ? suppliedWidth
     : width.value;
 });
+const usesMonthDateOverlay = computed(() => isMonthDateOverlayViewport(canonicalViewportWidth.value));
 const cursor = ref(new Date(props.focusDate));
 const view = ref(props.initialView);
 const calendarRootRef = ref(null);
@@ -1539,7 +1542,7 @@ const resolveEventSlotName = (event = {}) => {
 };
 
 const handleMonthDateClick = (d) => {
-  if (canonicalViewportWidth.value >= 1024) {
+  if (usesMonthDateOverlay.value) {
     const hasEvents = monthBookingEventsForDay(d).length > 0
       || monthAvailabilityEventsForDay(d).length > 0;
 
@@ -3452,7 +3455,7 @@ function scheduleMonthAvailabilityLayout() {
 }
 
 async function positionMonthDateOverlay(day = expandedDate.value) {
-  if (!day || canonicalViewportWidth.value < 1024 || effectiveView.value !== 'month') return;
+  if (!day || !usesMonthDateOverlay.value || effectiveView.value !== 'month') return;
 
   await nextTick();
   if (!expandedDate.value || !sameDay(day, expandedDate.value)) return;
@@ -3491,7 +3494,7 @@ async function positionMonthDateOverlay(day = expandedDate.value) {
 }
 
 function handleMonthOverlayOutsideClick(event) {
-  if (canonicalViewportWidth.value < 1024 || !expandedDate.value) return;
+  if (!usesMonthDateOverlay.value || !expandedDate.value) return;
   const target = event.target;
   if (monthOverlayRef.value?.contains(target)) return;
   if (target?.closest?.('[data-date]')) return;
@@ -3499,7 +3502,7 @@ function handleMonthOverlayOutsideClick(event) {
 }
 
 function handleMonthOverlayKeydown(event) {
-  if (event.key === 'Escape' && canonicalViewportWidth.value >= 1024 && expandedDate.value) {
+  if (event.key === 'Escape' && usesMonthDateOverlay.value && expandedDate.value) {
     closeMonthDateOverlay();
   }
 }
@@ -3510,7 +3513,7 @@ watch([effectiveView, processedEventsByDay], () => {
 }, { flush: 'post' });
 
 watch(expandedMonthEventCount, () => {
-  if (expandedDate.value && canonicalViewportWidth.value >= 1024) {
+  if (expandedDate.value && usesMonthDateOverlay.value) {
     positionMonthDateOverlay();
   }
 });
@@ -3642,6 +3645,7 @@ const setView = (v) => {
 
 const ensureMobileEventDayView = () => {
   if (canonicalViewportWidth.value >= 1024 || props.variant !== 'default' || props.dayColumnMode !== 'events') return false;
+  if (view.value === 'month' && usesMonthDateOverlay.value) return false;
   if (view.value === 'day') return false;
 
   setView('day');
@@ -3682,10 +3686,12 @@ const updateNowLine = () => {
 };
 const applyResponsiveViewportChange = (previousWidth, nextWidth) => {
   const enteredMobile = previousWidth >= 1024 && nextWidth < 1024;
+  const crossedMonthOverlayBoundary = isMonthDateOverlayViewport(previousWidth)
+    !== isMonthDateOverlayViewport(nextWidth);
 
-  if ((previousWidth < 1024) !== (nextWidth < 1024)) {
+  if (crossedMonthOverlayBoundary) {
     closeMonthDateOverlay();
-  } else if (nextWidth >= 1024 && expandedDate.value) {
+  } else if (isMonthDateOverlayViewport(nextWidth) && expandedDate.value) {
     positionMonthDateOverlay();
   }
 

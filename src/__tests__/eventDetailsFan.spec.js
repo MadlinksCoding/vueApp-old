@@ -639,6 +639,9 @@ describe('EventDetailsFan', () => {
     ['cancelled', closeIcon],
     ['cancelled_user', closeIcon],
     ['cancelled_creator', closeIcon],
+    ['cancelled_system', closeIcon],
+    ['cancelled_by_fan', closeIcon],
+    ['canceled', closeIcon],
     ['declined', closeIcon],
   ])('renders exactly one hero status icon for %s', (status, expectedIcon) => {
     const wrapper = mountDetails(
@@ -650,6 +653,35 @@ describe('EventDetailsFan', () => {
 
     expect(statusImages).toHaveLength(1);
     expect(statusImages[0].attributes('src')).toBe(expectedIcon);
+    wrapper.unmount();
+  });
+
+  it.each(['cancelled_system', 'cancelled_by_fan', 'canceled'])('labels the %s cancellation status as Cancelled', (status) => {
+    const wrapper = mountDetails(booking({
+      status,
+      cancellation: { actor: 'fan', refundedTokens: 75 },
+      meta: {},
+    }), 'side-panel', { userRole: 'creator' });
+
+    const statusPill = wrapper.get('[data-test="event-details-fan-status"]');
+    expect(statusPill.text()).toContain('Cancelled');
+    expect(statusPill.findAll('img')).toHaveLength(1);
+    expect(statusPill.get('img').attributes('src')).toBe(closeIcon);
+    expect(wrapper.get('[data-test="booking-details-cancelled-notice"]').text()).toContain('cancelled their booking with you');
+    expect(wrapper.get('[data-test="booking-details-cancelled-refund"]').text()).toContain('75');
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['pending', 'Pending'],
+    ['pending_hold', 'Pending Hold'],
+    ['declined', 'Declined'],
+  ])('preserves the %s status label', (status, expectedLabel) => {
+    const wrapper = mountDetails(booking({ status, meta: {} }), 'side-panel', {
+      comparisonTime: '2027-04-25T14:14:59.999Z',
+    });
+
+    expect(wrapper.get('[data-test="event-details-fan-status"]').text()).toContain(expectedLabel);
     wrapper.unmount();
   });
 
