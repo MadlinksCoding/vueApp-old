@@ -61,7 +61,6 @@
             :counterparty-verified="creatorVerified"
             :additional-request-lines="additionalRequestLines"
             :session-cost="paymentTotal"
-            :session-deposit="sessionDepositTokens"
             :cancellation-fee="activeCancellationFee"
             :booking-fee="activeBookingFee"
             :pending-price-adjustment="pendingPriceAdjustment"
@@ -934,10 +933,6 @@ const paymentTotal = computed(() => {
 const paymentAllocations = computed(() => raw.value?.payment?.allocations && typeof raw.value.payment.allocations === 'object'
   ? raw.value.payment.allocations
   : {});
-const sessionDepositTokens = computed(() => finiteNumber(raw.value?.sessionDepositTokens)
-  ?? finiteNumber(raw.value?.payment?.sessionDepositTokens)
-  ?? finiteNumber(raw.value?.payment?.depositTokens)
-  ?? finiteNumber(paymentAllocations.value.service));
 const activeCancellationFee = computed(() => finiteNumber(paymentAllocations.value.cancellationFee)
   ?? finiteNumber(raw.value?.cancellationFeeTokens)
   ?? finiteNumber(mergedEvent.value?.cancellationFeeTokens));

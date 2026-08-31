@@ -1285,6 +1285,8 @@ describe("DashboardEventsFeature", () => {
     const fetchCallsAfterMount = callFlow.mock.calls.filter(
       ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
     ).length;
+    const revealCallsAfterMount = mainCalendarRevealSelectedWeekDay.mock.calls.length;
+    const initialView = mainCalendar.props("initialView");
     const pastDate = new Date("2026-02-15T09:00:00");
 
     miniCalendar.vm.$emit("date-selected", pastDate);
@@ -1292,6 +1294,12 @@ describe("DashboardEventsFeature", () => {
 
     expect(mainCalendar.props("focusDate").getTime()).toBe(pastDate.getTime());
     expect(mainCalendar.props("selectedDate").getTime()).toBe(pastDate.getTime());
+    expect(mainCalendar.props("initialView")).toBe(initialView);
+    expect(mainCalendarRevealSelectedWeekDay).toHaveBeenCalledTimes(revealCallsAfterMount + 1);
+    expect(mainCalendarRevealSelectedWeekDay).toHaveBeenLastCalledWith({
+      behavior: "smooth",
+      settle: true,
+    });
     expect(callFlow.mock.calls.filter(
       ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
     )).toHaveLength(fetchCallsAfterMount + 1);

@@ -184,7 +184,12 @@ const defaults = {
 const panelRef = ref(null);
 const contentRef = ref(null);
 const isVisible = ref(false);
+const isClosing = ref(false);
 const currentZ = ref(defaults.zIndex);
+let bodyLocked = false;
+let closeFallbackTimer = null;
+let closeTransitionHandler = null;
+let finalizeActiveClose = null;
 
 const {
   registerPanel,
@@ -237,7 +242,21 @@ function isInstantOpen() {
 }
 function isInstantClose() {
   // close animation considered instant if closeSpeed === "0ms" OR closeEffect === "instant"
-  return (cfg.value.closeSpeed ?? cfg.value.speed) === '0ms' || (cfg.value.closeEffect ?? cfg.value.effect) === 'instant';
+  return resolveCssTimeMs(cfg.value.closeSpeed ?? cfg.value.speed) === 0
+    || (cfg.value.closeEffect ?? cfg.value.effect) === 'instant';
+}
+
+function resolveCssTimeMs(value) {
+  if (typeof value === 'number') return Math.max(0, value);
+  const normalized = String(value ?? '').trim().toLowerCase();
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, normalized.endsWith('s') && !normalized.endsWith('ms') ? parsed * 1000 : parsed);
+}
+
+function isCssTimingFunction(value) {
+  const normalized = String(value || '').trim();
+  return /^(linear|ease|ease-in|ease-out|ease-in-out|step-start|step-end|cubic-bezier\(.+\)|steps\(.+\))$/i.test(normalized);
 }
 
 function dispatchDomEvent(name, detail) {
@@ -314,6 +333,12 @@ const loaderPosition = computed(() => (cfg.value.loader && cfg.value.loader.posi
 
 // -------------------- Open/Close mechanics --------------------
 async function openPanel() {
+  if (isClosing.value && finalizeActiveClose) {
+    finalizeActiveClose();
+  } else if (isVisible.value) {
+    return;
+  }
+
   validateBeforeOpen();
   isVisible.value = true;
 
@@ -350,7 +375,10 @@ async function openPanel() {
 
 
   // Body scroll lock
-  if (cfg.value.lockScroll) bodyScrollLock(true);
+  if (cfg.value.lockScroll && !bodyLocked) {
+    bodyScrollLock(true);
+    bodyLocked = true;
+  }
 
   // Initial inline styles (positioning + transform off-screen if needed)
   applyInitialStyles(panel);
@@ -387,11 +415,19 @@ async function openPanel() {
 function closePanel() {
   clearOrientationSyncTimers();
   const panel = panelRef.value;
-  if (!panel) return;
+  if (!panel || isClosing.value) return;
 
-  applyLeaveStyles(panel);
+  isClosing.value = true;
+  applyCloseTransition(panel);
+
+  let finalized = false;
 
   const finalize = () => {
+    if (finalized) return;
+    finalized = true;
+    clearCloseCompletion(panel);
+    isClosing.value = false;
+
     // Reset styles if requested
     if (cfg.value.resetOnClose) {
       panel.removeAttribute('style');
@@ -402,7 +438,10 @@ function closePanel() {
     isVisible.value = false;
 
     // Unlock scroll if this panel was locking it
-    if (cfg.value.lockScroll) bodyScrollLock(false);
+    if (bodyLocked) {
+      bodyScrollLock(false);
+      bodyLocked = false;
+    }
 
     // Remove document click listener if it was added
     if (!cfg.value.showOverlay && cfg.value.closeOnOutside) {
@@ -422,8 +461,40 @@ function closePanel() {
     emit('closed', detail);
   };
 
-  if (isInstantClose()) finalize();
-  else panel.addEventListener('transitionend', finalize, { once: true });
+  finalizeActiveClose = finalize;
+
+  if (isInstantClose()) {
+    applyLeaveStyles(panel);
+    finalize();
+    return;
+  }
+
+  const expectedProperties = new Set(closeTransitionProperties());
+  closeTransitionHandler = (event) => {
+    if (event.target !== panel || !expectedProperties.has(event.propertyName)) return;
+    finalize();
+  };
+  panel.addEventListener('transitionend', closeTransitionHandler);
+  panel.addEventListener('transitioncancel', closeTransitionHandler);
+
+  applyLeaveStyles(panel);
+  closeFallbackTimer = window.setTimeout(
+    finalize,
+    resolveCssTimeMs(cfg.value.closeSpeed ?? cfg.value.speed) + 100,
+  );
+}
+
+function clearCloseCompletion(panel = panelRef.value) {
+  if (closeFallbackTimer !== null) {
+    window.clearTimeout(closeFallbackTimer);
+    closeFallbackTimer = null;
+  }
+  if (panel && closeTransitionHandler) {
+    panel.removeEventListener('transitionend', closeTransitionHandler);
+    panel.removeEventListener('transitioncancel', closeTransitionHandler);
+  }
+  closeTransitionHandler = null;
+  finalizeActiveClose = null;
 }
 
 
@@ -686,7 +757,7 @@ function applyEnterStyles(panel) {
 }
 
 function syncVisiblePanelLayout() {
-  if (!isVisible.value) return;
+  if (!isVisible.value || isClosing.value) return;
   const panel = panelRef.value;
   if (!panel) return;
 
@@ -696,10 +767,28 @@ function syncVisiblePanelLayout() {
   applyEnterStyles(panel);
 }
 
-function applyLeaveStyles(panel) {
+function closeTransitionProperties() {
+  if (!isPopup.value) return ['transform'];
+  const effect = cfg.value.customEffect || 'scale';
+  if (effect === 'fade') return ['opacity'];
+  if (effect === 'slideTopFade') return ['transform', 'opacity'];
+  return ['transform'];
+}
+
+function applyCloseTransition(panel) {
   if (isInstantClose()) {
     panel.style.transition = 'none';
+    return;
   }
+  const speed = cfg.value.closeSpeed ?? cfg.value.speed;
+  const requestedTiming = cfg.value.closeEffect ?? cfg.value.effect;
+  const timing = isCssTimingFunction(requestedTiming) ? requestedTiming : (cfg.value.effect || 'ease');
+  panel.style.transition = closeTransitionProperties()
+    .map((property) => `${property} ${speed} ${timing}`)
+    .join(', ');
+}
+
+function applyLeaveStyles(panel) {
   if (isPopup.value) {
     const effect = cfg.value.customEffect || 'scale';
     if (effect === 'fade') {
@@ -833,12 +922,17 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize);
   window.removeEventListener('orientationchange', handleOrientationChange);
   clearOrientationSyncTimers();
+  clearCloseCompletion();
+  isClosing.value = false;
   // Remove document click listener if it was added
   if (!cfg.value.showOverlay && cfg.value.closeOnOutside) {
     document.removeEventListener('click', handleDocumentClick);
   }
   // Ensure scroll unlocked if this panel was locking it
-  bodyScrollLock(false);
+  if (bodyLocked) {
+    bodyScrollLock(false);
+    bodyLocked = false;
+  }
   const panel = panelRef.value;
   if (panel) unregisterPanel(panel);
 });
