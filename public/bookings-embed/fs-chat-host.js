@@ -124,7 +124,7 @@
       right: "0",
       width: String(settings.width / 16) + "rem",
       height: String(settings.height / 16) + "rem",
-      zIndex: "9998",
+      zIndex: "999999",
       background: "transparent",
       overflow: "visible",
       pointerEvents: "none",
