@@ -1168,12 +1168,6 @@ onBeforeUnmount(() => { if (rejectDecisionOpen.value) emit('decision-visibility'
   border-radius: 1.5rem 1.5rem 0 0;
 }
 
-@media (max-width: 767px) {
-   .booking-details-compact-surface {
-    position: absolute !important;
-    bottom: 0; 
-  }
-}
 @media (min-width: 768px) {
   .booking-details-compact-dialog {
     width: 500px !important;
