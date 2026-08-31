@@ -830,7 +830,10 @@ const isExpired = computed(() => {
 const displayStatus = computed(() => pendingStartElapsed.value ? 'cancelled' : normalizedStatus.value);
 const displayIsCancelledStatus = computed(() => displayStatus.value.startsWith('cancel') || displayStatus.value === 'declined');
 const statusKeys = { confirmed: 'calendar_event_status_confirmed', completed: 'calendar_event_status_completed', pending: 'calendar_event_status_pending', pending_hold: 'calendar_event_status_pending_hold', cancelled: 'calendar_event_status_cancelled', cancelled_user: 'calendar_event_status_cancelled', cancelled_creator: 'calendar_event_status_cancelled', declined: 'calendar_event_status_declined' };
-const statusText = computed(() => t(statusKeys[displayStatus.value] || 'calendar_event_status_pending'));
+const statusText = computed(() => {
+  if (displayStatus.value.startsWith('cancel')) return t('calendar_event_status_cancelled');
+  return t(statusKeys[displayStatus.value] || 'calendar_event_status_pending');
+});
 const compactPendingStatus = computed(() => displayStatus.value === 'pending' || displayStatus.value === 'pending_hold');
 const statusColor = computed(() => ['confirmed', 'completed'].includes(displayStatus.value) ? '#22C55E' : (displayIsCancelledStatus.value ? '#F04438' : '#F59E0B'));
 
