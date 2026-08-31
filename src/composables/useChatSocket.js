@@ -5,6 +5,8 @@ import { resolveAndSyncChat, ensureChatUsersData } from '@/services/chat/chatRes
 import { postToParent } from '@/utils/postToParent';
 import { resolveUserId } from '@/utils/resolveUserId';
 import { toCloneSafePayload } from '@/utils/cloneSafePayload.js';
+import { requestFanTokenBalanceRefresh } from '@/utils/fanTokenBalanceRefresh.js';
+import { resolveParentUserData } from '@/utils/resolveParentUserData.js';
 
 const PARENT_CHECK_MSG  = 'FANSOCIAL_SOCKET_CHECK';
 const PARENT_STATUS_MSG = 'FANSOCIAL_SOCKET_STATUS';
@@ -73,6 +75,26 @@ export function useChatSocket(userId) {
       chatStore.chatParticipants[body.chat_id] = parts.filter(id => String(id) !== kickedId)
 
       resolveAndSyncChat(body.chat_id)
+    }
+
+    if (body.content_type === 'activity_log') {
+      const meta = body.content?.meta || body.meta || {};
+      const decision = meta.decision;
+      if (['reject', 'decline', 'cancel'].includes(decision)) {
+        console.log('Activity log decision:', decision);
+        // const ud = resolveParentUserData();
+        // const isCreator = ud?.accountType === 'creator'
+        //   || window.userSpecifiData?.currentUser?.isCreator === true
+        //   || localStorage.getItem('isCreator') === 'true';
+
+        // if (!isCreator) {
+        //   requestFanTokenBalanceRefresh({
+        //     reason: 'chat-activity-log',
+        //     action: decision,
+        //     bookingId: meta.booking_id || body.content?.booking_id || body.booking_id
+        //   });
+        // }
+      }
     }
 
     chatStore.addMessage(body.chat_id, body);

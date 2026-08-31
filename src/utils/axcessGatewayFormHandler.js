@@ -392,6 +392,17 @@ class AxcessGatewayFormHandler {
   _handleSuccess(response) {
     console.error('Payment successful:', response);
     
+    // SPEEDUP PAYMENT: Drain this order's queued post-payment side effects now
+    // SPEEDUP PAYMENT: (emails, Telegram, metrics, DynamoDB, cache rebuild) instead
+    // SPEEDUP PAYMENT: of waiting for the 3-5 minute scheduler ping. Fire-and-forget:
+    // SPEEDUP PAYMENT: the thank-you UI must not wait on it, and the generic
+    // SPEEDUP PAYMENT: /process_schedules ping is the fallback if this never lands.
+    // SPEEDUP PAYMENT: Runs for logged-in and guest buyers alike.
+    let speedupOrderId = response?.order_id || response?.id || custom_checkout_params.order_id || this.currentOrderId;
+    if (speedupOrderId) {
+       this.processPaymentSchedule(speedupOrderId);
+    }
+
     // TODO: add shared success logic here (e.g. update token balance display)
     this._successCallback(response);
   }
@@ -729,6 +740,33 @@ class AxcessGatewayFormHandler {
       btn.click();
     } else {
       form.dispatchEvent(new Event('submit'));
+    }
+  }
+
+  processPaymentSchedule( speedupOrderId ) {
+   if( speedupOrderId ) {
+        // fetch( '/wp-json/api/scheduler/process_payment_schedule?order_id=' + encodeURIComponent( speedupOrderId ) )
+        //     .catch( () => {} );
+
+        let xhr = new XMLHttpRequest();
+        xhr.open('GET', '/wp-json/api/scheduler/process_payment_schedule?order_id=' + encodeURIComponent( speedupOrderId ), true);
+
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        // load start event for the XMLHttpRequest
+        xhr.addEventListener('loadstart', () => {
+            console.log('XMLHttpRequest started for order_id=' + encodeURIComponent( speedupOrderId ));
+
+            // 5s timeout to allow any ongoing transitions to complete
+            setTimeout(() => {
+                // abort the request if it takes longer than 5s
+                xhr.abort();
+            }, 5000);
+        });
+
+        xhr.send();
+    } else {
+        console.error( 'No speedupOrderId provided for processing payment schedule.' );
     }
   }
 }
