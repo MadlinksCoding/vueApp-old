@@ -287,7 +287,7 @@ vi.mock("@/components/calendar/MainCalendar.vue", () => ({
 vi.mock("@/components/calendar/MiniCalendar.vue", () => ({
   default: {
     name: "MiniCalendar",
-    props: ["allowPastDates", "events"],
+    props: ["allowPastDates", "eventDotMode", "events"],
     emits: ["date-selected"],
     template: "<div class='mini-calendar-stub' />",
   },
@@ -685,7 +685,51 @@ describe("DashboardEventsFeature", () => {
     expect(mainCalendar.props("showCurrentTimeAcrossDates")).toBe(true);
     expect(mainCalendar.props("minEventHeightPx")).toBe(40);
     expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBe(96);
-    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("allowPastDates")).toBe(true);
+    const miniCalendar = wrapper.getComponent({ name: "MiniCalendar" });
+    expect(miniCalendar.props("allowPastDates")).toBe(true);
+    expect(miniCalendar.props("eventDotMode")).toBe("booking-status");
+    wrapper.unmount();
+  });
+
+  it("limits dashboard mini-calendar dots to pending and confirmed bookings", async () => {
+    callFlow.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: [
+          { bookingId: "booking_pending", eventId: "event_pending", startIso: isoDaysFromToday(1, 10), endIso: isoDaysFromToday(1, 10, 30), status: "pending" },
+          { bookingId: "booking_pending_hold", eventId: "event_pending_hold", startIso: isoDaysFromToday(2, 10), endIso: isoDaysFromToday(2, 10, 30), status: "pending_hold" },
+          { bookingId: "booking_confirmed", eventId: "event_confirmed", startIso: isoDaysFromToday(3, 10), endIso: isoDaysFromToday(3, 10, 30), status: "confirmed" },
+          { bookingId: "booking_started_pending", eventId: "event_started_pending", eventTitle: "Started pending", startIso: isoTodayAt(8), endIso: isoTodayAt(8, 30), status: "pending" },
+          { bookingId: "booking_started_hold", eventId: "event_started_hold", eventTitle: "Started hold", startIso: isoTodayAt(9), endIso: isoTodayAt(9, 30), status: "pending_hold" },
+          { bookingId: "booking_ended_confirmed", eventId: "event_ended_confirmed", eventTitle: "Ended confirmed", startIso: isoTodayAt(8), endIso: isoTodayAt(8, 30), status: "confirmed" },
+          { bookingId: "booking_completed", eventId: "event_completed", startIso: isoTodayAt(8), endIso: isoTodayAt(8, 30), status: "completed" },
+          { bookingId: "booking_cancelled", eventId: "event_cancelled", startIso: isoDaysFromToday(4, 10), endIso: isoDaysFromToday(4, 10, 30), status: "cancelled_user" },
+        ],
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({
+      creatorId: 99,
+      userRole: "creator",
+    });
+    const miniCalendar = wrapper.getComponent({ name: "MiniCalendar" });
+    const miniStatuses = miniCalendar.props("events").map((event) => event.status).sort();
+    const mainStatuses = wrapper.getComponent({ name: "MainCalendar" })
+      .props("events")
+      .map((event) => event.status);
+    const mainTitles = wrapper.getComponent({ name: "MainCalendar" })
+      .props("events")
+      .map((event) => event.title);
+
+    expect(miniStatuses).toEqual(["confirmed", "pending", "pending_hold"]);
+    expect(mainStatuses).toEqual(expect.arrayContaining(["completed", "cancelled_user"]));
+    expect(mainTitles).toEqual(expect.arrayContaining([
+      "Started pending",
+      "Started hold",
+      "Ended confirmed",
+    ]));
     wrapper.unmount();
   });
 
@@ -700,23 +744,50 @@ describe("DashboardEventsFeature", () => {
       endIso: isoTodayAt(10, 30),
       status: "confirmed",
     };
+    const statusChangedSlot = {
+      bookingId: "booking_status_changed",
+      eventId: "event_status_changed",
+      eventTitle: "Status changed booking",
+      eventType: "1on1-call",
+      startIso: isoTodayAt(11),
+      endIso: isoTodayAt(11, 30),
+      status: "pending",
+    };
+    const removedSlot = {
+      bookingId: "booking_removed",
+      eventId: "event_removed",
+      eventTitle: "Removed booking",
+      eventType: "1on1-call",
+      startIso: isoTodayAt(12),
+      endIso: isoTodayAt(12, 30),
+      status: "confirmed",
+    };
     callFlow
       .mockResolvedValueOnce({
         ok: true,
-        data: { events: [], bookedSlots: [], widgetBookedSlots: [], bookedSlotsIndex: {} },
+        data: {
+          events: [],
+          bookedSlots: [statusChangedSlot, removedSlot],
+          widgetBookedSlots: [statusChangedSlot, removedSlot],
+          bookedSlotsIndex: {},
+        },
       })
       .mockResolvedValueOnce({
         ok: true,
         data: {
           events: [],
-          bookedSlots: [refreshedSlot],
-          widgetBookedSlots: [refreshedSlot],
+          bookedSlots: [refreshedSlot, { ...statusChangedSlot, status: "confirmed" }],
+          widgetBookedSlots: [refreshedSlot, { ...statusChangedSlot, status: "confirmed" }],
           bookedSlotsIndex: {},
         },
       });
 
     const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
     expect(callFlow).toHaveBeenCalledTimes(1);
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events")).toEqual([
+      expect.objectContaining({ title: "Status changed booking", status: "pending" }),
+      expect.objectContaining({ title: "Removed booking", status: "confirmed" }),
+    ]);
 
     await vi.advanceTimersByTimeAsync(9_999);
     expect(callFlow).toHaveBeenCalledTimes(1);
@@ -738,10 +809,15 @@ describe("DashboardEventsFeature", () => {
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
     expect(mainCalendar.props("events")).toEqual([
       expect.objectContaining({ title: "Polled booking" }),
+      expect.objectContaining({ title: "Status changed booking", status: "confirmed" }),
     ]);
-    expect(mainCalendar.props("bookedSlotsCount")).toBe(1);
+    expect(mainCalendar.props("bookedSlotsCount")).toBe(2);
     expect(Object.keys(mainCalendar.props("bookingScheduleBookedSlotsIndex")))
       .toContain("event_polled");
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events")).toEqual([
+      expect.objectContaining({ title: "Polled booking", status: "confirmed" }),
+      expect.objectContaining({ title: "Status changed booking", status: "confirmed" }),
+    ]);
     expect(wrapper.findAllComponents({ name: "EventsWidget" }).some((widget) => (
       widget.props("sections").some((section) => (
         section.items?.some((item) => item.title === "Polled booking")
@@ -753,6 +829,67 @@ describe("DashboardEventsFeature", () => {
     expect(callFlow).toHaveBeenCalledTimes(2);
   });
 
+  it("ages pending and confirmed mini-calendar dots on a poll even when the snapshot is unchanged", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:55"));
+    setDocumentVisibilityState("visible");
+    const expiringSlots = [
+      {
+        bookingId: "booking_pending_poll_expiry",
+        eventId: "event_pending_poll_expiry",
+        eventTitle: "Pending poll expiry",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:00:00",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+      },
+      {
+        bookingId: "booking_confirmed_poll_expiry",
+        eventId: "event_confirmed_poll_expiry",
+        eventTitle: "Confirmed poll expiry",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T09:30:00",
+        endIso: "2026-03-23T10:00:00",
+        status: "confirmed",
+      },
+    ];
+    callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: expiringSlots,
+        widgetBookedSlots: expiringSlots,
+        bookedSlotsIndex: {},
+      },
+    });
+
+    const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    const miniTitles = () => wrapper.getComponent({ name: "MiniCalendar" })
+      .props("events")
+      .map((event) => event.title)
+      .sort();
+
+    expect(miniTitles()).toEqual(["Confirmed poll expiry", "Pending poll expiry"]);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    await flushPromises();
+    expect(miniTitles()).toEqual(["Confirmed poll expiry"]);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    await flushPromises();
+
+    expect(callFlow).toHaveBeenCalledTimes(2);
+    expect(miniTitles()).toEqual([]);
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("events")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: "Pending poll expiry" }),
+      expect.objectContaining({ title: "Confirmed poll expiry" }),
+    ]));
+    expect(wrapper.getComponent({ name: "MainCalendar" }).props("eventsData")
+      .flatMap((section) => section.items)
+      .map((item) => item.title)).toEqual([]);
+
+    wrapper.unmount();
+  });
+
   it("keeps stale dashboard data visible and silently retries after a polling failure", async () => {
     setDocumentVisibilityState("visible");
     const pollFailure = createDeferred();
@@ -761,8 +898,8 @@ describe("DashboardEventsFeature", () => {
       eventId: "event_stable_poll",
       eventTitle: "Stable polling booking",
       eventType: "1on1-call",
-      startIso: isoTodayAt(10),
-      endIso: isoTodayAt(10, 30),
+      startIso: "2026-03-23T08:30:00",
+      endIso: "2026-03-23T09:00:05",
       status: "confirmed",
     };
     callFlow
@@ -787,6 +924,8 @@ describe("DashboardEventsFeature", () => {
       });
 
     const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events"))
+      .toEqual([expect.objectContaining({ title: "Stable polling booking" })]);
     await vi.advanceTimersByTimeAsync(10_000);
     await flushPromises();
 
@@ -794,6 +933,7 @@ describe("DashboardEventsFeature", () => {
     expect(engine.state.events.loading).toBe(false);
     expect(wrapper.getComponent({ name: "MainCalendar" }).props("events"))
       .toEqual([expect.objectContaining({ title: "Stable polling booking" })]);
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events")).toEqual([]);
     expect(wrapper.findAllComponents({ name: "EventsWidget" })).not.toHaveLength(0);
 
     pollFailure.resolve({ ok: false, error: { message: "Temporary poll failure" } });
@@ -812,25 +952,71 @@ describe("DashboardEventsFeature", () => {
   });
 
   it("pauses polling while hidden and refreshes immediately when visible again", async () => {
+    vi.setSystemTime(new Date("2026-03-23T09:59:55"));
     setDocumentVisibilityState("visible");
+    const visibilitySlots = [
+      {
+        bookingId: "booking_pending_visibility",
+        eventId: "event_pending_visibility",
+        eventTitle: "Pending visibility expiry",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T10:00:20",
+        endIso: "2026-03-23T10:30:00",
+        status: "pending",
+      },
+      {
+        bookingId: "booking_confirmed_visibility",
+        eventId: "event_confirmed_visibility",
+        eventTitle: "Confirmed visibility expiry",
+        eventType: "1on1-call",
+        startIso: "2026-03-23T09:30:00",
+        endIso: "2026-03-23T10:00:20",
+        status: "confirmed",
+      },
+    ];
+    callFlow.mockResolvedValue({
+      ok: true,
+      data: {
+        events: [],
+        bookedSlots: visibilitySlots,
+        widgetBookedSlots: visibilitySlots,
+        bookedSlotsIndex: {},
+      },
+    });
     const wrapper = await mountDashboardEventsFeature({ creatorId: 99, userRole: "creator" });
-    expect(callFlow).toHaveBeenCalledTimes(1);
+    const miniTitles = () => wrapper.getComponent({ name: "MiniCalendar" })
+      .props("events")
+      .map((event) => event.title)
+      .sort();
+    const dashboardFetchCount = () => callFlow.mock.calls.filter(
+      ([flowName]) => flowName === "bookings.fetchDashboardBookingContext",
+    ).length;
+    expect(dashboardFetchCount()).toBe(1);
+    expect(miniTitles()).toEqual([
+      "Confirmed visibility expiry",
+      "Pending visibility expiry",
+    ]);
 
     setDocumentVisibilityState("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(callFlow).toHaveBeenCalledTimes(1);
+    expect(dashboardFetchCount()).toBe(1);
+    expect(miniTitles()).toEqual([
+      "Confirmed visibility expiry",
+      "Pending visibility expiry",
+    ]);
 
     setDocumentVisibilityState("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     await flushPromises();
-    expect(callFlow).toHaveBeenCalledTimes(2);
+    expect(dashboardFetchCount()).toBe(2);
+    expect(miniTitles()).toEqual([]);
 
     await vi.advanceTimersByTimeAsync(9_999);
-    expect(callFlow).toHaveBeenCalledTimes(2);
+    expect(dashboardFetchCount()).toBe(2);
     await vi.advanceTimersByTimeAsync(1);
     await flushPromises();
-    expect(callFlow).toHaveBeenCalledTimes(3);
+    expect(dashboardFetchCount()).toBe(3);
 
     wrapper.unmount();
   });
@@ -1742,10 +1928,15 @@ describe("DashboardEventsFeature", () => {
       "2026-08-09",
       "2026-08-16",
     ]));
+    expect(wrapper.getComponent({ name: "MiniCalendar" }).props("events"))
+      .not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ isAvailabilityBlock: true }),
+      ]));
     expect(dashboardFetchCalls.at(-1)?.[1]).toEqual(expect.objectContaining({
       fromIso: "2026-07-25",
       toIso: "2026-09-05",
     }));
+    wrapper.unmount();
   });
 
   it("resets embedded mobile dashboard and calendar scroll through the exposed method", async () => {
@@ -5299,6 +5490,9 @@ describe("DashboardEventsFeature", () => {
       .find((section) => section.isPending)?.items.map((item) => item.title);
     const stickyTitles = () => mainCalendar.props("stickyCardEvents").map((item) => item.title);
     const calendarTitles = () => mainCalendar.props("events").map((event) => event.title);
+    const miniTitles = () => wrapper.getComponent({ name: "MiniCalendar" })
+      .props("events")
+      .map((event) => event.title);
     const calendarMarkerFor = (title) => wrapper
       .findAll("[data-test='dashboard-month-booking-marker']")
       .find((marker) => marker.text().includes(title));
@@ -5309,6 +5503,11 @@ describe("DashboardEventsFeature", () => {
       "Future Pending",
     ]);
     expect(stickyTitles()).toEqual([
+      "Pending At Boundary",
+      "Hold At Boundary",
+      "Future Pending",
+    ]);
+    expect(miniTitles()).toEqual([
       "Pending At Boundary",
       "Hold At Boundary",
       "Future Pending",
@@ -5329,6 +5528,7 @@ describe("DashboardEventsFeature", () => {
 
     expect(actionableTitles()).toEqual(["Future Pending"]);
     expect(stickyTitles()).toEqual(["Future Pending"]);
+    expect(miniTitles()).toEqual(["Future Pending"]);
     expect(wrapper.find("[data-test='dashboard-month-expanded']").text())
       .not.toContain("Expanded Pending Event");
     expect(calendarTitles()).toEqual(expect.arrayContaining([

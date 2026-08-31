@@ -3598,6 +3598,149 @@ describe("MainCalendar all events count", () => {
     expect(overlay.get("[data-test='calendar-month-overlay-bookings']").findAll("[data-test='month-fit-booking']")).toHaveLength(5);
   });
 
+  it("opens the floating month overlay on tablet portrait with past bookings and availability", async () => {
+    setWindowWidth(820);
+    setWindowHeight(1180);
+    const wrapper = await mountCalendar(
+      [
+        makeEvent({
+          id: "past_tablet_booking_one",
+          eventId: "past_tablet_event_1",
+          title: "Past tablet booking one",
+          start: "2026-04-23T07:00:00",
+          end: "2026-04-23T07:30:00",
+          slot: "event",
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "past_tablet_booking_two",
+          eventId: "past_tablet_event_2",
+          title: "Past tablet booking two",
+          start: "2026-04-23T08:00:00",
+          end: "2026-04-23T08:30:00",
+          slot: "event",
+          isAvailabilityBlock: false,
+        }),
+        makeEvent({
+          id: "past_tablet_availability",
+          eventId: "past_tablet_availability",
+          title: "Past tablet availability",
+          start: "2026-04-23T06:00:00",
+          end: "2026-04-23T07:00:00",
+          slot: "availability",
+          isAvailabilityBlock: true,
+        }),
+      ],
+      { initialView: "month" },
+      {
+        slots: {
+          event: `
+            <template #event="{ event }">
+              <div data-test="tablet-overlay-booking" :data-event-id="event.id">{{ event.title }}</div>
+            </template>
+          `,
+          "event-availability": `
+            <template #event-availability="{ event }">
+              <div data-test="tablet-overlay-availability" :data-event-id="event.eventId">{{ event.title }}</div>
+            </template>
+          `,
+        },
+      },
+    );
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+    await wrapper.vm.$nextTick();
+
+    let overlay = wrapper.get("[data-test='calendar-month-date-overlay']");
+    expect(wrapper.find("[data-test='month-expanded-default']").exists()).toBe(false);
+    expect(overlay.findAll("[data-test='tablet-overlay-booking']")).toHaveLength(2);
+    expect(overlay.findAll("[data-test='tablet-overlay-availability']")).toHaveLength(1);
+    expect(overlay.text()).toContain("Past tablet booking one");
+    expect(overlay.text()).toContain("Past tablet booking two");
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(false);
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+    overlay = wrapper.get("[data-test='calendar-month-date-overlay']");
+    expect(overlay.exists()).toBe(true);
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(false);
+  });
+
+  it.each([
+    [677, false],
+    [678, true],
+  ])("uses the floating month overlay at the tablet boundary (%ipx)", async (viewportWidth, expectsOverlay) => {
+    setWindowWidth(viewportWidth);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        id: `month_boundary_${viewportWidth}`,
+        eventId: `month_boundary_${viewportWidth}`,
+        title: `Month boundary ${viewportWidth}`,
+        isAvailabilityBlock: false,
+      }),
+    ], { initialView: "month" });
+
+    await findMonthDayButton(wrapper, 23).trigger("click");
+
+    expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(expectsOverlay);
+    expect(wrapper.find("[data-test='month-expanded-default']").exists()).toBe(!expectsOverlay);
+  });
+
+  it("uses the host tablet width and repositions the open month overlay across rotation", async () => {
+    setWindowWidth(500);
+    setWindowHeight(1000);
+    const wrapper = await mountCalendar([
+      makeEvent({
+        id: "embedded_tablet_booking",
+        eventId: "embedded_tablet_booking",
+        title: "Embedded tablet booking",
+        isAvailabilityBlock: false,
+      }),
+    ], {
+      initialView: "month",
+      responsiveViewportWidth: 820,
+      dayColumnMode: "events",
+    });
+    const monthView = wrapper.get("[data-test='calendar-month-view']").element;
+    const dayButton = findMonthDayButton(wrapper, 23);
+    let cellLeft = 100;
+    Object.defineProperty(monthView, "clientWidth", { configurable: true, value: 700 });
+    Object.defineProperty(monthView, "clientHeight", { configurable: true, value: 500 });
+    monthView.getBoundingClientRect = () => ({ left: 0, top: 0, width: 700, height: 500, right: 700, bottom: 500 });
+    dayButton.element.getBoundingClientRect = () => ({ left: cellLeft, top: 100, width: 100, height: 120, right: cellLeft + 100, bottom: 220 });
+
+    await dayButton.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    let overlay = wrapper.get("[data-test='calendar-month-date-overlay']");
+    expect(stylePixels(overlay, "left")).toBe(100);
+    expect(wrapper.find("[data-test='month-expanded-default']").exists()).toBe(false);
+
+    cellLeft = 300;
+    await wrapper.setProps({ responsiveViewportWidth: 1194 });
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+    overlay = wrapper.get("[data-test='calendar-month-date-overlay']");
+    expect(wrapper.get("[data-test='calendar-month-view']").exists()).toBe(true);
+    expect(stylePixels(overlay, "left")).toBe(300);
+
+    cellLeft = 40;
+    await wrapper.setProps({ responsiveViewportWidth: 820 });
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+    overlay = wrapper.get("[data-test='calendar-month-date-overlay']");
+    expect(wrapper.get("[data-test='calendar-month-view']").exists()).toBe(true);
+    expect(stylePixels(overlay, "left")).toBe(40);
+
+    await wrapper.setProps({ responsiveViewportWidth: 677 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find("[data-test='calendar-month-date-overlay']").exists()).toBe(false);
+  });
+
   it("opens a desktop month date overlay with every booking and availability", async () => {
     setWindowWidth(1280);
     const wrapper = await mountCalendar(
@@ -4062,7 +4205,7 @@ describe("MainCalendar all events count", () => {
     expect(expanded.text()).not.toContain("Mangoes");
   });
 
-  it("selects and expands an unselected responsive Month booking before opening details", async () => {
+  it("selects and expands an unselected tablet Month booking before opening details", async () => {
     setWindowWidth(820);
     const selectedDate = new Date(2026, 3, 23);
     const targetDate = new Date(2026, 3, 24);
@@ -4101,12 +4244,16 @@ describe("MainCalendar all events count", () => {
       .trigger("click");
 
     expect(localDateKey(wrapper.emitted("date-selected")?.at(-1)?.[0])).toBe(localDateKey(targetDate));
-    expect(wrapper.get("[data-test='month-expanded-default']").text()).toContain("Responsive gated booking");
+    expect(wrapper.get("[data-test='calendar-month-date-overlay']").text()).toContain("Responsive gated booking");
+    expect(wrapper.find("[data-test='month-expanded-default']").exists()).toBe(false);
     expect(wrapper.find("[data-test='event-details']").exists()).toBe(false);
 
     await wrapper.setProps({ focusDate: targetDate, selectedDate: targetDate });
     await wrapper.vm.$nextTick();
-    await wrapper.get("[data-test='month-expanded-event']").trigger("click");
+    await wrapper
+      .get("[data-test='calendar-month-date-overlay']")
+      .get("[data-test='responsive-gated-month-booking']")
+      .trigger("click");
 
     expect(wrapper.get("[data-test='event-details']").text()).toContain("Responsive gated booking");
   });

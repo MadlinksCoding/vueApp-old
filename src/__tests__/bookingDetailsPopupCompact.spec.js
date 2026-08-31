@@ -112,6 +112,15 @@ describe('BookingDetailsPopup compact variation', () => {
     wrapper.unmount();
   });
 
+  it.each(['cancelled_system', 'cancelled_by_fan', 'canceled'])('labels the compact %s status as Cancelled', (status) => {
+    const wrapper = mountCompact(booking({ status, meta: {} }));
+
+    expect(wrapper.get('[data-test="booking-details-compact-status"]').text()).toBe('Cancelled');
+    expect(wrapper.find('[data-test="booking-details-compact-pending-icon"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="booking-details-compact-status-dot"]').element.style.backgroundColor).toBe('rgb(240, 68, 56)');
+    wrapper.unmount();
+  });
+
   it('exposes the full creator review actions and keeps their existing payloads', async () => {
     const wrapper = mountCompact(booking());
 
