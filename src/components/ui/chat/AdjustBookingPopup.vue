@@ -8,7 +8,7 @@
       <div class="absolute inset-0 bg-black/40" @click="!submitting && $emit('close')" />
 
       <div
-        class="relative z-10 p-4 gap-6 md:rounded-lg shadow-xl w-full max-w-[460px] bg-white flex flex-col font-['Poppins'] h-screen md:h-auto"
+        class="relative z-10 p-4 gap-6 md:rounded-lg shadow-xl w-full md:max-w-[460px] bg-white flex flex-col font-['Poppins'] h-screen md:h-auto"
       >
         <!-- Header -->
         <div class="flex items-center justify-between">
@@ -18,7 +18,7 @@
             class="text-[#98A2B3] hover:text-gray-700 transition-colors"
             @click="$emit('close')"
           >
-            <img :src="CloseIcon" alt="close" class="w-2.5 h-2.5" />
+            <img :src="CloseIcon" alt="close" class="w-2.5 h-2.5 invert" />
           </button>
         </div>
 
