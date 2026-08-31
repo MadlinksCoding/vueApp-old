@@ -60,11 +60,11 @@
             :counterparty-avatar="creatorAvatar"
             :counterparty-verified="creatorVerified"
             :additional-request-lines="additionalRequestLines"
-            :session-cost="paymentTotal"
+            :session-cost="sessionCost"
             :cancellation-fee="activeCancellationFee"
             :booking-fee="activeBookingFee"
             :pending-price-adjustment="pendingPriceAdjustment"
-            :adjustment="adjustment"
+            :adjustment="sessionCostAdjustment"
             :reminder-text="reminderText"
             :can-open-chat="canOpenChat"
             :chat-payload="chatPayload"
@@ -551,11 +551,11 @@
             :can-open-chat="canOpenChat"
             :chat-payload="chatPayload"
             :additional-request-lines="additionalRequestLines"
-            :session-cost="paymentTotal"
+            :session-cost="sessionCost"
             :cancellation-fee="activeCancellationFee"
             :booking-fee="activeBookingFee"
             :pending-price-adjustment="pendingPriceAdjustment"
-            :adjustment="adjustment"
+            :adjustment="sessionCostAdjustment"
             :reminder-text="reminderText"
             @open-chat="handleOpenChat"
           />
@@ -939,6 +939,28 @@ const activeCancellationFee = computed(() => finiteNumber(paymentAllocations.val
 const activeBookingFee = computed(() => finiteNumber(paymentAllocations.value.bookingFee)
   ?? finiteNumber(raw.value?.bookingFeeTokens)
   ?? finiteNumber(mergedEvent.value?.bookingFeeTokens));
+function displayedFeeAmount(value) {
+  const amount = finiteNumber(value);
+  return amount != null && amount > 0 ? amount : 0;
+}
+function sessionAmountFromGross(value) {
+  const gross = finiteNumber(value);
+  if (gross == null) return null;
+  return Math.max(0, gross
+    - displayedFeeAmount(activeCancellationFee.value)
+    - displayedFeeAmount(activeBookingFee.value));
+}
+const sessionCost = computed(() => {
+  const allocatedService = finiteNumber(paymentAllocations.value.service);
+  return allocatedService == null
+    ? sessionAmountFromGross(paymentTotal.value)
+    : Math.max(0, allocatedService);
+});
+const sessionCostAdjustment = computed(() => ({
+  ...adjustment.value,
+  originalTokens: sessionAmountFromGross(adjustment.value.originalTokens),
+  proposedTokens: sessionAmountFromGross(adjustment.value.proposedTokens),
+}));
 const rejectEventTitle = computed(() => firstText(raw.value?.eventTitle, mergedEvent.value?.title, props.event?.title) || t('calendar_event_untitled_booking'));
 const rejectRefundTokens = computed(() => finiteNumber(paymentTotal.value) ?? 0);
 const reminderText = computed(() => { const minutes = finiteNumber(raw.value?.reminderMinutes ?? mergedEvent.value?.callReminderMinutesBefore ?? mergedEvent.value?.remindBeforeMinutes); return minutes && minutes > 0 ? t('calendar_event_minutes_before', { count: minutes }) : t('calendar_event_reminder_not_set'); });
