@@ -72,39 +72,25 @@
         <div data-svg-wrapper class="relative size-6 shrink-0 overflow-hidden">
           <img :src="CompactCostIcon" alt="" class="size-6" />
         </div>
-        <div class="min-w-0 flex-1 flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
-          <div class="text-gray-900 text-sm font-semibold leading-5">{{ t('fan_event_details_session_cost') }}</div>
-          <div v-if="pendingPriceAdjustment" class="inline-flex flex-wrap items-center gap-2" data-test="event-details-fan-session-cost-adjusted">
-            <div class="flex items-center gap-1 grayscale">
-              <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-original-icon" />
-              <span class="text-gray-500 text-sm font-medium line-through leading-5" data-test="event-details-fan-session-cost-original">{{ formatTokens(adjustment.originalTokens) }}</span>
-            </div>
-            <img :src="PriceArrowIcon" alt="" class="size-6" data-test="event-details-fan-session-cost-arrow" />
-            <div class="flex items-center gap-1">
-              <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-proposed-icon" />
-              <span class="text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-proposed">{{ formatTokens(adjustment.proposedTokens) }}</span>
-            </div>
-          </div>
-          <div v-else-if="hasAmount(sessionCost)" class="inline-flex items-center gap-1" data-test="event-details-fan-session-cost-standard">
-            <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-icon" />
-            <span class="text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-value">{{ formatTokens(sessionCost) }}</span>
-          </div>
-          <div v-else class="text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
-        </div>
-      </div>
-
-      <div
-        v-if="hasAmount(sessionDeposit) || positiveAmount(cancellationFee) || positiveAmount(bookingFee)"
-        class="self-stretch inline-flex items-start gap-4"
-        data-test="booking-details-compact-allocations"
-      >
-        <div data-svg-wrapper class="relative size-6 shrink-0 overflow-hidden">
-          <img :src="CompactCostIcon" alt="" class="size-6" />
-        </div>
         <div class="min-w-0 flex-1 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
-          <div v-if="hasAmount(sessionDeposit)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-session-deposit">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_details_session_deposit') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="size-5" />{{ formatTokens(sessionDeposit) }}</span>
+          <div class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
+            <div class="text-gray-900 text-sm font-semibold leading-5">{{ t('fan_event_details_session_cost') }}</div>
+            <div v-if="pendingPriceAdjustment" class="inline-flex flex-wrap items-center gap-2" data-test="event-details-fan-session-cost-adjusted">
+              <div class="flex items-center gap-1 grayscale">
+                <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-original-icon" />
+                <span class="text-gray-500 text-sm font-medium line-through leading-5" data-test="event-details-fan-session-cost-original">{{ formatTokens(adjustment.originalTokens) }}</span>
+              </div>
+              <img :src="PriceArrowIcon" alt="" class="size-6" data-test="event-details-fan-session-cost-arrow" />
+              <div class="flex items-center gap-1">
+                <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-proposed-icon" />
+                <span class="text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-proposed">{{ formatTokens(adjustment.proposedTokens) }}</span>
+              </div>
+            </div>
+            <div v-else-if="hasAmount(sessionCost)" class="inline-flex items-center gap-1" data-test="event-details-fan-session-cost-standard">
+              <img :src="TokenIcon" alt="" class="size-5" data-test="event-details-fan-session-cost-icon" />
+              <span class="text-gray-900 text-sm font-semibold leading-5" data-test="event-details-fan-session-cost-value">{{ formatTokens(sessionCost) }}</span>
+            </div>
+            <div v-else class="text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
           </div>
           <div v-if="positiveAmount(cancellationFee)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-active-cancellation-fee">
             <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
@@ -193,7 +179,6 @@ const props = defineProps({
   chatPayload: { type: Object, default: () => ({}) },
   additionalRequestLines: { type: Array, default: () => [] },
   sessionCost: { type: [Number, String], default: null },
-  sessionDeposit: { type: [Number, String], default: null },
   cancellationFee: { type: [Number, String], default: null },
   bookingFee: { type: [Number, String], default: null },
   pendingPriceAdjustment: { type: Boolean, default: false },
