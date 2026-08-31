@@ -812,6 +812,7 @@
       compact-review-mode="accept-only"
       presentation="responsive-dialog"
       @approve-booking="approveWidgetCompactBooking"
+      @open-chat="handleWidgetCompactOpenChat"
       @close="handleWidgetCompactClose"
       @closed="handleWidgetCompactClosed"
     />
@@ -2877,6 +2878,23 @@ const approveWidgetCompactBooking = async (payload) => {
 const handleWidgetCompactClose = () => {
   if (reviewPendingLoading.value) return;
   widgetCompactOpen.value = false;
+};
+
+const handleWidgetCompactOpenChat = (payload) => {
+  if (window.self !== window.top) {
+    try {
+      const parentChat = window.parent?.chatEmbed;
+      if (typeof parentChat?.openChat === 'function') {
+        parentChat.openChat({ ...payload });
+      } else {
+        console.warn('chatEmbed is not available in embed mode');
+      }
+    } catch (_error) {
+      console.warn('chatEmbed is not reachable from a cross-origin host');
+    }
+  } else {
+    console.log('Open chat requested in normal mode:', payload);
+  }
 };
 
 const handleWidgetCompactClosed = () => {

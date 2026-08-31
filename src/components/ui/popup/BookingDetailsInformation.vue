@@ -34,7 +34,7 @@
           </div>
         </div>
         <button
-          v-if="canOpenChat && !compact"
+          v-if="canOpenChat"
           type="button"
           data-color="dark"
           data-leading-icon="true"

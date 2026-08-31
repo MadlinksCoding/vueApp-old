@@ -2795,7 +2795,7 @@ const handleOpenChat = (payload) => {
       // Reading `window.parent` throws on a cross-origin host.
       const parentChat = window.parent?.chatEmbed;
       if (typeof parentChat?.openChat === 'function') {
-        parentChat.openChat(payload);
+        parentChat.openChat({ ...payload });
       } else {
         console.warn('chatEmbed is not available in embed mode');
       }

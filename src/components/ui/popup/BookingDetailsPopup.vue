@@ -67,6 +67,9 @@
             :pending-price-adjustment="pendingPriceAdjustment"
             :adjustment="adjustment"
             :reminder-text="reminderText"
+            :can-open-chat="canOpenChat"
+            :chat-payload="chatPayload"
+            @open-chat="handleOpenChat"
           />
 
           <button
