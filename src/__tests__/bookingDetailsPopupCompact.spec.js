@@ -80,7 +80,7 @@ describe('BookingDetailsPopup compact variation', () => {
     expect(wrapper.get('[data-test="booking-details-compact-schedule"]').text()).toContain('2027');
     expect(wrapper.get('[data-test="booking-details-information"]').text()).toContain('grapegatsby');
     expect(wrapper.get('[data-test="booking-details-compact-requests"]').text()).toContain('Record live call');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,335');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-value"]').text()).toBe('1,200');
     const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
     const sessionCost = wrapper.get('[data-test="booking-details-session-cost-tile"]');
     const cancellationFee = wrapper.get('[data-test="booking-details-active-cancellation-fee"]');
@@ -100,8 +100,11 @@ describe('BookingDetailsPopup compact variation', () => {
   it.each([
     ['zero session cost without fees', { total: 0 }, '0', false, false],
     ['missing session cost without fees', {}, 'Not set', false, false],
-    ['cancellation fee only', { total: 12, allocations: { cancellationFee: 2 } }, '12', true, false],
-    ['booking fee only', { total: 11, allocations: { bookingFee: 1 } }, '11', false, true],
+    ['cancellation fee only', { total: 12, allocations: { cancellationFee: 2 } }, '10', true, false],
+    ['booking fee only', { total: 11, allocations: { bookingFee: 1 } }, '10', false, true],
+    ['both fees', { total: 10, allocations: { cancellationFee: 2, bookingFee: 1 } }, '7', true, true],
+    ['fees above the total', { total: 2, allocations: { cancellationFee: 2, bookingFee: 1 } }, '0', true, true],
+    ['missing cost with a fee', { allocations: { bookingFee: 1 } }, 'Not set', false, true],
   ])('keeps the unified wrapping cost row for %s', (_label, payment, expectedCost, showsCancellationFee, showsBookingFee) => {
     const wrapper = mountCompact(booking({ status: 'confirmed', payment, meta: {} }));
 
@@ -123,15 +126,15 @@ describe('BookingDetailsPopup compact variation', () => {
         negotiation: {
           type: 'adjust',
           status: 'sent',
-          original: { totalTokens: 1200 },
-          proposed: { totalTokens: 1335 },
+          original: { totalTokens: 1335 },
+          proposed: { totalTokens: 1500 },
         },
       },
     }));
 
     const costTiles = wrapper.get('[data-test="booking-details-cost-tiles"]');
     expect(wrapper.get('[data-test="event-details-fan-session-cost-original"]').text()).toBe('1,200');
-    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('1,335');
+    expect(wrapper.get('[data-test="event-details-fan-session-cost-proposed"]').text()).toBe('1,365');
     expect(wrapper.get('[data-test="booking-details-active-cancellation-fee"]').element.parentElement).toBe(costTiles.element);
     expect(wrapper.get('[data-test="booking-details-active-booking-fee"]').element.parentElement).toBe(costTiles.element);
 
