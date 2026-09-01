@@ -697,7 +697,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-row justify-between items-center text-white">
                   <div class="flex items-center">
-                    <p class="text-sm font-normal text-white">{{ t("fan_booking_session_total_label") }}</p>
+                    <p class="text-sm font-normal text-white">{{ t("fan_booking_token_used") }}</p>
                   </div>
                   <div class="flex justify-center items-center gap-1">
                     <span class="text-sm font-medium text-white">-</span>

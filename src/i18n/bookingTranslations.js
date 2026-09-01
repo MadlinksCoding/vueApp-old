@@ -660,6 +660,7 @@ export const bookingMessages = {
   fan_booking_event_policy: "Event Policy",
   fan_booking_back: "Back",
   fan_booking_your_contribution: "Your contribution",
+  fan_booking_token_used: "Token USED",
   fan_booking_available_balance_after_booking: "Available Balance after booking",
   fan_booking_policy_agreement: "Completing this booking means you agree to the event’s booking policy.",
   fan_booking_attendance_policy_acknowledgment: "I understand and agree the following policy:",
