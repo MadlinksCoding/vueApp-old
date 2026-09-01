@@ -19,7 +19,7 @@ export default {
       screens: {
         sm: "480px",
         md: "678px",
-        lg: "1010px",
+        lg: "960px",
         xl: "1365px",
         'lg-small': '934px',
         'ipad-portrait': {
