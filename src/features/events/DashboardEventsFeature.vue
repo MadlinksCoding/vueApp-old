@@ -46,7 +46,7 @@
         :highlight-today-column="true"
         day-column-mode="events"
         :fit-day-event-columns="true"
-        :tablet-week-event-lane-min-width-px="96"
+        min-week-event-column-width="5.625rem"
         :responsive-viewport-width="responsiveViewportWidth"
         :show-current-time-across-dates="true"
         time-start="00:00"
