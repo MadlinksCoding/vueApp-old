@@ -176,12 +176,12 @@
 }
 
 .fs-fan-booking-popup__modal {
-  --fs-fan-booking-popup-width: min(1024px, calc(100vw - 32px));
+  --fs-fan-booking-popup-width: min(960px, calc(100vw - 32px));
   --fs-fan-booking-popup-height: min(760px, calc(100vh - 32px));
   position: relative;
   width: var(--fs-fan-booking-popup-width);
   height: var(--fs-fan-booking-popup-height);
-  max-width: 1024px;
+  max-width: 960px;
   max-height: 760px;
   border-radius: 20px;
   overflow: hidden;
