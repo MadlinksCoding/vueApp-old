@@ -74,7 +74,7 @@ vi.mock("@/utils/bookingJoinUtils.js", async (importOriginal) => ({
 vi.mock("@/components/calendar/MainCalendar.vue", () => ({
   default: {
     name: "MainCalendar",
-    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
+    props: ["focusDate", "selectedDate", "initialView", "events", "eventsData", "bookedSlotsCount", "bookingScheduleEvents", "bookingScheduleBookedSlotsIndex", "showBookingScheduleList", "theme", "dayColumnMode", "fitDayEventColumns", "minWeekEventColumnWidth", "tabletWeekEventLaneMinWidthPx", "responsiveViewportWidth", "showCurrentTimeAcrossDates", "joinComparisonTime", "minEventHeightPx", "stickyCardEvents", "stickyCardEvent"],
     emits: ["date-selected", "update:focus-date", "view-changed", "create-event", "month-event-click", "join-call", "approve-booking", "reject-booking", "accept-adjustment", "decline-adjustment", "accept-counter", "reject-counter", "cancel-booking", "widget-accept-details", "edit-schedule-event", "delete-schedule-event", "view-schedule-card"],
     data() {
       return {
@@ -684,7 +684,8 @@ describe("DashboardEventsFeature", () => {
     const mainCalendar = wrapper.getComponent({ name: "MainCalendar" });
     expect(mainCalendar.props("showCurrentTimeAcrossDates")).toBe(true);
     expect(mainCalendar.props("minEventHeightPx")).toBe(40);
-    expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBe(96);
+    expect(mainCalendar.props("minWeekEventColumnWidth")).toBe("5.625rem");
+    expect(mainCalendar.props("tabletWeekEventLaneMinWidthPx")).toBeUndefined();
     const miniCalendar = wrapper.getComponent({ name: "MiniCalendar" });
     expect(miniCalendar.props("allowPastDates")).toBe(true);
     expect(miniCalendar.props("eventDotMode")).toBe("booking-status");
