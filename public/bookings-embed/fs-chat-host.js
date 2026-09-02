@@ -387,7 +387,7 @@
       }
       chatContainer.style.visibility = '';
       chatContainer.style.opacity = '1';
-      chatContainer.style.zIndex = '9998';
+      chatContainer.style.zIndex = '999999';
     });
 
     // Close chat list on mobile when clicking outside
@@ -518,7 +518,7 @@
           } else {
             chatContainer.style.visibility = '';
             chatContainer.style.opacity = '1';
-            chatContainer.style.zIndex = '9998';
+            chatContainer.style.zIndex = '999999';
             extBtn.classList.add("is-open");
           }
         }
