@@ -13,6 +13,9 @@ export function getChatApiBaseUrl(context) {
   if (context?.baseUrl) {
     return context.baseUrl;
   }
+  if (typeof window !== "undefined" && window.__fsChatApiBaseUrl) {
+    return window.__fsChatApiBaseUrl;
+  }
   return getFallbackBaseUrl();
 }
 
