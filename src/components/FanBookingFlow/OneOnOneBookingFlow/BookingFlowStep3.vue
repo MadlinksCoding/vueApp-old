@@ -2275,7 +2275,7 @@ const handleButtonClick = async () => {
     return;
   }
 
-  if (!isGroupEvent.value && !hasAcceptedAttendancePolicy.value) {
+  if (!isGroupEvent.value) {
     isAttendancePolicyPopupOpen.value = true;
     return;
   }
