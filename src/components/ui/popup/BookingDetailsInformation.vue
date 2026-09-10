@@ -72,7 +72,7 @@
         <div data-svg-wrapper class="relative size-6 shrink-0 overflow-hidden">
           <img :src="CompactCostIcon" alt="" class="size-6" />
         </div>
-        <div class="min-w-0 flex-1 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
+        <div class="min-w-0 flex-1 flex flex-col items-start gap-4" data-test="booking-details-cost-tiles">
           <div class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
             <div class="text-gray-900 text-sm font-semibold leading-5">{{ t('fan_event_details_session_cost') }}</div>
             <div v-if="pendingPriceAdjustment" class="inline-flex flex-wrap items-center gap-2" data-test="event-details-fan-session-cost-adjusted">
@@ -92,13 +92,15 @@
             </div>
             <div v-else class="text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
           </div>
-          <div v-if="positiveAmount(cancellationFee)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-active-cancellation-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="size-5" />{{ formatTokens(cancellationFee) }}</span>
-          </div>
-          <div v-if="positiveAmount(bookingFee)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-active-booking-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="size-5" />{{ formatTokens(bookingFee) }}</span>
+          <div v-if="positiveAmount(bookingFee) || positiveAmount(cancellationFee)" class="self-stretch flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-fee-tiles">
+            <div v-if="positiveAmount(bookingFee)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-active-booking-fee">
+              <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
+              <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="size-5" />{{ formatTokens(bookingFee) }}</span>
+            </div>
+            <div v-if="positiveAmount(cancellationFee)" class="min-w-[7rem] flex flex-col items-start gap-2" data-test="booking-details-active-cancellation-fee">
+              <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
+              <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="size-5" />{{ formatTokens(cancellationFee) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -107,7 +109,7 @@
     <template v-else>
       <div class="self-stretch inline-flex justify-start items-start gap-4">
         <div data-svg-wrapper class="relative"><img :src="CostIcon" alt="" /></div>
-        <div class="flex-1 min-w-0 flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-cost-tiles">
+        <div class="flex-1 min-w-0 flex flex-col items-start gap-4" data-test="booking-details-cost-tiles">
           <div class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-session-cost-tile">
             <div class="justify-center text-gray-900 text-sm font-semibold leading-5">{{ t('fan_event_details_session_cost') }}</div>
             <div v-if="pendingPriceAdjustment" class="inline-flex justify-start items-center gap-2" data-test="event-details-fan-session-cost-adjusted">
@@ -127,13 +129,15 @@
             </div>
             <div v-else class="text-gray-900 text-sm font-normal leading-5" data-test="event-details-fan-session-cost-missing">{{ t('calendar_event_not_set') }}</div>
           </div>
-          <div v-if="positiveAmount(cancellationFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-cancellation-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(cancellationFee) }}</span>
-          </div>
-          <div v-if="positiveAmount(bookingFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-booking-fee">
-            <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
-            <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(bookingFee) }}</span>
+          <div v-if="positiveAmount(bookingFee) || positiveAmount(cancellationFee)" class="self-stretch flex flex-row flex-wrap items-start gap-x-8 gap-y-4" data-test="booking-details-fee-tiles">
+            <div v-if="positiveAmount(bookingFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-booking-fee">
+              <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_booking_fee') }}</span>
+              <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(bookingFee) }}</span>
+            </div>
+            <div v-if="positiveAmount(cancellationFee)" class="min-w-[8rem] flex flex-col items-start gap-2" data-test="booking-details-cancellation-fee">
+              <span class="text-gray-900 text-sm font-semibold leading-5">{{ t('booking_adjustment_cancellation_fee') }}</span>
+              <span class="inline-flex items-center gap-1 text-gray-900 text-sm font-semibold leading-5"><img :src="TokenIcon" alt="" class="h-6 w-6" />{{ formatTokens(cancellationFee) }}</span>
+            </div>
           </div>
         </div>
       </div>
