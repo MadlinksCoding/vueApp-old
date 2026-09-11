@@ -2822,7 +2822,7 @@
                     data-booking-validation-input-field="sessionMinimum"
                     :disabled="!formData.enableLongerDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="h-10 inline-flex flex-col justify-between items-start">
+                  <div class="h-10 inline-flex flex-col justify-center items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       {{ t("booking_sessions_minimum") }}
                     </div>
@@ -2836,7 +2836,7 @@
                     data-booking-validation-input-field="longerSessionDiscountTokens"
                     :disabled="!formData.enableLongerDiscount"
                     inputClass="bg-white/50 w-44 px-3 py-2 rounded-tl-sm rounded-tr-sm outline-none border-b border-gray-300 disabled:cursor-not-allowed" />
-                  <div class="h-10 inline-flex flex-col justify-between items-start">
+                  <div class="h-10 inline-flex flex-col justify-center items-start">
                     <div class="justify-center text-black text-base font-medium font-['Poppins'] leading-normal">
                       {{ t("booking_tokens_off_session_price") }}
                     </div>
